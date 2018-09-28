@@ -23,8 +23,8 @@ struct SMFXDecalParams
 	float  minscale;
 	float  maxscale;
 	float  rotation;
-	float  lifetime;
-	float  growTime;
+	CTimeValue  lifetime;
+	CTimeValue  growTime;
 	bool   assemble;
 	bool   forceedge;
 
@@ -32,8 +32,8 @@ struct SMFXDecalParams
 		: minscale(0.0f)
 		, maxscale(0.0f)
 		, rotation(0.0f)
-		, lifetime(0.0f)
-		, growTime(0.0f)
+		, lifetime(0)
+		, growTime(0)
 		, assemble(false)
 		, forceedge(false)
 	{}

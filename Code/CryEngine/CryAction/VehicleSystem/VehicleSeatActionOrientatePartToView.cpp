@@ -62,7 +62,7 @@ void CVehicleSeatActionOrientatePartToView::StopUsing()
 	m_pVehicle->SetObjectUpdate(this, IVehicle::eVOU_NoUpdate);
 }
 
-void CVehicleSeatActionOrientatePartToView::Update(const float deltaTime)
+void CVehicleSeatActionOrientatePartToView::Update(const CTimeValue& deltaTime)
 {
 	const Vec3 viewDirection = GetViewDirection();
 

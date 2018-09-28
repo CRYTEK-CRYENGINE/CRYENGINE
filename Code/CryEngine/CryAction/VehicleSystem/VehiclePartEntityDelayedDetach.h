@@ -25,11 +25,11 @@ public:
 	CVehiclePartEntityDelayedDetach();
 	virtual ~CVehiclePartEntityDelayedDetach();
 
-	virtual void Update(const float frameTime) override;
+	virtual void Update(const CTimeValue& frameTime) override;
 	virtual void OnVehicleEvent(EVehicleEvent event, const SVehicleEventParams& params) override;
 
 private:
-	float m_detachTimer;
+	CTimeValue m_detachTimer;
 };
 
 #endif //__VEHICLEPARTENTITYDELAYEDDETACH_H__

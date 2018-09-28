@@ -85,7 +85,7 @@ void CVehicleSeatActionPassengerIK::StopUsing()
 }
 
 //------------------------------------------------------------------------
-void CVehicleSeatActionPassengerIK::Update(float frameTime)
+void CVehicleSeatActionPassengerIK::Update(const CTimeValue& frameTime)
 {
 	if (!m_passengerId)
 		return;
@@ -106,8 +106,8 @@ void CVehicleSeatActionPassengerIK::Update(float frameTime)
 		{
 			const CAnimation& anim = pSkeletonAnim->GetAnimFromFIFO(0, 0);
 			const uint16 loopCount = anim.GetLoop();
-			const f32 animationTime = pSkeletonAnim->GetAnimationNormalizedTime(&anim);
-			if (!m_waitShortlyBeforeStarting || (loopCount > 0 || animationTime > 0.9f))
+			const nTime animationTime = pSkeletonAnim->GetAnimationNormalizedTime(&anim);
+			if (!m_waitShortlyBeforeStarting || (loopCount > 0 || animationTime > "0.9"))
 			{
 				for (TIKLimbVector::iterator ite = m_ikLimbs.begin(); ite != m_ikLimbs.end(); ++ite)
 				{

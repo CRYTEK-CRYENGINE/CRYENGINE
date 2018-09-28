@@ -20,7 +20,7 @@ QuatT CAnimatedCharacter::CalculateDesiredLocation() const
 	//	return QuatT(IDENTITY);
 	//}
 
-	if (m_curFrameTime <= 0.0f)
+	if (m_curFrameTime <= 0)
 	{
 		return QuatT(IDENTITY);
 	}
@@ -92,9 +92,9 @@ void CAnimatedCharacter::CalculateParamsForCurrentMotions()
 		if (pSkeletonAnim == NULL)
 			return;
 
-		SetDesiredLocalLocation(pSkeletonAnim, m_desiredLocalLocation, (float)m_curFrameTime);
+		SetDesiredLocalLocation(pSkeletonAnim, m_desiredLocalLocation, m_curFrameTime);
 		if (m_pShadowSkeletonAnim)
-			SetDesiredLocalLocation(m_pShadowSkeletonAnim, m_desiredLocalLocation, (float)m_curFrameTime);
+			SetDesiredLocalLocation(m_pShadowSkeletonAnim, m_desiredLocalLocation, m_curFrameTime);
 
 #ifdef _DEBUG
 		DebugGraphQT(m_desiredLocalLocation, "eDH_DesiredLocalLocationTX", "eDH_DesiredLocalLocationTY", "eDH_DesiredLocalLocationRZ");
@@ -107,7 +107,7 @@ void CAnimatedCharacter::CalculateParamsForCurrentMotions()
 
 #define MAX_EXEC_QUEUE (0x8u);
 
-void CAnimatedCharacter::SetDesiredLocalLocation(ISkeletonAnim* pSkeletonAnim, const QuatT& desiredLocalLocation, float fDeltaTime)
+void CAnimatedCharacter::SetDesiredLocalLocation(ISkeletonAnim* pSkeletonAnim, const QuatT& desiredLocalLocation, const CTimeValue& fDeltaTime)
 {
 	CRY_ASSERT(desiredLocalLocation.IsValid());
 
@@ -141,7 +141,7 @@ void CAnimatedCharacter::SetDesiredLocalLocation(ISkeletonAnim* pSkeletonAnim, c
 	const Vec3 dir = desiredLocalLocation.GetColumn1();
 	float turnAngle = atan2f(-dir.x, dir.y);
 
-	float turnSpeed = turnAngle / fDeltaTime;
+	float turnSpeed = turnAngle / fDeltaTime.BADGetSeconds();
 
 	const Vec2 deltaVector(desiredLocalLocation.t.x, desiredLocalLocation.t.y);
 	const float travelDist = deltaVector.GetLength();
@@ -152,12 +152,12 @@ void CAnimatedCharacter::SetDesiredLocalLocation(ISkeletonAnim* pSkeletonAnim, c
 	float travelSpeed;
 	if (gEnv->bMultiplayer)
 	{
-		travelSpeed = travelDist / fDeltaTime;
+		travelSpeed = travelDist / fDeltaTime.BADGetSeconds();
 	}
 	else
 	{
 		const float cosGroundSlope = fabsf(cosf(m_fGroundSlopeMoveDirSmooth));
-		travelSpeed = (cosGroundSlope > FLT_EPSILON) ? (travelDist / (fDeltaTime * cosGroundSlope)) : (travelDist / fDeltaTime);
+		travelSpeed = (cosGroundSlope > FLT_EPSILON) ? (travelDist / (fDeltaTime.BADGetSeconds() * cosGroundSlope)) : (travelDist / fDeltaTime.BADGetSeconds());
 	}
 
 	// TravelAngle smoothing
@@ -165,7 +165,7 @@ void CAnimatedCharacter::SetDesiredLocalLocation(ISkeletonAnim* pSkeletonAnim, c
 		const Vec2 newStrafe = Vec2(-sin_tpl(travelAngle), cos_tpl(travelAngle));
 		if (CAnimationGraphCVars::Get().m_enableTurnAngleSmoothing)
 		{
-			SmoothCD(m_fDesiredStrafeSmoothQTX, m_fDesiredStrafeSmoothRateQTX, fDeltaTime, newStrafe, 0.10f);
+			SmoothCD(m_fDesiredStrafeSmoothQTX, m_fDesiredStrafeSmoothRateQTX, fDeltaTime, newStrafe, "0.1");
 		}
 		else
 		{
@@ -188,7 +188,7 @@ void CAnimatedCharacter::SetDesiredLocalLocation(ISkeletonAnim* pSkeletonAnim, c
 	{
 		if (CAnimationGraphCVars::Get().m_enableTurnSpeedSmoothing)
 		{
-			SmoothCD(m_fDesiredTurnSpeedSmoothQTX, m_fDesiredTurnSpeedSmoothRateQTX, fDeltaTime, turnSpeed, 0.40f);
+			SmoothCD(m_fDesiredTurnSpeedSmoothQTX, m_fDesiredTurnSpeedSmoothRateQTX, fDeltaTime, turnSpeed, "0.4");
 		}
 		else
 		{
@@ -201,7 +201,7 @@ void CAnimatedCharacter::SetDesiredLocalLocation(ISkeletonAnim* pSkeletonAnim, c
 	{
 		if (CAnimationGraphCVars::Get().m_enableTravelSpeedSmoothing)
 		{
-			SmoothCD(m_fDesiredMoveSpeedSmoothQTX, m_fDesiredMoveSpeedSmoothRateQTX, fDeltaTime, travelSpeed, 0.04f);
+			SmoothCD(m_fDesiredMoveSpeedSmoothQTX, m_fDesiredMoveSpeedSmoothRateQTX, fDeltaTime, travelSpeed, "0.04");
 		}
 		else
 		{
@@ -228,7 +228,7 @@ void CAnimatedCharacter::SetMotionParam(ISkeletonAnim* const pSkeletonAnim, cons
 	m_moveRequest.prediction.GetParam(motionParamID, overriddenValue);
 
 	// Set desired parameter (note: the last parameter is not used anymore so put to 0.0f)
-	pSkeletonAnim->SetDesiredMotionParam(motionParamID, overriddenValue, 0.0f);
+	pSkeletonAnim->SetDesiredMotionParam(motionParamID, overriddenValue, 0);
 }
 
 void CAnimatedCharacter::SetBlendWeightParam(const EMotionParamID motionParamID, const float value, const uint8 targetFlags /* = eBWPT_All*/)
@@ -246,7 +246,7 @@ void CAnimatedCharacter::SetBlendWeightParam(const EMotionParamID motionParamID,
 			{
 				if (ISkeletonAnim* pSkeletonAnim = pCharacterInstance->GetISkeletonAnim())
 				{
-					pSkeletonAnim->SetDesiredMotionParam(motionParamID, value, 0.0f);
+					pSkeletonAnim->SetDesiredMotionParam(motionParamID, value, 0);
 				}
 			}
 		}
@@ -259,7 +259,7 @@ void CAnimatedCharacter::SetBlendWeightParam(const EMotionParamID motionParamID,
 				{
 					if (ISkeletonAnim* pShadowSkeletonAnim = pShadowCharacter->GetISkeletonAnim())
 					{
-						pShadowSkeletonAnim->SetDesiredMotionParam(motionParamID, value, 0.0f);
+						pShadowSkeletonAnim->SetDesiredMotionParam(motionParamID, value, 0);
 					}
 				}
 			}

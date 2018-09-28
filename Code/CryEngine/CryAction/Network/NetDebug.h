@@ -29,7 +29,6 @@ public:
 private:
 	static const int MAX_ASPECTS = 6;
 	static const int MAX_TTL = 600;
-	static const int UPDATE_DIFF_MSEC = 1000;
 
 	struct DebugAspectsEntity
 	{
@@ -70,7 +69,7 @@ private:
 	typedef std::map<string, DebugRMIEntity> TDebugRMI;
 
 private:
-	float         m_fLastTime;
+	CTimeValue    m_fLastTime;
 	TDebugAspects m_aspects;
 	TDebugRMI     m_rmi;
 	int           m_varDebugRMI;
@@ -80,7 +79,7 @@ private:
 
 private:
 	void        UpdateAspectsDebugEntity(const DebugAspectsContext& ctx, DebugAspectsEntity& ent, uint8 aspects);
-	void        UpdateAspectsRates(float fDiffTimeMsec);
+	void        UpdateAspectsRates(const CTimeValue& fDiffTimeMsec);
 	void        DrawAspects();
 	const char* IdxToAspectString(int idx);
 	int         AspectToIdx(EEntityAspects aspect);
@@ -88,7 +87,7 @@ private:
 	void        ProcessTrap(DebugAspectsEntity& ent);
 
 private:
-	void UpdateRMI(float fDiffTimeMSec);
+	void UpdateRMI(const CTimeValue& fDiffTimeMSec);
 	void DrawRMI();
 };
 

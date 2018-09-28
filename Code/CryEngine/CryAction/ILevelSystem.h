@@ -202,7 +202,7 @@ struct ILevelSystem :
 	virtual ILevelRotation*   CreateNewRotation(const ILevelRotation::TExtInfoId id) = 0;
 
 	// Retrieve`s last level level loading time.
-	virtual float GetLastLevelLoadTime() = 0;
+	virtual const CTimeValue& GetLastLevelLoadTime() = 0;
 };
 
 #endif //__ILEVELSYSTEM_H__

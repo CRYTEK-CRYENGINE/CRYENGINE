@@ -23,7 +23,7 @@ class CFlowVehicleHonk
 	: public CFlowVehicleBase
 {
 public:
-	CFlowVehicleHonk(SActivationInfo* pActivationInfo) : m_timeout(0.0f)
+	CFlowVehicleHonk(SActivationInfo* pActivationInfo) : m_timeout(0)
 	{
 		Init(pActivationInfo);
 	}
@@ -85,7 +85,7 @@ public:
 		if (CVehicleSeat* pSeat = GetDriverSeat())
 			pSeat->OnAction(eVAI_Horn, eAAM_OnRelease, 1);
 		pActivationInfo->pGraph->SetRegularlyUpdated(pActivationInfo->myID, true);
-		m_timeout = 0.0f;
+		m_timeout.SetSeconds(0);
 	}
 
 	//------------------------------------------------------------------------
@@ -98,18 +98,18 @@ public:
 			if (CVehicleSeat* pVehicleSeat = GetDriverSeat())
 			{
 				pVehicleSeat->OnAction(eVAI_Horn, eAAM_OnPress, 1);
-				m_timeout = GetPortFloat(pActivationInfo, eIn_Duration);
-				if (m_timeout <= 0.0f)
-					m_timeout = 0.1f;
+				m_timeout = GetPortTime(pActivationInfo, eIn_Duration);
+				if (m_timeout <= 0)
+					m_timeout.SetSeconds("0.1");
 				pActivationInfo->pGraph->SetRegularlyUpdated(pActivationInfo->myID, true);
 			}
 		}
 		if (flowEvent == eFE_Update)
 		{
-			if (m_timeout > 0.0f)
+			if (m_timeout > 0)
 			{
-				m_timeout -= gEnv->pTimer->GetFrameTime();
-				if (m_timeout <= 0.0f)
+				m_timeout -= GetGTimer()->GetFrameTime();
+				if (m_timeout <= 0)
 					StopAudio(pActivationInfo);
 			}
 			else
@@ -123,9 +123,9 @@ public:
 		CFlowVehicleBase::OnVehicleEvent(event, params);
 		if (event == eVE_Destroyed)
 		{
-			if (m_timeout > 0.0f)
+			if (m_timeout > 0)
 			{
-				m_timeout = 0.0f;
+				m_timeout.SetSeconds(0);
 				// will stop node update on next eFE_Update
 			}
 		}
@@ -154,7 +154,7 @@ public:
 	}
 
 protected:
-	float m_timeout;
+	CTimeValue m_timeout;
 };
 
 REGISTER_FLOW_NODE("Vehicle:Honk", CFlowVehicleHonk);

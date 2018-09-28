@@ -274,20 +274,21 @@ int CDialogLoader::LoadFromTable(XmlNodeRef tableNode, const string& groupName, 
 					{
 						scriptLine.facial = szContent;
 						scriptLine.facialWeight = 0.5f;
-						scriptLine.facialFadeTime = 0.5f;
+						scriptLine.facialFadeTime.SetSeconds("0.5");
 					}
 					else
 					{
 						scriptLine.facial.assign(szContent, n);
 						float w = 0.5f;
-						float t = 0.5f;
-						int nGood = sscanf(szContent + n + 1, "%f%*[:; ]%f", &w, &t);
+						char tmp[MP_SIZE];
+						tmp = "0.5";
+						int nGood = sscanf(szContent + n + 1, "%f%*[:; ]%s", &w, &tmp);
 						if (nGood != 1 && nGood != 2)
 						{
-							GameWarning("[DIALOG] CDialogLoader::LoadFromTable: DialogScript '%s' has invalid Facial Expression Content '%s'. Using weight=%f fadetime=%f.", groupName.c_str(), szContent, w, t);
+							GameWarning("[DIALOG] CDialogLoader::LoadFromTable: DialogScript '%s' has invalid Facial Expression Content '%s'. Using weight=%f fadetime=%f.", groupName.c_str(), szContent, w, string(tmp));
 						}
 						scriptLine.facialWeight = w;
-						scriptLine.facialFadeTime = t;
+						scriptLine.facialFadeTime = CTimeValue(tmp);
 					}
 				}
 				break;
@@ -298,12 +299,7 @@ int CDialogLoader::LoadFromTable(XmlNodeRef tableNode, const string& groupName, 
 			case ATTR_DELAY:
 				if (bLineValid)
 				{
-					float val = 0.0f;
-					int n = sscanf(szContent, "%f", &val);
-					if (n == 1)
-					{
-						scriptLine.delay = val;
-					}
+					scriptLine.delay.SetSeconds(szContent);
 				}
 				break;
 			default:

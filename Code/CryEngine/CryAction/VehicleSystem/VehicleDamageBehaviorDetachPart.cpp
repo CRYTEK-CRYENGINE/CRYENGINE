@@ -181,7 +181,7 @@ void CVehicleDamageBehaviorDetachPart::OnDamageEvent(EVehicleDamageBehaviorEvent
 			pPhysics->Action(&ac);
 
 			// after 1s, remove the constraint again
-			m_pVehicle->SetTimer(-1, 1000, this);
+			m_pVehicle->SetTimer(-1, 1, this);
 
 			// set the impulse
 			const Vec3& velocity = m_pVehicle->GetStatus().vel;

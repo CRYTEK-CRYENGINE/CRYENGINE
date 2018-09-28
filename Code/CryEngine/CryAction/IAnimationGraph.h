@@ -149,7 +149,7 @@ public:
 		return false;
 	}
 
-	virtual bool StopAnimationInLayer(IEntity* entity, int32 nLayer, f32 BlendOutTime)
+	virtual bool StopAnimationInLayer(IEntity* entity, int32 nLayer, const CTimeValue& BlendOutTime)
 	{
 		ICharacterInstance* pICharacter = entity->GetCharacter(0);
 		ISkeletonAnim* pISkeletonAnim = pICharacter ? pICharacter->GetISkeletonAnim() : NULL;
@@ -178,26 +178,26 @@ public:
 		return false;
 	}
 
-	virtual float GetAnimationNormalizedTime(IEntity* pEntity, const CAnimation* pAnimation)
+	virtual nTime GetAnimationNormalizedTime(IEntity* pEntity, const CAnimation* pAnimation)
 	{
 		if (!pEntity)
-			return -1.f;
+			return -1;
 
 		if (!pAnimation)
-			return -1.f;
+			return -1;
 
 		ICharacterInstance* pCharacterInstance = pEntity->GetCharacter(0);
 		if (!pCharacterInstance)
-			return -1.f;
+			return -1;
 
 		ISkeletonAnim* pSkeletonAnim = pCharacterInstance->GetISkeletonAnim();
 		if (!pSkeletonAnim)
-			return -1.f;
+			return -1;
 
 		return pSkeletonAnim->GetAnimationNormalizedTime(pAnimation);
 	}
 
-	virtual bool SetAnimationNormalizedTime(IEntity* pEntity, CAnimation* pAnimation, float normalizedTime)
+	virtual bool SetAnimationNormalizedTime(IEntity* pEntity, CAnimation* pAnimation, const nTime&  normalizedTime)
 	{
 		if (!pEntity)
 			return false;
@@ -217,36 +217,36 @@ public:
 		return true;
 	}
 
-	virtual float GetTopAnimExpectedSecondsLeft(IEntity* entity, int32 layer)
+	virtual CTimeValue GetTopAnimExpectedTimeLeft(IEntity* entity, int32 layer)
 	{
 		ICharacterInstance* pICharacter = entity->GetCharacter(0);
 		if (!pICharacter)
-			return -1.f;
+			return -1;
 
 		ISkeletonAnim* pISkeletonAnim = pICharacter->GetISkeletonAnim();
 		if (!pISkeletonAnim)
-			return -1.f;
+			return -1;
 
 		const CAnimation* pAnim = GetTopAnimation(entity, layer);
 		if (!pAnim)
-			return -1.f;
+			return -1;
 
-		return (1.f - pISkeletonAnim->GetAnimationNormalizedTime(pAnim)) * pAnim->GetExpectedTotalDurationSeconds();
+		return (1 - pISkeletonAnim->GetAnimationNormalizedTime(pAnim)).conv<mpfloat>() * pAnim->GetExpectedTotalDuration();
 	}
 
-	virtual float GetTopAnimNormalizedTime(IEntity* entity, int32 layer)
+	virtual nTime GetTopAnimNormalizedTime(IEntity* entity, int32 layer)
 	{
 		ICharacterInstance* pICharacter = entity->GetCharacter(0);
 		if (!pICharacter)
-			return -1.f;
+			return -1;
 
 		ISkeletonAnim* pISkeletonAnim = pICharacter->GetISkeletonAnim();
 		if (!pISkeletonAnim)
-			return -1.f;
+			return -1;
 
 		const CAnimation* pAnim = GetTopAnimation(entity, layer);
 		if (!pAnim)
-			return -1.f;
+			return -1;
 
 		return pISkeletonAnim->GetAnimationNormalizedTime(pAnim);
 	}

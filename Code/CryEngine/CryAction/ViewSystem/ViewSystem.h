@@ -74,7 +74,7 @@ public:
 	virtual ~CViewSystem() override;
 
 	void Release() { delete this; };
-	void Update(float frameTime);
+	void Update(const CTimeValue& frameTime);
 
 	//void RegisterViewClass(const char *name, IView *(*func)());
 

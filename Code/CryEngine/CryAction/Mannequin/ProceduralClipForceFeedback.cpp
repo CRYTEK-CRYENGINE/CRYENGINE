@@ -14,7 +14,7 @@ struct SForceFeedbackClipParams : public IProceduralParams
 {
 	SForceFeedbackClipParams()
 		: scale(1.f)
-		, delay(0.f)
+		, delay(0)
 		, onlyLocal(true)
 	{
 	}
@@ -34,7 +34,7 @@ struct SForceFeedbackClipParams : public IProceduralParams
 
 	TProcClipString forceFeedbackId;
 	float           scale;
-	float           delay;
+	CTimeValue      delay;
 	bool            onlyLocal;
 };
 
@@ -45,7 +45,7 @@ public:
 	{
 	}
 
-	virtual void OnEnter(float blendTime, float duration, const SForceFeedbackClipParams& params)
+	virtual void OnEnter(const CTimeValue& blendTime, const CTimeValue& duration, const SForceFeedbackClipParams& params)
 	{
 		IGameFramework* pGameFrameWork = gEnv->pGameFramework;
 
@@ -74,9 +74,9 @@ public:
 		}
 	}
 
-	virtual void OnExit(float blendTime)  {}
+	virtual void OnExit(const CTimeValue& blendTime)  {}
 
-	virtual void Update(float timePassed) {}
+	virtual void Update(const CTimeValue& timePassed) {}
 
 };
 

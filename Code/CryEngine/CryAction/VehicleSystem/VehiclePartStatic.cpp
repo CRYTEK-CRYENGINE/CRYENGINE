@@ -124,7 +124,7 @@ void CVehiclePartStatic::Physicalize()
 }
 
 //------------------------------------------------------------------------
-void CVehiclePartStatic::Update(const float frameTime)
+void CVehiclePartStatic::Update(const CTimeValue& frameTime)
 {
 	CVehiclePartBase::Update(frameTime);
 

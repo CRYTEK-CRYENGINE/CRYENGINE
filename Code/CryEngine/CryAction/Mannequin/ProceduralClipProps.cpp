@@ -29,7 +29,7 @@ public:
 	{
 	}
 
-	virtual void OnEnter(float blendTime, float duration, const SProceduralClipAttachPropParams& params)
+	virtual void OnEnter(const CTimeValue& blendTime, const CTimeValue& duration, const SProceduralClipAttachPropParams& params)
 	{
 		if (m_charInstance)
 		{
@@ -75,7 +75,7 @@ public:
 		}
 	}
 
-	virtual void OnExit(float blendTime)
+	virtual void OnExit(const CTimeValue& blendTime)
 	{
 		if (m_pAttachedCharInst || m_pAttachedStatObj)
 		{
@@ -97,7 +97,7 @@ public:
 		m_pAttachedCharInst = NULL;
 	}
 
-	virtual void Update(float timePassed) {}
+	virtual void Update(const CTimeValue& timePassed) {}
 
 private:
 	uint32                         m_attachmentCRC; //TODO: This should be available via m_pParams pointer but currently is cleared by the time OnExit is called. Remove once fixed by Tom
@@ -124,7 +124,7 @@ class CProceduralClipAttachEntity : public TProceduralClip<SProceduralClipAttach
 public:
 	CProceduralClipAttachEntity();
 
-	virtual void OnEnter(float blendTime, float duration, const SProceduralClipAttachEntityParams& params)
+	virtual void OnEnter(const CTimeValue& blendTime, const CTimeValue& duration, const SProceduralClipAttachEntityParams& params)
 	{
 		if (m_charInstance)
 		{
@@ -163,7 +163,7 @@ public:
 		}
 	}
 
-	virtual void OnExit(float blendTime)
+	virtual void OnExit(const CTimeValue& blendTime)
 	{
 		if (m_attachedEntityId)
 		{
@@ -193,7 +193,7 @@ public:
 
 									pe_action_awake action;
 									action.bAwake = true;
-									action.minAwakeTime = 0.5f;
+									action.minAwakeTime.SetSeconds("0.5");
 									pPhysics->Action(&action);
 								}
 							}
@@ -207,7 +207,7 @@ public:
 		m_attachedConstraintId = 0;
 	}
 
-	virtual void Update(float timePassed) {}
+	virtual void Update(const CTimeValue& timePassed) {}
 
 private:
 	uint32   m_attachmentCRC;
@@ -252,7 +252,7 @@ public:
 	{
 	}
 
-	virtual void OnEnter(float blendTime, float duration, const SSwapAttachmentParams& params)
+	virtual void OnEnter(const CTimeValue& blendTime, const CTimeValue& duration, const SSwapAttachmentParams& params)
 	{
 		m_newAttachmentCRC = 0;
 		m_oldAttachmentCRC = 0;
@@ -282,7 +282,7 @@ public:
 		}
 	}
 
-	virtual void OnExit(float blendTime)
+	virtual void OnExit(const CTimeValue& blendTime)
 	{
 		if (m_newAttachmentCRC != 0)
 		{
@@ -306,7 +306,7 @@ public:
 		}
 	}
 
-	virtual void Update(float timePassed) {}
+	virtual void Update(const CTimeValue& timePassed) {}
 
 private:
 	uint32 m_newAttachmentCRC;
@@ -341,7 +341,7 @@ public:
 	{
 	}
 
-	virtual void OnEnter(float blendTime, float duration, const SProceduralClipHideAttachmentParams& params)
+	virtual void OnEnter(const CTimeValue& blendTime, const CTimeValue& duration, const SProceduralClipHideAttachmentParams& params)
 	{
 		m_attachmentCRC = 0;
 		m_hiddenFlags = 0;
@@ -372,7 +372,7 @@ public:
 		}
 	}
 
-	virtual void OnExit(float blendTime)
+	virtual void OnExit(const CTimeValue& blendTime)
 	{
 		if (m_attachmentCRC != 0)
 		{
@@ -385,7 +385,7 @@ public:
 		}
 	}
 
-	virtual void Update(float timePassed) {}
+	virtual void Update(const CTimeValue& timePassed) {}
 
 private:
 	uint32 m_attachmentCRC;

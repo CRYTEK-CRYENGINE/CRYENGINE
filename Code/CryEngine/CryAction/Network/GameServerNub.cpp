@@ -159,7 +159,7 @@ void CGameServerNub::Update()
 {
 	const int timeout = std::max(0, sv_timeout_disconnect->GetIVal());
 
-	CTimeValue now = gEnv->pTimer->GetFrameStartTime();
+	CTimeValue now = GetGTimer()->GetFrameStartTime();
 
 	THoldChannelMap::iterator it = m_onhold.begin();
 	THoldChannelMap::iterator end = m_onhold.end();
@@ -302,7 +302,7 @@ bool CGameServerNub::PutChannelOnHold(CGameServerChannel* pServerChannel)
 			}
 		}
 
-		m_onhold.insert(THoldChannelMap::value_type(userId, SHoldChannel(pServerChannel->GetChannelId(), gEnv->pTimer->GetFrameStartTime())));
+		m_onhold.insert(THoldChannelMap::value_type(userId, SHoldChannel(pServerChannel->GetChannelId(), GetGTimer()->GetFrameStartTime())));
 
 		pServerChannel->SetNetChannel(0);
 		pServerChannel->SetOnHold(true);
@@ -394,11 +394,11 @@ void CGameServerNub::BanPlayer(uint16 channelId, const char* reason)
 		timeout = pV->GetIVal();
 	if (userId)
 	{
-		m_banned.push_back(SBannedPlayer(userId, 0, gEnv->pTimer->GetFrameStartTime() + CTimeValue(timeout * 60.0f)));
+		m_banned.push_back(SBannedPlayer(userId, 0, GetGTimer()->GetFrameStartTime() + CTimeValue(timeout * 60)));
 	}
 	else if (ip)
 	{
-		m_banned.push_back(SBannedPlayer(0, ip, gEnv->pTimer->GetFrameStartTime() + CTimeValue(timeout * 60.0f)));
+		m_banned.push_back(SBannedPlayer(0, ip, GetGTimer()->GetFrameStartTime() + CTimeValue(timeout * 60)));
 	}
 }
 
@@ -411,7 +411,7 @@ bool CGameServerNub::CheckBanned(INetChannel* pNetChannel)
 	{
 		if (m_banned[i].profileId == userId)
 		{
-			if (m_banned[i].time < gEnv->pTimer->GetFrameStartTime()) // ban timed out
+			if (m_banned[i].time < GetGTimer()->GetFrameStartTime()) // ban timed out
 			{
 				m_banned.erase(m_banned.begin() + i);
 				return false;
@@ -432,14 +432,14 @@ void CGameServerNub::BannedStatus()
 	CryLogAlways("Banned players : ");
 	for (int i = 0; i < m_banned.size(); ++i)
 	{
-		if (m_banned[i].time < gEnv->pTimer->GetFrameStartTime())
+		if (m_banned[i].time < GetGTimer()->GetFrameStartTime())
 		{
 			m_banned.erase(m_banned.begin() + i);
 			--i;
 		}
 		else
 		{
-			int left = int((m_banned[i].time - gEnv->pTimer->GetFrameStartTime()).GetSeconds() + 0.5f);
+			int left = int((m_banned[i].time - GetGTimer()->GetFrameStartTime()).GetSeconds() + "0.5");
 			CryLogAlways("profile : %d, time left : %d:%02d", m_banned[i].profileId, left / 60, left % 60);
 		}
 	}

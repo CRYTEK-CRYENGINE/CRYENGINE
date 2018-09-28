@@ -190,7 +190,7 @@ public:
 	virtual void                 Update(SEntityUpdateContext& ctx, int);
 	virtual void                 HandleEvent(const SGameObjectEvent&);
 	virtual void                 SetChannelId(uint16 id)     {}
-	virtual void                 PostUpdate(float frameTime) { CRY_ASSERT(false); }
+	virtual void                 PostUpdate(const CTimeValue& frameTime) { CRY_ASSERT(false); }
 	virtual void                 PostRemoteSpawn()           {};
 	virtual void                 GetMemoryUsage(ICrySizer* s) const;
 
@@ -236,7 +236,7 @@ public:
 
 	virtual float                           FilterView(SViewParams& viewParams) const;
 
-	virtual uint32                          MakeFace(const char* pExpressionName, bool usePreviewChannel = true, float lifeTime = 1.f);
+	virtual uint32                          MakeFace(const char* pExpressionName, bool usePreviewChannel = true, const CTimeValue& lifeTime = 1);
 
 	virtual void                            AllowLookIk(bool allow, int layer = -1);
 	virtual bool                            IsLookIkAllowed() const { return (m_disallowLookIKFlags == 0); }
@@ -244,7 +244,7 @@ public:
 	virtual void                            AllowAimIk(bool allow);
 	virtual bool                            IsAimIkAllowed() const { return m_allowAimIk; }
 
-	virtual void                            TriggerRecoil(float duration, float kinematicImpact, float kickIn /*=0.8f*/, EAnimatedCharacterArms arms /*= eACA_BothArms*/);
+	virtual void                            TriggerRecoil(const CTimeValue& duration, float kinematicImpact, float kickIn /*=0.8f*/, EAnimatedCharacterArms arms /*= eACA_BothArms*/);
 	virtual void                            SetWeaponRaisedPose(EWeaponRaisedPose pose);
 
 	virtual SGroundAlignmentParams&         GetGroundAlignmentParams();
@@ -289,7 +289,7 @@ public:
 	void          ForceOverrideRotation(const Quat& qWorldRotation);
 
 #if DEBUG_VELOCITY()
-	virtual void AddDebugVelocity(const QuatT& movement, const float frameTime, const char* szComment, const ColorF& colorF, const bool pastMovement = false) const;
+	virtual void AddDebugVelocity(const QuatT& movement, const CTimeValue& frameTime, const char* szComment, const ColorF& colorF, const bool pastMovement = false) const;
 	virtual bool DebugVelocitiesEnabled() const;
 #endif
 	// ~IAnimatedCharacter
@@ -352,7 +352,7 @@ private:
 
 	void       UpdateSkeletonSettings();
 
-	void       SetDesiredLocalLocation(ISkeletonAnim* pSkeletonAnim, const QuatT& desiredLocalLocation, float fDeltaTime);
+	void       SetDesiredLocalLocation(ISkeletonAnim* pSkeletonAnim, const QuatT& desiredLocalLocation, const CTimeValue& fDeltaTime);
 	void       SetMotionParam(ISkeletonAnim* const pSkeletonAnim, const EMotionParamID motionParamID, const float value) const;
 
 	void       GetCurrentEntityLocation();
@@ -441,7 +441,7 @@ private:
 	void DebugRenderCurLocations() const;
 	void DebugDisplayNewLocationsAndMovements(const QuatT& entLocation, const QuatT& entMovement,
 	                                          const QuatT& animMovement,
-	                                          float frameTime) const;
+	                                          const CTimeValue& frameTime) const;
 
 	void LayoutHelper(const char* id, const char* name, bool visible, float minout, float maxout, float minin, float maxin, float x, float y, float w = 1.0f, float h = 1.0f);
 
@@ -485,7 +485,7 @@ private:
 	// Not serialized. Cached values for updating inertia
 	float m_fPrevInertia;
 	float m_fPrevInertiaAccel;
-	float m_fPrevTimeImpulseRecover;
+	CTimeValue m_fPrevTimeImpulseRecover;
 
 	// Not serialized
 	bool m_moveOverride_useAnimXY;
@@ -534,9 +534,9 @@ private:
 	CTimeValue m_curFrameStartTime;
 
 	// Not serialized
-	double m_curFrameTime;
-	double m_prevFrameTime;
-	double m_curFrameTimeOriginal;
+	CTimeValue m_curFrameTime;
+	CTimeValue m_prevFrameTime;
+	CTimeValue m_curFrameTimeOriginal;
 
 	// Not serialized
 	bool  m_hasForcedMovement;
@@ -579,7 +579,7 @@ private:
 	EMovementControlMethod m_movementControlMethod[eMCMComponent_COUNT][eMCMSlot_COUNT];
 	const char*            m_movementControlMethodTags[eMCMSlot_COUNT];
 	const char*            m_currentMovementControlMethodTags[eMCMComponent_COUNT];
-	float                  m_elapsedTimeMCM[eMCMComponent_COUNT];
+	CTimeValue             m_elapsedTimeMCM[eMCMComponent_COUNT];
 
 	// Serialized
 	// TODO: Make sure EColliderMode is not bigger than 8 bits.

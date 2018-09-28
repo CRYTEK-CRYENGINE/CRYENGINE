@@ -74,7 +74,7 @@ void CColorGradientManager::Serialize(TSerialize serializer)
 				serializer.BeginGroup("ColorGradient");
 				string filePath;
 				float blendAmount = 1.0f;
-				float fadeInTimeInSeconds = 0.0f;
+				CTimeValue fadeInTimeInSeconds;
 				serializer.Value("FilePath", filePath);
 				serializer.Value("BlendAmount", blendAmount);
 				serializer.Value("FadeInTime", fadeInTimeInSeconds);
@@ -82,7 +82,7 @@ void CColorGradientManager::Serialize(TSerialize serializer)
 				LoadedColorGradient gradient(filePath, SColorChartLayer(textureID, blendAmount), fadeInTimeInSeconds);
 
 				// Optional
-				serializer.ValueWithDefault("ElapsedTime", gradient.m_elapsedTime, 0.0f);
+				serializer.ValueWithDefault("ElapsedTime", gradient.m_elapsedTime, CTimeValue(0));
 				serializer.ValueWithDefault("MaximumBlendAmount", gradient.m_maximumBlendAmount, 1.0f);
 
 				m_currentGradients.push_back(gradient);
@@ -93,7 +93,7 @@ void CColorGradientManager::Serialize(TSerialize serializer)
 	}
 }
 
-void CColorGradientManager::TriggerFadingColorGradient(const string& filePath, const float fadeInTimeInSeconds)
+void CColorGradientManager::TriggerFadingColorGradient(const string& filePath, const CTimeValue& fadeInTimeInSeconds)
 {
 	const unsigned int numGradients = (int) m_currentGradients.size();
 	for (unsigned int currentGradientIndex = 0; currentGradientIndex < numGradients; ++currentGradientIndex)
@@ -104,7 +104,7 @@ void CColorGradientManager::TriggerFadingColorGradient(const string& filePath, c
 	m_colorGradientsToLoad.push_back(LoadingColorGradient(filePath, fadeInTimeInSeconds));
 }
 
-void CColorGradientManager::UpdateForThisFrame(const float frameTimeInSeconds)
+void CColorGradientManager::UpdateForThisFrame(const CTimeValue& frameTimeInSeconds)
 {
 	RemoveZeroWeightedLayers();
 	
@@ -116,7 +116,7 @@ void CColorGradientManager::UpdateForThisFrame(const float frameTimeInSeconds)
 	SetLayersForThisFrame();
 }
 
-void CColorGradientManager::FadeInLastLayer(const float frameTimeInSeconds)
+void CColorGradientManager::FadeInLastLayer(const CTimeValue& frameTimeInSeconds)
 {
 	if (m_currentGradients.empty())
 	{
@@ -195,19 +195,19 @@ IColorGradingController& CColorGradientManager::GetColorGradingController()
 	return *gEnv->pRenderer->GetIColorGradingController();
 }
 
-CColorGradientManager::LoadedColorGradient::LoadedColorGradient(const string& filePath, const SColorChartLayer& layer, const float fadeInTimeInSeconds)
+CColorGradientManager::LoadedColorGradient::LoadedColorGradient(const string& filePath, const SColorChartLayer& layer, const CTimeValue& fadeInTimeInSeconds)
 : m_filePath(filePath)
 , m_layer(layer)
 , m_fadeInTimeInSeconds(fadeInTimeInSeconds)
-, m_elapsedTime(0.0f)
+, m_elapsedTime(0)
 , m_maximumBlendAmount(1.0f)
 {
 
 }
 
-void CColorGradientManager::LoadedColorGradient::FadeIn(const float frameTimeInSeconds)
+void CColorGradientManager::LoadedColorGradient::FadeIn(const CTimeValue& frameTimeInSeconds)
 {
-	if (m_fadeInTimeInSeconds == 0.0f)
+	if (m_fadeInTimeInSeconds == 0)
 	{
 		m_layer.m_blendAmount = 1.0f;
 
@@ -216,7 +216,7 @@ void CColorGradientManager::LoadedColorGradient::FadeIn(const float frameTimeInS
 
 	m_elapsedTime += frameTimeInSeconds;
 
-	const float blendAmount = m_elapsedTime / m_fadeInTimeInSeconds;
+	const float blendAmount = BADF ( m_elapsedTime / m_fadeInTimeInSeconds);
 
 	m_layer.m_blendAmount = min(blendAmount, 1.0f);
 }
@@ -231,7 +231,7 @@ void CColorGradientManager::LoadedColorGradient::FreezeMaximumBlendAmount()
 	m_maximumBlendAmount = m_layer.m_blendAmount;
 }
 
-CColorGradientManager::LoadingColorGradient::LoadingColorGradient(const string& filePath, const float fadeInTimeInSeconds)
+CColorGradientManager::LoadingColorGradient::LoadingColorGradient(const string& filePath, const CTimeValue& fadeInTimeInSeconds)
 : m_filePath(filePath)
 , m_fadeInTimeInSeconds(fadeInTimeInSeconds)
 {
@@ -318,7 +318,7 @@ void CFlowNode_ColorGradient::ProcessEvent(EFlowEvent event, SActivationInfo* pA
 	if (event == IFlowNode::eFE_Activate && IsPortActive(pActivationInformation, eIP_Trigger))
 	{
 		const string texturePath = GetPortString(pActivationInformation, eInputPorts_TexturePath);
-		const float timeToFade = GetPortFloat(pActivationInformation, eInputPorts_TransitionTime);
+		const CTimeValue timeToFade = GetPortTime(pActivationInformation, eInputPorts_TransitionTime);
 		CCryAction::GetCryAction()->GetColorGradientManager()->TriggerFadingColorGradient(texturePath, timeToFade);
 	}
 }

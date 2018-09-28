@@ -65,7 +65,7 @@ CWorldQuery::CWorldQuery()
 	m_rayHitPierceable.dist = -1.0f;
 
 #if WORLDQUERY_USE_DEFERRED_LINETESTS
-	m_timeLastDeferredResult = 0.0f;
+	m_timeLastDeferredResult.SetSeconds(0);
 	m_requestCounter = 0;
 #endif
 }
@@ -173,10 +173,10 @@ void CWorldQuery::UpdateRaycastQuery()
 
 	m_queuedRays[raySlot].counter = ++m_requestCounter;
 
-	static const float k_maxTimeRaycastStaysValid = 0.1f;
+	static const CTimeValue k_maxTimeRaycastStaysValid = "0.1";
 
-	const float frameStartTime = gEnv->pTimer->GetCurrTime();
-	const float timeSinceLastDeferred = (frameStartTime - m_timeLastDeferredResult);
+	const CTimeValue frameStartTime = GetGTimer()->GetFrameStartTime();
+	const CTimeValue timeSinceLastDeferred = (frameStartTime - m_timeLastDeferredResult);
 	if (timeSinceLastDeferred > k_maxTimeRaycastStaysValid)
 	{
 		// it's been too long since the last deferred raycast result assume hit nothing
@@ -432,7 +432,7 @@ void CWorldQuery::OnRayCastDataReceived(const QueuedRayID& rayID, const RayCastR
 		}
 	}
 
-	m_timeLastDeferredResult = gEnv->pTimer->GetCurrTime();
+	m_timeLastDeferredResult = GetGTimer()->GetFrameStartTime();
 
 	m_rayHitAny = rayHitSucced;
 	m_lookAtEntityId = entityIdHit;

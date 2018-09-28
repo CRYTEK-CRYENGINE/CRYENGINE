@@ -77,7 +77,7 @@ bool CVehicleDamagesGroup::ParseDamagesGroup(const CVehicleParams& table)
 				subGroup.m_isAlreadyInProcess = false;
 
 				if (!groupTable.getAttr("delay", subGroup.m_delay))
-					subGroup.m_delay = 0.0f;
+					subGroup.m_delay.SetSeconds(0);
 
 				if (!groupTable.getAttr("randomness", subGroup.m_randomness))
 					subGroup.m_randomness = 0.0f;
@@ -236,7 +236,7 @@ void CVehicleDamagesGroup::OnDamageEvent(EVehicleDamageBehaviorEvent event, cons
 		SDamagesSubGroup& subGroup = *subGroupIte;
 		TVehicleDamageBehaviorVector& damageBehaviors = subGroup.m_damageBehaviors;
 
-		if (!subGroup.m_isAlreadyInProcess && subGroup.m_delay > 0.f && event != eVDBE_Repair)
+		if (!subGroup.m_isAlreadyInProcess && subGroup.m_delay > 0 && event != eVDBE_Repair)
 		{
 			m_delayedSubGroups.resize(m_delayedSubGroups.size() + 1);
 			subGroup.m_isAlreadyInProcess = true;
@@ -262,7 +262,7 @@ void CVehicleDamagesGroup::OnDamageEvent(EVehicleDamageBehaviorEvent event, cons
 }
 
 //------------------------------------------------------------------------
-void CVehicleDamagesGroup::Update(float frameTime)
+void CVehicleDamagesGroup::Update(const CTimeValue& frameTime)
 {
 	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
@@ -276,7 +276,7 @@ void CVehicleDamagesGroup::Update(float frameTime)
 		SDelayedDamagesSubGroupInfo& delayedInfo = *ite;
 		delayedInfo.delay -= frameTime;
 
-		if (delayedInfo.delay <= 0.0f)
+		if (delayedInfo.delay <= 0)
 		{
 			TDamagesSubGroupId id = delayedInfo.subGroupId;
 			SDamagesSubGroup* pSubGroup = &m_damageSubGroups[id];

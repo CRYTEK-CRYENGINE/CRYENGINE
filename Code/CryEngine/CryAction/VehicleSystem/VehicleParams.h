@@ -13,8 +13,25 @@ public:
 		, m_modificationParams(modificationParams)
 	{
 	}
-
 	virtual ~CVehicleParams() {}
+
+	bool getAttr(const char* name, const char** valueOut) const { return GetAttrImpl(name, valueOut); }
+	bool getAttr(const char* name, int& valueOut)		const { return GetAttrImpl(name, valueOut); }
+	bool getAttr(const char* name, float& valueOut)		const { return GetAttrImpl(name, valueOut); }
+	bool getAttr(const char* name, bool& valueOut)		const { return GetAttrImpl(name, valueOut); }
+	bool getAttr(const char* name, Vec3& valueOut)		const { return GetAttrImpl(name, valueOut); }
+	MPOnly bool getAttr(const char* name, T& valueOut) const { return GetAttrImpl(name, valueOut); }
+	TVOnly bool getAttr(const char* name, T& valueOut) const { return GetAttrImpl(name, valueOut); }
+	const char* getAttr(const char* name) const
+	{
+		assert(IsValid());
+
+		const char* attributeValue = m_xmlNode->getAttr(name);
+		const char** attributeValueAddress = &attributeValue;
+		ApplyModification(name, attributeValueAddress);
+
+		return attributeValue;
+	}
 
 	const char* getTag() const
 	{
@@ -28,42 +45,6 @@ public:
 		assert(IsValid());
 
 		return m_xmlNode->haveAttr(name);
-	}
-
-	const char* getAttr(const char* name) const
-	{
-		assert(IsValid());
-
-		const char* attributeValue = m_xmlNode->getAttr(name);
-		const char** attributeValueAddress = &attributeValue;
-		ApplyModification(name, attributeValueAddress);
-
-		return attributeValue;
-	}
-
-	bool getAttr(const char* name, const char** valueOut) const
-	{
-		return GetAttrImpl(name, valueOut);
-	}
-
-	bool getAttr(const char* name, int& valueOut) const
-	{
-		return GetAttrImpl(name, valueOut);
-	}
-
-	bool getAttr(const char* name, float& valueOut) const
-	{
-		return GetAttrImpl(name, valueOut);
-	}
-
-	bool getAttr(const char* name, bool& valueOut) const
-	{
-		return GetAttrImpl(name, valueOut);
-	}
-
-	bool getAttr(const char* name, Vec3& valueOut) const
-	{
-		return GetAttrImpl(name, valueOut);
 	}
 
 	int getChildCount() const
@@ -90,8 +71,7 @@ public:
 	}
 
 	operator bool() const { return m_xmlNode != NULL; }
-
-	bool IsValid() const { return m_xmlNode != NULL; }
+	bool IsValid()  const { return m_xmlNode != NULL; }
 
 private:
 	template<typename T>

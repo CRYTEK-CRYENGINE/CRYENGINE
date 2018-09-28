@@ -110,7 +110,7 @@ void CAnimatedCharacter::PreAnimationUpdate()
 {
 	ANIMCHAR_PROFILE;
 
-	if (m_curFrameTime <= 0.0f)
+	if (m_curFrameTime <= 0)
 		return;
 
 	AcquireRequestedBehaviourMovement();
@@ -120,8 +120,8 @@ void CAnimatedCharacter::PreAnimationUpdate()
 
 float CAnimatedCharacter::GetAngularSpeedHorizontal() const
 {
-	const float prevFrameTimeInv = (float)__fsel(-(float)m_prevFrameTime, 0.0f, __fres((float)m_prevFrameTime + FLT_MIN));
-	return m_actualEntMovement.q.GetRotZ() * prevFrameTimeInv;
+	const mpfloat prevFrameTimeInv = __fsel(-m_prevFrameTime.GetSeconds(), mpfloat(0), 1/(m_prevFrameTime.GetSeconds()));
+	return m_actualEntMovement.q.GetRotZ() * BADF prevFrameTimeInv;
 }
 
 void CAnimatedCharacter::UpdateSkeletonSettings()
@@ -153,30 +153,30 @@ void CAnimatedCharacter::UpdateSkeletonSettings()
 
 void CAnimatedCharacter::UpdateTime()
 {
-	float frameTime = gEnv->pTimer->GetFrameTime();
+	CTimeValue frameTime = GetGTimer()->GetFrameTime();
 	m_curFrameTimeOriginal = frameTime;
-	frameTime = (float) __fsel(-frameTime, 0.0001f, frameTime);
+	frameTime = max(CTimeValue("0.0001"), frameTime); // MP_EPSILON plus looks like a stupid idea?
 
 	CRY_ASSERT(NumberValid(frameTime));
 
 	m_curFrameID = gEnv->nMainFrameID;
 
 	// This is cached to be used by SelectLocomotionState, to not touch global timer more than once per frame.
-	m_curFrameStartTime = gEnv->pTimer->GetFrameStartTime();
+	m_curFrameStartTime = GetGTimer()->GetFrameStartTime();
 
 	m_prevFrameTime = m_curFrameTime;
 	m_curFrameTime = frameTime;
 
-	m_elapsedTimeMCM[eMCMComponent_Horizontal] += (float)m_prevFrameTime;
-	m_elapsedTimeMCM[eMCMComponent_Vertical] += (float)m_prevFrameTime;
+	m_elapsedTimeMCM[eMCMComponent_Horizontal] += m_prevFrameTime;
+	m_elapsedTimeMCM[eMCMComponent_Vertical]   += m_prevFrameTime;
 
 #ifdef _DEBUG
-	DebugHistory_AddValue("eDH_FrameTime", (float)m_curFrameTime);
+	DebugHistory_AddValue("eDH_FrameTime", (float)m_curFrameTime.GetSeconds());
 
 	if (DebugTextEnabled())
 	{
 		const ColorF cWhite = ColorF(1, 1, 1, 1);
-		IRenderAuxText::Draw2dLabel(10, 50, 2.0f, (float*)&cWhite, false, "FrameTime Cur[%f] Prev[%f]", m_curFrameTime, m_prevFrameTime);
+		IRenderAuxText::Draw2dLabel(10, 50, 2.0f, (float*)&cWhite, false, "FrameTime Cur[%f] Prev[%f]", (float)m_curFrameTime.GetSeconds(), (float)m_prevFrameTime.GetSeconds());
 	}
 #endif
 }
@@ -242,8 +242,8 @@ void CAnimatedCharacter::AcquireRequestedBehaviourMovement()
 	case eCMT_Impulse:
 		CRY_ASSERT(m_requestedEntityMovementType != RequestedEntMovementType_Absolute);
 		m_requestedEntityMovementType = RequestedEntMovementType_Impulse;
-		CRY_ASSERT(m_curFrameTime > 0.0f);
-		if (m_curFrameTime > 0.0f)
+		CRY_ASSERT(m_curFrameTime > 0);
+		if (m_curFrameTime > 0)
 		{
 			// TODO: Impulses are per frame at the moment, while normal movement is per second.
 			// NOTE: Not anymore =). Impulses are now velocity per second through out the player/alien code.
@@ -256,7 +256,7 @@ void CAnimatedCharacter::AcquireRequestedBehaviourMovement()
 
 	// rotation is per frame (and can't be per second, since Quat's can only represent a max angle of 360 degrees),
 	// Convert velocity from per second into per frame.
-	m_requestedEntityMovement.t *= (float)m_curFrameTime;
+	m_requestedEntityMovement.t *= m_curFrameTime.BADGetSeconds();
 
 	if (NoMovementOverride())
 	{
@@ -267,7 +267,7 @@ void CAnimatedCharacter::AcquireRequestedBehaviourMovement()
 
 #if DEBUG_VELOCITY()
 	if (DebugVelocitiesEnabled())
-		AddDebugVelocity(m_requestedEntityMovement, (float)m_curFrameTime, "AnimatedCharacted Input", Col_Yellow);
+		AddDebugVelocity(m_requestedEntityMovement, m_curFrameTime, "AnimatedCharacted Input", Col_Yellow);
 #endif
 
 #ifdef _DEBUG
@@ -277,8 +277,9 @@ void CAnimatedCharacter::AcquireRequestedBehaviourMovement()
 	{
 		Ang3 requestedEntityRot(m_requestedEntityMovement.q);
 		const ColorF cWhite = ColorF(1, 1, 1, 1);
+		const float timeInSeconds = (float)m_curFrameTime.GetSeconds();
 		IRenderAuxText::Draw2dLabel(350, 50, 2.0f, (float*)&cWhite, false, "Req Movement[%.2f, %.2f, %.2f | %.2f, %.2f, %.2f]",
-		                            m_requestedEntityMovement.t.x / m_curFrameTime, m_requestedEntityMovement.t.y / m_curFrameTime, m_requestedEntityMovement.t.z / m_curFrameTime,
+		                            m_requestedEntityMovement.t.x / timeInSeconds, m_requestedEntityMovement.t.y / timeInSeconds, m_requestedEntityMovement.t.z / timeInSeconds,
 		                            RAD2DEG(requestedEntityRot.x), RAD2DEG(requestedEntityRot.y), RAD2DEG(requestedEntityRot.z));
 	}
 #endif
@@ -299,13 +300,13 @@ void CAnimatedCharacter::PostAnimationUpdate()
 	//ANIMCHAR_PROFILE_SCOPE("SetAnimGraphspeedInputs_Simplified");
 	ANIMCHAR_PROFILE;
 
-	if (m_curFrameTime <= 0.0f)
+	if (m_curFrameTime <= 0)
 		return;
 }
 
 void CAnimatedCharacter::ComputeGroundSlope()
 {
-	const float time = (float)m_curFrameTime;
+	const CTimeValue time = m_curFrameTime;
 
 	IEntity* pEntity = GetEntity();
 	CRY_ASSERT(pEntity != NULL);
@@ -326,14 +327,14 @@ void CAnimatedCharacter::ComputeGroundSlope()
 	float cosine = up | groundNormal;
 	Vec3 sine = up % groundNormal;
 	float groundSlope = atan2f(sgn(sine.x) * sine.GetLength(), cosine);
-	SmoothCD(m_fGroundSlopeMoveDirSmooth, m_fGroundSlopeMoveDirRate, time, groundSlope, 0.20f);
+	SmoothCD(m_fGroundSlopeMoveDirSmooth, m_fGroundSlopeMoveDirRate, time, groundSlope, "0.20");
 
 	m_pSkeletonAnim->SetDesiredMotionParam(eMotionParamID_TravelSlope, m_fGroundSlopeMoveDirSmooth, time);
 
 	float fGroundAngle = RAD2DEG(acos_tpl(rootNormal.z));
 	if (fGroundAngle > 35.0f)
 		fGroundAngle = 35.0f;
-	SmoothCD(m_fGroundSlopeSmooth, m_fGroundSlopeRate, time, fGroundAngle, 0.20f);
+	SmoothCD(m_fGroundSlopeSmooth, m_fGroundSlopeRate, time, fGroundAngle, "0.20");
 }
 
 void CAnimatedCharacter::PostProcessingUpdate()
@@ -373,8 +374,8 @@ void CAnimatedCharacter::PostProcessingUpdate()
 		m_fJumpSmoothRate = 0.0f;
 	}
 
-	const float JUMP_SMOOTH_RATE = 0.30f;
-	SmoothCD(m_fJumpSmooth, m_fJumpSmoothRate, (float)m_curFrameTime, f32(m_moveRequest.jumping), JUMP_SMOOTH_RATE);
+	const CTimeValue JUMP_SMOOTH_RATE = "0.3";
+	SmoothCD(m_fJumpSmooth, m_fJumpSmoothRate, m_curFrameTime, f32(m_moveRequest.jumping), JUMP_SMOOTH_RATE);
 	if (m_moveRequest.jumping)
 		m_fJumpSmooth = 1.0f;
 
@@ -493,7 +494,7 @@ void CAnimatedCharacter::PostProcessingUpdate()
 
 	m_pPoseAligner->SetRootOffsetEnable(m_groundAlignmentParams.IsFlag(eGA_PoseAlignerUseRootOffset));
 	m_pPoseAligner->SetBlendWeight(poseBlendWeight);
-	m_pPoseAligner->Update(m_pCharacter, m_entLocation, (float)m_curFrameTime);
+	m_pPoseAligner->Update(m_pCharacter, m_entLocation, m_curFrameTime);
 }
 
 //--------------------------------------------------------------------------------
@@ -525,20 +526,20 @@ QuatT CAnimatedCharacter::CalculateDesiredAnimMovement() const
 
 			if (CAnimationGraphCVars::Get().m_useQueuedRotation)
 			{
-				assetAnimMovement = m_pSkeletonAnim->CalculateRelativeMovement((float)m_curFrameTime, 1);
+				assetAnimMovement = m_pSkeletonAnim->CalculateRelativeMovement(m_curFrameTime, 1);
 			}
 			else
 			{
-				assetAnimMovement = m_pSkeletonAnim->CalculateRelativeMovement((float)m_curFrameTime, 0);
+				assetAnimMovement = m_pSkeletonAnim->CalculateRelativeMovement(m_curFrameTime, 0);
 
-				const QuatT futureAssetAnimMovement = m_pSkeletonAnim->CalculateRelativeMovement((float)m_curFrameTime, 1);
+				const QuatT futureAssetAnimMovement = m_pSkeletonAnim->CalculateRelativeMovement(m_curFrameTime, 1);
 
 				assetAnimMovement.t = assetAnimMovement.q * futureAssetAnimMovement.t; // request the 'future' translation, properly adjusted for the fact that the rotation we got back from cryanimation is relative to the rotation of the current frame
 			}
 		}
 		else
 		{
-			assetAnimMovement = m_pSkeletonAnim->CalculateRelativeMovement((float)m_curFrameTime, 0);
+			assetAnimMovement = m_pSkeletonAnim->CalculateRelativeMovement(m_curFrameTime, 0);
 		}
 
 		//
@@ -594,7 +595,7 @@ void CAnimatedCharacter::CalculateAndRequestPhysicalEntityMovement()
 
 #if DEBUG_VELOCITY()
 	if (DebugVelocitiesEnabled())
-		AddDebugVelocity(desiredAnimMovement, (float)m_curFrameTime, "Anim Movement", Col_Blue);
+		AddDebugVelocity(desiredAnimMovement, m_curFrameTime, "Anim Movement", Col_Blue);
 #endif
 
 	const QuatT wantedEntMovement = CalculateWantedEntityMovement(desiredAnimMovement);
@@ -612,7 +613,7 @@ QuatT CAnimatedCharacter::CalculateWantedEntityMovement(const QuatT& desiredAnim
 	{
 #if DEBUG_VELOCITY()
 		if (DebugVelocitiesEnabled())
-			AddDebugVelocity(IDENTITY, (float)m_curFrameTime, "Wanted: NoMovementOverride", Col_GreenYellow);
+			AddDebugVelocity(IDENTITY, m_curFrameTime, "Wanted: NoMovementOverride", Col_GreenYellow);
 #endif
 		return IDENTITY;
 	}
@@ -652,7 +653,7 @@ QuatT CAnimatedCharacter::CalculateWantedEntityMovement(const QuatT& desiredAnim
 #if DEBUG_VELOCITY()
 		if (DebugVelocitiesEnabled())
 		{
-			AddDebugVelocity(m_forcedMovementRelative, (float)m_curFrameTime, "ForcedMovement (Relative", Col_IndianRed);
+			AddDebugVelocity(m_forcedMovementRelative, m_curFrameTime, "ForcedMovement (Relative", Col_IndianRed);
 		}
 #endif
 
@@ -714,7 +715,7 @@ QuatT CAnimatedCharacter::CalculateWantedEntityMovement(const QuatT& desiredAnim
 		const char* const mcmVTag = m_currentMovementControlMethodTags[eMCMComponent_Vertical];
 		cry_sprintf(buffer, "Wanted: Hor:%s%s%s(%s) Ver:%s%s(%s)", szMcmH, m_moveOverride_useAnimXY ? "+ANMXY" : "", m_moveOverride_useAnimRot ? "+ANMQ" : "", mcmHTag, szMcmV, m_moveOverride_useAnimZ ? "+ANMZ" : "", mcmVTag);
 
-		AddDebugVelocity(wantedEntMovement, (float)m_curFrameTime, buffer, Col_GreenYellow);
+		AddDebugVelocity(wantedEntMovement, m_curFrameTime, buffer, Col_GreenYellow);
 	}
 #endif
 
@@ -738,14 +739,14 @@ QuatT CAnimatedCharacter::DoEntityClamping(const QuatT& wantedEntMovement) const
 	IEntity* pEntity = GetEntity();
 	CRY_ASSERT(pEntity != NULL);
 
-	const float frameTime = (float)m_curFrameTime;
+	const CTimeValue frameTime = m_curFrameTime;
 
 	ICharacterInstance* pCharacterInstance = pEntity->GetCharacter(0);
 	ISkeletonAnim* pSkeletonAnim = (pCharacterInstance != NULL) ? pCharacterInstance->GetISkeletonAnim() : NULL;
 
 	QuatT clampedWantedEntMovement(wantedEntMovement);
 
-	float requestedEntVelocity = iszero(frameTime) ? 0.0f : wantedEntMovement.t.GetLength() / frameTime;
+	float requestedEntVelocity = frameTime == 0 ? 0.0f : wantedEntMovement.t.GetLength() / frameTime.BADGetSeconds();
 	if ((requestedEntVelocity > 0.0f) && (pSkeletonAnim != NULL))
 	{
 		const QuatT& qt = pSkeletonAnim->GetRelMovement();
@@ -753,7 +754,7 @@ QuatT CAnimatedCharacter::DoEntityClamping(const QuatT& wantedEntMovement) const
 		Vec3 assetAnimMovement = m_entLocation.q * t1;
 
 		Vec3 requestedEntMovementDir = m_requestedEntityMovement.t.GetNormalizedSafe();
-		float projectedActualAnimVelocity = ((float)m_prevFrameTime > 0.0f) ? ((assetAnimMovement | requestedEntMovementDir) / (float)m_prevFrameTime) : 0.0f;
+		float projectedActualAnimVelocity = (m_prevFrameTime > 0) ? ((assetAnimMovement | requestedEntMovementDir) / m_prevFrameTime.BADGetSeconds()) : 0.0f;
 
 		clampedWantedEntMovement.t *= clamp_tpl(projectedActualAnimVelocity / requestedEntVelocity, 0.0f, 1.0f);
 	}
@@ -780,7 +781,7 @@ void CAnimatedCharacter::RequestPhysicalEntityMovement(const QuatT& wantedEntMov
 	// local/world movement into force/velocity or whatever.
 	// TODO: look at the tracker apply functions, see what they do different.
 
-	const float frameTime = (float)m_curFrameTime;
+	const CTimeValue frameTime = m_curFrameTime;
 
 	CRY_ASSERT(wantedEntMovement.IsValid());
 
@@ -829,17 +830,17 @@ void CAnimatedCharacter::RequestPhysicalEntityMovement(const QuatT& wantedEntMov
 			if ((m_requestedEntityMovementType == RequestedEntMovementType_Absolute) ||
 			    ((GetMCMH() == eMCM_Animation || GetMCMH() == eMCM_AnimationHCollision) && (GetMCMV() == eMCM_Animation)))
 			{
-				const float curFrameTimeInv = (frameTime != 0.0f) ? (1.0f / frameTime) : 0.0f;
+				const rTime curFrameTimeInv = (frameTime != 0) ? (1 / frameTime) : 0;
 				pe_action_move move;
-				move.dir = wantedEntMovement.t * curFrameTimeInv;
+				move.dir = wantedEntMovement.t * BADF curFrameTimeInv;
 				move.iJump = m_requestedIJump;
-				move.dt = static_cast<float>(frameTime);
+				move.dt = frameTime;
 				m_expectedEntMovement = wantedEntMovement.t;
 
 				CRY_ASSERT(move.dir.IsValid());
 
 				float curMoveVeloHash = 5.0f * move.dir.x + 7.0f * move.dir.y + 3.0f * move.dir.z;
-				float actualMoveVeloHash = 5.0f * m_actualEntMovement.t.x * curFrameTimeInv + 7.0f * m_actualEntMovement.t.y * curFrameTimeInv + 3.0f * m_actualEntMovement.t.z * curFrameTimeInv;
+				float actualMoveVeloHash = 5.0f * m_actualEntMovement.t.x * BADF curFrameTimeInv + 7.0f * m_actualEntMovement.t.y * BADF curFrameTimeInv + 3.0f * m_actualEntMovement.t.z * BADF curFrameTimeInv;
 				if ((curMoveVeloHash != m_prevMoveVeloHash) || (move.iJump != m_prevMoveJump) || (actualMoveVeloHash != curMoveVeloHash) || RecentQuickLoad())
 				{
 					ANIMCHAR_PROFILE_SCOPE("UpdatePhysicalEntityMovement_RequestToPhysics_Movement");
@@ -903,7 +904,7 @@ void CAnimatedCharacter::RequestPhysicalEntityMovement(const QuatT& wantedEntMov
 				if (DebugVelocitiesEnabled())
 				{
 					QuatT forcedRot(Vec3Constants<float>::fVec3_Zero, m_entLocation.q.GetInverted() * m_forcedOverrideRotationWorld);
-					AddDebugVelocity(forcedRot, (float)m_curFrameTime, "ForcedOverrideRotation", Col_Orchid);
+					AddDebugVelocity(forcedRot, m_curFrameTime, "ForcedOverrideRotation", Col_Orchid);
 				}
 #endif
 
@@ -1246,7 +1247,7 @@ void CAnimatedCharacter::UpdatePhysicsInertia()
 			dynNew.kInertia = 0.0f;
 			dynNew.kInertiaAccel = 0.0f;
 			if (m_colliderMode != eColliderMode_PushesPlayersOnly)
-				dynNew.timeImpulseRecover = 0.0f;
+				dynNew.timeImpulseRecover.SetSeconds(0);
 			else
 				dynNew.timeImpulseRecover = m_params.timeImpulseRecover;
 		}
@@ -1299,7 +1300,7 @@ void CAnimatedCharacter::GetCurrentEntityLocation()
 	m_actualEntMovement = GetWorldOffset(m_prevEntLocation, m_entLocation);
 
 	// actualEntMovement measures from the previous frame, so we need to use prevFrameTime.
-	const float prevFrameTimeInv = (float)__fsel(-(float)m_prevFrameTime, 0.0f, __fres((float)m_prevFrameTime + FLT_MIN));  // approximates: (m_prevFrameTime > 0.0f) ? (1.0f / (float)m_prevFrameTime) : 0.0f;
+	const float prevFrameTimeInv = BADF __fsel(-m_prevFrameTime.GetSeconds(), mpfloat(0), 1/m_prevFrameTime.GetSeconds());  // approximates: (m_prevFrameTime > 0.0f) ? (1.0f / (float)m_prevFrameTime) : 0.0f;
 
 	const Vec3 velocity = m_actualEntMovement.t * prevFrameTimeInv;
 	const float speed = velocity.GetLength();
@@ -1338,7 +1339,7 @@ void CAnimatedCharacter::GetCurrentEntityLocation()
 
 #if DEBUG_VELOCITY()
 	if (DebugVelocitiesEnabled())
-		AddDebugVelocity(m_actualEntMovement, (float)m_curFrameTime, "Entity Movement", Col_Green, true);
+		AddDebugVelocity(m_actualEntMovement, m_curFrameTime, "Entity Movement", Col_Green, true);
 #endif
 }
 
@@ -1362,41 +1363,41 @@ QuatT CAnimatedCharacter::CalculateProceduralLeaning()
 {
 	ANIMCHAR_PROFILE_DETAILED;
 
-	float frameTimeScale = ((float)m_curFrameTime > 0.0f) ? (1.0f / ((float)m_curFrameTime / 0.02f)) : 0.0f;
+	rTime frameTimeScale = (m_curFrameTime > 0) ? (1 / (m_curFrameTime / "0.02")) : 0;
 	float curving = 0.0f;
 	Vec2 prevVelo(ZERO);
 	Vec3 avgAxx(0);
-	float weightSum = 0.0f;
-	CTimeValue curTime = gEnv->pTimer->GetFrameStartTime();
+	mpfloat weightSum = 0;
+	CTimeValue curTime = GetGTimer()->GetFrameStartTime();
 	for (int i = 0; i < NumAxxSamples; i++)
 	{
 		int j = (m_reqLocalEntAxxNextIndex + i) % NumAxxSamples;
 
 		// AGE WEIGHT
-		float age = CTimeValue(curTime.GetValue() - m_reqEntTime[j].GetValue()).GetSeconds();
-		float ageFraction = clamp_tpl(age / 0.3f, 0.0f, 1.0f);
-		float weight = (0.5f - fabs(0.5f - ageFraction)) * 2.0f;
-		weight = 1.0f - sqr(1.0f - weight);
+		CTimeValue age = curTime - m_reqEntTime[j];
+		CTimeValue ageFraction = CLAMP(age / "0.3", 0, 1);
+		mpfloat weight = ("0.5" - abs("0.5" - ageFraction.GetSeconds())) * 2;
+		weight = 1 - sqr(1 - weight);
 		weight = sqr(weight);
 
 		weightSum += weight;
-		avgAxx.x += m_reqLocalEntAxx[j].x * weight * frameTimeScale;
-		avgAxx.y += m_reqLocalEntAxx[j].y * weight * frameTimeScale;
+		avgAxx.x += m_reqLocalEntAxx[j].x * BADF weight * BADF frameTimeScale;
+		avgAxx.y += m_reqLocalEntAxx[j].y * BADF weight * BADF frameTimeScale;
 
 		// CURVING
 		float area = fabs(m_reqEntVelo[j].Cross(prevVelo));
 		float len = prevVelo.GetLength() * m_reqEntVelo[j].GetLength();
 		if (len > 0.0f)
 			area /= len;
-		curving += area * weight;
+		curving += area * BADF weight;
 		prevVelo = m_reqEntVelo[j];
 	}
 
 	CRY_ASSERT(avgAxx.IsValid());
-	if (weightSum > 0.0f)
+	if (weightSum > 0)
 	{
-		avgAxx /= weightSum;
-		curving /= weightSum;
+		avgAxx /= BADF weightSum;
+		curving /= BADF weightSum;
 	}
 	CRY_ASSERT(avgAxx.IsValid());
 
@@ -1410,10 +1411,10 @@ QuatT CAnimatedCharacter::CalculateProceduralLeaning()
 	curvingFraction = 1.0f - sqr(1.0f - curvingFraction);
 	float pulldownFraction = sqr(1.0f - clamp_tpl(curvingFraction / 0.3f, 0.0f, 1.0f));
 
-	Vec3 prevActualEntVeloW = ((float)m_curFrameTime > 0.0f) ? (m_requestedEntityMovement.t / (float)m_curFrameTime) : ZERO;
+	Vec3 prevActualEntVeloW = (m_curFrameTime > 0) ? (m_requestedEntityMovement.t / m_curFrameTime.BADGetSeconds()) : ZERO;
 	//Vec3 prevActualEntVeloW = (m_curFrameTime > 0.0f) ? (m_actualEntMovement.t / m_curFrameTime) : ZERO;
 	prevActualEntVeloW.z = 0.0f; // Only bother about horizontal accelerations.
-	float smoothVeloBlend = clamp_tpl((float)m_curFrameTime / 0.1f, 0.0f, 1.0f);
+	float smoothVeloBlend = CLAMP(m_curFrameTime / "0.1", 0, 1).BADGetSeconds();
 	Vec3 prevSmoothedActualEntVelo = m_smoothedActualEntVelo;
 	CRY_ASSERT(prevSmoothedActualEntVelo.IsValid());
 	m_smoothedActualEntVelo = LERP(m_smoothedActualEntVelo, prevActualEntVeloW, smoothVeloBlend);
@@ -1426,7 +1427,7 @@ QuatT CAnimatedCharacter::CalculateProceduralLeaning()
 	m_reqLocalEntAxx[m_reqLocalEntAxxNextIndex].y = deltaVelo.y;
 	m_reqEntVelo[m_reqLocalEntAxxNextIndex].x = m_smoothedActualEntVelo.x;
 	m_reqEntVelo[m_reqLocalEntAxxNextIndex].y = m_smoothedActualEntVelo.y;
-	m_reqEntTime[m_reqLocalEntAxxNextIndex] = curTime;//gEnv->pTimer->GetFrameStartTime();
+	m_reqEntTime[m_reqLocalEntAxxNextIndex] = curTime;//GetGTimer()->GetFrameStartTime();
 	m_reqLocalEntAxxNextIndex = (m_reqLocalEntAxxNextIndex + 1) % NumAxxSamples;
 
 	// EQUALIZE VELOCITIES
@@ -1484,7 +1485,7 @@ QuatT CAnimatedCharacter::CalculateProceduralLeaning()
 	float axxContinuityDot = (avgAxxScaled | m_avgLocalEntAxx);
 	float axxContinuity = (axxContinuityMag > 0.0f) ? (axxContinuityDot / axxContinuityMag) : 0.0f;
 	axxContinuity = clamp_tpl(axxContinuity, 0.0f, 1.0f);
-	float axxBlend = ((float)m_curFrameTime / 0.2f);
+	float axxBlend = (m_curFrameTime / "0.2").BADGetSeconds();
 	axxBlend *= 0.5f + 0.5f * axxContinuity;
 	float axxBlendClamped = clamp_tpl(axxBlend, 0.0f, 1.0f);
 	m_avgLocalEntAxx = LERP(m_avgLocalEntAxx, avgAxxScaled, axxBlendClamped);

@@ -218,14 +218,14 @@ void CVehicleDamageBehaviorEffect::UpdateEffect(float randomness, float damageRa
 		{
 			SpawnParams spawnParams;
 
-			spawnParams.fPulsePeriod = m_pDamageEffect->pulsePeriod * ((1.0f - randomness) * cry_random(0.0f, 1.0f));
+			spawnParams.fPulsePeriod = m_pDamageEffect->pulsePeriod * BADMP((1.0f - randomness) * cry_random(0.0f, 1.0f));
 
 			pParticleEmitter->SetSpawnParams(spawnParams);
 		}
 	}
 }
 
-void CVehicleDamageBehaviorEffect::Update(const float deltaTime)
+void CVehicleDamageBehaviorEffect::Update(const CTimeValue& deltaTime)
 {
 	SEntitySlotInfo slotInfo;
 	if (m_pVehicle->GetEntity()->GetSlotInfo(m_slot, slotInfo) && slotInfo.pParticleEmitter)

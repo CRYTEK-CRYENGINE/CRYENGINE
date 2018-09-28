@@ -395,7 +395,7 @@ IEntityComponent* CGameObjectSystem::CreateGameObjectWithPreactivatedExtension(I
 	return pGameObject;
 }
 
-void CGameObjectSystem::PostUpdate(float frameTime)
+void CGameObjectSystem::PostUpdate(const CTimeValue& frameTime)
 {
 	m_isPostUpdating = true;
 

@@ -33,7 +33,7 @@ public:
 
 protected:
 
-	virtual void UpdateLight(const float frameTime) override;
+	virtual void UpdateLight(const CTimeValue& frameTime) override;
 
 	float m_colorMult;
 	float m_minColorMult;

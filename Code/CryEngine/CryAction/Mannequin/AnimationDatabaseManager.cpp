@@ -980,7 +980,7 @@ void CAnimationDatabaseLibrary::AnimEntryToXML(XmlNodeRef outXmlAnimEntry, const
 		m_animFlags.IntegerFlagsToTagList(animEntry.flags, sFlags);
 		outXmlAnimEntry->setAttr("flags", sFlags.c_str());
 	}
-	if (animEntry.playbackSpeed != 1.0f)
+	if (animEntry.playbackSpeed != 1)
 	{
 		outXmlAnimEntry->setAttr("speed", animEntry.playbackSpeed);
 	}
@@ -996,7 +996,7 @@ void CAnimationDatabaseLibrary::AnimEntryToXML(XmlNodeRef outXmlAnimEntry, const
 	cry_strcpy(channelName, "channel0");
 	for (uint32 i = 0; i < MANN_NUMBER_BLEND_CHANNELS; i++)
 	{
-		if (animEntry.blendChannels[i] != 0.0f)
+		if (animEntry.blendChannels[i] != 0)
 		{
 			channelName[7] = '0' + i;
 			outXmlAnimEntry->setAttr(channelName, animEntry.blendChannels[i]);
@@ -1009,7 +1009,7 @@ bool CAnimationDatabaseLibrary::XMLToAnimEntry(SAnimationEntry& animEntry, XmlNo
 	bool success = true;
 	animEntry.animRef.SetByString(root->getAttr("name"));
 	success = success && m_animFlags.TagListToIntegerFlags(root->getAttr("flags"), animEntry.flags);
-	animEntry.playbackSpeed = 1.0f;
+	animEntry.playbackSpeed = 1;
 	root->getAttr("speed", animEntry.playbackSpeed);
 	animEntry.playbackWeight = 1.0f;
 	root->getAttr("weight", animEntry.playbackWeight);
@@ -1900,7 +1900,7 @@ XmlNodeRef CAnimationDatabaseManager::SaveDatabase
 							FragmentToXML(xmlFragment, blend.pFragment, true);
 							xmlFragmentVariant->addChild(xmlFragment);
 							xmlFragment->setAttr("selectTime", blend.selectTime);
-							if (blend.startTime != 0.0f)
+							if (blend.startTime != 0)
 							{
 								xmlFragment->setAttr("startTime", blend.startTime);
 							}

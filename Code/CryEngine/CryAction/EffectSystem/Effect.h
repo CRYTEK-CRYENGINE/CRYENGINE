@@ -21,9 +21,9 @@ class CEffect : public IEffect
 {
 public:
 	// IEffect
-	virtual bool         Activating(float delta);
-	virtual bool         Update(float delta);
-	virtual bool         Deactivating(float delta);
+	virtual bool         Activating(const CTimeValue& delta);
+	virtual bool         Update(const CTimeValue& delta);
+	virtual bool         Deactivating(const CTimeValue& delta);
 	virtual bool         OnActivate();
 	virtual bool         OnDeactivate();
 	virtual void         SetState(EEffectState state);

@@ -40,12 +40,12 @@ struct SForceFeedbackRuntimeParams
 {
 	SForceFeedbackRuntimeParams()
 		: intensity(1.0f)
-		, delay(0.0f)
+		, delay(0)
 	{
 
 	}
 
-	SForceFeedbackRuntimeParams(float _intensity, float _delay)
+	SForceFeedbackRuntimeParams(float _intensity, const CTimeValue& _delay)
 		: intensity(_intensity)
 		, delay(_delay)
 	{
@@ -53,7 +53,7 @@ struct SForceFeedbackRuntimeParams
 	}
 
 	float intensity;    //Scales overall intensity of the effect (0.0f - 1.0f)
-	float delay;        //Start playback delay
+	CTimeValue delay;   //Start playback delay
 };
 
 struct IForceFeedbackSystem

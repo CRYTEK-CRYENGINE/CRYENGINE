@@ -28,7 +28,7 @@ struct SDeformingBreakParams
 	SDeformingBreakParams(int bid, const SBreakEvent& bev) : breakId(bid), breakEvent(bev)
 	{
 		breakEvent.iState = eBES_Generated;
-		breakEvent.time = gEnv->pTimer->GetFrameStartTime().GetSeconds();
+		breakEvent.time = GetGTimer()->GetFrameStartTime().GetSeconds();
 	}
 	int         breakId;
 	SBreakEvent breakEvent;

@@ -133,7 +133,7 @@ bool CCooperativeAnimationManager::StartExactPositioningAnimation(const SCharact
 	return true;
 }
 
-void CCooperativeAnimationManager::Update(float dt)
+void CCooperativeAnimationManager::Update(const CTimeValue& dt)
 {
 	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 

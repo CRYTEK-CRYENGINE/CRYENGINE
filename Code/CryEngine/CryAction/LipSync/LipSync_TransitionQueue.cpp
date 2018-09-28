@@ -9,8 +9,8 @@
 //
 //=============================================================================
 
-static const float LIPSYNC_START_TRANSITION_TIME = 0.1f;
-static const float LIPSYNC_STOP_TRANSITION_TIME = 0.1f;
+static const CTimeValue LIPSYNC_START_TRANSITION_TIME = "0.1";
+static const CTimeValue LIPSYNC_STOP_TRANSITION_TIME  = "0.1";
 
 uint32 CLipSyncProvider_TransitionQueue::s_lastAnimationToken = 0;
 
@@ -25,23 +25,23 @@ static const char* GetSoundName(const CryAudio::ControlId soundId)
 	return NULL;
 }
 
-static void SetAnimationTime(::CAnimation& activatedAnim, const float fSeconds)
+static void SetAnimationTime(::CAnimation& activatedAnim, const CTimeValue& fSeconds)
 {
 	CRY_ASSERT(activatedAnim.IsActivated());
-	CRY_ASSERT(fSeconds >= 0.0f);
+	CRY_ASSERT(fSeconds >= 0);
 
-	const float fAnimationDuration = activatedAnim.GetCurrentSegmentExpectedDurationSeconds();
-	CRY_ASSERT(fAnimationDuration >= 0.0f);
+	const CTimeValue fAnimationDuration = activatedAnim.GetCurrentSegmentExpectedDuration();
+	CRY_ASSERT(fAnimationDuration >= 0);
 
 	const bool isLooping = activatedAnim.HasStaticFlag(CA_LOOP_ANIMATION);
 
-	float fNormalizedTime = 0.0f;
-	if (fAnimationDuration > FLT_EPSILON)
+	nTime fNormalizedTime = 0;
+	if (fAnimationDuration > TV_EPSILON)
 	{
-		const float fAnimTimeSeconds =
+		const CTimeValue fAnimTimeSeconds =
 		  isLooping
-		  ? fmodf(fSeconds, fAnimationDuration)
-		  : std::min<float>(fSeconds, fAnimationDuration);
+		  ? fSeconds % fAnimationDuration
+		  : min(fSeconds, fAnimationDuration);
 
 		fNormalizedTime = fAnimTimeSeconds / fAnimationDuration;
 	}
@@ -275,7 +275,7 @@ void CLipSyncProvider_TransitionQueue::FillCharAnimationParams(const bool isDefa
 	if (isDefaultAnim)
 	{
 		pParamsOut->m_nFlags |= CA_LOOP_ANIMATION;
-		pParamsOut->m_fPlaybackSpeed = 1.25f;
+		pParamsOut->m_fPlaybackSpeed = "1.25";
 	}
 }
 
@@ -474,7 +474,7 @@ void CLipSync_TransitionQueue::SetChannelId(uint16 id)
 {
 }
 
-void CLipSync_TransitionQueue::PostUpdate(float frameTime)
+void CLipSync_TransitionQueue::PostUpdate(const CTimeValue& frameTime)
 {
 }
 

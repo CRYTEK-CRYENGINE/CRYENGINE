@@ -27,9 +27,9 @@ CVehicleSeatActionWeapons::CVehicleSeatActionWeapons()
 	m_fireTarget(ZERO),
 	m_lastActionActivationMode(0),
 	m_weaponIndex(0),
-	m_shotDelay(-1.0f),
-	m_nextShotTimer(0.0f),
-	m_respawnTimer(0.f),
+	m_shotDelay(-1),
+	m_nextShotTimer(0),
+	m_respawnTimer(0),
 	m_isUsingShootingByUpdate(false),
 	m_isSecondary(false),
 	m_attackInput(eAI_Primary),
@@ -330,7 +330,7 @@ void CVehicleSeatActionWeapons::Reset()
 	m_isShooting = false;
 	m_lastActionActivationMode = 0;
 	m_fireTarget.Set(0, 0, 0);
-	m_nextShotTimer = 0.0f;
+	m_nextShotTimer.SetSeconds(0);
 
 	if (m_weaponsCopy.size() != m_weapons.size())
 	{
@@ -493,7 +493,7 @@ bool CVehicleSeatActionWeapons::CanTriggerActionZoom(const TVehicleActionId acti
 	return (actionId == eVAI_Attack2 && !m_isSecondary);
 }
 
-void CVehicleSeatActionWeapons::Update(const float frameTime)
+void CVehicleSeatActionWeapons::Update(const CTimeValue& frameTime)
 {
 	if (m_passengerId == 0)
 	{
@@ -501,7 +501,7 @@ void CVehicleSeatActionWeapons::Update(const float frameTime)
 	}
 }
 
-void CVehicleSeatActionWeapons::UpdateFromPassenger(const float frameTime, EntityId playerId)
+void CVehicleSeatActionWeapons::UpdateFromPassenger(const CTimeValue& frameTime, EntityId playerId)
 {
 	if (m_passengerId == playerId)
 	{
@@ -510,7 +510,7 @@ void CVehicleSeatActionWeapons::UpdateFromPassenger(const float frameTime, Entit
 }
 
 //------------------------------------------------------------------------
-void CVehicleSeatActionWeapons::DoUpdate(float frameTime)
+void CVehicleSeatActionWeapons::DoUpdate(const CTimeValue& frameTime)
 {
 	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
@@ -545,10 +545,10 @@ void CVehicleSeatActionWeapons::DoUpdate(float frameTime)
 					pItem->UpdateFPView(frameTime);
 			}
 		}
-		else if (gEnv->bServer && weapon.m_respawnTime > 0.f) //Check for respawning weapons
+		else if (gEnv->bServer && weapon.m_respawnTime > 0) //Check for respawning weapons
 		{
 			weapon.m_respawnTime -= frameTime;
-			if (weapon.m_respawnTime < 0.f)
+			if (weapon.m_respawnTime < 0)
 			{
 				IEntity* pRespawnedItem = SpawnWeapon(weapon, m_pVehicle->GetEntity(), weapon.pPart->GetName(), i);
 				if (pRespawnedItem)
@@ -580,11 +580,11 @@ void CVehicleSeatActionWeapons::DoUpdate(float frameTime)
 			{
 				m_isShooting = false;
 				m_lastActionActivationMode = 0;
-				m_nextShotTimer = 0.0f;
+				m_nextShotTimer.SetSeconds(0);
 			}
 		}
 
-		if (m_shotDelay > 0.0f)
+		if (m_shotDelay > 0)
 		{
 			m_nextShotTimer -= frameTime;
 		}
@@ -823,7 +823,7 @@ void CVehicleSeatActionWeapons::OnOutOfAmmo(IWeapon* pWeapon, IEntityClass* pAmm
 //------------------------------------------------------------------------
 bool CVehicleSeatActionWeapons::CanFireWeapon() const
 {
-	return (m_shotDelay <= 0.0f || m_nextShotTimer <= 0.0f);
+	return (m_shotDelay <= 0 || m_nextShotTimer <= 0);
 }
 
 //------------------------------------------------------------------------
@@ -1260,7 +1260,7 @@ void CVehicleSeatActionWeapons::OnVehicleEvent(EVehicleEvent event, const SVehic
 
 				vehicleWeapon.weaponEntityId = 0;
 
-				if (m_respawnTimer)
+				if (m_respawnTimer != 0)
 				{
 					vehicleWeapon.m_respawnTime = m_respawnTimer;
 				}
@@ -1275,7 +1275,7 @@ void CVehicleSeatActionWeapons::OnVehicleEvent(EVehicleEvent event, const SVehic
 void CVehicleSeatActionWeapons::OnShoot(IWeapon* pWeapon, EntityId shooterId, EntityId ammoId, IEntityClass* pAmmoType, const Vec3& pos, const Vec3& dir, const Vec3& vel)
 {
 	// Update the next shot timer
-	if (m_shotDelay > 0.0f)
+	if (m_shotDelay > 0)
 		m_nextShotTimer = m_shotDelay;
 
 	for (TVehicleWeaponVector::const_iterator it = m_weapons.begin(); it != m_weapons.end(); ++it)

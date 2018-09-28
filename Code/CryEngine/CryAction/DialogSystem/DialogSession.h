@@ -112,12 +112,12 @@ public:
 		angleDeg = m_playerAwareAngle;
 	}
 
-	float GetPlayerAwarenessGraceTime() const
+	const CTimeValue& GetPlayerAwarenessGraceTime() const
 	{
 		return m_playerAwareGraceTime;
 	}
 
-	void SetPlayerAwarenessGraceTime(float graceTime)
+	void SetPlayerAwarenessGraceTime(const CTimeValue& graceTime)
 	{
 		m_playerAwareGraceTime = graceTime;
 	}
@@ -160,8 +160,8 @@ public:
 	EntityId                GetActorEntityId(CDialogScript::TActorID actorID) const;
 	CDialogScript::TActorID GetActorIdForEntity(EntityId entityId) const;
 	IEntityAudioComponent*      GetEntityAudioProxy(IEntity* pEntity) const;
-	int                     ScheduleNextLine(float dt); // schedule next line to be played. returns index of line
-	float                   GetCurTime() const
+	int                     ScheduleNextLine(const CTimeValue& dt); // schedule next line to be played. returns index of line
+	const CTimeValue&       GetCurTime() const
 	{
 		return m_curTime;
 	}
@@ -189,14 +189,14 @@ protected:
 	void Release();
 
 	// Called from CDialogSystem to update every frame
-	bool Update(float dt);
+	bool Update(const CTimeValue& dt);
 
 	// Called from CDialogSystem after serialization
 	bool RestoreAndPlay();
 
 	bool InternalPlay(int fromScriptLine, bool bNotify);
 
-	void DoPlay(float dt);
+	void DoPlay(const CTimeValue& dt);
 	bool PlayLine(const CDialogScript::SScriptLine* pLine);
 
 	bool DoStop();
@@ -216,9 +216,9 @@ protected:
 	string                   m_debugName;
 	CDialogScript::SActorSet m_actorSet;
 
-	float                    m_curTime;
-	float                    m_nextTimeDelay;
-	float                    m_endGraceTimeOut;
+	CTimeValue               m_curTime;
+	CTimeValue               m_nextTimeDelay;
+	CTimeValue               m_endGraceTimeOut;
 	int                      m_curScriptLine;
 	int                      m_nextScriptLine;
 	int                      m_pendingActors;
@@ -226,7 +226,7 @@ protected:
 
 	float                    m_playerAwareAngle;
 	float                    m_playerAwareDistance;
-	float                    m_playerAwareGraceTime;
+	CTimeValue               m_playerAwareGraceTime;
 
 	TActorFlags              m_actorFlags[CDialogScript::MAX_ACTORS];
 	int8                     m_aiBehaviourMode;

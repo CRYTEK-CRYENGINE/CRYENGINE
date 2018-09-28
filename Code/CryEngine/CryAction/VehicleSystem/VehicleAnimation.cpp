@@ -154,7 +154,7 @@ void CVehicleAnimation::Reset()
 
 				if (IMaterial* pMaterial = FindMaterial(stateMaterial, m_pPartAnimated->GetMaterial()))
 				{
-					float value = max(0.00f, min(1.0f, animState.speedDefault));
+					float value = max(0.0f, min(1.0f, BADF animState.speedDefault));
 
 					if (stateMaterial.invertValue)
 					{
@@ -210,9 +210,9 @@ bool CVehicleAnimation::StartAnimation()
 				if (numAnimsLayer0)
 				{
 					CAnimation& animation = pSkeletonAnim->GetAnimFromFIFO(animParams.m_nLayerID, numAnimsLayer0 - 1);
-					const float animationTime = pSkeletonAnim->GetAnimationNormalizedTime(&animation);
-					if (animationTime == 1.0f)
-						pSkeletonAnim->SetAnimationNormalizedTime(&animation, 0.f);
+					const nTime animationTime = pSkeletonAnim->GetAnimationNormalizedTime(&animation);
+					if (animationTime == 1)
+						pSkeletonAnim->SetAnimationNormalizedTime(&animation, 0);
 				}
 
 			}
@@ -256,7 +256,7 @@ void CVehicleAnimation::StopAnimation()
 		return;
 
 	if (IsUsingManualUpdates())
-		SetTime(0.0f);
+		SetTime(0);
 
 	IEntity* pEntity = m_pPartAnimated->GetEntity();
 	CRY_ASSERT(pEntity);
@@ -268,7 +268,7 @@ void CVehicleAnimation::StopAnimation()
 		ISkeletonAnim* pSkeletonAnim = pCharInstance->GetISkeletonAnim();
 		CRY_ASSERT(pSkeletonAnim);
 
-		pSkeletonAnim->StopAnimationInLayer(m_layerId, 0.0f);
+		pSkeletonAnim->StopAnimationInLayer(m_layerId, 0);
 	}
 
 	REINST("send an animation stop event?");
@@ -310,10 +310,10 @@ bool CVehicleAnimation::ChangeState(TVehicleAnimStateId stateId)
 			if (pSkeletonAnim->GetNumAnimsInFIFO(m_layerId) > 0)
 			{
 				const CAnimation& animation = pSkeletonAnim->GetAnimFromFIFO(m_layerId, 0);
-				const f32 animationNormalizedTime = pSkeletonAnim->GetAnimationNormalizedTime(&animation);
-				if (animationNormalizedTime > 0.0f)
+				const nTime animationNormalizedTime = pSkeletonAnim->GetAnimationNormalizedTime(&animation);
+				if (animationNormalizedTime > 0)
 				{
-					float speed = pSkeletonAnim->GetLayerPlaybackScale(m_layerId) * -1.0f;
+					mpfloat speed = pSkeletonAnim->GetLayerPlaybackScale(m_layerId) * -1;
 					pSkeletonAnim->SetLayerPlaybackScale(m_layerId, speed);
 				}
 				else
@@ -355,7 +355,7 @@ TVehicleAnimStateId CVehicleAnimation::GetStateId(const string& name)
 }
 
 //------------------------------------------------------------------------
-void CVehicleAnimation::SetSpeed(float speed)
+void CVehicleAnimation::SetSpeed(const mpfloat& speed)
 {
 	if (m_currentStateId == InvalidVehicleAnimStateId)
 		return;
@@ -384,7 +384,7 @@ void CVehicleAnimation::SetSpeed(float speed)
 		{
 			if (IMaterial* pMaterial = FindMaterial(stateMaterial, pPartMaterial))
 			{
-				float value = max(0.0f, min(1.0f, speed));
+				float value = max(0.0f, min(1.0f, BADF speed));
 
 				if (stateMaterial.invertValue)
 				{
@@ -447,10 +447,10 @@ void CVehicleAnimation::ToggleManualUpdate(bool isEnabled)
 }
 
 //------------------------------------------------------------------------
-float CVehicleAnimation::GetAnimTime(bool raw /*=false*/)
+nTime CVehicleAnimation::GetAnimTime(bool raw /*=false*/)
 {
 	if (m_layerId < 0 || !m_pPartAnimated)
-		return 0.0f;
+		return 0;
 
 	if (ICharacterInstance* pCharInstance =
 	      m_pPartAnimated->GetEntity()->GetCharacter(m_pPartAnimated->GetSlot()))
@@ -462,23 +462,23 @@ float CVehicleAnimation::GetAnimTime(bool raw /*=false*/)
 		if (0 < numAnimsLayer0)
 		{
 			CAnimation& animation = pSkeletonAnim->GetAnimFromFIFO(m_layerId, numAnimsLayer0 - 1);
-			const float animationNormalizedTime = pSkeletonAnim->GetAnimationNormalizedTime(&animation);
-			if (!raw && animationNormalizedTime == 0.0f)
-				return 1.0f;
+			const nTime animationNormalizedTime = pSkeletonAnim->GetAnimationNormalizedTime(&animation);
+			if (!raw && animationNormalizedTime == 0)
+				return 1;
 
-			return max(0.0f, animationNormalizedTime);
+			return max(nTime(0), animationNormalizedTime);
 		}
 		else
 		{
-			return 1.0f;
+			return 1;
 		}
 	}
 
-	return 0.0f;
+	return 0;
 }
 
 //------------------------------------------------------------------------
-void CVehicleAnimation::SetTime(float time, bool force)
+void CVehicleAnimation::SetTime(const nTime& time, bool force)
 {
 	if (m_layerId < 0 || !m_pPartAnimated)
 		return;

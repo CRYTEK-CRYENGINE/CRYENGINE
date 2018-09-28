@@ -154,10 +154,10 @@ void CFlashUIAdvanceNode::ProcessEvent(EFlowEvent event, SActivationInfo* pActIn
 
 		if (IsPortActive(pActInfo, eI_Advance))
 		{
-			const float delta = GetPortFloat(pActInfo, eI_Delta);
+			const CTimeValue delta = GetPortTime(pActInfo, eI_Delta);
 			const int instanceId = GetPortInt(pActInfo, eI_InstanceID);
 
-			SPerInstanceCall1<float> caller1;
+			SPerInstanceCall1<const CTimeValue&> caller1;
 			caller1.Execute(GetElement(), instanceId, functor(*this, &CFlashUIAdvanceNode::Advance), delta);
 
 			ActivateOutput(pActInfo, eO_OnAdvance, true);
@@ -165,7 +165,7 @@ void CFlashUIAdvanceNode::ProcessEvent(EFlowEvent event, SActivationInfo* pActIn
 	}
 }
 
-void CFlashUIAdvanceNode::Advance(IUIElement* pInstance, float delta)
+void CFlashUIAdvanceNode::Advance(IUIElement* pInstance, const CTimeValue& delta)
 {
 	// update call will not lazy init! so do it here
 	if (!pInstance->IsInit())

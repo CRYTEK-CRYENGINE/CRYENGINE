@@ -58,7 +58,7 @@ public:
 	virtual void                                     UnloadBootStrapper();
 	virtual void                                     ReloadBootStrapper();
 
-	virtual void                                     Update(float fDeltaTime);
+	virtual void                                     Update(const CTimeValue& fDeltaTime);
 	virtual void                                     Render();
 	virtual void                                     RenderLockless();
 

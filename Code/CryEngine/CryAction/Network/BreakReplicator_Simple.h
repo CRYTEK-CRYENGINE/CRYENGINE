@@ -216,7 +216,7 @@ public:
 	std::vector<EventPhysRemoveEntityParts> m_removePartEvents;
 	std::vector<EntityId>                   m_entitiesToRemove;
 
-	float                                   m_timeSinceLevelLoaded;
+	CTimeValue                              m_timeSinceLevelLoaded;
 
 	static CBreakReplicator*                m_pThis;
 	static int                              m_accurateWorldPosNumBits;

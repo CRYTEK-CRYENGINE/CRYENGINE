@@ -19,7 +19,7 @@
 //------------------------------------------------------------------------
 CVehiclePartEntityDelayedDetach::CVehiclePartEntityDelayedDetach()
 	: CVehiclePartEntity()
-	, m_detachTimer(-1.0f)
+	, m_detachTimer(-1)
 {
 }
 
@@ -29,15 +29,15 @@ CVehiclePartEntityDelayedDetach::~CVehiclePartEntityDelayedDetach()
 }
 
 //------------------------------------------------------------------------
-void CVehiclePartEntityDelayedDetach::Update(const float frameTime)
+void CVehiclePartEntityDelayedDetach::Update(const CTimeValue& frameTime)
 {
 	CVehiclePartEntity::Update(frameTime);
 
-	if (EntityAttached() && m_detachTimer >= 0.0f)
+	if (EntityAttached() && m_detachTimer >= 0)
 	{
 		m_detachTimer -= frameTime;
 
-		if (m_detachTimer <= 0.0f)
+		if (m_detachTimer <= 0)
 		{
 			SVehicleEventParams vehicleEventParams;
 			vehicleEventParams.entityId = GetPartEntityId();
@@ -45,7 +45,7 @@ void CVehiclePartEntityDelayedDetach::Update(const float frameTime)
 
 			m_pVehicle->BroadcastVehicleEvent(eVE_OnDetachPartEntity, vehicleEventParams);
 
-			m_detachTimer = -1.0f;
+			m_detachTimer.SetSeconds(-1);
 		}
 	}
 }
@@ -61,10 +61,10 @@ void CVehiclePartEntityDelayedDetach::OnVehicleEvent(EVehicleEvent event, const 
 		{
 			//we're a part entity, so want to detach.
 			//don't reset timer if all ready set
-			if (m_detachTimer < 0.0f && EntityAttached())
+			if (m_detachTimer < 0 && EntityAttached())
 			{
 				//random time between min + max wait
-				m_detachTimer = cry_random(params.fParam, params.fParam2);
+				m_detachTimer = cry_random(BADTIME(params.fParam), BADTIME(params.fParam2));
 			}
 			break;
 		}
@@ -72,9 +72,9 @@ void CVehiclePartEntityDelayedDetach::OnVehicleEvent(EVehicleEvent event, const 
 	case eVE_Sleep:
 		{
 			//if we were scheduled to delay detach, do so now as we won't receive further updates
-			if (m_detachTimer >= 0.0f && EntityAttached())
+			if (m_detachTimer >= 0 && EntityAttached())
 			{
-				m_detachTimer = -1.0f;
+				m_detachTimer.SetSeconds(-1);
 
 				SVehicleEventParams vehicleEventParams;
 

@@ -129,7 +129,7 @@ CPlaneBreak::CPlaneBreak(const SBreakEvent& be) : IProceduralBreakType(ePBTF_Cha
 	m_absorbIdx = 1;
 	m_bes.push_back(be);
 	m_bes.back().iState = eBES_Generated;
-	m_bes.back().time = gEnv->pTimer->GetFrameStartTime().GetSeconds();
+	m_bes.back().time = GetGTimer()->GetFrameStartTime().GetSeconds();
 }
 
 bool CPlaneBreak::AttemptAbsorb(const IProceduralBreakTypePtr& pBT)
@@ -142,7 +142,7 @@ bool CPlaneBreak::AttemptAbsorb(const IProceduralBreakTypePtr& pBT)
 		{
 			m_bes.push_back(pBrk->m_bes[0]);
 			m_bes.back().iState = eBES_Generated;
-			m_bes.back().time = gEnv->pTimer->GetFrameStartTime().GetSeconds();
+			m_bes.back().time = GetGTimer()->GetFrameStartTime().GetSeconds();
 			return true;
 		}
 	}

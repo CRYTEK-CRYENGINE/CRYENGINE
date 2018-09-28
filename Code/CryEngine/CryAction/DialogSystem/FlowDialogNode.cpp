@@ -37,7 +37,7 @@ public:
 		m_actInfo = *pActInfo;
 		m_buffer = CDialogQueuesManager::NO_QUEUE;
 		m_idForQueueManager = 0;
-		m_bufferDelayLeft = 0;
+		m_bufferDelayLeft.SetSeconds(0);
 	}
 
 	~CFlowDialogNode()
@@ -179,7 +179,7 @@ public:
 				{
 					m_idForQueueManager = pMgr->Play(m_buffer, dialogString);
 					pActInfo->pGraph->SetRegularlyUpdated(pActInfo->myID, true);
-					m_bufferDelayLeft = GetPortFloat(pActInfo, EIP_BufferDelay);
+					m_bufferDelayLeft = GetPortTime(pActInfo, EIP_BufferDelay);
 				}
 			}
 			break;
@@ -199,7 +199,7 @@ public:
 						if (!pMgr->IsDialogWaiting(m_buffer, m_idForQueueManager))
 						{
 							if (m_bufferDelayLeft > 0)
-								m_bufferDelayLeft -= gEnv->pTimer->GetFrameTime();
+								m_bufferDelayLeft -= GetGTimer()->GetFrameTime();
 							else
 							{
 								pActInfo->pGraph->SetRegularlyUpdated(pActInfo->myID, false);
@@ -306,7 +306,7 @@ protected:
 		pSession->SetAIBehaviourMode(CDialogSession::eDIB_InterruptNever);
 		pSession->SetPlayerAwarenessDistance(GetPortFloat(pActInfo, EIP_AwareDist));
 		pSession->SetPlayerAwarenessAngle(GetPortFloat(pActInfo, EIP_AwareAngle));
-		pSession->SetPlayerAwarenessGraceTime(GetPortFloat(pActInfo, EIP_AwareTimeOut));
+		pSession->SetPlayerAwarenessGraceTime(GetPortTime(pActInfo, EIP_AwareTimeOut));
 
 		const int alertnessInterruptModeInput = GetPortInt(pActInfo, EIP_AIInterrupt);
 		CDialogSession::AlertnessInterruptMode alertnessInterruptMode = CDialogSession::None;
@@ -416,7 +416,7 @@ private:
 	CDialogSystem::SessionID        m_sessionID;
 	CDialogQueuesManager::TDialogId m_idForQueueManager;
 	uint32                          m_buffer;
-	float                           m_bufferDelayLeft;
+	CTimeValue                      m_bufferDelayLeft;
 	bool                            m_bIsPlaying;
 };
 

@@ -12,7 +12,7 @@
 struct SLookPoseParams : public IProceduralParams
 {
 	SLookPoseParams()
-		: blendTime(1.f)
+		: blendTime(1)
 		, scopeLayer(0)
 	{
 	}
@@ -30,7 +30,7 @@ struct SLookPoseParams : public IProceduralParams
 	}
 
 	SAnimRef animRef;
-	float    blendTime;
+	nTime    blendTime;
 	uint32   scopeLayer;
 };
 
@@ -44,7 +44,7 @@ public:
 	{
 	}
 
-	virtual void OnEnter(float blendTime, float duration, const SLookPoseParams& params)
+	virtual void OnEnter(const CTimeValue& blendTime, const CTimeValue& duration, const SLookPoseParams& params)
 	{
 		IF (m_charInstance == NULL, false)
 			return;
@@ -59,7 +59,7 @@ public:
 			lookAtTarget += m_entity->GetForwardDir() * 10.0f;
 		}
 
-		const float smoothTime = params.blendTime;
+		const nTime smoothTime = params.blendTime;
 		const uint32 ikLayer = m_scope->GetBaseLayer() + params.scopeLayer;
 		IAnimationPoseBlenderDir* poseBlenderLook = m_charInstance->GetISkeletonPose()->GetIPoseBlenderLook();
 		if (poseBlenderLook)
@@ -70,7 +70,7 @@ public:
 			{
 				poseBlenderLook->SetTarget(lookAtTarget);
 			}
-			poseBlenderLook->SetPolarCoordinatesSmoothTimeSeconds(smoothTime);
+			poseBlenderLook->SetPolarCoordinatesSmoothTime(smoothTime);
 			poseBlenderLook->SetLayer(ikLayer);
 			poseBlenderLook->SetFadeInSpeed(blendTime);
 		}
@@ -80,7 +80,7 @@ public:
 		StartLookAnimation(blendTime);
 	}
 
-	virtual void OnExit(float blendTime)
+	virtual void OnExit(const CTimeValue& blendTime)
 	{
 		IF (m_charInstance == NULL, false)
 			return;
@@ -99,7 +99,7 @@ public:
 
 	}
 
-	virtual void Update(float timePassed)
+	virtual void Update(const CTimeValue& timePassed)
 	{
 		IF (m_charInstance == NULL, false)
 			return;
@@ -117,7 +117,7 @@ public:
 
 private:
 
-	void StartLookAnimation(const float blendTime)
+	void StartLookAnimation(const CTimeValue& blendTime)
 	{
 		const SLookPoseParams& params = GetParams();
 		if (params.animRef.IsEmpty())
@@ -145,7 +145,7 @@ private:
 		}
 	}
 
-	void StopLookAnimation(const float blendTime)
+	void StopLookAnimation(const CTimeValue& blendTime)
 	{
 		const SLookPoseParams& params = GetParams();
 		if (params.animRef.IsEmpty())

@@ -77,7 +77,7 @@ void CVehicleSeatActionOrientateBoneToView::StopUsing()
 	m_pVehicle->SetObjectUpdate(this, IVehicle::eVOU_NoUpdate);
 }
 
-void CVehicleSeatActionOrientateBoneToView::PrePhysUpdate(const float deltaTime)
+void CVehicleSeatActionOrientateBoneToView::PrePhysUpdate(const CTimeValue& deltaTime)
 {
 	Vec3 lookPos = GetCurrentLookPosition();
 	Vec3 aimPos = GetDesiredAimPosition();
@@ -91,7 +91,7 @@ void CVehicleSeatActionOrientateBoneToView::PrePhysUpdate(const float deltaTime)
 		m_BoneOrientationAngles.z += (float)__fsel(m_BoneOrientationAngles.z, -2.f * gf_PI, 2.f * gf_PI);
 	}
 
-	SmoothCD<Ang3>(m_BoneOrientationAngles, m_BoneSmoothingRate, deltaTime, desiredViewAngles, m_Sluggishness);
+	SmoothCD<Ang3>(m_BoneOrientationAngles, m_BoneSmoothingRate, deltaTime, desiredViewAngles, BADTIME(m_Sluggishness));
 
 	IAnimationPoseModifierPtr modPtr = m_poseModifier;
 	m_pVehicle->GetEntity()->GetCharacter(0)->GetISkeletonAnim()->PushPoseModifier(2, modPtr, "VehicleSeat");

@@ -220,7 +220,7 @@ public:
 	virtual void              UnLoadLevel();
 	virtual ILevelInfo*       SetEditorLoadedLevel(const char* levelName, bool bReadLevelInfoMetaData = false);
 	virtual void              PrepareNextLevel(const char* levelName);
-	virtual float             GetLastLevelLoadTime() { return m_fLastLevelLoadTime; };
+	virtual const CTimeValue& GetLastLevelLoadTime() { return m_fLastLevelLoadTime; };
 	virtual bool              IsLevelLoaded()        { return m_bLevelLoaded; }
 
 	virtual ILevelRotation*   GetLevelRotation()     { return &m_levelRotation; };
@@ -274,9 +274,9 @@ private:
 	CLevelRotation                     m_levelRotation;
 
 	string                             m_lastLevelName;
-	float                              m_fLastLevelLoadTime;
+	CTimeValue                         m_fLastLevelLoadTime;
 	float                              m_fFilteredProgress;
-	float                              m_fLastTime;
+	CTimeValue                         m_fLastTime;
 
 	bool                               m_bLevelLoaded;
 	bool                               m_bRecordingFileOpens;

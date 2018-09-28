@@ -106,7 +106,7 @@ void CVehicleSeatActionShakeParts::StopUsing()
 	m_pVehicle->SetObjectUpdate(this, IVehicle::eVOU_NoUpdate);
 }
 
-void CVehicleSeatActionShakeParts::Update(const float deltaTime)
+void CVehicleSeatActionShakeParts::Update(const CTimeValue& deltaTime)
 {
 	IVehicleMovement* pMovement = m_pVehicle->GetMovement();
 	if (pMovement == NULL)
@@ -140,7 +140,7 @@ void CVehicleSeatActionShakeParts::Update(const float deltaTime)
 			float randPos = partInstance->noiseUpDown.Update(deltaTime);
 			float randRot = partInstance->noiseRot.Update(deltaTime);
 			float targetZ = partInfo->suspensionAmp * clamp_tpl(wheeledStatus.suspensionCompressionRate * partInfo->suspensionResponse, -1.f, +1.f);
-			partInstance->zpos += (targetZ - partInstance->zpos) * approxOneExp(partInfo->suspensionSharpness * deltaTime);
+			partInstance->zpos += (targetZ - partInstance->zpos) * approxOneExp(partInfo->suspensionSharpness * deltaTime.BADGetSeconds());
 			Matrix34 tm;
 			tm.SetRotationZ(randRot);
 			tm.SetTranslation(Vec3(0.f, 0.f, randPos + partInstance->zpos));

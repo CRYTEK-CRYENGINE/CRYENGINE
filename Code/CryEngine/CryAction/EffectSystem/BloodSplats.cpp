@@ -3,23 +3,23 @@
 #include "StdAfx.h"
 #include "BloodSplats.h"
 
-void CBloodSplats::Init(int type, float maxTime)
+void CBloodSplats::Init(int type, const CTimeValue& maxTime)
 {
 	m_type = type;
 	m_maxTime = maxTime;
 }
 
-bool CBloodSplats::Update(float delta)
+bool CBloodSplats::Update(const CTimeValue& delta)
 {
 	m_currentTime -= delta;
 
-	if (m_currentTime < 0.0f)
+	if (m_currentTime < 0)
 		return true;
 
-	float scale = (2.0f * m_currentTime) / m_maxTime;
-	if (scale > 1.0f) scale = 1.0f;
+	nTime scale = (2 * m_currentTime) / m_maxTime;
+	if (scale > 1) scale = 1;
 
-	gEnv->p3DEngine->SetPostEffectParam("BloodSplats_Amount", scale * scale);
+	gEnv->p3DEngine->SetPostEffectParam("BloodSplats_Amount", BADF(scale * scale));
 
 	return false;
 }

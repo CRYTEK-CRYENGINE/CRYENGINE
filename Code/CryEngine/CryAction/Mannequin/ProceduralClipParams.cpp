@@ -32,16 +32,16 @@ struct SSetParamParams : public IProceduralParams
 
 struct SParamTarget
 {
-	SParamTarget(float _target, float _start, float _blend)
+	SParamTarget(float _target, float _start, const rTime& _blend)
 		: targetValue(_target)
 		, startValue(_start)
 		, blendRate(_blend)
-		, currentFraction(0.f)
+		, currentFraction(0)
 	{}
 	float targetValue;
 	float startValue;
-	float blendRate;
-	float currentFraction;
+	rTime blendRate;
+	nTime currentFraction;
 };
 
 class CProceduralContext_SetParam : public IProceduralContext
@@ -54,18 +54,18 @@ private:
 public:
 	PROCEDURAL_CONTEXT(CProceduralContext_SetParam, "SetParamContext", "c6c08712-5781-4854-adc5-6ab4252834bd"_cry_guid);
 
-	virtual void Update(float timePassed) override
+	virtual void Update(const CTimeValue& timePassed) override
 	{
 		VectorMap<uint32, SParamTarget>::iterator it = m_paramTargets.begin();
 
 		while (it != m_paramTargets.end())
 		{
-			float currentFraction = min(1.f, it->second.currentFraction + (it->second.blendRate * timePassed));
-			float newValue = LERP(it->second.startValue, it->second.targetValue, currentFraction);
+			nTime currentFraction = min(nTime(1), it->second.currentFraction + (it->second.blendRate * timePassed).conv<nTime>());
+			float newValue = LERP(it->second.startValue, it->second.targetValue, BADF currentFraction);
 
 			m_actionController->SetParam(it->first, newValue);
 
-			if (currentFraction >= 1.f)
+			if (currentFraction >= 1)
 			{
 				it = m_paramTargets.erase(it);
 			}
@@ -77,23 +77,23 @@ public:
 		}
 	}
 
-	void SetParamTarget(uint32 paramCRC, float paramTarget, float blendRate)
+	void SetParamTarget(uint32 paramCRC, float paramTarget, const rTime& blendRate)
 	{
 		VectorMap<uint32, SParamTarget>::iterator it = m_paramTargets.find(paramCRC);
 
-		if (blendRate < FLT_MAX)
+		if (blendRate < rTime::Max())
 		{
 			if (it != m_paramTargets.end())
 			{
 				it->second.targetValue = paramTarget;
 				it->second.blendRate = blendRate;
-				it->second.currentFraction = 0.f;
+				it->second.currentFraction = 0;
 
 				m_actionController->GetParam(paramCRC, it->second.startValue);
 			}
 			else
 			{
-				SParamTarget newParamTarget(paramTarget, 0.f, blendRate);
+				SParamTarget newParamTarget(paramTarget, 0, blendRate);
 				m_actionController->GetParam(paramCRC, newParamTarget.startValue);
 
 				m_paramTargets.insert(VectorMap<uint32, SParamTarget>::value_type(paramCRC, newParamTarget));
@@ -121,9 +121,9 @@ class CProceduralClipSetParam : public TProceduralContextualClip<CProceduralCont
 public:
 	CProceduralClipSetParam();
 
-	virtual void OnEnter(float blendTime, float duration, const SSetParamParams& params)
+	virtual void OnEnter(const CTimeValue& blendTime, const CTimeValue& duration, const SSetParamParams& params)
 	{
-		float blendRate = blendTime > 0.f ? __fres(blendTime) : FLT_MAX;
+		rTime blendRate = blendTime > 0 ? (1/blendTime) : rTime::Max();
 
 		m_context->SetParamTarget(params.paramName.crc, params.target, blendRate);
 
@@ -131,13 +131,13 @@ public:
 		m_exitTarget = params.exitTarget;
 	}
 
-	virtual void OnExit(float blendTime)
+	virtual void OnExit(const CTimeValue& blendTime)
 	{
-		float blendRate = blendTime > 0.f ? __fres(blendTime) : FLT_MAX;
+		rTime blendRate = blendTime > 0 ? (1 / blendTime) : rTime::Max();
 		m_context->SetParamTarget(m_paramCRC, m_exitTarget, blendRate);
 	}
 
-	virtual void Update(float timePassed)
+	virtual void Update(const CTimeValue& timePassed)
 	{
 	}
 

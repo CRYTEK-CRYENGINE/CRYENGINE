@@ -107,7 +107,7 @@ public:
 	virtual void                          PostRenderSubmit();
 
 	void                                  ClearTimers();
-	virtual TimerID                       AddTimer(CTimeValue interval, bool repeat, TimerCallback callback, void* userdata);
+	virtual TimerID                       AddTimer(const CTimeValue& interval, bool repeat, TimerCallback callback, void* userdata);
 	virtual void*                         RemoveTimer(TimerID timerID);
 
 	virtual uint32                        GetPreUpdateTicks();
@@ -125,7 +125,7 @@ public:
 	virtual void                          Reset(bool clients);
 	virtual void                          GetMemoryUsage(ICrySizer* pSizer) const;
 
-	virtual void                          PauseGame(bool pause, bool force, unsigned int nFadeOutInMS = 0);
+	virtual void                          PauseGame(bool pause, bool force);
 	virtual bool                          IsGamePaused();
 	virtual bool                          IsGameStarted();
 	virtual bool                          IsInLevelLoad();
@@ -196,7 +196,6 @@ public:
 	virtual IEntity*                      GetClientEntity() const;
 	virtual EntityId                      GetClientEntityId() const;
 	virtual INetChannel*                  GetClientChannel() const;
-	virtual CTimeValue                    GetServerTime();
 	virtual uint16                        GetGameChannelId(INetChannel* pNetChannel);
 	virtual INetChannel*                  GetNetChannel(uint16 channelId);
 	virtual void                          SetServerChannelPlayerId(uint16 channelId, EntityId id);
@@ -258,12 +257,12 @@ public:
 	virtual IGame*                GetIGame();
 	virtual void* GetGameModuleHandle() const { return m_externalGameLibrary.dllHandle; }
 
-	virtual float                 GetLoadSaveDelay() const { return m_lastSaveLoad; }
+	virtual const CTimeValue&     GetLoadSaveDelay() const { return m_lastSaveLoad; }
 
 	virtual IGameVolumes*         GetIGameVolumesManager() const;
 
 	virtual void                  PreloadAnimatedCharacter(IScriptTable* pEntityScript);
-	virtual void                  PrePhysicsTimeStep(float deltaTime);
+	virtual void                  PrePhysicsTimeStep(const CTimeValue& deltaTime);
 
 	virtual void                  RegisterExtension(ICryUnknownPtr pExtension);
 	virtual void                  ReleaseExtensions();
@@ -478,7 +477,6 @@ private:
 	I3DEngine*                    m_p3DEngine;
 	IScriptSystem*                m_pScriptSystem;
 	IEntitySystem*                m_pEntitySystem;
-	ITimer*                       m_pTimer;
 	ILog*                         m_pLog;
 	IGameToEditorInterface*       m_pGameToEditor;
 
@@ -650,14 +648,14 @@ private:
 	{
 		bool  m_enabled;
 		int   m_numAttemptsLeft;
-		float m_timeForNextAttempt;
+		CTimeValue m_timeForNextAttempt;
 
-		SConnectRepeatedly() : m_enabled(false), m_numAttemptsLeft(0), m_timeForNextAttempt(0.0f) {}
+		SConnectRepeatedly() : m_enabled(false), m_numAttemptsLeft(0), m_timeForNextAttempt(0) {}
 	} m_connectRepeatedly;
 #endif
 
-	float  m_lastSaveLoad;
-	float  m_lastFrameTimeUI;
+	CTimeValue  m_lastSaveLoad;
+	CTimeValue  m_lastFrameTimeUI;
 
 	bool   m_pbSvEnabled;
 	bool   m_pbClEnabled;

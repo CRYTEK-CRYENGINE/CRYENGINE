@@ -85,7 +85,7 @@ public:
 	virtual void                 ProcessEvent(const SEntityEvent&);
 	virtual uint64               GetEventMask() const final;;
 	virtual void                 SetChannelId(uint16 id)     {};
-	virtual void                 PostUpdate(float frameTime) { CRY_ASSERT(false); }
+	virtual void                 PostUpdate(const CTimeValue& frameTime) { CRY_ASSERT(false); }
 	virtual void                 PostRemoteSpawn()           {};
 	virtual void                 GetMemoryUsage(ICrySizer* pSizer) const;
 	// ~IGameObjectExtension

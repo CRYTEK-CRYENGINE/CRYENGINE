@@ -76,7 +76,7 @@ struct IItem : public IGameObjectExtension
 	virtual void         Physicalize(bool enable, bool rigid) = 0;
 	virtual bool         CanDrop() const = 0;
 	virtual void         Drop(float impulseScale = 1.0f, bool selectNext = true, bool byDeath = false) = 0;
-	virtual void         UpdateFPView(float frameTime) = 0;
+	virtual void         UpdateFPView(const CTimeValue& frameTime) = 0;
 	virtual Vec3         GetMountedAngleLimits() const = 0;
 	virtual void         PickUp(EntityId picker, bool sound, bool select = true, bool keepHistory = true, const char* setup = NULL) = 0;
 	virtual void         MountAtEntity(EntityId entityId, const Vec3& pos, const Ang3& angles) = 0;

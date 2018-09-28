@@ -37,7 +37,7 @@ public:
 	virtual Matrix34    GetWorldTM() override;
 	virtual const AABB& GetLocalBounds() override;
 
-	virtual void        Update(const float frameTime) override;
+	virtual void        Update(const CTimeValue& frameTime) override;
 	virtual void        Serialize(TSerialize ser, EEntityAspects aspects) override;
 
 	virtual void        GetMemoryUsage(ICrySizer* s) const override

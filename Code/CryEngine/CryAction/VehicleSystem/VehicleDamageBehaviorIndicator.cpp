@@ -21,8 +21,8 @@ CVehicleDamageBehaviorIndicator::CVehicleDamageBehaviorIndicator()
 	, m_pHelper(nullptr)
 	, m_soundsPlayed(0)
 	, m_lastDamageRatio(0.0f)
-	, m_lightUpdate(0.0f)
-	, m_lightTimer(0.0f)
+	, m_lightUpdate(0)
+	, m_lightTimer(0)
 	, m_lightOn(false)
 {}
 
@@ -128,7 +128,7 @@ void CVehicleDamageBehaviorIndicator::OnDamageEvent(EVehicleDamageBehaviorEvent 
 
 				float ratio = (m_currentDamageRatio - m_ratioMin) / (m_ratioMax - m_ratioMin);
 				CRY_ASSERT(ratio >= 0.f && ratio <= 1.f);
-				m_lightUpdate = 0.5f / (m_frequencyMin + ratio * (m_frequencyMax - m_frequencyMin));
+				m_lightUpdate = BADTIME(0.5f / (m_frequencyMin + ratio * (m_frequencyMax - m_frequencyMin)));
 			}
 		}
 		else
@@ -155,17 +155,17 @@ void CVehicleDamageBehaviorIndicator::OnDamageEvent(EVehicleDamageBehaviorEvent 
 }
 
 //------------------------------------------------------------------------
-void CVehicleDamageBehaviorIndicator::Update(const float deltaTime)
+void CVehicleDamageBehaviorIndicator::Update(const CTimeValue& deltaTime)
 {
-	if (m_isActive && m_lightUpdate > 0.f && m_pVehicle->IsPlayerPassenger())
+	if (m_isActive && m_lightUpdate > 0 && m_pVehicle->IsPlayerPassenger())
 	{
 		m_lightTimer += deltaTime;
 
-		if (m_lightTimer >= 2.f * m_lightUpdate)
+		if (m_lightTimer >= 2 * m_lightUpdate)
 		{
 			// off
 			EnableLight(false);
-			m_lightTimer = 0.f;
+			m_lightTimer.SetSeconds(0);
 		}
 		else if (!m_lightOn && m_lightTimer >= m_lightUpdate)
 		{

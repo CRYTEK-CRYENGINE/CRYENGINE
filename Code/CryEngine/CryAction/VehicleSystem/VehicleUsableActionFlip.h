@@ -34,15 +34,15 @@ public:
 
 	// IVehicleObject
 	virtual void Serialize(TSerialize ser, EEntityAspects aspects) override                      {}
-	virtual void Update(const float deltaTime) override;
+	virtual void Update(const CTimeValue& deltaTime) override;
 	virtual void OnVehicleEvent(EVehicleEvent event, const SVehicleEventParams& params) override {}
 	// ~IVehicleObject
 
 protected:
 
 	CVehicle* m_pVehicle;
-	float     m_timer;
-	float     m_postReorientedTimer;
+	CTimeValue  m_timer;
+	CTimeValue  m_postReorientedTimer;
 	Vec3      m_localAngVel;
 };
 

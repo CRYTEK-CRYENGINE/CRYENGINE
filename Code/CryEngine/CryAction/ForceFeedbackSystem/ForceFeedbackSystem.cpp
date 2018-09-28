@@ -242,7 +242,7 @@ void CForceFeedBackSystem::PlayForceFeedbackEffect(ForceFeedbackFxId id, const S
 			SActiveEffect& justAddedEffect = m_activeEffects[activeEffectSize];
 			justAddedEffect.effectId = id;
 			justAddedEffect.effectTime = effect.time;
-			justAddedEffect.runningTime = 0.0f;
+			justAddedEffect.runningTime.SetSeconds(0);
 			justAddedEffect.frequencyA = effect.frequencyA;
 			justAddedEffect.frequencyB = effect.frequencyB;
 			justAddedEffect.frequencyLT = effect.frequencyLT;
@@ -281,7 +281,7 @@ bool CForceFeedBackSystem::TryToRestartEffectIfAlreadyRunning(ForceFeedbackFxId 
 		if (activeEffectIt->effectId != id)
 			continue;
 
-		activeEffectIt->runningTime = 0.0f;
+		activeEffectIt->runningTime.SetSeconds(0);
 		activeEffectIt->runtimeParams = runtimeParams;
 		return true;
 	}
@@ -340,14 +340,14 @@ void CForceFeedBackSystem::AddCustomTriggerForceFeedback(const SFFTriggerOutputD
 	m_triggerCustomForceFeedBack += triggersData;
 }
 
-void CForceFeedBackSystem::Update(float frameTime)
+void CForceFeedBackSystem::Update(const CTimeValue& frameTime)
 {
 	SFFOutput forceFeedback;
 	SFFTriggerOutputData triggerForceFeedback;
 
 	// If the game is paused then we must not apply force feedback, otherwise
 	// it might be left on whilst the game is paused
-	if (gEnv->pSystem->IsPaused() == false && frameTime > 0.001f)
+	if (gEnv->pSystem->IsPaused() == false && frameTime > "0.001")
 	{
 		TActiveEffectsArray::iterator activeEffectIt = m_activeEffects.begin();
 
@@ -781,7 +781,7 @@ void FFSPlayEffect(IConsoleCmdArgs* pArgs)
 		{
 			ForceFeedbackFxId fxId = pFFS->GetEffectIdByName(pArgs->GetArg(1));
 			const float intensity = (pArgs->GetArgCount() >= 3) ? (float)atof(pArgs->GetArg(2)) : 1.0f;
-			const float delay = (pArgs->GetArgCount() >= 4) ? (float)atof(pArgs->GetArg(3)) : 0.0f;
+			const CTimeValue delay = (pArgs->GetArgCount() >= 4) ? CTimeValue(pArgs->GetArg(3)) : 0;
 			pFFS->PlayForceFeedbackEffect(fxId, SForceFeedbackRuntimeParams(intensity, delay));
 		}
 	}
@@ -825,46 +825,46 @@ SForceFeedbackSystemCVars::~SForceFeedbackSystemCVars()
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 
-CForceFeedBackSystem::SFFOutput CForceFeedBackSystem::SActiveEffect::Update(float frameTime)
+CForceFeedBackSystem::SFFOutput CForceFeedBackSystem::SActiveEffect::Update(const CTimeValue& frameTime)
 {
 	SFFOutput effectFF;
 
-	bool canPlay = (runtimeParams.delay <= 0.0f);
+	bool canPlay = (runtimeParams.delay <= 0);
 
 	if (canPlay)
 	{
-		bool isLoopingEffect = (effectTime <= 0.0f);
+		bool isLoopingEffect = (effectTime <= 0);
 
-		const float effectTimeInv = !isLoopingEffect ? (float)__fres(effectTime) : 1.0f;
-		const float sampleTime = runningTime * effectTimeInv;
+		const rTime effectTimeInv = !isLoopingEffect ? 1 / effectTime : 1;
+		const CTimeValue sampleTime = (runningTime * effectTimeInv).conv<mpfloat>();
 
-		const float sampleTimeAAtFreq = sampleTime * frequencyA;
+		const float sampleTimeAAtFreq = sampleTime.BADGetSeconds() * frequencyA;
 		const float sampleTimeAAtFreqNorm = clamp_tpl(sampleTimeAAtFreq - floor_tpl(sampleTimeAAtFreq), 0.0f, 1.0f);
 
-		const float sampleTimeBAtFreq = sampleTime * frequencyB;
+		const float sampleTimeBAtFreq = sampleTime.BADGetSeconds() * frequencyB;
 		const float sampleTimeBAtFreqNorm = clamp_tpl(sampleTimeBAtFreq - floor_tpl(sampleTimeBAtFreq), 0.0f, 1.0f);
 
-		const float sampleTimeLTAtFreq = sampleTime * frequencyLT;
+		const float sampleTimeLTAtFreq = sampleTime.BADGetSeconds() * frequencyLT;
 		const float sampleTimeLTAtFreqNorm = clamp_tpl(sampleTimeLTAtFreq - floor_tpl(sampleTimeLTAtFreq), 0.0f, 1.0f);
 
-		const float sampleTimeRTAtFreq = sampleTime * frequencyRT;
+		const float sampleTimeRTAtFreq = sampleTime.BADGetSeconds() * frequencyRT;
 		const float sampleTimeRTAtFreqNorm = clamp_tpl(sampleTimeRTAtFreq - floor_tpl(sampleTimeRTAtFreq), 0.0f, 1.0f);
 
-		effectFF.forceFeedbackA = m_patternA.SamplePattern(sampleTimeAAtFreqNorm) * m_envelopeA.SampleEnvelope(sampleTime) * runtimeParams.intensity;
-		effectFF.forceFeedbackB = m_patternB.SamplePattern(sampleTimeBAtFreqNorm) * m_envelopeB.SampleEnvelope(sampleTime) * runtimeParams.intensity;
-		effectFF.forceFeedbackLT = m_patternLT.SamplePattern(sampleTimeLTAtFreqNorm) * m_envelopeLT.SampleEnvelope(sampleTime) * runtimeParams.intensity;
-		effectFF.forceFeedbackRT = m_patternRT.SamplePattern(sampleTimeRTAtFreqNorm) * m_envelopeRT.SampleEnvelope(sampleTime) * runtimeParams.intensity;
+		effectFF.forceFeedbackA = m_patternA.SamplePattern(BADTIME(sampleTimeAAtFreqNorm)) * m_envelopeA.SampleEnvelope(sampleTime) * runtimeParams.intensity;
+		effectFF.forceFeedbackB = m_patternB.SamplePattern(BADTIME(sampleTimeBAtFreqNorm)) * m_envelopeB.SampleEnvelope(sampleTime) * runtimeParams.intensity;
+		effectFF.forceFeedbackLT = m_patternLT.SamplePattern(BADTIME(sampleTimeLTAtFreqNorm)) * m_envelopeLT.SampleEnvelope(sampleTime) * runtimeParams.intensity;
+		effectFF.forceFeedbackRT = m_patternRT.SamplePattern(BADTIME(sampleTimeRTAtFreqNorm)) * m_envelopeRT.SampleEnvelope(sampleTime) * runtimeParams.intensity;
 		runningTime += frameTime;
 
 		//Re-start the loop
 		if (isLoopingEffect)
 		{
-			runningTime = (float)__fsel(1.0f - runningTime, runningTime, 0.0f);
+			runningTime = runningTime <= 1 ? runningTime : 0;
 		}
 	}
 	else
 	{
-		runtimeParams.delay = clamp_tpl(runtimeParams.delay - frameTime, 0.0f, runtimeParams.delay);
+		runtimeParams.delay = CLAMP(runtimeParams.delay - frameTime, 0, runtimeParams.delay);
 	}
 
 	return effectFF;

@@ -169,8 +169,8 @@ void CVehiclePartAnimated::OnEvent(const SVehiclePartEvent& event)
 			else
 				m_hideMode = eVPH_FadeIn;
 
-			m_hideTimeCount = event.fparam;
-			m_hideTimeMax = event.fparam;
+			m_hideTimeCount = BADTIME(event.fparam);
+			m_hideTimeMax   = BADTIME(event.fparam);
 
 			m_pVehicle->SetObjectUpdate(this, IVehicle::eVOU_AlwaysUpdate);
 		}
@@ -917,7 +917,7 @@ void CVehiclePartAnimated::RotationChanged(CVehiclePartAnimatedJoint* pJoint)
 }
 
 //------------------------------------------------------------------------
-void CVehiclePartAnimated::Update(const float frameTime)
+void CVehiclePartAnimated::Update(const CTimeValue& frameTime)
 {
 	CVehiclePartBase::Update(frameTime);
 

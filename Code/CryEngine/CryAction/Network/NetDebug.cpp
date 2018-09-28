@@ -18,7 +18,7 @@
 
 CNetDebug::CNetDebug()
 {
-	m_fLastTime = 0;
+	m_fLastTime.SetSeconds(0);
 	m_varDebug = 0;
 	m_varDebugRMI = 0;
 	m_trapValue = 0;
@@ -166,7 +166,7 @@ void CNetDebug::UpdateAspectsDebugEntity(const DebugAspectsContext& ctx, DebugAs
 	if (aspects & eEA_GameServerDynamic) ent.aspectChangeCount[AspectToIdx(eEA_GameServerDynamic)]++;
 }
 
-void CNetDebug::UpdateAspectsRates(float fDiffTimeMsec)
+void CNetDebug::UpdateAspectsRates(const CTimeValue& fDiffTime)
 {
 	for (TDebugAspects::iterator it = m_aspects.begin(); it != m_aspects.end(); ++it)
 	{
@@ -182,8 +182,7 @@ void CNetDebug::UpdateAspectsRates(float fDiffTimeMsec)
 				if (fCurrRate > 0)
 					pEnt->entityTTL[i] = MAX_TTL;
 
-				float fSec = fDiffTimeMsec / (float)UPDATE_DIFF_MSEC;
-				fCurrRate = fCurrRate / fSec;
+				fCurrRate = fCurrRate / fDiffTime.BADGetSeconds();
 				pEnt->aspectChangeRate[i] = (pEnt->aspectChangeRate[i] + fCurrRate) / 2.0f;
 				pEnt->aspectLastCount[i] = pEnt->aspectChangeCount[i];
 			}
@@ -191,15 +190,14 @@ void CNetDebug::UpdateAspectsRates(float fDiffTimeMsec)
 	}
 }
 
-void CNetDebug::UpdateRMI(float fDiffTimeMSec)
+void CNetDebug::UpdateRMI(const CTimeValue& fDiffTime)
 {
 	for (TDebugRMI::iterator it = m_rmi.begin(); it != m_rmi.end(); ++it)
 	{
 		DebugRMIEntity* pEnt = &(it->second);
 
 		float fDiffBytes = (float)pEnt->totalSize - (float)pEnt->lastTotalSize;
-		float fSec = fDiffTimeMSec / (float)UPDATE_DIFF_MSEC;
-		pEnt->rate = (pEnt->rate + fDiffBytes / fSec) / 2.0f;
+		pEnt->rate = (pEnt->rate + fDiffBytes / fDiffTime.BADGetSeconds()) / 2.0f;
 
 		if (pEnt->rate > pEnt->peakRate)
 			pEnt->peakRate = pEnt->rate;
@@ -347,10 +345,10 @@ void CNetDebug::Update()
 	if (!m_varDebug && !m_varDebugRMI)
 		return;
 
-	float fFrameTime = gEnv->pTimer->GetFrameStartTime().GetMilliSeconds();
-	float fDiffTime = fFrameTime - m_fLastTime;
+	CTimeValue fFrameTime = GetGTimer()->GetFrameStartTime();
+	CTimeValue fDiffTime = fFrameTime - m_fLastTime;
 
-	if (fDiffTime > UPDATE_DIFF_MSEC)
+	if (fDiffTime.GetSeconds() > 1)
 	{
 		m_fLastTime = fFrameTime;
 		if (m_varDebug) UpdateAspectsRates(fDiffTime);

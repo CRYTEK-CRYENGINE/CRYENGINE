@@ -51,7 +51,7 @@ public:
 	virtual void        OnStartUsing(EntityId passengerId) override;
 	virtual void        OnStopUsing() override;
 
-	virtual void        Update(const float frameTime) override;
+	virtual void        Update(const CTimeValue& frameTime) override;
 	virtual void Serialize(TSerialize serialize, EEntityAspects) override;
 
 	virtual bool ShootToCrosshair() override { return false; }

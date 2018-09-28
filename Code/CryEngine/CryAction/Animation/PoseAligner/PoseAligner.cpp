@@ -237,10 +237,10 @@ void CChain::Reset()
 	m_animationSlopeNormalFilteredSmoothRate = Vec3(ZERO);
 }
 
-void CChain::UpdateFromAnimations(ICharacterInstance& character, const QuatT& location, const float time)
+void CChain::UpdateFromAnimations(ICharacterInstance& character, const QuatT& location, const CTimeValue& time)
 {
 	m_animationSlopeNormal = ComputeAnimationMovementPlaneNormal(*character.GetISkeletonAnim(), Vec3(0.0f, 0.0f, 1.0f));
-	SmoothCD(m_animationSlopeNormalFiltered, m_animationSlopeNormalFilteredSmoothRate, time, m_animationSlopeNormal, 0.01f);
+	SmoothCD(m_animationSlopeNormalFiltered, m_animationSlopeNormalFilteredSmoothRate, time, m_animationSlopeNormal, "0.01");
 	m_animationSlopeNormalFiltered.NormalizeSafe(Vec3(0.0f, 0.0f, 1.0f));
 }
 
@@ -311,9 +311,9 @@ void CChain::FindContact(const QuatT& location)
 	m_targetNormal = targetNormalNew;
 }
 
-void CChain::FilterTargetLocation(const float time)
+void CChain::FilterTargetLocation(const CTimeValue& time)
 {
-	const float smoothTime = m_targetPosition.z > m_targetPositionFiltered.z ? 0.08f : 0.1f;
+	const CTimeValue smoothTime = m_targetPosition.z > m_targetPositionFiltered.z ? "0.08" : "0.1";
 
 	SmoothCD(m_targetNormalFiltered, m_targetNormalFilteredSmoothRate, time, m_targetNormal, smoothTime);
 	m_targetNormal.NormalizeSafe(Vec3(0.0f, 0.0f, 1.0f));
@@ -329,7 +329,7 @@ void CChain::FilterTargetLocation(const float time)
 	SmoothCD(m_targetPositionFiltered, m_targetPositionFilteredSmoothRate, time, m_targetPosition, smoothTime);
 }
 
-float CChain::ComputeTargetBlendValue(ISkeletonPose& skeletonPose, const float time, const float weight)
+float CChain::ComputeTargetBlendValue(ISkeletonPose& skeletonPose, const CTimeValue& time, const float weight)
 {
 	m_targetBlendWeightAnimated = -1.0f;
 	if (m_desc.targetBlendJointIndex > -1)
@@ -357,7 +357,7 @@ float CChain::ComputeTargetBlendValue(ISkeletonPose& skeletonPose, const float t
 		m_targetBlendWeightFilteredSmoothRate = 0.0f;
 	}
 
-	SmoothCD(m_targetBlendWeightFiltered, m_targetBlendWeightFilteredSmoothRate, time, m_targetBlendWeight, 0.1f);
+	SmoothCD(m_targetBlendWeightFiltered, m_targetBlendWeightFilteredSmoothRate, time, m_targetBlendWeight, "0.1");
 	m_targetBlendWeightFiltered *= weight;
 	return m_targetBlendWeightFiltered;
 }
@@ -519,7 +519,7 @@ void CPose::RemoveAllChains()
 
 //
 
-void CPose::Update(ICharacterInstance* pCharacter, const QuatT& location, const float time)
+void CPose::Update(ICharacterInstance* pCharacter, const QuatT& location, const CTimeValue& time)
 {
 	CRY_ASSERT(m_pEntity);
 
@@ -583,7 +583,7 @@ void CPose::Update(ICharacterInstance* pCharacter, const QuatT& location, const 
 
 	//
 
-	static const float SMOOTH_RATE = 0.10f;
+	static const CTimeValue SMOOTH_RATE = "0.10";
 	SmoothCD(m_rootOffsetSmoothed, m_rootOffsetSmoothedRate, time, rootOffset, SMOOTH_RATE);
 	m_rootOffsetSmoothed *= m_blendWeight;
 

@@ -58,7 +58,7 @@ protected:
 	e_ExpressionEvent m_CurrentState;
 	int               m_CurrentExprIdx;
 	CTimeValue        m_ExprStartTime;
-	int               m_ChangeExpressionTimeMs;
+	CTimeValue        m_ChangeExpressionTime;
 
 	IEntity*          m_pEntity;
 };

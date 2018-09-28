@@ -125,10 +125,10 @@ public:
 	const Vec3& GetTargetPosition() const            { return m_targetPosition; }
 	const Vec3& GetTargetPositionFiltered() const    { return m_targetPositionFiltered; }
 
-	void        UpdateFromAnimations(ICharacterInstance& character, const QuatT& location, const float time);
+	void        UpdateFromAnimations(ICharacterInstance& character, const QuatT& location, const CTimeValue& time);
 	void        FindContact(const QuatT& location);
-	void        FilterTargetLocation(const float time);
-	float       ComputeTargetBlendValue(ISkeletonPose& skeletonPose, const float time, const float weight);
+	void        FilterTargetLocation(const CTimeValue& time);
+	float       ComputeTargetBlendValue(ISkeletonPose& skeletonPose, const CTimeValue& time, const float weight);
 	bool        ComputeRootOffsetExtents(float& offsetMin, float& offsetMax);
 
 	bool        SetupStoreOperators(IAnimationOperatorQueue& operatorQueue);
@@ -197,7 +197,7 @@ public:
 
 	void         SetBlendWeight(float weight)                          { m_blendWeight = weight; }
 
-	void         Update(ICharacterInstance* pCharacter, const QuatT& location, const float time);
+	void         Update(ICharacterInstance* pCharacter, const QuatT& location, const CTimeValue& time);
 
 private:
 	void SetupPoseModifiers(const QuatT& location);

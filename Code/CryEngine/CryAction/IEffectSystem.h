@@ -44,9 +44,9 @@ struct IEffect
 	virtual ~IEffect(){}
 
 	// processing
-	virtual bool Activating(float delta) = 0;
-	virtual bool Update(float delta) = 0;
-	virtual bool Deactivating(float delta) = 0;
+	virtual bool Activating(const CTimeValue& delta) = 0;
+	virtual bool Update(const CTimeValue& delta) = 0;
+	virtual bool Deactivating(const CTimeValue& delta) = 0;
 
 	// events
 	virtual bool OnActivate() = 0;
@@ -109,7 +109,7 @@ struct IEffectSystem
 	virtual ~IEffectSystem(){}
 
 	virtual bool           Init() = 0;
-	virtual void           Update(float delta) = 0;
+	virtual void           Update(const CTimeValue& delta) = 0;
 	virtual void           Shutdown() = 0;
 	virtual void           GetMemoryStatistics(ICrySizer* s) = 0;
 

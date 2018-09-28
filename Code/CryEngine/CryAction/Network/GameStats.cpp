@@ -25,20 +25,20 @@
 #include "CryActionCVars.h"
 #include <CryGame/IGameStatistics.h>
 
-const float REPORT_INTERVAL = 1.0f;//each second send state to network engine
-const float UPDATE_INTERVAL = 20.0f;
+const CTimeValue REPORT_INTERVAL = 1;//each second send state to network engine
+const CTimeValue UPDATE_INTERVAL = 20;
 
 const bool DEBUG_VERBOSE = false;  // Default should be false
 
 struct SGetTime
 {
-	SGetTime() : hasvalue(false), s(0.0f){}
+	SGetTime() : hasvalue(false), s(0){}
 	SGetTime(const CTimeValue& start) : hasvalue(false), s(start){}
 	operator const CTimeValue&()
 	{
 		if (!hasvalue)
 		{
-			t = gEnv->pTimer->GetFrameStartTime() - s;
+			t = GetGTimer()->GetFrameStartTime() - s;
 			hasvalue = true;
 		}
 		return t;
@@ -235,7 +235,7 @@ static void SaveToXML(const XmlNodeRef& n, const char* name, const Vec3& a)
 
 static void SaveToXML(const XmlNodeRef& n, const char* name, const CTimeValue& t)
 {
-	n->setAttr(name, t.GetMilliSecondsAsInt64());
+	n->setAttr(name, t);
 }
 
 template<class T>
@@ -845,12 +845,12 @@ CGameStats::CGameStats(CCryAction* pGameFramework)
 	, m_statsTrack(0)
 	, m_serverReport(0)
 	, m_pListener(new Listener())
-	, m_lastUpdate(0.0f)
-	, m_lastReport(0.0f)
+	, m_lastUpdate(0)
+	, m_lastReport(0)
 	, m_playing(false)
 	, m_stateChanged(false)
 	, m_startReportNeeded(false)
-	, m_lastPosUpdate(0.0f)
+	, m_lastPosUpdate(0)
 	, m_reportStarted(false)
 {
 	m_pListener->m_pStats = this;
@@ -1187,8 +1187,8 @@ void CGameStats::StartGame(bool server)
 
 	if (gEnv->bServer && m_playing)
 	{
-		m_roundStart = gEnv->pTimer->GetFrameStartTime();
-		m_lastPosUpdate = 0.0f;
+		m_roundStart = GetGTimer()->GetFrameStartTime();
+		m_lastPosUpdate.SetSeconds(0);
 		ResetStats();
 		m_roundStats->Start(m_mapName, m_roundStart);
 	}
@@ -1341,7 +1341,7 @@ void CGameStats::EndRound(bool server, int winner)
 {
 	if (!gEnv->bServer || !server)
 		return;
-	m_roundStats->End(winner, gEnv->pTimer->GetFrameStartTime());
+	m_roundStats->End(winner, GetGTimer()->GetFrameStartTime());
 
 	if (CCryActionCVars::Get().g_statisticsMode == 1)
 		SaveStats();
@@ -1921,7 +1921,7 @@ void CGameStats::SubmitPlayerStats(const SPlayerInfo& plr, bool server, bool cli
 	{
 		CTimeValue time = SGetTime(m_roundStart);
 		plr.stats.back()->End(time);
-		int played = int((time - plr.stats.back()->m_started).GetSeconds() + 0.5f);
+		int played = int((time - plr.stats.back()->m_started).GetSeconds() + "0.5");
 		int played_minutes = played / 60;
 		hlp.PlayerValue(plr.id, "played", played_minutes);
 		static string keyName;
@@ -1934,7 +1934,7 @@ void CGameStats::SubmitPlayerStats(const SPlayerInfo& plr, bool server, bool cli
 
 		for (int i = 0; i < 4; ++i)
 		{
-			int used = int(stats.m_suit.m_used[i].GetSeconds() + 0.5f);
+			int used = int(stats.m_suit.m_used[i].GetSeconds() + "0.5");
 			if (!used)
 				continue;
 			keyName.Format("UsedSuit%d", i);
@@ -1944,7 +1944,7 @@ void CGameStats::SubmitPlayerStats(const SPlayerInfo& plr, bool server, bool cli
 		for (int i = 0; i < stats.m_vehicles.m_vehicles.size(); ++i)
 		{
 			const SPlayerStats::SVehicles::SVehicle& veh = stats.m_vehicles.m_vehicles[i];
-			int used = int(veh.m_used.GetSeconds() + 0.5f);
+			int used = int(veh.m_used.GetSeconds() + "0.5");
 			keyName.Format("UsedVehicle%s", veh.m_name.c_str());
 			hlp.PlayerCatValue(plr.id, "vehicle", keyName, used);
 		}

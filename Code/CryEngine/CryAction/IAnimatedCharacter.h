@@ -174,23 +174,23 @@ struct SAnimationBlendingParams
 
 struct SLandBobParams
 {
-	SLandBobParams(float _maxTime = -1.0f, float _maxBob = -1.0f, float _maxFallDist = -1.0f) : maxTime(_maxTime), maxBob(_maxBob), maxFallDist(_maxFallDist)
+	SLandBobParams(const CTimeValue& _maxTime = -1, float _maxBob = -1.0f, float _maxFallDist = -1.0f) : maxTime(_maxTime), maxBob(_maxBob), maxFallDist(_maxFallDist)
 	{
 	};
 
 	void Invalidate()
 	{
-		maxTime = -1.0f;
+		maxTime.SetSeconds(-1);
 		maxBob = -1.0f;
 		maxFallDist = -1.0f;
 	}
 
 	inline bool IsValid() const
 	{
-		return (maxTime > 0.0f) && (maxFallDist > 0.0f);
+		return (maxTime > 0) && (maxFallDist > 0.0f);
 	}
 
-	float maxTime;
+	CTimeValue maxTime;
 	float maxBob;
 	float maxFallDist;
 };
@@ -218,7 +218,7 @@ struct SAnimatedCharacterParams
 	{
 		inertia = 0.0f;
 		inertiaAccel = 0.0f;
-		timeImpulseRecover = 0.0f;
+		timeImpulseRecover.SetSeconds(0);
 		pAnimationBlending = 0;
 	}
 
@@ -230,7 +230,7 @@ struct SAnimatedCharacterParams
 
 	float               inertia;
 	float               inertiaAccel;
-	float               timeImpulseRecover;
+	CTimeValue          timeImpulseRecover;
 
 	IAnimationBlending* pAnimationBlending;
 };
@@ -378,7 +378,7 @@ struct IAnimatedCharacter : public IGameObjectExtension
 	virtual void AllowAimIk(bool allow) = 0;
 	virtual bool IsAimIkAllowed() const = 0;
 
-	virtual void TriggerRecoil(float duration, float kinematicImpact, float kickIn = 0.8f, EAnimatedCharacterArms arms = eACA_BothArms) = 0;
+	virtual void TriggerRecoil(const CTimeValue& duration, float kinematicImpact, float kickIn = 0.8f, EAnimatedCharacterArms arms = eACA_BothArms) = 0;
 	virtual void SetWeaponRaisedPose(EWeaponRaisedPose pose) = 0; // deprecated
 
 	virtual void SetNoMovementOverride(bool external) = 0;
@@ -400,7 +400,7 @@ struct IAnimatedCharacter : public IGameObjectExtension
 	virtual void ForceOverrideRotation(const Quat& qWorldRotation) = 0;
 
 #if DEBUG_VELOCITY()
-	virtual void AddDebugVelocity(const QuatT& movement, const float frameTime, const char* szComment, const ColorF& colorF, const bool pastMovement = false) const = 0;
+	virtual void AddDebugVelocity(const QuatT& movement, const CTimeValue& frameTime, const char* szComment, const ColorF& colorF, const bool pastMovement = false) const = 0;
 	virtual bool DebugVelocitiesEnabled() const = 0;
 #endif
 };

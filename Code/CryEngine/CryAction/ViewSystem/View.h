@@ -38,14 +38,14 @@ public:
 
 		int const ID;
 
-		float     nextShake;
-		float     timeDone;
-		float     sustainDuration;
-		float     fadeInDuration;
-		float     fadeOutDuration;
+		CTimeValue nextShake;
+		CTimeValue timeDone;
+		CTimeValue sustainDuration;
+		CTimeValue fadeInDuration;
+		CTimeValue fadeOutDuration;
 
-		float     frequency;
-		float     ratio;
+		CTimeValue frequency;
+		nTime      ratio;
 
 		float     randomness;
 
@@ -74,13 +74,13 @@ public:
 			, interrupted(false)
 			, isSmooth(false)
 			, ID(shakeID)
-			, nextShake(0.0f)
-			, timeDone(0.0f)
-			, sustainDuration(0.0f)
-			, fadeInDuration(0.0f)
-			, fadeOutDuration(0.0f)
-			, frequency(0.0f)
-			, ratio(0.0f)
+			, nextShake(0)
+			, timeDone(0)
+			, sustainDuration(0)
+			, fadeInDuration(0)
+			, fadeOutDuration(0)
+			, frequency(0)
+			, ratio(0)
 			, randomness(0.5f)
 			, startShake(IDENTITY)
 			, startShakeSpeed(IDENTITY)
@@ -101,7 +101,7 @@ public:
 
 	// IView
 	virtual void               Release() override;
-	virtual void               Update(float frameTime, bool isActive) override;
+	virtual void               Update(const CTimeValue& frameTime, bool isActive) override;
 	virtual void               ResetShaking() override;
 	virtual void               ResetBlending() override { m_viewParams.ResetBlending(); }
 	//FIXME: keep CGameObject *  or use IGameObject *?
@@ -110,7 +110,7 @@ public:
 	virtual EntityId           GetLinkedId() override                         { return m_linkedTo; };
 	virtual void               SetCurrentParams(SViewParams& params) override { m_viewParams = params; };
 	virtual const SViewParams* GetCurrentParams() override                    { return &m_viewParams; }
-	virtual void               SetViewShake(Ang3 shakeAngle, Vec3 shakeShift, float duration, float frequency, float randomness, int shakeID, bool bFlipVec = true, bool bUpdateOnly = false, bool bGroundOnly = false) override;
+	virtual void               SetViewShake(Ang3 shakeAngle, Vec3 shakeShift, const CTimeValue& duration, const CTimeValue& frequency, float randomness, int shakeID, bool bFlipVec = true, bool bUpdateOnly = false, bool bGroundOnly = false) override;
 	virtual void               SetViewShakeEx(const SShakeParams& params) override;
 	virtual void               StopShake(int shakeID) override;
 	virtual void               SetFrameAdditiveCameraAngles(const Ang3& addFrameAngles) override;
@@ -123,8 +123,8 @@ public:
 	virtual void OnEntityEvent(IEntity* pEntity, const SEntityEvent& event) override;
 	// ~IEntityEventListener
 
-	virtual void ProcessShaking(float frameTime);
-	virtual void ProcessShake(SShake* pShake, float frameTime);
+	virtual void ProcessShaking(const CTimeValue& frameTime);
+	virtual void ProcessShake(SShake* pShake, const CTimeValue& frameTime);
 
 	void         Serialize(TSerialize ser);
 	void         PostSerialize();
@@ -137,13 +137,13 @@ protected:
 
 	CGameObject* GetLinkedGameObject();
 	IEntity*     GetLinkedEntity();
-	void         ProcessShakeNormal(SShake* pShake, float frameTime);
-	void         ProcessShakeNormal_FinalDamping(SShake* pShake, float frameTime);
-	void         ProcessShakeNormal_CalcRatio(SShake* pShake, float frameTime, float endSustain);
-	void         ProcessShakeNormal_DoShaking(SShake* pShake, float frameTime);
+	void         ProcessShakeNormal(SShake* pShake, const CTimeValue& frameTime);
+	void         ProcessShakeNormal_FinalDamping(SShake* pShake, const CTimeValue& frameTime);
+	void         ProcessShakeNormal_CalcRatio(SShake* pShake, const CTimeValue& frameTime, const CTimeValue& endSustain);
+	void         ProcessShakeNormal_DoShaking(SShake* pShake, const CTimeValue& frameTime);
 
-	void         ProcessShakeSmooth(SShake* pShake, float frameTime);
-	void         ProcessShakeSmooth_DoShaking(SShake* pShake, float frameTime);
+	void         ProcessShakeSmooth(SShake* pShake, const CTimeValue& frameTime);
+	void         ProcessShakeSmooth_DoShaking(SShake* pShake, const CTimeValue& frameTime);
 
 	void         ApplyFrameAdditiveAngles(Quat& cameraOrientation);
 

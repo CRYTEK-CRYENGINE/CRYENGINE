@@ -41,7 +41,7 @@ public:
 	void                  InitDamages(CVehicle* pVehicle, const CVehicleParams& table);
 	void                  ReleaseDamages();
 	void                  ResetDamages();
-	void                  UpdateDamages(float frameTime);
+	void                  UpdateDamages(const CTimeValue& frameTime);
 
 	void                  GetDamagesMemoryStatistics(ICrySizer* pSizer) const;
 

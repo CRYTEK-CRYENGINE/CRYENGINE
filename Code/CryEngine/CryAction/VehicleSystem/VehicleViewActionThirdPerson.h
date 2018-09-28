@@ -44,7 +44,7 @@ public:
 	virtual void        OnAction(const TVehicleActionId actionId, int activationMode, float value) override;
 	virtual void        UpdateView(SViewParams& viewParams, EntityId playerId) override;
 
-	virtual void        Update(const float frameTime) override;
+	virtual void        Update(const CTimeValue& frameTime) override;
 	virtual void Serialize(TSerialize serialize, EEntityAspects) override;
 
 	virtual void GetMemoryUsage(ICrySizer* s) const override { s->Add(*this); }

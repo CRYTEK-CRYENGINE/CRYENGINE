@@ -27,7 +27,7 @@ public:
 
 	// update function for every frame
 	// dt is the time passed since last frame
-	virtual void Update(float dt);
+	virtual void Update(const CTimeValue& dt);
 
 	virtual void Reset();
 

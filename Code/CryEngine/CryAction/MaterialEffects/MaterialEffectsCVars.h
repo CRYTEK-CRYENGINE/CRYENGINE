@@ -41,7 +41,7 @@ public:
 	// Effects should still be played at lower velocities, but not too often
 	// as they cannot be distinguished when played too close together and are slowing down the system.
 	// Therefore a tweakeable timeout
-	float mfx_Timeout;
+	CTimeValue mfx_Timeout;
 
 	static inline CMaterialEffectsCVars& Get()
 	{

@@ -35,7 +35,7 @@ public:
 	virtual void                 ProcessEvent(const SEntityEvent&) {};
 	virtual uint64               GetEventMask() const { return 0; }
 	virtual void                 SetChannelId(uint16 id)     {};
-	virtual void                 PostUpdate(float frameTime) { CRY_ASSERT(false); }
+	virtual void                 PostUpdate(const CTimeValue& frameTime) { CRY_ASSERT(false); }
 	virtual void                 PostRemoteSpawn()           {};
 	virtual void                 GetMemoryUsage(ICrySizer* pSizer) const;
 	// ~IGameObjectExtension
@@ -67,12 +67,11 @@ private:
 
 	CWorldQuery*      m_pQuery;
 
-	float             m_useHoverTime;
-	float             m_unUseHoverTime;
-	float             m_messageHoverTime;
-	float             m_longHoverTime;
+	CTimeValue       m_useHoverTime;
+	CTimeValue       m_unUseHoverTime;
+	CTimeValue       m_messageHoverTime;
+	CTimeValue       m_longHoverTime;
 
-	ITimer*           m_pTimer;
 	IEntitySystem*    m_pEntitySystem;
 
 	string            m_queryMethods;

@@ -34,7 +34,7 @@ SVehicleLightParams() : radius(5.0f),
 	                      specularMult(1.0f),
 	                      frustumAngle(45.0f),
 	                      HDRDynamic(1.0f),
-	                      animSpeed(1.0f),
+	                      animSpeed(1),
 	                      animPhase(0),
 	                      diffuse(1.0f, 1.0f, 1.0f),
 	                      specular(1.0f, 1.0f, 1.0f),
@@ -49,7 +49,8 @@ SVehicleLightParams() : radius(5.0f),
 
 string texture, material, flare;
 
-float radius, diffuseMult, diffuseMult_fp, specularMult, frustumAngle, HDRDynamic, animSpeed, flareFOV, falloff;
+float radius, diffuseMult, diffuseMult_fp, specularMult, frustumAngle, HDRDynamic, flareFOV, falloff;
+mpfloat animSpeed;
 
 Vec3 diffuse, specular;
 
@@ -365,7 +366,7 @@ void CVehiclePartLight::ToggleLight(bool enable)
 				}
 			}
 
-			UpdateLight(0.f);
+			UpdateLight(0);
 		}
 
 		m_pVehicle->SetObjectUpdate(this, IVehicle::eVOU_Visible);
@@ -386,14 +387,14 @@ void CVehiclePartLight::ToggleLight(bool enable)
 }
 
 //-----------------------------------------------------------------------
-void CVehiclePartLight::Update(const float frameTime)
+void CVehiclePartLight::Update(const CTimeValue& frameTime)
 {
 	if (IsEnabled())
 		UpdateLight(frameTime);
 }
 
 //-----------------------------------------------------------------------
-void CVehiclePartLight::UpdateLight(const float frameTime)
+void CVehiclePartLight::UpdateLight(const CTimeValue& frameTime)
 {
 	if (m_slot == -1)
 		return;

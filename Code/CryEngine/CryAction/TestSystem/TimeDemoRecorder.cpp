@@ -64,7 +64,7 @@ struct STimeDemoHeader
 	//////////////////////////////////////////////////////////////////////////
 	int    numFrames;   // Number of frames.
 	int    nFrameSize;  // Size of the per frame data in bytes.
-	float  totalTime;
+	CTimeValue totalTime; // PERSONAL DEBUG: memcpy issues?
 	char   levelname[128];
 	// @see ETimeDemoFileFlags
 	uint32 nDemoFlags;
@@ -104,7 +104,7 @@ struct STimeDemoFrame_1
 {
 	Vec3         curPlayerPosition;
 	Ang3         angles;
-	float        frametime;
+	CTimeValue   frametime;
 
 	unsigned int nActionFlags[2];
 	float        fLeaning;
@@ -146,7 +146,7 @@ struct STimeDemoFrame_2
 	Vec3                  curPlayerPosition;
 	Ang3                  curCameraAngles;
 	Quat                  curViewRotation;
-	float                 frametime;
+	CTimeValue            frametime;
 
 	unsigned int          nActionFlags[2];
 	float                 fLeaning;
@@ -216,7 +216,7 @@ struct STimeDemoFrame_3
 	Vec3                  curPlayerPosition;
 	Ang3                  curCameraAngles;
 	Quat                  curViewRotation;
-	float                 frametime;
+	CTimeValue            frametime;
 
 	unsigned int          nActionFlags[2];
 	float                 fLeaning;
@@ -251,7 +251,7 @@ struct STimeDemoFrame_4
 	Vec3                  curPlayerPosition;
 	Ang3                  curCameraAngles;
 	Quat                  curViewRotation;
-	float                 frametime;
+	CTimeValue            frametime;
 
 	unsigned int          nActionFlags[2];
 	float                 fLeaning;
@@ -295,7 +295,7 @@ struct STimeDemoFrame_7
 	Quat                  curViewRotation;
 	Vec3                  curHmdPositionOffset;
 	Quat                  curHmdViewRotation;
-	float                 frametime;
+	CTimeValue            frametime;
 
 	unsigned int          nActionFlags[2];
 	float                 fLeaning;
@@ -460,7 +460,7 @@ CTimeDemoRecorder::CTimeDemoRecorder()
 	, m_bDelayedPlayFlag(false)
 	, m_prevGodMode(0)
 	, m_nCurrentDemoLevel(0)
-	, m_lastChainDemoTime(0.0f)
+	, m_lastChainDemoTime(0)
 {
 	s_pTimeDemoRecorder = this;
 
@@ -675,7 +675,7 @@ void CTimeDemoRecorder::Record(bool bEnable)
 		s_pTimeDemoRecorder->Save(filename.c_str());
 	}
 	m_currentFrame = 0;
-	m_totalDemoTime.SetMilliSeconds(0);
+	m_totalDemoTime.SetSeconds(0);
 
 	SignalRecording(bEnable);
 }
@@ -738,14 +738,14 @@ void CTimeDemoRecorder::Play(bool bEnable)
 	{
 		string levelName = GetCurrentLevelName();
 		LogInfo("==============================================================");
-		LogInfo("TimeDemo Play Started ,Level=%s (Total Frames: %d, Recorded Time: %.2fs)", levelName.c_str(), (int)m_records.size(), m_recordedDemoTime.GetSeconds());
+		LogInfo("TimeDemo Play Started ,Level=%s (Total Frames: %d, Recorded Time: %.2fs)", levelName.c_str(), (int)m_records.size(), (float)m_recordedDemoTime.GetSeconds());
 
 		m_bDemoFinished = false;
 
 		RestoreAllEntitiesState();
 
 		// Start demo playback.
-		m_lastPlayedTotalTime = 0;
+		m_lastPlayedTotalTime.SetSeconds(0);
 		StartSession();
 	}
 	else
@@ -754,12 +754,12 @@ void CTimeDemoRecorder::Play(bool bEnable)
 		LogInfo("==============================================================");
 
 		// End demo playback.
-		m_lastPlayedTotalTime = m_totalDemoTime.GetSeconds();
+		m_lastPlayedTotalTime = m_totalDemoTime;
 		StopSession();
 	}
 	m_bRecording = false;
 	m_currentFrame = 0;
-	m_totalDemoTime.SetMilliSeconds(0);
+	m_totalDemoTime.SetSeconds(0);
 	m_lastFpsTimeRecorded = GetTime();
 
 	m_numLoops = 0;
@@ -862,7 +862,7 @@ void CTimeDemoRecorder::Save(const char* filename)
 			hdr.numFrames += (gesize - 1) / TIMEDEMO_MAX_GAME_EVENTS;
 	}
 
-	hdr.totalTime = m_recordedDemoTime.GetSeconds();
+	hdr.totalTime = m_recordedDemoTime;
 	hdr.nUncompressedDataSze = hdr.nFrameSize * hdr.numFrames;
 
 	std::vector<STimeDemoFrame_7> file_records;
@@ -999,8 +999,8 @@ bool CTimeDemoRecorder::Load(const char* filename)
 	SCOPED_ALLOW_FILE_ACCESS_FROM_THIS_THREAD();
 
 	stl::free_container(m_records);
-	m_recordedDemoTime.SetMilliSeconds(0);
-	m_totalDemoTime.SetMilliSeconds(0);
+	m_recordedDemoTime.SetSeconds(0);
+	m_totalDemoTime.SetSeconds(0);
 
 	IInput* pIInput = GetISystem()->GetIInput(); // Cache IInput pointer.
 
@@ -1542,7 +1542,7 @@ bool CTimeDemoRecorder::RecordFrame()
 
 	FrameRecord rec;
 
-	rec.frameTime = (time - m_lastFrameTime).GetSeconds();
+	rec.frameTime = time - m_lastFrameTime;
 
 	IEntity* pPlayerEntity = NULL;
 
@@ -1630,7 +1630,7 @@ bool CTimeDemoRecorder::PlayFrame()
 
 	CTimeValue time = GetTime();
 	CTimeValue deltaFrameTime = (time - m_lastFrameTime);
-	float frameTime = deltaFrameTime.GetSeconds();
+	CTimeValue frameTime = deltaFrameTime;
 
 	if (m_bPaused)
 	{
@@ -1701,12 +1701,12 @@ bool CTimeDemoRecorder::PlayFrame()
 	// Calculate Frame Rates.
 	//////////////////////////////////////////////////////////////////////////
 	// Skip some frames before calculating frame rates.
-	float timeElapsed = (time - m_lastFpsTimeRecorded).GetSeconds();
+	CTimeValue timeElapsed = time - m_lastFpsTimeRecorded;
 	if (timeElapsed > 1 && m_fpsCounter > 0)
 	{
 		// Skip some frames before recording frame rates.
 		//if (m_currentFrame > 60)
-		m_nPolysPerSec = (int)(float(m_nPolysCounter) / timeElapsed);
+		m_nPolysPerSec = (int)(m_nPolysCounter / timeElapsed);
 		m_nPolysCounter = 0;
 
 		m_fpsCounter = 0;
@@ -1721,7 +1721,7 @@ bool CTimeDemoRecorder::PlayFrame()
 	{
 		//m_currFPS = (float)m_fpsCounter / timeElapsed;
 
-		m_currFPS = (float)(1.0 / deltaFrameTime.GetSeconds());
+		m_currFPS = BADF(1 / deltaFrameTime);
 		m_sumFPS += m_currFPS;
 
 		if (m_currFPS > m_maxFPS)
@@ -1741,7 +1741,7 @@ bool CTimeDemoRecorder::PlayFrame()
 	//////////////////////////////////////////////////////////////////////////
 	if (m_pTimeDemoInfo)
 	{
-		m_pTimeDemoInfo->frames[m_currentFrame].fFrameRate = (float)(1.0 / deltaFrameTime.GetSeconds());
+		m_pTimeDemoInfo->frames[m_currentFrame].fFrameRate = BADF(1 / deltaFrameTime);
 		m_pTimeDemoInfo->frames[m_currentFrame].nPolysRendered = nPolygons;
 		m_pTimeDemoInfo->frames[m_currentFrame].nDrawCalls = gEnv->pRenderer ? gEnv->pRenderer->GetCurrentNumberOfDrawCalls() : 0;
 	}
@@ -1754,13 +1754,13 @@ bool CTimeDemoRecorder::PlayFrame()
 	if (0 <= m_demo_time_of_day)
 	{
 		//force update if time is significantly different from current time
-		float fTime = gEnv->p3DEngine->GetTimeOfDay()->GetTime();
-		const float cfSmallDeltaTime = 0.1f;
+		CTimeValue fTime = gEnv->p3DEngine->GetTimeOfDay()->GetTime();
+		const mpfloat cfSmallDeltaTime = "0.1";
 
 		if ((fTime > m_demo_time_of_day + cfSmallDeltaTime) ||
 		    (fTime < m_demo_time_of_day - cfSmallDeltaTime))
 		{
-			gEnv->p3DEngine->GetTimeOfDay()->SetTime((float)m_demo_time_of_day, true);
+			gEnv->p3DEngine->GetTimeOfDay()->SetTime(m_demo_time_of_day, true);
 			SetConsoleVar("e_TimeOfDaySpeed", 0);
 		}
 	}
@@ -1792,7 +1792,7 @@ bool CTimeDemoRecorder::PlayFrame()
 CTimeValue CTimeDemoRecorder::GetTime()
 {
 	// Must be asynchronius time, used for profiling.
-	return gEnv->pTimer->GetAsyncTime();
+	return GetGTimer()->GetAsyncTime();
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -1802,15 +1802,15 @@ int CTimeDemoRecorder::GetNumFrames() const
 }
 
 //////////////////////////////////////////////////////////////////////////
-float CTimeDemoRecorder::GetAverageFrameRate() const
+rTime CTimeDemoRecorder::GetAverageFrameRate() const
 {
 	if (m_currentFrame)
 	{
-		float aveFrameTime = m_totalDemoTime.GetSeconds() / m_currentFrame;
-		float aveFrameRate = 1.0f / aveFrameTime;
+		CTimeValue aveFrameTime = m_totalDemoTime / m_currentFrame;
+		rTime aveFrameRate = 1 / aveFrameTime;
 		return aveFrameRate;
 	}
-	return 0.0f;
+	return 0;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -1850,7 +1850,7 @@ float CTimeDemoRecorder::RenderInfo(float y)
 		IRenderAuxText::Draw2dLabel(1, y + retY, 1.3f, fColor, false, "TimeDemo%s, Frame %d of %d", sInfo, m_currentFrame, numFrames);
 		retY += 15;
 
-		float aveFrameRate = GetAverageFrameRate();
+		rTime aveFrameRate = GetAverageFrameRate();
 		//float aveFrameRate = m_currentFrame > m_minFPSCounter ? m_sumFPS/(m_currentFrame - m_minFPSCounter) : 0;
 		//float aveFrameRate = m_sumFPS/(m_currentFrame +1);
 		float polyRatio = m_nTotalPolysPlayed ? (float)m_nTotalPolysRecorded / m_nTotalPolysPlayed : 0.0f;
@@ -1978,8 +1978,8 @@ void CTimeDemoRecorder::StartSession()
 	gEnv->pConsole->ExecuteString("v_exit_player");
 
 	m_lastAveFrameRate = 0;
-	m_lastPlayedTotalTime = 0;
-	m_totalDemoTime.SetMilliSeconds(0);
+	m_lastPlayedTotalTime.SetSeconds(0);
+	m_totalDemoTime.SetSeconds(0);
 
 	// Register to frame profiler.
 
@@ -2044,7 +2044,7 @@ void CTimeDemoRecorder::StopSession()
 	{
 		gEnv->pFrameProfileSystem->Enable(m_bEnabledProfiling, m_bVisibleProfiling);
 	}
-	m_lastPlayedTotalTime = m_totalDemoTime.GetSeconds();
+	m_lastPlayedTotalTime = m_totalDemoTime;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -2072,7 +2072,7 @@ void CTimeDemoRecorder::ResetSessionLoop()
 	// Reset random number generators seed.
 	GetISystem()->GetRandomGenerator().Seed(0);
 
-	m_totalDemoTime.SetMilliSeconds(0);
+	m_totalDemoTime.SetSeconds(0);
 	m_currentFrame = 0;
 
 	if (gEnv->pStatoscope)
@@ -2132,7 +2132,7 @@ bool CTimeDemoRecorder::OnInputEvent(const SInputEvent& event)
 //////////////////////////////////////////////////////////////////////////
 void CTimeDemoRecorder::LogEndOfLoop()
 {
-	m_lastPlayedTotalTime = m_totalDemoTime.GetSeconds();
+	m_lastPlayedTotalTime = m_totalDemoTime;
 	m_lastAveFrameRate = GetAverageFrameRate();
 
 	if (m_pTimeDemoInfo)
@@ -2153,7 +2153,7 @@ void CTimeDemoRecorder::LogEndOfLoop()
 	LogInfo(" Run Finished.");
 	LogInfo("    Play Time: %.2fs, Average FPS: %.2f", m_lastPlayedTotalTime, m_lastAveFrameRate);
 	LogInfo("    Min FPS: %.2f at frame %d, Max FPS: %.2f at frame %d", m_minFPS, m_minFPS_Frame, m_maxFPS, m_maxFPS_Frame);
-	if (m_lastPlayedTotalTime * (float)numFrames > 0.f)
+	if (m_lastPlayedTotalTime * numFrames > 0)
 		LogInfo("    Average Tri/Sec: %d, Tri/Frame: %d", (int)(m_nTotalPolysPlayed / m_lastPlayedTotalTime), m_nTotalPolysPlayed / numFrames);
 	if (m_nTotalPolysPlayed)
 		LogInfo("    Recorded/Played Tris ratio: %.2f", (float)m_nTotalPolysRecorded / m_nTotalPolysPlayed);
@@ -2356,11 +2356,11 @@ void CTimeDemoRecorder::OnGameplayEvent(IEntity* pEntity, const GameplayEvent& e
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CTimeDemoRecorder::OnFrameProfilerPeak(CFrameProfiler* pProfiler, float fPeakTime)
+void CTimeDemoRecorder::OnFrameProfilerPeak(CFrameProfiler* pProfiler, float fPeakValue)
 {
 	if (m_bPlaying && !m_bPaused)
 	{
-		LogInfo("    -Peak at Frame %d, %.2fms : %s (count: %d)", m_currentFrame, fPeakTime, pProfiler->m_name, pProfiler->m_count);
+		LogInfo("    -Peak at Frame %d, %.2fms : %s (count: %d)", m_currentFrame, fPeakValue, pProfiler->m_name, pProfiler->m_count);
 	}
 }
 
@@ -2410,7 +2410,7 @@ void CTimeDemoRecorder::StartChainDemo(const char* levelsListFilename, bool bAut
 					{
 						SChainDemoLevel lvl;
 						lvl.level = level;
-						lvl.time = 0;
+						lvl.time.SetSeconds(0);
 						lvl.bSuccess = false;
 						lvl.bRun = false;
 						m_demoLevels.push_back(lvl);
@@ -2453,7 +2453,7 @@ void CTimeDemoRecorder::StartDemoLevel(const char** levelNames, int levelCount)
 		{
 			SChainDemoLevel lvl;
 			lvl.level = levelNames[i];
-			lvl.time = 0;
+			lvl.time.SetSeconds(0);
 			lvl.bSuccess = false;
 			lvl.bRun = false;
 			m_demoLevels.push_back(lvl);
@@ -2481,7 +2481,7 @@ void CTimeDemoRecorder::StartNextChainedLevel()
 {
 	if (!m_demoLevels.empty())
 	{
-		float tcurr = GetISystem()->GetITimer()->GetAsyncTime().GetSeconds();
+		CTimeValue tcurr = GetISystem()->GetITimer()->GetAsyncTime();
 		if (m_nCurrentDemoLevel - 1 >= 0 && m_nCurrentDemoLevel - 1 < m_demoLevels.size())
 		{
 			m_demoLevels[m_nCurrentDemoLevel - 1].bSuccess = true;
@@ -2546,7 +2546,7 @@ void CTimeDemoRecorder::SaveChainloadingJUnitResults()
 	testsuit->setAttr("name", "ChainLoading");
 	for (int i = 0; i < (int)m_demoLevels.size(); i++)
 	{
-		int nSeconds = static_cast<int>(m_demoLevels[i].time);
+		int nSeconds = static_cast<int>(m_demoLevels[i].time.GetSeconds());
 		XmlNodeRef testcase = testsuit->newChild("testcase");
 		testcase->setAttr("name", m_demoLevels[i].level.c_str());
 		testcase->setAttr("time", nSeconds);

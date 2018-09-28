@@ -14,14 +14,14 @@
 struct SAimAroundParams : public IProceduralParams
 {
 	SAimAroundParams()
-		: smoothTime(1.f)
+		: smoothTime(1)
 		, scopeLayer(0)
 		, yawMin(-1.f)
 		, yawMax(1.f)
 		, pitchMin(0.f)
 		, pitchMax(0.5f)
-		, timeMin(1.0f)
-		, timeMax(2.0f)
+		, timeMin(1)
+		, timeMax(2)
 	{
 	}
 
@@ -44,14 +44,14 @@ struct SAimAroundParams : public IProceduralParams
 	}
 
 	SAnimRef animRef;
-	float    smoothTime;
-	uint32   scopeLayer;
-	float    yawMin;
-	float    yawMax;
-	float    pitchMin;
-	float    pitchMax;
-	float    timeMin;
-	float    timeMax;
+	nTime       smoothTime;
+	uint32		scopeLayer;
+	float			yawMin;
+	float			yawMax;
+	float			pitchMin;
+	float			pitchMax;
+	CTimeValue  timeMin;
+	CTimeValue  timeMax;
 };
 
 class CProceduralClipAimAround : public TProceduralClip<SAimAroundParams>
@@ -59,13 +59,13 @@ class CProceduralClipAimAround : public TProceduralClip<SAimAroundParams>
 public:
 	CProceduralClipAimAround();
 
-	virtual void OnEnter(float blendTime, float duration, const SAimAroundParams& params)
+	virtual void OnEnter(const CTimeValue& blendTime, const CTimeValue& duration, const SAimAroundParams& params)
 	{
 		UpdateLookTarget();
 		Vec3 lookPos = m_entity->GetWorldPos();
 		lookPos += m_entity->GetRotation() * (m_lookOffset * 10.0f);
 
-		const float smoothTime = params.smoothTime;
+		const nTime smoothTime = params.smoothTime;
 		const uint32 ikLayer = m_scope->GetBaseLayer() + params.scopeLayer;
 		if (!params.animRef.IsEmpty())
 		{
@@ -82,13 +82,13 @@ public:
 		{
 			poseBlenderAim->SetState(true);
 			poseBlenderAim->SetTarget(lookPos);
-			poseBlenderAim->SetPolarCoordinatesSmoothTimeSeconds(smoothTime);
+			poseBlenderAim->SetPolarCoordinatesSmoothTime(smoothTime);
 			poseBlenderAim->SetLayer(ikLayer);
 			poseBlenderAim->SetFadeInSpeed(blendTime);
 		}
 	}
 
-	virtual void OnExit(float blendTime)
+	virtual void OnExit(const CTimeValue& blendTime)
 	{
 		IAnimationPoseBlenderDir* poseBlenderAim = m_charInstance->GetISkeletonPose()->GetIPoseBlenderAim();
 		if (poseBlenderAim)
@@ -98,11 +98,11 @@ public:
 		}
 	}
 
-	virtual void Update(float timePassed)
+	virtual void Update(const CTimeValue& timePassed)
 	{
 		m_lookAroundTime -= timePassed;
 
-		if (m_lookAroundTime < 0.0f)
+		if (m_lookAroundTime < 0)
 		{
 			UpdateLookTarget();
 		}
@@ -130,7 +130,7 @@ public:
 	}
 
 public:
-	float m_lookAroundTime;
+	CTimeValue m_lookAroundTime;
 	Vec3  m_lookOffset;
 };
 

@@ -47,7 +47,7 @@ void CVehicleDamageBehaviorGroup::Serialize(TSerialize ser, EEntityAspects aspec
 }
 
 //------------------------------------------------------------------------
-void CVehicleDamageBehaviorGroup::Update(const float deltaTime)
+void CVehicleDamageBehaviorGroup::Update(const CTimeValue& deltaTime)
 {
 }
 

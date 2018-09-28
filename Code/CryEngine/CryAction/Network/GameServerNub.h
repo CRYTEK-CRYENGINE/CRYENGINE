@@ -13,7 +13,7 @@ class CGameServerNub final :
 	typedef std::map<INetChannel*, uint16> TNetServerChannelMap;
 	typedef struct SHoldChannel
 	{
-		SHoldChannel() : channelId(0), time(0.0f) {};
+		SHoldChannel() : channelId(0), time(0) {};
 		SHoldChannel(uint16 chanId, const CTimeValue& tv) : channelId(chanId), time(tv) {};
 
 		uint16     channelId;
@@ -24,7 +24,7 @@ class CGameServerNub final :
 
 	struct SBannedPlayer
 	{
-		SBannedPlayer() : profileId(0), time(0.0f) {}
+		SBannedPlayer() : profileId(0), time(0) {}
 		SBannedPlayer(int32 profId, uint32 addr, const CTimeValue& tv) : profileId(profId), ip(addr), time(tv) {}
 
 		int32      profileId; //profile id

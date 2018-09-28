@@ -12,8 +12,8 @@ class CNetworkCVars
 public:
 	int   BreakageLog;
 	float VoiceVolume;
-	float PhysSyncPingSmooth;
-	float PhysSyncLagSmooth;
+	mpfloat PhysSyncPingSmooth;
+	mpfloat PhysSyncLagSmooth;
 	int   PhysDebug;
 	int   BreakTimeoutFrames;
 	float BreakMaxWorldSize;

@@ -15,7 +15,7 @@ void CNetworkStallTickerThread::ThreadEntry()
 	bool gotLockLastTime = true;
 
 	#if WARN_ABOUT_LONG_STALLS_IN_TICKER
-	CTimeValue started = gEnv->pTimer->GetAsyncTime();
+	CTimeValue started = GetGTimer()->GetAsyncTime();
 	CTimeValue ended;
 	#endif
 
@@ -28,11 +28,11 @@ void CNetworkStallTickerThread::ThreadEntry()
 
 		if (gotLockLastTime)
 		{
-			CrySleep(33);
+			CryLowLatencySleep("0.033");
 		}
 		else
 		{
-			CrySleep(1);
+			CryLowLatencySleep("0.001");
 		}
 
 		{
@@ -52,7 +52,7 @@ void CNetworkStallTickerThread::ThreadEntry()
 			}
 
 	#if WARN_ABOUT_LONG_STALLS_IN_TICKER
-			ended = gEnv->pTimer->GetAsyncTime();
+			ended = GetGTimer()->GetAsyncTime();
 			if (ended.GetDifferenceInSeconds(started) > 1.f)
 			{
 				CryLogAlways("THREADEDLOADING:: No update for %f", ended.GetDifferenceInSeconds(started));

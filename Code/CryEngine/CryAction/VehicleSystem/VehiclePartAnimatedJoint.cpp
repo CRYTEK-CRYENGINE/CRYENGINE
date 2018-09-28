@@ -454,7 +454,7 @@ const AABB& CVehiclePartAnimatedJoint::GetLocalBounds()
 }
 
 //------------------------------------------------------------------------
-void CVehiclePartAnimatedJoint::Update(float frameTime)
+void CVehiclePartAnimatedJoint::Update(const CTimeValue& frameTime)
 {
 	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 

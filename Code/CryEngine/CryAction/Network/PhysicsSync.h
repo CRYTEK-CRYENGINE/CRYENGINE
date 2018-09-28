@@ -18,11 +18,11 @@ public:
 	CPhysicsSync(CGameChannel* pParent);
 	~CPhysicsSync();
 
-	bool OnPacketHeader(CTimeValue);
+	bool OnPacketHeader(const CTimeValue&);
 	bool       OnPacketFooter();
 
 	CTimeValue GetTime();
-	void SetTime(CTimeValue);
+	void SetTime(const CTimeValue&);
 
 	void UpdatedEntity(EntityId id)
 	{
@@ -33,7 +33,7 @@ public:
 	bool NeedToCatchup() const  { return m_catchup; }
 
 private:
-	void OutputDebug(float deltaPhys, float deltaPing, float averagePing, float ping, float stepForward, float deltaTimestamp);
+	void OutputDebug(const CTimeValue& deltaPhys, const CTimeValue& deltaPing, const CTimeValue& averagePing, const CTimeValue& ping, const CTimeValue& stepForward, const CTimeValue& deltaTimestamp);
 
 	CGameChannel*    m_pParent;
 	IPhysicalWorld*  m_pWorld;
@@ -42,7 +42,7 @@ private:
 	struct SPastPing
 	{
 		CTimeValue when;
-		float      value;
+		CTimeValue value;
 	};
 	typedef MiniQueue<SPastPing, MAX_PING_SAMPLES> PingQueue;
 	PingQueue m_pastPings;
@@ -54,7 +54,7 @@ private:
 	CTimeValue                      m_pingEstimate;
 	CTimeValue                      m_physEstimatedLocalLaggedTime;
 	CTimeValue                      m_epochWhen;
-	int                             m_physEpochTimestamp;
+	CTimeValue                      m_physEpochTimestamp;
 
 	bool                            m_ignoreSnapshot;
 	bool                            m_catchup;

@@ -20,7 +20,7 @@
 CTimeOfDayScheduler::CTimeOfDayScheduler()
 {
 	m_nextId = 0;
-	m_lastTime = 0.0f;
+	m_lastTime.SetSeconds(0);
 	m_bForceUpdate = true;
 }
 
@@ -36,7 +36,7 @@ void CTimeOfDayScheduler::Reset()
 	m_bForceUpdate = true;
 }
 
-CTimeOfDayScheduler::TimeOfDayTimerId CTimeOfDayScheduler::AddTimer(float time, CTimeOfDayScheduler::TimeOfDayTimerCallback callback, void* pUserData)
+CTimeOfDayScheduler::TimeOfDayTimerId CTimeOfDayScheduler::AddTimer(const CTimeValue& time, CTimeOfDayScheduler::TimeOfDayTimerCallback callback, void* pUserData)
 {
 	assert(callback != 0);
 	if (callback == 0)
@@ -59,14 +59,14 @@ void* CTimeOfDayScheduler::RemoveTimer(TimeOfDayTimerId id)
 
 void CTimeOfDayScheduler::Update()
 {
-	static const float MIN_DT = 1.0f / 100.0f;
+	static const CTimeValue MIN_DT = 1 / mpfloat(100);
 
-	float curTime = gEnv->p3DEngine->GetTimeOfDay()->GetTime();
-	float lastTime = m_lastTime;
-	const float dt = curTime - lastTime;
+	CTimeValue curTime = gEnv->p3DEngine->GetTimeOfDay()->GetTime();
+	CTimeValue lastTime = m_lastTime;
+	const CTimeValue dt = curTime - lastTime;
 
 	// only evaluate if at least some time passed
-	if (m_bForceUpdate == false && fabs_tpl(dt) < MIN_DT)
+	if (m_bForceUpdate == false && abs(dt) < MIN_DT)
 		return;
 	m_bForceUpdate = false;
 
@@ -78,7 +78,7 @@ void CTimeOfDayScheduler::Update()
 	TEntries::iterator iter = std::lower_bound(m_entries.begin(), m_entries.end(), entryForTime);
 	TEntries::iterator iterEnd = m_entries.end();
 	const bool bWrap = lastTime > curTime;
-	const float maxTime = bWrap ? 24.0f : curTime;
+	const CTimeValue maxTime = bWrap ? 24 : curTime;
 
 	//CryLogAlways("CTOD: lastTime=%f curTime=%f", lastTime, curTime);
 
@@ -154,11 +154,11 @@ public:
 	{
 		static const SInputPortConfig in_config[] = {
 			InputPortConfig<bool>("Active", true, _HELP("Whether trigger is enabled")),
-			InputPortConfig<float>("Time",  0.0f, _HELP("Time when to trigger")),
+			InputPortConfig<CTimeValue>("Time",  CTimeValue(0), _HELP("Time when to trigger")),
 			{ 0 }
 		};
 		static const SOutputPortConfig out_config[] = {
-			OutputPortConfig<float>("Trigger", _HELP("Triggered when TimeOfDay has been reached. Outputs current timeofday")),
+			OutputPortConfig<CTimeValue>("Trigger", _HELP("Triggered when TimeOfDay has been reached. Outputs current timeofday")),
 			{ 0 }
 		};
 
@@ -196,7 +196,7 @@ public:
 	void RegisterTimer(SActivationInfo* pActInfo)
 	{
 		assert(m_timerId == CTimeOfDayScheduler::InvalidTimerId);
-		const float time = GetPortFloat(pActInfo, EIP_Time);
+		const CTimeValue time = GetPortTime(pActInfo, EIP_Time);
 		m_timerId = CCryAction::GetCryAction()->GetTimeOfDayScheduler()->AddTimer(time, OnTODCallback, (void*)this);
 	}
 
@@ -218,7 +218,7 @@ public:
 	}
 
 protected:
-	static void OnTODCallback(CTimeOfDayScheduler::TimeOfDayTimerId timerId, void* pUserData, float curTime)
+	static void OnTODCallback(CTimeOfDayScheduler::TimeOfDayTimerId timerId, void* pUserData, const CTimeValue& curTime)
 	{
 		CFlowNode_TimeOfDayTrigger* pThis = reinterpret_cast<CFlowNode_TimeOfDayTrigger*>(pUserData);
 		if (timerId != pThis->m_timerId)

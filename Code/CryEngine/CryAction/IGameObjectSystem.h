@@ -93,7 +93,7 @@ struct IGameObjectSystem
 	virtual void            RegisterSchedulingProfile(const char* szEntityClassName, const char* szNormalPolicy, const char* szOwnedPolicy) = 0;
 	virtual void            DefineProtocol(bool server, IProtocolBuilder* pBuilder) = 0;
 
-	virtual void              PostUpdate(float frameTime) = 0;
+	virtual void              PostUpdate(const CTimeValue& frameTime) = 0;
 	virtual void              SetPostUpdate(IGameObject* pGameObject, bool enable) = 0;
 
 	virtual void              Reset() = 0;

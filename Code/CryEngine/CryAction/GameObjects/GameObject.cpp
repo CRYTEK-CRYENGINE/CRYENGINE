@@ -51,19 +51,19 @@ CGameObject::SExtension CGameObject::m_addingExtensions[CGameObject::MAX_ADDING_
 int CGameObject::m_nAddingExtension = 0;
 CGameObjectSystem* CGameObject::m_pGOS = 0;
 
-static const float UPDATE_TIMEOUT_HUGE = 1e20f;
+static const CTimeValue UPDATE_TIMEOUT_HUGE = CTimeValue(mpfloat().lossy(1e20)); // MP_SCIFI
 static const float DISTANCE_CHECKER_TIMEOUT = 1.3f;
 static const float FAR_AWAY_DISTANCE = 150.0f;
 
 // MUST BE SYNCHRONIZED WITH EUpdateStates
-const float CGameObject::UpdateTimeouts[eUS_COUNT_STATES] =
+const CTimeValue CGameObject::UpdateTimeouts[eUS_COUNT_STATES] =
 {
-	3.0f,                // eUS_Visible_Close
-	5.0f,                // eUS_Visible_FarAway
+	3,							// eUS_Visible_Close
+	5,							// eUS_Visible_FarAway
 	UPDATE_TIMEOUT_HUGE, // eUS_NotVisible_Close
 	UPDATE_TIMEOUT_HUGE, // eUS_NotVisible_FarAway
-	27.0f,               // eUS_CheckVisibility_Close
-	13.0f,               // eUS_CheckVisibility_FarAway
+	27,						// eUS_CheckVisibility_Close
+	13,						// eUS_CheckVisibility_FarAway
 };
 const char* CGameObject::UpdateNames[eUS_COUNT_STATES] =
 {
@@ -115,13 +115,13 @@ static AABB CreateDistanceAABB(Vec3 center, float radius = FAR_AWAY_DISTANCE)
 
 static int g_forceFastUpdate = 0;
 static int g_visibilityTimeout = 0;
-static float g_visibilityTimeoutTime = 0.0f;
+static CTimeValue g_visibilityTimeoutTime = 0;
 
 void CGameObject::CreateCVars()
 {
 	REGISTER_CVAR(g_forceFastUpdate, 0, VF_CHEAT, "GameObjects IsProbablyVisible->TRUE && IsProbablyDistant()->FALSE");
 	REGISTER_CVAR(g_visibilityTimeout, 0, VF_CHEAT, "Adds visibility timeout to IsProbablyVisible() calculations");
-	REGISTER_CVAR(g_visibilityTimeoutTime, 30.0f, VF_CHEAT, "Visibility timeout time used by IsProbablyVisible() calculations");
+	REGISTER_CVAR(g_visibilityTimeoutTime, CTimeValue(30), VF_CHEAT, "Visibility timeout time used by IsProbablyVisible() calculations");
 	REGISTER_CVAR(g_showUpdateState, 0, VF_CHEAT, "Show the game object update state of any activated entities; 3-4 -- AI objects only");
 }
 
@@ -137,7 +137,7 @@ CGameObject::CGameObject() :
 	m_enabledPhysicsEvents(0),
 	m_forceUpdate(0),
 	m_updateState(eUS_NotVisible_FarAway),
-	m_updateTimer(0.1f),
+	m_updateTimer("0.1"),
 	m_inRange(false),
 	m_justExchanging(false),
 	m_aiMode(eGOAIAM_VisibleOrInRange),
@@ -222,13 +222,13 @@ bool CGameObject::IsProbablyVisible()
 		IEntityRender* pProxy = GetEntity()->GetRenderInterface();
 		if (pProxy)
 		{
-			float fDiff = gEnv->pTimer->GetCurrTime() - pProxy->GetLastSeenTime();
+			CTimeValue fDiff = GetGTimer()->GetFrameStartTime() - pProxy->GetLastSeenTime();
 			if (fDiff > g_visibilityTimeoutTime)
 			{
 				if (m_bVisible)
 				{
 					if (g_visibilityTimeout == 2)
-						CryLogAlways("Entity %s not visible for %f seconds - visibility timeout", GetEntity()->GetName(), fDiff);
+						CryLogAlways("Entity %s not visible for %f seconds - visibility timeout", GetEntity()->GetName(), (float)fDiff.GetSeconds());
 				}
 				m_bVisible = false;
 				return (false);
@@ -432,7 +432,7 @@ void CGameObject::DebugUpdateState()
 	char* pOut = buf;
 
 	pOut += sprintf(pOut, "%s: %s", GetEntity()->GetName(), UpdateNames[m_updateState]);
-	if (m_updateTimer < (0.5f * UPDATE_TIMEOUT_HUGE))
+	if (m_updateTimer < ("0.5" * UPDATE_TIMEOUT_HUGE))
 		pOut += sprintf(pOut, " timeout:%.2f", m_updateTimer);
 	if (ShouldUpdateAI())
 		pOut += sprintf(pOut, m_aiMode == eGOAIAM_Always ? "AI_ALWAYS" : " AIACTIVE");
@@ -506,9 +506,9 @@ void CGameObject::Update(SEntityUpdateContext& ctx)
 {
 	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
-	if (gEnv->pTimer->GetFrameStartTime() != g_lastUpdate)
+	if (GetGTimer()->GetFrameStartTime() != g_lastUpdate)
 	{
-		g_lastUpdate = gEnv->pTimer->GetFrameStartTime();
+		g_lastUpdate = GetGTimer()->GetFrameStartTime();
 		g_y = 10;
 		g_TextModeY = 0;
 	}
@@ -522,7 +522,7 @@ void CGameObject::Update(SEntityUpdateContext& ctx)
 	m_distanceChecker.Update(*this, ctx.fFrameTime);
 
 	m_updateTimer -= ctx.fFrameTime;
-	if (m_updateTimer < 0.0f)
+	if (m_updateTimer < 0)
 	{
 		// be pretty sure that we won't trigger twice...
 		m_updateTimer = UPDATE_TIMEOUT_HUGE;
@@ -1512,7 +1512,7 @@ void CGameObject::DontSyncPhysics()
 	m_pNetEntity->DontSyncPhysics();
 }
 
-void CGameObject::PostUpdate(float frameTime)
+void CGameObject::PostUpdate(const CTimeValue& frameTime)
 {
 	for (TExtensions::iterator iter = m_extensions.begin(); iter != m_extensions.end(); ++iter)
 	{

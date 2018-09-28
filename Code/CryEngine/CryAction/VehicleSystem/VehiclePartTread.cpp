@@ -230,7 +230,7 @@ void CVehiclePartTread::InitGeometry()
 //------------------------------------------------------------------------
 void CVehiclePartTread::Physicalize()
 {
-	Update(1.0f);
+	Update(1);
 }
 
 //------------------------------------------------------------------------
@@ -260,7 +260,7 @@ const AABB& CVehiclePartTread::GetLocalBounds()
 }
 
 //------------------------------------------------------------------------
-void CVehiclePartTread::Update(const float frameTime)
+void CVehiclePartTread::Update(const CTimeValue& frameTime)
 {
 	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
@@ -283,7 +283,7 @@ void CVehiclePartTread::Update(const float frameTime)
 		return;
 	}
 
-	if (frameTime > 0.f &&
+	if (frameTime > 0 &&
 	    (m_damageRatio >= 1.f || !m_pVehicle->GetGameObject()->IsProbablyVisible() || m_pVehicle->IsProbablyDistant()))
 	{
 		return;
@@ -294,7 +294,7 @@ void CVehiclePartTread::Update(const float frameTime)
 	m_pVehicle->NeedsUpdate();
 
 	// animate the UV texture according to the wheels speed
-	if (m_uvSpeedMultiplier != 0.0f && frameTime > 0.0f)
+	if (m_uvSpeedMultiplier != 0.0f && frameTime > 0)
 	{
 		IPhysicalEntity* pPhysics = GetEntity()->GetPhysics();
 		pe_status_wheel wheelStatus;
@@ -302,7 +302,7 @@ void CVehiclePartTread::Update(const float frameTime)
 
 		if (pPhysics && pPhysics->GetStatus(&wheelStatus) != 0)
 		{
-			m_wantedU += m_uvSpeedMultiplier * (wheelStatus.w * wheelStatus.r * frameTime);
+			m_wantedU += m_uvSpeedMultiplier * (wheelStatus.w * wheelStatus.r * frameTime.BADGetSeconds());
 			m_wantedU -= std::floor(m_wantedU);
 			UpdateU();
 		}

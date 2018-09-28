@@ -146,7 +146,7 @@ void CSignalTimer::OnProxyReset(EntityId IdEntity)
 //
 // Return:
 //
-bool CSignalTimer::Update(float fElapsedTime)
+bool CSignalTimer::Update(const CTimeValue& fElapsedTime)
 {
 	bool bRet = true;
 	uint32 uOrder = 0;
@@ -336,11 +336,11 @@ bool CSignalTimer::ResetPersonalTimers(EntityId IdEntity)
 //
 // Return:
 //
-bool CSignalTimer::SetTurnRate(EntityId IdEntity, const char* sSignal, float fTime, float fTimeMax)
+bool CSignalTimer::SetTurnRate(EntityId IdEntity, const char* sSignal, const CTimeValue& fTime, const CTimeValue& fTimeMax)
 {
 	CRY_ASSERT(m_bInit == true);
 	CRY_ASSERT(IdEntity > 0);
-	CRY_ASSERT(fTime > 0.0f);
+	CRY_ASSERT(fTime > 0);
 	CRY_ASSERT(sSignal != NULL);
 
 	bool bRet = false;

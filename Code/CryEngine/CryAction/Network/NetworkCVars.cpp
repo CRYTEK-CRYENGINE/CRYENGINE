@@ -12,8 +12,8 @@ CNetworkCVars::CNetworkCVars()
 
 	REGISTER_CVAR2("g_breakagelog", &BreakageLog, 0, VF_CHEAT, "Log break events");
 	REGISTER_CVAR2("cl_voice_volume", &VoiceVolume, 1.0f, 0, "Set VOIP playback volume: 0-1");
-	REGISTER_CVAR2("net_phys_pingsmooth", &PhysSyncPingSmooth, 0.1f, VF_NULL, "");
-	REGISTER_CVAR2("net_phys_lagsmooth", &PhysSyncLagSmooth, 0.1f, VF_NULL, "");
+	REGISTER_CVAR2("net_phys_pingsmooth", &PhysSyncPingSmooth, mpfloat("0.1"), VF_NULL, "");
+	REGISTER_CVAR2("net_phys_lagsmooth", &PhysSyncLagSmooth, mpfloat("0.1"), VF_NULL, "");
 	REGISTER_CVAR2("net_phys_debug", &PhysDebug, 0, VF_CHEAT, "");
 	REGISTER_CVAR2("g_breaktimeoutframes", &BreakTimeoutFrames, 140, VF_NULL, "");
 	REGISTER_CVAR2("br_breakmaxworldsize", &BreakMaxWorldSize, 1e4f, VF_NULL, "The maximum value used for breakage world positions");

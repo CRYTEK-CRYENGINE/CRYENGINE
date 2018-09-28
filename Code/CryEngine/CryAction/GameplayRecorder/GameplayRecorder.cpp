@@ -19,8 +19,8 @@
 //------------------------------------------------------------------------
 CGameplayRecorder::CGameplayRecorder(CCryAction* pGameFramework)
 	: m_pGameFramework(pGameFramework),
-	m_lastdiscreet(0.0f),
-	m_sampleinterval(0.5f),
+	m_lastdiscreet(0),
+	m_sampleinterval("0.5"),
 	m_pGameStateRecorder(NULL)
 {
 	//m_pMetadataRecorder->InitSave("GameData.meta");
@@ -39,7 +39,7 @@ void CGameplayRecorder::Init()
 }
 
 //------------------------------------------------------------------------
-void CGameplayRecorder::Update(float frameTime)
+void CGameplayRecorder::Update(const CTimeValue& frameTime)
 {
 	// modify this as you wish
 	//m_example.RecordGameData();
@@ -47,8 +47,8 @@ void CGameplayRecorder::Update(float frameTime)
 	// if anyone needs to touch this, talk to Lin first
 	m_pMetadataRecorder->Flush();
 
-	//CTimeValue now(gEnv->pTimer->GetFrameStartTime());
-	//if (gEnv->pTimer->GetFrameStartTime()-m_lastdiscreet<m_sampleinterval)
+	//CTimeValue now(GetGTimer()->GetFrameStartTime());
+	//if (GetGTimer()->GetFrameStartTime()-m_lastdiscreet<m_sampleinterval)
 	//	return;
 
 	//m_lastdiscreet=now;
@@ -113,10 +113,10 @@ void CGameplayRecorder::CExampleMetadataListener::RecordGameData()
 	IGameplayRecorder* pRecorder = CCryAction::GetCryAction()->GetIGameplayRecorder();
 
 	{
-		int64 t = gEnv->pTimer->GetFrameStartTime().GetValue();
+		CTimeValue t = GetGTimer()->GetFrameStartTime();
 		IMetadataPtr pMetadata;
 		pMetadata->SetTag(eDT_frame);
-		pMetadata->SetValue(eBT_i64, (uint8*)&t, 8);
+		pMetadata->SetValue(eBT_TVal, (uint8*)&t.GetSeconds().str(), 8); // PERSONAL DEBUG: Possible memcpy issues.
 		//m_pMetadataRecorder->RecordIt( pMetadata.get() );
 		pRecorder->OnGameData(pMetadata.get());
 	}
@@ -211,9 +211,9 @@ void CGameplayRecorder::CExampleMetadataListener::OnData(const IMetadata* metada
 	case eDT_frame:
 		{
 			CTimeValue tv;
-			if (const int64* temp = boost::get<const int64>(&data.GetValue()))
-				tv = *temp;
-			CryLog("frame %f", tv.GetSeconds());
+			if (const string* temp = boost::get<const string>(&data.GetValue()))
+				tv.SetSeconds(*temp);
+			CryLog("frame %f", (float)tv.GetSeconds());
 		}
 		break;
 

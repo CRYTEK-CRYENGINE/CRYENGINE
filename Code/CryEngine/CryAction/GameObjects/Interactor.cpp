@@ -15,18 +15,18 @@ CInteractor::CInteractor()
 
 	m_nextOverId = m_overId = 0;
 	m_nextOverIdx = m_overIdx = -100;
-	m_nextOverTime = m_overTime = 0.0f;
+	m_nextOverTime = m_overTime.SetSeconds(0);
 	m_sentLongHover = m_sentMessageHover = false;
 
 	m_funcIsUsable = m_funcAreUsable = m_funcOnNewUsable = m_funcOnUsableMessage = m_funcOnLongHover = 0;
 
-	m_pTimer = gEnv->pTimer;
+	SetGTimer(GetGTimer(), GTimers::interactor);
 	m_pEntitySystem = gEnv->pEntitySystem;
 
-	m_useHoverTime = 0.05f;
-	m_unUseHoverTime = 0.2f;
-	m_messageHoverTime = 0.05f;
-	m_longHoverTime = 5.0f;
+	m_useHoverTime.SetSeconds("0.05");
+	m_unUseHoverTime.SetSeconds("0.2");
+	m_messageHoverTime.SetSeconds("0.05");
+	m_longHoverTime.SetSeconds(5);
 
 	m_lockedByEntityId = m_lockEntityId = 0;
 	m_lockIdx = 0;
@@ -540,7 +540,7 @@ bool CInteractor::IsUsable(EntityId entityId) const
 
 void CInteractor::UpdateTimers(EntityId newOverId, int usableIdx)
 {
-	CTimeValue now = m_pTimer->GetFrameStartTime();
+	CTimeValue now = GTimer(interactor)->GetFrameStartTime();
 
 	if (newOverId != m_nextOverId || usableIdx != m_nextOverIdx)
 	{
@@ -548,8 +548,8 @@ void CInteractor::UpdateTimers(EntityId newOverId, int usableIdx)
 		m_nextOverIdx = usableIdx;
 		m_nextOverTime = now;
 	}
-	float compareTime = m_nextOverId ? m_useHoverTime : m_unUseHoverTime;
-	if ((m_nextOverId != m_overId || m_nextOverIdx != m_overIdx) && (now - m_nextOverTime).GetSeconds() > compareTime)
+	CTimeValue compareTime = m_nextOverId ? m_useHoverTime : m_unUseHoverTime;
+	if ((m_nextOverId != m_overId || m_nextOverIdx != m_overIdx) && (now - m_nextOverTime) > compareTime)
 	{
 		m_overId = m_nextOverId;
 		m_overIdx = m_nextOverIdx;
@@ -558,13 +558,13 @@ void CInteractor::UpdateTimers(EntityId newOverId, int usableIdx)
 		if (m_funcOnNewUsable)
 			Script::CallMethod(m_pGameRules, m_funcOnNewUsable, EntityIdToScript(GetEntityId()), EntityIdToScript(m_overId), m_overIdx);
 	}
-	if (m_funcOnUsableMessage && !m_sentMessageHover && (now - m_overTime).GetSeconds() > m_messageHoverTime)
+	if (m_funcOnUsableMessage && !m_sentMessageHover && (now - m_overTime) > m_messageHoverTime)
 	{
 		Script::CallMethod(m_pGameRules, m_funcOnUsableMessage, EntityIdToScript(GetEntityId()), EntityIdToScript(m_overId), m_overId, m_overIdx);
 
 		m_sentMessageHover = true;
 	}
-	if (m_funcOnLongHover && !m_sentLongHover && (now - m_overTime).GetSeconds() > m_longHoverTime)
+	if (m_funcOnLongHover && !m_sentLongHover && (now - m_overTime) > m_longHoverTime)
 	{
 		Script::CallMethod(m_pGameRules, m_funcOnLongHover, EntityIdToScript(GetEntityId()), EntityIdToScript(m_overId), m_overIdx);
 		m_sentLongHover = true;

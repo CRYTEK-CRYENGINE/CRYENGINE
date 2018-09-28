@@ -21,7 +21,7 @@ protected:
 
 	virtual void ProcessEvent(const SEntityEvent& event) override;
 	virtual uint64 GetEventMask() const override;
-	virtual void OnPrePhysicsUpdate(float elapseTime) = 0;
+	virtual void OnPrePhysicsUpdate(const CTimeValue& elapseTime) = 0;
 
 	virtual void GameSerialize(TSerialize ser) override {};
 
@@ -44,7 +44,7 @@ private:
 
 	Quat m_queuedRotation;
 	bool m_hasQueuedRotation;
-	virtual void OnPrePhysicsUpdate(float elapsedTime) override;
+	virtual void OnPrePhysicsUpdate(const CTimeValue& elapsedTime) override;
 };
 
 class CAnimatedCharacterComponent_StartAnimProc : public CAnimatedCharacterComponent_Base
@@ -54,7 +54,7 @@ class CAnimatedCharacterComponent_StartAnimProc : public CAnimatedCharacterCompo
 
 private:
 	virtual IEntityComponent::ComponentEventPriority GetEventPriority() const override;
-	virtual void                   OnPrePhysicsUpdate(float elapsedTime) override;
+	virtual void                   OnPrePhysicsUpdate(const CTimeValue& elapsedTime) override;
 };
 
 class CAnimatedCharacterComponent_GenerateMoveRequest : public CAnimatedCharacterComponent_Base
@@ -65,7 +65,7 @@ class CAnimatedCharacterComponent_GenerateMoveRequest : public CAnimatedCharacte
 private:
 
 	virtual IEntityComponent::ComponentEventPriority GetEventPriority() const override;
-	virtual void                               OnPrePhysicsUpdate(float elapsedTime) override;
+	virtual void                               OnPrePhysicsUpdate(const CTimeValue& elapsedTime) override;
 };
 
 #endif // __AnimatedCharacterComponents_h__

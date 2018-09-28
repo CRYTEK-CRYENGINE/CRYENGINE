@@ -64,7 +64,7 @@ bool CVehicleDamageBehaviorSpawnDebris::Init(IVehicle* pVehicle, const CVehicleP
 							debrisInfo.slot = -1;
 							debrisInfo.index = i;
 							debrisInfo.entityId = 0;
-							debrisInfo.time = 0.0f;
+							debrisInfo.time.SetSeconds(0);
 
 #if ENABLE_VEHICLE_DEBUG
 							if (VehicleCVars().v_debugdraw == eVDB_Parts)
@@ -97,7 +97,7 @@ void CVehicleDamageBehaviorSpawnDebris::Reset()
 	for (; debrisIte != debrisEnd; ++debrisIte)
 	{
 		SDebrisInfo& debrisInfo = *debrisIte;
-		debrisInfo.time = 0.0f;
+		debrisInfo.time.SetSeconds(0);
 
 		if (debrisInfo.entityId)
 		{
@@ -125,7 +125,7 @@ void CVehicleDamageBehaviorSpawnDebris::OnDamageEvent(EVehicleDamageBehaviorEven
 
 		if (!debrisInfo.entityId)
 		{
-			debrisInfo.time = cry_random(0.0f, 1.0f) * (4.0f - min(3.0f, params.hitValue));
+			debrisInfo.time = BADTIME(cry_random(0.0f, 1.0f) * (4.0f - min(3.0f, params.hitValue)));
 			debrisInfo.force = params.componentDamageRatio;
 			isUpdateNeeded = true;
 
@@ -176,7 +176,7 @@ void CVehicleDamageBehaviorSpawnDebris::OnVehicleEvent(EVehicleEvent event, cons
 		for (; debrisIte != debrisEnd; ++debrisIte)
 		{
 			SDebrisInfo& debrisInfo = *debrisIte;
-			if (debrisInfo.time > 0.0f)
+			if (debrisInfo.time > 0)
 			{
 				if (IEntity* pEntity = gEnv->pEntitySystem->GetEntity(debrisInfo.entityId))
 				{
@@ -185,14 +185,14 @@ void CVehicleDamageBehaviorSpawnDebris::OnVehicleEvent(EVehicleEvent event, cons
 					GiveImpulse(pEntity, 1.0f);
 				}
 
-				debrisInfo.time = 0.0f;
+				debrisInfo.time.SetSeconds(0);
 			}
 		}
 	}
 }
 
 //------------------------------------------------------------------------
-void CVehicleDamageBehaviorSpawnDebris::Update(const float deltaTime)
+void CVehicleDamageBehaviorSpawnDebris::Update(const CTimeValue& deltaTime)
 {
 	const Matrix34& worldTM = m_pVehicle->GetEntity()->GetWorldTM();
 
@@ -203,11 +203,11 @@ void CVehicleDamageBehaviorSpawnDebris::Update(const float deltaTime)
 	{
 		SDebrisInfo& debrisInfo = *debrisIte;
 
-		if (debrisInfo.time > 0.0f)
+		if (debrisInfo.time > 0)
 		{
 			debrisInfo.time -= deltaTime;
 
-			if (debrisInfo.time <= 0.0f)
+			if (debrisInfo.time <= 0)
 			{
 				if (IEntity* pEntity = gEnv->pEntitySystem->GetEntity(debrisInfo.entityId))
 				{
@@ -215,7 +215,7 @@ void CVehicleDamageBehaviorSpawnDebris::Update(const float deltaTime)
 					AttachParticleEffect(pEntity);
 					GiveImpulse(pEntity, 2.0f);
 				}
-				debrisInfo.time = 0.0f;
+				debrisInfo.time.SetSeconds(0);
 			}
 		}
 	}

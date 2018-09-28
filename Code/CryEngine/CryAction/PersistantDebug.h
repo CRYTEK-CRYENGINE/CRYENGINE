@@ -14,18 +14,18 @@ class CPersistantDebug : public IPersistantDebug, public ILogCallback
 {
 public:
 	void Begin(const char* name, bool clear);
-	void AddSphere(const Vec3& pos, float radius, ColorF clr, float timeout);
-	void AddDirection(const Vec3& pos, float radius, const Vec3& dir, ColorF clr, float timeout);
-	void AddLine(const Vec3& pos1, const Vec3& pos2, ColorF clr, float timeout);
-	void AddPlanarDisc(const Vec3& pos, float innerRadius, float outerRadius, ColorF clr, float timeout);
-	void AddCone(const Vec3& pos, const Vec3& dir, float baseRadius, float height, ColorF clr, float timeout);
-	void AddCylinder(const Vec3& pos, const Vec3& dir, float radius, float height, ColorF clr, float timeout);
-	void Add2DText(const char* text, float size, ColorF clr, float timeout);
-	void Add2DLine(float x1, float y1, float x2, float y2, ColorF clr, float timeout);
-	void AddText(float x, float y, float size, ColorF clr, float timeout, const char* fmt, ...);
-	void AddText3D(const Vec3& pos, float size, ColorF clr, float timeout, const char* fmt, ...);
-	void AddQuat(const Vec3& pos, const Quat& q, float r, ColorF clr, float timeout);
-	void AddAABB(const Vec3& min, const Vec3& max, ColorF clr, float timeout);
+	void AddSphere(const Vec3& pos, float radius, ColorF clr, const CTimeValue& timeout);
+	void AddDirection(const Vec3& pos, float radius, const Vec3& dir, ColorF clr, const CTimeValue& timeout);
+	void AddLine(const Vec3& pos1, const Vec3& pos2, ColorF clr, const CTimeValue& timeout);
+	void AddPlanarDisc(const Vec3& pos, float innerRadius, float outerRadius, ColorF clr, const CTimeValue& timeout);
+	void AddCone(const Vec3& pos, const Vec3& dir, float baseRadius, float height, ColorF clr, const CTimeValue& timeout);
+	void AddCylinder(const Vec3& pos, const Vec3& dir, float radius, float height, ColorF clr, const CTimeValue& timeout);
+	void Add2DText(const char* text, float size, ColorF clr, const CTimeValue& timeout);
+	void Add2DLine(float x1, float y1, float x2, float y2, ColorF clr, const CTimeValue& timeout);
+	void AddText(float x, float y, float size, ColorF clr, const CTimeValue& timeout, const char* fmt, ...);
+	void AddText3D(const Vec3& pos, float size, ColorF clr, const CTimeValue& timeout, const char* fmt, ...);
+	void AddQuat(const Vec3& pos, const Quat& q, float r, ColorF clr, const CTimeValue& timeout);
+	void AddAABB(const Vec3& min, const Vec3& max, ColorF clr, const CTimeValue& timeout);
 
 	void AddEntityTag(const SEntityTagParams& params, const char* tagContext = "");
 	void ClearEntityTags(EntityId entityId);
@@ -34,8 +34,8 @@ public:
 	void ClearTagContext(const char* tagContext, EntityId entityId);
 
 	bool Init();
-	void Update(float frameTime);
-	void PostUpdate(float frameTime);
+	void Update(const CTimeValue& frameTime);
+	void PostUpdate(const CTimeValue& frameTime);
 	void Reset();
 
 	CPersistantDebug();
@@ -69,8 +69,8 @@ private:
 	{
 		SEntityTagParams params;
 		Vec3             vScreenPos;
-		float            totalTime;
-		float            totalFadeTime;
+		CTimeValue       totalTime;
+		CTimeValue       totalFadeTime;
 	};
 	typedef std::list<SEntityTag> TListTag;
 
@@ -85,8 +85,8 @@ private:
 	{
 		EObjType obj;
 		ColorF   clr;
-		float    timeRemaining;
-		float    totalTime;
+		CTimeValue timeRemaining;
+		CTimeValue totalTime;
 		float    radius;
 		float    radius2;
 		Vec3     pos;
@@ -105,8 +105,8 @@ private:
 		string text;
 		ColorF clr;
 		float  size;
-		float  timeRemaining;
-		float  totalTime;
+		CTimeValue  timeRemaining;
+		CTimeValue  totalTime;
 	};
 
 	struct SObjFinder
@@ -116,8 +116,8 @@ private:
 		EntityId entityId;
 	};
 
-	void  UpdateTags(float frameTime, SObj& obj, bool doFirstPass = false);
-	void  PostUpdateTags(float frameTime, SObj& obj);
+	void  UpdateTags(const CTimeValue& frameTime, SObj& obj, bool doFirstPass = false);
+	void  PostUpdateTags(const CTimeValue& frameTime, SObj& obj);
 	void  AddToTagList(TListTag& tagList, SEntityTag& tag);
 	SObj* FindObj(EntityId entityId);
 	bool  GetEntityParams(EntityId entityId, Vec3& baseCenterPos, float& height);
@@ -126,8 +126,8 @@ private:
 	typedef std::map<string, ListObj> MapListObj;
 	typedef std::list<STextObj2D>     ListObjText2D; // 2D objects need a separate pass, so we put it into another list
 
-	static const char*   entityTagsContext;
-	static const float   kUnlimitedTime;
+	static const char*       entityTagsContext;
+	static const CTimeValue  kUnlimitedTime;
 
 	MapListObj           m_objects;
 	MapListObj::iterator m_current;

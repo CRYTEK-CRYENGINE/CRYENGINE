@@ -28,10 +28,10 @@ public:
 	virtual inline ISerializableInfoPtr GetSpawnInfo()                                                                  { return NULL; }
 	virtual inline void                 Update(SEntityUpdateContext& ctx, int)                                          {}
 	virtual inline void                 HandleEvent(const SGameObjectEvent& event)                                      {}
-	virtual inline void                 ProcessEvent(const SEntityEvent& event)                                               {}
+	virtual inline void                 ProcessEvent(const SEntityEvent& event)                                         {}
 	virtual uint64                      GetEventMask() const final { return 0; };
 	virtual inline void                 SetChannelId(uint16 id)                                                         {}
-	virtual inline void                 PostUpdate(float frameTime)                                                     {}
+	virtual inline void                 PostUpdate(const CTimeValue& frameTime)                                         {}
 	virtual inline void                 PostRemoteSpawn()                                                               {}
 	virtual inline void                 GetMemoryUsage(ICrySizer* s) const                                              { s->Add(*this); }
 

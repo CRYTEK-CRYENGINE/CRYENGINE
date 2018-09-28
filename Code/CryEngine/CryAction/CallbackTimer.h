@@ -19,14 +19,14 @@ public:
 	void    Clear();
 	void    Update();
 
-	TimerID AddTimer(CTimeValue interval, bool repeating, const Callback& callback, void* userdata = 0);
+	TimerID AddTimer(const CTimeValue& interval, bool repeating, const Callback& callback, void* userdata = 0);
 	void*   RemoveTimer(TimerID timerID);
 
 	void    GetMemoryStatistics(ICrySizer* s);
 private:
 	struct TimerInfo
 	{
-		TimerInfo(CTimeValue _interval, bool _repeating, const Callback& _callback, void* _userdata)
+		TimerInfo(const CTimeValue& _interval, bool _repeating, const Callback& _callback, void* _userdata)
 			: interval(_interval)
 			, repeating(_repeating)
 			, callback(_callback)
@@ -44,7 +44,7 @@ private:
 
 	struct TimeoutInfo
 	{
-		TimeoutInfo(CTimeValue _timeout, TimerID _timerID)
+		TimeoutInfo(const CTimeValue& _timeout, TimerID _timerID)
 			: timeout(_timeout)
 			, timerID(_timerID)
 		{

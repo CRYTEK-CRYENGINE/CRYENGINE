@@ -22,17 +22,17 @@ CEffectSystem::~CEffectSystem()
 bool CEffectSystem::Init()
 {
 	CBloodSplats* pBloodSplats = new CBloodSplats;
-	pBloodSplats->Init(0, 2.5f);
+	pBloodSplats->Init(0, "2.5");
 	BindEffect("BloodSplats_Human", pBloodSplats);
 
 	pBloodSplats = new CBloodSplats;
-	pBloodSplats->Init(1, 2.5f);
+	pBloodSplats->Init(1, "2.5");
 	BindEffect("BloodSplats_Alien", pBloodSplats);
 
 	return true;
 }
 
-void CEffectSystem::Update(float delta)
+void CEffectSystem::Update(const CTimeValue& delta)
 {
 	for (TEffectVec::iterator i = m_effects.begin(); i != m_effects.end(); )
 	{

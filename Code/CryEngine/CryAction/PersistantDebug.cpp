@@ -35,19 +35,19 @@ void CPersistantDebug::Begin(const char* name, bool clear)
 	m_current = m_objects.find(name);
 }
 
-void CPersistantDebug::AddSphere(const Vec3& pos, float radius, ColorF clr, float timeout)
+void CPersistantDebug::AddSphere(const Vec3& pos, float radius, ColorF clr, const CTimeValue& timeout)
 {
 	SObj obj;
 	obj.obj = eOT_Sphere;
 	obj.clr = clr;
 	obj.pos = pos;
 	obj.radius = radius;
-	obj.timeRemaining = timeout <= 0.0f ? kUnlimitedTime : timeout;
+	obj.timeRemaining = timeout <= 0 ? kUnlimitedTime : timeout;
 	obj.totalTime = obj.timeRemaining;
 	m_current->second.push_back(obj);
 }
 
-void CPersistantDebug::AddQuat(const Vec3& pos, const Quat& q, float r, ColorF clr, float timeout)
+void CPersistantDebug::AddQuat(const Vec3& pos, const Quat& q, float r, ColorF clr, const CTimeValue& timeout)
 {
 	SObj obj;
 	obj.obj = eOT_Quat;
@@ -55,38 +55,38 @@ void CPersistantDebug::AddQuat(const Vec3& pos, const Quat& q, float r, ColorF c
 	obj.pos = pos;
 	obj.q = q;
 	obj.radius = r;
-	obj.timeRemaining = timeout <= 0.0f ? kUnlimitedTime : timeout;
+	obj.timeRemaining = timeout <= 0 ? kUnlimitedTime : timeout;
 	obj.totalTime = obj.timeRemaining;
 	m_current->second.push_back(obj);
 }
 
-void CPersistantDebug::AddAABB(const Vec3& min, const Vec3& max, ColorF clr, float timeout)
+void CPersistantDebug::AddAABB(const Vec3& min, const Vec3& max, ColorF clr, const CTimeValue& timeout)
 {
 	SObj obj;
 	obj.obj = eOT_AABB;
 	obj.clr = clr;
 	obj.pos = min;
 	obj.dir = max;
-	obj.timeRemaining = timeout <= 0.0f ? kUnlimitedTime : timeout;
+	obj.timeRemaining = timeout <= 0 ? kUnlimitedTime : timeout;
 	obj.totalTime = obj.timeRemaining;
 	m_current->second.push_back(obj);
 }
 
-void CPersistantDebug::AddDirection(const Vec3& pos, float radius, const Vec3& dir, ColorF clr, float timeout)
+void CPersistantDebug::AddDirection(const Vec3& pos, float radius, const Vec3& dir, ColorF clr, const CTimeValue& timeout)
 {
 	SObj obj;
 	obj.obj = eOT_Arrow;
 	obj.clr = clr;
 	obj.pos = pos;
 	obj.radius = radius;
-	obj.timeRemaining = timeout <= 0.0f ? kUnlimitedTime : timeout;
+	obj.timeRemaining = timeout <= 0 ? kUnlimitedTime : timeout;
 	obj.totalTime = obj.timeRemaining;
 	obj.dir = dir.GetNormalizedSafe();
 	if (obj.dir.GetLengthSquared() > 0.001f)
 		m_current->second.push_back(obj);
 }
 
-void CPersistantDebug::AddLine(const Vec3& pos1, const Vec3& pos2, ColorF clr, float timeout)
+void CPersistantDebug::AddLine(const Vec3& pos1, const Vec3& pos2, ColorF clr, const CTimeValue& timeout)
 {
 	SObj obj;
 	obj.obj = eOT_Line;
@@ -94,12 +94,12 @@ void CPersistantDebug::AddLine(const Vec3& pos1, const Vec3& pos2, ColorF clr, f
 	obj.pos = pos1;
 	obj.dir = pos2 - pos1;
 	obj.radius = 0.0f;
-	obj.timeRemaining = timeout <= 0.0f ? kUnlimitedTime : timeout;
+	obj.timeRemaining = timeout <= 0 ? kUnlimitedTime : timeout;
 	obj.totalTime = obj.timeRemaining;
 	m_current->second.push_back(obj);
 }
 
-void CPersistantDebug::AddPlanarDisc(const Vec3& pos, float innerRadius, float outerRadius, ColorF clr, float timeout)
+void CPersistantDebug::AddPlanarDisc(const Vec3& pos, float innerRadius, float outerRadius, ColorF clr, const CTimeValue& timeout)
 {
 	SObj obj;
 	obj.obj = eOT_Disc;
@@ -107,13 +107,13 @@ void CPersistantDebug::AddPlanarDisc(const Vec3& pos, float innerRadius, float o
 	obj.pos = pos;
 	obj.radius = std::max(0.0f, std::min(innerRadius, outerRadius));
 	obj.radius2 = std::min(100.0f, std::max(0.0f, std::max(innerRadius, outerRadius)));
-	obj.timeRemaining = timeout <= 0.0f ? kUnlimitedTime : timeout;
+	obj.timeRemaining = timeout <= 0 ? kUnlimitedTime : timeout;
 	obj.totalTime = obj.timeRemaining;
 	if (obj.radius2)
 		m_current->second.push_back(obj);
 }
 
-void CPersistantDebug::AddCone(const Vec3& pos, const Vec3& dir, float baseRadius, float height, ColorF clr, float timeout)
+void CPersistantDebug::AddCone(const Vec3& pos, const Vec3& dir, float baseRadius, float height, ColorF clr, const CTimeValue& timeout)
 {
 	SObj obj;
 	obj.obj = eOT_Cone;
@@ -122,12 +122,12 @@ void CPersistantDebug::AddCone(const Vec3& pos, const Vec3& dir, float baseRadiu
 	obj.dir = dir;
 	obj.radius = std::max(0.001f, baseRadius);
 	obj.radius2 = std::max(0.001f, height);
-	obj.timeRemaining = timeout <= 0.0f ? kUnlimitedTime : timeout;
+	obj.timeRemaining = timeout <= 0 ? kUnlimitedTime : timeout;
 	obj.totalTime = obj.timeRemaining;
 	m_current->second.push_back(obj);
 }
 
-void CPersistantDebug::AddCylinder(const Vec3& pos, const Vec3& dir, float radius, float height, ColorF clr, float timeout)
+void CPersistantDebug::AddCylinder(const Vec3& pos, const Vec3& dir, float radius, float height, ColorF clr, const CTimeValue& timeout)
 {
 	SObj obj;
 	obj.obj = eOT_Cylinder;
@@ -136,12 +136,12 @@ void CPersistantDebug::AddCylinder(const Vec3& pos, const Vec3& dir, float radiu
 	obj.dir = dir;
 	obj.radius = std::max(0.001f, radius);
 	obj.radius2 = std::max(0.001f, height);
-	obj.timeRemaining = timeout <= 0.0f ? kUnlimitedTime : timeout;
+	obj.timeRemaining = timeout <= 0 ? kUnlimitedTime : timeout;
 	obj.totalTime = obj.timeRemaining;
 	m_current->second.push_back(obj);
 }
 
-void CPersistantDebug::AddText(float x, float y, float size, ColorF clr, float timeout, const char* fmt, ...)
+void CPersistantDebug::AddText(float x, float y, float size, ColorF clr, const CTimeValue& timeout, const char* fmt, ...)
 {
 	char buffer[4096];
 	va_list args;
@@ -156,12 +156,12 @@ void CPersistantDebug::AddText(float x, float y, float size, ColorF clr, float t
 	obj.pos.y = y;
 	obj.radius = size;
 	obj.text = buffer;
-	obj.timeRemaining = timeout <= 0.0f ? kUnlimitedTime : timeout;
+	obj.timeRemaining = timeout <= 0 ? kUnlimitedTime : timeout;
 	obj.totalTime = obj.timeRemaining;
 	m_current->second.push_back(obj);
 }
 
-void CPersistantDebug::AddText3D(const Vec3& pos, float size, ColorF clr, float timeout, const char* fmt, ...)
+void CPersistantDebug::AddText3D(const Vec3& pos, float size, ColorF clr, const CTimeValue& timeout, const char* fmt, ...)
 {
 	char buffer[4096];
 	va_list args;
@@ -175,12 +175,12 @@ void CPersistantDebug::AddText3D(const Vec3& pos, float size, ColorF clr, float 
 	obj.pos = pos;
 	obj.radius = size;
 	obj.text = buffer;
-	obj.timeRemaining = timeout <= 0.0f ? kUnlimitedTime : timeout;
+	obj.timeRemaining = timeout <= 0 ? kUnlimitedTime : timeout;
 	obj.totalTime = obj.timeRemaining;
 	m_current->second.push_back(obj);
 }
 
-void CPersistantDebug::Add2DText(const char* text, float size, ColorF clr, float timeout)
+void CPersistantDebug::Add2DText(const char* text, float size, ColorF clr, const CTimeValue& timeout)
 {
 	if (text == 0 || *text == '\0')
 		return;
@@ -189,12 +189,12 @@ void CPersistantDebug::Add2DText(const char* text, float size, ColorF clr, float
 	obj.clr = clr;
 	obj.text = text;
 	obj.size = size;
-	obj.timeRemaining = timeout <= 0.0f ? kUnlimitedTime : timeout;
+	obj.timeRemaining = timeout <= 0 ? kUnlimitedTime : timeout;
 	obj.totalTime = obj.timeRemaining;
 	m_2DTexts.push_front(obj);
 }
 
-void CPersistantDebug::Add2DLine(float x1, float y1, float x2, float y2, ColorF clr, float timeout)
+void CPersistantDebug::Add2DLine(float x1, float y1, float x2, float y2, ColorF clr, const CTimeValue& timeout)
 {
 	int iScreenWidth  = gEnv->pRenderer->GetOverlayWidth();
 	int iScreenHeight = gEnv->pRenderer->GetOverlayHeight();
@@ -208,7 +208,7 @@ void CPersistantDebug::Add2DLine(float x1, float y1, float x2, float y2, ColorF 
 	obj.dir.y = y2 / iScreenHeight;
 	obj.dir.z = 0;
 	obj.clr = clr;
-	obj.timeRemaining = timeout <= 0.0f ? kUnlimitedTime : timeout;
+	obj.timeRemaining = timeout <= 0 ? kUnlimitedTime : timeout;
 	obj.totalTime = obj.timeRemaining;
 	m_current->second.push_back(obj);
 }
@@ -242,7 +242,7 @@ void CPersistantDebug::Reset()
 	Begin("default", true); // Safety context if first caller forgets to use Begin(), so we don't crash!
 }
 
-void CPersistantDebug::Update(float frameTime)
+void CPersistantDebug::Update(const CTimeValue& frameTime)
 {
 	if (m_objects.empty())
 		return;
@@ -264,7 +264,7 @@ void CPersistantDebug::Update(float frameTime)
 			if (iterList->totalTime != kUnlimitedTime)
 			{
 				iterList->timeRemaining -= frameTime;
-				if (iterList->timeRemaining <= 0.0f && !(iterList->obj == eOT_EntityTag && iterList->columns.size() > 1))
+				if (iterList->timeRemaining <= 0 && !(iterList->obj == eOT_EntityTag && iterList->columns.size() > 1))
 				{
 					toClear.push_back(iterList);
 					continue;
@@ -272,7 +272,7 @@ void CPersistantDebug::Update(float frameTime)
 			}
 
 			ColorF clr = iterList->clr;
-			clr.a *= iterList->timeRemaining / iterList->totalTime;
+			clr.a *= BADF(iterList->timeRemaining / iterList->totalTime);
 			switch (iterList->obj)
 			{
 			case eOT_Sphere:
@@ -404,7 +404,7 @@ void CPersistantDebug::Update(float frameTime)
 	}
 }
 
-void CPersistantDebug::PostUpdate(float frameTime)
+void CPersistantDebug::PostUpdate(const CTimeValue& frameTime)
 {
 	IRenderer* pRenderer = gEnv->pRenderer;
 	const float x = pRenderer->ScaleCoordX(400.0f);
@@ -428,12 +428,12 @@ void CPersistantDebug::PostUpdate(float frameTime)
 	{
 		STextObj2D& textObj = *iter;
 		ColorF clr = textObj.clr;
-		clr.a *= textObj.timeRemaining / textObj.totalTime;
+		clr.a *= BADF(textObj.timeRemaining / textObj.totalTime);
 		IRenderAuxText::Draw2dLabel(x, y, textObj.size, &clr[0], true, "%s", textObj.text.c_str());
 		y += 18.0f;
 
 		textObj.timeRemaining -= frameTime;
-		const bool bDelete = textObj.timeRemaining <= 0.0f;
+		const bool bDelete = textObj.timeRemaining <= 0;
 		if (bDelete)
 		{
 			ListObjText2D::iterator toDelete = iter;
@@ -449,6 +449,6 @@ void CPersistantDebug::OnWriteToConsole(const char* sText, bool bNewLine)
 {
 	if (sText)
 	{
-		Add2DText(sText, 1.0f, ColorF(1.0f, 1.0f, 1.0f), 20.0f);
+		Add2DText(sText, 1.0f, ColorF(1.0f, 1.0f, 1.0f), 20);
 	}
 }

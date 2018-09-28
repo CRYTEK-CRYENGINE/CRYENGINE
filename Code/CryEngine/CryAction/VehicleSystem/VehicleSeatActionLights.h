@@ -43,7 +43,7 @@ public:
 
 	virtual void Serialize(TSerialize ser, EEntityAspects aspects) override;
 	virtual void PostSerialize() override               {}
-	virtual void Update(const float deltaTime) override {}
+	virtual void Update(const CTimeValue& deltaTime) override {}
 
 	// IVehicleObject
 

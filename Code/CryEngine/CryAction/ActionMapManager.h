@@ -218,7 +218,7 @@ private:
 	};
 
 	bool       HandleAcceptedEvents(const SInputEvent& event, TBindPriorityList& priorityList);
-	void       HandleInputBlocking(const SInputEvent& event, const SActionInput* pActionInput, const float fCurrTime);
+	void       HandleInputBlocking(const SInputEvent& event, const SActionInput* pActionInput, const CTimeValue& fCurrTime);
 	SBindData* GetBindData(CActionMap* pActionMap, CActionMapAction* pAction, SActionInput* pActionInput);
 	bool       CreateEventPriorityList(const SInputEvent& inputEvent, TBindPriorityList& priorityList);
 	bool       CreateRefiredEventPriorityList(SRefireData* pRefireData,

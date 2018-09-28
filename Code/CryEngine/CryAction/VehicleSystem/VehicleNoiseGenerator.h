@@ -9,7 +9,7 @@ public:
 	CVehicleNoiseValue();
 	void  SetAmpFreq(float amplitude, float frequency);
 	void  Setup(float amplitude, float frequency, int32 offset = 0);
-	float Update(float dt);
+	float Update(const CTimeValue& dt);
 
 private:
 	float PseudoNoise(int x);
@@ -30,7 +30,7 @@ public:
 	CVehicleNoiseValue y;
 	CVehicleNoiseValue z;
 
-	Vec3 Update(float tickTime)
+	Vec3 Update(const CTimeValue& tickTime)
 	{
 		return Vec3(x.Update(tickTime), y.Update(tickTime), z.Update(tickTime));
 	}
@@ -84,10 +84,10 @@ NO_INLINE_WEAK void CVehicleNoiseValue::Setup(float amplitude, float frequency, 
 	m_position = 0;
 }
 
-NO_INLINE_WEAK float CVehicleNoiseValue::Update(float tickTime)
+NO_INLINE_WEAK float CVehicleNoiseValue::Update(const CTimeValue& tickTime)
 {
 	float r = SoftNoise(m_position + m_offset) * m_amplitude;
-	m_position += (int32)(tickTime * 65536.f * m_frequency);
+	m_position += (int32)(tickTime.BADGetSeconds() * 65536.f * m_frequency);
 	return r;
 }
 

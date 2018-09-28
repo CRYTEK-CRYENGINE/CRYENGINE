@@ -27,7 +27,7 @@ void CAnimatedCharacterComponent_Base::ProcessEvent(const SEntityEvent& event)
 	switch (event.event)
 	{
 	case ENTITY_EVENT_PREPHYSICSUPDATE:
-		OnPrePhysicsUpdate(event.fParam[0]);
+		OnPrePhysicsUpdate(event.tVal);
 		break;
 	}
 }
@@ -45,7 +45,7 @@ CAnimatedCharacterComponent_PrepareAnimatedCharacterForUpdate::CAnimatedCharacte
 {
 }
 
-void CAnimatedCharacterComponent_PrepareAnimatedCharacterForUpdate::OnPrePhysicsUpdate(float)
+void CAnimatedCharacterComponent_PrepareAnimatedCharacterForUpdate::OnPrePhysicsUpdate(const CTimeValue& elapsedTime)
 {
 	CRY_ASSERT(m_pAnimCharacter);
 
@@ -65,7 +65,7 @@ IEntityComponent::ComponentEventPriority CAnimatedCharacterComponent_PrepareAnim
 
 //////////////////////////////////////////////////////////////////////////
 
-void CAnimatedCharacterComponent_StartAnimProc::OnPrePhysicsUpdate(float elapsedTime)
+void CAnimatedCharacterComponent_StartAnimProc::OnPrePhysicsUpdate(const CTimeValue& elapsedTime)
 {
 	CRY_ASSERT(m_pAnimCharacter);
 
@@ -79,7 +79,7 @@ IEntityComponent::ComponentEventPriority CAnimatedCharacterComponent_StartAnimPr
 
 //////////////////////////////////////////////////////////////////////////
 
-void CAnimatedCharacterComponent_GenerateMoveRequest::OnPrePhysicsUpdate(float elapsedTime)
+void CAnimatedCharacterComponent_GenerateMoveRequest::OnPrePhysicsUpdate(const CTimeValue& elapsedTime)
 {
 	CRY_ASSERT(m_pAnimCharacter);
 

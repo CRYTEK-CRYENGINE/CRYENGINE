@@ -18,14 +18,14 @@ class CColorGradientManager
 public:
 	CColorGradientManager();
 
-	void TriggerFadingColorGradient(const string& filePath, const float fadeInTimeInSeconds);
+	void TriggerFadingColorGradient(const string& filePath, const CTimeValue& fadeInTimeInSeconds);
 
-	void UpdateForThisFrame(const float frameTimeInSeconds);
+	void UpdateForThisFrame(const CTimeValue& frameTimeInSeconds);
 	void Reset();
 	void Serialize(TSerialize serializer);
 
 private:
-	void FadeInLastLayer(const float frameTimeInSeconds);
+	void FadeInLastLayer(const CTimeValue& frameTimeInSeconds);
 	void FadeOutCurrentLayers();
 	void RemoveZeroWeightedLayers();
 	void SetLayersForThisFrame();
@@ -38,31 +38,31 @@ private:
 	class LoadedColorGradient
 	{
 	public:
-		LoadedColorGradient(const string& filePath, const SColorChartLayer& layer, const float fadeInTimeInSeconds);
+		LoadedColorGradient(const string& filePath, const SColorChartLayer& layer, const CTimeValue& fadeInTimeInSeconds);
 
 	public:
-		void FadeIn(const float frameTimeInSeconds);
+		void FadeIn(const CTimeValue& frameTimeInSeconds);
 		void FadeOut(const float blendAmountOfFadingInGradient);
 
 		void FreezeMaximumBlendAmount();
 
 		SColorChartLayer m_layer;
 		string m_filePath;
-		float m_fadeInTimeInSeconds;
-		float m_elapsedTime;
+		CTimeValue m_fadeInTimeInSeconds;
+		CTimeValue m_elapsedTime;
 		float m_maximumBlendAmount;
 	};
 
 	class LoadingColorGradient
 	{
 	public:
-		LoadingColorGradient(const string& filePath, const float fadeInTimeInSeconds);
+		LoadingColorGradient(const string& filePath, const CTimeValue& fadeInTimeInSeconds);
 
 		LoadedColorGradient Load(IColorGradingController& colorGradingController) const;
 
 	public:
 		string m_filePath;
-		float m_fadeInTimeInSeconds;
+		CTimeValue m_fadeInTimeInSeconds;
 	};
 
 private:

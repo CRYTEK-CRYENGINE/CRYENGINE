@@ -182,7 +182,7 @@ void CVehiclePartSuspensionPart::Physicalize()
 	inherited::Physicalize();
 }
 
-void CVehiclePartSuspensionPart::Update(const float frameTime)
+void CVehiclePartSuspensionPart::Update(const CTimeValue& frameTime)
 {
 	inherited::Update(frameTime);
 

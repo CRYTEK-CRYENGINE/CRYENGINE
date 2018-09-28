@@ -31,9 +31,11 @@ enum EBasicTypes4CC
 	eBT_mtrx = 'mtrx', // Matrix34<f32>
 	eBT_quat = 'quat', // Quat<f32>
 	eBT_qutt = 'qutt', // QuatT<f32>
+
+	eBT_TVal = 'tval', // CTimeValue PERSONAL TODO: I don't think this can fit here anyways!! Too large?
 };
 
-typedef boost::mpl::vector<int8, uint8, int16, uint16, int32, uint32, int64, uint64, f32, f64, string, Vec3, Matrix34, Quat, QuatT> TBasicTypes;
+typedef boost::mpl::vector<int8, uint8, int16, uint16, int32, uint32, int64, uint64, f32, f64, string, Vec3, Matrix34, Quat, QuatT, CTimeValue> TBasicTypes;
 typedef boost::make_variant_over<TBasicTypes>::type                                                                                 TBasicType;
 
 template<typename T>
@@ -107,6 +109,11 @@ static inline TBasicType ComposeValue(const IMetadata* metadata)
 		break;
 	case eBT_qutt:
 		v = TBasicType(ComposeValue<QuatT>(dt, sz));
+		break;
+	case eBT_TVal:
+		// PERSONAL DEBUG: memcpy issues?
+		//v = TBasicType(ComposeValue<CTimeValue>(dt, sz));
+		assert(0);
 		break;
 	default:
 		break;

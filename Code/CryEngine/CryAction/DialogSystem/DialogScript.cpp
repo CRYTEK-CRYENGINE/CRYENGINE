@@ -77,7 +77,7 @@ CDialogScript::~CDialogScript()
 
 ////////////////////////////////////////////////////////////////////////////
 // Add one line after another
-bool CDialogScript::AddLine(TActorID actorID, CryAudio::ControlId audioID, const char* anim, const char* facial, TActorID lookAtTargetID, float delay, float facialWeight, float facialFadeTime, bool bLookAtSticky, bool bResetFacial, bool bResetLookAt, bool bSoundStopsAnim, bool bUseAGSignal, bool bUseAGEP)
+bool CDialogScript::AddLine(TActorID actorID, CryAudio::ControlId audioID, const char* anim, const char* facial, TActorID lookAtTargetID, const CTimeValue& delay, float facialWeight, const CTimeValue& facialFadeTime, bool bLookAtSticky, bool bResetFacial, bool bResetLookAt, bool bSoundStopsAnim, bool bUseAGSignal, bool bUseAGEP)
 {
 	SScriptLine line;
 	line.m_actor = actorID;

@@ -62,7 +62,7 @@ void CMFXForceFeedbackEffect::Execute(const SMFXRunTimeEffectParams& params)
 		IForceFeedbackSystem* pForceFeedback = CCryAction::GetCryAction()->GetIForceFeedbackSystem();
 		assert(pForceFeedback);
 		ForceFeedbackFxId fxId = pForceFeedback->GetEffectIdByName(m_forceFeedbackParams.forceFeedbackEventName.c_str());
-		pForceFeedback->PlayForceFeedbackEffect(fxId, SForceFeedbackRuntimeParams(effectIntensity, 0.0f));
+		pForceFeedback->PlayForceFeedbackEffect(fxId, SForceFeedbackRuntimeParams(effectIntensity, 0));
 	}
 }
 

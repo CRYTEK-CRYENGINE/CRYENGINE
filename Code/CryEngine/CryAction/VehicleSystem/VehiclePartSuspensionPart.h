@@ -38,7 +38,7 @@ public:
 	virtual void OnEvent(const SVehiclePartEvent& event) override;
 	virtual bool ChangeState(EVehiclePartState state, int flags = 0) override;
 	virtual void Physicalize() override;
-	virtual void Update(const float frameTime) override;
+	virtual void Update(const CTimeValue& frameTime) override;
 	// ~IVehiclePart
 
 protected:

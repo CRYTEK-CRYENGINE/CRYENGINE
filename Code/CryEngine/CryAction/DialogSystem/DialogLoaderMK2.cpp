@@ -247,9 +247,9 @@ void CDialogLoaderMK2::ResetLine(CDialogScript::SScriptLine& scriptLine)
 	//scriptLine.m_sound = "";
 	scriptLine.m_anim = "";
 	scriptLine.m_facial = "";
-	scriptLine.m_delay = 0.0f;
+	scriptLine.m_delay.SetSeconds(0);
 	scriptLine.m_facialWeight = 0.0f;
-	scriptLine.m_facialFadeTime = 0.0f;
+	scriptLine.m_facialFadeTime.SetSeconds(0);
 }
 
 bool CDialogLoaderMK2::ReadLine(const XmlNodeRef& lineNode, CDialogScript::SScriptLine& line, const char* scriptID, int lineNumber)

@@ -41,19 +41,19 @@ CVehicleViewBase::CVehicleViewBase()
 	: m_pVehicle(nullptr)
 	, m_pSeat(nullptr)
 	, m_isRotating(false)
-	, m_relaxDelayMax(0.0f)
-	, m_relaxTimeMax(0.0f)
+	, m_relaxDelayMax(0)
+	, m_relaxTimeMax(0)
 	, m_velLenMin(0.0f)
 	, m_velLenMax(0.0f)
 	, m_isSendingActionOnRotation(false)
 	, m_rotationBoundsActionMult(0.0f)
 	, m_rotationValRateX(0.0f)
 	, m_rotationValRateZ(0.0f)
-	, m_rotationTimeAcc(0.0f)
-	, m_rotationTimeDec(0.0f)
+	, m_rotationTimeAcc(0)
+	, m_rotationTimeDec(0)
 	, m_isRelaxEnabled(false)
-	, m_relaxDelay(0.0f)
-	, m_relaxTime(0.0f)
+	, m_relaxDelay(0)
+	, m_relaxTime(0)
 	, m_yawLeftActionOnBorderAAM(0)
 	, m_yawRightActionOnBorderAAM(0)
 	, m_pitchUpActionOnBorderAAM(0)
@@ -98,11 +98,14 @@ bool CVehicleViewBase::Init(IVehicleSeat* pSeat, const CVehicleParams& table)
 		m_rotationMin.zero();
 	}
 
-	if (!table.getAttr("delayTimeMax", m_relaxDelayMax))
-		m_relaxDelayMax = 0.3f;
+	float tmp = 0;
+	if (!table.getAttr("delayTimeMax", tmp))
+		tmp = 0.3;
+	m_relaxDelayMax.SetSeconds(BADMP(tmp));
 
-	if (!table.getAttr("relaxTimeMax", m_relaxTimeMax))
-		m_relaxTimeMax = 0.4f;
+	if (!table.getAttr("relaxTimeMax", tmp))
+		tmp = 0.4;
+	m_relaxTimeMax.SetSeconds(BADMP(tmp));
 
 	if (table.getAttr("rotationInit", m_rotationInit))
 		m_rotationInit = DEG2RAD(m_rotationInit);
@@ -122,9 +125,9 @@ bool CVehicleViewBase::Init(IVehicleSeat* pSeat, const CVehicleParams& table)
 	}
 
 	if (!table.getAttr("rotationTimeAcc", m_rotationTimeAcc))
-		m_rotationTimeAcc = 0;
+		m_rotationTimeAcc.SetSeconds(0);
 	if (!table.getAttr("rotationTimeDec", m_rotationTimeDec))
-		m_rotationTimeDec = 0;
+		m_rotationTimeDec.SetSeconds(0);
 
 	if (m_velLenMax == m_velLenMin)
 		m_velLenMax += 1.0f;
@@ -179,8 +182,8 @@ bool CVehicleViewBase::Init(CVehicleSeat* pSeat)
 
 	m_isRotating = true;
 	m_isRelaxEnabled = false;
-	m_relaxDelayMax = 0.0f;
-	m_relaxTimeMax = 0.0f;
+	m_relaxDelayMax.SetSeconds(0);
+	m_relaxTimeMax.SetSeconds(0);
 
 	m_rotationMax.zero();
 	m_rotationMin.zero();
@@ -209,8 +212,8 @@ void CVehicleViewBase::Reset()
 	m_rotation = Ang3(m_rotationInit);
 	m_viewAngleOffset.Set(0.f, 0.f, 0.f);
 
-	m_relaxTime = 0.0f;
-	m_relaxDelay = 0.0f;
+	m_relaxTime.SetSeconds(0);
+	m_relaxDelay.SetSeconds(0);
 }
 
 //------------------------------------------------------------------------
@@ -334,7 +337,7 @@ void CVehicleViewBase::OnAction(const TVehicleActionId actionId, int activationM
 }
 
 //------------------------------------------------------------------------
-void CVehicleViewBase::Update(const float frameTime)
+void CVehicleViewBase::Update(const CTimeValue& frameTime)
 {
 	const float recenterSpeed = 4.25f;
 
@@ -383,9 +386,9 @@ void CVehicleViewBase::Update(const float frameTime)
 
 		if (!Vec3(m_rotation).IsZero())
 		{
-			m_rotation.x -= m_rotation.x * recenterSpeed * frameTime;
-			m_rotation.y -= m_rotation.y * recenterSpeed * frameTime;
-			m_rotation.z -= m_rotation.z * recenterSpeed * frameTime;
+			m_rotation.x -= m_rotation.x * recenterSpeed * frameTime.BADGetSeconds();
+			m_rotation.y -= m_rotation.y * recenterSpeed * frameTime.BADGetSeconds();
+			m_rotation.z -= m_rotation.z * recenterSpeed * frameTime.BADGetSeconds();
 		}
 	}
 
@@ -406,8 +409,8 @@ void CVehicleViewBase::Update(const float frameTime)
 	if (m_isRotating && !m_rotationCurrentSpeed.IsZero())
 	{
 
-		m_rotation.x -= m_rotationCurrentSpeed.x * frameTime;
-		m_rotation.z -= m_rotationCurrentSpeed.z * frameTime;
+		m_rotation.x -= m_rotationCurrentSpeed.x * frameTime.BADGetSeconds();
+		m_rotation.z -= m_rotationCurrentSpeed.z * frameTime.BADGetSeconds();
 
 		if (!rotationMax.IsZero() && !rotationMin.IsZero())
 		{
@@ -415,8 +418,8 @@ void CVehicleViewBase::Update(const float frameTime)
 			m_rotation.z = min(max(m_rotation.z, rotationMin.z), rotationMax.z);
 		}
 
-		m_relaxTime = 0.0f;
-		m_relaxDelay = 0.0f;
+		m_relaxTime.SetSeconds(0);
+		m_relaxDelay.SetSeconds(0);
 	}
 	else
 	{
@@ -429,9 +432,9 @@ void CVehicleViewBase::Update(const float frameTime)
 				m_relaxTime += frameTime;
 
 				Ang3 m_subStraction = m_rotation;
-				float mult = min(2.0f, (m_relaxTime / m_relaxTimeMax));
-				m_subStraction *= mult;
-				m_subStraction *= frameTime;
+				nTime mult = min(nTime(2), (m_relaxTime / m_relaxTimeMax));
+				m_subStraction *= BADF mult;
+				m_subStraction *= frameTime.BADGetSeconds();
 				m_rotation -= m_subStraction;
 			}
 		}

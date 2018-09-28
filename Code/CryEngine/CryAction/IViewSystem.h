@@ -26,12 +26,12 @@ struct SViewParams
 		fov(0.0f),
 		viewID(0),
 		groundOnly(false),
-		shakingRatio(0.0f),
+		shakingRatio(0),
 		currentShakeQuat(IDENTITY),
 		currentShakeShift(ZERO),
 		idTarget(0),
 		targetPos(ZERO),
-		frameTime(0.0f),
+		frameTime(0),
 		angleVel(0.0f),
 		vel(0.0f),
 		dist(0.0f),
@@ -57,7 +57,7 @@ struct SViewParams
 			viewIDLast = id;
 	}
 
-	void UpdateBlending(float frameTime)
+	void UpdateBlending(const CTimeValue& frameTime)
 	{
 		//if necessary blend the view
 		if (blend)
@@ -70,9 +70,9 @@ struct SViewParams
 			}
 			else
 			{
-				blendPosOffset -= blendPosOffset * min(1.0f, blendPosSpeed * frameTime);
-				blendRotOffset = Quat::CreateSlerp(blendRotOffset, IDENTITY, min(1.0f, frameTime * blendRotSpeed));
-				blendFOVOffset -= blendFOVOffset * min(1.0f, blendFOVSpeed * frameTime);
+				blendPosOffset -= blendPosOffset * min(1.0f, blendPosSpeed * frameTime.BADGetSeconds());
+				blendRotOffset = Quat::CreateSlerp(blendRotOffset, IDENTITY, min(1.0f, frameTime.BADGetSeconds() * blendRotSpeed));
+				blendFOVOffset -= blendFOVOffset * min(1.0f, blendFOVSpeed * frameTime.BADGetSeconds());
 			}
 
 			position += blendPosOffset;
@@ -134,14 +134,14 @@ struct SViewParams
 
 	//view shake status
 	bool  groundOnly;
-	float shakingRatio;//whats the ammount of shake, from 0.0 to 1.0
+	nTime shakingRatio;//whats the ammount of shake, from 0.0 to 1.0
 	Quat  currentShakeQuat;//what the current angular shake
 	Vec3  currentShakeShift;//what is the current translational shake
 
 	// For damping camera movement.
 	EntityId idTarget;  // Who we're watching. 0 == nobody.
 	Vec3     targetPos; // Where the target was.
-	float    frameTime; // current dt.
+	CTimeValue frameTime; // current dt.
 	float    angleVel;  // previous rate of change of angle.
 	float    vel;       // previous rate of change of dist between target and camera.
 	float    dist;      // previous dist of cam from target
@@ -176,10 +176,10 @@ struct IView
 	{
 		Ang3  shakeAngle;
 		Vec3  shakeShift;
-		float sustainDuration;
-		float fadeInDuration;
-		float fadeOutDuration;
-		float frequency;
+		CTimeValue sustainDuration;
+		CTimeValue fadeInDuration;
+		CTimeValue fadeOutDuration;
+		CTimeValue frequency;
 		float randomness;
 		int   shakeID;
 		bool  bFlipVec;
@@ -193,7 +193,7 @@ struct IView
 			, shakeShift(0, 0, 0)
 			, sustainDuration(0)
 			, fadeInDuration(0)
-			, fadeOutDuration(2.f)
+			, fadeOutDuration(2)
 			, frequency(0)
 			, randomness(0)
 			, shakeID(0)
@@ -206,14 +206,14 @@ struct IView
 	};
 
 	virtual void               Release() = 0;
-	virtual void               Update(float frameTime, bool isActive) = 0;
+	virtual void               Update(const CTimeValue& frameTime, bool isActive) = 0;
 	virtual void               LinkTo(IGameObject* follow) = 0;
 	virtual void               LinkTo(IEntity* follow, IGameObjectView* callback = nullptr) = 0;
 	virtual EntityId           GetLinkedId() = 0;
 
 	virtual void               SetCurrentParams(SViewParams& params) = 0;
 	virtual const SViewParams* GetCurrentParams() = 0;
-	virtual void               SetViewShake(Ang3 shakeAngle, Vec3 shakeShift, float duration, float frequency, float randomness, int shakeID, bool bFlipVec = true, bool bUpdateOnly = false, bool bGroundOnly = false) = 0;
+	virtual void               SetViewShake(Ang3 shakeAngle, Vec3 shakeShift, const CTimeValue& duration, const CTimeValue& frequency, float randomness, int shakeID, bool bFlipVec = true, bool bUpdateOnly = false, bool bGroundOnly = false) = 0;
 	virtual void               SetViewShakeEx(const SShakeParams& params) = 0;
 	virtual void               StopShake(int shakeID) = 0;
 	virtual void               ResetShaking() = 0;

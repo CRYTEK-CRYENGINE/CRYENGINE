@@ -47,7 +47,7 @@ public:
 	virtual Matrix34    GetLocalInitialTM() override { return m_initialTM; }
 
 	virtual void        Physicalize() override;
-	virtual void        Update(const float frameTime) override;
+	virtual void        Update(const CTimeValue& frameTime) override;
 
 	virtual void        InvalidateTM(bool invalidate) override;
 	virtual void        SetMoveable(bool allowTranslationMovement = false) override;

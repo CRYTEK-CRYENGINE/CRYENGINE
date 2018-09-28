@@ -1599,12 +1599,8 @@ void CActionMapManager::GetMemoryStatistics(ICrySizer* pSizer)
 //------------------------------------------------------------------------
 bool CActionMapManager::HandleAcceptedEvents(const SInputEvent& event, TBindPriorityList& priorityList)
 {
-	float fCurrTime = gEnv->pTimer->GetCurrTime();
+	CTimeValue fCurrTime = GetGTimer()->GetFrameStartTime(ITimer::ETIMER_UI);
 	IGameFramework* pGameFramework = gEnv->pGameFramework;
-	if (pGameFramework && pGameFramework->IsGamePaused())
-	{
-		fCurrTime = gEnv->pTimer->GetCurrTime(ITimer::ETIMER_UI);
-	}
 
 	TBindPriorityList::iterator itBind = priorityList.begin();
 	TBindPriorityList::const_iterator itBindEnd = priorityList.end();
@@ -1678,7 +1674,7 @@ bool CActionMapManager::HandleAcceptedEvents(const SInputEvent& event, TBindPrio
 }
 
 //------------------------------------------------------------------------
-void CActionMapManager::HandleInputBlocking(const SInputEvent& event, const SActionInput* pActionInput, const float fCurrTime)
+void CActionMapManager::HandleInputBlocking(const SInputEvent& event, const SActionInput* pActionInput, const CTimeValue& fCurrTime)
 {
 	// Refired events will make it here even when input blocked, handle these here
 	if (IsCurrentlyRefiringInput())
@@ -1704,7 +1700,7 @@ void CActionMapManager::HandleInputBlocking(const SInputEvent& event, const SAct
 	{
 		if (pActionInput->bAnalogConditionFulfilled)
 		{
-			if (fCurrTime - pActionInput->fPressedTime >= FLT_EPSILON) // Can't be pressed since time has elapsed, must be hold
+			if (fCurrTime - pActionInput->fPressedTime >= TV_EPSILON) // Can't be pressed since time has elapsed, must be hold
 			{
 				compareState = eIS_Down;
 			}
@@ -1765,11 +1761,11 @@ bool CActionMapManager::CreateRefiredEventPriorityList(SRefireData* pRefireData,
 	TRefireBindData::iterator it = refireBindData.begin();
 	TRefireBindData::const_iterator itEnd = refireBindData.end();
 
-	float fCurrTime = gEnv->pTimer->GetCurrTime();
+	CTimeValue fCurrTime = GetGTimer()->GetFrameStartTime();
 	IGameFramework* pGameFramework = gEnv->pGameFramework;
 	if (pGameFramework && pGameFramework->IsGamePaused())
 	{
-		fCurrTime = gEnv->pTimer->GetCurrTime(ITimer::ETIMER_UI);
+		fCurrTime = GetGTimer()->GetFrameStartTime(ITimer::ETIMER_UI);
 	}
 
 	// Create priority listing for which processes should be fired
@@ -1796,8 +1792,8 @@ bool CActionMapManager::CreateRefiredEventPriorityList(SRefireData* pRefireData,
 		// If its a delayed press event, only fire once when reach delay then remove
 		if (inputEvent.state == eIS_Pressed)
 		{
-			const float fPressDelay = pActionInput->fPressTriggerDelay;
-			if (fPressDelay >= FLT_EPSILON) // Must be delayed press event
+			const CTimeValue fPressDelay = pActionInput->fPressTriggerDelay;
+			if (fPressDelay >= TV_EPSILON) // Must be delayed press event
 			{
 				if (fCurrTime - pActionInput->fPressedTime >= fPressDelay) // Meets delay so fire and mark for removal
 				{

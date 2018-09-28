@@ -93,19 +93,19 @@ void CVehiclePartDetachedEntity::InitVehiclePart(IGameObject* pGameObject)
 		}
 	}
 
-	m_timeUntilStartIsOver = 10.0f;
+	m_timeUntilStartIsOver.SetSeconds(10);
 }
 
 //------------------------------------------------------------------------
 void CVehiclePartDetachedEntity::Update(SEntityUpdateContext& ctx, int slot)
 {
-	const float frameTime = ctx.fFrameTime;
+	const CTimeValue frameTime = ctx.fFrameTime;
 
 	switch (slot)
 	{
 	case 0:
 		{
-			if (m_timeUntilStartIsOver > 0.0f)
+			if (m_timeUntilStartIsOver > 0)
 				m_timeUntilStartIsOver -= frameTime;
 		}
 		break;
@@ -131,7 +131,7 @@ void CVehiclePartDetachedEntity::HandleEvent(const SGameObjectEvent& event)
 {
 	if (event.event == eGFE_OnCollision)
 	{
-		if (m_timeUntilStartIsOver <= 0.0f)
+		if (m_timeUntilStartIsOver <= 0)
 		{
 			const EventPhysCollision* pCollision = static_cast<const EventPhysCollision*>(event.ptr);
 			IEntitySystem* pES = gEnv->pEntitySystem;

@@ -101,7 +101,7 @@ CDeformingBreak::CDeformingBreak(const SBreakEvent& be) : IProceduralBreakType(e
 	m_absorbIdx = 1;
 	m_bes.push_back(be);
 	m_bes.back().iState = eBES_Generated;
-	m_bes.back().time = gEnv->pTimer->GetFrameStartTime().GetSeconds();
+	m_bes.back().time = GetGTimer()->GetFrameStartTime().GetSeconds();
 }
 
 bool CDeformingBreak::AttemptAbsorb(const IProceduralBreakTypePtr& pBT)

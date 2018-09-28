@@ -158,7 +158,7 @@ void CAnimationTrigger::Update(float frameTime, Vec3 userPos, Quat userOrient, b
 			if (debug)
 			{
 				pPD->Begin("AnimationTrigger LocalMinima Triggered", false);
-				pPD->AddPlanarDisc(m_pos + bump, 0.0f, m_distanceError, ColorF(0, 1, 0, 0.5), 10.0f);
+				pPD->AddPlanarDisc(m_pos + bump, 0.0f, m_distanceError, ColorF(0, 1, 0, 0.5), 10);
 			}
 		}
 		else
@@ -169,16 +169,16 @@ void CAnimationTrigger::Update(float frameTime, Vec3 userPos, Quat userOrient, b
 			if (debug)
 			{
 				pPD->Begin("AnimationTrigger LocalMinima Optimizing", true);
-				pPD->AddPlanarDisc(m_pos + bump, 0.0f, m_distanceError, ColorF(1, 1, 0, 0.5), 10.0f);
+				pPD->AddPlanarDisc(m_pos + bump, 0.0f, m_distanceError, ColorF(1, 1, 0, 0.5), 10);
 			}
 		}
 
 		if (debug)
 		{
-			pPD->AddLine(m_userPos + bump, m_pos + bump, ColorF(1, 0, 0, 1), 10.0f);
-			pPD->AddLine(m_userPos + rotAnimMovementUser + bump, m_pos + rotAnimMovementWanted + bump, ColorF(1, 0, 0, 1), 10.0f);
-			pPD->AddLine(m_pos + bump, m_pos + rotAnimMovementWanted + bump, ColorF(1, 0.5, 0, 1), 10.0f);
-			pPD->AddLine(m_userPos + bump, m_pos + rotAnimMovementUser + bump, ColorF(1, 0.5, 0, 1), 10.0f);
+			pPD->AddLine(m_userPos + bump, m_pos + bump, ColorF(1, 0, 0, 1), 10);
+			pPD->AddLine(m_userPos + rotAnimMovementUser + bump, m_pos + rotAnimMovementWanted + bump, ColorF(1, 0, 0, 1), 10);
+			pPD->AddLine(m_pos + bump, m_pos + rotAnimMovementWanted + bump, ColorF(1, 0.5, 0, 1), 10);
+			pPD->AddLine(m_userPos + bump, m_pos + rotAnimMovementUser + bump, ColorF(1, 0.5, 0, 1), 10);
 		}
 	}
 

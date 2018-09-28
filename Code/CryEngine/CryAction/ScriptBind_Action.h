@@ -161,7 +161,7 @@ public:
 	//!		<param name="name">Name assigned to the sphere.</param>
 	//!		<param name="timeout">Timeout for the sphere.</param>
 	//! <description>Adds a persistent sphere to the world.</description>
-	int PersistantSphere(IFunctionHandler* pH, Vec3 pos, float radius, Vec3 color, const char* name, float timeout);
+	int PersistantSphere(IFunctionHandler* pH, Vec3 pos, float radius, Vec3 color, const char* name, CTimeValue timeout);
 
 	//! <code>Action.PersistantLine( start, end, color, name, timeout )	</code>
 	//!		<param name="start">Starting position of the line.</param>
@@ -170,7 +170,7 @@ public:
 	//!		<param name="name">Name assigned to the line.</param>
 	//!		<param name="timeout">Timeout for the line.</param>
 	//! <description>Adds a persistent line to the world.</description>
-	int PersistantLine(IFunctionHandler* pH, Vec3 start, Vec3 end, Vec3 color, const char* name, float timeout);
+	int PersistantLine(IFunctionHandler* pH, Vec3 start, Vec3 end, Vec3 color, const char* name, CTimeValue timeout);
 
 	//! <code>Action.PersistantArrow( pos, radius, dir, color, name, timeout )</code>
 	//!		<param name="pos">Position of the arrow.</param>
@@ -180,7 +180,7 @@ public:
 	//!		<param name="name">Name assigned to the arrow.</param>
 	//!		<param name="timeout">Timeout for the arrow.</param>
 	//! <description>Adds a persistent arrow to the world.</description>
-	int PersistantArrow(IFunctionHandler* pH, Vec3 pos, float radius, Vec3 dir, Vec3 color, const char* name, float timeout);
+	int PersistantArrow(IFunctionHandler* pH, Vec3 pos, float radius, Vec3 dir, Vec3 color, const char* name, CTimeValue timeout);
 
 	//! <code>Action.Persistant2DText( text, size, color, name, timeout )</code>
 	//!		<param name="text">Text that has to be displayed.</param>
@@ -189,7 +189,7 @@ public:
 	//!		<param name="name">Name assigned to the 2D text.</param>
 	//!		<param name="timeout">Timeout for the 2D text.</param>
 	//! <description>Adds a persistent 2D text.</description>
-	int Persistant2DText(IFunctionHandler* pH, const char* text, float size, Vec3 color, const char* name, float timeout);
+	int Persistant2DText(IFunctionHandler* pH, const char* text, float size, Vec3 color, const char* name, CTimeValue timeout);
 
 	//! <code>Action.PersistantEntityTag( entityId, text )</code>
 	//!		<param name="entityId">Identifier for the entity.</param>
@@ -247,7 +247,7 @@ public:
 	//!		<param name="fRateMin">Minimum rate for the signal timer.</param>
 	//!		<param name="fRateMax">Maximum rate for the signal timer.</param>
 	//! <description>Sets the rate for the signal timer.</description>
-	int SetSignalTimerRate(IFunctionHandler* pH, ScriptHandle entityId, const char* sText, float fRateMin, float fRateMax);
+	int SetSignalTimerRate(IFunctionHandler* pH, ScriptHandle entityId, const char* sText, CTimeValue fRateMin, CTimeValue fRateMax);
 
 	//! <code>Action.ResetSignalTimer( entityId, sText )</code>
 	//!		<param name="entityId">Identifier for the entity.</param>

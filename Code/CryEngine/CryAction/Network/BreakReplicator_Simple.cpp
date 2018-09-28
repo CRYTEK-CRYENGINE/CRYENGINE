@@ -75,7 +75,7 @@ struct JointBreakInfo
 
 	#define NET_MAX_NUM_FRAMES_TO_FIND_ENTITY                 200
 	#define NET_MAX_NUM_FRAMES_TO_WAIT_FOR_BREAK_DEPENDENCY   200
-	#define NET_LEVEL_LOAD_TIME_BEFORE_USING_INAVLID_COUNTERS 15.f
+	#define NET_LEVEL_LOAD_TIME_BEFORE_USING_INAVLID_COUNTERS CTimeValue(15)
 
 static BreakStream s_dummyStream;
 
@@ -767,7 +767,7 @@ void PartBreak::SerializeWith(CBitArray& array)
 	#if DEBUG_NET_BREAKAGE
 	if (array.IsWriting())
 	{
-		CTimeValue time = gEnv->pTimer->GetAsyncTime();
+		CTimeValue time = GetGTimer()->GetAsyncTime();
 		LOGBREAK("# .-----------------------------------.");
 		LOGBREAK("# |    type: %s", "JointBreak");
 		LOGBREAK("# .-----------------------------------");
@@ -1126,7 +1126,7 @@ CBreakReplicator::CBreakReplicator(CGameContext* pGameCtx)
 	: m_bDefineProtocolMode_server(false)
 	, m_activeStartIdx(0)
 	, m_numPendingStreams(0)
-	, m_timeSinceLevelLoaded(-1.0f)
+	, m_timeSinceLevelLoaded(-1)
 {
 	(void)pGameCtx;
 
@@ -1233,7 +1233,7 @@ void CBreakReplicator::OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_P
 	switch (event)
 	{
 	case ESYSTEM_EVENT_LEVEL_PRECACHE_END:
-		m_timeSinceLevelLoaded = 0.f;
+		m_timeSinceLevelLoaded.SetSeconds(0);
 		break;
 	}
 }
@@ -1767,10 +1767,10 @@ int CBreakReplicator::PlaybackStream(BreakStream* pStream)
 void CBreakReplicator::PlaybackBreakage()
 {
 	// Only use the invalid find counters once level has fully loaded
-	if (m_timeSinceLevelLoaded < 0.f)
+	if (m_timeSinceLevelLoaded < 0)
 		return;
 
-	float dt = gEnv->pTimer->GetFrameTime();
+	CTimeValue dt = GetGTimer()->GetFrameTime();
 	m_timeSinceLevelLoaded += dt;
 	bool bEnableInavlidCounters = (m_timeSinceLevelLoaded > NET_LEVEL_LOAD_TIME_BEFORE_USING_INAVLID_COUNTERS);
 

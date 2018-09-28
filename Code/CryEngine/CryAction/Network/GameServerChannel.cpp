@@ -204,11 +204,12 @@ NET_IMPLEMENT_SIMPLE_ATSYNC_MESSAGE(CGameServerChannel, MutePlayer, eNRT_Reliabl
 }
 #endif
 
+// POINT OF INTEREST
 #if defined(GAME_CHANNEL_SYNC_CLIENT_SERVER_TIME)
 NET_IMPLEMENT_SIMPLE_ATSYNC_MESSAGE(CGameServerChannel, SyncTimeServer, eNRT_ReliableOrdered, eMPF_NoSendDelay)
 {
-	CTimeValue value = gEnv->pTimer->GetAsyncTime();
-	INetSendablePtr msg = new CSimpleNetMessage<SSyncTimeClient>(SSyncTimeClient(param.id, param.clientTime, param.serverTime, value.GetValue()), CGameClientChannel::SyncTimeClient);
+	CTimeValue Time = GetGTimer()->GetAsyncTime();
+	INetSendablePtr msg = new CSimpleNetMessage<SSyncTimeClient>(SSyncTimeClient(param.id, param.clientTime, param.serverTime, Time), CGameClientChannel::SyncTimeClient);
 	GetNetChannel()->AddSendable(msg, 0, NULL, NULL);
 
 	return true;

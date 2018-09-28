@@ -69,7 +69,7 @@ CItemSystem::CItemSystem(IGameFramework* pGameFramework, ISystem* pSystem)
 	m_pSystem(pSystem),
 	m_pEntitySystem(gEnv->pEntitySystem),
 	m_spawnCount(0),
-	m_precacheTime(0.0f),
+	m_precacheTime(0),
 	m_reloading(false),
 	m_recursing(false),
 	m_listeners(2)
@@ -137,7 +137,7 @@ void CItemSystem::Update()
 {
 	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
-	ITimer* pTimer = gEnv->pTimer;
+	ITimer* pTimer = GetGTimer();
 	IActor* pActor = m_pGameFramework->GetClientActor();
 
 	if (pActor)
@@ -269,7 +269,7 @@ void CItemSystem::RegisterForCollection(EntityId itemId)
 	}
 #endif
 
-	CTimeValue now = gEnv->pTimer->GetFrameStartTime();
+	CTimeValue now = GetGTimer()->GetFrameStartTime();
 
 	TCollectionMap::iterator cit = m_collectionmap.find(itemId);
 	if (cit == m_collectionmap.end())

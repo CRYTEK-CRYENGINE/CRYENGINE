@@ -14,15 +14,15 @@
 #include "StdAfx.h"
 #include "Effect.h"
 
-bool CEffect::Activating(float delta)
+bool CEffect::Activating(const CTimeValue& delta)
 {
 	return true;
 }
-bool CEffect::Update(float delta)
+bool CEffect::Update(const CTimeValue& delta)
 {
 	return true;
 }
-bool CEffect::Deactivating(float delta)
+bool CEffect::Deactivating(const CTimeValue& delta)
 {
 	return true;
 }

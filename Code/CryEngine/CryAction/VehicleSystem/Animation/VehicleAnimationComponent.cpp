@@ -105,7 +105,7 @@ void CVehicleAnimationComponent::Reset()
 	}
 }
 
-void CVehicleAnimationComponent::Update(float timePassed)
+void CVehicleAnimationComponent::Update(const CTimeValue& timePassed)
 {
 	if (m_pActionController)
 	{

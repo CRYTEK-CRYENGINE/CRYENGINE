@@ -840,7 +840,7 @@ bool CFlashUIElement::Serialize(XmlNodeRef& xmlNode, bool bIsLoading)
 }
 
 //------------------------------------------------------------------------------------
-void CFlashUIElement::Update(float fDeltaTime)
+void CFlashUIElement::Update(const CTimeValue& fDeltaTime)
 {
 	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 	if (!m_pFlashplayer || ((m_iFlags & (uint64) eFUI_LAZY_UPDATE) != 0 && !m_bNeedLazyUpdate)) return;

@@ -30,7 +30,7 @@ public:
 
 	//! Update function to be called every frame
 	//! When the animation is finished, it will return false;
-	bool Update(float dt);
+	bool Update(const CTimeValue& dt);
 
 	//! Force cooperative animation to stop
 	//! Doesn't do any fancy finish, just makes next update return false
@@ -47,7 +47,7 @@ public:
 	bool AreActorsValid() const;
 
 	// retrieve the animation time for this entity's animation
-	float GetAnimationNormalizedTime(const EntityId entID) const;
+	nTime GetAnimationNormalizedTime(const EntityId entID) const;
 
 	// Check if we are in the vertical correction blendout phase (animations have finished, we're just reorienting characters now)
 	bool DoingVerticalCorrectionBlendout() const;
@@ -84,7 +84,7 @@ private:
 	//! while the animation is already playing.
 	//! Starts animation at the appropriate time (immediately or with a
 	//! delay if start delay has been set
-	void PlayAndSlideCharacters(float dt, bool& bAnimFailure, bool& bAllStarted, bool& bAllDone);
+	void PlayAndSlideCharacters(const CTimeValue& dt, bool& bAnimFailure, bool& bAllStarted, bool& bAllDone);
 
 	//! Starts the animations for all characters
 	bool StartAnimations();

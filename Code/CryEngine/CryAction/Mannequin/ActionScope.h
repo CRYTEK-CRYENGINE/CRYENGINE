@@ -130,7 +130,7 @@ public:
 		return m_pAction.get();
 	}
 
-	virtual void              IncrementTime(float timeDelta);
+	virtual void              IncrementTime(const CTimeValue& timeDelta);
 
 	virtual const CAnimation* GetTopAnim(int layer) const;
 
@@ -150,15 +150,15 @@ public:
 		return m_lastFragSelection.tagState;
 	}
 
-	virtual float    CalculateFragmentTimeRemaining() const;
+	virtual const CTimeValue    CalculateFragmentTimeRemaining() const;
 
-	virtual float    CalculateFragmentDuration(const CFragment& fragment) const;
+	virtual const CTimeValue    CalculateFragmentDuration(const CFragment& fragment) const;
 
 	virtual void     _FlushFromEditor()          { Flush(FM_Normal); }
 
-	virtual float    GetFragmentDuration() const { return m_fragmentDuration; }
+	virtual const CTimeValue&    GetFragmentDuration() const { return m_fragmentDuration; }
 
-	virtual float    GetFragmentTime() const     { return m_fragmentTime; }
+	virtual const CTimeValue&    GetFragmentTime() const     { return m_fragmentTime; }
 
 	virtual TagState GetAdditionalTags() const   { return m_additionalTags; }
 
@@ -173,25 +173,25 @@ public:
 
 	bool  InstallAnimation(int animID, const CryCharAnimationParams& animParams);
 	bool  InstallAnimation(const SAnimationEntry& animEntry, int layer, const SAnimBlend& animBlend);
-	void  StopAnimationOnLayer(uint32 layer, float blendTime);
-	float GetFragmentStartTime() const;
-	bool  CanInstall(EPriorityComparison priorityComparison, FragmentID fragID, const SFragTagState& fragTagState, bool isRequeue, float& timeRemaining) const;
+	void  StopAnimationOnLayer(uint32 layer, const CTimeValue& blendTime);
+	const CTimeValue GetFragmentStartTime() const;
+	bool  CanInstall(EPriorityComparison priorityComparison, FragmentID fragID, const SFragTagState& fragTagState, bool isRequeue, CTimeValue& timeRemaining) const;
 	void  Install(IAction& action)
 	{
 		m_pAction = &action;
 		m_speedBias = action.GetSpeedBias();
 		m_animWeight = action.GetAnimWeight();
 	}
-	void         UpdateSequencers(float timePassed);
-	void         Update(float timePassed);
+	void         UpdateSequencers(const CTimeValue& timePassed);
+	void         Update(const CTimeValue& timePassed);
 	void         ClearSequencers();
 	void         Flush(EFlushMethod flushMethod);
 	void         QueueAnimFromSequence(uint32 layer, uint32 pos, bool isPersistent);
 	void         QueueProcFromSequence(uint32 layer, uint32 pos);
 	int          GetNumAnimsInSequence(uint32 layer) const;
-	bool         PlayPendingAnim(uint32 layer, float timePassed = 0.0f);
+	bool         PlayPendingAnim(uint32 layer, const CTimeValue& timePassed = 0);
 	bool         PlayPendingProc(uint32 layer);
-	bool         QueueFragment(FragmentID aaID, const SFragTagState& fragTagState, uint32 optionIdx = OPTION_IDX_RANDOM, float startTime = 0.0f, uint32 userToken = 0, bool isRootScope = true, bool isHigherPriority = false, bool principleContext = true);
+	bool         QueueFragment(FragmentID aaID, const SFragTagState& fragTagState, uint32 optionIdx = OPTION_IDX_RANDOM, const CTimeValue& startTime = 0, uint32 userToken = 0, bool isRootScope = true, bool isHigherPriority = false, bool principleContext = true);
 	void         BlendOutFragments();
 
 	ILINE uint32 GetContextMask() const
@@ -216,12 +216,12 @@ public:
 	{
 		return ((m_sequenceFlags & eSF_TransitionOutro) != 0);
 	}
-	ILINE float GetTransitionDuration() const
+	ILINE const CTimeValue& GetTransitionDuration() const
 	{
 		return m_transitionDuration;
 	}
 
-	ILINE float GetTransitionOutroDuration() const
+	ILINE const CTimeValue& GetTransitionOutroDuration() const
 	{
 		return m_transitionOutroDuration;
 	}
@@ -235,14 +235,14 @@ public:
 		return m_scopeContext.pEnslavedController;
 	}
 
-	void InstallProceduralClip(const SProceduralEntry& proc, int layer, const SAnimBlend& blend, float duration);
+	void InstallProceduralClip(const SProceduralEntry& proc, int layer, const SAnimBlend& blend, const CTimeValue& duration);
 
 	void Pause();
-	void Resume(float forcedBlendOutTime, uint32 resumeFlags);
+	void Resume(const CTimeValue& forcedBlendOutTime, uint32 resumeFlags);
 
 private:
 	void InitAnimationParams(const SAnimationEntry& animEntry, const uint32 sequencerLayer, const SAnimBlend& animBlend, CryCharAnimationParams& paramsOut);
-	void FillBlendQuery(SBlendQuery& query, FragmentID fragID, const SFragTagState& fragTagState, bool isHigherPriority, float* pLoopDuration) const;
+	void FillBlendQuery(SBlendQuery& query, FragmentID fragID, const SFragTagState& fragTagState, bool isHigherPriority, CTimeValue* pLoopDuration) const;
 	void ClipInstalled(uint8 clipType);
 
 private:
@@ -263,8 +263,8 @@ private:
 
 		SSequencer()
 			:
-			installTime(-1.0f),
-			referenceTime(-1.0f),
+			installTime(-1),
+			referenceTime(-1),
 			savedAnimNormalisedTime(-1),
 			pos(0),
 			flags(0)
@@ -273,9 +273,9 @@ private:
 
 		TAnimClipSequence sequence;
 		SAnimBlend        blend;
-		float             installTime; // time in seconds until installation
-		float             referenceTime;
-		float             savedAnimNormalisedTime;
+		CTimeValue        installTime; // time in seconds until installation
+		CTimeValue        referenceTime;
+		nTime             savedAnimNormalisedTime;
 		uint8             pos;
 		uint8             flags;
 	};
@@ -284,7 +284,7 @@ private:
 	{
 		SProcSequencer()
 			:
-			installTime(-1.0f),
+			installTime(-1),
 			pos(0),
 			flags(0)
 		{
@@ -292,7 +292,7 @@ private:
 
 		TProcClipSequence                sequence;
 		SAnimBlend                       blend;
-		float                            installTime;
+		CTimeValue                       installTime;
 		std::shared_ptr<IProceduralClip> proceduralClip;
 		uint8                            pos;
 		uint8                            flags;
@@ -307,9 +307,9 @@ private:
 	uint32                      m_numLayers;
 	SSequencer*                 m_layerSequencers;
 	std::vector<SProcSequencer> m_procSequencers;
-	float                       m_speedBias;
+	mpfloat                     m_speedBias;
 	float                       m_animWeight;
-	float                       m_timeIncrement;
+	CTimeValue                  m_timeIncrement;
 	TagState                    m_additionalTags;
 	mutable TagState            m_cachedFragmentTags;
 	mutable TagState            m_cachedContextStateMask;
@@ -319,15 +319,15 @@ private:
 	SFragmentSelection          m_lastFragSelection;
 	SFragTagState               m_lastQueueTagState;
 	uint32                      m_sequenceFlags;
-	float                       m_fragmentTime;
-	float                       m_fragmentDuration;
-	float                       m_transitionOutroDuration;
-	float                       m_transitionDuration;
-	float                       m_blendOutDuration;
+	CTimeValue                  m_fragmentTime;
+	CTimeValue                  m_fragmentDuration;
+	CTimeValue                  m_transitionOutroDuration;
+	CTimeValue                  m_transitionDuration;
+	CTimeValue                  m_blendOutDuration;
 	EClipType                   m_partTypes[SFragmentData::PART_TOTAL];
 
-	float                       m_lastNormalisedTime;
-	float                       m_normalisedTime;
+	nTime                       m_lastNormalisedTime;
+	nTime                       m_normalisedTime;
 
 	IActionPtr                  m_pAction;
 	IActionPtr                  m_pExitingAction;

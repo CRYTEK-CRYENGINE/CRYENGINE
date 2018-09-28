@@ -35,7 +35,7 @@ public:
 	virtual void        OnStartUsing(EntityId playerId) override;
 	virtual void        OnStopUsing() override;
 
-	virtual void        Update(const float frameTime) override;
+	virtual void        Update(const CTimeValue& frameTime) override;
 	virtual void        UpdateView(SViewParams& viewParams, EntityId playerId = 0) override;
 
 	virtual void        GetMemoryUsage(ICrySizer* s) const override;

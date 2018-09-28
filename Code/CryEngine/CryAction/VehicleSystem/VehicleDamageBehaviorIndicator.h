@@ -22,7 +22,7 @@ public:
 	virtual void Release() override { delete this; }
 
 	virtual void Serialize(TSerialize ser, EEntityAspects aspects) override;
-	virtual void Update(const float deltaTime) override;
+	virtual void Update(const CTimeValue& deltaTime) override;
 
 	virtual void OnDamageEvent(EVehicleDamageBehaviorEvent event, const SVehicleDamageBehaviorEventParams& behaviorParams) override;
 	virtual void OnVehicleEvent(EVehicleEvent event, const SVehicleEventParams& params) override {}
@@ -52,8 +52,8 @@ protected:
 	int             m_soundsPlayed;
 	float           m_lastDamageRatio;
 
-	float           m_lightUpdate;
-	float           m_lightTimer;
+	CTimeValue      m_lightUpdate;
+	CTimeValue      m_lightTimer;
 	bool            m_lightOn;
 
 	static float    m_frequencyMin;

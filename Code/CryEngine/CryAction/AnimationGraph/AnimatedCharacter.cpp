@@ -233,7 +233,7 @@ void CAnimatedCharacter::InitVars()
 {
 	m_fPrevInertia = 0.0f;
 	m_fPrevInertiaAccel = 0.0f;
-	m_fPrevTimeImpulseRecover = 0.0f;
+	m_fPrevTimeImpulseRecover.SetSeconds(0);
 	m_facialAlertness = 0;
 	m_currentStance = -1;
 	m_requestedStance = -1;
@@ -252,9 +252,9 @@ void CAnimatedCharacter::InitVars()
 	m_bSimpleMovementSetOnce = false;
 	m_curWeaponRaisedPose = eWeaponRaisedPose_None;
 	m_isPlayer = false;
-	m_curFrameTime = 0.0f;
-	m_prevFrameTime = 0.0f;
-	m_curFrameTimeOriginal = 0.0f;
+	m_curFrameTime.SetSeconds(0);
+	m_prevFrameTime.SetSeconds(0);
+	m_curFrameTimeOriginal.SetSeconds(0);
 	m_reqLocalEntAxxNextIndex = 0;
 	m_smoothedActualEntVelo = ZERO;
 	m_smoothedAmountAxx = 0.0f;
@@ -341,8 +341,8 @@ void CAnimatedCharacter::InitVars()
 	}
 	m_currentMovementControlMethodTags[eMCMComponent_Horizontal] = m_movementControlMethodTags[eMCMSlot_Cur];
 	m_currentMovementControlMethodTags[eMCMComponent_Vertical] = m_movementControlMethodTags[eMCMSlot_Cur];
-	m_elapsedTimeMCM[eMCMComponent_Horizontal] = 0.0f;
-	m_elapsedTimeMCM[eMCMComponent_Vertical] = 0.0f;
+	m_elapsedTimeMCM[eMCMComponent_Horizontal].SetSeconds(0);
+	m_elapsedTimeMCM[eMCMComponent_Vertical].SetSeconds(0);
 
 	for (int layer = 0; layer < eColliderModeLayer_COUNT; layer++)
 	{
@@ -354,7 +354,7 @@ void CAnimatedCharacter::InitVars()
 	{
 		m_reqLocalEntAxx[i].zero();
 		m_reqEntVelo[i].zero();
-		m_reqEntTime[i].SetValue(0);
+		m_reqEntTime[i].SetSeconds(0);
 	}
 
 	m_fDesiredMoveSpeedSmoothQTX = 0;
@@ -839,11 +839,11 @@ void CAnimatedCharacter::ResetVars()
 		}
 	}
 
-	m_curFrameStartTime.SetValue(0);
+	m_curFrameStartTime.SetSeconds(0);
 
-	m_curFrameTime = 0.0f;
-	m_prevFrameTime = 0.0f;
-	m_curFrameTimeOriginal = 0.0f;
+	m_curFrameTime.SetSeconds(0);
+	m_prevFrameTime.SetSeconds(0);
+	m_curFrameTimeOriginal.SetSeconds(0);
 
 	if (pEntity)
 	{
@@ -866,7 +866,7 @@ void CAnimatedCharacter::ResetVars()
 	{
 		m_reqLocalEntAxx[i].zero();
 		m_reqEntVelo[i].zero();
-		m_reqEntTime[i].SetValue(0);
+		m_reqEntTime[i].SetSeconds(0);
 	}
 	m_reqLocalEntAxxNextIndex = 0;
 	m_smoothedActualEntVelo.zero();
@@ -889,8 +889,8 @@ void CAnimatedCharacter::ResetVars()
 	}
 	m_currentMovementControlMethodTags[eMCMComponent_Horizontal] = m_movementControlMethodTags[eMCMSlot_Cur];
 	m_currentMovementControlMethodTags[eMCMComponent_Vertical] = m_movementControlMethodTags[eMCMSlot_Cur];
-	m_elapsedTimeMCM[eMCMComponent_Horizontal] = 0.0f;
-	m_elapsedTimeMCM[eMCMComponent_Vertical] = 0.0f;
+	m_elapsedTimeMCM[eMCMComponent_Horizontal].SetSeconds(0);
+	m_elapsedTimeMCM[eMCMComponent_Vertical].SetSeconds(0);
 
 	for (int layer = 0; layer < eColliderModeLayer_COUNT; layer++)
 	{
@@ -1355,7 +1355,7 @@ void CAnimatedCharacter::DestroyedState(IAnimationGraphState*)
 	m_pMannequinAGState = NULL;
 }
 
-uint32 CAnimatedCharacter::MakeFace(const char* pExpressionName, bool usePreviewChannel, float lifeTime)
+uint32 CAnimatedCharacter::MakeFace(const char* pExpressionName, bool usePreviewChannel, const CTimeValue& lifeTime)
 {
 	uint32 channelId(~0);
 	return channelId;
@@ -1380,7 +1380,7 @@ void CAnimatedCharacter::AllowAimIk(bool allow)
 	m_allowAimIk = allow;
 }
 
-void CAnimatedCharacter::TriggerRecoil(float duration, float kinematicImpact, float kickIn /*=0.8f*/, EAnimatedCharacterArms arms /*=eACA_BothArms*/)
+void CAnimatedCharacter::TriggerRecoil(const CTimeValue& duration, float kinematicImpact, float kickIn /*=0.8f*/, EAnimatedCharacterArms arms /*=eACA_BothArms*/)
 {
 	if (IActor* pActor = CCryAction::GetCryAction()->GetIActorSystem()->GetActor(GetEntityId()))
 	{
@@ -1411,7 +1411,7 @@ void CAnimatedCharacter::SetWeaponRaisedPose(EWeaponRaisedPose pose)
 
 	if ((pose == eWeaponRaisedPose_None) || (pose == eWeaponRaisedPose_Fists))
 	{
-		pSkeletonAnim->StopAnimationInLayer(2, 0.5f);  // Stop weapon raising animation in Layer 2.
+		pSkeletonAnim->StopAnimationInLayer(2, "0.5");  // Stop weapon raising animation in Layer 2.
 		return;
 	}
 
@@ -1450,7 +1450,7 @@ void CAnimatedCharacter::SetWeaponRaisedPose(EWeaponRaisedPose pose)
 	// Start the weapon raising in Layer 2. This will automatically deactivate aim-poses.
 	CryCharAnimationParams Params0(0);
 	Params0.m_nLayerID = 2;
-	Params0.m_fTransTime = 0.5f;
+	Params0.m_fTransTime.SetSeconds("0.5");
 	Params0.m_nFlags |= CA_LOOP_ANIMATION;
 	pSkeletonAnim->StartAnimation(anim, Params0);
 }
@@ -1732,7 +1732,7 @@ void CAnimatedCharacter::SetAnimationPostProcessParameters() const
 
 void CAnimatedCharacter::PrepareAndStartAnimProc()
 {
-	if (m_curFrameTime <= 0.0f)
+	if (m_curFrameTime <= 0)
 		return;
 
 	UpdateCharacterPtrs();
@@ -1857,7 +1857,7 @@ void CAnimatedCharacter::GenerateMovementRequest()
 	// 21/09/2012: Workaround for cases in which ResetVars() is called after PrepareAnimatedCharacterForUpdate() but before GenerateMovementRequest()
 	// This could turn into a proper 'cache' of useful variables like curFrameTime, velocity, ... which gets properly invalidated
 	// whenever ResetVars() is called.
-	IF_UNLIKELY (m_curFrameTime == 0.0f)
+	IF_UNLIKELY (m_curFrameTime == 0)
 	{
 		UpdateTime();
 	}
@@ -1874,7 +1874,7 @@ void CAnimatedCharacter::GenerateMovementRequest()
 	// (fragments started by the graph should start as soon as possible)
 	if (m_pActionController)
 	{
-		m_pActionController->Update((float) m_curFrameTime);
+		m_pActionController->Update(m_curFrameTime);
 	}
 
 	CalculateParamsForCurrentMotions();

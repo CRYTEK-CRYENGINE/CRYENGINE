@@ -102,7 +102,7 @@ CVehicle::CVehicle() :
 	m_bNeedsUpdate(true),
 	m_lastFrameId(0),
 	m_pInventory(NULL),
-	m_collisionDisabledTime(0.0f),
+	m_collisionDisabledTime(0),
 	m_indestructible(false),
 	m_pVehicleSystem(NULL),
 	m_damageMax(0.f),
@@ -114,12 +114,12 @@ CVehicle::CVehicle() :
 	m_bCanBeAbandoned(true),
 	m_isDestroyable(true),
 	m_hasAuthority(false),
-	m_smoothedPing(0.0f),
+	m_smoothedPing(0),
 	m_clientSmoothedPosition(IDENTITY),
 	m_clientPositionError(IDENTITY)
 {
 	m_gravity.zero();
-	m_physUpdateTime = 0.f;
+	m_physUpdateTime.SetSeconds(0);
 
 #if ENABLE_VEHICLE_DEBUG
 	m_debugIndex = 0;
@@ -515,7 +515,7 @@ bool CVehicle::Init(IGameObject* pGameObject)
 			simulationTable.getAttr("maxLoggedCollisions", m_simParams.maxLoggedCollisions);
 
 			if (VehicleCVars().v_vehicle_quality == 1)
-				m_simParams.maxTimeStep = max(m_simParams.maxTimeStep, 0.04f);
+				m_simParams.maxTimeStep = max(m_simParams.maxTimeStep, CTimeValue("0.04"));
 		}
 
 		bool pushable = false;
@@ -1287,7 +1287,7 @@ void CVehicle::ProcessEvent(const SEntityEvent& entityEvent)
 		{
 			for (TVehicleSeatVector::iterator ite = m_seats.begin(); ite != m_seats.end(); ++ite)
 			{
-				ite->second->PrePhysUpdate(gEnv->pTimer->GetFrameTime());
+				ite->second->PrePhysUpdate(GetGTimer()->GetFrameTime());
 			}
 		}
 		break;
@@ -1364,7 +1364,7 @@ void CVehicle::OnMaterialLayerChanged(const SEntityEvent& event)
 }
 
 //------------------------------------------------------------------------
-int CVehicle::SetTimer(int timerId, int ms, IVehicleObject* pObject)
+int CVehicle::SetTimer(int timerId, const CTimeValue& time, IVehicleObject* pObject)
 {
 	if (timerId == -1)
 	{
@@ -1381,7 +1381,7 @@ int CVehicle::SetTimer(int timerId, int ms, IVehicleObject* pObject)
 
 	if (m_timers.insert(std::make_pair(timerId, pObject)).second)
 	{
-		GetEntity()->SetTimer(timerId, ms);
+		GetEntity()->SetTimer(timerId, time);
 		//CryLog("vehicle <%s> setting timer %i, %i ms", GetEntity()->GetName(), timerId, ms);
 
 		return timerId;
@@ -1524,8 +1524,8 @@ void CVehicle::Reset(bool enterGame)
 		m_pIEntityAudioComponent->ExecuteTrigger(triggerId);
 	}
 
-	m_collisionDisabledTime = 0.0f;
-	m_physUpdateTime = 0.f;
+	m_collisionDisabledTime.SetSeconds(0);
+	m_physUpdateTime.SetSeconds(0);
 	m_indestructible = false;
 
 	m_predictionHistory.clear();
@@ -1567,7 +1567,7 @@ void CVehicle::Update(SEntityUpdateContext& ctx, int slot)
 	gEnv->pAuxGeomRenderer->SetRenderFlags(e_Def3DPublicRenderflags);
 #endif
 
-	const float frameTime = ctx.fFrameTime;
+	const CTimeValue frameTime = ctx.fFrameTime;
 	if (ctx.frameID != m_lastFrameId)
 	{
 		m_bNeedsUpdate = false;
@@ -1595,7 +1595,7 @@ void CVehicle::Update(SEntityUpdateContext& ctx, int slot)
 					updateInfo.pObject->Update(frameTime);
 			}
 
-			if (m_collisionDisabledTime > 0.0f)
+			if (m_collisionDisabledTime > 0)
 				m_collisionDisabledTime -= frameTime;
 
 			m_vehicleAnimation.Update(frameTime);
@@ -1674,10 +1674,10 @@ void CVehicle::Update(SEntityUpdateContext& ctx, int slot)
 
 	CheckDisableUpdate(slot);
 
-	m_physUpdateTime = 0.f;
+	m_physUpdateTime.SetSeconds(0);
 }
 
-void CVehicle::UpdatePassenger(float frameTime, EntityId playerId)
+void CVehicle::UpdatePassenger(const CTimeValue& frameTime, EntityId playerId)
 {
 	for (uint32 updatePolicy = 0; updatePolicy <= eVUS_Last; ++updatePolicy)
 	{
@@ -1693,7 +1693,7 @@ void CVehicle::UpdatePassenger(float frameTime, EntityId playerId)
 }
 
 //------------------------------------------------------------------------
-void CVehicle::PostUpdate(float frameTime)
+void CVehicle::PostUpdate(const CTimeValue& frameTime)
 {
 	//DebugDraw(frameTime);
 
@@ -1732,7 +1732,7 @@ void CVehicle::NeedsUpdate(int flags, bool bThreadSafe /*=false*/)
 			pe_action_awake awakeParams;
 			awakeParams.bAwake = 1;
 			// keep vehicle awake for a bit to keep it from sleeping when it is going from positive to negative acceleration
-			awakeParams.minAwakeTime = 2.0f;
+			awakeParams.minAwakeTime.SetSeconds(2);
 			pPE->Action(&awakeParams, (int)bThreadSafe);
 		}
 	}
@@ -1793,7 +1793,7 @@ void CVehicle::OnPhysStateChange(EventPhysStateChange* pEvent)
 		{
 			SObjectUpdateInfo& updateInfo = *ite;
 			if (updateInfo.updatePolicy == eVOU_Visible)
-				updateInfo.pObject->Update(0.f);
+				updateInfo.pObject->Update(0);
 		}
 
 		SVehicleEventParams params;
@@ -1803,7 +1803,7 @@ void CVehicle::OnPhysStateChange(EventPhysStateChange* pEvent)
 
 #if ENABLE_VEHICLE_DEBUG
 //------------------------------------------------------------------------
-void CVehicle::DebugDraw(const float frameTime)
+void CVehicle::DebugDraw(const CTimeValue& frameTime)
 {
 	if (IsDebugDrawing())
 		NeedsUpdate();
@@ -1889,7 +1889,7 @@ void CVehicle::DebugDraw(const float frameTime)
 			Matrix34 tm;
 			ite->second->GetWorldTM(tm);
 			IRenderAuxText::DrawLabelExF(tm.GetTranslation(), 1.0f, drawColor, true, true, "<%s>", ite->first.c_str());
-			pDB->AddDirection(tm.GetTranslation(), 0.25f, tm.GetColumn(1), ColorF(1, 1, 0, 1), 0.05f);
+			pDB->AddDirection(tm.GetTranslation(), 0.25f, tm.GetColumn(1), ColorF(1, 1, 0, 1), "0.05");
 		}
 	}
 
@@ -2068,7 +2068,7 @@ void CVehicle::HandleEvent(const SGameObjectEvent& event)
 }
 
 //------------------------------------------------------------------------
-void CVehicle::UpdateStatus(const float deltaTime)
+void CVehicle::UpdateStatus(const CTimeValue& deltaTime)
 {
 	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
@@ -2161,7 +2161,7 @@ void CVehicle::UpdateStatus(const float deltaTime)
 
 #if ENABLE_VEHICLE_DEBUG
 //------------------------------------------------------------------------
-void CVehicle::TestClientPrediction(const float deltaTime)
+void CVehicle::TestClientPrediction(const CTimeValue& deltaTime)
 {
 	// This function is used to test rewinding of physics and replaying inputs, the code is similar to that of
 	// the client prediction and can be used to help debugging problems with it.
@@ -2210,7 +2210,7 @@ void CVehicle::TestClientPrediction(const float deltaTime)
 
 					// Fast-forward the physics applying all the inputs we recorded
 					CryAutoCriticalSection debuglk(m_debugDrawLock);
-					ReplayPredictionHistory(0.0f);
+					ReplayPredictionHistory(0);
 
 					// The final position should now be the same as what we started with as long as everything
 					// worked as expected
@@ -2233,7 +2233,7 @@ void CVehicle::TestClientPrediction(const float deltaTime)
 
 //------------------------------------------------------------------------
 // NOTE: This function must be thread-safe.
-void CVehicle::OnPrePhysicsTimeStep(float deltaTime)
+void CVehicle::OnPrePhysicsTimeStep(const CTimeValue& deltaTime)
 {
 	UpdateNetwork(deltaTime);
 #if ENABLE_VEHICLE_DEBUG
@@ -2243,7 +2243,7 @@ void CVehicle::OnPrePhysicsTimeStep(float deltaTime)
 
 //------------------------------------------------------------------------
 // NOTE: This function must be thread-safe.
-void CVehicle::UpdateNetwork(const float deltaTime)
+void CVehicle::UpdateNetwork(const CTimeValue& deltaTime)
 {
 	// Client sends vehicle control inputs to the server via the IMovementController interface.
 	// The server responds to those inputs and drives the vehicle as if it was a local player controlling it.
@@ -2279,13 +2279,13 @@ void CVehicle::UpdateNetwork(const float deltaTime)
 			pe_status_netpos netPos;
 			if (pPhysics->GetStatus(&netPos))
 			{
-				float remainderTime = 0.0f;
+				CTimeValue remainderTime;
 				bool needsCorrection = true;
 				if (VehicleCVars().v_clientPredict)
 				{
 					// Determine the difference between what the client predicted and what the server says
-					float predictTime = min(m_smoothedPing + netPos.timeOffset + VehicleCVars().v_clientPredictAdditionalTime, VehicleCVars().v_clientPredictMaxTime);
-					float accumulatedTime = 0.0f;
+					CTimeValue predictTime = min(m_smoothedPing + netPos.timeOffset + VehicleCVars().v_clientPredictAdditionalTime, VehicleCVars().v_clientPredictMaxTime);
+					CTimeValue accumulatedTime;
 					for (int i = m_predictionHistory.size() - 1; i >= 0; --i)
 					{
 						accumulatedTime += m_predictionHistory[i].m_deltaTime;
@@ -2315,9 +2315,9 @@ void CVehicle::UpdateNetwork(const float deltaTime)
 						}
 						else
 						{
-							float t = (remainderTime / m_predictionHistory[0].m_deltaTime);
-							predPos.SetLerp(m_predictionHistory[0].m_pos, m_predictionHistory[1].m_pos, t);
-							predRot.SetSlerp(m_predictionHistory[0].m_rot, m_predictionHistory[1].m_rot, t);
+							nTime t = (remainderTime / m_predictionHistory[0].m_deltaTime);
+							predPos.SetLerp(m_predictionHistory[0].m_pos, m_predictionHistory[1].m_pos, BADF t);
+							predRot.SetSlerp(m_predictionHistory[0].m_rot, m_predictionHistory[1].m_rot, BADF t);
 							//predVel.SetLerp(m_predictionHistory[0].m_velocity, m_predictionHistory[1].m_velocity, t);
 							//predAngVel.SetLerp(m_predictionHistory[0].m_angVelocity, m_predictionHistory[1].m_angVelocity, t);
 						}
@@ -2406,7 +2406,7 @@ void CVehicle::UpdateNetwork(const float deltaTime)
 						}
 
 						// Smooth out the error to 0 over time
-						const float smoothing = approxOneExp(deltaTime * VehicleCVars().v_clientPredictSmoothingConst);
+						const float smoothing = approxOneExp(deltaTime.BADGetSeconds() * VehicleCVars().v_clientPredictSmoothingConst);
 						m_clientPositionError.t.SetLerp(m_clientPositionError.t, ZERO, smoothing);
 						m_clientPositionError.q.SetSlerp(m_clientPositionError.q, IDENTITY, smoothing);
 
@@ -2421,9 +2421,9 @@ void CVehicle::UpdateNetwork(const float deltaTime)
 
 //------------------------------------------------------------------------
 // NOTE: This function must be thread-safe.
-void CVehicle::ReplayPredictionHistory(const float remainderTime)
+void CVehicle::ReplayPredictionHistory(const CTimeValue& remainderTime)
 {
-	if (m_predictionHistory.size() > 1 && remainderTime * 2.0f > m_predictionHistory[0].m_deltaTime)
+	if (m_predictionHistory.size() > 1 && remainderTime * 2 > m_predictionHistory[0].m_deltaTime)
 	{
 		m_pMovement->SetVehicleNetState(m_predictionHistory[1].m_state);
 	}
@@ -2443,12 +2443,12 @@ void CVehicle::ReplayPredictionHistory(const float remainderTime)
 	set_update.flagsOR = pef_update;
 	pPhysics->SetParams(&set_update, 1);
 	m_status.doingNetPrediction = true;
-	int physicsTime = gEnv->pPhysicalWorld->GetiPhysicsTime();  // Save the physics time
+	CTimeValue physicsTime = gEnv->pPhysicalWorld->GetPhysicsTime();  // Save the physics time
 
 	TVehiclePredictionHistory::iterator itHistory;
 	for (itHistory = m_predictionHistory.begin(); itHistory != m_predictionHistory.end(); ++itHistory)
 	{
-		float timeDiff = itHistory->m_deltaTime;
+		CTimeValue timeDiff = itHistory->m_deltaTime;
 		if (itHistory == m_predictionHistory.begin())
 		{
 			timeDiff -= remainderTime;
@@ -2480,7 +2480,7 @@ void CVehicle::ReplayPredictionHistory(const float remainderTime)
 		gEnv->pPhysicalWorld->TimeStep(timeDiff, ent_rigid | ent_flagged_only);
 	}
 
-	gEnv->pPhysicalWorld->SetiPhysicsTime(physicsTime); // Restore the physics time
+	gEnv->pPhysicalWorld->SetPhysicsTime(physicsTime); // Restore the physics time
 	m_status.doingNetPrediction = false;
 	pe_params_flags clear_update;
 	clear_update.flagsAND = ~pef_update;
@@ -2761,7 +2761,7 @@ void CVehicle::OnHit(const HitInfo& hitInfo, IVehicleComponent* pHitComponent)
 
 	if (hitInfo.type == s_disableCollisionsHitTypeId)
 	{
-		m_collisionDisabledTime = damage;
+		m_collisionDisabledTime = BADTIME(damage);
 		return;
 	}
 
@@ -2800,7 +2800,7 @@ void CVehicle::OnHit(const HitInfo& hitInfo, IVehicleComponent* pHitComponent)
 	float radius = hitInfo.radius;
 	if (hitInfo.type == s_collisionHitTypeId)
 	{
-		if (m_collisionDisabledTime > 0.0f)
+		if (m_collisionDisabledTime > 0)
 			return;
 
 		if (damage < 1.f)
@@ -3479,7 +3479,7 @@ void CVehicle::OnPhysPostStep(const EventPhys* pEvent, bool logged)
 {
 	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 	const EventPhysPostStep* eventPhys = (const EventPhysPostStep*)pEvent;
-	float deltaTime = eventPhys->dt;
+	CTimeValue deltaTime = eventPhys->dt;
 	if (logged)
 	{
 		m_physUpdateTime += deltaTime;
@@ -3514,7 +3514,7 @@ void CVehicle::OnPhysPostStep(const EventPhys* pEvent, bool logged)
 		if (IVehicleMovement* pMovement = GetMovement())
 		{
 			// (MATT) Avoid f.p. exceptions in quickload {2009/05/25}
-			if (pMovement->IsMovementProcessingEnabled() && deltaTime > 0.0f)
+			if (pMovement->IsMovementProcessingEnabled() && deltaTime > 0)
 				pMovement->ProcessMovement(deltaTime);
 		}
 	}
@@ -3523,7 +3523,7 @@ void CVehicle::OnPhysPostStep(const EventPhys* pEvent, bool logged)
 //------------------------------------------------------------------------
 void CVehicle::OnCollision(EventPhysCollision* pCollision)
 {
-	if (m_status.beingFlipped || m_collisionDisabledTime > 0.0f)
+	if (m_status.beingFlipped || m_collisionDisabledTime > 0)
 		return;
 
 	IEntity* pE1 = gEnv->pEntitySystem->GetEntityFromPhysics(pCollision->pEntity[0]);
@@ -3806,7 +3806,7 @@ bool CVehicle::InitParticles(const CVehicleParams& table)
 					}
 
 					if (!damageEffectRef.getAttr("pulsePeriod", damageEffect.pulsePeriod))
-						damageEffect.pulsePeriod = 0.0f;
+						damageEffect.pulsePeriod.SetSeconds(0);
 
 #if ENABLE_VEHICLE_DEBUG
 					if (VehicleCVars().v_debugdraw == eVDB_Damage)
@@ -4762,8 +4762,10 @@ void CVehicle::StopSound(TVehicleSoundEventId eventId)
 }
 
 //------------------------------------------------------------------------
-void CVehicle::StartAbandonedTimer(bool force, float timer)
+void CVehicle::StartAbandonedTimer(bool force, const CTimeValue& timeIn)
 {
+	CTimeValue time = timeIn;
+
 	if (IsDestroyed() || gEnv->IsEditor() || !gEnv->bServer)
 		return;
 
@@ -4788,19 +4790,19 @@ void CVehicle::StartAbandonedTimer(bool force, float timer)
 				return;
 		}
 
-		if (timer < 0.0f)
-			respawnprops->GetValue("nAbandonTimer", timer);
+		if (time < 0)
+			respawnprops->GetValue("nAbandonTimer", time);
 	}
 
-	const float mintime = 5.0f;
+	const CTimeValue mintime = 5;
 
 	IEntity* pEntity = GetEntity();
 
 	pEntity->KillTimer(eVT_Abandoned);
-	pEntity->SetTimer(eVT_Abandoned, (int)(max(mintime + 0.5f, timer) * 1000.0f));
+	pEntity->SetTimer(eVT_Abandoned, max(mintime + "0.5", time));
 
 	pEntity->KillTimer(eVT_AbandonedSound);
-	pEntity->SetTimer(eVT_AbandonedSound, (int)(max(0.0f, ((timer + 0.5f) - mintime)) * 1000.0f)); // warn sound
+	pEntity->SetTimer(eVT_AbandonedSound, max(CTimeValue(0), ((time + "0.5") - mintime))); // warn sound
 }
 
 //------------------------------------------------------------------------
@@ -4872,19 +4874,19 @@ bool CVehicle::IsFlipped(float maxSpeed)
 }
 
 //------------------------------------------------------------------------
-void CVehicle::CheckFlippedStatus(const float deltaTime)
+void CVehicle::CheckFlippedStatus(const CTimeValue& deltaTime)
 {
 	// check flipped over status
-	const float activationTime = VehicleCVars().v_FlippedExplosionTimeToExplode;
-	static const float activationTimeAI = 5.f;
+	const CTimeValue activationTime = VehicleCVars().v_FlippedExplosionTimeToExplode;
+	static const CTimeValue activationTimeAI(5);
 
-	float initialTime = activationTimeAI;
-	float prev = m_status.flipped;
+	CTimeValue initialTime = activationTimeAI;
+	CTimeValue prev = m_status.flipped;
 	bool flipped = IsFlipped();
 
 	if (flipped)
 	{
-		m_status.flipped = max(0.f, m_status.flipped);
+		m_status.flipped = max(CTimeValue(0), m_status.flipped);
 		m_status.flipped += deltaTime;
 
 		bool ai = false;
@@ -4914,7 +4916,7 @@ void CVehicle::CheckFlippedStatus(const float deltaTime)
 	}
 	else
 	{
-		m_status.flipped = min(0.f, m_status.flipped);
+		m_status.flipped = min(CTimeValue(0), m_status.flipped);
 		m_status.flipped -= deltaTime;
 
 		if (prev >= initialTime)
@@ -4923,8 +4925,8 @@ void CVehicle::CheckFlippedStatus(const float deltaTime)
 		}
 	}
 
-	bool flipping = m_status.flipped > 0.5f && prev <= 0.5f;
-	bool unflipping = m_status.flipped < -0.25f && prev >= -0.25f;
+	bool flipping = m_status.flipped > "0.5" && prev <= "0.5f";
+	bool unflipping = m_status.flipped < "-0.25" && prev >= "-0.25";
 
 	if (flipping || unflipping)
 	{
@@ -4945,7 +4947,7 @@ void CVehicle::CheckFlippedStatus(const float deltaTime)
 	}
 
 	// if flipping, kill AI in exposed seats (eg LTV gunners)
-	if (gEnv->bServer && m_status.flipped > 0.1f && prev < 0.1f)
+	if (gEnv->bServer && m_status.flipped > "0.1" && prev < "0.1")
 	{
 		KillPassengersInExposedSeats(true);
 	}
@@ -5023,7 +5025,7 @@ void CVehicle::ProcessFlipped()
 	if (playerClose)
 	{
 		// check again later
-		SetTimer(eVT_Flipped, VehicleCVars().v_FlippedExplosionRetryTimeMS, 0);
+		SetTimer(eVT_Flipped, VehicleCVars().v_FlippedExplosionRetryTime, 0);
 	}
 	else
 	{
@@ -5804,11 +5806,11 @@ bool CVehicle::ExitSphereTest(IPhysicalEntity** pSkipEnts, int nSkip, Vec3 start
 			color = ColorF(1.0f, 0.0f, 0.0f, 1.0f);
 		}
 
-		pPersistantDebug->AddLine(startPos, testPos, color, 30.0f);
+		pPersistantDebug->AddLine(startPos, testPos, color, 30);
 
 		if (pContact && (hitDist > 0.0f))
 		{
-			pPersistantDebug->AddSphere(pContact->pt, 0.1f, color, 30.0f);
+			pPersistantDebug->AddSphere(pContact->pt, 0.1f, color, 30);
 
 			endPos -= sphere.center;
 
@@ -5818,7 +5820,7 @@ bool CVehicle::ExitSphereTest(IPhysicalEntity** pSkipEnts, int nSkip, Vec3 start
 
 			color.a = 0.25f;
 
-			pPersistantDebug->AddSphere(endPos, radius, color, 30.0f);
+			pPersistantDebug->AddSphere(endPos, radius, color, 30);
 		}
 	}
 #endif //ENABLE_VEHICLE_DEBUG

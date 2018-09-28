@@ -70,7 +70,7 @@ public:
 	virtual IFlowNodePtr Clone(SActivationInfo* pActInfo) { return new CFlashUIAdvanceNode(pActInfo); }
 
 private:
-	void Advance(IUIElement* pInstance, float delta);
+	void Advance(IUIElement* pInstance, const CTimeValue& delta);
 
 private:
 	enum EInputs

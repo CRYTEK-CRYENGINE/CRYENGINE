@@ -60,7 +60,7 @@ CMaterialEffectsCVars::CMaterialEffectsCVars()
 	REGISTER_CVAR(mfx_pfx_minScale, .5f, 0, "Min scale (when particle is close)");
 	REGISTER_CVAR(mfx_pfx_maxScale, 1.5f, 0, "Max scale (when particle is far)");
 	REGISTER_CVAR(mfx_pfx_maxDist, 35.0f, 0, "Max dist (how far away before scale is clamped)");
-	REGISTER_CVAR(mfx_Timeout, 0.01f, 0, "Timeout (in seconds) to avoid playing effects too often");
+	REGISTER_CVAR(mfx_Timeout, CTimeValue("0.01"), 0, "Timeout (in seconds) to avoid playing effects too often");
 	REGISTER_CVAR(mfx_EnableFGEffects, 1, VF_CHEAT, "Enabled Flowgraph based Material effects. Default: On");
 	REGISTER_CVAR(mfx_EnableAttachedEffects, 1, VF_CHEAT, "Enable attached effects (characters, entities...)");
 	REGISTER_CVAR(mfx_SerializeFGEffects, 1, VF_CHEAT, "Serialize Flowgraph based effects. Default: On");

@@ -80,7 +80,7 @@ struct IActor : public IGameObjectExtension
 	virtual bool                  BecomeAggressiveToAgent(EntityId entityID) = 0;
 
 	virtual void                  SetFacialAlertnessLevel(int alertness) = 0;
-	virtual void                  RequestFacialExpression(const char* pExpressionName = NULL, f32* sequenceLength = NULL) = 0;
+	virtual void                  RequestFacialExpression(const char* pExpressionName = NULL, CTimeValue* sequenceLength = NULL) = 0;
 	virtual void                  PrecacheFacialExpression(const char* pExpressionName) = 0;
 
 	virtual EntityId              GetGrabbedEntityId() const = 0;

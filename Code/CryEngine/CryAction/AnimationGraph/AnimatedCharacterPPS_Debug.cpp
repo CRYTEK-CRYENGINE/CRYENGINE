@@ -22,13 +22,13 @@ static const float k_debugVelocityConeRadius = 0.02f;
 struct CDebugVelocity
 {
 	CDebugVelocity() {}
-	CDebugVelocity(const QuatT& movement, const float frameTime, const char* szComment, const ColorF& colorF, const bool pastMovement = false)
+	CDebugVelocity(const QuatT& movement, const CTimeValue& frameTime, const char* szComment, const ColorF& colorF, const bool pastMovement = false)
 		: m_movement(movement), m_frameTime(frameTime), m_sComment(szComment), m_colorF(colorF), m_pastMovement(pastMovement) {}
 	void Draw(const Vec3& origin, const float textXPos, const float textYPos) const;
 
 private:
 	QuatT  m_movement;
-	float  m_frameTime;
+	CTimeValue  m_frameTime;
 	string m_sComment;
 	ColorF m_colorF;
 	bool   m_pastMovement;
@@ -43,15 +43,15 @@ void CDebugVelocity::Draw(const Vec3& origin, const float textXPos, const float 
 {
 	const float textYPos = g_mannequinYPosEnd + 20 + textYPosIn;
 
-	const float curFrameTimeInv = m_frameTime > FLT_MIN ? 1.0f / m_frameTime : 0.0f;
+	const rTime curFrameTimeInv = m_frameTime > TV_EPSILON ? 1 / m_frameTime : 0;
 
 	const Vec3 delta = m_movement.t;
 	const float deltaQz = m_movement.q.GetRotZ();
-	const Vec3 veloc = delta * curFrameTimeInv;
-	const float velocQz = deltaQz * curFrameTimeInv;
+	const Vec3 veloc = delta * (float)curFrameTimeInv;
+	const float velocQz = deltaQz * (float)curFrameTimeInv;
 	const float colorFBGRA8888[4] = { m_colorF.r, m_colorF.g, m_colorF.b, m_colorF.a };
 
-	IRenderAuxText::Draw2dLabel(textXPos, textYPos, k_debugVelocityFontSize, colorFBGRA8888, false, "Vel: grounds=%2.3f m/s t=[%+2.3f, %+2.3f, %+2.3f] m/s, qz=%2.2f rad/s;  Offs: ground=%2.3f m t=[%+2.3f, %+2.3f, %+2.3f], qz=%2.2f rad;   dt: %2.3f s   %s", veloc.GetLength2D(), veloc.x, veloc.y, veloc.z, velocQz, delta.GetLength2D(), delta.x, delta.y, delta.z, deltaQz, (float)m_frameTime, m_sComment.c_str());
+	IRenderAuxText::Draw2dLabel(textXPos, textYPos, k_debugVelocityFontSize, colorFBGRA8888, false, "Vel: grounds=%2.3f m/s t=[%+2.3f, %+2.3f, %+2.3f] m/s, qz=%2.2f rad/s;  Offs: ground=%2.3f m t=[%+2.3f, %+2.3f, %+2.3f], qz=%2.2f rad;   dt: %2.3f s   %s", veloc.GetLength2D(), veloc.x, veloc.y, veloc.z, velocQz, delta.GetLength2D(), delta.x, delta.y, delta.z, deltaQz, (float)m_frameTime.GetSeconds(), m_sComment.c_str());
 
 	IRenderAuxGeom* pAuxGeom = gEnv->pRenderer->GetIRenderAuxGeom();
 	pAuxGeom->SetRenderFlags(e_Def3DPublicRenderflags);
@@ -73,7 +73,7 @@ void CDebugVelocity::Draw(const Vec3& origin, const float textXPos, const float 
 }
 
 //--------------------------------------------------------------------------------
-void CAnimatedCharacter::AddDebugVelocity(const QuatT& movement, const float frameTime, const char* szComment, const ColorF& colorF, const bool pastMovement) const
+void CAnimatedCharacter::AddDebugVelocity(const QuatT& movement, const CTimeValue& frameTime, const char* szComment, const ColorF& colorF, const bool pastMovement) const
 {
 	static int s_debugVelocityRenderFrameId = -1;
 
@@ -453,9 +453,9 @@ void CAnimatedCharacter::DebugRenderCurLocations() const
 
 	static Vec3 abump(0, 0, 0.11f);
 	static Vec3 ebump(0, 0.005f, 0.1f);
-	static float entDuration = 0.5f;
+	static CTimeValue entDuration = "0.5";
 	static float animDuration = 0.5f;
-	static float entTrailDuration = 10.0f;
+	static CTimeValue entTrailDuration = 10;
 	static float animTrailDuration = 10.0f;
 	static ColorF entColor0(0, 0, 1, 1);
 	static ColorF entColor1(0.2f, 0.2f, 1, 1);
@@ -506,23 +506,23 @@ void CAnimatedCharacter::DebugRenderCurLocations() const
 
 void CAnimatedCharacter::DebugDisplayNewLocationsAndMovements(const QuatT& EntLocation, const QuatT& EntMovement,
                                                               const QuatT& AnimMovement,
-                                                              float frameTime) const
+                                                              const CTimeValue& frameTime) const
 {
 	CPersistantDebug* pPD = CCryAction::GetCryAction()->GetPersistantDebug();
-	static float trailTime = 6000.0f;
+	static CTimeValue trailTime = 6000;
 
 	if ((pPD != NULL) && (CAnimationGraphCVars::Get().m_debugLocations != 0))
 	{
 		Vec3 bump(0, 0, 0.1f);
 
 		pPD->Begin(UNIQUE("AnimatedCharacter.PrePhysicsStep2.new"), true);
-		pPD->AddLine(Vec3(0, 0, EntLocation.t.z) + bump, EntLocation.t + bump, ColorF(0, 0, 1, 0.5f), 0.5f);
+		pPD->AddLine(Vec3(0, 0, EntLocation.t.z) + bump, EntLocation.t + bump, ColorF(0, 0, 1, 0.5f), "0.5");
 
-		pPD->AddSphere(EntLocation.t + bump, 0.05f, ColorF(0, 0, 1, 1), 0.5f);
-		pPD->AddDirection(EntLocation.t + bump, 0.15f, (EntLocation.q * FORWARD_DIRECTION), ColorF(0, 0, 1, 1), 0.5f);
+		pPD->AddSphere(EntLocation.t + bump, 0.05f, ColorF(0, 0, 1, 1), "0.5");
+		pPD->AddDirection(EntLocation.t + bump, 0.15f, (EntLocation.q * FORWARD_DIRECTION), ColorF(0, 0, 1, 1), "0.5");
 
-		pPD->AddLine(EntLocation.t + bump, EntLocation.t + EntMovement.t * 10.0f + bump, ColorF(0, 0, 1, 0.5f), 0.5f);
-		pPD->AddLine(EntLocation.t + bump, EntLocation.t + EntMovement.t + bump, ColorF(0.5f, 0.5f, 1, 1.0f), 0.5f);
+		pPD->AddLine(EntLocation.t + bump, EntLocation.t + EntMovement.t * 10.0f + bump, ColorF(0, 0, 1, 0.5f), "0.5");
+		pPD->AddLine(EntLocation.t + bump, EntLocation.t + EntMovement.t + bump, ColorF(0.5f, 0.5f, 1, 1.0f), "0.5");
 
 		pPD->Begin(UNIQUE("AnimatedCharacter.PrePhysicsStep2.trail"), false);
 
@@ -535,16 +535,17 @@ void CAnimatedCharacter::DebugDisplayNewLocationsAndMovements(const QuatT& EntLo
 		Ang3 EntOri(EntLocation.q);
 		Ang3 EntRot(EntMovement.q);
 		const ColorF cWhite = ColorF(1, 1, 1, 1);
+		const float timeInSeconds = (float)frameTime.GetSeconds();
 		IRenderAuxText::Draw2dLabel(10, 100, 2.0f, (float*)&cWhite, false,
 		                             "N Ent Location[%.2f, %.2f, %.2f | %.2f, %.2f, %.2f]  Movement[%.2f, %.2f, %.2f | %.2f, %.2f, %.2f]",
 		                             EntLocation.t.x, EntLocation.t.y, EntLocation.t.z, RAD2DEG(EntOri.x), RAD2DEG(EntOri.y), RAD2DEG(EntOri.z),
-		                             EntMovement.t.x / frameTime, EntMovement.t.y / frameTime, EntMovement.t.z / frameTime,
+		                             EntMovement.t.x / timeInSeconds, EntMovement.t.y / timeInSeconds, EntMovement.t.z / timeInSeconds,
 		                             RAD2DEG(EntRot.x), RAD2DEG(EntRot.y), RAD2DEG(EntRot.z));
 
 		Ang3 AnimRot(AnimMovement.q);
 		IRenderAuxText::Draw2dLabel(10, 125, 2.0f, (float*)&cWhite, false,
 		                             "N Anim Movement[%.2f, %.2f, %.2f | %.2f, %.2f, %.2f]",
-		                             AnimMovement.t.x / frameTime, AnimMovement.t.y / frameTime, AnimMovement.t.z / frameTime,
+		                             AnimMovement.t.x / timeInSeconds, AnimMovement.t.y / timeInSeconds, AnimMovement.t.z / timeInSeconds,
 		                             RAD2DEG(AnimRot.x), RAD2DEG(AnimRot.y), RAD2DEG(AnimRot.z));
 	}
 #endif
@@ -601,11 +602,11 @@ void DebugRenderDistanceMeasure(CPersistantDebug* pPD, const Vec3& origin, const
 
 	static float crossSize = 0.05f;
 
-	pPD->AddLine(origin, origin + offset, color, 1.0f);
-	pPD->AddLine(origin - rgt * crossSize, origin + rgt * crossSize, color, 1.0f);
-	pPD->AddLine(origin - up * crossSize, origin + up * crossSize, color, 1.0f);
-	pPD->AddLine(origin + offset - rgt * crossSize, origin + offset + rgt * crossSize, color, 1.0f);
-	pPD->AddLine(origin + offset - up * crossSize, origin + offset + up * crossSize, color, 1.0f);
+	pPD->AddLine(origin, origin + offset, color, 1);
+	pPD->AddLine(origin - rgt * crossSize, origin + rgt * crossSize, color, 1);
+	pPD->AddLine(origin - up * crossSize, origin + up * crossSize, color, 1);
+	pPD->AddLine(origin + offset - rgt * crossSize, origin + offset + rgt * crossSize, color, 1);
+	pPD->AddLine(origin + offset - up * crossSize, origin + offset + up * crossSize, color, 1);
 }
 #endif
 
@@ -622,9 +623,9 @@ void DebugRenderAngleMeasure(CPersistantDebug* pPD, const Vec3& origin, const Qu
 	ColorF color = (fraction < 1.0f) ? colorInside : colorOutside;
 
 	static float armSize = 1.0f;
-	pPD->AddLine(origin, origin + baseDir * (armSize * 0.5f), color, 1.0f);
-	pPD->AddLine(origin, origin + clampedDir * armSize, color, 1.0f);
-	pPD->AddLine(origin + baseDir * (armSize * 0.5f), origin + clampedDir * (armSize * 0.5f), color, 1.0f);
+	pPD->AddLine(origin, origin + baseDir * (armSize * 0.5f), color, 1);
+	pPD->AddLine(origin, origin + clampedDir * armSize, color, 1);
+	pPD->AddLine(origin + baseDir * (armSize * 0.5f), origin + clampedDir * (armSize * 0.5f), color, 1);
 }
 #endif
 

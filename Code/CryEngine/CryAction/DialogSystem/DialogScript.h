@@ -34,13 +34,13 @@ public:
 	struct SScriptLine
 	{
 		SScriptLine()
-			: m_delay(0.0f)
+			: m_delay(0)
 			, m_facialWeight(0.0f)
-			, m_facialFadeTime(0.0f)
+			, m_facialFadeTime(0)
 		{
 		}
 
-		SScriptLine(TActorID actor, TActorID lookat, CryAudio::ControlId audioID, const char* anim, const char* facial, float delay, float facialWeight, float facialFadeTime, bool bLookAtSticky, bool bResetFacial, bool bResetLookAt, bool bSoundStopsAnim, bool bUseAGSignal, bool bUseAGEP)
+		SScriptLine(TActorID actor, TActorID lookat, CryAudio::ControlId audioID, const char* anim, const char* facial, const CTimeValue& delay, float facialWeight, const CTimeValue& facialFadeTime, bool bLookAtSticky, bool bResetFacial, bool bResetLookAt, bool bSoundStopsAnim, bool bUseAGSignal, bool bUseAGEP)
 			: m_actor(actor),
 			m_lookatActor(lookat),
 			m_audioID(audioID),
@@ -72,9 +72,9 @@ public:
 		CryAudio::ControlId m_audioID;
 		string              m_anim;                // Animation to Play
 		string              m_facial;              // Facial Animation to Play
-		float               m_delay;               // Delay
+		CTimeValue          m_delay;               // Delay
 		float               m_facialWeight;        // Weight of facial expression
-		float               m_facialFadeTime;      // Time of facial fade-in
+		CTimeValue          m_facialFadeTime;      // Time of facial fade-in
 
 		void                GetMemoryUsage(ICrySizer* pSizer) const
 		{
@@ -109,7 +109,7 @@ public:
 
 	// Add one line after another
 	// Ugly interface exists purely for speed reasons
-	bool AddLine(TActorID actorID, CryAudio::ControlId audioID, const char* anim, const char* facial, TActorID lookAtTargetID, float delay, float facialWeight, float facialFadeTime, bool bLookAtSticky, bool bResetFacial, bool bResetLookAt, bool bSoundStopsAnim, bool bUseAGSignal, bool bUseAGEP);
+	bool AddLine(TActorID actorID, CryAudio::ControlId audioID, const char* anim, const char* facial, TActorID lookAtTargetID, const CTimeValue& delay, float facialWeight, const CTimeValue& facialFadeTime, bool bLookAtSticky, bool bResetFacial, bool bResetLookAt, bool bSoundStopsAnim, bool bUseAGSignal, bool bUseAGEP);
 
 	// Add one line after another
 	bool AddLine(const SScriptLine& line);

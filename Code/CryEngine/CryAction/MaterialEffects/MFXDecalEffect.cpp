@@ -43,9 +43,9 @@ void CMFXDecalEffect::LoadParamsFromXml(const XmlNodeRef& paramsNode)
 	m_decalParams.minscale = 1.f;
 	m_decalParams.maxscale = 1.f;
 	m_decalParams.rotation = -1.f;
-	m_decalParams.growTime = 0.f;
+	m_decalParams.growTime.SetSeconds(0);
 	m_decalParams.assemble = false;
-	m_decalParams.lifetime = 10.0f;
+	m_decalParams.lifetime.SetSeconds(10);
 	m_decalParams.forceedge = false;
 
 	paramsNode->getAttr("minscale", m_decalParams.minscale);

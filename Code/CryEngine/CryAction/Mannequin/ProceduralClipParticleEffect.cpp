@@ -109,7 +109,7 @@ private:
 public:
 	PROCEDURAL_CONTEXT(CParticleEffectContext, "ParticleEffectContext", "9ced3080-5f88-45a3-f527-229c51b542a8"_cry_guid);
 
-	virtual void Update(float timePassed) override;
+	virtual void Update(const CTimeValue& timePassed) override;
 	void         StartEffect(SParticleEffectClipData& data, const SPlayParticleEffectParams& params, EntityId entityId, ICharacterInstance* pCharacterInstance, IActionController& pActionController);
 	void         StopEffect(SParticleEffectClipData& data, const SPlayParticleEffectParams& params, EntityId entityId, ICharacterInstance* pCharacterInstance);
 
@@ -135,7 +135,7 @@ public:
 	{
 	}
 
-	virtual void OnEnter(float blendTime, float duration, const SPlayParticleEffectParams& params)
+	virtual void OnEnter(const CTimeValue& blendTime, const CTimeValue& duration, const SPlayParticleEffectParams& params)
 	{
 		if (gEnv->IsEditor() && gEnv->pGameFramework->GetMannequinInterface().IsSilentPlaybackMode())
 			return;
@@ -146,7 +146,7 @@ public:
 		m_context->StartEffect(m_data, params, m_scope->GetEntityId(), m_scope->GetCharInst(), m_scope->GetActionController());
 	}
 
-	virtual void OnExit(float blendTime)
+	virtual void OnExit(const CTimeValue& blendTime)
 	{
 		if (m_data.pEmitter)
 		{
@@ -164,7 +164,7 @@ public:
 		}
 	}
 
-	virtual void Update(float timePassed)
+	virtual void Update(const CTimeValue& timePassed)
 	{
 	}
 
@@ -191,7 +191,7 @@ CParticleEffectContext::~CParticleEffectContext()
 	}
 }
 
-void CParticleEffectContext::Update(float timePassed)
+void CParticleEffectContext::Update(const CTimeValue& timePassed)
 {
 	for (uint32 i = 0u, sz = m_stopRequests.size(); i < sz; ++i)
 	{

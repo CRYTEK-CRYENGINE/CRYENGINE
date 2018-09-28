@@ -44,7 +44,7 @@ private:
 class CFlashUIDelayNode : public CFlowBaseNode<eNCT_Instanced>
 {
 public:
-	CFlashUIDelayNode(SActivationInfo*) : m_fTime(0.0f) {};
+	CFlashUIDelayNode(SActivationInfo*) : m_fTime(0) {};
 
 	// IFlowNode
 	virtual void         GetConfiguration(SFlowNodeConfig&);
@@ -68,5 +68,5 @@ private:
 		eO_Done = 0,
 	};
 
-	float m_fTime;
+	CTimeValue m_fTime;
 };

@@ -7,7 +7,7 @@
 #include <IUIDraw.h>
 
 const char* CPersistantDebug::entityTagsContext = "PersistantDebugEntities";
-const float CPersistantDebug::kUnlimitedTime = -1.0f;
+const CTimeValue CPersistantDebug::kUnlimitedTime = -1;
 
 void CPersistantDebug::AddEntityTag(const SEntityTagParams& params, const char* tagContext)
 {
@@ -15,7 +15,7 @@ void CPersistantDebug::AddEntityTag(const SEntityTagParams& params, const char* 
 	SEntityTag tag;
 	tag.params = params;
 	tag.params.column = max(1, tag.params.column);
-	tag.params.fadeTime = max(0.f, tag.params.fadeTime);
+	tag.params.fadeTime = max(CTimeValue(0), tag.params.fadeTime);
 	if (tagContext != NULL && *tagContext != '\0')
 		tag.params.tagContext = tagContext;
 	tag.totalTime = tag.params.visibleTime < 0 ? kUnlimitedTime : tag.params.visibleTime + tag.params.fadeTime;
@@ -124,14 +124,15 @@ void CPersistantDebug::ClearTagContext(const char* tagContext, EntityId entityId
 	}
 }
 
-void CPersistantDebug::UpdateTags(float frameTime, SObj& obj, bool doFirstPass)
+void CPersistantDebug::UpdateTags(const CTimeValue& frameTimeIn, SObj& obj, bool doFirstPass)
 {
+	CTimeValue frameTime = frameTimeIn;
 	if (!doFirstPass)
 	{
 		// Every update calls itself recursively first to calculate the widths of each column
 		// for multicolumn mode. Not the prettiest thing, but it's the best idea I've got so far!
 		UpdateTags(frameTime, obj, true);
-		frameTime = 0.f;
+		frameTime.SetSeconds(0);
 
 		for (int i = 0; i < obj.columns.size(); ++i)
 			obj.columns[i].height = 0.f;
@@ -196,7 +197,7 @@ void CPersistantDebug::UpdateTags(float frameTime, SObj& obj, bool doFirstPass)
 				clr.g = max(0.f, min(1.f, m_pETColorOverrideG->GetFVal()));
 				clr.b = max(0.f, min(1.f, m_pETColorOverrideB->GetFVal()));
 			}
-			clr.a *= iterList->params.fadeTime / iterList->totalFadeTime; // Apply fade out time to alpha
+			clr.a *= BADF(iterList->params.fadeTime / iterList->totalFadeTime); // Apply fade out time to alpha
 
 			float clrAry[4] = { clr.r, clr.g, clr.b, clr.a };
 			IRenderAuxText::Draw2dLabel(screenPos.x, screenPos.y, fontSize, clrAry, true, "%s", iterList->params.text.c_str());
@@ -204,7 +205,7 @@ void CPersistantDebug::UpdateTags(float frameTime, SObj& obj, bool doFirstPass)
 	}
 }
 
-void CPersistantDebug::PostUpdateTags(float frameTime, SObj& obj)
+void CPersistantDebug::PostUpdateTags(const CTimeValue& frameTime, SObj& obj)
 {
 	Vec3 baseCenterPos;
 	float heightAboveBase(0.f);
@@ -229,10 +230,10 @@ void CPersistantDebug::PostUpdateTags(float frameTime, SObj& obj)
 
 		if (iterList->params.visibleTime != kUnlimitedTime)
 		{
-			if (iterList->params.visibleTime > 0.0f)
+			if (iterList->params.visibleTime > 0)
 			{
 				iterList->params.visibleTime -= frameTime;
-				if (iterList->params.visibleTime < 0.0f)
+				if (iterList->params.visibleTime < 0)
 				{
 					// If visibleTime has hit 0, make sure any spillover gets applied to fade time
 					iterList->params.fadeTime += iterList->params.visibleTime;
@@ -244,7 +245,7 @@ void CPersistantDebug::PostUpdateTags(float frameTime, SObj& obj)
 			}
 		}
 
-		if (iterList->params.fadeTime < 0.0f)
+		if (iterList->params.fadeTime < 0)
 		{
 			toClear.push_back(iterList);
 		}
@@ -266,7 +267,7 @@ void CPersistantDebug::PostUpdateTags(float frameTime, SObj& obj)
 			float distanceFix = distFromCam * 0.015f; // this constant found through trial and error
 			float riseAmount(0.0f);
 			if (iterList->params.staticId == "")
-				riseAmount = 2.0f * distanceFix * (1 - (obj.timeRemaining / obj.totalTime));
+				riseAmount = 2.0f * distanceFix * BADF(1 - (obj.timeRemaining / obj.totalTime));
 
 			Vec3 tagPos(baseCenterPos.x, baseCenterPos.y, baseCenterPos.z + heightAboveBase + riseAmount);
 			Vec3 screenPos(ZERO);

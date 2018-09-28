@@ -26,13 +26,13 @@ public:
 	CPersonalSignalTimer(CSignalTimer* pParent);
 	virtual ~CPersonalSignalTimer();
 	bool Init(EntityId Id, const char* sSignal);
-	bool Update(float fElapsedTime, uint32 uDebugOrder = 0);
+	bool Update(const CTimeValue& fElapsedTime, uint32 uDebugOrder = 0);
 	void ForceReset(bool bAlsoEnable = true);
 	void OnProxyReset();
 
 	// Utils ---------------------------------------------------------
 	void          SetEnabled(bool bEnabled);
-	void          SetRate(float fNewRateMin, float fNewRateMax);
+	void          SetRate(const CTimeValue& fNewRateMin, const CTimeValue& fNewRateMax);
 	EntityId      GetEntityId() const;
 	const string& GetSignalString() const;
 
@@ -54,10 +54,10 @@ private:
 	CSignalTimer* m_pParent;
 	EntityId      m_EntityId;
 	string        m_sSignal;
-	float         m_fRateMin;
-	float         m_fRateMax;
-	float         m_fTimer;
-	float         m_fTimerSinceLastReset;
+	CTimeValue    m_fRateMin;
+	CTimeValue    m_fRateMax;
+	CTimeValue    m_fTimer;
+	CTimeValue    m_fTimerSinceLastReset;
 	int           m_iSignalsSinceLastReset;
 	bool          m_bEnabled;
 	IFFont*       m_pDefaultFont;

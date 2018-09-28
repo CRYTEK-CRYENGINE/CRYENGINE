@@ -89,7 +89,7 @@ void CSimpleHttpServerListener::Update()
 				goto L_fail;
 			}
 
-			m_challenge.Format("%f", gEnv->pTimer->GetAsyncTime().GetSeconds());
+			m_challenge.Format("%f", (float)GetGTimer()->GetAsyncTime().GetSeconds());
 			s_http_server->SendResponse(m_connectionID, ISimpleHttpServer::eSC_Okay, ISimpleHttpServer::eCT_XML,
 			                            string().Format("<?xml version=\"1.0\"?><methodResponse><params><param><value><string>%s</string></value></param></params></methodResponse>", m_challenge.c_str()), false);
 			m_state = eAS_WaitAuthenticationRequest;
@@ -261,9 +261,9 @@ void CSimpleHttpServerListener::OnGetRequest(int connectionID, string url)
 	}
 
 	size_t index = page.find("$time$");
-	//std::stringstream ss; ss << gEnv->pTimer->GetAsyncCurTime();
+	//std::stringstream ss; ss << GetGTimer()->GetAsyncCurTime();
 	char timestamp[33];
-	cry_sprintf(timestamp, "%f", gEnv->pTimer->GetAsyncCurTime());
+	cry_sprintf(timestamp, "%f", (float)GetGTimer()->GetAsyncCurTime().GetSeconds());
 	page.replace(index, strlen("$time$"), timestamp);
 	s_http_server->SendWebpage(m_connectionID, page);
 }

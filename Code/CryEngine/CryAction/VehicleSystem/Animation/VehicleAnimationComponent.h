@@ -31,7 +31,7 @@ public:
 	void               Reset();
 	void               DeleteActionController();
 
-	void               Update(float timePassed);
+	void               Update(const CTimeValue& timePassed);
 
 	IActionController* GetActionController() { return m_pActionController; }
 	void               AttachPassengerScope(CVehicleSeat* seat, EntityId ent, bool attach);

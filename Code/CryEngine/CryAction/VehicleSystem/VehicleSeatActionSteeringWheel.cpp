@@ -164,7 +164,7 @@ void CVehicleSeatActionSteeringWheel::OnAction(const TVehicleActionId actionId, 
 }
 
 //------------------------------------------------------------------------
-void CVehicleSeatActionSteeringWheel::Update(float frameTime)
+void CVehicleSeatActionSteeringWheel::Update(const CTimeValue& frameTime)
 {
 	IActionController* pActionController = m_pVehicle->GetAnimationComponent().GetActionController();
 	const bool doUpdate = (m_userId != 0) && (m_isBeingUsed) && (pActionController != NULL);
@@ -193,7 +193,7 @@ void CVehicleSeatActionSteeringWheel::Update(float frameTime)
 					// Smooth the response, when increasing let it increase fast, when decreasing, decrease slowly
 					float suspensionResponse = clamp_tpl(wheeledStatus.suspensionCompressionRate * params->jitterSuspResponse, -1.f, +1.f);
 					float suspensionChange = (float)__fsel(fabsf(suspensionResponse) - fabsf(m_jitterSuspensionResponse), 30.f, 3.f);
-					m_jitterSuspensionResponse += (suspensionResponse - m_jitterSuspensionResponse) * approxOneExp(frameTime * suspensionChange);
+					m_jitterSuspensionResponse += (suspensionResponse - m_jitterSuspensionResponse) * approxOneExp(frameTime.BADGetSeconds()* suspensionChange);
 
 					offset = params->jitterSuspAmp * m_jitterSuspensionResponse;
 
@@ -209,13 +209,13 @@ void CVehicleSeatActionSteeringWheel::Update(float frameTime)
 				}
 			}
 
-			m_jitterOffset += (offset - m_jitterOffset) * approxOneExp(frameTime * 30.f);
+			m_jitterOffset += (offset - m_jitterOffset) * approxOneExp(frameTime.BADGetSeconds() * 30);
 
 			// Get the steering from the physics and add a small amount of filtering
 			pe_status_vehicle psv;
 			IPhysicalEntity* pPhysics = m_pVehicle->GetEntity()->GetPhysics();
 			if (pPhysics && pPhysics->GetStatus(&psv))
-				m_currentSteering += (psv.steer * m_wheelInvRotationMax + m_jitterOffset - m_currentSteering) * approxOneExp(frameTime * 30.f);
+				m_currentSteering += (psv.steer * m_wheelInvRotationMax + m_jitterOffset - m_currentSteering) * approxOneExp(frameTime.BADGetSeconds()* 30);
 
 			float animationTime = clamp_tpl(m_currentSteering * 0.5f + 0.5f, 0.f, 1.f);
 			pActionController->SetParam("steeringTime", animationTime);
@@ -226,8 +226,8 @@ void CVehicleSeatActionSteeringWheel::Update(float frameTime)
 		}
 		else if (params->steeringClass == eSC_Generic)
 		{
-			m_steeringValues -= m_steeringValues * params->steeringRelaxMult * frameTime;
-			m_steeringValues += m_steeringActions * params->steeringForce * frameTime;
+			m_steeringValues -= m_steeringValues * params->steeringRelaxMult * frameTime.BADGetSeconds();
+			m_steeringValues += m_steeringActions * params->steeringForce * frameTime.BADGetSeconds();
 
 			m_steeringValues.y = min(1.0f, max(-1.0f, m_steeringValues.y));
 

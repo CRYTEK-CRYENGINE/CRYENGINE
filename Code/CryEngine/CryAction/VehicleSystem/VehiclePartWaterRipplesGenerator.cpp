@@ -54,7 +54,7 @@ void CVehiclePartWaterRipplesGenerator::PostInit()
 	}
 }
 
-void CVehiclePartWaterRipplesGenerator::Update(const float frameTime)
+void CVehiclePartWaterRipplesGenerator::Update(const CTimeValue& frameTime)
 {
 	//IVehicleMovement* pMovement = m_pVehicle->GetMovement();
 	const SVehicleStatus& status = m_pVehicle->GetStatus();

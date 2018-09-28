@@ -34,7 +34,7 @@ public:
 	bool          IsPotentiallyFatal();
 
 	void          OnDamageEvent(EVehicleDamageBehaviorEvent event, const SVehicleDamageBehaviorEventParams& behaviorParams);
-	void          Update(float frameTime);
+	void          Update(const CTimeValue& frameTime);
 
 	void          GetMemoryUsage(ICrySizer* pSizer) const;
 
@@ -48,14 +48,14 @@ protected:
 		TDamagesSubGroupId           id;
 		float                        m_randomness;
 		TVehicleDamageBehaviorVector m_damageBehaviors;
-		float                        m_delay;
+		CTimeValue                   m_delay;
 		bool                         m_isAlreadyInProcess;
 
 		SDamagesSubGroup()
 		{
 			id = ~0;
 			m_randomness = 0.f;
-			m_delay = 0.f;
+			m_delay.SetSeconds(0);
 			m_isAlreadyInProcess = false;
 		}
 		void GetMemoryUsage(ICrySizer* pSizer) const {}
@@ -73,7 +73,7 @@ protected:
 
 	struct SDelayedDamagesSubGroupInfo
 	{
-		float                             delay;
+		CTimeValue                        delay;
 		TDamagesSubGroupId                subGroupId;
 		SVehicleDamageBehaviorEventParams behaviorParams;
 	};

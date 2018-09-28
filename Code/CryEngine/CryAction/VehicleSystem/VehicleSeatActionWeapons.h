@@ -39,7 +39,7 @@ struct SVehicleWeapon
 	EntityId             weaponEntityId;
 	IVehiclePart*        pPart;
 	bool                 inheritVelocity;
-	float                m_respawnTime;
+	CTimeValue           m_respawnTime;
 
 	TagID                contextID;
 
@@ -53,7 +53,7 @@ struct SVehicleWeapon
 		weaponEntityId = 0;
 		pPart = 0;
 		inheritVelocity = true;
-		m_respawnTime = 0.f;
+		m_respawnTime.SetSeconds(0);
 		networkChildId = 0;
 		networkParentId = 0;
 		contextID = TAG_ID_INVALID;
@@ -100,8 +100,8 @@ public:
 
 	virtual void Serialize(TSerialize ser, EEntityAspects aspects) override;
 	virtual void PostSerialize() override;
-	virtual void Update(const float deltaTime) override;
-	virtual void UpdateFromPassenger(const float frameTime, EntityId playerId) override;
+	virtual void Update(const CTimeValue&deltaTime) override;
+	virtual void UpdateFromPassenger(const CTimeValue& frameTime, EntityId playerId) override;
 
 	virtual void GetMemoryUsage(ICrySizer* s) const override;
 	// ~IVehicleSeatAction
@@ -188,7 +188,7 @@ protected:
 
 	int          GetSkipEntities(IPhysicalEntity** pSkipEnts, int nMaxSkip);
 
-	void         DoUpdate(const float deltaTime);
+	void         DoUpdate(const CTimeValue& deltaTime);
 
 	virtual void UpdateWeaponTM(SVehicleWeapon& weapon);
 	IEntity*     GetEntity(const SVehicleWeapon& weapon);
@@ -211,9 +211,9 @@ protected:
 	int                  m_lastActionActivationMode;
 	int                  m_weaponIndex;
 
-	float                m_shotDelay;
-	float                m_nextShotTimer;
-	float                m_respawnTimer;
+	CTimeValue           m_shotDelay;
+	CTimeValue           m_nextShotTimer;
+	CTimeValue           m_respawnTimer;
 
 	EAttackInput         m_attackInput;
 

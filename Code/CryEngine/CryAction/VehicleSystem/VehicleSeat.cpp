@@ -1096,7 +1096,7 @@ bool CVehicleSeat::StandUp()
 	{
 		CPersistantDebug* pDB = CCryAction::GetCryAction()->GetPersistantDebug();
 		pDB->Begin("Seat", false);
-		pDB->AddDirection(passengerTM.GetTranslation() + Vec3(0, 0, 0.5f), 0.25f, passengerTM.GetColumn(1), ColorF(1, 1, 0, 1), 5.f);
+		pDB->AddDirection(passengerTM.GetTranslation() + Vec3(0, 0, 0.5f), 0.25f, passengerTM.GetColumn(1), ColorF(1, 1, 0, 1), 5);
 	}
 #endif
 
@@ -1471,7 +1471,7 @@ void CVehicleSeat::OnAction(const TVehicleActionId actionId, int activationMode,
 }
 
 //------------------------------------------------------------------------
-void CVehicleSeat::Update(float deltaTime)
+void CVehicleSeat::Update(const CTimeValue& deltaTime)
 {
 	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
@@ -1580,7 +1580,7 @@ void CVehicleSeat::Update(float deltaTime)
 	}
 }
 
-void CVehicleSeat::UpdateRemote(IActor* pActor, float deltaTime)
+void CVehicleSeat::UpdateRemote(IActor* pActor, const CTimeValue& deltaTime)
 {
 	CVehicleSeat* pSeat = GetSeatUsedRemotely(true);
 	if (!pSeat)
@@ -1813,7 +1813,7 @@ void CVehicleSeat::UpdateView(SViewParams& viewParams)
 }
 
 //------------------------------------------------------------------------
-void CVehicleSeat::UpdateSounds(float deltaTime)
+void CVehicleSeat::UpdateSounds(const CTimeValue& deltaTime)
 {
 	if (!(m_transitionType != eVT_RemoteUsage && IsPassengerClientActor()))
 		return;
@@ -2946,7 +2946,7 @@ const IVehicleSeatAction* CVehicleSeat::GetISeatActionWeapons() const
 }
 
 //------------------------------------------------------------------------
-void CVehicleSeat::PrePhysUpdate(const float dt)
+void CVehicleSeat::PrePhysUpdate(const CTimeValue& dt)
 {
 	for (TVehicleSeatActionVector::iterator it = m_seatActions.begin(); it != m_seatActions.end(); ++it)
 	{

@@ -120,7 +120,7 @@ public:
 
 	virtual Matrix34       GetLocalInitialTM() override { return GetLocalTM(true); }
 
-	virtual void           Update(const float deltaTime) override;
+	virtual void           Update(const CTimeValue& deltaTime) override;
 	virtual void           Serialize(TSerialize ser, EEntityAspects aspects) override;
 	virtual void           PostSerialize() override                                         {}
 
@@ -240,8 +240,8 @@ protected:
 
 	float              m_damageRatio;
 
-	float              m_hideTimeMax;
-	float              m_hideTimeCount;
+	CTimeValue         m_hideTimeMax;
+	CTimeValue         m_hideTimeCount;
 	int                m_index;
 
 	friend class CVehiclePartSubPart;

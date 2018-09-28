@@ -34,7 +34,7 @@ public:
 
 	virtual void Physicalize() override {}
 
-	virtual void Update(const float frameTime) override;
+	virtual void Update(const CTimeValue& frameTime) override;
 
 	virtual void Serialize(TSerialize serialize, EEntityAspects) override;
 	virtual void RegisterSerializer(IGameObjectExtension* gameObjectExt) override {}
@@ -53,7 +53,7 @@ public:
 
 protected:
 
-	virtual void UpdateLight(const float frameTime);
+	virtual void UpdateLight(const CTimeValue& frameTime);
 
 	string                          m_lightType;
 	SRenderLight                         m_light;

@@ -30,7 +30,7 @@ public:
 	{
 		SParams()
 			: effectId(InvalidEffectId)
-			, delay(0.0f)
+			, delay(0)
 		{
 
 		}
@@ -39,7 +39,7 @@ public:
 		TMFXNameId   name;            // only top level effects have valid effect name
 		TMFXEffectId effectId;        // only top level effects have valid ids!
 
-		float        delay;
+		CTimeValue   delay;
 	};
 
 public:

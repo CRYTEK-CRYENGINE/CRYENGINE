@@ -31,7 +31,7 @@ struct ICooperativeAnimationManager
 	virtual ~ICooperativeAnimationManager(){}
 	// update function for every frame
 	// dt is the time passed since last frame
-	virtual void Update(float dt) = 0;
+	virtual void Update(const CTimeValue& dt) = 0;
 
 	virtual void Reset() = 0;
 
@@ -76,7 +76,7 @@ enum EAlignmentRef
 
 // Default values
 const float animParamDefaultDistanceForSliding = 0.4f;
-const float animParamDefaultSlidingDuration    = 0.15f;          // this should ideally be the same value that is set in the AG for transition time
+const CTimeValue animParamDefaultSlidingDuration = CTimeValue("0.15");          // this should ideally be the same value that is set in the AG for transition time
 const EAlignmentRef animParamDefaultAlignment  = eAF_WildMatch;
 const QuatT animParamDefaultLoc                = QuatT(IDENTITY);
 // END Default Values
@@ -89,11 +89,11 @@ class SCharacterParams
 public:
 	IAnimatedCharacter* GetActor() const;
 	bool                IsActorValid() const;
-	void                SetStartDelay(float delay)             { fStartDelay = delay; }
+	void                SetStartDelay(const CTimeValue& delay) { fStartDelay = delay; }
 	void                SetAllowHorizontalPhysics(bool bAllow) { bAllowHorizontalPhysics = bAllow; }
 	QuatT               GetTargetQuatT()                       { return qTarget; }
 
-	SCharacterParams(IAnimatedCharacter* actor, const char* signalName, bool allowHPhysics = false, float slidingDuration = animParamDefaultSlidingDuration) : deltaLocatorMovement(IDENTITY),
+	SCharacterParams(IAnimatedCharacter* actor, const char* signalName, bool allowHPhysics = false, const CTimeValue& slidingDuration = animParamDefaultSlidingDuration) : deltaLocatorMovement(IDENTITY),
 		collisionsDisabledWithFirstActor(0), animationState(AS_Unrequested), animFilepathCRC(0)
 	{
 		CRY_ASSERT_MESSAGE(actor != NULL, "Invalid parameter. The actor here may not be NULL");
@@ -101,16 +101,16 @@ public:
 		CRY_ASSERT_MESSAGE(signalName != NULL, "Invalid parameter. The signal name cannot be NULL");
 		CRY_ASSERT_MESSAGE(strcmp(signalName, "") != 0, "Invalid parameter. The signal name cannot be empty");
 
-		CRY_ASSERT_MESSAGE(slidingDuration > 0.0f, "Invalid parameter. The sliding duration cannot be <= 0.0f");
+		CRY_ASSERT_MESSAGE(slidingDuration > 0, "Invalid parameter. The sliding duration cannot be <= 0.0f");
 
 		bAnimationPlaying = false;
 		bAllowHorizontalPhysics = allowHPhysics;
 		entityId = actor->GetEntityId();
 		pActor = actor;
-		fSlidingDuration = (slidingDuration > 0.0f) ? slidingDuration : animParamDefaultSlidingDuration;
-		fSlidingTimer = 0.0f;
-		fStartDelay = 0.0f;
-		fStartDelayTimer = 0.0f;
+		fSlidingDuration = (slidingDuration > 0) ? slidingDuration : animParamDefaultSlidingDuration;
+		fSlidingTimer.SetSeconds(0);
+		fStartDelay.SetSeconds(0);
+		fStartDelayTimer.SetSeconds(0);
 
 		qTarget = QuatT(Vec3(ZERO), IDENTITY);
 		qSlideOffset = QuatT(Vec3(ZERO), IDENTITY);
@@ -136,21 +136,21 @@ private:
 	EntityId entityId;
 
 	// time (in secs) this character has to slide into position while animation is already playing
-	float fSlidingDuration;
+	CTimeValue fSlidingDuration;
 
 	//! timer for when the character is moved over time (internal use in the CCooperativeAnim only)
 	// Note: This a bit more complicated way of sliding is necessary to allow the character to move away
 	// within the animation while still sliding, otherwise it locators have to be fixed in the animation
 	// during the sliding duration and that constricts animators and is generally error-prone.
-	float fSlidingTimer;
+	CTimeValue fSlidingTimer;
 
 	// time (in secs) to delay starting this character's sliding and animation
 	// Generally not needed, but useful for e.g. melee hit reactions, to start the animation of the character
 	// being hit later than the one hitting
-	float fStartDelay;
+	CTimeValue fStartDelay;
 
 	//! timer for when the character animation should be started (internal use in the CCooperativeAnim only)
-	float fStartDelayTimer;
+	CTimeValue fStartDelayTimer;
 
 	// name of the signal to the animation graph
 	string sSignalName;

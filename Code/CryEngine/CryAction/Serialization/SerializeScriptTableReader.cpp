@@ -46,7 +46,7 @@ void CSerializeScriptTableReaderImpl::Value(const char* name, EntityId& value)
 
 void CSerializeScriptTableReaderImpl::Value(const char* name, CTimeValue& value)
 {
-	NumValue<float>(name, value);
+	NumValue<CTimeValue>(name, value);
 }
 
 void CSerializeScriptTableReaderImpl::Value(const char* name, Vec2& value)

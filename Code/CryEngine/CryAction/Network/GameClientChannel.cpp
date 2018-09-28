@@ -46,13 +46,13 @@ void CClientClock::StartSync()
 	m_syncState = eSS_Pinging;
 	m_pings = 0;
 
-	SendSyncPing(0, gEnv->pTimer->GetAsyncTime());
+	SendSyncPing(0, GetGTimer()->GetAsyncTime());
 }
 
 bool CClientClock::OnSyncTimeMessage(const SSyncTimeClient& messageParams)
 {
 	// Calculate the ping time
-	CTimeValue currentTime = gEnv->pTimer->GetAsyncTime();
+	CTimeValue currentTime = GetGTimer()->GetAsyncTime();
 	const CTimeValue roundTripTime = currentTime - messageParams.originTime;
 	CTimeValue halfRoundTripTime = roundTripTime;
 	halfRoundTripTime /= 2;
@@ -105,16 +105,16 @@ bool CClientClock::OnSyncTimeMessage(const SSyncTimeClient& messageParams)
 	}
 	m_serverTimeOffset = averageOffset;
 
-	currentTime = gEnv->pTimer->GetAsyncTime();
+	currentTime = GetGTimer()->GetAsyncTime();
 	const CTimeValue serverTimeEstimate = currentTime + m_serverTimeOffset;
 	SendSyncPing(messageParams.id + 1, currentTime, serverTimeEstimate);
 
 	return true;
 }
 
-void CClientClock::SendSyncPing(const int id, const CTimeValue currentTime, const CTimeValue serverTime /*= CTimeValue()*/)
+void CClientClock::SendSyncPing(const int id, const CTimeValue& currentTime, const CTimeValue& serverTime /*= CTimeValue()*/)
 {
-	INetSendablePtr msg = new CSimpleNetMessage<SSyncTimeServer>(SSyncTimeServer(id, currentTime.GetValue(), serverTime.GetValue()), CGameServerChannel::SyncTimeServer);
+	INetSendablePtr msg = new CSimpleNetMessage<SSyncTimeServer>(SSyncTimeServer(id, currentTime, serverTime), CGameServerChannel::SyncTimeServer);
 	m_clientChannel.GetNetChannel()->AddSendable(msg, 0, NULL, NULL);
 }
 

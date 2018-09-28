@@ -89,7 +89,7 @@ public:
 	virtual void                             UnregisterVehicleUsageEventListener(const EntityId playerId, IVehicleUsageEventListener* pEventListener);
 	virtual void                             BroadcastVehicleUsageEvent(const EVehicleEvent eventId, const EntityId playerId, IVehicle* pVehicle);
 
-	virtual void                             Update(float deltaTime);
+	virtual void                             Update(const CTimeValue& deltaTime);
 	// ~IVehicleSystem
 
 	void                SetInitializingSeat(CVehicleSeat* pSeat) { m_pInitializingSeat = pSeat; };
@@ -115,7 +115,7 @@ public:
 	void                ReloadSystem();
 
 	bool                OnStartUse(const EntityId playerId, IVehicle* pVehicle);
-	void                OnPrePhysicsTimeStep(float deltaTime);
+	void                OnPrePhysicsTimeStep(const CTimeValue& deltaTime);
 
 	CryCriticalSection& GetCurrentVehicleLock()     { return m_currentVehicleLock; }
 	volatile IVehicle*  GetCurrentClientVehicle()   { return m_pCurrentClientVehicle; }

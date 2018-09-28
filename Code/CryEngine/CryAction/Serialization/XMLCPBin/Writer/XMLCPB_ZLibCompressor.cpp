@@ -25,7 +25,7 @@ public:
 		, m_bClosed(false)
 		, m_event(event)
 	{
-		m_startingTime = gEnv->pTimer->GetAsyncTime().GetMilliSeconds();
+		m_startingTime = GetGTimer()->GetAsyncTime();
 
 #ifdef XMLCPB_CHECK_FILE_INTEGRITY
 		m_pICompressor = GetISystem()->GetIZLibCompressor();
@@ -69,10 +69,10 @@ public:
 
 		m_pPlatformOSSaveWriter->Close();
 
-		float finalTime = gEnv->pTimer->GetAsyncTime().GetMilliSeconds();
+		CTimeValue finalTime = GetGTimer()->GetAsyncTime();
 
 		CryLog("[SAVE GAME] Binary saveload: After writing, result: %s   filesize/uncompressed: %u/%u (%u kb / %u kb)   generation time: %d ms ",
-		       (m_pCompressor->m_errorWritingIntoFile) ? "FAIL" : "SUCCESS", m_bytesWrittenIntoFile, m_bytesWrittenIntoFileUncompressed, m_bytesWrittenIntoFile / 1024, m_bytesWrittenIntoFileUncompressed / 1024, int(finalTime - m_startingTime));
+		       (m_pCompressor->m_errorWritingIntoFile) ? "FAIL" : "SUCCESS", m_bytesWrittenIntoFile, m_bytesWrittenIntoFileUncompressed, m_bytesWrittenIntoFile / 1024, m_bytesWrittenIntoFileUncompressed / 1024, (int)(finalTime - m_startingTime).GetMilliSeconds());
 	}
 
 	bool Write(void* pSrc, uint32 numBytes)
@@ -116,7 +116,7 @@ private:
 	CryMT::CLocklessPointerQueue<SZLibBlock> m_blocks;
 	uint32 m_bytesWrittenIntoFile;                                    // used for statistics only
 	uint32 m_bytesWrittenIntoFileUncompressed;                        // used for statistics only
-	float  m_startingTime;
+	CTimeValue  m_startingTime;
 	bool   m_bClosed;
 };
 
@@ -154,7 +154,7 @@ public:
 				{
 					if (pFile->m_blocks.empty())
 					{
-						CrySleep(1); // yield to give other threads a chance to do some work
+						CryLowLatencySleep("0.001"); // yield to give other threads a chance to do some work
 					}
 
 					while (!pFile->m_blocks.empty())

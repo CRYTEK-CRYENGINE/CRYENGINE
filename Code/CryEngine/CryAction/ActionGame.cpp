@@ -53,12 +53,12 @@ int CActionGame::g_no_breaking_by_objects = 0;
 int CActionGame::g_breakage_mem_limit = 0;
 int CActionGame::g_breakage_debug = 0;
 int CActionGame::s_waterMaterialId = -1;
-float g_breakageFadeTime = 0.f;
-float g_breakageFadeDelay = 0.f;
+CTimeValue g_breakageFadeTime = CTimeValue(0);
+CTimeValue g_breakageFadeDelay = CTimeValue(0);
 float g_breakageMinAxisInertia = 0.01f;
 int g_breakageNoDebrisCollisions = 0;
-float g_glassForceTimeout = 0.f;
-float g_glassForceTimeoutSpread = 0.f;
+CTimeValue g_glassForceTimeout = CTimeValue(0);
+CTimeValue g_glassForceTimeoutSpread = CTimeValue(0);
 int g_glassNoDecals = 0;
 int g_glassAutoShatter = 0;
 int g_glassAutoShatterOnExplosions = 0;
@@ -92,7 +92,7 @@ int g_waterHitOnly = 0;
 #endif
 
 #ifndef _RELEASE
-float CActionGame::g_hostMigrationServerDelay = 0.f;
+CTimeValue CActionGame::g_hostMigrationServerDelay = CTimeValue(0);
 #endif
 
 #define MAX_ADDRESS_SIZE (256)
@@ -113,16 +113,16 @@ void CActionGame::RegisterCVars()
 	               "Turns on debug rendering for broken objects counted against g_breakage_mem_limit");
 
 #ifndef _RELEASE
-	REGISTER_CVAR2("g_hostMigrationServerDelay", &g_hostMigrationServerDelay, 0.f, 0, "Delay in host migration before promoting to server (seconds)");
+	REGISTER_CVAR2("g_hostMigrationServerDelay", &g_hostMigrationServerDelay, CTimeValue(0), 0, "Delay in host migration before promoting to server (seconds)");
 #endif
 
-	REGISTER_CVAR2("g_breakageFadeDelay", &g_breakageFadeDelay, 6.f, 0, "");
-	REGISTER_CVAR2("g_breakageFadeTime", &g_breakageFadeTime, 6.f, 0, "");
+	REGISTER_CVAR2("g_breakageFadeDelay", &g_breakageFadeDelay, CTimeValue(6), 0, "");
+	REGISTER_CVAR2("g_breakageFadeTime", &g_breakageFadeTime, CTimeValue(6), 0, "");
 	REGISTER_CVAR2("g_breakageMinAxisInertia", &g_breakageMinAxisInertia, 0.01f, 0, "Set this to 1.0 to force broken trees to have spherical inertia");
 	REGISTER_CVAR2("g_breakageNoDebrisCollisions", &g_breakageNoDebrisCollisions, 0, 0, "Turns off all collisions for debris, apart from coltype_solid");
 
-	REGISTER_CVAR2("g_glassForceTimeout", &g_glassForceTimeout, 0.f, 0, "Make all glass break after a given time, overrides art settings");
-	REGISTER_CVAR2("g_glassForceTimeoutSpread", &g_glassForceTimeoutSpread, 0.f, 0, "Add a random amount to forced glass shattering");
+	REGISTER_CVAR2("g_glassForceTimeout", &g_glassForceTimeout, CTimeValue(0), 0, "Make all glass break after a given time, overrides art settings");
+	REGISTER_CVAR2("g_glassForceTimeoutSpread", &g_glassForceTimeoutSpread, CTimeValue(0), 0, "Add a random amount to forced glass shattering");
 	REGISTER_CVAR2("g_glassNoDecals", &g_glassNoDecals, 0, 0, "Turns off glass decals");
 	REGISTER_CVAR2("g_glassAutoShatter", &g_glassAutoShatter, 0, 0, "Always smash the whole pane, and spawn fracture effect");
 	REGISTER_CVAR2("g_glassAutoShatterOnExplosions", &g_glassAutoShatterOnExplosions, 0, 0, "Just smash the whole pane, and spawn fracture effect for explosions");
@@ -145,11 +145,11 @@ void CActionGame::RegisterCVars()
 class CAdjustLocalConnectionPacketRate
 {
 public:
-	CAdjustLocalConnectionPacketRate(float rate, float inactivityTimeout)
+	CAdjustLocalConnectionPacketRate(float rate, const CTimeValue& inactivityTimeout)
 	{
 		m_old = -1.f;
-		m_oldInactivityTimeout = -1.f;
-		m_oldInactivityTimeoutDev = -1.f;
+		m_oldInactivityTimeout.SetSeconds(-1);
+		m_oldInactivityTimeoutDev.SetSeconds(-1);
 
 		if (ICVar* pVar = gEnv->pConsole->GetCVar("g_localPacketRate"))
 		{
@@ -159,13 +159,13 @@ public:
 
 		if (ICVar* pVar = gEnv->pConsole->GetCVar("net_inactivitytimeout"))
 		{
-			m_oldInactivityTimeout = pVar->GetFVal();
+			m_oldInactivityTimeout = pVar->GetTime();
 			pVar->Set(inactivityTimeout);
 		}
 
 		if (ICVar* pVar = gEnv->pConsole->GetCVar("net_inactivitytimeoutDevmode"))
 		{
-			m_oldInactivityTimeoutDev = pVar->GetFVal();
+			m_oldInactivityTimeoutDev = pVar->GetTime();
 			pVar->Set(inactivityTimeout);
 		}
 	}
@@ -199,8 +199,8 @@ public:
 
 private:
 	float m_old;
-	float m_oldInactivityTimeout;
-	float m_oldInactivityTimeoutDev;
+	CTimeValue m_oldInactivityTimeout;
+	CTimeValue m_oldInactivityTimeoutDev;
 };
 
 CActionGame::CActionGame(CScriptRMI* pScriptRMI)
@@ -218,7 +218,7 @@ CActionGame::CActionGame(CScriptRMI* pScriptRMI)
 	, m_pCHSlotPool(0)
 	, m_lastDynPoolSize(0)
 #ifndef _RELEASE
-	, m_timeToPromoteToServer(0.f)
+	, m_timeToPromoteToServer(0)
 #endif
 	, m_initState(eIS_Uninited)
 	, m_pendingPlaneBreaks(10)
@@ -438,7 +438,7 @@ bool CActionGame::Init(const SGameStartParams* pGameStartParams)
 
 	// initialize client server infrastructure
 
-	CAdjustLocalConnectionPacketRate adjustLocalPacketRate(50.0f, 30.0f);
+	CAdjustLocalConnectionPacketRate adjustLocalPacketRate(50.0f, 30);
 
 	uint32 ctxFlags = 0;
 	if ((pGameStartParams->flags & eGSF_Server) == 0 || (pGameStartParams->flags & eGSF_LocalOnly) == 0)
@@ -595,7 +595,7 @@ bool CActionGame::Init(const SGameStartParams* pGameStartParams)
 		m_pEntHits0[i].nHits = 0;
 		m_pEntHits0[i].nHitsAlloc = 1;
 		m_pEntHits0[i].pnext = m_pEntHits0 + i + 1;
-		m_pEntHits0[i].timeUsed = m_pEntHits0[i].lifeTime = 0;
+		m_pEntHits0[i].timeUsed = m_pEntHits0[i].lifeTime.SetSeconds(0);
 	}
 	m_pEntHits0[i - 1].pnext = 0;
 	m_totBreakageSize = 0;
@@ -870,18 +870,18 @@ void CActionGame::UpdateImmersiveness()
 			ITimeOfDay::SAdvancedInfo advancedInfo;
 			gEnv->p3DEngine->GetTimeOfDay()->GetAdvancedInfo(advancedInfo);
 
-			advancedInfo.fAnimSpeed = 0.0f;
+			advancedInfo.fAnimSpeed = 0;
 			if (pTOD && pTOD->GetIVal())
 			{
-				advancedInfo.fStartTime = pStart ? pStart->GetFVal() : 0.0f;
-				advancedInfo.fEndTime = 24.0f;
+				advancedInfo.fStartTime = pStart ? pStart->GetTime() : 0;
+				advancedInfo.fEndTime.SetSeconds(24); // NOTE: 'seconds' here are 'hours' for time of day.
 				if (pLength)
 				{
-					float lengthInHours = pLength->GetFVal();
-					if (lengthInHours > 0.01f)
+					CTimeValue lengthInHours = pLength->GetTime();
+					if (lengthInHours > "0.01")
 					{
-						lengthInHours = CLAMP(pLength->GetFVal(), 0.2f, 24.0f);
-						advancedInfo.fAnimSpeed = 1.0f / lengthInHours / 150.0f;
+						lengthInHours = CLAMP(lengthInHours, "0.2", 24);
+						advancedInfo.fAnimSpeed = (1 / lengthInHours / 150).conv<mpfloat>();
 					}
 					advancedInfo.fEndTime = advancedInfo.fStartTime + lengthInHours;
 				}
@@ -891,9 +891,9 @@ void CActionGame::UpdateImmersiveness()
 	}
 
 	if (immMP && !m_pGameContext->HasContextFlag(eGSF_Server))
-		gEnv->p3DEngine->GetTimeOfDay()->SetTimer(CServerTimer::Get());
+		SetGTimer(CServerTimer::Get(), GTimers::TOD);
 	else
-		gEnv->p3DEngine->GetTimeOfDay()->SetTimer(gEnv->pTimer);
+		SetGTimer(GetGTimer(), GTimers::TOD);
 }
 
 void CActionGame::InitImmersiveness()
@@ -919,7 +919,7 @@ void CActionGame::InitImmersiveness()
 
 bool CActionGame::BlockingSpawnPlayer()
 {
-	CAdjustLocalConnectionPacketRate adjuster(50.0f, 30.0f);
+	CAdjustLocalConnectionPacketRate adjuster(50.0f, 30);
 
 	assert(gEnv->IsEditor());
 
@@ -990,7 +990,7 @@ bool CActionGame::BlockingConnect(BlockingConditionFunction condition, bool requ
 
 	bool ok = false;
 
-	ITimer* pTimer = gEnv->pTimer;
+	ITimer* pTimer = GetGTimer();
 	CTimeValue startTime = pTimer->GetAsyncTime();
 
 	while (!ok)
@@ -998,7 +998,7 @@ bool CActionGame::BlockingConnect(BlockingConditionFunction condition, bool requ
 		m_pNetwork->SyncWithGame(eNGS_FrameStart);
 		m_pNetwork->SyncWithGame(eNGS_FrameEnd);
 		m_pNetwork->SyncWithGame(eNGS_WakeNetwork);
-		gEnv->pTimer->UpdateOnFrameStart();
+		GetGTimer()->UpdateOnFrameStart();
 		CGameClientChannel* pChannel = NULL;
 		if (requireClientChannel)
 		{
@@ -1025,18 +1025,18 @@ bool CActionGame::BlockingConnect(BlockingConditionFunction condition, bool requ
 
 	if (ok && gEnv && !gEnv->IsEditor())
 	{
-		float numSecondsTaken = (pTimer->GetAsyncTime() - startTime).GetSeconds();
+		mpfloat numSecondsTaken = (pTimer->GetAsyncTime() - startTime).GetSeconds();
 
-		if (numSecondsTaken > 2.0f)
+		if (numSecondsTaken > 2)
 		{
-			GameWarning("BlockingConnect: It's taken %.2f seconds to achieve condition '%s' - either you're on slow connection, or you're doing something intensive", numSecondsTaken, conditionText);
+			GameWarning("BlockingConnect: It's taken %.2f seconds to achieve condition '%s' - either you're on slow connection, or you're doing something intensive", (float)numSecondsTaken, conditionText);
 		}
 	}
 
 	if (ok == false)
 	{
-		float numSecondsTaken = (pTimer->GetAsyncTime() - startTime).GetSeconds();
-		CryLog("BlockingConnect: Failed to achieve condition '%s' (tried for %.2f seconds)", conditionText, numSecondsTaken);
+		mpfloat numSecondsTaken = (pTimer->GetAsyncTime() - startTime).GetSeconds();
+		CryLog("BlockingConnect: Failed to achieve condition '%s' (tried for %.2f seconds)", conditionText, (float)numSecondsTaken);
 	}
 
 	return ok;
@@ -1077,7 +1077,7 @@ bool CActionGame::Update()
 {
 	if (m_initState == eIS_InitDone)
 	{
-		const float deltaTime = gEnv->pTimer->GetFrameTime();
+		const CTimeValue deltaTime = GetGTimer()->GetFrameTime();
 		_smart_ptr<CActionGame> pThis(this);
 
 		IGameRulesSystem* pgrs;
@@ -1215,35 +1215,35 @@ void CActionGame::OnBreakageSpawnedEntity(IEntity* pEntity, IPhysicalEntity* pPh
 	{
 		DynArray<SEntityFadeState>::iterator it = m_fadeEntities.push_back();
 		it->entId = pEntity->GetId();
-		it->time = 0.f;
+		it->time.SetSeconds(0);
 		it->bCollisions = 1;
 	}
 }
 
-void CActionGame::UpdateFadeEntities(float dt)
+void CActionGame::UpdateFadeEntities(const CTimeValue& dt)
 {
 	if (const int N = m_fadeEntities.size())
 	{
 		int n = 0;
 		SEntityFadeState* p = &m_fadeEntities[0];
-		const float inv = 1.f / (g_breakageFadeTime + 0.01f);
+		const rTime inv = 1 / (g_breakageFadeTime + "0.01");
 		for (int i = 0; i < N; i++)
 		{
 			SEntityFadeState* state = &m_fadeEntities[i];
 			if (IEntity* pEntity = gEnv->pEntitySystem->GetEntity(state->entId))
 			{
 				{
-					const float newTime = state->time + dt;
-					const float t = newTime - g_breakageFadeDelay;
+					const CTimeValue newTime = state->time + dt;
+					const CTimeValue t = newTime - g_breakageFadeDelay;
 					IPhysicalEntity* pent = pEntity->GetPhysics();
 					if (t >= g_breakageFadeTime)
 					{
 						FreeBrokenMeshesForEntity(pent);
 						continue;
 					}
-					if (t > 0.f)
+					if (t > 0)
 					{
-						float opacity = 1.f - t * inv;
+						float opacity = 1.f - BADF(t * inv);
 						pEntity->SetOpacity(opacity);
 						if (pent && state->bCollisions)
 						{
@@ -1305,7 +1305,7 @@ IHostMigrationEventListener::EHostMigrationReturn CActionGame::OnInitiate(SHostM
 	if (gEnv->pInput)
 	{
 		//disable rumble
-		gEnv->pInput->ForceFeedbackEvent(SFFOutputEvent(eIDT_Gamepad, eFF_Rumble_Basic, SFFTriggerOutputData::Initial::ZeroIt, 0.0f, 0.0f, 0.0f));
+		gEnv->pInput->ForceFeedbackEvent(SFFOutputEvent(eIDT_Gamepad, eFF_Rumble_Basic, SFFTriggerOutputData::Initial::ZeroIt, 0, 0.0f, 0.0f));
 	}
 	IForceFeedbackSystem* pForceFeedbackSystem = gEnv->pGameFramework->GetIForceFeedbackSystem();
 	if (pForceFeedbackSystem)
@@ -1450,18 +1450,17 @@ IHostMigrationEventListener::EHostMigrationReturn CActionGame::OnPromoteToServer
 
 	// Pause to allow the feature tester to run host migration tests on a single pc, must be after bServer is set so that other OnPromoteToServer listeners work
 #ifndef _RELEASE
-	if (g_hostMigrationServerDelay > 0.f)
+	if (g_hostMigrationServerDelay > 0)
 	{
-		const CTimeValue currentTime = gEnv->pTimer->GetAsyncTime();
-		const float currentTimeInSeconds = currentTime.GetSeconds();
+		const CTimeValue currentTime = GetGTimer()->GetAsyncTime();
 
-		if (m_timeToPromoteToServer == 0.f)
+		if (m_timeToPromoteToServer == 0)
 		{
-			m_timeToPromoteToServer = currentTimeInSeconds + g_hostMigrationServerDelay;
+			m_timeToPromoteToServer = currentTime + g_hostMigrationServerDelay;
 			return IHostMigrationEventListener::Listener_Wait;
 		}
 
-		if (currentTimeInSeconds < m_timeToPromoteToServer)
+		if (currentTime < m_timeToPromoteToServer)
 		{
 			return IHostMigrationEventListener::Listener_Wait;
 		}
@@ -1515,7 +1514,7 @@ IHostMigrationEventListener::EHostMigrationReturn CActionGame::OnPromoteToServer
 
 	CryLogAlways("[Host Migration]: CActionGame::OnPromoteToServer() finished");
 #ifndef _RELEASE
-	m_timeToPromoteToServer = 0.f;
+	m_timeToPromoteToServer.SetSeconds(0);
 #endif
 	return IHostMigrationEventListener::Listener_Done;
 }
@@ -1869,7 +1868,7 @@ bool CActionGame::ProcessHitpoints(const Vec3& pt, IPhysicalEntity* pent, int pa
 	SEntityHits* phits;
 	pe_status_pos sp;
 	std::map<int, SEntityHits*>::iterator iter;
-	float curtime = gEnv->pTimer->GetCurrTime();
+	CTimeValue curtime = GetGTimer()->GetFrameStartTime();
 	sp.partid = partid;
 	if (!pent->GetStatus(&sp))
 		return false;
@@ -1892,7 +1891,7 @@ bool CActionGame::ProcessHitpoints(const Vec3& pt, IPhysicalEntity* pent, int pa
 				phits->pnext[i].nHits = 0;
 				phits->pnext[i].nHitsAlloc = 1;
 				phits->pnext[i].pnext = phits->pnext + i + 1;
-				phits->pnext[i].timeUsed = phits->pnext[i].lifeTime = 0;
+				phits->pnext[i].timeUsed = phits->pnext[i].lifeTime.SetSeconds(0);
 			}
 			phits->pnext[i - 1].pnext = 0;
 			phits = phits->pnext;
@@ -1902,7 +1901,7 @@ bool CActionGame::ProcessHitpoints(const Vec3& pt, IPhysicalEntity* pent, int pa
 		phits->hitpoints = 1;
 		phits->maxdmg = 100;
 		phits->nMaxHits = 64;
-		phits->lifeTime = 10.0f;
+		phits->lifeTime.SetSeconds(10);
 		const ISurfaceType::SPhysicalParams& physParams = pMat->GetPhyscalParams();
 		phits->hitRadius = physParams.hit_radius;
 		phits->hitpoints = (int)physParams.hit_points;
@@ -1989,7 +1988,7 @@ SBreakEvent& CActionGame::RegisterBreakEvent(const EventPhysCollision* pColl, fl
 	be.penetration = pColl->penetration;
 	be.energy = energy;
 	be.radius = pColl->radius;
-	be.time = gEnv->pTimer->GetCurrTime();
+	be.time = GetGTimer()->GetFrameStartTime();
 	be.iBrokenObjectIndex = -1;
 
 	return StoreBreakEvent(be);
@@ -2049,11 +2048,11 @@ void CActionGame::PerformPlaneBreak(const EventPhysCollision& epc, SBreakEvent* 
 		return;
 
 	ISurfaceType::SBreakable2DParams* pb2d = pMat->GetBreakable2DParams();
-	float timeout = 0.0f;
+	CTimeValue timeout;
 	const char* killFX = 0;
 	if (pb2d)
 	{
-		timeout = pb2d->destroy_timeout + pb2d->destroy_timeout_spread * cry_random(-1.0f, 1.0f);
+		timeout = pb2d->destroy_timeout + pb2d->destroy_timeout_spread * cry_random<mpfloat>(-1, 1);
 		killFX = pb2d->full_fracture_fx;
 		if (!pb2d->blast_radius_first && !pb2d->blast_radius)
 			r = 0.0f;
@@ -2061,9 +2060,9 @@ void CActionGame::PerformPlaneBreak(const EventPhysCollision& epc, SBreakEvent* 
 			r = max(r, 100.0f); // make sure larger particles (grenades) shatter 'no-holes' windows
 	}
 
-	if (g_glassForceTimeout != 0.f)
+	if (g_glassForceTimeout != 0)
 	{
-		timeout = g_glassForceTimeout + cry_random(0.0f, 1.0f) * g_glassForceTimeoutSpread;
+		timeout = g_glassForceTimeout + cry_random<mpfloat>(0, 1) * g_glassForceTimeoutSpread;
 	}
 
 	//IEntity* pEntitySrc = epc.pEntity[0] ? (IEntity*)epc.pEntity[0]->GetForeignData(PHYS_FOREIGN_ID_ENTITY) : 0;
@@ -2589,7 +2588,7 @@ ForceObjUpdate:
 			dcl.vPos = epc.pt;
 			dcl.vNormal = epc.n;
 			dcl.vHitDirection = epc.n; // epc.vloc[0].normalized();
-			dcl.fLifeTime = 1e10f;
+			dcl.fLifeTime.SetSeconds(10'000'000'000);
 			dcl.fSize = r * pb2d->crack_decal_scale;
 			dcl.fAngle = cry_random(0.0f, 2.0f * gf_PI);
 			dcl.bSkipOverlappingTest = true;
@@ -2785,7 +2784,7 @@ void CActionGame::OnCollisionLogged_MaterialFX(const EventPhys* pEvent)
 		pech = s_this->m_pFreeCHSlot0->pnext;
 		s_this->m_pFreeCHSlot0->pnext = pech->pnext;
 		pech->pnext = 0;
-		pech->timeRolling = pech->timeNotRolling = pech->rollTimeout = pech->slideTimeout = 0;
+		pech->timeRolling = pech->timeNotRolling = pech->rollTimeout = pech->slideTimeout.SetSeconds(0);
 		pech->velImpact = pech->velSlide2 = pech->velRoll2 = 0;
 		pech->imatImpact[0] = pech->imatImpact[1] = pech->imatSlide[0] = pech->imatSlide[1] = pech->imatRoll[0] = pech->imatRoll[1] = 0;
 		pech->mass = 0;
@@ -2896,7 +2895,7 @@ void CActionGame::OnCollisionLogged_MaterialFX(const EventPhys* pEvent)
 		}
 
 		//Prevent the same FX to be played more than once in mfx_Timeout time interval
-		float fTimeOut = CMaterialEffectsCVars::Get().mfx_Timeout;
+		CTimeValue fTimeOut = CMaterialEffectsCVars::Get().mfx_Timeout;
 		for (int k = 0; k < MAX_CACHED_EFFECTS; k++)
 		{
 			SMFXRunTimeEffectParams& cachedParams = s_this->m_lstCachedEffects[k];
@@ -2904,7 +2903,7 @@ void CActionGame::OnCollisionLogged_MaterialFX(const EventPhys* pEvent)
 			    cachedParams.srcSurfaceId == params.srcSurfaceId && cachedParams.trgSurfaceId == params.trgSurfaceId &&
 			    cachedParams.srcRenderNode == params.srcRenderNode && cachedParams.trgRenderNode == params.trgRenderNode)
 			{
-				if (GetISystem()->GetITimer()->GetCurrTime() - cachedParams.fLastTime <= fTimeOut)
+				if (GetISystem()->GetITimer()->GetFrameStartTime() - cachedParams.fLastTime <= fTimeOut)
 					return; // didnt timeout yet
 			}
 		}
@@ -2919,7 +2918,7 @@ void CActionGame::OnCollisionLogged_MaterialFX(const EventPhys* pEvent)
 		//cachedParams.soundSemantic=params.soundSemantic;
 		cachedParams.srcRenderNode = params.srcRenderNode;
 		cachedParams.trgRenderNode = params.trgRenderNode;
-		cachedParams.fLastTime = GetISystem()->GetITimer()->GetCurrTime();
+		cachedParams.fLastTime = GetISystem()->GetITimer()->GetFrameStartTime();
 
 		if (effectId == InvalidEffectId)
 		{
@@ -3246,27 +3245,27 @@ void CActionGame::OnPostStepLogged_MaterialFX(const EventPhys* pEvent)
 			{
 				if (pech->velRoll2 < 0.1f)
 				{
-					if ((pech->timeNotRolling += pPSEvent->dt) > 0.15f)
-						pech->timeRolling = 0;
+					if ((pech->timeNotRolling += pPSEvent->dt) > "0.15")
+						pech->timeRolling.SetSeconds(0);
 				}
 				else
 				{
 					pech->timeRolling += pPSEvent->dt;
-					pech->timeNotRolling = 0;
+					pech->timeNotRolling.SetSeconds(0);
 				}
-				if (pech->timeRolling < 0.2f)
+				if (pech->timeRolling < "0.2")
 					pech->velRoll2 = 0;
 
 				if (pech->velRoll2 > 0.1f)
 				{
-					pech->rollTimeout = 0.7f;
+					pech->rollTimeout.SetSeconds("0.7");
 					//CryLog("roll %.2f",sqrt_tpl(pech->velRoll2));
 					pech->velRoll2 = 0;
 					velImpactThresh = 3.5f;
 				}
 				else if (pech->velSlide2 > 0.1f)
 				{
-					pech->slideTimeout = 0.5f;
+					pech->slideTimeout.SetSeconds("0.5");
 					//CryLog("slide %.2f",sqrt_tpl(pech->velSlide2));
 					pech->velSlide2 = 0;
 				}
@@ -3275,12 +3274,12 @@ void CActionGame::OnPostStepLogged_MaterialFX(const EventPhys* pEvent)
 					//CryLog("impact %.2f",pech->velImpact);
 					pech->velImpact = 0;
 				}
-				if (inrange(pech->rollTimeout, 0.0f, pPSEvent->dt))
+				if (inrange(pech->rollTimeout, CTimeValue(0), pPSEvent->dt))
 				{
 					pech->velRoll2 = 0;
 					//CryLog("stopped rolling");
 				}
-				if (inrange(pech->slideTimeout, 0.0f, pPSEvent->dt))
+				if (inrange(pech->slideTimeout, CTimeValue(0), pPSEvent->dt))
 				{
 					pech->velSlide2 = 0;
 					//CryLog("stopped sliding");
@@ -3860,9 +3859,9 @@ int CActionGame::FreeBrokenMesh(IPhysicalEntity* pent, SBrokenMeshSize& bm)
 }
 
 void CActionGame::RegisterBrokenMesh(IPhysicalEntity* pPhysEnt, IGeometry* pPhysGeom, int partid, IStatObj* pStatObj, IGeometry* pSkel,
-                                     float timeout, const char* fractureFX)
+                                     const CTimeValue& timeout, const char* fractureFX)
 {
-	if (pPhysEnt && (g_breakage_mem_limit > 0 || timeout > 0.0f))
+	if (pPhysEnt && (g_breakage_mem_limit > 0 || timeout > 0))
 	{
 		CrySizerNaive sizer;
 		if (pPhysGeom)
@@ -4017,7 +4016,7 @@ void CActionGame::AddBroken2DChunkId(int id)
 	s_this->m_broken2dChunkIds.push_back(id);
 }
 
-void CActionGame::UpdateBrokenMeshes(float dt)
+void CActionGame::UpdateBrokenMeshes(const CTimeValue& dt)
 {
 	CDelayedPlaneBreak* pdpb;
 	for (int i = m_pendingPlaneBreaks.size() - 1; i >= 0; i--)
@@ -4029,9 +4028,9 @@ void CActionGame::UpdateBrokenMeshes(float dt)
 		}
 
 	std::map<int, SBrokenMeshSize>::iterator iter, iterNext;
-	if (dt)
+	if (dt != 0)
 		for (iter = m_mapBrokenMeshes.begin(); iter != m_mapBrokenMeshes.end(); iter = iterNext)
-			if (++(iterNext = iter), iter->second.timeout > 0 && (iter->second.timeout -= dt) <= 0.0)
+			if (++(iterNext = iter), iter->second.timeout > 0 && (iter->second.timeout -= dt) <= 0)
 			{
 				iter->second.timeout += dt;
 				FreeBrokenMesh(iter->second.pent, iter->second);
@@ -4378,7 +4377,7 @@ void CActionGame::ApplyBreakToClonedObjectFromEvent(const SRenderNodeCloneLookup
 		{
 			iNodeIndex = a;
 			BreakLogAlways(">>>> Found break for index %d at time: %.6f", a, m_breakEvents[i].time);
-			assert(m_breakEvents[i].time > 0.0f);
+			assert(m_breakEvents[i].time > 0);
 			break;
 		}
 	}
@@ -4697,8 +4696,8 @@ void CActionGame::FixBrokenObjects(bool bRestoreBroken)
 	m_mapEntHits.clear();
 	for (SEntityHits* phits = m_pEntHits0; phits; phits = phits->pnext)
 	{
-		phits->lifeTime = 0;
-		phits->timeUsed = 0;
+		phits->lifeTime.SetSeconds(0);
+		phits->timeUsed.SetSeconds(0);
 		phits->nHits = 0;
 	}
 }
@@ -4838,7 +4837,7 @@ void CActionGame::Serialize(TSerialize ser)
 	if (ser.IsReading())
 	{
 		for (int i = 0; i < MAX_CACHED_EFFECTS; ++i)
-			m_lstCachedEffects[i].fLastTime = 0.0f; //reset timeout
+			m_lstCachedEffects[i].fLastTime.SetSeconds(0); //reset timeout
 	}
 }
 
@@ -5020,7 +5019,7 @@ void CActionGame::OnExplosion(const ExplosionInfo& ei)
 			be.n = ei.dir;
 			be.idmat[0] = -1;
 			be.penetration = ei.hole_size;
-			be.time = gEnv->pTimer->GetCurrTime();
+			be.time = GetGTimer()->GetFrameStartTime();
 			be.iBrokenObjectIndex = -1;
 			m_breakEvents.push_back(be);
 		}

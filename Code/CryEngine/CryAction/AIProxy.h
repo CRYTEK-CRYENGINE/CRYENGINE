@@ -141,7 +141,7 @@ public:
 	virtual bool                      PredictProjectileHit(float vel, Vec3& posOut, Vec3& dirOut, float& speedOut, Vec3* pTrajectoryPositions = 0, unsigned int* trajectorySizeInOut = 0, Vec3* pTrajectoryVelocities = 0);
 	virtual bool                      PredictProjectileHit(const Vec3& throwDir, float vel, Vec3& posOut, float& speedOut, ERequestedGrenadeType prefGrenadeType = eRGT_ANY,
 	                                                       Vec3* pTrajectoryPositions = 0, unsigned int* trajectorySizeInOut = 0, Vec3* pTrajectoryVelocities = 0);
-	virtual void                      GetReadabilityBlockingParams(const char* text, float& time, int& id);
+	virtual void                      GetReadabilityBlockingParams(const char* text, CTimeValue& time, int& id);
 	virtual const char*               GetCurrentBehaviorName() const;
 	virtual const char*               GetPreviousBehaviorName() const;
 	virtual void                      UpdateMeAlways(bool doUpdateMeAlways);
@@ -150,7 +150,7 @@ public:
 	virtual void                      OnActorRemoved();
 	//------------------  ~IAIActorProxy
 
-	void        SetMinFireTime(float fTime) { m_fMinFireTime = fTime; }
+	void        SetMinFireTime(const CTimeValue& fTime) { m_fMinFireTime = fTime; }
 	CAIHandler* GetAIHandler()              { return m_pAIHandler; }
 	void        AddListener(IAIProxyListener* pListener);
 	void        RemoveListener(IAIProxyListener* pListener);
@@ -220,8 +220,8 @@ protected:
 	int8        m_forcedExecute;
 
 	// weapon/shooting related
-	float m_fMinFireTime;     //forces a minimum time for fire trigger to stay on
-	bool  m_WeaponShotIsDone; //if weapon did shot during last update
+	CTimeValue m_fMinFireTime; //forces a minimum time for fire trigger to stay on
+	bool  m_WeaponShotIsDone;  //if weapon did shot during last update
 	bool  m_NeedsShootSignal;
 	bool  m_CurrentWeaponCanFire;
 

@@ -24,7 +24,7 @@ public:
 
 	typedef struct WeaponAnalysis
 	{
-		WeaponAnalysis() : usage(0), timeUsed(0.0f), zoomUsage(0), timeZoomed(0.0f), firemodes(0), melee(0), shots(0), hits(0), reloads(0), kills(0), deaths(0), damage(0) {}
+		WeaponAnalysis() : usage(0), timeUsed(0), zoomUsage(0), timeZoomed(0), firemodes(0), melee(0), shots(0), hits(0), reloads(0), kills(0), deaths(0), damage(0) {}
 
 		int        usage;    // number of times this weapon was selected
 		CTimeValue timeUsed; // total time this weapon was used
@@ -70,7 +70,7 @@ public:
 		{
 			for (int i = 0; i < 4; i++)
 			{
-				timeUsed[i] = 0.0f;
+				timeUsed[i].SetSeconds(0);
 				usage[i] = 0;
 				kills[i] = 0;
 				deaths[i] = 0;
@@ -94,7 +94,7 @@ public:
 			: promotions(0),
 			demotions(0),
 			rank(0),
-			rankStart(0.0f),
+			rankStart(0),
 			maxRank(0),
 			zoomUsage(0),
 			itemUsage(0),
@@ -106,10 +106,10 @@ public:
 			damage(0),
 			kills(0),
 			deaths(0),
-			deathStart(0.0f),
-			timeDead(0.0f),
-			timeAlive(0.0f),
-			timeStart(0.0f),
+			deathStart(0),
+			timeDead(0),
+			timeAlive(0),
+			timeStart(0),
 			alive(false)
 		{
 			memset(rankTime, 0, sizeof(rankTime));

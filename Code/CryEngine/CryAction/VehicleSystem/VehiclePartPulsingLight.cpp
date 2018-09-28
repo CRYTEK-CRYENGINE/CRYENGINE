@@ -32,14 +32,14 @@ bool CVehiclePartPulsingLight::Init(IVehicle* pVehicle, const CVehicleParams& ta
 	return true;
 }
 
-void CVehiclePartPulsingLight::UpdateLight(const float frameTime)
+void CVehiclePartPulsingLight::UpdateLight(const CTimeValue& frameTime)
 {
 	CVehiclePartLight::UpdateLight(frameTime);
 
 	SEntitySlotInfo info;
 	if (m_pVehicle->GetEntity()->GetSlotInfo(m_slot, info) && info.pLight)
 	{
-		float fNewColorTimer = m_colorChangeTimer + (frameTime * m_currentColorMultSpeed);
+		float fNewColorTimer = m_colorChangeTimer + (frameTime.BADGetSeconds() * m_currentColorMultSpeed);
 
 		float timerScaledToWavelength = fNewColorTimer * gf_PI;
 		timerScaledToWavelength = (float)__fsel(timerScaledToWavelength - gf_PI2, timerScaledToWavelength - gf_PI2, timerScaledToWavelength);

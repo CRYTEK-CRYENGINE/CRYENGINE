@@ -35,7 +35,7 @@ public:
 
 	/*$1- Basics -------------------------------------------------------------*/
 	void Init();
-	bool Update(float fElapsedTime);
+	bool Update(const CTimeValue& fElapsedTime);
 
 	/*$1- Utils --------------------------------------------------------------*/
 	bool AddRangeSignal(EntityId IdEntity, float fRadius, float fBoundary, const char* sSignal, IAISignalExtraData* pData = NULL);

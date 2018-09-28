@@ -28,7 +28,8 @@ protected:
 		{
 			audioID = CryAudio::InvalidControlId;
 			actor = anim = facial = lookat = "";
-			delay = facialFadeTime = 0.0f;
+			delay.SetSeconds(0);
+			facialFadeTime.SetSeconds(0);
 			facialWeight = 0.5f;
 		}
 
@@ -39,10 +40,10 @@ protected:
 		CryAudio::ControlId audioID;
 		const char*         anim;
 		const char*         lookat;
-		float               delay;
+		CTimeValue          delay;
 		string              facial;
 		float               facialWeight;
-		float               facialFadeTime;
+		CTimeValue          facialFadeTime;
 	};
 
 	struct IMScript

@@ -33,7 +33,7 @@ public:
 
 	virtual void Physicalize() override;
 
-	virtual void Update(const float frameTime) override;
+	virtual void Update(const CTimeValue& frameTime) override;
 
 	virtual void SetLocalTM(const Matrix34& localTM) override;
 

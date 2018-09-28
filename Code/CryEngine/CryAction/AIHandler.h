@@ -180,7 +180,7 @@ public:
 	const char* DEBUG_GetCurrentActionAnimationName() const { return m_currentActionAnimName.c_str(); }
 
 protected:
-	class CAnimActionExactPositioning* CreateExactPositioningAction(bool isOneShot, float loopDuration, const char* szFragmentID, bool isNavigationalSO, const QuatT& exactStartLocation);
+	class CAnimActionExactPositioning* CreateExactPositioningAction(bool isOneShot, const CTimeValue& loopDuration, const char* szFragmentID, bool isNavigationalSO, const QuatT& exactStartLocation);
 
 #ifdef USE_DEPRECATED_AI_CHARACTER_SYSTEM
 	const char* GetInitialCharacterName();
@@ -314,9 +314,9 @@ protected:
 	SAnimActionTracker m_animActionTracker;
 
 private:
-	void DoReadibilityPackForAIObjectsOfType(unsigned short int nType, const char* szText, float fResponseDelay);
+	void DoReadibilityPackForAIObjectsOfType(unsigned short int nType, const char* szText, const CTimeValue& fResponseDelay);
 
-	float m_timeSinceEvent;
+	CTimeValue m_timeSinceEvent;
 };
 
 #endif // __AIHandler_H__

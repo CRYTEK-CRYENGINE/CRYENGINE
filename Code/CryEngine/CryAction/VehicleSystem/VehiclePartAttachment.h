@@ -29,7 +29,7 @@ public:
 	//virtual void InitGeometry();
 	virtual void        PostInit() override;
 
-	virtual void        Update(const float frameTime) override;
+	virtual void        Update(const CTimeValue& frameTime) override;
 
 	virtual Matrix34    GetLocalTM(bool relativeToParentPart, bool forced = false) override;
 	virtual Matrix34    GetWorldTM() override;

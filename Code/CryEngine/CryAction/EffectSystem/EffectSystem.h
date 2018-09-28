@@ -25,7 +25,7 @@ public:
 
 	// IEffectSystem
 	virtual bool           Init();
-	virtual void           Update(float delta);
+	virtual void           Update(const CTimeValue& delta);
 	virtual void           Shutdown();
 
 	virtual EffectId       GetEffectId(const char* name);

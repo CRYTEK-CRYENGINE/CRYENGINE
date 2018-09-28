@@ -41,7 +41,7 @@ public:
 	virtual bool ChangeState(EVehiclePartState state, int flags = 0) override;
 	virtual void Physicalize() override;
 
-	virtual void Update(const float frameTime) override;
+	virtual void Update(const CTimeValue& frameTime) override;
 
 	virtual void Serialize(TSerialize serialize, EEntityAspects) override;
 	virtual void PostSerialize() override;

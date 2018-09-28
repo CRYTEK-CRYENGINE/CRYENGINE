@@ -59,6 +59,11 @@ public:
 	void        Set(const char* pAttrName, const Quat& val);
 	void        Set(const char* pAttrName, const char* pStr);
 	void        Set(const char* pAttrName, const uint8* data, uint32 len, bool needInmediateCopy);
+
+	// PERSONAL IMPROVE: Sometime, if this is actually used, implement this.
+	MPOnly void Set(const char* pAttrName, const T& val){ CRY_ASSERT(false); }
+	TVOnly void Set(const char* pAttrName, const T& val){ CRY_ASSERT(false); }
+
 	void        Compact();
 	const char* GetName() const;
 	const char* GetStrData() const;

@@ -235,7 +235,7 @@ bool CPersonalRangeSignaling::AddAngleSignal(float fAngle, float fBoundary, cons
 //
 // Return:
 //
-bool CPersonalRangeSignaling::Update(float fElapsedTime, uint32 uDebugOrder)
+bool CPersonalRangeSignaling::Update(const CTimeValue& fElapsedTime, uint32 uDebugOrder)
 {
 	CRY_ASSERT(m_bInit == true);
 

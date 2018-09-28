@@ -37,7 +37,7 @@ public:
 	virtual void     OnEvent(const SVehiclePartEvent& event) override;
 	virtual bool     ChangeState(EVehiclePartState state, int flags = 0) override;
 	virtual void     Physicalize() override;
-	virtual void     Update(const float frameTime) override;
+	virtual void     Update(const CTimeValue& frameTime) override;
 	virtual void     GetMemoryUsage(ICrySizer* pSizer) const override;
 	virtual void     GetMemoryUsageInternal(ICrySizer* pSizer) const;
 	virtual Matrix34 GetLocalInitialTM() override;

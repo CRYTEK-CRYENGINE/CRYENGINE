@@ -30,7 +30,7 @@ public:
 
 	virtual void Initialize(ICharacterInstance* pCharacterInstance);
 	virtual void Finalize();
-	virtual void Update(float timePassed) override;
+	virtual void Update(const CTimeValue& timePassed) override;
 
 	virtual void SetAimDirection(Vec3 aimDirection);
 	virtual void AddRightOffset(QuatT offset);

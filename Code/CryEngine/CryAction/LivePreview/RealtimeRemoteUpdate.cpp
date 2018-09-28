@@ -436,10 +436,10 @@ void CRealtimeRemoteUpdateListener::LoadEntities(XmlNodeRef& root)
 //////////////////////////////////////////////////////////////////////////
 bool CRealtimeRemoteUpdateListener::IsSyncingWithEditor()
 {
-	CTimeValue oTimeValue(gEnv->pTimer->GetAsyncTime());
+	CTimeValue oTimeValue(GetGTimer()->GetAsyncTime());
 	oTimeValue -= m_lastKeepAliveMessageTime;
 
-	return (fabs((oTimeValue).GetSeconds()) <= 30.0f);
+	return (abs((oTimeValue).GetSeconds()) <= 30);
 }
 //////////////////////////////////////////////////////////////////////////
 void CRealtimeRemoteUpdateListener::Update()
@@ -690,7 +690,7 @@ void CRealtimeRemoteUpdateListener::Update()
 		else if (oSyncType.compare("KeepAlive") == 0)
 		{
 			// Here we reset the time counter for the keep alive message.
-			m_lastKeepAliveMessageTime = gEnv->pTimer->GetAsyncTime();
+			m_lastKeepAliveMessageTime = GetGTimer()->GetAsyncTime();
 		}
 	}
 }

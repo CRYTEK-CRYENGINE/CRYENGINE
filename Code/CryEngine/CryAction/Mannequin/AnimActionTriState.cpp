@@ -22,7 +22,7 @@ const EMovementControlMethod DEFAULT_MCM_VERTICAL = eMCM_Entity;
   }
 
 // ----------------------------------------------------------------------------
-CAnimActionTriState::CAnimActionTriState(int priority, FragmentID fragmentID, IAnimatedCharacter& animChar, bool oneShot, float maxMiddleDuration, bool skipIntro, IAnimActionTriStateListener* pListener)
+CAnimActionTriState::CAnimActionTriState(int priority, FragmentID fragmentID, IAnimatedCharacter& animChar, bool oneShot, const CTimeValue& maxMiddleDuration, bool skipIntro, IAnimActionTriStateListener* pListener)
 	: TBase(priority, fragmentID, TAG_STATE_EMPTY, oneShot ? 0 : NoAutoBlendOut)
 	, m_animChar(animChar)
 	, m_pListener(pListener)
@@ -106,16 +106,16 @@ void CAnimActionTriState::OnAnimationEvent(ICharacterInstance* pCharacter, const
 }
 
 // ----------------------------------------------------------------------------
-IAction::EStatus CAnimActionTriState::Update(float timePassed)
+IAction::EStatus CAnimActionTriState::Update(const CTimeValue& timePassed)
 {
 	TBase::Update(timePassed);
 
 	if (m_subState == eSS_Middle)
 	{
-		const bool hasMaxMiddleDuration = m_maxMiddleDuration >= 0.0f;
+		const bool hasMaxMiddleDuration = m_maxMiddleDuration >= 0;
 		if (hasMaxMiddleDuration)
 		{
-			if (gEnv->pTimer->GetFrameStartTime() >= m_middleEndTime)
+			if (GetGTimer()->GetFrameStartTime() >= m_middleEndTime)
 			{
 				Stop();
 			}
@@ -345,7 +345,7 @@ void CAnimActionTriState::TransitionToNextSubState()
 			}
 
 			m_subState = eSS_Middle;
-			m_middleEndTime = gEnv->pTimer->GetFrameStartTime() + CTimeValue(m_maxMiddleDuration);
+			m_middleEndTime = GetGTimer()->GetFrameStartTime() + m_maxMiddleDuration;
 			SendTriStateEvent(Middle);
 
 			if (!(m_triStateFlags & eTSF_SkipMiddle))

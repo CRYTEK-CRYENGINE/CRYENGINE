@@ -203,8 +203,10 @@ void CVehicleViewSteer::OnStopUsing()
 }
 
 //------------------------------------------------------------------------
-void CVehicleViewSteer::Update(float dt)
+void CVehicleViewSteer::Update(const CTimeValue& dtIn)
 {
+	float dt = dtIn.BADGetSeconds();
+
 	IEntity* pEntity = m_pVehicle->GetEntity();
 	assert(pEntity);
 
@@ -444,7 +446,7 @@ void CVehicleViewSteer::Update(float dt)
 			}
 		}
 
-		Interpolate(m_lastOffset, offset, 10.f, dt);
+		Interpolate(m_lastOffset, offset, 10.f, dtIn);
 
 		m_position = m_lookAt + m_lastOffset;
 	}

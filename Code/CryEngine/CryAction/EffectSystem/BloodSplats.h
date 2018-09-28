@@ -20,9 +20,9 @@ class CBloodSplats : public CEffect
 {
 public:
 
-	void         Init(int type, float maxTime);
+	void         Init(int type, const CTimeValue& maxTime);
 	// IEffect overrides
-	virtual bool Update(float delta);
+	virtual bool Update(const CTimeValue& delta);
 	virtual bool OnActivate();
 	virtual bool OnDeactivate();
 	virtual void GetMemoryUsage(ICrySizer* s) const;
@@ -30,8 +30,8 @@ public:
 
 private:
 	int   m_type;           // 0 human, 1 alien
-	float m_maxTime;        // maximum time until effect expires
-	float m_currentTime;    // current time
+	CTimeValue m_maxTime;        // maximum time until effect expires
+	CTimeValue m_currentTime;    // current time
 };
 
 #endif //__BLOODSPLATS_H__

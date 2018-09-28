@@ -64,7 +64,7 @@ public:
 
 	// --------------------------------------------------------------------------
 
-	CAnimActionTriState(int priority, FragmentID fragmentID, IAnimatedCharacter& animChar, bool oneShot, float maxMiddleDuration = -1, bool skipIntro = false, IAnimActionTriStateListener* pListener = NULL);
+	CAnimActionTriState(int priority, FragmentID fragmentID, IAnimatedCharacter& animChar, bool oneShot, const CTimeValue& maxMiddleDuration = -1, bool skipIntro = false, IAnimActionTriStateListener* pListener = NULL);
 
 	// --------------------------------------------------------------------------
 
@@ -130,7 +130,7 @@ protected:
 	// overrides ----------------------------------------------------------------
 	virtual void    OnAnimationEvent(ICharacterInstance* pCharacter, const AnimEventInstance& event) override;
 	virtual void    OnSequenceFinished(int layer, uint32 scopeID) override;
-	virtual EStatus Update(float timePassed) override;
+	virtual EStatus Update(const CTimeValue& timePassed) override;
 	virtual void    Enter() override;
 	virtual void    Exit() override;
 	virtual void    Install() override;
@@ -165,7 +165,7 @@ private:
 	EMovementControlMethod m_mcmHorizontalOld;
 	EMovementControlMethod m_mcmVerticalOld;
 	QuatT                  m_targetLocation;
-	float                  m_maxMiddleDuration;
+	CTimeValue             m_maxMiddleDuration;
 	CTimeValue             m_middleEndTime;
 };
 

@@ -27,8 +27,8 @@ CAIFaceManager::CAIFaceManager(IEntity* pEntity) :
 	m_pEntity(pEntity),
 	m_CurrentState(EE_IDLE),
 	m_CurrentExprIdx(0),
-	m_ExprStartTime(0.f),
-	m_ChangeExpressionTimeMs(0)
+	m_ExprStartTime(0),
+	m_ChangeExpressionTime(0)
 {
 
 }
@@ -62,7 +62,7 @@ void CAIFaceManager::Reset()
 {
 	m_CurrentState = EE_IDLE;
 	m_CurrentExprIdx = 0;
-	m_ExprStartTime = 0.f;
+	m_ExprStartTime.SetSeconds(0);
 }
 
 //
@@ -203,8 +203,8 @@ void CAIFaceManager::Update()
 		MakeFace(NULL);
 		return;
 	}
-	int64 timePassedMs((gEnv->pTimer->GetFrameStartTime() - m_ExprStartTime).GetMilliSecondsAsInt64());
-	if (timePassedMs > m_ChangeExpressionTimeMs)
+	CTimeValue timePassed = GetGTimer()->GetFrameStartTime() - m_ExprStartTime;
+	if (timePassed > m_ChangeExpressionTime)
 		SetExpression(m_CurrentState, true);
 }
 
@@ -222,7 +222,7 @@ void CAIFaceManager::SetExpression(e_ExpressionEvent expression, bool forceChang
 		m_CurrentExprIdx = cry_random(0, (int)theState.size() - 1);
 		MakeFace(theState[m_CurrentExprIdx]);
 	}
-	m_ExprStartTime = gEnv->pTimer->GetFrameStartTime();
+	m_ExprStartTime = GetGTimer()->GetFrameStartTime();
 	m_CurrentState = expression;
 }
 
@@ -236,10 +236,10 @@ void CAIFaceManager::MakeFace(const char* pFaceName)
 		IActor* pActor = pASystem->GetActor(m_pEntity->GetId());
 		if (pActor)
 		{
-			f32 length = -1.0f;
+			CTimeValue length = -1;
 			pActor->RequestFacialExpression(pFaceName, &length);
-			if (length > 0.0f)
-				m_ChangeExpressionTimeMs = (uint32)(length * 1000.0f);
+			if (length > 0)
+				m_ChangeExpressionTime = length;
 		}
 	}
 }

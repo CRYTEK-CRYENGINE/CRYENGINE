@@ -98,7 +98,7 @@ struct SDistanceChecker
 {
 	ILINE void     Init(CGameObjectSystem* pGameObjectSystem, EntityId receiverId) {};
 	ILINE void     Reset()                                                         {};
-	ILINE void     Update(CGameObject& owner, float frameTime)                     {};
+	ILINE void     Update(CGameObject& owner, const CTimeValue& frameTime)         {};
 
 	ILINE EntityId GetDistanceChecker() const                                      { return 0; }
 };
@@ -179,7 +179,7 @@ public:
 	virtual uint8                 GetUpdateSlotEnables(IGameObjectExtension* pExtension, int slot) override;
 	virtual void                  EnablePostUpdates(IGameObjectExtension* pExtension) override;
 	virtual void                  DisablePostUpdates(IGameObjectExtension* pExtension) override;
-	virtual void                  PostUpdate(float frameTime) override;
+	virtual void                  PostUpdate(const CTimeValue& frameTime) override;
 	virtual void                  FullSerialize(TSerialize ser) override;
 	virtual void                  PostSerialize() override;
 	virtual void                  SetUpdateSlotEnableCondition(IGameObjectExtension* pExtension, int slot, EUpdateEnableCondition condition) override;
@@ -402,7 +402,7 @@ private:
 		eUSE_Timeout,
 		eUSE_COUNT_EVENTS,
 	};
-	float             m_updateTimer;
+	CTimeValue        m_updateTimer;
 
 	SDistanceChecker  m_distanceChecker;
 
@@ -426,7 +426,7 @@ private:
 	void SetPhysicsDisable(bool disablePhysics);
 	void PostRemoteSpawn();
 
-	static const float        UpdateTimeouts[eUS_COUNT_STATES];
+	static const CTimeValue   UpdateTimeouts[eUS_COUNT_STATES];
 	static const EUpdateState UpdateTransitions[eUS_COUNT_STATES][eUSE_COUNT_EVENTS];
 	static const char*        UpdateNames[eUS_COUNT_STATES];
 	static const char*        EventNames[eUSE_COUNT_EVENTS];

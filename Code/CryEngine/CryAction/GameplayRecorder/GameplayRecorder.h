@@ -51,7 +51,7 @@ public:
 	virtual ~CGameplayRecorder();
 
 	void Init();
-	void Update(float frameTime);
+	void Update(const CTimeValue& frameTime);
 	void Release();
 	void GetMemoryStatistics(ICrySizer* s);
 

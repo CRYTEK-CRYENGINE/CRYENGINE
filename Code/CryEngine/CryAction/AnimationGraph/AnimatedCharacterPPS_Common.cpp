@@ -426,7 +426,7 @@ void CAnimatedCharacter::UpdateMCMComponent(EMCMComponent component)
 	if (mcm[eMCMSlot_Cur] != mcm[eMCMSlot_Prev])
 	{
 		mcm[eMCMSlot_Prev] = mcm[eMCMSlot_Cur];
-		m_elapsedTimeMCM[component] = 0.0f;
+		m_elapsedTimeMCM[component].SetSeconds(0);
 	}
 
 	if (gEnv->IsDedicated())

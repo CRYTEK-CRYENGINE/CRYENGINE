@@ -175,8 +175,8 @@ bool CMaterialEffects::ExecuteEffect(TMFXEffectId effectId, SMFXRunTimeEffectPar
 	TMFXContainerPtr pEffectContainer = InternalGetEffect(effectId);
 	if (pEffectContainer)
 	{
-		const float delay = pEffectContainer->GetParams().delay;
-		if ((delay > 0.0f) && !(params.playflags & eMFXPF_Disable_Delay))
+		const CTimeValue delay = pEffectContainer->GetParams().delay;
+		if ((delay > 0) && !(params.playflags & eMFXPF_Disable_Delay))
 		{
 			TimedEffect(pEffectContainer, params);
 		}
@@ -674,7 +674,7 @@ void CMaterialEffects::FullReload()
 	LoadFlowGraphLibs();
 }
 
-void CMaterialEffects::Update(float frameTime)
+void CMaterialEffects::Update(const CTimeValue& frameTime)
 {
 	SetUpdateMode(true);
 	std::vector<SDelayedEffect>::iterator it = m_delayedEffects.begin();
@@ -684,7 +684,7 @@ void CMaterialEffects::Update(float frameTime)
 		++next;
 		SDelayedEffect& cur = *it;
 		cur.m_delay -= frameTime;
-		if (cur.m_delay <= 0.0f)
+		if (cur.m_delay <= 0)
 		{
 			cur.m_pEffectContainer->Execute(cur.m_effectRuntimeParams);
 			next = m_delayedEffects.erase(it);

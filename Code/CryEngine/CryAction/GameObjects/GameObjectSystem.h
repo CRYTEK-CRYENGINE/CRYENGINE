@@ -35,7 +35,7 @@ public:
 	virtual IGameObject*                               CreateGameObjectForEntity(EntityId entityId) override;
 	virtual IEntityComponent*                          CreateGameObjectEntityProxy(IEntity& entity, IGameObject** pGameObject = NULL) override;
 
-	virtual void                                       PostUpdate(float frameTime) override;
+	virtual void                                       PostUpdate(const CTimeValue& frameTime) override;
 	virtual void                                       SetPostUpdate(IGameObject* pGameObject, bool enable) override;
 
 	virtual void                                       Reset() override;

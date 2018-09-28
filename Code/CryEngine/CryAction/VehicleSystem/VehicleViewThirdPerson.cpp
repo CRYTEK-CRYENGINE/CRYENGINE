@@ -145,7 +145,7 @@ void CVehicleViewThirdPerson::OnStartUsing(EntityId passengerId)
 }
 
 //------------------------------------------------------------------------
-void CVehicleViewThirdPerson::Update(float frameTime)
+void CVehicleViewThirdPerson::Update(const CTimeValue& frameTime)
 {
 	CVehicleViewBase::Update(frameTime);
 

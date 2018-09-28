@@ -189,7 +189,7 @@ void CLipSync_FacialInstance::SetChannelId(uint16 id)
 {
 }
 
-void CLipSync_FacialInstance::PostUpdate(float frameTime)
+void CLipSync_FacialInstance::PostUpdate(const CTimeValue& frameTime)
 {
 }
 

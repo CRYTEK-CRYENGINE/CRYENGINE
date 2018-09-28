@@ -58,7 +58,7 @@ void CView::Release()
 }
 
 //------------------------------------------------------------------------
-void CView::Update(float frameTime, bool isActive)
+void CView::Update(const CTimeValue& frameTime, bool isActive)
 {
 	//FIXME:some cameras may need to be updated always
 	if (!isActive)
@@ -269,7 +269,7 @@ void CView::ApplyFrameAdditiveAngles(Quat& cameraOrientation)
 }
 
 //------------------------------------------------------------------------
-void CView::SetViewShake(Ang3 shakeAngle, Vec3 shakeShift, float duration, float frequency, float randomness, int shakeID, bool bFlipVec, bool bUpdateOnly, bool bGroundOnly)
+void CView::SetViewShake(Ang3 shakeAngle, Vec3 shakeShift, const CTimeValue& duration, const CTimeValue& frequency, float randomness, int shakeID, bool bFlipVec, bool bUpdateOnly, bool bGroundOnly)
 {
 	SShakeParams params;
 	params.shakeAngle = shakeAngle;
@@ -280,9 +280,9 @@ void CView::SetViewShake(Ang3 shakeAngle, Vec3 shakeShift, float duration, float
 	params.bFlipVec = bFlipVec;
 	params.bUpdateOnly = bUpdateOnly;
 	params.bGroundOnly = bGroundOnly;
-	params.fadeInDuration = 0;          //
+	params.fadeInDuration.SetSeconds(0);          //
 	params.fadeOutDuration = duration;  // originally it was faded out from start. that is why the values are set this way here, to preserve compatibility.
-	params.sustainDuration = 0;         //
+	params.sustainDuration.SetSeconds(0);         //
 
 	SetViewShakeEx(params);
 }
@@ -316,7 +316,7 @@ void CView::SetViewShakeEx(const SShakeParams& params)
 	if (pSetShake)
 	{
 		// this can be set dynamically
-		pSetShake->frequency = max(0.00001f, params.frequency);
+		pSetShake->frequency = max(CTimeValue("0.00001"), params.frequency); // MP_EPSILON
 
 		// the following are set on a 'new' shake as well
 		if (params.bUpdateOnly == false)
@@ -331,14 +331,14 @@ void CView::SetViewShakeEx(const SShakeParams& params)
 			pSetShake->fadeInDuration = params.fadeInDuration;
 			pSetShake->sustainDuration = params.sustainDuration;
 			pSetShake->fadeOutDuration = params.fadeOutDuration;
-			pSetShake->timeDone = 0;
+			pSetShake->timeDone.SetSeconds(0);
 			pSetShake->updating = true;
 			pSetShake->interrupted = false;
 			pSetShake->goalShake = Quat(ZERO);
 			pSetShake->goalShakeSpeed = Quat(ZERO);
 			pSetShake->goalShakeVector = Vec3(ZERO);
 			pSetShake->goalShakeVectorSpeed = Vec3(ZERO);
-			pSetShake->nextShake = 0.0f;
+			pSetShake->nextShake.SetSeconds(0);
 		}
 	}
 }
@@ -364,7 +364,7 @@ const float CView::GetScale()
 }
 
 //------------------------------------------------------------------------
-void CView::ProcessShaking(float frameTime)
+void CView::ProcessShaking(const CTimeValue& frameTime)
 {
 	m_viewParams.currentShakeQuat.SetIdentity();
 	m_viewParams.currentShakeShift.zero();
@@ -377,7 +377,7 @@ void CView::ProcessShaking(float frameTime)
 }
 
 //------------------------------------------------------------------------
-void CView::ProcessShake(SShake* pShake, float frameTime)
+void CView::ProcessShake(SShake* pShake, const CTimeValue& frameTime)
 {
 	if (!pShake->updating)
 		return;
@@ -395,12 +395,12 @@ void CView::ProcessShake(SShake* pShake, float frameTime)
 }
 
 //------------------------------------------------------------------------
-void CView::ProcessShakeNormal(SShake* pShake, float frameTime)
+void CView::ProcessShakeNormal(SShake* pShake, const CTimeValue& frameTime)
 {
-	float endSustain = pShake->fadeInDuration + pShake->sustainDuration;
-	float totalDuration = endSustain + pShake->fadeOutDuration;
+	CTimeValue endSustain = pShake->fadeInDuration + pShake->sustainDuration;
+	CTimeValue totalDuration = endSustain + pShake->fadeOutDuration;
 
-	bool finalDamping = (!pShake->permanent && pShake->timeDone > totalDuration) || (pShake->interrupted && pShake->ratio < 0.05f);
+	bool finalDamping = (!pShake->permanent && pShake->timeDone > totalDuration) || (pShake->interrupted && pShake->ratio < "0.05");
 
 	if (finalDamping)
 		ProcessShakeNormal_FinalDamping(pShake, frameTime);
@@ -419,20 +419,20 @@ void CView::ProcessShakeNormal(SShake* pShake, float frameTime)
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CView::ProcessShakeSmooth(SShake* pShake, float frameTime)
+void CView::ProcessShakeSmooth(SShake* pShake, const CTimeValue& frameTime)
 {
 	assert(pShake->timeDone >= 0);
 
-	float endTimeFadeIn = pShake->fadeInDuration;
-	float endTimeSustain = pShake->sustainDuration + endTimeFadeIn;
-	float totalTime = endTimeSustain + pShake->fadeOutDuration;
+	CTimeValue endTimeFadeIn = pShake->fadeInDuration;
+	CTimeValue endTimeSustain = pShake->sustainDuration + endTimeFadeIn;
+	CTimeValue totalTime = endTimeSustain + pShake->fadeOutDuration;
 
 	if (pShake->interrupted && endTimeFadeIn <= pShake->timeDone && pShake->timeDone < endTimeSustain)
 	{
 		pShake->timeDone = endTimeSustain;
 	}
 
-	float damping = 1.f;
+	nTime damping = 1;
 	if (pShake->timeDone < endTimeFadeIn)
 	{
 		damping = pShake->timeDone / endTimeFadeIn;
@@ -445,8 +445,8 @@ void CView::ProcessShakeSmooth(SShake* pShake, float frameTime)
 	{
 		pShake->shakeQuat.SetIdentity();
 		pShake->shakeVector.zero();
-		pShake->ratio = 0.0f;
-		pShake->nextShake = 0.0f;
+		pShake->ratio = 0;
+		pShake->nextShake.SetSeconds(0);
 		pShake->flip = false;
 		pShake->updating = false;
 		return;
@@ -456,10 +456,10 @@ void CView::ProcessShakeSmooth(SShake* pShake, float frameTime)
 
 	if (pShake->groundOnly)
 		m_viewParams.groundOnly = true;
-	pShake->ratio = (3.f - 2.f * damping) * damping * damping; // smooth ration change
+	pShake->ratio = (3 - 2 * damping) * damping * damping; // smooth ration change
 	m_viewParams.shakingRatio = max(m_viewParams.shakingRatio, pShake->ratio);
-	m_viewParams.currentShakeQuat *= Quat::CreateSlerp(IDENTITY, pShake->shakeQuat, pShake->ratio);
-	m_viewParams.currentShakeShift += Vec3::CreateLerp(ZERO, pShake->shakeVector, pShake->ratio);
+	m_viewParams.currentShakeQuat *= Quat::CreateSlerp(IDENTITY, pShake->shakeQuat, BADF pShake->ratio);
+	m_viewParams.currentShakeShift += Vec3::CreateLerp(ZERO, pShake->shakeVector, BADF pShake->ratio);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -516,9 +516,9 @@ void CView::CubeInterpolateVector(float t, SShake* pShake)
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CView::ProcessShakeSmooth_DoShaking(SShake* pShake, float frameTime)
+void CView::ProcessShakeSmooth_DoShaking(SShake* pShake, const CTimeValue& frameTime)
 {
-	if (pShake->nextShake <= 0.0f)
+	if (pShake->nextShake <= 0)
 	{
 		pShake->nextShake = pShake->frequency;
 
@@ -547,18 +547,18 @@ void CView::ProcessShakeSmooth_DoShaking(SShake* pShake, float frameTime)
 
 	pShake->nextShake -= frameTime;
 
-	float t = (pShake->frequency - pShake->nextShake) / pShake->frequency;
-	CubeInterpolateQuat(t, pShake);
-	CubeInterpolateVector(t, pShake);
+	nTime t = (pShake->frequency - pShake->nextShake) / pShake->frequency;
+	CubeInterpolateQuat(BADF t, pShake);
+	CubeInterpolateVector(BADF t, pShake);
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CView::ProcessShakeNormal_FinalDamping(SShake* pShake, float frameTime)
+void CView::ProcessShakeNormal_FinalDamping(SShake* pShake, const CTimeValue& frameTime)
 {
-	pShake->shakeQuat = Quat::CreateSlerp(pShake->shakeQuat, IDENTITY, frameTime * 5.0f);
+	pShake->shakeQuat = Quat::CreateSlerp(pShake->shakeQuat, IDENTITY, frameTime.BADGetSeconds() * 5);
 	m_viewParams.currentShakeQuat *= pShake->shakeQuat;
 
-	pShake->shakeVector = Vec3::CreateLerp(pShake->shakeVector, ZERO, frameTime * 5.0f);
+	pShake->shakeVector = Vec3::CreateLerp(pShake->shakeVector, ZERO, frameTime.BADGetSeconds() * 5);
 	m_viewParams.currentShakeShift += pShake->shakeVector;
 
 	float svlen2(pShake->shakeVector.len2());
@@ -569,8 +569,8 @@ void CView::ProcessShakeNormal_FinalDamping(SShake* pShake, float frameTime)
 		pShake->shakeQuat.SetIdentity();
 		pShake->shakeVector.zero();
 
-		pShake->ratio = 0.0f;
-		pShake->nextShake = 0.0f;
+		pShake->ratio = 0;
+		pShake->nextShake.SetSeconds(0);
 		pShake->flip = false;
 
 		pShake->updating = false;
@@ -578,35 +578,35 @@ void CView::ProcessShakeNormal_FinalDamping(SShake* pShake, float frameTime)
 }
 
 // "ratio" is the amplitude of the shaking
-void CView::ProcessShakeNormal_CalcRatio(SShake* pShake, float frameTime, float endSustain)
+void CView::ProcessShakeNormal_CalcRatio(SShake* pShake, const CTimeValue& frameTime, const CTimeValue& endSustain)
 {
-	const float FADEOUT_TIME_WHEN_INTERRUPTED = 0.5f;
+	const CTimeValue FADEOUT_TIME_WHEN_INTERRUPTED = "0.5";
 
 	if (pShake->interrupted)
-		pShake->ratio = max(0.f, pShake->ratio - (frameTime / FADEOUT_TIME_WHEN_INTERRUPTED));    // fadeout after interrupted
+		pShake->ratio = max(nTime(0), pShake->ratio - frameTime / FADEOUT_TIME_WHEN_INTERRUPTED);    // fadeout after interrupted
 	else if (pShake->timeDone >= endSustain && pShake->fadeOutDuration > 0)
 	{
-		float timeFading = pShake->timeDone - endSustain;
-		pShake->ratio = clamp_tpl(1.f - timeFading / pShake->fadeOutDuration, 0.f, 1.f);   // fadeOut
+		CTimeValue timeFading = pShake->timeDone - endSustain;
+		pShake->ratio = CLAMP(1 - timeFading / pShake->fadeOutDuration, 0, 1);   // fadeOut
 	}
 	else if (pShake->timeDone >= pShake->fadeInDuration)
 	{
-		pShake->ratio = 1.f; // sustain
+		pShake->ratio = 1; // sustain
 	}
 	else
 	{
-		pShake->ratio = min(1.f, pShake->timeDone / pShake->fadeInDuration);   // fadeIn
+		pShake->ratio = min(nTime(1), pShake->timeDone / pShake->fadeInDuration);   // fadeIn
 	}
 
 	if (pShake->permanent && pShake->timeDone >= pShake->fadeInDuration && !pShake->interrupted)
-		pShake->ratio = 1.f; // permanent standing
+		pShake->ratio = 1; // permanent standing
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CView::ProcessShakeNormal_DoShaking(SShake* pShake, float frameTime)
+void CView::ProcessShakeNormal_DoShaking(SShake* pShake, const CTimeValue& frameTime)
 {
 	float t;
-	if (pShake->nextShake <= 0.0f)
+	if (pShake->nextShake <= 0)
 	{
 		//angular
 		pShake->goalShake.SetRotationXYZ(pShake->amount);
@@ -635,16 +635,16 @@ void CView::ProcessShakeNormal_DoShaking(SShake* pShake, float frameTime)
 		pShake->goalShakeVector += Vec3(cry_random(-r, r), cry_random(-r, r), cry_random(-r, r));
 
 		//damp & bounce it in a non linear fashion
-		t = 1.0f - (pShake->ratio * pShake->ratio);
+		t = BADF (1 - (pShake->ratio * pShake->ratio));
 		pShake->goalShake = Quat::CreateSlerp(pShake->goalShake, IDENTITY, t);
 		pShake->goalShakeVector = Vec3::CreateLerp(pShake->goalShakeVector, ZERO, t);
 
 		pShake->nextShake = pShake->frequency;
 	}
 
-	pShake->nextShake = max(0.0f, pShake->nextShake - frameTime);
+	pShake->nextShake = max(CTimeValue(0), pShake->nextShake - frameTime);
 
-	t = min(1.0f, frameTime * (1.0f / pShake->frequency));
+	t = BADF min(nTime(1), frameTime / pShake->frequency);
 	pShake->shakeQuat = Quat::CreateSlerp(pShake->shakeQuat, pShake->goalShake, t);
 	pShake->shakeQuat.Normalize();
 	pShake->shakeVector = Vec3::CreateLerp(pShake->shakeVector, pShake->goalShakeVector, t);
@@ -673,7 +673,7 @@ void CView::ResetShaking()
 	{
 		SShake& shake = *iter;
 		shake.updating = false;
-		shake.timeDone = 0;
+		shake.timeDone.SetSeconds(0);
 		++iter;
 	}
 }

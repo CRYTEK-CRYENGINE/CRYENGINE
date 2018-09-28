@@ -43,7 +43,7 @@ public:
 	virtual void        OnAction(const TVehicleActionId actionId, int activationMode, float value);
 	virtual void        UpdateView(SViewParams& viewParams, EntityId playerId) {}
 
-	virtual void        Update(const float frameTime);
+	virtual void        Update(const CTimeValue& frameTime);
 	virtual void Serialize(TSerialize serialize, EEntityAspects);
 
 	virtual void SetDebugView(bool debug)    { m_isDebugView = debug; }
@@ -69,8 +69,8 @@ protected:
 	Vec3  m_rotationMin;
 	Vec3  m_rotationMax;
 	Vec3  m_rotationInit;
-	float m_relaxDelayMax;
-	float m_relaxTimeMax;
+	CTimeValue m_relaxDelayMax;
+	CTimeValue m_relaxTimeMax;
 	float m_velLenMin;
 	float m_velLenMax;
 
@@ -86,12 +86,12 @@ protected:
 	Vec3  m_rotationCurrentSpeed;
 	float m_rotationValRateX;  // used for SmoothCD call on the rotation
 	float m_rotationValRateZ;
-	float m_rotationTimeAcc;
-	float m_rotationTimeDec;
+	CTimeValue m_rotationTimeAcc;
+	CTimeValue m_rotationTimeDec;
 
 	bool  m_isRelaxEnabled;
-	float m_relaxDelay;
-	float m_relaxTime;
+	CTimeValue m_relaxDelay;
+	CTimeValue m_relaxTime;
 
 	int   m_yawLeftActionOnBorderAAM;
 	int   m_yawRightActionOnBorderAAM;

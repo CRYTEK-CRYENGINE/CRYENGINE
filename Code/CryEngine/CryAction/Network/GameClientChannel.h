@@ -197,7 +197,7 @@ struct STimeOfDayInitParams
 struct SSyncTimeClient
 {
 	SSyncTimeClient() {};
-	SSyncTimeClient(int id, int64 originTime, int64 serverTimeGuess, int64 serverTimeActual)
+	SSyncTimeClient(int id, const CTimeValue& originTime, const CTimeValue& serverTimeGuess, const CTimeValue& serverTimeActual)
 	{
 		this->id = id;
 		this->originTime = originTime;
@@ -206,9 +206,9 @@ struct SSyncTimeClient
 	};
 
 	int          id;
-	int64        originTime;
-	int64        serverTimeGuess;
-	int64        serverTimeActual;
+	CTimeValue   originTime;
+	CTimeValue   serverTimeGuess;
+	CTimeValue   serverTimeActual;
 
 	virtual void SerializeWith(TSerialize ser)
 	{
@@ -241,7 +241,7 @@ public:
 	bool             OnSyncTimeMessage(const SSyncTimeClient& messageParams);
 
 private:
-	void SendSyncPing(const int id, const CTimeValue currentTime, const CTimeValue serverTime = CTimeValue());
+	void SendSyncPing(const int id, const CTimeValue& currentTime, const CTimeValue& serverTime = 0);
 
 	CGameClientChannel&     m_clientChannel;
 

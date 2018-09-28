@@ -96,7 +96,7 @@ private:
 	//////////////////////////////////////////////////////////////////////////
 	// Implements IFrameProfilePeakCallback interface.
 	//////////////////////////////////////////////////////////////////////////
-	virtual void OnFrameProfilerPeak(CFrameProfiler* pProfiler, float fPeakTime) override;
+	virtual void OnFrameProfilerPeak(CFrameProfiler* pProfiler, float fPeakValue) override;
 	//////////////////////////////////////////////////////////////////////////
 
 	//////////////////////////////////////////////////////////////////////////
@@ -156,7 +156,7 @@ private:
 			, hmdPositionOffset(ZERO)
 			, hmdViewRotation(IDENTITY)
 			, cameraAngles(ZERO)
-			, frameTime(0.0f)
+			, frameTime(0)
 			, fLeaning(0.0f)
 			, nPolygons(0)
 		{
@@ -170,7 +170,7 @@ private:
 		Vec3  hmdPositionOffset;
 		Quat  hmdViewRotation;
 		Ang3  cameraAngles; // Legacy
-		float frameTime;    // Immediate frame rate, for this frame.
+		CTimeValue frameTime;    // Immediate frame rate, for this frame.
 
 		// Snapshot of current processing command.
 		unsigned int       nActionFlags[2];
@@ -198,7 +198,7 @@ private:
 
 	//! Get number of frames in record.
 	int                GetNumFrames() const;
-	float              GetAverageFrameRate() const;
+	rTime              GetAverageFrameRate() const;
 
 	void               Save(const char* filename);
 	bool               Load(const char* filename);
@@ -297,8 +297,8 @@ private:
 	// How many polygons were played.
 	int   m_nTotalPolysPlayed;
 
-	float m_lastPlayedTotalTime;
-	float m_lastAveFrameRate;
+	CTimeValue m_lastPlayedTotalTime;
+	rTime m_lastAveFrameRate;
 	float m_sumFPS;
 	float m_minFPS;
 	float m_maxFPS;
@@ -366,13 +366,13 @@ private:
 	struct SChainDemoLevel
 	{
 		string level;    // Level name
-		float  time;     // Time of test in seconds
+		CTimeValue time;     // Time of test in seconds
 		bool   bSuccess; // If test was successful.
 		bool   bRun;     // If test was successful.
 	};
 	std::vector<SChainDemoLevel> m_demoLevels;
 	int                          m_nCurrentDemoLevel;
-	float                        m_lastChainDemoTime;
+	CTimeValue                   m_lastChainDemoTime;
 };
 
 #endif // __timedemorecorder_h__

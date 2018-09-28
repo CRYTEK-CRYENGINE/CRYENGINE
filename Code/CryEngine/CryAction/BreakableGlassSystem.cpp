@@ -148,7 +148,7 @@ CBreakableGlassSystem::~CBreakableGlassSystem()
 // Name: Update
 // Desc: Allows render nodes to updates
 //--------------------------------------------------------------------------------------------------
-void CBreakableGlassSystem::Update(const float frameTime)
+void CBreakableGlassSystem::Update(const CTimeValue& frameTime)
 {
 	AssertUnusedIfDisabled();
 

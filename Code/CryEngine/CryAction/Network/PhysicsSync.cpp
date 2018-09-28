@@ -23,8 +23,8 @@ public:
 
 	void Render()
 	{
-		CTimeValue now = gEnv->pTimer->GetAsyncTime();
-		CTimeValue old = now - 1.0f;
+		CTimeValue now = GetGTimer()->GetAsyncTime();
+		CTimeValue old = now - 1;
 		while (!m_states.empty() && m_states.front().now < old)
 			m_states.pop_front();
 
@@ -34,13 +34,14 @@ public:
 		float yLocal = 550;
 		float yRemote = 500;
 		float yNow = 525;
-#define TIME_TO_X(tm)             (((tm) - now).GetSeconds() + 1) * 780.0f + 10.0f
+#define TIME_TO_X(tm)             (((tm) - now).GetSeconds() + 1) * 780 + 10
 #define MARK_AT(x, y, clr, tmout) pPD->Add2DLine((x) - 10, (y) - 10, (x) + 10, (y) + 10, (clr), tmout); pPD->Add2DLine((x) - 10, (y) + 10, (x) + 10, (y) - 10, (clr), tmout)
 		for (std::deque<SState>::iterator it = m_states.begin(); it != m_states.end(); ++it)
 		{
-			float xrem = TIME_TO_X(it->remote);
-			float xloc = TIME_TO_X(it->local);
-			float xnow = TIME_TO_X(it->now);
+			// Float inaccuracy is fine, debug/profiling
+			float xrem = (float)TIME_TO_X(it->remote);
+			float xloc = (float)TIME_TO_X(it->local);
+			float xnow = (float)TIME_TO_X(it->now);
 			MARK_AT(xrem, yRemote, ColorF(1, 1, 1, 1), 60);
 			MARK_AT(xloc, yLocal, ColorF(1, 0, 0, 1), 60);
 			MARK_AT(xnow, yNow, ColorF(0, 1, 0, 1), 60);
@@ -62,10 +63,10 @@ private:
 CPhysicsSync::CPhysicsSync(CGameChannel* pParent)
 	: m_pParent(pParent)
 	, m_pWorld(gEnv->pPhysicalWorld)
-	, m_physPrevRemoteTime(0.0f)
-	, m_pingEstimate(0.0f)
-	, m_physEstimatedLocalLaggedTime(0.0f)
-	, m_epochWhen(0.0f)
+	, m_physPrevRemoteTime(0)
+	, m_pingEstimate(0)
+	, m_physEstimatedLocalLaggedTime(0)
+	, m_epochWhen(0)
 	, m_physEpochTimestamp(0)
 	, m_ignoreSnapshot(false)
 	, m_catchup(false)
@@ -79,13 +80,13 @@ CPhysicsSync::~CPhysicsSync()
 		m_pDebugHistory->Release();
 }
 
-static float CalcFrameWeight(float smoothing)
+static mpfloat CalcFrameWeight(const mpfloat& smoothing)
 {
-	float wt = clamp_tpl(gEnv->pTimer->GetFrameTime() * smoothing, 0.0f, 1.0f);
+	mpfloat wt = CLAMP(GetGTimer()->GetFrameTime().GetSeconds() * smoothing, 0, 1);
 	return wt;
 }
 
-bool CPhysicsSync::OnPacketHeader(CTimeValue tm)
+bool CPhysicsSync::OnPacketHeader(const CTimeValue& tm)
 {
 	// these may change, but setup some default behaviors now
 	m_catchup = true;
@@ -97,11 +98,11 @@ bool CPhysicsSync::OnPacketHeader(CTimeValue tm)
 
 	// add the current ping to our list of past ping samples
 	INetChannel* pNetChannel = m_pParent->GetNetChannel();
-	SPastPing curPing = { gEnv->pTimer->GetAsyncTime(), pNetChannel->GetPing(true) };
+	SPastPing curPing = { GetGTimer()->GetAsyncTime(), pNetChannel->GetPing(true) };
 	m_pastPings.Push(curPing);
 
 	// find the average ping so far
-	float sumPing = 0;
+	CTimeValue sumPing;
 	for (PingQueue::SIterator it = m_pastPings.Begin(); it != m_pastPings.End(); ++it)
 		sumPing += it->value;
 	CTimeValue averagePing = sumPing / m_pastPings.Size();
@@ -109,10 +110,10 @@ bool CPhysicsSync::OnPacketHeader(CTimeValue tm)
 	// find how much the average ping has changed from our estimate, in order to adjust later
 	CTimeValue deltaPing;
 	CTimeValue prevPingEstimate = m_pingEstimate;
-	if (m_pingEstimate != 0.0f)
+	if (m_pingEstimate != 0)
 	{
-		float pingWeight = CalcFrameWeight(CNetworkCVars::Get().PhysSyncPingSmooth);
-		m_pingEstimate = (1.0f - pingWeight) * m_pingEstimate.GetSeconds() + pingWeight * averagePing.GetSeconds();
+		mpfloat pingWeight = CalcFrameWeight(CNetworkCVars::Get().PhysSyncPingSmooth);
+		m_pingEstimate = (1 - pingWeight) * m_pingEstimate + pingWeight * averagePing;
 	}
 	else
 	{
@@ -121,16 +122,16 @@ bool CPhysicsSync::OnPacketHeader(CTimeValue tm)
 
 	CTimeValue oneMS;
 	oneMS.SetMilliSeconds(1);
-	if (m_pingEstimate != 0.0f)
+	if (m_pingEstimate != 0)
 	{
-		CTimeValue clampAmt = m_pingEstimate.GetSeconds() * 0.5f * 0.5f;
+		CTimeValue clampAmt = m_pingEstimate * "0.5" * "0.5";
 		if (oneMS < clampAmt)
 			clampAmt = oneMS;
 		deltaPing = CLAMP(m_pingEstimate - prevPingEstimate, -clampAmt, clampAmt);
 		m_pingEstimate = prevPingEstimate + deltaPing;
 	}
 	else
-		deltaPing = 0.0f;
+		deltaPing.SetSeconds(0);
 
 	// expunge any pings that are now older than RTT_LOOPS round trip times
 	CTimeValue oldTime = curPing.when - averagePing.GetSeconds() * RTT_LOOPS;
@@ -140,8 +141,8 @@ bool CPhysicsSync::OnPacketHeader(CTimeValue tm)
 	// current remote time is tm
 	CTimeValue physCurRemoteTime = tm;
 	// if we've not yet gotten a previous remote time, estimate it at half a ping ago
-	if (m_physPrevRemoteTime == 0.0f)
-		m_physPrevRemoteTime = physCurRemoteTime - 0.5f * averagePing.GetSeconds();
+	if (m_physPrevRemoteTime == 0)
+		m_physPrevRemoteTime = physCurRemoteTime - "0.5" * averagePing;
 	CTimeValue physDeltaRemoteTime = physCurRemoteTime - m_physPrevRemoteTime;
 	if (physDeltaRemoteTime < oneMS)
 	{
@@ -150,18 +151,16 @@ bool CPhysicsSync::OnPacketHeader(CTimeValue tm)
 		return true;
 	}
 
-	double timeGranularity = m_pWorld->GetPhysVars()->timeGranularity;
-
 	// estimate how far we need to go back... the main indicator is the physics delta time
 	// but we also adjust to the average ping changing
-	CTimeValue stepForward = physDeltaRemoteTime + deltaPing.GetSeconds() * 0.5f;
+	CTimeValue stepForward = physDeltaRemoteTime + deltaPing.GetSeconds() * "0.5";
 
 	// now estimate what the local timestamp should be
-	int curTimestamp = m_pWorld->GetiPhysicsTime();
-	int translatedTimestamp = -1;
+	CTimeValue curTimestamp = m_pWorld->GetPhysicsTime();
+	CTimeValue translatedTimestamp = -1;
 	bool resetEstimate = true;
 	if (m_physEpochTimestamp != 0)
-		resetEstimate = stepForward > 0.25f || stepForward < 0.0f;
+		resetEstimate = stepForward > "0.25" || stepForward < 0;
 	if (!resetEstimate)
 	{
 		m_physEstimatedLocalLaggedTime += stepForward;
@@ -171,38 +170,38 @@ bool CPhysicsSync::OnPacketHeader(CTimeValue tm)
 emergency_reset:
 		m_physEstimatedLocalLaggedTime = -m_pingEstimate;
 		m_physEpochTimestamp = curTimestamp;
-		m_epochWhen = gEnv->pTimer->GetAsyncTime();
+		m_epochWhen = GetGTimer()->GetAsyncTime();
 	}
-	translatedTimestamp = int(m_physEpochTimestamp + m_physEstimatedLocalLaggedTime.GetSeconds() / timeGranularity + 0.5);
+	translatedTimestamp = m_physEpochTimestamp + m_physEstimatedLocalLaggedTime;
 	if (translatedTimestamp >= curTimestamp)
 	{
 		m_catchup = false;
 		translatedTimestamp = curTimestamp;
 		if (translatedTimestamp > curTimestamp)
-			CryLog("[phys] time compression occurred (%d ticks)", curTimestamp - translatedTimestamp);
+			CryLog("[phys] time compression occurred (%f seconds)", (float)(curTimestamp - translatedTimestamp).GetSeconds());
 	}
 	else
 	{
-		m_catchup = stepForward<0.125f && stepForward> 0.0f;
+		m_catchup = stepForward < "0.125" && stepForward > 0;
 	}
 
 	//CRY_ASSERT(translatedTimestamp >= 0);
 	if (translatedTimestamp < 0)
-		translatedTimestamp = 0;
+		translatedTimestamp.SetSeconds(0);
 	CRY_ASSERT(translatedTimestamp <= curTimestamp);
 
-	if (!resetEstimate && (curTimestamp - translatedTimestamp) * timeGranularity > 0.25f + m_pingEstimate.GetSeconds())
+	if (!resetEstimate && (curTimestamp - translatedTimestamp) > m_pingEstimate + "0.25")
 	{
-		CryLog("[phys] way out of sync (%.2f seconds)... performing emergency reset", float((curTimestamp - translatedTimestamp) * timeGranularity));
+		CryLog("[phys] way out of sync (%.2f seconds)... performing emergency reset", (float)(curTimestamp - translatedTimestamp).GetSeconds());
 		m_catchup = false;
 		resetEstimate = true;
 		goto emergency_reset;
 	}
 
-	m_pWorld->SetiSnapshotTime(translatedTimestamp, 0);
-	m_pWorld->SetiSnapshotTime(curTimestamp, 1);
+	m_pWorld->SetSnapshotTime(translatedTimestamp, 0);
+	m_pWorld->SetSnapshotTime(curTimestamp, 1);
 	// TODO: SnapTime()
-	m_pWorld->SetiSnapshotTime(curTimestamp, 2);
+	m_pWorld->SetSnapshotTime(curTimestamp, 2);
 
 	// store the things that we need to keep
 	m_physPrevRemoteTime = physCurRemoteTime;
@@ -211,13 +210,13 @@ emergency_reset:
 	{
 		// slowly move the epoch time versus the current time towards -pingEstimate/2
 		// avoids a side-case where the local time at epoch startup can completely annihilate any backstepping we might do
-		int deltaTimestamp = curTimestamp - m_physEpochTimestamp;
+		CTimeValue deltaTimestamp = curTimestamp - m_physEpochTimestamp;
 		m_physEpochTimestamp = curTimestamp;
-		m_epochWhen = gEnv->pTimer->GetAsyncTime();
-		m_physEstimatedLocalLaggedTime -= CTimeValue(deltaTimestamp * timeGranularity);
+		m_epochWhen = GetGTimer()->GetAsyncTime();
+		m_physEstimatedLocalLaggedTime -= deltaTimestamp;
 
-		float lagWeight = CalcFrameWeight(CNetworkCVars::Get().PhysSyncLagSmooth);
-		m_physEstimatedLocalLaggedTime = (1.0f - lagWeight) * m_physEstimatedLocalLaggedTime.GetSeconds() - lagWeight * 0.5f * m_pingEstimate.GetSeconds();
+		mpfloat lagWeight = CalcFrameWeight(CNetworkCVars::Get().PhysSyncLagSmooth);
+		m_physEstimatedLocalLaggedTime = (1 - lagWeight) * m_physEstimatedLocalLaggedTime - lagWeight * "0.5" * m_pingEstimate;
 	}
 
 	if (CNetworkCVars::Get().PhysDebug & 2)
@@ -227,11 +226,11 @@ emergency_reset:
 
 		CTimeValue loc = m_epochWhen + m_physEstimatedLocalLaggedTime;
 		CTimeValue rem = loc - m_pingEstimate;
-		CTimeValue now = gEnv->pTimer->GetAsyncTime();
+		CTimeValue now = GetGTimer()->GetAsyncTime();
 		m_pDBTL->AddEvent(rem, loc, now);
 	}
 
-	OutputDebug((float)physDeltaRemoteTime.GetMilliSeconds(), (float)deltaPing.GetMilliSeconds(), (float)averagePing.GetMilliSeconds(), (float)curPing.value * 1000.0f, (float)stepForward.GetMilliSeconds(), ((float)curTimestamp - (float)translatedTimestamp) * (float)timeGranularity * 1000.0f);
+	OutputDebug(physDeltaRemoteTime, deltaPing, averagePing, curPing.value, stepForward, (curTimestamp - translatedTimestamp));
 
 	return true;
 }
@@ -270,7 +269,7 @@ bool CPhysicsSync::OnPacketFooter()
 				pDbg->Begin(string(pEntity->GetName()) + "_phys0", true);
 				pe_status_pos p;
 				pPhysicalEntity->GetStatus(&p);
-				pDbg->AddSphere(p.pos, 0.5f, ColorF(1, 0, 0, 1), 1.0f);
+				pDbg->AddSphere(p.pos, 0.5f, ColorF(1, 0, 0, 1), 1);
 			}
 
 			// TODO: Need an elegant way to detect physicalization
@@ -327,7 +326,7 @@ bool CPhysicsSync::OnPacketFooter()
 	return true;
 }
 
-void CPhysicsSync::OutputDebug(float deltaPhys, float deltaPing, float averagePing, float ping, float stepForward, float deltaTimestamp)
+void CPhysicsSync::OutputDebug(const CTimeValue& deltaPhys, const CTimeValue& deltaPing, const CTimeValue& averagePing, const CTimeValue& ping, const CTimeValue& stepForward, const CTimeValue& deltaTimestamp)
 {
 	if (!CNetworkCVars::Get().PhysDebug)
 	{
@@ -358,12 +357,12 @@ void CPhysicsSync::OutputDebug(float deltaPhys, float deltaPing, float averagePi
   pHist->AddValue(val);                                                                      \
   pHist->SetVisibility(true)
 
-	HISTORY(deltaPhys);
-	HISTORY(deltaPing);
+	HISTORY(BADF deltaPhys.GetMilliSeconds());
+	HISTORY(BADF deltaPing.GetMilliSeconds());
 	//	HISTORY(averagePing);
-	HISTORY(ping);
-	float pingEstimate = m_pingEstimate.GetMilliSeconds();
+	HISTORY(BADF ping.GetMilliSeconds());
+	float pingEstimate = (float)m_pingEstimate.GetMilliSeconds();
 	HISTORY(pingEstimate);
-	HISTORY(deltaTimestamp);
-	HISTORY(stepForward);
+	HISTORY(BADF deltaTimestamp.GetMilliSeconds());
+	HISTORY(BADF stepForward.GetMilliSeconds());
 }

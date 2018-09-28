@@ -38,12 +38,12 @@ public:
 	virtual string              GetStateName(TVehicleAnimStateId stateId);
 	virtual TVehicleAnimStateId GetStateId(const string& name);
 
-	virtual void                SetSpeed(float speed);
+	virtual void                SetSpeed(const mpfloat& speed);
 
 	virtual void                ToggleManualUpdate(bool isEnabled);
-	virtual void                SetTime(float time, bool force = false);
+	virtual void                SetTime(const nTime& time, bool force = false);
 
-	virtual float               GetAnimTime(bool raw = false);
+	virtual nTime               GetAnimTime(bool raw = false);
 	virtual bool                IsUsingManualUpdates();
 
 	virtual void                GetMemoryUsage(ICrySizer* pSizer) const
@@ -76,9 +76,9 @@ protected:
 		//tSoundID soundId;
 		IVehicleHelper*               pSoundHelper;
 
-		float                         speedDefault;
-		float                         speedMin;
-		float                         speedMax;
+		mpfloat                       speedDefault;
+		mpfloat                       speedMin;
+		mpfloat                       speedMax;
 		bool                          isLooped;
 		bool                          isLoopedEx;
 

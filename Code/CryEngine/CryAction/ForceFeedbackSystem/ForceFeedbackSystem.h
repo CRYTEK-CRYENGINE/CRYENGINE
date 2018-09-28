@@ -25,11 +25,11 @@
 
 	#define FFSYSTEM_MAX_PATTERN_SAMPLES        32
 	#define FFSYSTEM_MAX_PATTERN_SAMPLES_FLOAT  32.0f
-	#define FFSYSTEM_PATTERN_SAMPLE_STEP        0.03125f
+	#define FFSYSTEM_PATTERN_SAMPLE_STEP        CTimeValue("0.03125")
 
 	#define FFSYSTEM_MAX_ENVELOPE_SAMPLES       16
 	#define FFSYSTEM_MAX_ENVELOPE_SAMPLES_FLOAT 16.0f
-	#define FFSYSTEM_ENVELOPE_SAMPLE_STEP       0.0625f
+	#define FFSYSTEM_ENVELOPE_SAMPLE_STEP       CTimeValue("0.0625")
 
 	#define FFSYSTEM_UINT16_TO_FLOAT            0.0000152590218967f
 
@@ -102,17 +102,17 @@ private:
 
 	struct SPattern
 	{
-		float SamplePattern(float time) const
+		float SamplePattern(const CTimeValue& time) const
 		{
-			assert((time >= 0.0f) && (time <= 1.0f));
+			assert((time >= 0) && (time <= 1));
 
-			const float fSampleIdx = floor_tpl(time * (float)__fres(FFSYSTEM_PATTERN_SAMPLE_STEP));
+			const nTime fSampleIdx = floor(time / FFSYSTEM_PATTERN_SAMPLE_STEP);
 			int sampleIdx1 = (int)fSampleIdx;
 			assert((sampleIdx1 >= 0) && (sampleIdx1 < FFSYSTEM_MAX_PATTERN_SAMPLES));
 			int sampleIdx2 = (sampleIdx1 >= (FFSYSTEM_MAX_PATTERN_SAMPLES - 1)) ? 0 : sampleIdx1 + 1;
-			const float delta = clamp_tpl((FFSYSTEM_PATTERN_SAMPLE_STEP - (time - (FFSYSTEM_PATTERN_SAMPLE_STEP * fSampleIdx))) * FFSYSTEM_MAX_PATTERN_SAMPLES_FLOAT, 0.0f, 1.0f);
+			const CTimeValue delta = CLAMP((FFSYSTEM_PATTERN_SAMPLE_STEP - (time - (FFSYSTEM_PATTERN_SAMPLE_STEP * fSampleIdx.conv<mpfloat>()))) * FFSYSTEM_MAX_PATTERN_SAMPLES, 0, 1);
 
-			return ((SampleToFloat(sampleIdx1) * delta) + (SampleToFloat(sampleIdx2) * (1.0f - delta)));
+			return ((SampleToFloat(sampleIdx1) * delta.BADGetSeconds()) + (SampleToFloat(sampleIdx2) * (1 - delta.BADGetSeconds())));
 		}
 
 		ILINE float SampleToFloat(int idx) const
@@ -138,17 +138,17 @@ private:
 
 	struct SEnvelope
 	{
-		float SampleEnvelope(float time) const
+		float SampleEnvelope(const CTimeValue& time) const
 		{
-			assert((time >= 0.0f) && (time <= 1.0f));
+			assert((time >= 0) && (time <= 1));
 
-			const float fSampleIdx = floor_tpl(time * (float)__fres(FFSYSTEM_ENVELOPE_SAMPLE_STEP));
+			const nTime fSampleIdx = floor(time / FFSYSTEM_ENVELOPE_SAMPLE_STEP);
 			int sampleIdx1 = (int)fSampleIdx;
 			sampleIdx1 = (sampleIdx1 >= (FFSYSTEM_MAX_ENVELOPE_SAMPLES - 1)) ? (FFSYSTEM_MAX_ENVELOPE_SAMPLES - 2) : sampleIdx1;
 			int sampleIdx2 = sampleIdx1 + 1;
-			const float delta = clamp_tpl((FFSYSTEM_ENVELOPE_SAMPLE_STEP - (time - (FFSYSTEM_ENVELOPE_SAMPLE_STEP * fSampleIdx))) * FFSYSTEM_MAX_ENVELOPE_SAMPLES_FLOAT, 0.0f, 1.0f);
+			const CTimeValue delta = CLAMP((FFSYSTEM_ENVELOPE_SAMPLE_STEP - (time - (FFSYSTEM_ENVELOPE_SAMPLE_STEP * fSampleIdx.conv<mpfloat>()))) * FFSYSTEM_MAX_ENVELOPE_SAMPLES, 0, 1);
 
-			return ((SampleToFloat(sampleIdx1) * delta) + (SampleToFloat(sampleIdx2) * (1.0f - delta)));
+			return ((SampleToFloat(sampleIdx1) * delta.BADGetSeconds()) + (SampleToFloat(sampleIdx2) * (1 - delta.BADGetSeconds())));
 		}
 
 		ILINE float SampleToFloat(int idx) const
@@ -175,7 +175,7 @@ private:
 	struct SEffect
 	{
 		SEffect()
-			: time(1.0f)
+			: time(1)
 			, frequencyA(1.0f)
 			, frequencyB(1.0f)
 			, frequencyLT(0.0f)
@@ -197,7 +197,7 @@ private:
 		float         frequencyB;
 		float         frequencyLT;
 		float         frequencyRT;
-		float         time;
+		CTimeValue    time;
 	};
 
 	typedef VectorMap<FFBInternalId, ForceFeedbackFxId> TEffectToIndexMap;
@@ -257,8 +257,8 @@ private:
 	{
 		SActiveEffect()
 			: effectId(InvalidForceFeedbackFxId)
-			, effectTime(1.0f)
-			, runningTime(0.0f)
+			, effectTime(1)
+			, runningTime(0)
 			, frequencyA(1.0f)
 			, frequencyB(1.0f)
 		{
@@ -267,15 +267,15 @@ private:
 
 		ILINE bool HasFinished() const
 		{
-			return (effectTime > 0.0f) ? (runningTime > effectTime) : false;
+			return (effectTime > 0) ? (runningTime > effectTime) : false;
 		}
 
-		SFFOutput Update(float frameTime);
+		SFFOutput Update(const CTimeValue& frameTime);
 
 		ForceFeedbackFxId           effectId;
 		SForceFeedbackRuntimeParams runtimeParams;
-		float                       effectTime;
-		float                       runningTime;
+		CTimeValue                  effectTime;
+		CTimeValue                  runningTime;
 		float                       frequencyA;
 		float                       frequencyB;
 		float                       frequencyLT;
@@ -318,7 +318,7 @@ public:
 	void Initialize();
 	void Reload();
 
-	void Update(float frameTime);
+	void Update(const CTimeValue& frameTime);
 
 private:
 

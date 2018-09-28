@@ -130,10 +130,10 @@ public:
 		return NULL;
 	}
 
-	virtual void               Queue(IAction& action, float time = -1.0f) override;
+	virtual void               Queue(IAction& action, const CTimeValue& time = -1) override;
 	virtual void               Requeue(IAction& action) override;
 
-	virtual void               Update(float timePassed) override;
+	virtual void               Update(const CTimeValue& timePassed) override;
 
 	virtual SAnimationContext& GetContext() override
 	{
@@ -161,8 +161,8 @@ public:
 		return (m_flags & flag) != 0;
 	}
 
-	virtual void  SetTimeScale(float timeScale) override;
-	virtual float GetTimeScale() const override { return m_timeScale; }
+	virtual void  SetTimeScale(const mpfloat& timeScale) override;
+	virtual const mpfloat& GetTimeScale() const override { return m_timeScale; }
 
 #ifndef _RELEASE
 
@@ -178,9 +178,9 @@ public:
 	// Only needed for animationgraph?
 	virtual bool                      IsActionPending(uint32 userToken) const override;
 
-	virtual bool                      CanInstall(const IAction& action, const ActionScopes& scopeMask, float timeStep, float& timeTillInstall) const override;
+	virtual bool                      CanInstall(const IAction& action, const ActionScopes& scopeMask, const CTimeValue& timeStep, CTimeValue& timeTillInstall) const override;
 
-	virtual bool                      QueryDuration(IAction& action, float& fragmentDuration, float& transitionDuration) const override;
+	virtual bool                      QueryDuration(IAction& action, CTimeValue& fragmentDuration, CTimeValue& transitionDuration) const override;
 
 	virtual void                      SetSlaveController(IActionController& target, uint32 targetContext, bool enslave, const IAnimationDatabase* piOptionTargetDatabase) override;
 	void                              FlushSlaveController(IActionController& target);
@@ -281,7 +281,7 @@ public:
 
 #ifndef _RELEASE
 	static void                         ChangeDebug(const char* entName);
-	static void                         DumpSequence(const char* entName, float dumpTime);
+	static void                         DumpSequence(const char* entName, const CTimeValue& dumpTime);
 #endif //!_RELEASE
 	static const TActionControllerList& GetGlobalActionControllers() { return s_actionControllers; }
 	static IActionController*           FindActionController(const IEntity& entity);
@@ -304,14 +304,14 @@ private:
 	void         FlushScope(uint32 scopeID, ActionScopes scopeFlag, EFlushMethod flushMethod = FM_Normal);
 	void         FlushProceduralContexts();
 
-	bool         ResolveActionInstallations(float timePassed);
+	bool         ResolveActionInstallations(const CTimeValue& timePassed);
 	void         ResolveActionStates();
-	bool         BlendOffActions(float timePassed);
+	bool         BlendOffActions(const CTimeValue& timePassed);
 	void         PruneQueue();
 	ActionScopes EndActionsOnScope(ActionScopes scopeMask, IAction* pPendingAction, bool blendOut = false, EFlushMethod flushMethod = FM_Normal);
-	bool         TryInstalling(IAction& action, float timePassed);
-	bool         CanInstall(const IAction& action, TagID subContext, const ActionScopes& scopeMask, float timeStep, float& timeTillInstall) const;
-	void         Install(IAction& action, float timePassed);
+	bool         TryInstalling(IAction& action, const CTimeValue& timePassed);
+	bool         CanInstall(const IAction& action, TagID subContext, const ActionScopes& scopeMask, const CTimeValue& timeStep, CTimeValue& timeTillInstall) const;
+	void         Install(IAction& action, const CTimeValue& timePassed);
 	void         PushOntoQueue(IAction& action);
 	bool         IsDifferent(const FragmentID fragID, const TagState& fragmentTags, const ActionScopes& scopeMask) const override;
 	void         RequestInstall(const IAction& action, const ActionScopes& scopeMask);
@@ -342,7 +342,7 @@ private:
 	std::vector<SProcContext> m_procContexts;
 
 	uint32                    m_flags;
-	float                     m_timeScale;
+	mpfloat                   m_timeScale;
 
 	ActionScopes              m_scopeFlushMask;
 
@@ -356,7 +356,7 @@ private:
 	bool UpdateRootEntityValidity();                        // returns true when root entity is present and valid
 	bool UpdateScopeContextValidity(uint32 scopeContextId); // returns true when scopecontext is valid
 #ifndef _RELEASE
-	void DumpHistory(const char* filename, float earliestTime = 0.0f) const;
+	void DumpHistory(const char* filename, const CTimeValue& earliestTime = 0) const;
 	static const int TOTAL_HISTORY_SLOTS = 200;
 	SMannHistoryItem m_history[TOTAL_HISTORY_SLOTS];
 	uint32           m_historySlot;

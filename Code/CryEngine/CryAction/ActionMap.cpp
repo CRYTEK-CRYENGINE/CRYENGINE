@@ -796,12 +796,10 @@ bool CActionMap::CanProcessInput(const SInputEvent& inputEvent, CActionMap* pAct
 	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 	bool bRes = false;
 
-	float fCurrTime = gEnv->pTimer->GetCurrTime();
+	// PERSONAL CRYTEK: UI-time doesn't clamp/scale as well.......wouldn't clamped input time => non-clamped time matter?
+	// Shouldn't Input be using UI-time by default since it should be calculating from a player's perspective, in 'real' time?
+	CTimeValue fCurrTime = GetGTimer()->GetFrameStartTime(ITimer::ETIMER_UI);
 	IGameFramework* pGameFramework = gEnv->pGameFramework;
-	if (pGameFramework && pGameFramework->IsGamePaused())
-	{
-		fCurrTime = gEnv->pTimer->GetCurrTime(ITimer::ETIMER_UI);
-	}
 
 	if (m_enabled)
 	{
@@ -860,7 +858,7 @@ bool CActionMap::CanProcessInput(const SInputEvent& inputEvent, CActionMap* pAct
 					pActionInput->fPressedTime = fCurrTime;
 					pActionInput->fLastRepeatTime = fCurrTime;
 					pActionInput->bHoldTriggerFired = false;
-					pActionInput->fCurrentHoldValue = 0.f;
+					pActionInput->fCurrentHoldValue = 0;
 					pActionInput->bAnalogConditionFulfilled = true;
 					pActionInput->currentState = eIS_Pressed;
 				}
@@ -880,7 +878,7 @@ bool CActionMap::CanProcessInput(const SInputEvent& inputEvent, CActionMap* pAct
 					pActionInput->bAnalogConditionFulfilled = false;
 					m_pActionMapManager->RemoveRefireData(pActionMap, pAction, pActionInput);
 				}
-				pActionInput->fCurrentHoldValue = 0.f;
+				pActionInput->fCurrentHoldValue = 0;
 				pActionInput->currentState = eIS_Released;
 			}
 		}
@@ -891,7 +889,7 @@ bool CActionMap::CanProcessInput(const SInputEvent& inputEvent, CActionMap* pAct
 			if (pActionInput->activationMode & eAAM_OnHold) // Needed for hold
 			{
 				pActionInput->fLastRepeatTime = fCurrTime;
-				if (pActionInput->fHoldTriggerDelay > 0.f)
+				if (pActionInput->fHoldTriggerDelay > 0)
 				{
 					pActionInput->bHoldTriggerFired = false;
 				}
@@ -900,7 +898,7 @@ bool CActionMap::CanProcessInput(const SInputEvent& inputEvent, CActionMap* pAct
 					pActionInput->bHoldTriggerFired = true;
 				}
 
-				pActionInput->fCurrentHoldValue = 0.f;
+				pActionInput->fCurrentHoldValue = 0;
 			}
 
 			// Check if the action should be processed
@@ -951,18 +949,14 @@ bool CActionMap::IsActionInputTriggered(const SInputEvent& inputEvent, CActionMa
 		return bRes;
 	}
 
-	float fCurrTime = gEnv->pTimer->GetCurrTime();
+	CTimeValue fCurrTime = GetGTimer()->GetFrameStartTime(ITimer::ETIMER_UI);
 	IGameFramework* pGameFramework = gEnv->pGameFramework;
-	if (pGameFramework && pGameFramework->IsGamePaused())
-	{
-		fCurrTime = gEnv->pTimer->GetCurrTime(ITimer::ETIMER_UI);
-	}
 
 	// currentMode -> bit flag based on key state needed for trigger, and actual key state
 	// Special handling for certain types of logic
 	int currentMode = pActionInput->activationMode & inputEvent.state;
-	const float fTimePressed = fCurrTime - pActionInput->fPressedTime;
-	const bool bJustPressed = fabs(fTimePressed) < FLT_EPSILON;
+	const CTimeValue fTimePressed = fCurrTime - pActionInput->fPressedTime;
+	const bool bJustPressed = abs(fTimePressed) < TV_EPSILON;
 
 	if ((inputEvent.state == eIS_Down) && (pActionInput->activationMode & eAAM_OnHold))
 	{
@@ -986,10 +980,10 @@ bool CActionMap::IsActionInputTriggered(const SInputEvent& inputEvent, CActionMa
 	}
 	else if (inputEvent.state == eIS_Released)
 	{
-		pActionInput->fCurrentHoldValue = 0.f;
+		pActionInput->fCurrentHoldValue = 0;
 
 		//ignore if we have a release threshold and it's been exceeded
-		if (pActionInput->fReleaseTriggerThreshold >= 0.0f && fTimePressed >= pActionInput->fReleaseTriggerThreshold)
+		if (pActionInput->fReleaseTriggerThreshold >= 0 && fTimePressed >= pActionInput->fReleaseTriggerThreshold)
 		{
 			return bRes;
 		}
@@ -1009,7 +1003,7 @@ bool CActionMap::IsActionInputTriggered(const SInputEvent& inputEvent, CActionMa
 					pActionInput->fLastRepeatTime = fCurrTime;
 				}
 
-				if (pActionInput->fHoldRepeatDelay != -1.0f && fCurrTime - pActionInput->fLastRepeatTime >= pActionInput->fHoldRepeatDelay) // fHoldRepeatDelay of -1.0f means no repeat
+				if (pActionInput->fHoldRepeatDelay != -1 && fCurrTime - pActionInput->fLastRepeatTime >= pActionInput->fHoldRepeatDelay) // fHoldRepeatDelay of -1.0f means no repeat
 				{
 					pActionInput->fLastRepeatTime = fCurrTime;
 					bRes = true;
@@ -1021,12 +1015,12 @@ bool CActionMap::IsActionInputTriggered(const SInputEvent& inputEvent, CActionMa
 				// Support overriding hold trigger timer if repeating same input
 				if ((m_pActionMapManager->IsRepeatedInputHoldTriggerFired()) &&     // Could have been interrupted by another held key
 				    (bIsCurrentKey) &&                                              // Need to check since could have multiple held keys
-				    (pActionInput->fHoldTriggerDelayRepeatOverride >= FLT_EPSILON)) // Default is -1.0f which won't activate this
+				    (pActionInput->fHoldTriggerDelayRepeatOverride >= TV_EPSILON)) // Default is -1.0f which won't activate this
 				{
 					if (fTimePressed >= pActionInput->fHoldTriggerDelayRepeatOverride)
 					{
 						pActionInput->bHoldTriggerFired = true;
-						pActionInput->fCurrentHoldValue = 1.f;
+						pActionInput->fCurrentHoldValue = 1;
 						pActionInput->fLastRepeatTime = fCurrTime;
 						bRes = true;
 					}
@@ -1034,7 +1028,7 @@ bool CActionMap::IsActionInputTriggered(const SInputEvent& inputEvent, CActionMa
 				else if (fTimePressed >= pActionInput->fHoldTriggerDelay)
 				{
 					pActionInput->bHoldTriggerFired = true;
-					pActionInput->fCurrentHoldValue = 1.f;
+					pActionInput->fCurrentHoldValue = 1;
 					pActionInput->fLastRepeatTime = fCurrTime;
 					if (m_pActionMapManager->IsIncomingInputRepeated() && bIsCurrentKey) // Need to check since could have multiple held keys
 					{
@@ -1044,19 +1038,19 @@ bool CActionMap::IsActionInputTriggered(const SInputEvent& inputEvent, CActionMa
 				}
 				else
 				{
-					if (pActionInput->fHoldTriggerDelay > 0.f)
+					if (pActionInput->fHoldTriggerDelay > 0)
 					{
 						pActionInput->fCurrentHoldValue = (fTimePressed / pActionInput->fHoldTriggerDelay);
 					}
 					else
 					{
-						pActionInput->fCurrentHoldValue = 0.f;
+						pActionInput->fCurrentHoldValue = 0;
 					}
 				}
 			}
 		}
 		else if ((inputEvent.state == eIS_Pressed) &&
-		         (pActionInput->fPressTriggerDelay >= FLT_EPSILON) &&  // Handle delayed press situation
+		         (pActionInput->fPressTriggerDelay >= TV_EPSILON) &&   // Handle delayed press situation
 		         (!m_pActionMapManager->IsCurrentlyRefiringInput()))   // Input event is from refire, dont try to refire a refired event
 		{
 			if ((m_pActionMapManager->IsIncomingInputRepeated()) &&
@@ -1081,10 +1075,10 @@ bool CActionMap::IsActionInputTriggered(const SInputEvent& inputEvent, CActionMa
 			}
 		}
 		else if ((inputEvent.state == eIS_Released) &&
-		         (pActionInput->fPressTriggerDelay >= FLT_EPSILON) &&  // Handle delayed press situation
+		         (pActionInput->fPressTriggerDelay >= TV_EPSILON) &&   // Handle delayed press situation
 		         (!m_pActionMapManager->IsCurrentlyRefiringInput()))   // Input event is from refire, dont try to refire a refired event
 		{
-			if (fTimePressed - pActionInput->fPressTriggerDelay < FLT_EPSILON) // Press delay hasn't fired yet, release should be fired right after delayed press
+			if (fTimePressed - pActionInput->fPressTriggerDelay < TV_EPSILON) // Press delay hasn't fired yet, release should be fired right after delayed press
 			{
 				m_pActionMapManager->SetRefireDataDelayedPressNeedsRelease(inputEvent, pActionMap, pAction, pActionInput, true);
 				bRes = false;
@@ -1162,7 +1156,7 @@ void CActionMap::ReleaseFilteredActions()
 			if ((!isPressedOrDown && !isChanged) || !m_pActionMapManager->ActionFiltered(it->first))
 				continue;
 
-			pActionInput->fCurrentHoldValue = 0.f;
+			pActionInput->fCurrentHoldValue = 0;
 
 			int currentMode = pActionInput->activationMode & eIS_Released;
 			if (currentMode || isChanged)
@@ -1605,7 +1599,7 @@ bool CActionMap::LoadActionInputAttributesFromXML(const XmlNodeRef& actionInputN
 		{
 			// Must contain a valid block time
 			actionInputNode->getAttr(ACTIONINPUT_INPUTBLOCKTIME_STR, inputBlockData.fBlockDuration);
-			if (inputBlockData.fBlockDuration < FLT_EPSILON)
+			if (inputBlockData.fBlockDuration < TV_EPSILON)
 			{
 				CryWarning(VALIDATOR_MODULE_GAME, VALIDATOR_WARNING, "CActionMap::LoadActionInputAttributesFromXML: Must have a valid blockTime, value is: %.2f", inputBlockData.fBlockDuration);
 				return false;
@@ -1784,7 +1778,7 @@ bool CActionMap::SaveActionInputAttributesToXML(XmlNodeRef& actionInputNode, con
 				return false;
 			}
 
-			if (inputBlockData.fBlockDuration <= (0.0f - FLT_EPSILON))
+			if (inputBlockData.fBlockDuration <= -TV_EPSILON)
 			{
 				CryWarning(VALIDATOR_MODULE_GAME, VALIDATOR_WARNING, "CActionMap::SaveActionInputAttributesToXML: Failed, using normal blocking inputs type but don't have valid block duration");
 				return false;
@@ -2019,7 +2013,7 @@ void CActionMap::ReleaseActionIfActiveInternal(CActionMapAction& action)
 			bFireOnActionAlways = true;
 		}
 
-		pActionInput->fCurrentHoldValue = 0.f;
+		pActionInput->fCurrentHoldValue = 0;
 	}
 
 	if (bFireOnActionRelease)

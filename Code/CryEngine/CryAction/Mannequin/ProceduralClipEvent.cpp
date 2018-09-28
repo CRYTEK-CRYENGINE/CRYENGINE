@@ -32,14 +32,14 @@ public:
 	{
 	}
 
-	virtual void OnEnter(float blendTime, float duration, const SProceduralClipEventParams& params)
+	virtual void OnEnter(const CTimeValue& blendTime, const CTimeValue& duration, const SProceduralClipEventParams& params)
 	{
 		SendActionEvent(params.eventName.crc);
 	}
 
-	virtual void OnExit(float blendTime)  {}
+	virtual void OnExit(const CTimeValue& blendTime)  {}
 
-	virtual void Update(float timePassed) {}
+	virtual void Update(const CTimeValue& timePassed) {}
 
 };
 

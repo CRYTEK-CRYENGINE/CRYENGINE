@@ -22,15 +22,15 @@
 #include "Vehicle.h"
 #include "VehicleUsableActionFlip.h"
 
-static const float s_postOrientTime = 0.5f;
+static const CTimeValue s_postOrientTime = "0.5";
 static const float s_reorientCutOffDot = 0.707f;
 
 //------------------------------------------------------------------------
 CVehicleUsableActionFlip::CVehicleUsableActionFlip()
 	: m_pVehicle(nullptr)
-	, m_postReorientedTimer(0.0f)
+	, m_postReorientedTimer(0)
 	, m_localAngVel(ZERO)
-	, m_timer(0.0f)
+	, m_timer(0)
 {
 }
 
@@ -47,8 +47,8 @@ void CVehicleUsableActionFlip::Reset()
 	params.bParam = false;
 	m_pVehicle->BroadcastVehicleEvent(eVE_BeingFlipped, params);
 	m_pVehicle->SetObjectUpdate(this, IVehicle::eVOU_NoUpdate);
-	m_timer = 0.f;
-	m_postReorientedTimer = 0.f;
+	m_timer.SetSeconds(0);
+	m_postReorientedTimer.SetSeconds(0);
 }
 
 //------------------------------------------------------------------------
@@ -108,7 +108,7 @@ int CVehicleUsableActionFlip::OnEvent(int eventType, SVehicleEventParams& eventP
 	return 0;
 }
 
-void CVehicleUsableActionFlip::Update(const float deltaTime)
+void CVehicleUsableActionFlip::Update(const CTimeValue& deltaTime)
 {
 	if (IPhysicalEntity* pPhysics = m_pVehicle->GetEntity()->GetPhysics())
 	{
@@ -131,10 +131,10 @@ void CVehicleUsableActionFlip::Update(const float deltaTime)
 		}
 		else
 		{
-			m_postReorientedTimer = 0.0f;
+			m_postReorientedTimer.SetSeconds(0);
 		}
 		m_timer += deltaTime;
-		if ((m_timer > 5.f) || ((zAxis.z > 0.1f) && (m_postReorientedTimer > s_postOrientTime)) || (zAxis.z > s_reorientCutOffDot))
+		if ((m_timer > 5) || ((zAxis.z > 0.1f) && (m_postReorientedTimer > s_postOrientTime)) || (zAxis.z > s_reorientCutOffDot))
 		{
 			// Stop
 			Reset();

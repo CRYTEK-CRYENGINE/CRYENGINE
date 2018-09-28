@@ -80,7 +80,7 @@ void CStatsTracker::Event(size_t eventID, const SStatAnyValue& value)
 		return;
 #endif
 
-	CTimeValue timeVal = gEnv->pTimer->GetFrameStartTime(ITimer::ETIMER_UI);
+	CTimeValue timeVal = GetGTimer()->GetFrameStartTime(ITimer::ETIMER_UI);
 	m_container->AddEvent(eventID, timeVal, value);
 
 	m_pGameStats->OnTrackedEvent(m_locator, eventID, timeVal, value);

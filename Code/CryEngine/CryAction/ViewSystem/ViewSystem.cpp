@@ -77,7 +77,7 @@ CViewSystem::~CViewSystem()
 }
 
 //------------------------------------------------------------------------
-void CViewSystem::Update(float frameTime)
+void CViewSystem::Update(const CTimeValue& frameTime)
 {
 	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
@@ -129,10 +129,10 @@ void CViewSystem::Update(float frameTime)
 
 					const float fScale = 0.1f;
 					CPNoise3* pNoise = m_pSystem->GetNoiseGen();
-					float fRes = pNoise->Noise1D(gEnv->pTimer->GetCurrTime() * m_fCameraNoiseFrequency);
+					float fRes = pNoise->Noise1D(GetGTimer()->GetFrameStartTime().BADGetSeconds() * m_fCameraNoiseFrequency);
 					aAng1.x += fRes * m_fCameraNoise * fScale;
 					pos.z -= fRes * m_fCameraNoise * fScale;
-					fRes = pNoise->Noise1D(17 + gEnv->pTimer->GetCurrTime() * m_fCameraNoiseFrequency);
+					fRes = pNoise->Noise1D(17 + GetGTimer()->GetFrameStartTime().BADGetSeconds() * m_fCameraNoiseFrequency);
 					aAng1.y -= fRes * m_fCameraNoise * fScale;
 
 					//aAng1.z+=fRes*0.025f; // left / right movement should be much less visible

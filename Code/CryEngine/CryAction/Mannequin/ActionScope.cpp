@@ -20,9 +20,9 @@ CActionScope::CActionScope(const char* _name, uint32 scopeID, CActionController&
 	, m_actionController(actionController)
 	, m_layer(layer)
 	, m_numLayers(numLayers)
-	, m_speedBias(1.f)
-	, m_animWeight(1.f)
-	, m_timeIncrement(0.0f)
+	, m_speedBias(1)
+	, m_animWeight(1)
+	, m_timeIncrement(0)
 	, m_additionalTags(additionalTags)
 	, m_cachedFragmentTags(TAG_STATE_EMPTY)
 	, m_cachedContextStateMask(TAG_STATE_EMPTY)
@@ -30,13 +30,13 @@ CActionScope::CActionScope(const char* _name, uint32 scopeID, CActionController&
 	, m_cachedTagSetIdx(TAG_SET_IDX_INVALID)
 	, m_lastFragmentID(FRAGMENT_ID_INVALID)
 	, m_sequenceFlags(0)
-	, m_fragmentTime(0.0f)
-	, m_fragmentDuration(0.0f)
-	, m_transitionOutroDuration(0.0f)
-	, m_transitionDuration(0.0f)
-	, m_blendOutDuration(0.0f)
-	, m_lastNormalisedTime(0.0f)
-	, m_normalisedTime(0.0f)
+	, m_fragmentTime(0)
+	, m_fragmentDuration(0)
+	, m_transitionOutroDuration(0)
+	, m_transitionDuration(0)
+	, m_blendOutDuration(0)
+	, m_lastNormalisedTime(0)
+	, m_normalisedTime(0)
 	, m_mutedAnimLayerMask(0)
 	, m_mutedProcLayerMask(0)
 	, m_isOneShot(false)
@@ -60,7 +60,7 @@ bool CActionScope::InstallAnimation(int animID, const CryCharAnimationParams& an
 	return startAnimationSuccess;
 }
 
-void CActionScope::StopAnimationOnLayer(uint32 layer, float blendTime)
+void CActionScope::StopAnimationOnLayer(uint32 layer, const CTimeValue& blendTime)
 {
 	CRY_ASSERT_MESSAGE(layer < m_numLayers, "Overrunning scope!");
 
@@ -69,23 +69,23 @@ void CActionScope::StopAnimationOnLayer(uint32 layer, float blendTime)
 	skeletonAnimation.StopAnimationInLayer(actualLayer, blendTime);
 }
 
-float CActionScope::GetFragmentStartTime() const
+const CTimeValue CActionScope::GetFragmentStartTime() const
 {
 	return m_transitionDuration - m_fragmentTime;
 }
 
-float CActionScope::CalculateFragmentTimeRemaining() const
+const CTimeValue CActionScope::CalculateFragmentTimeRemaining() const
 {
-	float ret = 0.0f;
+	CTimeValue ret;
 	if ((m_numLayers > 0) && m_scopeContext.pCharInst)
 	{
 		SSequencer& sequencer = m_layerSequencers[0];
 
 		if (!sequencer.sequence.empty())
 		{
-			const float timeTillInstall = sequencer.installTime;
+			const CTimeValue timeTillInstall = sequencer.installTime;
 			const uint32 numClips = sequencer.sequence.size();
-			ret += max(0.0f, timeTillInstall);
+			ret += max(CTimeValue(0), timeTillInstall);
 			for (uint32 clip = sequencer.pos + 1; clip < numClips; clip++)
 			{
 				SAnimClip& animClip = sequencer.sequence[clip];
@@ -105,17 +105,17 @@ float CActionScope::CalculateFragmentTimeRemaining() const
 
 	//--- Fallback to the static times
 	//--- TODO: Consider updating these values on tick and simplify this function down
-	const float totalDuration = m_fragmentDuration + m_transitionDuration + m_transitionOutroDuration;
+	const CTimeValue totalDuration = m_fragmentDuration + m_transitionDuration + m_transitionOutroDuration;
 
 	return totalDuration - m_fragmentTime;
 	;
 }
 
-float CActionScope::CalculateFragmentDuration(const CFragment& fragment) const
+const CTimeValue CActionScope::CalculateFragmentDuration(const CFragment& fragment) const
 {
 	IAnimationSet* pAnimSet = m_scopeContext.pCharInst ? m_scopeContext.pCharInst->GetIAnimationSet() : NULL;
 
-	float ret = 0.0f;
+	CTimeValue ret;
 	if (pAnimSet)
 	{
 		if (fragment.m_animLayers.size() > 0)
@@ -123,14 +123,14 @@ float CActionScope::CalculateFragmentDuration(const CFragment& fragment) const
 			const TAnimClipSequence& animClipSeq = fragment.m_animLayers[0];
 
 			uint32 numClips = animClipSeq.size();
-			float lastDuration = 0.0f;
+			CTimeValue lastDuration;
 			for (uint32 i = 0; i < numClips; i++)
 			{
 				const SAnimClip& animClip = animClipSeq[0];
 
 				if (i > 0)
 				{
-					if (animClip.blend.exitTime >= 0.0f)
+					if (animClip.blend.exitTime >= 0)
 					{
 						ret += animClip.blend.exitTime;
 					}
@@ -139,13 +139,13 @@ float CActionScope::CalculateFragmentDuration(const CFragment& fragment) const
 						ret += lastDuration;
 					}
 				}
-				lastDuration = 0.0f;
-				if (!animClip.animation.IsEmpty() && !(animClip.animation.flags & CA_LOOP_ANIMATION) && (animClip.animation.playbackSpeed > 0.0f))
+				lastDuration.SetSeconds(0);
+				if (!animClip.animation.IsEmpty() && !(animClip.animation.flags & CA_LOOP_ANIMATION) && (animClip.animation.playbackSpeed > 0))
 				{
 					int animID = pAnimSet->GetAnimIDByCRC(animClip.animation.animRef.crc);
 					if (animID >= 0)
 					{
-						lastDuration = (pAnimSet->GetDuration_sec(animID) / animClip.animation.playbackSpeed);
+						lastDuration = (pAnimSet->GetDuration(animID) / animClip.animation.playbackSpeed);
 					}
 				}
 			}
@@ -189,12 +189,12 @@ CAnimation* CActionScope::GetTopAnim(int layer)
 	return anim;
 }
 
-void CActionScope::IncrementTime(float timeDelta)
+void CActionScope::IncrementTime(const CTimeValue& timeDelta)
 {
 	m_timeIncrement = timeDelta;
 }
 
-void CActionScope::FillBlendQuery(SBlendQuery& query, FragmentID fragID, const SFragTagState& fragTagState, bool isHigherPriority, float* pLoopDuration) const
+void CActionScope::FillBlendQuery(SBlendQuery& query, FragmentID fragID, const SFragTagState& fragTagState, bool isHigherPriority, CTimeValue* pLoopDuration) const
 {
 	query.fragmentFrom = m_lastFragmentID;
 	query.fragmentTo = fragID;
@@ -215,27 +215,27 @@ void CActionScope::FillBlendQuery(SBlendQuery& query, FragmentID fragID, const S
 	{
 		if (pLoopDuration)
 		{
-			*pLoopDuration = pAnim->GetCurrentSegmentExpectedDurationSeconds();
+			*pLoopDuration = pAnim->GetCurrentSegmentExpectedDuration();
 		}
 		query.normalisedTime = pAnim->GetCurrentSegmentNormalizedTime();
 	}
 }
 
-bool CActionScope::CanInstall(EPriorityComparison priorityComp, FragmentID fragID, const SFragTagState& fragTagState, bool isRequeue, float& timeRemaining) const
+bool CActionScope::CanInstall(EPriorityComparison priorityComp, FragmentID fragID, const SFragTagState& fragTagState, bool isRequeue, CTimeValue& timeRemaining) const
 {
 	IAction* const pCompareAction = m_pAction ? m_pAction.get() : m_pExitingAction.get();
 	if (isRequeue || (pCompareAction && pCompareAction->CanBlendOut(priorityComp)) || (!pCompareAction))
 	{
-		const float totalDuration = m_fragmentDuration + m_transitionDuration + m_transitionOutroDuration;
+		const CTimeValue totalDuration = m_fragmentDuration + m_transitionDuration + m_transitionOutroDuration;
 
 		if ((priorityComp == Higher)
 		    || !pCompareAction
 		    || (pCompareAction->m_eStatus == IAction::Finished)
 		    || (pCompareAction->m_eStatus == IAction::Exiting))
 		{
-			timeRemaining = 0.0f;
+			timeRemaining.SetSeconds(0);
 		}
-		else if (m_fragmentTime <= 0.0f)
+		else if (m_fragmentTime <= 0)
 		{
 			return false;
 		}
@@ -246,38 +246,41 @@ bool CActionScope::CanInstall(EPriorityComparison priorityComp, FragmentID fragI
 		else
 		{
 			SBlendQuery query;
-			float loopDuration;
+			CTimeValue loopDuration;
 			FillBlendQuery(query, fragID, fragTagState, false, &loopDuration);
 
 			SBlendQueryResult queryRes1, queryRes2;
 			m_scopeContext.pDatabase->FindBestBlends(query, queryRes1, queryRes2);
 			if (queryRes1.pFragmentBlend)
 			{
-				float startTime = queryRes1.pFragmentBlend->startTime;
+				CTimeValue startTime = queryRes1.pFragmentBlend->startTime;
 
 				if (queryRes1.pFragmentBlend->flags & SFragmentBlend::Cyclic)
 				{
 					if (queryRes1.pFragmentBlend->flags & SFragmentBlend::CycleLocked)
 					{
-						float cycleDiff = startTime - m_normalisedTime;
-						if ((m_lastNormalisedTime < startTime) || (m_lastNormalisedTime > m_normalisedTime))
+						mpfloat cycleDiff = startTime.GetSeconds() - m_normalisedTime.conv<mpfloat>(); // PERSONAL CRYTEK: What does this mean? Time - normalized time???
+						if ((m_lastNormalisedTime.conv<mpfloat>() < startTime.GetSeconds()) || (m_lastNormalisedTime > m_normalisedTime))
 						{
-							cycleDiff = max(cycleDiff, 0.0f);
+							cycleDiff = max(cycleDiff, mpfloat(0));
 						}
 						else
 						{
-							cycleDiff = (float)__fsel(cycleDiff, cycleDiff, 1.0f + cycleDiff);
+							cycleDiff = __fsel(cycleDiff, cycleDiff, 1 + cycleDiff);
 						}
 
 						timeRemaining = loopDuration * cycleDiff;
 					}
 					else
 					{
-						timeRemaining = 0.0f;
+						timeRemaining.SetSeconds(0);
 					}
 				}
 				else
 				{
+					// PERSONAL CRYTEK: More 0 sense, Seconds + normalizedTime if startTime is changed to normTime to make above make sense.
+					// CalculateFragmentTimeRemaining() has to return duration in seconds, since it uses blend.exitTime/startTime which should be in 'seconds'.....
+					// because getting duration to set exitTime => uses endSec-startSec which is ofc in seconds for sure......AAAAAAAAAAAAAAAAAAAAAARGH
 					timeRemaining = CalculateFragmentTimeRemaining() + startTime;
 				}
 			}
@@ -316,8 +319,8 @@ void CActionScope::InitAnimationParams(const SAnimationEntry& animEntry, const u
 	}
 
 	const int animID = m_scopeContext.pCharInst->GetIAnimationSet()->GetAnimIDByCRC(animEntry.animRef.crc);
-	const float animDuration = m_scopeContext.pCharInst->GetIAnimationSet()->GetDuration_sec(animID);
-	if (0 < animDuration)
+	const CTimeValue animDuration = m_scopeContext.pCharInst->GetIAnimationSet()->GetDuration(animID);
+	if (animDuration > 0)
 	{
 		paramsOut.m_fKeyTime = animBlend.startTime / animDuration;
 	}
@@ -408,7 +411,7 @@ void CActionScope::QueueAnimFromSequence(uint32 layer, uint32 pos, bool isPersis
 		}
 		sequencer.flags |= eSF_Queued;
 
-		CRY_ASSERT_MESSAGE(sequencer.installTime >= 0.0f, "Invalid exit time!");
+		CRY_ASSERT_MESSAGE(sequencer.installTime >= 0, "Invalid exit time!");
 	}
 	else if (!isPersistent)
 	{
@@ -494,7 +497,7 @@ void CActionScope::ApplyAnimWeight(uint32 layer, float weight)
 	}
 }
 
-bool CActionScope::PlayPendingAnim(uint32 layer, float timePassed)
+bool CActionScope::PlayPendingAnim(uint32 layer, const CTimeValue& timePassed)
 {
 	CRY_ASSERT_MESSAGE(layer < m_numLayers, "Invalid layer idx");
 	SSequencer& sequencer = m_layerSequencers[layer];
@@ -503,8 +506,8 @@ bool CActionScope::PlayPendingAnim(uint32 layer, float timePassed)
 	const bool isBlendingOut = (sequencer.flags & eSF_BlendingOut) != 0;
 
 	sequencer.flags &= ~eSF_Queued;
-	sequencer.installTime = 0.0f;
-	sequencer.referenceTime = -1.0f;
+	sequencer.installTime.SetSeconds(0);
+	sequencer.referenceTime.SetSeconds(-1);
 
 	if ((sequencer.pos < sequencer.sequence.size()) || isBlendingOut)
 	{
@@ -514,7 +517,7 @@ bool CActionScope::PlayPendingAnim(uint32 layer, float timePassed)
 		SAnimationEntry animNull;
 		animNull.animRef.SetByString(NULL);
 		animNull.flags = 0;
-		animNull.playbackSpeed = 1.0f;
+		animNull.playbackSpeed = 1;
 		animNull.playbackWeight = 1.0f;
 		if (!isBlendingOut)
 		{
@@ -568,14 +571,14 @@ bool CActionScope::PlayPendingProc(uint32 layer)
 		{
 			const SProceduralEntry& proceduralEntry = sequence[sequencer.pos];
 			++sequencer.pos;
-			const float duration = (sequencer.pos < numSequences) ? sequence[sequencer.pos].blend.exitTime : -1.0f;
+			const CTimeValue duration = (sequencer.pos < numSequences) ? sequence[sequencer.pos].blend.exitTime : -1;
 			InstallProceduralClip(proceduralEntry, layer, sequencer.blend, duration);
 			ClipInstalled(proceduralEntry.part);
 		}
 		else
 		{
 			SProceduralEntry proc;
-			InstallProceduralClip(proc, layer, sequencer.blend, -1.f);
+			InstallProceduralClip(proc, layer, sequencer.blend, -1);
 			sequencer.flags &= ~eSF_BlendingOut;
 		}
 
@@ -586,7 +589,7 @@ bool CActionScope::PlayPendingProc(uint32 layer)
 	return false;
 }
 
-bool CActionScope::QueueFragment(FragmentID fragID, const SFragTagState& fragTagState, uint32 optionIdx, float startTime, uint32 userToken, bool isRootScope, bool isHigherPriority, bool principleContext)
+bool CActionScope::QueueFragment(FragmentID fragID, const SFragTagState& fragTagState, uint32 optionIdx, const CTimeValue& startTimeIn, uint32 userToken, bool isRootScope, bool isHigherPriority, bool principleContext)
 {
 	if (m_scopeContext.pDatabase == NULL)
 	{
@@ -601,7 +604,7 @@ bool CActionScope::QueueFragment(FragmentID fragID, const SFragTagState& fragTag
 	IAnimationSet* pAnimSet = m_scopeContext.pCharInst ? m_scopeContext.pCharInst->GetIAnimationSet() : NULL;
 	m_sequenceFlags = m_scopeContext.pDatabase->Query(fragData, query, optionIdx, pAnimSet, &m_lastFragSelection);
 	m_lastQueueTagState = query.tagStateTo;
-	m_lastNormalisedTime = m_normalisedTime = 0.0f;
+	m_lastNormalisedTime = m_normalisedTime = 0;
 	m_isOneShot = fragData.isOneShot && ((fragID == FRAGMENT_ID_INVALID) || ((m_context.controllerDef.GetFragmentDef(fragID).flags & SFragmentDef::PERSISTENT) == 0));
 	m_blendOutDuration = fragData.blendOutDuration;
 	m_fragmentInstalled = principleContext;
@@ -666,7 +669,7 @@ bool CActionScope::QueueFragment(FragmentID fragID, const SFragTagState& fragTag
 	}
 #endif //MANNEQUIN_DEBUGGING_ENABLED
 
-	m_fragmentDuration = m_transitionOutroDuration = m_transitionDuration = 0.0f;
+	m_fragmentDuration = m_transitionOutroDuration = m_transitionDuration.SetSeconds(0);
 	for (uint32 i = 0; i < SFragmentData::PART_TOTAL; i++)
 	{
 		m_partTypes[i] = fragData.transitionType[i];
@@ -683,15 +686,16 @@ bool CActionScope::QueueFragment(FragmentID fragID, const SFragTagState& fragTag
 			break;
 		}
 	}
+	CTimeValue startTime = startTimeIn;
 	if (!isRootScope)
 	{
 		if (m_sequenceFlags & (eSF_Transition | eSF_TransitionOutro))
 		{
-			startTime = 0.0f;
+			startTime.SetSeconds(0);
 		}
 		else
 		{
-			startTime = max(startTime - (m_transitionOutroDuration + m_transitionDuration), 0.0f);
+			startTime = max(startTime - (m_transitionOutroDuration + m_transitionDuration), CTimeValue(0));
 		}
 	}
 	m_lastFragmentID = fragID;
@@ -712,7 +716,7 @@ bool CActionScope::QueueFragment(FragmentID fragID, const SFragTagState& fragTag
 		SSequencer& sequencer = m_layerSequencers[nLayer];
 
 		sequencer.pos = 0;
-		sequencer.referenceTime = -1.0f;
+		sequencer.referenceTime.SetSeconds(1);
 
 		if (hasClips)
 		{
@@ -756,11 +760,11 @@ bool CActionScope::QueueFragment(FragmentID fragID, const SFragTagState& fragTag
 		{
 			sequencerPush.sequence = fragData.procLayers[nLayer];
 
-			const float layerBlendTime = sequencerPush.sequence[0].blend.exitTime;
+			const CTimeValue layerBlendTime = sequencerPush.sequence[0].blend.exitTime;
 			sequencerPush.installTime = startTime;
 			sequencerPush.blend = sequencerPush.sequence[0].blend;
 			sequencerPush.flags = eSF_Queued;
-			if (layerBlendTime > 0.0f)
+			if (layerBlendTime > 0)
 			{
 				sequencerPush.blend = SAnimBlend();
 				sequencerPush.flags |= eSF_BlendingOut;
@@ -837,7 +841,7 @@ bool CActionScope::IsDifferent(const FragmentID aaID, const TagState& fragmentTa
 	return false;
 }
 
-void CActionScope::InstallProceduralClip(const SProceduralEntry& proc, int layer, const SAnimBlend& blend, float duration)
+void CActionScope::InstallProceduralClip(const SProceduralEntry& proc, int layer, const SAnimBlend& blend, const CTimeValue& duration)
 {
 	if ((BIT(layer) & m_mutedProcLayerMask) == BIT(layer))
 	{
@@ -877,16 +881,18 @@ void CActionScope::InstallProceduralClip(const SProceduralEntry& proc, int layer
 	}
 }
 
-void CActionScope::UpdateSequencers(float timePassed)
+void CActionScope::UpdateSequencers(const CTimeValue& timePassedIn)
 {
+	CTimeValue timePassed = timePassedIn;
+
 	ISkeletonAnim* pSkelAnim = m_scopeContext.pCharInst ? m_scopeContext.pCharInst->GetISkeletonAnim() : NULL;
 
-	const bool hasIncrement = (m_timeIncrement != 0.0f);
+	const bool hasIncrement = (m_timeIncrement != 0);
 	timePassed += m_timeIncrement;
-	m_timeIncrement = 0.0f;
+	m_timeIncrement.SetSeconds(0);
 
 	const int k_MAX_INCREMENTS = 5;
-	float queuedIncrements[k_MAX_INCREMENTS];
+	CTimeValue queuedIncrements[k_MAX_INCREMENTS];
 	int numQueued = 0;
 
 	if (pSkelAnim)
@@ -901,10 +907,10 @@ void CActionScope::UpdateSequencers(float timePassed)
 		for (uint32 i = 0; i < m_numLayers; i++)
 		{
 			SSequencer& sequencer = m_layerSequencers[i];
-			float timeLeft = timePassed;
+			CTimeValue timeLeft = timePassed;
 			while ((sequencer.flags & eSF_Queued) != 0)
 			{
-				const float timeTillInstall = sequencer.installTime;
+				const CTimeValue timeTillInstall = sequencer.installTime;
 				if (timeLeft >= timeTillInstall)
 				{
 					if (PlayPendingAnim(i, timeLeft - timeTillInstall))
@@ -936,37 +942,37 @@ void CActionScope::UpdateSequencers(float timePassed)
 					for (uint32 anm = 0; anm < numAnims; anm++)
 					{
 						int timeIncID = (anm + numQueued) - numAnims;
-						float timeIncrement = (timeIncID >= 0) ? queuedIncrements[timeIncID] : timePassed;
+						CTimeValue timeIncrement = (timeIncID >= 0) ? queuedIncrements[timeIncID] : timePassed;
 
-						if (timeIncrement > 0.0f)
+						if (timeIncrement > 0)
 						{
 							CAnimation& anim = pSkelAnim->GetAnimFromFIFO(layer, anm);
-							float segDuration = m_scopeContext.pCharInst->GetIAnimationSet()->GetDuration_sec(anim.GetAnimationId());
-							if (segDuration > 0.0f)
+							CTimeValue segDuration = m_scopeContext.pCharInst->GetIAnimationSet()->GetDuration(anim.GetAnimationId());
+							if (segDuration > 0)
 							{
-								const float segNormTime = anim.GetCurrentSegmentNormalizedTime();
-								const float newTime = (segNormTime * segDuration) + (timeIncrement * anim.GetPlaybackScale());
-								float newSegNormTime = newTime / segDuration;
+								const nTime segNormTime = anim.GetCurrentSegmentNormalizedTime();
+								const CTimeValue newTime = (segNormTime.conv<mpfloat>() * segDuration) + (timeIncrement * anim.GetPlaybackScale());
+								nTime newSegNormTime = newTime / segDuration;
 								if (!anim.HasStaticFlag(CA_LOOP_ANIMATION))
 								{
-									newSegNormTime = min(newSegNormTime, 1.0f);
+									newSegNormTime = min(newSegNormTime, nTime(1));
 								}
 								else
 								{
-									newSegNormTime = newSegNormTime - (float)((int)(newSegNormTime));
+									newSegNormTime = newSegNormTime - (nTime)((int)(newSegNormTime));
 								}
 								anim.SetCurrentSegmentNormalizedTime(newSegNormTime);
 							}
 
-							float transitionPriority = 0.0f;
-							const float transitionTime = anim.GetTransitionTime();
-							if ((transitionTime == 0.0f) || (anm < numAnims - 1))
+							mpfloat transitionPriority = 0;
+							const CTimeValue transitionTime = anim.GetTransitionTime();
+							if ((transitionTime == 0) || (anm < numAnims - 1))
 							{
-								transitionPriority = 1.0f;
+								transitionPriority = 1;
 							}
 							else
 							{
-								transitionPriority = min(anim.GetTransitionPriority() + (timeIncrement / transitionTime), 1.0f);
+								transitionPriority = min(anim.GetTransitionPriority() + (timeIncrement / transitionTime).conv<mpfloat>(), mpfloat(1));
 							}
 							anim.SetTransitionPriority(transitionPriority);
 						}
@@ -980,13 +986,13 @@ void CActionScope::UpdateSequencers(float timePassed)
 	for (uint32 i = 0; i < numProcSequencers; i++)
 	{
 		SProcSequencer& sequencer = m_procSequencers[i];
-		float timeLeft = timePassed;
+		CTimeValue timeLeft = timePassed;
 		while ((sequencer.flags & eSF_Queued) != 0)
 		{
 			if (timeLeft >= sequencer.installTime)
 			{
 				timeLeft -= sequencer.installTime;
-				sequencer.installTime = -1.0f;
+				sequencer.installTime.SetSeconds(-1);
 				PlayPendingProc(i);
 			}
 			else
@@ -1003,14 +1009,16 @@ void CActionScope::UpdateSequencers(float timePassed)
 	}
 }
 
-void CActionScope::Update(float timePassed)
+void CActionScope::Update(const CTimeValue& timePassedIn)
 {
+	CTimeValue timePassed = timePassedIn;
+
 	IAction* const pPlayingAction = GetPlayingAction().get();
 	if (pPlayingAction)
 	{
 		ISkeletonAnim* pSkelAnim = m_scopeContext.pCharInst ? m_scopeContext.pCharInst->GetISkeletonAnim() : NULL;
 
-		const float newSpeedBias = pPlayingAction->GetSpeedBias();
+		const mpfloat newSpeedBias = pPlayingAction->GetSpeedBias();
 		const float newAnimWeight = pPlayingAction->GetAnimWeight();
 
 		if (m_speedBias != newSpeedBias)
@@ -1049,7 +1057,7 @@ void CActionScope::Update(float timePassed)
 
 void CActionScope::BlendOutFragments()
 {
-	QueueFragment(FRAGMENT_ID_INVALID, SFragTagState(m_context.state.GetMask()), OPTION_IDX_RANDOM, 0.0f, m_userToken);
+	QueueFragment(FRAGMENT_ID_INVALID, SFragTagState(m_context.state.GetMask()), OPTION_IDX_RANDOM, 0, m_userToken);
 }
 
 void CActionScope::ClearSequencers()
@@ -1058,7 +1066,7 @@ void CActionScope::ClearSequencers()
 	{
 		SSequencer& sequencer = m_layerSequencers[i];
 		sequencer.sequence.resize(0);
-		sequencer.installTime = -1.0f;
+		sequencer.installTime.SetSeconds(-1);
 		sequencer.pos = 0;
 		sequencer.flags = 0;
 	}
@@ -1067,7 +1075,7 @@ void CActionScope::ClearSequencers()
 	{
 		SProcSequencer& sequencer = m_procSequencers[i];
 		sequencer.sequence.resize(0);
-		sequencer.installTime = -1.0f;
+		sequencer.installTime.SetSeconds(-1);
 		sequencer.pos = 0;
 		sequencer.flags = 0;
 	}
@@ -1082,7 +1090,7 @@ void CActionScope::Flush(EFlushMethod flushMethod)
 		SSequencer& sequencer = m_layerSequencers[i];
 		//const uint32 numAnims = sequencer.sequence.size();
 		sequencer.sequence.resize(0);
-		sequencer.installTime = -1.0f;
+		sequencer.installTime.SetSeconds(-1);
 		sequencer.pos = 0;
 		sequencer.flags = 0;
 
@@ -1103,7 +1111,7 @@ void CActionScope::Flush(EFlushMethod flushMethod)
 			{
 			case FM_Normal:
 			case FM_NormalLeaveAnimations:
-				procSeq.proceduralClip->OnExit(0.0f);
+				procSeq.proceduralClip->OnExit(0);
 				break;
 			case FM_Failure:
 				procSeq.proceduralClip->OnFail();
@@ -1116,7 +1124,7 @@ void CActionScope::Flush(EFlushMethod flushMethod)
 	m_procSequencers.resize(0);
 
 	m_lastFragmentID = FRAGMENT_ID_INVALID;
-	m_fragmentTime = 0.0f;
+	m_fragmentTime.SetSeconds(0);
 	m_lastFragSelection = SFragmentSelection();
 	m_lastQueueTagState = SFragTagState();
 	m_sequenceFlags = 0;
@@ -1151,7 +1159,7 @@ void CActionScope::Pause()
 	}
 }
 
-void CActionScope::Resume(float forcedBlendTime, uint32 resumeFlags)
+void CActionScope::Resume(const CTimeValue& forcedBlendTime, uint32 resumeFlags)
 {
 	if (!m_scopeContext.pCharInst)
 	{
@@ -1173,7 +1181,7 @@ void CActionScope::Resume(float forcedBlendTime, uint32 resumeFlags)
 		SSequencer& sequencer = m_layerSequencers[i];
 
 		const int animationLayer = m_layer + i;
-		const float blendTime = useDefaultBlendTime ? sequencer.blend.duration : forcedBlendTime;
+		const CTimeValue blendTime = useDefaultBlendTime ? sequencer.blend.duration : forcedBlendTime;
 
 		if (sequencer.savedAnimNormalisedTime < 0)
 		{

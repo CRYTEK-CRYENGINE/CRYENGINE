@@ -45,7 +45,7 @@ public:
 	virtual void                 ProcessEvent(const SEntityEvent& event)  {};
 	virtual uint64               GetEventMask() const { return 0; }
 	virtual void                 SetChannelId(uint16 id)            {};
-	virtual void                 PostUpdate(float frameTime)        { CRY_ASSERT(false); };
+	virtual void                 PostUpdate(const CTimeValue& frameTime) { CRY_ASSERT(false); };
 	virtual void                 PostRemoteSpawn()                  {};
 	virtual void                 GetMemoryUsage(ICrySizer* s) const { s->Add(*this); }
 

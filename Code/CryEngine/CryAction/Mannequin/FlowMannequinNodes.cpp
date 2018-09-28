@@ -315,7 +315,7 @@ public:
 	};
 
 private:
-	virtual void Update(float timePassed) override {}
+	virtual void Update(const CTimeValue& timePassed) override {}
 
 public:
 	void SendEvent(const string& eventName)
@@ -358,17 +358,17 @@ struct SProceduralClipFlowGraphEventParams
 class CProceduralClipFlowGraphEvent
 	: public TProceduralContextualClip<CFlowGraphEventsProceduralContext, SProceduralClipFlowGraphEventParams>
 {
-	virtual void OnEnter(float blendTime, float duration, const SProceduralClipFlowGraphEventParams& params)
+	virtual void OnEnter(const CTimeValue& blendTime, const CTimeValue& duration, const SProceduralClipFlowGraphEventParams& params)
 	{
 		m_context->SendEvent(GetParams().enterEventName.c_str());
 	}
 
-	virtual void OnExit(float blendTime)
+	virtual void OnExit(const CTimeValue& blendTime)
 	{
 		m_context->SendEvent(GetParams().exitEventName.c_str());
 	}
 
-	virtual void Update(float timePassed) {}
+	virtual void Update(const CTimeValue& timePassed) {}
 };
 REGISTER_PROCEDURAL_CLIP(CProceduralClipFlowGraphEvent, "FlowGraphEvent");
 

@@ -149,20 +149,20 @@ void CVehicleSeatActionAnimation::OnAction(const TVehicleActionId actionId, int 
 }
 
 //------------------------------------------------------------------------
-void CVehicleSeatActionAnimation::Update(float frameTime)
+void CVehicleSeatActionAnimation::Update(const CTimeValue& frameTime)
 {
 	if (!m_userId || !m_pVehicleAnim)
 		return;
 
 	if (m_action != 0.f)
 	{
-		float currTime = m_pVehicleAnim->GetAnimTime(true);
-		float newTime = currTime + m_action * m_speed * frameTime;
+		float currTime = BADF m_pVehicleAnim->GetAnimTime(true);
+		float newTime = currTime + m_action * m_speed * frameTime.BADGetSeconds();
 		Limit(newTime, 0.f, 1.f);
 
 		if (newTime != currTime)
 		{
-			m_pVehicleAnim->SetTime(newTime);
+			m_pVehicleAnim->SetTime(BADnT(newTime));
 
 			// starting
 			if (m_prevAction == 0.f /*&& m_pSound.get()*/)

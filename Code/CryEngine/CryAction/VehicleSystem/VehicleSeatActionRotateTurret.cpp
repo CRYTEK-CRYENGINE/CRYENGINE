@@ -208,7 +208,7 @@ void CVehicleSeatActionRotateTurret::Serialize(TSerialize ser, EEntityAspects as
 }
 
 //------------------------------------------------------------------------
-void CVehicleSeatActionRotateTurret::Update(float frameTime)
+void CVehicleSeatActionRotateTurret::Update(const CTimeValue& frameTime)
 {
 	if (!m_pUserEntity)
 	{
@@ -216,7 +216,7 @@ void CVehicleSeatActionRotateTurret::Update(float frameTime)
 	}
 }
 
-void CVehicleSeatActionRotateTurret::UpdateFromPassenger(const float frameTime, EntityId playerId)
+void CVehicleSeatActionRotateTurret::UpdateFromPassenger(const CTimeValue& frameTime, EntityId playerId)
 {
 	if (m_pUserEntity && (m_pUserEntity->GetId() == playerId))
 	{
@@ -224,7 +224,7 @@ void CVehicleSeatActionRotateTurret::UpdateFromPassenger(const float frameTime, 
 	}
 }
 
-void CVehicleSeatActionRotateTurret::DoUpdate(const float frameTime)
+void CVehicleSeatActionRotateTurret::DoUpdate(const CTimeValue& frameTime)
 {
 	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
@@ -278,7 +278,7 @@ void CVehicleSeatActionRotateTurret::DoUpdate(const float frameTime)
 				ColorF col(1.0f, 0.0f, 0.0f, 1.0f);
 				if (pContact && hit > 0.0f)
 				{
-					pPD->AddSphere(pContact->pt, 0.1f, col, 30.0f);
+					pPD->AddSphere(pContact->pt, 0.1f, col, 30);
 				}
 			}
 #endif
@@ -392,12 +392,12 @@ void CVehicleSeatActionRotateTurret::MaintainPartRotationWorldSpace(EVehicleTurr
 }
 
 //------------------------------------------------------------------------
-void CVehicleSeatActionRotateTurret::UpdatePartRotation(EVehicleTurretRotationType eType, float frameTime)
+void CVehicleSeatActionRotateTurret::UpdatePartRotation(EVehicleTurretRotationType eType, const CTimeValue& frameTimeIn)
 {
 	CRY_ASSERT(eType < eVTRT_NumRotationTypes);
 
 	const float threshold = 0.01f;
-	if (frameTime > 0.08f) frameTime = 0.08f;
+	CTimeValue frameTime = min(frameTimeIn, CTimeValue("0.08"));
 
 	CVehiclePartBase* pPart = m_rotations[eType].m_pPart;
 	IVehiclePart* pParent = pPart->GetParent();
@@ -407,7 +407,7 @@ void CVehicleSeatActionRotateTurret::UpdatePartRotation(EVehicleTurretRotationTy
 	float max_rotation = fabsf(m_rotations[eType].m_action);
 	float rot_speed = DEG2RAD(fabsf(m_rotations[eType].m_speed)) * GetDamageSpeedMul(pPart);
 
-	float delta = rot_dir * rot_speed * frameTime;
+	float delta = rot_dir * rot_speed * frameTime.BADGetSeconds();
 	delta += m_rotations[eType].m_aimAssist;
 
 	delta = fmod(delta, gf_PI2);
@@ -456,7 +456,7 @@ void CVehicleSeatActionRotateTurret::UpdatePartRotation(EVehicleTurretRotationTy
 	}
 
 	m_rotations[eType].m_orientation.Set(Quat::CreateRotationXYZ(angles));
-	m_rotations[eType].m_orientation.Update(frameTime);
+	m_rotations[eType].m_orientation.Update(frameTime.BADGetSeconds());
 
 	m_rotations[eType].m_action = 0.0f;
 	m_rotations[eType].m_aimAssist = 0.0f;
@@ -620,7 +620,7 @@ bool CVehicleSeatActionRotateTurret::InitRotationSounds(const CVehicleParams& ro
 }
 
 //------------------------------------------------------------------------
-void CVehicleSeatActionRotateTurret::UpdateRotationSound(EVehicleTurretRotationType type, float speed, float deltaTime)
+void CVehicleSeatActionRotateTurret::UpdateRotationSound(EVehicleTurretRotationType type, float speed, const CTimeValue& deltaTime)
 {
 	// update rotation sound, if available
 	if (m_rotations[type].m_turnSoundId == InvalidSoundEventId)

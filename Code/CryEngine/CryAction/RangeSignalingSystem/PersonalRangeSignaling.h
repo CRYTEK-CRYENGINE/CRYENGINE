@@ -31,7 +31,7 @@ public:
 	CPersonalRangeSignaling(CRangeSignaling* pParent);
 	virtual ~CPersonalRangeSignaling();
 	bool Init(EntityId Id);
-	bool Update(float fElapsedTime, uint32 uDebugOrder = 0);
+	bool Update(const CTimeValue& fElapsedTime, uint32 uDebugOrder = 0);
 	void Reset();
 	void OnProxyReset();
 	void SetEnabled(bool bEnable);

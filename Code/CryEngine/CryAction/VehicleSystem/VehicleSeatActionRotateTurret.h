@@ -83,9 +83,9 @@ public:
 
 	virtual void Serialize(TSerialize ser, EEntityAspects aspects) override;
 	virtual void PostSerialize() override {}
-	virtual void Update(const float deltaTime) override;
+	virtual void Update(const CTimeValue& deltaTime) override;
 
-	virtual void UpdateFromPassenger(const float deltaTime, EntityId playerId) override;
+	virtual void UpdateFromPassenger(const CTimeValue& deltaTime, EntityId playerId) override;
 
 	virtual void GetMemoryUsage(ICrySizer* s) const override { s->Add(*this); }
 	// ~IVehicleSeatAction
@@ -105,16 +105,16 @@ protected:
 		eVTRT_NumRotationTypes,
 	};
 
-	void  DoUpdate(const float deltaTime);
+	void  DoUpdate(const CTimeValue& deltaTime);
 
 	void  UpdateAimGoal();
 	void  MaintainPartRotationWorldSpace(EVehicleTurretRotationType eType);
-	void  UpdatePartRotation(EVehicleTurretRotationType eType, float frameTime);
+	void  UpdatePartRotation(EVehicleTurretRotationType eType, const CTimeValue& frameTime);
 	float GetDamageSpeedMul(CVehiclePartBase* pPart);
 
 	bool  InitRotation(IVehicle* pVehicle, const CVehicleParams& rotationTable, EVehicleTurretRotationType eType);
 	bool  InitRotationSounds(const CVehicleParams& rotationParams, EVehicleTurretRotationType eType);
-	void  UpdateRotationSound(EVehicleTurretRotationType eType, float speed, float deltaTime);
+	void  UpdateRotationSound(EVehicleTurretRotationType eType, float speed, const CTimeValue& deltaTime);
 
 	CVehicle*                      m_pVehicle;
 	IEntity*                       m_pUserEntity;

@@ -30,11 +30,11 @@ public:
 
 	virtual void Serialize(TSerialize ser, EEntityAspects aspects) override                          {}
 	virtual void PostSerialize() override                                                            {}
-	virtual void Update(const float deltaTime) override                                              {}
+	virtual void Update(const CTimeValue& deltaTime) override                                              {}
 
 	virtual void OnVehicleEvent(EVehicleEvent event, const SVehicleEventParams& params) override     {}
 
-	virtual void PrePhysUpdate(const float dt) override;
+	virtual void PrePhysUpdate(const CTimeValue& dt) override;
 
 	virtual void GetMemoryUsage(ICrySizer* s) const override;
 

@@ -55,7 +55,7 @@ void VehicleUtils::DrawTM(const Matrix34& tm, const char* name, bool clear)
 	const static ColorF green(0, 1, 0, 1);
 	const static ColorF blue(0, 0, 1, 1);
 
-	float timeout = 0.1f;
+	CTimeValue timeout = "0.1";
 	float radius = 1.5f;
 
 	pDebug->AddDirection(tm.GetTranslation(), radius, tm.GetColumn(0), red, timeout);

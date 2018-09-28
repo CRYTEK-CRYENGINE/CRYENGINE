@@ -58,8 +58,8 @@ public:
 	int   v_clientPredictSmoothing;
 	int   v_testClientPredict;
 	float v_clientPredictSmoothingConst;
-	float v_clientPredictAdditionalTime;
-	float v_clientPredictMaxTime;
+	CTimeValue v_clientPredictAdditionalTime;
+	CTimeValue v_clientPredictMaxTime;
 
 	int   v_enableMannequin;
 
@@ -69,9 +69,9 @@ public:
 	float v_slipFrictionModFront;
 	float v_slipFrictionModRear;
 
-	float v_FlippedExplosionTimeToExplode;
+	CTimeValue v_FlippedExplosionTimeToExplode;
 	float v_FlippedExplosionPlayerMinDistance;
-	int   v_FlippedExplosionRetryTimeMS;
+	CTimeValue v_FlippedExplosionRetryTime;
 
 	int   v_vehicle_quality;
 	int   v_driverControlledMountedGuns;

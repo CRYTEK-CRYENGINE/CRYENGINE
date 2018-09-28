@@ -18,17 +18,17 @@ void CAnimationDatabase::RegisterCVars()
 	}
 }
 
-float AppendLayers(SFragmentData& fragmentData, const CFragment& fragment, uint8 partID, const IAnimationSet* animSet, float startTime, float startOffset, bool isBlend, bool& isOneShot)
+CTimeValue AppendLayers(SFragmentData& fragmentData, const CFragment& fragment, uint8 partID, const IAnimationSet* animSet, const CTimeValue& startTime, const CTimeValue& startOffset, bool isBlend, bool& isOneShot)
 {
-	float totalTime = 0.0f;
+	CTimeValue totalTime;
 
 	bool calcTime = true;
 
 	SAnimClip nullClip;
-	nullClip.blend.exitTime = 0.0f;
+	nullClip.blend.exitTime.SetSeconds(0);
 
 	SProceduralEntry nullProc;
-	nullProc.blend.exitTime = 0.0f;
+	nullProc.blend.exitTime.SetSeconds(0);
 
 	uint32 numALayers = fragment.m_animLayers.size();
 	uint32 numPLayers = fragment.m_procLayers.size();
@@ -42,7 +42,7 @@ float AppendLayers(SFragmentData& fragmentData, const CFragment& fragment, uint8
 		const uint32 fragLength = fragment.m_animLayers[i].size();
 		const bool hadEntry = !fragmentData.animLayers[i].empty();
 		const bool hasNewEntry = (fragLength > 0);
-		float lastDuration = 0.0f;
+		CTimeValue lastDuration;
 		int startIdx = oldLength;
 
 		bool shouldOverride = false;
@@ -57,7 +57,7 @@ float AppendLayers(SFragmentData& fragmentData, const CFragment& fragment, uint8
 			}
 		}
 
-		float layerTotalTime = 0.0f;
+		CTimeValue layerTotalTime;
 
 		uint32 installFragLength = isBlend ? max(fragLength, 1u) : fragLength;
 
@@ -74,7 +74,7 @@ float AppendLayers(SFragmentData& fragmentData, const CFragment& fragment, uint8
 			{
 				if (isBlend)
 				{
-					float oldExitTime = animClip.blend.exitTime;
+					CTimeValue oldExitTime = animClip.blend.exitTime;
 					animClip.blend = sourceClip->blend;
 					animClip.blend.exitTime = oldExitTime;
 					animClip.blendPart = partID;
@@ -87,7 +87,7 @@ float AppendLayers(SFragmentData& fragmentData, const CFragment& fragment, uint8
 
 				if (firstClip)
 				{
-					animClip.blend.exitTime = max(animClip.blend.exitTime, 0.0f);
+					animClip.blend.exitTime = max(animClip.blend.exitTime, CTimeValue(0));
 					animClip.blend.exitTime += startTime;
 
 					if (!isBlend)
@@ -101,16 +101,16 @@ float AppendLayers(SFragmentData& fragmentData, const CFragment& fragment, uint8
 
 			if (animSet)
 			{
-				float animDuration = 0.0f;
+				CTimeValue animDuration;
 				bool isVariableLength = false;
 				if (false == animClip.animation.animRef.IsEmpty()
 				    && (0 == (animClip.animation.flags & CA_LOOP_ANIMATION))
-				    && (animClip.animation.playbackSpeed > 0.0f))
+				    && (animClip.animation.playbackSpeed > 0))
 				{
 					int animID = animSet->GetAnimIDByCRC(animClip.animation.animRef.crc);
 					if (0 <= animID)
 					{
-						animDuration = ((animSet->GetDuration_sec(animID) - animClip.blend.startTime) / animClip.animation.playbackSpeed);
+						animDuration = ((animSet->GetDuration(animID) - animClip.blend.startTime) / animClip.animation.playbackSpeed);
 						const uint32 flags = animSet->GetAnimationFlags(animID);
 						isVariableLength = (flags & CA_ASSET_LMG) != 0;
 					}
@@ -119,7 +119,7 @@ float AppendLayers(SFragmentData& fragmentData, const CFragment& fragment, uint8
 				animClip.referenceLength = animDuration;
 				animClip.isVariableLength = isVariableLength;
 
-				if (animClip.blend.exitTime < 0.0f)
+				if (animClip.blend.exitTime < 0)
 				{
 					animClip.blend.exitTime = lastDuration;
 				}
@@ -131,9 +131,9 @@ float AppendLayers(SFragmentData& fragmentData, const CFragment& fragment, uint8
 
 				if (!isBlend)
 				{
-					float previousStartTime = layerTotalTime;
+					CTimeValue previousStartTime = layerTotalTime;
 					layerTotalTime += animClip.blend.exitTime;
-					float animStartTime = layerTotalTime;
+					CTimeValue animStartTime = layerTotalTime;
 
 					if (i == 0)
 					{
@@ -144,16 +144,20 @@ float AppendLayers(SFragmentData& fragmentData, const CFragment& fragment, uint8
 					if (startOffset > animStartTime)
 					{
 						// animation start is clipped by fragment transition
-						float animStartOffset = startOffset - animStartTime;
-						animClip.blend.startTime += animStartOffset / max(animDuration, 0.001f);
-						animClip.blend.startTime = clamp_tpl(animClip.blend.startTime, 0.0f, 1.0f);
-						animClip.blend.exitTime = 0.0f;
+						CTimeValue animStartOffset = startOffset - animStartTime;
+						animClip.blend.startTime += CTimeValue(( animStartOffset / max(animDuration, CTimeValue("0.001")) ).conv<mpfloat>());
+						// PERSONAL CRYTEK: According to startTime definition.
+								// StartTime			- Time in secs for the following clip to start off advanced to
+						// Why is it normalized time + clamped 0-1 then???
+						// Plus (above), GetDuration() for sure returns (EndSeconds-StartSeconds), but it's - startTime......
+						animClip.blend.startTime = CLAMP(animClip.blend.startTime, 0, 1);
+						animClip.blend.exitTime.SetSeconds(0);
 					}
 					else if (startOffset > previousStartTime)
 					{
 						// previous animation start was clipped by fragment transition: update exit time
 						animClip.blend.exitTime -= startOffset - previousStartTime;
-						animClip.blend.exitTime = max(0.0f, animClip.blend.exitTime);
+						animClip.blend.exitTime = max(CTimeValue(0), animClip.blend.exitTime);
 					}
 				}
 
@@ -216,7 +220,7 @@ float AppendLayers(SFragmentData& fragmentData, const CFragment& fragment, uint8
 
 		fragmentData.procLayers[i].resize(startIdx + installProcLength);
 
-		float procTotalTime = 0.0f;
+		CTimeValue procTotalTime;
 		for (uint32 k = 0; k < installProcLength; k++)
 		{
 			const bool firstClip = (k == 0);
@@ -230,7 +234,7 @@ float AppendLayers(SFragmentData& fragmentData, const CFragment& fragment, uint8
 			{
 				if (isBlend)
 				{
-					float oldExitTime = procClip.blend.exitTime;
+					CTimeValue oldExitTime = procClip.blend.exitTime;
 					procClip.blend = sourceClip->blend;
 					procClip.blend.exitTime = oldExitTime;
 					procClip.blendPart = partID;
@@ -243,7 +247,7 @@ float AppendLayers(SFragmentData& fragmentData, const CFragment& fragment, uint8
 
 				if (firstClip)
 				{
-					procClip.blend.exitTime = max(procClip.blend.exitTime, 0.0f);
+					procClip.blend.exitTime = max(procClip.blend.exitTime, CTimeValue(0));
 					procClip.blend.exitTime += startTime;
 
 					if (!isBlend)
@@ -261,18 +265,18 @@ float AppendLayers(SFragmentData& fragmentData, const CFragment& fragment, uint8
 
 			if (!isBlend)
 			{
-				float previousStartTime = procTotalTime;
+				CTimeValue previousStartTime = procTotalTime;
 				procTotalTime += procClip.blend.exitTime;
-				float layerStartTime = procTotalTime;
+				CTimeValue layerStartTime = procTotalTime;
 
 				if (startOffset > layerStartTime)
 				{
-					procClip.blend.exitTime = 0.0f;
+					procClip.blend.exitTime.SetSeconds(0);
 				}
 				else if (startOffset > previousStartTime)
 				{
 					procClip.blend.exitTime -= startOffset - previousStartTime;
-					procClip.blend.exitTime = max(0.0f, procClip.blend.exitTime);
+					procClip.blend.exitTime = max(CTimeValue(0), procClip.blend.exitTime);
 				}
 			}
 		}
@@ -305,10 +309,10 @@ float AppendLayers(SFragmentData& fragmentData, const CFragment& fragment, uint8
 	return totalTime - startTime;
 }
 
-float AppendBlend(SFragmentData& outFragmentData, const SBlendQueryResult& blend, const IAnimationSet* inAnimSet, uint8 partID, float& timeOffset, float& timeTally, uint32& retFlags)
+CTimeValue AppendBlend(SFragmentData& outFragmentData, const SBlendQueryResult& blend, const IAnimationSet* inAnimSet, uint8 partID, CTimeValue& timeOffset, CTimeValue& timeTally, uint32& retFlags)
 {
 	const bool isExitTransition = blend.pFragmentBlend->IsExitTransition();
-	const float fragmentTime = AppendLayers(outFragmentData, *blend.pFragmentBlend->pFragment, partID, inAnimSet, timeTally, 0.0f, true, outFragmentData.isOneShot);
+	const CTimeValue fragmentTime = AppendLayers(outFragmentData, *blend.pFragmentBlend->pFragment, partID, inAnimSet, timeTally, 0, true, outFragmentData.isOneShot);
 	timeOffset = blend.pFragmentBlend->enterTime;
 	timeTally += fragmentTime;
 	retFlags |= (isExitTransition ? eSF_TransitionOutro : eSF_Transition);
@@ -346,12 +350,12 @@ uint32 CAnimationDatabase::Query(SFragmentData& outFragmentData, const SBlendQue
 
 	for (uint32 i = 0; i < SFragmentData::PART_TOTAL; i++)
 	{
-		outFragmentData.duration[i] = 0.0f;
+		outFragmentData.duration[i].SetSeconds(0);
 		outFragmentData.transitionType[i] = eCT_Normal;
 	}
 
-	float timeTally = 0.0f;
-	float timeOffset = 0.0f;
+	CTimeValue timeTally;
+	CTimeValue timeOffset;
 	EClipType prevClipType = eCT_Normal;
 	int clipIdx = 0;
 	if (blend1.pFragmentBlend)
@@ -1669,7 +1673,11 @@ void CAnimationDatabase::FindBestBlendInVariant(const SFragmentBlendVariant& var
 	for (uint32 i = 0; i < numBlends; i++)
 	{
 		const SFragmentBlend& fragBlend = variant.blendList[i];
-		const float sourceTime = (fragBlend.flags & SFragmentBlend::CycleLocked) ? blendQuery.prevNormalisedTime : ((fragBlend.flags & SFragmentBlend::Cyclic) ? blendQuery.normalisedTime : blendQuery.fragmentTime);
+		const CTimeValue sourceTime = (fragBlend.flags & SFragmentBlend::CycleLocked) 
+												? CTimeValue(blendQuery.prevNormalisedTime.conv<mpfloat>())
+												: ((fragBlend.flags & SFragmentBlend::Cyclic) 
+															? CTimeValue(blendQuery.normalisedTime.conv<mpfloat>()) 
+															: blendQuery.fragmentTime);
 		if ((result.pFragmentBlend == NULL) || (sourceTime >= fragBlend.selectTime))
 		{
 			result.pFragmentBlend = &fragBlend;

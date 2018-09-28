@@ -291,7 +291,7 @@ int CScriptBind_Action::GetWaterInfo(IFunctionHandler* pH, Vec3 pos)
 int CScriptBind_Action::GetServer(IFunctionHandler* pFH, int number)
 {
 	char* server = 0;
-	int ping = 9999;
+	CTimeValue ping = 9999;
 	char* data = 0;
 
 	ILanQueryListener* pLanQueryListener = m_pCryAction->GetILanQueryListener();
@@ -328,7 +328,7 @@ int CScriptBind_Action::ConnectToServer(IFunctionHandler* pFH, char* server)
 //------------------------------------------------------------------------
 int CScriptBind_Action::GetServerTime(IFunctionHandler* pFH)
 {
-	return pFH->EndFunction(m_pCryAction->GetServerTime().GetSeconds());
+	return pFH->EndFunction(GetGTimer()->GetServerTime().GetSeconds());
 }
 
 //------------------------------------------------------------------------
@@ -453,7 +453,7 @@ int CScriptBind_Action::ResetToNormalCamera(IFunctionHandler* pH)
 }
 
 //-------------------------------------------------------------------------
-int CScriptBind_Action::PersistantSphere(IFunctionHandler* pH, Vec3 pos, float radius, Vec3 color, const char* name, float timeout)
+int CScriptBind_Action::PersistantSphere(IFunctionHandler* pH, Vec3 pos, float radius, Vec3 color, const char* name, CTimeValue timeout)
 {
 	IPersistantDebug* pPD = CCryAction::GetCryAction()->GetIPersistantDebug();
 
@@ -464,7 +464,7 @@ int CScriptBind_Action::PersistantSphere(IFunctionHandler* pH, Vec3 pos, float r
 }
 
 //-------------------------------------------------------------------------
-int CScriptBind_Action::PersistantLine(IFunctionHandler* pH, Vec3 start, Vec3 end, Vec3 color, const char* name, float timeout)
+int CScriptBind_Action::PersistantLine(IFunctionHandler* pH, Vec3 start, Vec3 end, Vec3 color, const char* name, CTimeValue timeout)
 {
 	IPersistantDebug* pPD = CCryAction::GetCryAction()->GetIPersistantDebug();
 
@@ -475,7 +475,7 @@ int CScriptBind_Action::PersistantLine(IFunctionHandler* pH, Vec3 start, Vec3 en
 }
 
 //-------------------------------------------------------------------------
-int CScriptBind_Action::PersistantArrow(IFunctionHandler* pH, Vec3 pos, float radius, Vec3 dir, Vec3 color, const char* name, float timeout)
+int CScriptBind_Action::PersistantArrow(IFunctionHandler* pH, Vec3 pos, float radius, Vec3 dir, Vec3 color, const char* name, CTimeValue timeout)
 {
 	IPersistantDebug* pPD = CCryAction::GetCryAction()->GetIPersistantDebug();
 
@@ -486,7 +486,7 @@ int CScriptBind_Action::PersistantArrow(IFunctionHandler* pH, Vec3 pos, float ra
 }
 
 //-------------------------------------------------------------------------
-int CScriptBind_Action::Persistant2DText(IFunctionHandler* pH, const char* text, float size, Vec3 color, const char* name, float timeout)
+int CScriptBind_Action::Persistant2DText(IFunctionHandler* pH, const char* text, float size, Vec3 color, const char* name, CTimeValue timeout)
 {
 	IPersistantDebug* pPD = CCryAction::GetCryAction()->GetIPersistantDebug();
 
@@ -576,7 +576,7 @@ int CScriptBind_Action::DisableSignalTimer(IFunctionHandler* pH, ScriptHandle en
 }
 
 //-------------------------------------------------------------------------
-int CScriptBind_Action::SetSignalTimerRate(IFunctionHandler* pH, ScriptHandle entityId, const char* sText, float fRateMin, float fRateMax)
+int CScriptBind_Action::SetSignalTimerRate(IFunctionHandler* pH, ScriptHandle entityId, const char* sText, CTimeValue fRateMin, CTimeValue fRateMax)
 {
 	bool bRet = CSignalTimer::ref().SetTurnRate((EntityId)entityId.n, sText, fRateMin, fRateMax);
 	return pH->EndFunction(bRet);

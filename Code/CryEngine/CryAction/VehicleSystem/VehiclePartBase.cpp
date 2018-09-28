@@ -48,8 +48,8 @@ CVehiclePartBase::CVehiclePartBase()
 	, m_users(0)
 	, m_isRotationBlocked(false)
 	, m_damageRatio(0.0f)
-	, m_hideTimeMax(0.0f)
-	, m_hideTimeCount(0.0f)
+	, m_hideTimeMax(0)
+	, m_hideTimeCount(0)
 	, m_index(-1)
 {}
 
@@ -358,8 +358,8 @@ void CVehiclePartBase::OnEvent(const SVehiclePartEvent& event)
 			else
 				m_hideMode = eVPH_FadeIn;
 
-			m_hideTimeCount = event.fparam;
-			m_hideTimeMax = event.fparam;
+			m_hideTimeCount = BADTIME(event.fparam);
+			m_hideTimeMax   = BADTIME(event.fparam);
 
 			m_pVehicle->SetObjectUpdate(this, IVehicle::eVOU_AlwaysUpdate);
 		}
@@ -542,7 +542,7 @@ const AABB& CVehiclePartBase::GetLocalBounds()
 }
 
 //------------------------------------------------------------------------
-void CVehiclePartBase::Update(float frameTime)
+void CVehiclePartBase::Update(const CTimeValue& frameTime)
 {
 	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
@@ -559,7 +559,7 @@ void CVehiclePartBase::Update(float frameTime)
 		{
 			m_hideTimeCount -= frameTime;
 
-			if (m_hideTimeCount <= 0.0f)
+			if (m_hideTimeCount <= 0)
 				m_pVehicle->SetObjectUpdate(this, IVehicle::eVOU_NoUpdate);
 		}
 		else
@@ -567,7 +567,7 @@ void CVehiclePartBase::Update(float frameTime)
 
 		if (IMaterial* pMaterialMain = GetMaterial())
 		{
-			const float opacity = min(1.0f, max(0.0f, (m_hideTimeCount / m_hideTimeMax)));
+			const float opacity = min(1.0f, max(0.0f, BADF (m_hideTimeCount / m_hideTimeMax)));
 
 			if (IRenderShaderResources* pShaderRes = pMaterialMain->GetShaderItem().m_pShaderResources)
 			{

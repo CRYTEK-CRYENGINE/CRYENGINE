@@ -143,7 +143,7 @@ void CRangeSignaling::OnProxyReset(EntityId IdEntity)
 //
 // Return:
 //
-bool CRangeSignaling::Update(float fElapsedTime)
+bool CRangeSignaling::Update(const CTimeValue& fElapsedTime)
 {
 	bool bRet = true;
 

@@ -113,7 +113,7 @@ struct SVehiclePredictionHistory
 	Quat                   m_rot;
 	Vec3                   m_velocity;
 	Vec3                   m_angVelocity;
-	float                  m_deltaTime;
+	CTimeValue             m_deltaTime;
 };
 
 #if ENABLE_VEHICLE_DEBUG
@@ -208,14 +208,14 @@ public:
 	virtual SEntityPhysicalizeParams&   GetPhysicsParams() { return m_physicsParams; }
 
 	virtual void                        HandleEvent(const SGameObjectEvent&);
-	virtual void                        PostUpdate(float frameTime);
+	virtual void                        PostUpdate(const CTimeValue& frameTime);
 	virtual void                        PostRemoteSpawn() {};
 
 	virtual const SVehicleStatus&       GetStatus() const;
 
 	virtual void                        Update(SEntityUpdateContext& ctx, int nSlot);
 	virtual void                        UpdateView(SViewParams& viewParams, EntityId playerId = 0);
-	virtual void                        UpdatePassenger(float frameTime, EntityId playerId = 0);
+	virtual void                        UpdatePassenger(const CTimeValue& frameTime, EntityId playerId = 0);
 
 	virtual void                        SetChannelId(uint16 id) {};
 
@@ -288,7 +288,7 @@ public:
 	// check if ClientActor is on board
 	virtual bool            IsPlayerPassenger();
 
-	virtual void            StartAbandonedTimer(bool force = false, float timer = -1.0f);
+	virtual void            StartAbandonedTimer(bool force = false, const CTimeValue& time = -1);
 	virtual void            KillAbandonedTimer();
 	virtual void            Destroy();
 	virtual void            EnableAbandonedWarnSound(bool enable);
@@ -304,7 +304,7 @@ public:
 	bool                    IsDestroyable() const;
 
 	virtual void            TriggerEngineSlotBySpeed(bool trigger) { m_engineSlotBySpeed = trigger; }
-	virtual int             SetTimer(int timerId, int ms, IVehicleObject* pObject);
+	virtual int             SetTimer(int timerId, const CTimeValue& time, IVehicleObject* pObject);
 	virtual int             KillTimer(int timerId);
 	virtual void            KillTimers();
 
@@ -616,7 +616,7 @@ public:
 	void                 RequestPhysicalization(IVehiclePart* pPart, bool request);
 	virtual void         NeedsUpdate(int flags = 0, bool bThreadSafe = false);
 
-	void                 CheckFlippedStatus(const float deltaTime);
+	void                 CheckFlippedStatus(const CTimeValue& deltaTime);
 
 	STransitionInfo&     GetTransitionInfoForSeat(TVehicleSeatId seatId)
 	{
@@ -636,7 +636,7 @@ public:
 
 	bool                IsIndestructable() const { return m_indestructible; }
 
-	float               GetPhysicsFrameTime()    { return m_physUpdateTime; }
+	const CTimeValue&   GetPhysicsFrameTime()    { return m_physUpdateTime; }
 
 	//Used in MP for logically linking associated vehicles together across network
 	virtual EntityId                  GetParentEntityId() const                  { return m_ParentId; }
@@ -650,7 +650,7 @@ public:
 	void UpdatePassengerCount();
 
 	void OnActionEvent(EVehicleActionEvent event);
-	void OnPrePhysicsTimeStep(float deltaTime);
+	void OnPrePhysicsTimeStep(const CTimeValue& deltaTime);
 
 protected:
 
@@ -669,9 +669,9 @@ protected:
 	void                             CheckDisableUpdate(int slot);
 	void                             ProcessFlipped();
 
-	void                             UpdateStatus(const float deltaTime);
-	void                             UpdateNetwork(const float deltaTime);
-	void                             ReplayPredictionHistory(const float remainderTime);
+	void                             UpdateStatus(const CTimeValue& deltaTime);
+	void                             UpdateNetwork(const CTimeValue& deltaTime);
+	void                             ReplayPredictionHistory(const CTimeValue& remainderTime);
 	void                             SetDestroyedStatus(bool isDestroyed) { m_isDestroyed = isDestroyed; }
 	void                             DoRequestedPhysicalization();
 	void                             DeleteActionController();
@@ -679,10 +679,10 @@ protected:
 	const CVehicleSeatActionWeapons* GetCurrentSeatActionWeapons(EntityId passengerId, bool secondary) const;
 
 #if ENABLE_VEHICLE_DEBUG
-	void DebugDraw(const float frameTime);
+	void DebugDraw(const CTimeValue& frameTime);
 	bool IsDebugDrawing();
 	void DebugDrawClientPredict();
-	void TestClientPrediction(const float deltaTime);
+	void TestClientPrediction(const CTimeValue& deltaTime);
 #endif
 
 	void         CreateAIHidespots();
@@ -769,13 +769,13 @@ protected:
 	TDebugClientPredictData    m_debugClientPredictData;
 	CryCriticalSection         m_debugDrawLock;
 #endif
-	float                      m_smoothedPing;
+	CTimeValue                 m_smoothedPing;
 	QuatT                      m_clientSmoothedPosition;
 	QuatT                      m_clientPositionError;
 
 	CVehicleAnimationComponent m_vehicleAnimation;
 
-	float                      m_collisionDisabledTime;
+	CTimeValue                 m_collisionDisabledTime;
 
 	bool                       m_customEngineSlot;
 	bool                       m_engineSlotBySpeed;
@@ -788,7 +788,7 @@ protected:
 	bool                       m_bCanBeAbandoned;
 	bool                       m_hasAuthority;
 
-	float                      m_physUpdateTime;
+	CTimeValue                 m_physUpdateTime;
 
 	/*
 	   struct SSharedParams : public ISharedParams

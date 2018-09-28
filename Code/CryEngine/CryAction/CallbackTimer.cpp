@@ -37,7 +37,7 @@ void CallbackTimer::Update()
 			m_resort = false;
 		}
 
-		CTimeValue now = gEnv->pTimer->GetFrameStartTime();
+		CTimeValue now = GetGTimer()->GetFrameStartTime();
 
 		while (!m_timeouts.empty() && (m_timeouts.front().timeout <= now))
 		{
@@ -55,8 +55,8 @@ void CallbackTimer::Update()
 				else
 				{
 					CTimeValue nextTimeout = timeout.timeout + timer.interval;
-					if (nextTimeout.GetValue() <= now.GetValue())
-						nextTimeout.SetValue(now.GetValue() + 1);
+					if (nextTimeout <= now)
+						nextTimeout.SetMicroSeconds(now.GetMicroSeconds() + 10);
 
 					timeout.timeout = nextTimeout;
 					m_timeouts.push_back(timeout);
@@ -67,11 +67,11 @@ void CallbackTimer::Update()
 	}
 }
 
-CallbackTimer::TimerID CallbackTimer::AddTimer(CTimeValue interval, bool repeating, const Callback& callback, void* userdata)
+CallbackTimer::TimerID CallbackTimer::AddTimer(const CTimeValue& interval, bool repeating, const Callback& callback, void* userdata)
 {
 	EnsureMainThread();
 
-	CTimeValue now = gEnv->pTimer->GetFrameStartTime();
+	CTimeValue now = GetGTimer()->GetFrameStartTime();
 
 	if (m_timers.full())
 	{

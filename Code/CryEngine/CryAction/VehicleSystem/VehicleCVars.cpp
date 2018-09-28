@@ -87,8 +87,8 @@ CVehicleCVars::CVehicleCVars()
 	REGISTER_CVAR(v_clientPredictSmoothing, 1, VF_CHEAT, "Enable client-side prediction smoothing on vehicle movement");
 	REGISTER_CVAR(v_testClientPredict, 0, VF_CHEAT, "Test client-side prediction on a listen server with no clients, the value represents the number of frames to rewind and replay");
 	REGISTER_CVAR(v_clientPredictSmoothingConst, 8.0f, VF_CHEAT, "The amount of smoothing to use, lower values result in smoothing looking movement but more lag behind the true position");
-	REGISTER_CVAR(v_clientPredictAdditionalTime, 0.033f, VF_CHEAT, "Additional time offset to calibrate client prediction, will be added to ping and p_net_interp cvar");
-	REGISTER_CVAR(v_clientPredictMaxTime, 0.5f, VF_CHEAT, "The maximum time the client can predict ahead of the server position (should be roughly equal to the maximum ping we expect in the real world)");
+	REGISTER_CVAR(v_clientPredictAdditionalTime, CTimeValue("0.033"), VF_CHEAT, "Additional time offset to calibrate client prediction, will be added to ping and p_net_interp cvar");
+	REGISTER_CVAR(v_clientPredictMaxTime, CTimeValue("0.5"), VF_CHEAT, "The maximum time the client can predict ahead of the server position (should be roughly equal to the maximum ping we expect in the real world)");
 
 	// for tweaking
 	REGISTER_CVAR(v_slipSlopeFront, 0.f, VF_CHEAT, "coefficient for slip friction slope calculation (front wheels)");
@@ -96,9 +96,9 @@ CVehicleCVars::CVehicleCVars()
 	REGISTER_CVAR(v_slipFrictionModFront, 0.f, VF_CHEAT, "if non-zero, used as slip friction modifier (front wheels)");
 	REGISTER_CVAR(v_slipFrictionModRear, 0.f, VF_CHEAT, "if non-zero, used as slip friction modifier (rear wheels)");
 
-	REGISTER_CVAR(v_FlippedExplosionTimeToExplode, 20.f, VF_CHEAT, "The number of seconds to wait after a vehicle is flipped to attempt exploding");
+	REGISTER_CVAR(v_FlippedExplosionTimeToExplode, CTimeValue(20), VF_CHEAT, "The number of seconds to wait after a vehicle is flipped to attempt exploding");
 	REGISTER_CVAR(v_FlippedExplosionPlayerMinDistance, 25.f, VF_CHEAT, "If a player is within this distance then don't explode yet");
-	REGISTER_CVAR(v_FlippedExplosionRetryTimeMS, 10000, VF_CHEAT, "If a nearby player blocked explosion then try again after this time period");
+	REGISTER_CVAR(v_FlippedExplosionRetryTime, CTimeValue(10), VF_CHEAT, "If a nearby player blocked explosion then try again after this time period");
 
 	REGISTER_COMMAND("v_reload_system", "VehicleSystem.ReloadVehicleSystem()", 0, "Reloads VehicleSystem script");
 	REGISTER_COMMAND("v_exit_player", CmdExitPlayer, VF_CHEAT, "Makes the local player exit his current vehicle.");

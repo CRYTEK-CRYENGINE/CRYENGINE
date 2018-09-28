@@ -46,7 +46,7 @@ public:
 		m_pIEntityAudioComponent = entity.GetOrCreateComponent<IEntityAudioComponent>();
 	}
 
-	virtual void Update(float timePassed) override
+	virtual void Update(const CTimeValue& timePassed) override
 	{
 	}
 
@@ -188,7 +188,7 @@ private:
 	using TAudioParamVec = std::vector<SAudioParamInfo>;
 
 public:
-	virtual void OnEnter(float blendTime, float duration, const SAudioParams& params) override
+	virtual void OnEnter(const CTimeValue& blendTime, const CTimeValue& duration, const SAudioParams& params) override
 	{
 #if defined(TEMPORARY_SOUND_FLAGS)
 		if (params.soundFlags)
@@ -253,7 +253,7 @@ public:
 		}
 	}
 
-	virtual void OnExit(float blendTime) override
+	virtual void OnExit(const CTimeValue& blendTime) override
 	{
 		if (m_audioTriggerStopId != CryAudio::InvalidControlId)
 		{
@@ -269,7 +269,7 @@ public:
 		m_audioParameterId = CryAudio::InvalidControlId;
 	}
 
-	virtual void Update(float timePassed) override
+	virtual void Update(const CTimeValue& timePassed) override
 	{
 		UpdateSoundParams();
 		UpdateSoundPosition();

@@ -53,7 +53,7 @@ void CVehiclePartEntityAttachment::PostInit()
 }
 
 //------------------------------------------------------------------------
-void CVehiclePartEntityAttachment::Update(const float frameTime)
+void CVehiclePartEntityAttachment::Update(const CTimeValue& frameTime)
 {
 	CVehiclePartBase::Update(frameTime);
 

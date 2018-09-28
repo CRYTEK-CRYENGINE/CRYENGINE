@@ -27,7 +27,7 @@ private:
 	struct SDebugVisualEntry
 	{
 		SDebugVisualEntry()
-			: lifeTime(0.0f)
+			: lifeTime(0)
 			, fxId(InvalidEffectId)
 			, materialName1("")
 			, materialName2("")
@@ -41,7 +41,7 @@ private:
 		Vec3                fxPosition;
 		Vec3                fxDirection;
 
-		float               lifeTime;
+		CTimeValue          lifeTime;
 
 		TMFXEffectId        fxId;
 	};
@@ -79,7 +79,7 @@ public:
 	void AddLastSearchHint(const TMFXEffectId effectId, const IEntityClass* pEntityClass, const int surfaceIndex2);
 
 	void AddEffectDebugVisual(const TMFXEffectId effectId, const SMFXRunTimeEffectParams& runtimeParams);
-	void Update(const CMaterialEffects& materialEffects, const float frameTime);
+	void Update(const CMaterialEffects& materialEffects, const CTimeValue& frameTime);
 
 private:
 

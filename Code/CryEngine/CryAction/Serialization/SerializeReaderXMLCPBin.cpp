@@ -15,7 +15,7 @@ CSerializeReaderXMLCPBin::CSerializeReaderXMLCPBin(XMLCPB::CNodeLiveReaderRef no
 	: m_nErrors(0)
 	, m_binReader(binReader)
 {
-	//m_curTime = gEnv->pTimer->GetFrameStartTime();
+	//m_curTime = GetGTimer()->GetFrameStartTime();
 	assert(nodeRef.IsValid());
 	m_nodeStack.reserve(MAX_NODE_STACK_DEPTH);
 	m_nodeStack.push_back(nodeRef);
@@ -230,19 +230,19 @@ bool CSerializeReaderXMLCPBin::Value(const char* name, CTimeValue& value)
 	bool isZero = pVal ? 0 == strcmp("zero", pVal) : false;
 
 	if (isZero)
-		value = CTimeValue(0.0f);
+		value = CTimeValue(0);
 	else
 	{
-		float delta;
+		CTimeValue delta;
 		if (!GetAttr(nodeRef, name, delta))
 		{
-			value = gEnv->pTimer->GetFrameStartTime(); // in case we don't find the node, it was assumed to be the default value (0.0)
+			value = GetGTimer()->GetFrameStartTime(); // in case we don't find the node, it was assumed to be the default value (0.0)
 			// 0.0 means current time, whereas "zero" really means CTimeValue(0.0), see above
 			return false;
 		}
 		else
 		{
-			value = CTimeValue(gEnv->pTimer->GetFrameStartTime() + delta);
+			value = GetGTimer()->GetFrameStartTime() + delta;
 		}
 	}
 	return true;

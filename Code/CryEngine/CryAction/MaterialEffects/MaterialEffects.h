@@ -36,7 +36,7 @@ private:
 	struct SDelayedEffect
 	{
 		SDelayedEffect()
-			: m_delay(0.0f)
+			: m_delay(0)
 		{
 
 		}
@@ -55,7 +55,7 @@ private:
 
 		TMFXContainerPtr        m_pEffectContainer;
 		SMFXRunTimeEffectParams m_effectRuntimeParams;
-		float                   m_delay;
+		CTimeValue              m_delay;
 	};
 
 	typedef std::vector<SDelayedEffect> TDelayedEffects;
@@ -105,7 +105,7 @@ public:
 
 	void                GetMemoryUsage(ICrySizer* s) const;
 	void                NotifyFGHudEffectEnd(IFlowGraphPtr pFG);
-	void                Update(float frameTime);
+	void                Update(const CTimeValue& frameTime);
 	void                SetUpdateMode(bool bMode);
 	CMaterialFGManager* GetFGManager() const { return m_pMaterialFGManager; }
 

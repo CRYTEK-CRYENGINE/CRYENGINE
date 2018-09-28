@@ -37,7 +37,7 @@ public:
 
 	virtual void Serialize(TSerialize ser, EEntityAspects aspects) override                      {}
 	virtual void PostSerialize() override                                                        {}
-	virtual void Update(const float deltaTime) override;
+	virtual void Update(const CTimeValue& deltaTime) override;
 
 	virtual void GetMemoryUsage(ICrySizer* s) const override { s->Add(*this); }
 	// ~IVehicleSeatAction
@@ -48,7 +48,7 @@ protected:
 	IVehicleSeat* m_pSeat;
 
 	float         m_actionForward;
-	float         m_delayedStop;
+	CTimeValue    m_delayedStop;
 };
 
 #endif

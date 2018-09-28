@@ -113,10 +113,10 @@ void CFlashUIDelayNode::ProcessEvent(EFlowEvent event, SActivationInfo* pActInfo
 		break;
 	case eFE_Activate:
 		pActInfo->pGraph->SetRegularlyUpdated(pActInfo->myID, true);
-		m_fTime = gEnv->pTimer->GetAsyncCurTime();
+		m_fTime = GetGTimer()->GetAsyncCurTime();
 		break;
 	case eFE_Update:
-		if (m_fTime + GetPortFloat(pActInfo, eI_Delay) < gEnv->pTimer->GetAsyncCurTime())
+		if (m_fTime + GetPortTime(pActInfo, eI_Delay) < GetGTimer()->GetAsyncCurTime())
 		{
 			ActivateOutput(pActInfo, eO_Done, GetPortAny(pActInfo, eI_Start));
 			pActInfo->pGraph->SetRegularlyUpdated(pActInfo->myID, false);

@@ -31,17 +31,17 @@ public:
 
 	virtual void Serialize(TSerialize ser, EEntityAspects aspects) override;
 	virtual void PostSerialize() override               {}
-	virtual void Update(const float deltaTime) override {}
+	virtual void Update(const CTimeValue& deltaTime) override {}
 
 	virtual void OnVehicleEvent(EVehicleEvent event, const SVehicleEventParams& params) override;
 
 	virtual void GetMemoryUsage(ICrySizer* s) const override;
 
-	virtual void PrePhysUpdate(const float dt) override;
+	virtual void PrePhysUpdate(const CTimeValue& dt) override;
 
 protected:
 	IDefaultSkeleton* GetCharacterModelSkeleton() const;
-	void              UpdateSound(const float dt);
+	void              UpdateSound(const CTimeValue& dt);
 
 	//static tSoundID PlaySound(IEntityAudioComponent& rIEntityAudioComponent, const char* soundName);
 	//static void SetSoundParam(IEntityAudioComponent& rIEntityAudioComponent, tSoundID soundID, const char* param, float value);
@@ -63,7 +63,7 @@ protected:
 	float                      m_soundRotSpeed;
 	float                      m_soundRotLastAppliedSpeed;
 	float                      m_soundRotSpeedSmoothRate;
-	float                      m_soundRotSpeedSmoothTime;
+	CTimeValue                 m_soundRotSpeedSmoothTime;
 	float                      m_soundRotSpeedScalar;
 	string                     m_soundNameFP;
 	string                     m_soundNameTP;
@@ -72,9 +72,9 @@ protected:
 	float                      m_pitchLimitMax;
 	float                      m_pitchLimitMin;
 	float                      m_settlePitch;
-	float                      m_settleDelay;
-	float                      m_settleTime;
-	float                      m_noDriverTime;
+	CTimeValue                 m_settleDelay;
+	CTimeValue                 m_settleTime;
+	CTimeValue                 m_noDriverTime;
 
 	float                      m_networkSluggishness;
 

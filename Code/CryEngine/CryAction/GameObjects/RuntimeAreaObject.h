@@ -45,7 +45,7 @@ public:
 	virtual void                 ProcessEvent(const SEntityEvent& entityEvent) override;
 	virtual uint64               GetEventMask() const override;
 	virtual void                 SetChannelId(uint16 id) override                                                         {}
-	virtual void                 PostUpdate(float frameTime) override                                                     { CRY_ASSERT(false); }
+	virtual void                 PostUpdate(const CTimeValue& frameTime) override                                         { CRY_ASSERT(false); }
 	virtual void                 PostRemoteSpawn() override                                                               {}
 	virtual void                 GetMemoryUsage(ICrySizer* pSizer) const override;
 	// ~IGameObjectExtension

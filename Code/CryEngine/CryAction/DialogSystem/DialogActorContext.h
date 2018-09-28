@@ -22,7 +22,7 @@ public:
 	~CDialogActorContext();
 
 	bool                          PlayLine(const CDialogScript::SScriptLine* pLine); // returning false stops the Session!
-	bool                          Update(float dt);
+	bool                          Update(const CTimeValue& dt);
 
 	void                          BeginSession();
 	void                          EndSession();
@@ -61,7 +61,7 @@ protected:
 	bool DoAnimActionEP(IEntity* pEntity, const char* sAction);
 
 	// Play a facial expression on the entity
-	bool DoFacialExpression(IEntity* pEntity, const string& expression, float weight, float fadeTime);
+	bool DoFacialExpression(IEntity* pEntity, const string& expression, float weight, const CTimeValue& fadeTime);
 
 	// Instrument pEntity to look at pLookAtEntity
 	bool DoLookAt(IEntity* pEntity, IEntity* pLookAtEntity, bool& bTargetReached);
@@ -70,7 +70,7 @@ protected:
 	void DoStickyLookAt();
 
 	// Do check wrt. local player
-	bool DoLocalPlayerChecks(const float dt);
+	bool DoLocalPlayerChecks(const CTimeValue& dt);
 
 	// IEntityEventListener
 	virtual void OnEntityEvent(IEntity* pEntity, const SEntityEvent& event);
@@ -157,8 +157,8 @@ protected:
 	bool                              m_bIsAware;
 	bool                              m_bIsAwareLooking;
 	bool                              m_bIsAwareInRange;
-	float                             m_playerAwareTimeOut;
-	float                             m_checkPlayerTimeOut;
+	CTimeValue                        m_playerAwareTimeOut;
+	CTimeValue                        m_checkPlayerTimeOut;
 	CDialogSession::EAbortReason      m_abortReason;
 
 	CryAudio::AuxObjectId             m_SpeechAuxObject;
@@ -180,7 +180,7 @@ protected:
 	// Sound specific
 	bool  m_bSoundScheduled;
 	bool  m_bSoundStarted;
-	float m_soundTimeOut;
+	CTimeValue m_soundTimeOut;
 	float m_soundLength;
 
 	int   m_VoiceAttachmentIndex;
@@ -189,8 +189,8 @@ protected:
 	// LookAt specific
 	CDialogScript::TActorID m_lookAtActorID;
 	CDialogScript::TActorID m_stickyLookAtActorID;
-	float                   m_lookAtTimeOut;
-	float                   m_animTimeOut;
+	CTimeValue              m_lookAtTimeOut;
+	CTimeValue              m_animTimeOut;
 	bool                    m_bLookAtNeedsReset;
 
 	// Facial Expression

@@ -24,7 +24,7 @@ public:
 	static const int InvalidTimerId = -1;
 
 	// timer id, user data, current time of day (not scheduled time of day!)
-	typedef void (* TimeOfDayTimerCallback)(TimeOfDayTimerId, void*, float);
+	typedef void (* TimeOfDayTimerCallback)(TimeOfDayTimerId, void*, const CTimeValue&);
 
 	CTimeOfDayScheduler();
 	~CTimeOfDayScheduler();
@@ -38,13 +38,13 @@ public:
 		s->AddContainer(m_entries);
 	}
 
-	TimeOfDayTimerId AddTimer(float time, TimeOfDayTimerCallback callback, void* pUserData);
+	TimeOfDayTimerId AddTimer(const CTimeValue& time, TimeOfDayTimerCallback callback, void* pUserData);
 	void*            RemoveTimer(TimeOfDayTimerId id); // returns user data
 
 protected:
 	struct SEntry
 	{
-		SEntry(TimeOfDayTimerId id, float time, TimeOfDayTimerCallback callback, void* pUserData)
+		SEntry(TimeOfDayTimerId id, const CTimeValue& time, TimeOfDayTimerCallback callback, void* pUserData)
 		{
 			this->id = id;
 			this->time = time;
@@ -62,13 +62,13 @@ protected:
 			return time < other.time;
 		}
 
-		bool operator<(const float& otherTime) const
+		bool operator<(const CTimeValue& otherTime) const
 		{
 			return time < otherTime;
 		}
 
 		TimeOfDayTimerId       id;          // 4 bytes
-		float                  time;        // 4 bytes
+		CTimeValue             time;        // XX bytes PERSONAL DEBUG: Er, why the bytes? This might overshoot?
 		TimeOfDayTimerCallback callback;    // 4/8 bytes
 		void*                  pUserData;   // 4/8 bytes
 		//                                   = 32/48 bytes
@@ -77,7 +77,7 @@ protected:
 	typedef std::vector<SEntry> TEntries;
 	TEntries         m_entries;
 	TimeOfDayTimerId m_nextId;
-	float            m_lastTime;
+	CTimeValue       m_lastTime;
 	bool             m_bForceUpdate;
 };
 

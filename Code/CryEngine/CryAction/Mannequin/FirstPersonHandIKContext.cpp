@@ -51,7 +51,7 @@ void CFirstPersonHandIKContext::Finalize()
 	CRY_ASSERT(m_instanceCount >= 0);
 }
 
-void CFirstPersonHandIKContext::Update(float timePassed)
+void CFirstPersonHandIKContext::Update(const CTimeValue& timePassed)
 {
 	if (m_instanceCount <= 0)
 		return;

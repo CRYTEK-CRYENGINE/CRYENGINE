@@ -153,7 +153,7 @@ void CVehicleDamages::ResetDamages()
 }
 
 //------------------------------------------------------------------------
-void CVehicleDamages::UpdateDamages(float frameTime)
+void CVehicleDamages::UpdateDamages(const CTimeValue& frameTime)
 {
 	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 

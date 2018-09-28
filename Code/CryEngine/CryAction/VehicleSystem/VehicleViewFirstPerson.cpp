@@ -262,11 +262,11 @@ void CVehicleViewFirstPerson::OnStopUsing()
 }
 
 //------------------------------------------------------------------------
-void CVehicleViewFirstPerson::Update(float frameTimeIn)
+void CVehicleViewFirstPerson::Update(const CTimeValue& frameTimeIn)
 {
 	// Use the physics frame time, but only if non zero!
-	const float physFrameTime = static_cast<CVehicle*>(m_pVehicle)->GetPhysicsFrameTime();
-	const float frameTime = (physFrameTime > 0.f) ? min(physFrameTime, frameTimeIn) : frameTimeIn;
+	const CTimeValue physFrameTime = static_cast<CVehicle*>(m_pVehicle)->GetPhysicsFrameTime();
+	const CTimeValue frameTime = (physFrameTime > 0) ? min(physFrameTime, frameTimeIn) : frameTimeIn;
 
 	CVehicleViewBase::Update(frameTime);
 

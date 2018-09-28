@@ -125,7 +125,7 @@ bool CCooperativeAnimation::AreActorsValid() const
 	return (it == itEnd);
 }
 
-bool CCooperativeAnimation::Update(float dt)
+bool CCooperativeAnimation::Update(const CTimeValue& dt)
 {
 	if (!m_isInitialized)
 		return false;
@@ -454,8 +454,8 @@ bool CCooperativeAnimation::StartAnimation(SCharacterParams& params, int charact
 		string sAnimName = params.sSignalName;
 
 		AParams.m_nLayerID = 0;
-		AParams.m_fPlaybackSpeed = 1.0f;
-		AParams.m_fTransTime = 0.25f;
+		AParams.m_fPlaybackSpeed = 1;
+		AParams.m_fTransTime.SetSeconds("0.25");
 		AParams.m_fAllowMultilayerAnim = 0;
 
 		AParams.m_nFlags |= CA_REPEAT_LAST_KEY | CA_FORCE_SKELETON_UPDATE | CA_FULL_ROOT_PRIORITY | CA_DISABLE_MULTILAYER;
@@ -553,8 +553,8 @@ bool CCooperativeAnimation::IsAnimationPlaying(const ISkeletonAnim* pISkeletonAn
 		return true;
 	}
 
-	const float ANIMATION_END_THRESHOLD = 0.0f;
-	const float fTimeRemaining = (1.f - pISkeletonAnim->GetAnimationNormalizedTime(pAnim)) * pAnim->GetExpectedTotalDurationSeconds();
+	const CTimeValue ANIMATION_END_THRESHOLD = 0;
+	const CTimeValue fTimeRemaining = (1 - pISkeletonAnim->GetAnimationNormalizedTime(pAnim)) * pAnim->GetExpectedTotalDuration();
 	if (fTimeRemaining > ANIMATION_END_THRESHOLD)
 		return true;
 
@@ -644,7 +644,7 @@ void CCooperativeAnimation::GatherSlidingInformation(SCharacterParams& params) c
 	// be used as reference. The animations will most likely move and rotate the locator.
 }
 
-void CCooperativeAnimation::PlayAndSlideCharacters(float dt, bool& bAnimFailure, bool& bAllStarted, bool& bAllDone)
+void CCooperativeAnimation::PlayAndSlideCharacters(const CTimeValue& dt, bool& bAnimFailure, bool& bAllStarted, bool& bAllDone)
 {
 	// Slide characters into position quickly and return true when done
 	bAllStarted = true;
@@ -684,7 +684,7 @@ void CCooperativeAnimation::PlayAndSlideCharacters(float dt, bool& bAnimFailure,
 		if (!params->bAnimationPlaying)
 		{
 			// Delayed start handling
-			if (params->fStartDelay > 0.0f)
+			if (params->fStartDelay > 0)
 			{
 				params->fStartDelayTimer += dt;
 				if (params->fStartDelayTimer < params->fStartDelay)
@@ -728,12 +728,12 @@ void CCooperativeAnimation::PlayAndSlideCharacters(float dt, bool& bAnimFailure,
 		}
 
 		// calculate the amount of movement that needs to be done this frame
-		float slideAmount = dt;
+		mpfloat slideAmount = dt.GetSeconds();
 
 		// check if this is the last step for this character
 		if (params->fSlidingTimer + dt >= params->fSlidingDuration)
 		{
-			slideAmount = params->fSlidingDuration - params->fSlidingTimer;
+			slideAmount = (params->fSlidingDuration - params->fSlidingTimer).GetSeconds();
 			pAC->SetNoMovementOverride(false);
 			//pEnt->GetCharacter(0)->GetISkeletonAnim()->SetLocomotionMacroCallback(MovementCallback, pEnt);
 		}
@@ -744,7 +744,7 @@ void CCooperativeAnimation::PlayAndSlideCharacters(float dt, bool& bAnimFailure,
 		}
 
 		// Calculate new character position and rotation
-		slideAmount = slideAmount / params->fSlidingDuration;
+		slideAmount = (slideAmount / params->fSlidingDuration).conv<mpfloat>();
 		pRot = pEnt->GetWorldRotation();
 		pPos = pEnt->GetWorldPos();
 
@@ -759,10 +759,10 @@ void CCooperativeAnimation::PlayAndSlideCharacters(float dt, bool& bAnimFailure,
 		testQuat = params->currPos;
 		Vec3 dist;
 		dist = params->qSlideOffset.t;
-		dist = dist * slideAmount;
+		dist = dist * BADF slideAmount;
 		testQuat.t += dist;
 
-		testQuat.q = testQuat.q * params->qSlideOffset.q.CreateSlerp(Quat(IDENTITY), params->qSlideOffset.q, slideAmount);
+		testQuat.q = testQuat.q * params->qSlideOffset.q.CreateSlerp(Quat(IDENTITY), params->qSlideOffset.q, BADF slideAmount);
 		testQuat.q.NormalizeSafe();
 		params->currPos = testQuat;
 
@@ -797,7 +797,7 @@ void CCooperativeAnimation::PlayAndSlideCharacters(float dt, bool& bAnimFailure,
 
 			// add to the amount that this character has already been moved
 			if (it == m_paramsList.begin())
-				m_firstActorPushedDistance += (slideAmount * params->qSlideOffset.t).GetLength();
+				m_firstActorPushedDistance += (BADF slideAmount * params->qSlideOffset.t).GetLength();
 		} // end of DEBUG OUTPUT
 	}
 
@@ -997,7 +997,7 @@ QuatT CCooperativeAnimation::GetStartOffset(SCharacterParams& params)
 	if ((flags & CA_ASSET_CREATED) == 0)
 		return retVal;
 
-	float animDuration = pAnimSet->GetDuration_sec(id);
+	CTimeValue animDuration = pAnimSet->GetDuration(id);
 	if (animDuration < params.fSlidingDuration)
 	{
 		CRY_ASSERT_MESSAGE(animDuration > params.fSlidingDuration, "Incorrect parameter: Sliding Duration longer than animation.");
@@ -1129,7 +1129,7 @@ void CCooperativeAnimation::SetColliderModeAndMCM(SCharacterParams* params)
 		IgnoreCollisionsWithFirstActor(*params, true);
 }
 
-float CCooperativeAnimation::GetAnimationNormalizedTime(const EntityId entID) const
+nTime CCooperativeAnimation::GetAnimationNormalizedTime(const EntityId entID) const
 {
 	ISkeletonAnim* pISkeletonAnim = gEnv->pEntitySystem->GetEntity(entID)->GetCharacter(0)->GetISkeletonAnim();
 	int iAnimCount = pISkeletonAnim->GetNumAnimsInFIFO(0);
@@ -1143,7 +1143,7 @@ float CCooperativeAnimation::GetAnimationNormalizedTime(const EntityId entID) co
 		}
 	}
 
-	return -1.0f;
+	return -1;
 }
 
 bool CCooperativeAnimation::UpdateAnimationsStreaming()

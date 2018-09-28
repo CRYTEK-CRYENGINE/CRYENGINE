@@ -246,7 +246,7 @@ public:
 	virtual void                       EnablePostUpdates(IGameObjectExtension* pExtension) = 0;
 	virtual void                       DisablePostUpdates(IGameObjectExtension* pExtension) = 0;
 	virtual void                       SetUpdateSlotEnableCondition(IGameObjectExtension* pExtension, int slot, EUpdateEnableCondition condition) = 0;
-	virtual void                       PostUpdate(float frameTime) = 0;
+	virtual void                       PostUpdate(const CTimeValue& frameTime) = 0;
 	virtual IWorldQuery*               GetWorldQuery() = 0;
 
 	virtual bool                       IsJustExchanging() = 0;
@@ -761,7 +761,7 @@ struct IGameObjectExtension : public IEntityComponent
 	//   frameTime - time elapsed since the last frame update
 	// See Also
 	//   Update, IGameObject::EnablePostUpdates, IGameObject::DisablePostUpdates
-	virtual void PostUpdate(float frameTime) = 0;
+	virtual void PostUpdate(const CTimeValue& frameTime) = 0;
 
 	// Summary
 	virtual void PostRemoteSpawn() = 0;

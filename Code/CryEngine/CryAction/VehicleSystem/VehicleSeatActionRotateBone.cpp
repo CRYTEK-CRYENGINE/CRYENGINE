@@ -18,14 +18,14 @@ CVehicleSeatActionRotateBone::CVehicleSeatActionRotateBone() : m_pSeat(NULL)
 	, m_soundRotSpeed(0.f)
 	, m_soundRotLastAppliedSpeed(-1.f)
 	, m_soundRotSpeedSmoothRate(0.f)
-	, m_soundRotSpeedSmoothTime(0.f)
+	, m_soundRotSpeedSmoothTime(0)
 	, m_soundRotSpeedScalar(1.0f)
 	, m_pitchLimitMin(-1.f)
 	, m_pitchLimitMax(1.f)
 	, m_settlePitch(0.f)
-	, m_settleDelay(0.f)
-	, m_settleTime(1.f)
-	, m_noDriverTime(0.f)
+	, m_settleDelay(0)
+	, m_settleTime(1)
+	, m_noDriverTime(0)
 	, m_pAnimatedCharacter(NULL)
 	, m_autoAimStrengthMultiplier(1.0f)
 	, m_networkSluggishness(0.f)
@@ -180,11 +180,11 @@ void CVehicleSeatActionRotateBone::StopUsing()
 	m_pVehicle->UnregisterVehicleEventListener(this);
 	m_hasDriver = 0;
 	m_driverIsLocal = 0;
-	m_noDriverTime = 0.f;
+	m_noDriverTime.SetSeconds(0);
 	m_stopCurrentSound = 1;
 }
 
-void CVehicleSeatActionRotateBone::PrePhysUpdate(const float dt)
+void CVehicleSeatActionRotateBone::PrePhysUpdate(const CTimeValue& dt)
 {
 	IEntity* pEntity = m_pVehicle->GetEntity();
 	if (!pEntity)
@@ -206,7 +206,7 @@ void CVehicleSeatActionRotateBone::PrePhysUpdate(const float dt)
 			// Smooth the networked rotation.
 			m_boneRotation.z += (float)__fsel((m_desiredBoneRotation.z - m_boneRotation.z) - gf_PI, gf_PI2, 0.f);
 			m_boneRotation.z -= (float)__fsel((m_boneRotation.z - m_desiredBoneRotation.z) - gf_PI, gf_PI2, 0.f);
-			SmoothCD<Ang3>(m_boneRotation, m_rotationSmoothingRate, dt, m_desiredBoneRotation, m_networkSluggishness);
+			SmoothCD<Ang3>(m_boneRotation, m_rotationSmoothingRate, dt, m_desiredBoneRotation, BADTIME(m_networkSluggishness));
 		}
 		else
 		{
@@ -245,7 +245,7 @@ void CVehicleSeatActionRotateBone::PrePhysUpdate(const float dt)
 	m_prevBoneRotation = m_boneRotation;
 }
 
-void CVehicleSeatActionRotateBone::UpdateSound(const float dt)
+void CVehicleSeatActionRotateBone::UpdateSound(const CTimeValue& dt)
 {
 	if (!m_useRotationSounds)
 		return;
@@ -260,14 +260,14 @@ void CVehicleSeatActionRotateBone::UpdateSound(const float dt)
 		}
 
 		// Calculate Rotation Speed for the Audio.
-		if (dt > FLT_EPSILON)
+		if (dt > TV_EPSILON)
 		{
 			const float deltaPitch = (m_boneRotation.x - m_prevBoneRotation.x);
 			float deltaYaw = fabs_tpl(m_boneRotation.z - m_prevBoneRotation.z);
 			deltaYaw = (float)__fsel(deltaYaw - gf_PI, gf_PI2 - deltaYaw, deltaYaw);
 			const float rotDist = sqrt_tpl((deltaYaw * deltaYaw) + (deltaPitch * deltaPitch));
-			const float invTime = __fres(dt);
-			const float rotSpeed = invTime * rotDist;
+			const rTime invTime = 1/dt;
+			const float rotSpeed = BADF invTime * rotDist;
 			const float prevSpeed = m_soundRotLastAppliedSpeed;
 			m_soundRotSpeed = (float)__fsel(rotSpeed - prevSpeed, rotSpeed, m_soundRotSpeed);
 			SmoothCD(m_soundRotSpeed, m_soundRotSpeedSmoothRate, dt, rotSpeed, m_soundRotSpeedSmoothTime);

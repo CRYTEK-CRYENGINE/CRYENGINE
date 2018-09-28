@@ -25,7 +25,7 @@ public:
 	static int   HandleImpact(const EventPhys* pPhysEvent);
 	static void  OnEnabledCVarChange(ICVar* pCVar);
 
-	virtual void Update(const float frameTime);
+	virtual void Update(const CTimeValue& frameTime);
 	virtual bool BreakGlassObject(const EventPhysCollision& physEvent, const bool forceGlassBreak = false);
 	virtual void ResetAll();
 	virtual void GetMemoryUsage(ICrySizer* pSizer) const;

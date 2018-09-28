@@ -52,7 +52,7 @@ void DumpSequence(IConsoleCmdArgs* pArgs)
 		const char* pVal = pArgs->GetArg(1);
 		if (pVal)
 		{
-			float dumpTime = (argCount >= 3) ? (float)atof(pArgs->GetArg(2)) : -1.0f;
+			CTimeValue dumpTime = (argCount >= 3) ? CTimeValue(pArgs->GetArg(2)) : -1;
 
 			CActionController::DumpSequence(pVal, dumpTime);
 		}
@@ -250,7 +250,7 @@ void BuildFilename(stack_string& filename, const char* entityName)
 	filename.append(dateTime);
 }
 
-void CActionController::DumpSequence(const char* entName, float dumpTime)
+void CActionController::DumpSequence(const char* entName, const CTimeValue& dumpTime)
 {
 	CActionController* debugAC = NULL;
 	for (TActionControllerList::iterator iter = s_actionControllers.begin(); iter != s_actionControllers.end(); ++iter)
@@ -285,7 +285,7 @@ CActionController::CActionController(IEntity* pEntity, SAnimationContext& contex
 	, m_scopeArray(static_cast<CActionScope*>(CryModuleMalloc(sizeof(CActionScope) * m_scopeCount)))
 	, m_activeScopes(ACTION_SCOPES_NONE)
 	, m_flags(0)
-	, m_timeScale(1.f)
+	, m_timeScale(1)
 	, m_scopeFlushMask(ACTION_SCOPES_NONE)
 #ifndef _RELEASE
 	, m_historySlot(0)
@@ -348,9 +348,9 @@ void CActionController::Release()
 	delete this;
 }
 
-bool CActionController::CanInstall(const IAction& action, TagID subContext, const ActionScopes& scopeMask, float timeStep, float& timeTillInstall) const
+bool CActionController::CanInstall(const IAction& action, TagID subContext, const ActionScopes& scopeMask, const CTimeValue& timeStep, CTimeValue& timeTillInstall) const
 {
-	timeTillInstall = 0.0f;
+	timeTillInstall.SetSeconds(0);
 
 	//--- Ensure we test against all effected scopes
 	ActionScopes expandedScopeMask = ExpandOverlappingScopes(scopeMask);
@@ -376,7 +376,7 @@ bool CActionController::CanInstall(const IAction& action, TagID subContext, cons
 
 				if (!pSlaveAC)
 				{
-					float timeRemaining;
+					CTimeValue timeRemaining;
 					SAnimBlend animBlend;
 					EPriorityComparison priorityComp = Higher;
 					const bool isRequeue = (&action == scope.m_pAction);
@@ -417,7 +417,7 @@ bool CActionController::CanInstall(const IAction& action, TagID subContext, cons
 					childFragTagState.globalTags = pSlaveAC->GetContext().state.GetMask();
 					childFragTagState.fragmentTags = action.GetFragTagState();
 					const ActionScopes childScopeMask = pSlaveAC->GetContext().controllerDef.GetScopeMask(tgtFragID, childFragTagState);
-					float tgtTimeTillInstall;
+					CTimeValue tgtTimeTillInstall;
 					if (!pSlaveAC->CanInstall(action, TAG_ID_INVALID, childScopeMask, timeStep, tgtTimeTillInstall))
 					{
 						return false;
@@ -432,7 +432,7 @@ bool CActionController::CanInstall(const IAction& action, TagID subContext, cons
 	return (timeStep >= timeTillInstall);
 }
 
-bool CActionController::CanInstall(const IAction& action, const ActionScopes& scopeMask, float timeStep, float& timeTillInstall) const
+bool CActionController::CanInstall(const IAction& action, const ActionScopes& scopeMask, const CTimeValue& timeStep, CTimeValue& timeTillInstall) const
 {
 	return CanInstall(action, action.GetSubContext(), scopeMask, timeStep, timeTillInstall);
 }
@@ -493,7 +493,7 @@ void CActionController::InsertEndingAction(IAction& action)
 	stl::push_back_unique(m_endedActions, IActionPtr(&action));
 }
 
-void CActionController::Install(IAction& action, float timeRemaining)
+void CActionController::Install(IAction& action, const CTimeValue& timeRemaining)
 {
 	const FragmentID fragmentID = action.GetFragmentID();
 	const bool isReinstall = (action.GetStatus() == IAction::Installed);
@@ -620,8 +620,7 @@ void CActionController::Install(IAction& action, float timeRemaining)
 
 			if (waitingOnRootScope && scope.HasFragment())
 			{
-				float rootStartTime = scope.GetFragmentStartTime();
-				timeRemaining = rootStartTime;
+				CTimeValue rootStartTime = scope.GetFragmentStartTime();
 				rootScope = i;
 
 				isOneShot = scope.m_isOneShot;
@@ -659,7 +658,7 @@ void CActionController::Install(IAction& action, float timeRemaining)
 	action.m_rootScope = &m_scopeArray[rootScope];
 }
 
-bool CActionController::TryInstalling(IAction& action, float timePassed)
+bool CActionController::TryInstalling(IAction& action, const CTimeValue& timePassed)
 {
 	const FragmentID fragmentID = action.GetFragmentID();
 
@@ -671,7 +670,7 @@ bool CActionController::TryInstalling(IAction& action, float timePassed)
 	RequestInstall(action, filteredScope);
 
 	//--- Can I install now?
-	float timeRemaining;
+	CTimeValue timeRemaining;
 	if (CanInstall(action, filteredScope, timePassed, timeRemaining))
 	{
 		Install(action, timeRemaining);
@@ -682,7 +681,7 @@ bool CActionController::TryInstalling(IAction& action, float timePassed)
 	return false;
 }
 
-bool CActionController::QueryDuration(IAction& action, float& fragmentDuration, float& transitionDuration) const
+bool CActionController::QueryDuration(IAction& action, CTimeValue& fragmentDuration, CTimeValue& transitionDuration) const
 {
 	const TagID subContext = action.GetSubContext();
 	ActionScopes scopeMask = action.GetForcedScopeMask() | QueryScopeMask(action.GetFragmentID(), action.GetFragTagState(), subContext);
@@ -725,7 +724,7 @@ bool CActionController::QueryDuration(IAction& action, float& fragmentDuration, 
 
 			if (hasFound)
 			{
-				fragmentDuration = transitionDuration = 0.0f;
+				fragmentDuration = transitionDuration.SetSeconds(0);
 				for (uint32 p = 0; p < SFragmentData::PART_TOTAL; p++)
 				{
 					if (fragData.transitionType[p] == eCT_Normal)
@@ -857,7 +856,7 @@ void CActionController::SetScopeContext(uint32 scopeContextID, IEntity& entity, 
 
 		if (scopeContext.pCharInst)
 		{
-			scopeContext.pCharInst->SetPlaybackScale(1.f);
+			scopeContext.pCharInst->SetPlaybackScale(1);
 		}
 
 		// CryWarning(VALIDATOR_MODULE_GAME, VALIDATOR_INFO, "***SetScopeContext %2d on entity %s (id=%d; %p) to entity=%s (id=%8d; %p), char=%x", scopeContextID, GetSafeEntityName(), m_entityId, m_cachedEntity, entity.GetName(), entity.GetId(), &entity, pCharacter);
@@ -907,7 +906,7 @@ void CActionController::ClearScopeContext(uint32 scopeContextID, bool flushAnima
 
 	if (scopeContext.pCharInst)
 	{
-		scopeContext.pCharInst->SetPlaybackScale(1.f);
+		scopeContext.pCharInst->SetPlaybackScale(1);
 	}
 
 	//--- Clear context data
@@ -1041,7 +1040,7 @@ void CActionController::ResolveActionStates()
 	m_triggeredActions.clear();
 }
 
-bool CActionController::ResolveActionInstallations(float timePassed)
+bool CActionController::ResolveActionInstallations(const CTimeValue& timePassed)
 {
 	bool changed = false;
 
@@ -1118,7 +1117,7 @@ bool CActionController::ResolveActionInstallations(float timePassed)
 	return changed;
 }
 
-bool CActionController::BlendOffActions(float timePassed)
+bool CActionController::BlendOffActions(const CTimeValue& timePassed)
 {
 	bool hasEndedAction = false;
 
@@ -1130,10 +1129,10 @@ bool CActionController::BlendOffActions(float timePassed)
 
 		if (pExitingAction
 		    && (&pExitingAction->GetRootScope() == &rootScope)
-		    && (rootScope.GetFragmentTime() > 0.0f)
+		    && (rootScope.GetFragmentTime() > 0)
 		    && ((pExitingAction->m_flags & IAction::TransitionPending) == 0)) // No blend off if there is a fragment we are waiting to blend to already
 		{
-			float timeLeft = 0.0f;
+			CTimeValue timeLeft;
 			EPriorityComparison priority = (pExitingAction->GetStatus() == IAction::Finished) ? Higher : Lower;
 			if (rootScope.CanInstall(priority, FRAGMENT_ID_INVALID, SFragTagState(), false, timeLeft) && (timePassed >= timeLeft))
 			{
@@ -1144,7 +1143,7 @@ bool CActionController::BlendOffActions(float timePassed)
 					if ((scopeFlag & installedScopes) != 0)
 					{
 						CActionScope& scope = m_scopeArray[s];
-						scope.QueueFragment(FRAGMENT_ID_INVALID, SFragTagState(m_context.state.GetMask()), OPTION_IDX_RANDOM, 0.0f, 0, priority == Higher);
+						scope.QueueFragment(FRAGMENT_ID_INVALID, SFragTagState(m_context.state.GetMask()), OPTION_IDX_RANDOM, 0, 0, priority == Higher);
 						scope.m_pAction = NULL;
 					}
 				}
@@ -1215,8 +1214,9 @@ void CActionController::PruneQueue()
 	}
 }
 
-void CActionController::Update(float timePassed)
+void CActionController::Update(const CTimeValue& timePassedIn)
 {
+	CTimeValue timePassed = timePassedIn;
 	if ((m_flags & AC_PausedUpdate) == 0)
 	{
 		timePassed *= GetTimeScale();
@@ -1242,7 +1242,7 @@ void CActionController::Update(float timePassed)
 					}
 				}
 
-				const float scaledDeltaTime = timePassed * pScopeAction->GetSpeedBias();
+				const CTimeValue scaledDeltaTime = timePassed * pScopeAction->GetSpeedBias();
 				pScopeAction->Update(scaledDeltaTime);
 
 				//--- Reset the pending transition flag
@@ -1260,9 +1260,9 @@ void CActionController::Update(float timePassed)
 				// Detect early blend-out
 				if (scope.m_isOneShot)
 				{
-					const float scaledDeltaTime = timePassed * pScopeAction->GetSpeedBias();
-					const float timeToCompletion = scope.CalculateFragmentTimeRemaining() - scope.m_blendOutDuration;
-					const bool reachedCompletionPoint = timeToCompletion >= 0.0f && timeToCompletion < scaledDeltaTime;
+					const CTimeValue scaledDeltaTime = timePassed * pScopeAction->GetSpeedBias();
+					const CTimeValue timeToCompletion = scope.CalculateFragmentTimeRemaining() - scope.m_blendOutDuration;
+					const bool reachedCompletionPoint = timeToCompletion >= 0 && timeToCompletion < scaledDeltaTime;
 					if (reachedCompletionPoint)
 					{
 						pScopeAction->OnActionFinished();
@@ -1316,7 +1316,7 @@ void CActionController::Update(float timePassed)
 	{
 		stack_string filename;
 		BuildFilename(filename, GetSafeEntityName());
-		DumpHistory(filename.c_str(), -1.0f);
+		DumpHistory(filename.c_str(), -1);
 
 		m_flags &= ~AC_DumpState;
 	}
@@ -1405,7 +1405,7 @@ void CActionController::SetSlaveController(IActionController& target, uint32 tar
 					{
 						CActionScope& scope = targetController.m_scopeArray[i];
 						scope.BlendOutFragments();
-						scope.UpdateSequencers(0.0f);
+						scope.UpdateSequencers(0);
 					}
 				}
 				targetController.EndActionsOnScope(targetScopeMask, NULL);
@@ -1726,7 +1726,7 @@ ActionScopes CActionController::QueryScopeMask(FragmentID fragID, const TagState
 	return scopeMask;
 }
 
-void CActionController::Queue(IAction& action, float time)
+void CActionController::Queue(IAction& action, const CTimeValue& time)
 {
 	action.m_queueTime = time;
 	action.Initialise(m_context);
@@ -1775,7 +1775,7 @@ void CActionController::Record(const SMannHistoryItem& item)
 {
 	const uint32 numListeners = m_listeners.size();
 #ifndef _RELEASE
-	const float curTime = gEnv->pTimer->GetCurrTime();
+	const CTimeValue curTime = GetGTimer()->GetFrameStartTime();
 
 	m_history[m_historySlot] = item;
 	m_history[m_historySlot].time = curTime;
@@ -1801,12 +1801,12 @@ void CActionController::RecordTagState()
 
 #ifndef _RELEASE
 
-void CActionController::DumpHistory(const char* filename, float timeDelta) const
+void CActionController::DumpHistory(const char* filename, const CTimeValue& timeDelta) const
 {
 	XmlNodeRef root = GetISystem()->CreateXmlNode("History");
 
-	float endTime = gEnv->pTimer->GetCurrTime();
-	float startTime = (timeDelta > 0.0f) ? endTime - timeDelta : 0.0f;
+	CTimeValue endTime = GetGTimer()->GetFrameStartTime();
+	CTimeValue startTime = (timeDelta > 0) ? endTime - timeDelta : 0;
 	root->setAttr("StartTime", startTime);
 	root->setAttr("EndTime", endTime);
 
@@ -2291,7 +2291,7 @@ void CActionController::Resume(uint32 resumeFlags)
 			for (size_t i = 0; i < m_scopeCount; ++i)
 			{
 				CActionScope& scope = m_scopeArray[i];
-				const float blendTime = -1;
+				const CTimeValue blendTime = -1;
 				scope.Resume(blendTime, resumeFlags);
 			}
 		}
@@ -2439,7 +2439,7 @@ QuatT CActionController::ExtractLocalAnimLocation(FragmentID fragID, TagState fr
 	return targetLocation;
 }
 
-void CActionController::SetTimeScale(float timeScale)
+void CActionController::SetTimeScale(const mpfloat& timeScale)
 {
 	const uint32 numContexts = m_context.controllerDef.m_scopeContexts.GetNum();
 	for (uint32 i = 0; i < numContexts; ++i)

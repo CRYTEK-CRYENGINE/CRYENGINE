@@ -24,18 +24,18 @@ struct Checkpoint
 	}
 	void Start()
 	{
-		m_startTime = gEnv->pTimer->GetAsyncTime();
+		m_startTime = GetGTimer()->GetAsyncTime();
 	}
 
 	CTimeValue End()
 	{
-		return gEnv->pTimer->GetAsyncTime() - m_startTime;
+		return GetGTimer()->GetAsyncTime() - m_startTime;
 	}
 	CTimeValue Check(const char* msg)
 	{
 		CTimeValue elapsed = End();
 		if (m_bOutput && msg && CCryActionCVars::Get().g_saveLoadExtendedLog != 0)
-			CryLog("Checkpoint %12s : %.4f ms", msg, elapsed.GetMilliSeconds());
+			CryLog("Checkpoint %12s : %.4f ms", msg, (float)elapsed.GetMilliSeconds());
 		Start();
 		return elapsed;
 	}
@@ -51,14 +51,14 @@ struct SPauseGameTimer
 {
 	SPauseGameTimer()
 	{
-		m_bGameTimerWasPaused = gEnv->pTimer->IsTimerPaused(ITimer::ETIMER_GAME);
-		gEnv->pTimer->PauseTimer(ITimer::ETIMER_GAME, true);
+		m_bGameTimerWasPaused = GetGTimer()->IsTimerPaused(ITimer::ETIMER_GAME);
+		GetGTimer()->PauseSimulation(true);
 	}
 
 	~SPauseGameTimer()
 	{
 		if (m_bGameTimerWasPaused == false)
-			gEnv->pTimer->PauseTimer(ITimer::ETIMER_GAME, false);
+			GetGTimer()->PauseSimulation(false);
 	}
 
 	bool m_bGameTimerWasPaused;

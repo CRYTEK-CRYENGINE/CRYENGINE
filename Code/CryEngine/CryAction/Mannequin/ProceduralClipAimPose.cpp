@@ -14,7 +14,7 @@
 struct SAimIKParams : public IProceduralParams
 {
 	SAimIKParams()
-		: blendTime(1.0f)
+		: blendTime(1)
 		, layer(4)
 	{
 	}
@@ -32,7 +32,7 @@ struct SAimIKParams : public IProceduralParams
 	}
 
 	SAnimRef animRef;
-	float    blendTime;
+	nTime    blendTime;
 	uint32   layer;
 };
 
@@ -45,7 +45,7 @@ public:
 	{
 	}
 
-	virtual void OnEnter(float blendTime, float duration, const SAimIKParams& params)
+	virtual void OnEnter(const CTimeValue& blendTime, const CTimeValue& duration, const SAimIKParams& params)
 	{
 		if (!m_charInstance)
 			return;
@@ -57,7 +57,7 @@ public:
 			lookPos += m_entity->GetForwardDir() * 10.0f;
 		}
 
-		const float smoothTime = params.blendTime;
+		const nTime smoothTime = params.blendTime;
 		m_IKLayer = (uint32)params.layer;
 		if (IAnimationPoseBlenderDir* poseBlenderAim = m_charInstance->GetISkeletonPose()->GetIPoseBlenderAim())
 		{
@@ -67,7 +67,7 @@ public:
 			{
 				poseBlenderAim->SetTarget(lookPos);
 			}
-			poseBlenderAim->SetPolarCoordinatesSmoothTimeSeconds(smoothTime);
+			poseBlenderAim->SetPolarCoordinatesSmoothTime(smoothTime);
 			poseBlenderAim->SetLayer(m_IKLayer);
 			poseBlenderAim->SetFadeInSpeed(blendTime);
 
@@ -75,7 +75,7 @@ public:
 		}
 	}
 
-	virtual void OnExit(float blendTime)
+	virtual void OnExit(const CTimeValue& blendTime)
 	{
 		if (!m_charInstance)
 			return;
@@ -91,7 +91,7 @@ public:
 		}
 	}
 
-	virtual void Update(float timePassed)
+	virtual void Update(const CTimeValue& timePassed)
 	{
 		if (!m_charInstance)
 			return;
@@ -108,7 +108,7 @@ public:
 	}
 
 private:
-	void StartAimAnimation(const float blendTime)
+	void StartAimAnimation(const CTimeValue& blendTime)
 	{
 		const SAimIKParams& params = GetParams();
 		if (params.animRef.IsEmpty())
@@ -127,7 +127,7 @@ private:
 		m_charInstance->GetISkeletonAnim()->StartAnimationById(animID, animParams);
 	}
 
-	void StopAimAnimation(const float blendTime)
+	void StopAimAnimation(const CTimeValue& blendTime)
 	{
 		const SAimIKParams& params = GetParams();
 		if (params.animRef.IsEmpty())

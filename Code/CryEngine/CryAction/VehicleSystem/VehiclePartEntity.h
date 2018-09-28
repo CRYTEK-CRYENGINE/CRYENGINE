@@ -32,7 +32,7 @@ public:
 	virtual bool Init(IVehicle* pVehicle, const CVehicleParams& table, IVehiclePart* parent, CVehicle::SPartInitInfo& initInfo, int partType) override;
 	virtual void PostInit() override;
 	virtual void Reset() override;
-	virtual void Update(const float frameTime) override;
+	virtual void Update(const CTimeValue& frameTime) override;
 	virtual void OnVehicleEvent(EVehicleEvent event, const SVehicleEventParams& params) override;
 
 	void         TryDetachPart(const SVehicleEventParams& params);

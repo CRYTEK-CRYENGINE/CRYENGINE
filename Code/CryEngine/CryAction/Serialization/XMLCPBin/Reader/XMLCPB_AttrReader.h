@@ -57,6 +57,10 @@ public:
 	void          Get(const char*& pStr) const;
 	void          Get(uint8*& rdata, uint32& outSize) const;
 
+	// PERSONAL IMPROVE: Sometime, if this is actually used, implement this.
+	MPOnly void Get(T& val) const{ CRY_ASSERT(false); }
+	TVOnly void Get(T& val) const{ CRY_ASSERT(false); }
+
 	void          GetValueAsString(string& str) const;
 
 	#ifndef _RELEASE

@@ -55,11 +55,11 @@ struct SMutePlayerParams
 struct SSyncTimeServer
 {
 	SSyncTimeServer() {};
-	SSyncTimeServer(int id, int64 clientTime, int64 serverTime) { this->id = id; this->clientTime = clientTime; this->serverTime = serverTime; };
+	SSyncTimeServer(int id, const CTimeValue& clientTime, const CTimeValue& serverTime) { this->id = id; this->clientTime = clientTime; this->serverTime = serverTime; };
 
 	int          id;
-	int64        clientTime;
-	int64        serverTime;
+	CTimeValue   clientTime;
+	CTimeValue   serverTime;
 
 	virtual void SerializeWith(TSerialize ser)
 	{

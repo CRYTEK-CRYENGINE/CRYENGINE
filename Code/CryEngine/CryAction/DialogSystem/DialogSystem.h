@@ -42,7 +42,7 @@ public:
 	void GetMemoryStatistics(ICrySizer* s);
 
 	// Later go into IDialogSystem i/f
-	virtual void Update(const float dt);
+	virtual void Update(const CTimeValue& dt);
 	virtual void Shutdown();
 	virtual void Serialize(TSerialize ser);   // serializes load/save. After load serialization PostLoad needs to be called
 

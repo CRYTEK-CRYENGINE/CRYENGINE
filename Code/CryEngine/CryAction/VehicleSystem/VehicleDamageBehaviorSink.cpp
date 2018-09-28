@@ -72,7 +72,7 @@ void CVehicleDamageBehaviorSink::ChangeSinkingBehavior(bool isSinking)
 			}
 		}
 
-		m_sinkingTimer = m_pVehicle->SetTimer(-1, 10000, this);
+		m_sinkingTimer = m_pVehicle->SetTimer(-1, 10, this);
 		m_isSinking = true;
 	}
 	else if (!isSinking && m_isSinking)
@@ -111,7 +111,7 @@ void CVehicleDamageBehaviorSink::OnVehicleEvent(EVehicleEvent event, const SVehi
 
 				if (buoyancyParams.kwaterDensity > 0.05f * m_formerWaterDensity)
 				{
-					m_sinkingTimer = m_pVehicle->SetTimer(-1, 1000, this);
+					m_sinkingTimer = m_pVehicle->SetTimer(-1, 1, this);
 				}
 			}
 		}

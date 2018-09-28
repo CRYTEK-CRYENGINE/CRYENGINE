@@ -33,7 +33,7 @@ public:
 
 	/*$1- Basics -------------------------------------------------------------*/
 	void Init();
-	bool Update(float fElapsedTime);
+	bool Update(const CTimeValue& fElapsedTime);
 
 	/*$1- Utils --------------------------------------------------------------*/
 	bool EnablePersonalManager(EntityId IdEntity, const char* sSignal);
@@ -42,7 +42,7 @@ public:
 	bool EnableAllPersonalManagers(EntityId IdEntity);
 	bool DisablePersonalSignalTimers(EntityId IdEntity);
 	bool ResetPersonalTimers(EntityId IdEntity);
-	bool SetTurnRate(EntityId IdEntity, const char* sSignal, float fTime, float fTimeMax = -1.0f);
+	bool SetTurnRate(EntityId IdEntity, const char* sSignal, const CTimeValue& fTime, const CTimeValue& fTimeMax = -1);
 	void SetDebug(bool bDebug);
 	bool GetDebug() const;
 

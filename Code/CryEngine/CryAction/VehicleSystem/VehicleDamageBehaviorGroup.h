@@ -23,7 +23,7 @@ public:
 	virtual void OnDamageEvent(EVehicleDamageBehaviorEvent event, const SVehicleDamageBehaviorEventParams& behaviorParams) override;
 
 	virtual void Serialize(TSerialize ser, EEntityAspects aspects) override;
-	virtual void Update(const float deltaTime) override;
+	virtual void Update(const CTimeValue& deltaTime) override;
 
 	virtual void OnVehicleEvent(EVehicleEvent event, const SVehicleEventParams& params) override {}
 

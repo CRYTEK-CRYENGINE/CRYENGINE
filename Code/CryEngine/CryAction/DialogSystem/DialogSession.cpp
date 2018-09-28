@@ -18,7 +18,7 @@
 #include "DialogCommon.h"
 #include <CryAISystem/ICommunicationManager.h>
 
-static const float END_GRACE_TIMEOUT = 60.0f;
+static const CTimeValue END_GRACE_TIMEOUT = 60;
 static const CDialogSession::TActorFlags DEFAULT_ACTOR_FLAGS = CDialogSession::eDACF_Default; // CDialogSession::eDACF_NoAbortSound;
 
 ////////////////////////////////////////////////////////////////////////////
@@ -31,8 +31,8 @@ CDialogSession::CDialogSession(CDialogSystem* pDS, const CDialogScript* pScript,
 	m_pDS = pDS;
 	m_pScript = pScript;
 	m_sessionID = id;
-	m_curTime = 0.0f;
-	m_nextTimeDelay = 0.0f;
+	m_curTime.SetSeconds(0);
+	m_nextTimeDelay.SetSeconds(0);
 	m_endGraceTimeOut = END_GRACE_TIMEOUT;
 	m_curScriptLine = -1;
 	m_nextScriptLine = -1;
@@ -45,7 +45,7 @@ CDialogSession::CDialogSession(CDialogSystem* pDS, const CDialogScript* pScript,
 	m_pendingActors = 0;
 	m_playerAwareAngle = 0.0f;
 	m_playerAwareDistance = 0.0f;
-	m_playerAwareGraceTime = 3.0f;
+	m_playerAwareGraceTime.SetSeconds(3);
 
 	for (int i = 0; i < CDialogScript::MAX_ACTORS; ++i)
 		m_actorFlags[i] = DEFAULT_ACTOR_FLAGS;
@@ -134,13 +134,13 @@ bool CDialogSession::InternalPlay(int fromScriptLine, bool bNotify)
 	m_bPlaying = true;
 	m_bReachedEnd = true;     // will be set to false by DoPlay
 	m_bFirstUpdate = true;
-	m_curTime = 0.0f;
+	m_curTime.SetSeconds(0);
 	m_endGraceTimeOut = END_GRACE_TIMEOUT;
 	m_curScriptLine = -1;
 	m_nextScriptLine = fromScriptLine - 1;
 	m_abortReason = eAR_None;
 	m_pendingActors = 0;
-	ScheduleNextLine(0.0f);
+	ScheduleNextLine(0);
 
 	if (bNotify)
 		NotifyListeners(eDSE_SessionStart);
@@ -177,7 +177,7 @@ bool CDialogSession::InternalPlay(int fromScriptLine, bool bNotify)
 }
 
 ////////////////////////////////////////////////////////////////////////////
-int CDialogSession::ScheduleNextLine(float dt)
+int CDialogSession::ScheduleNextLine(const CTimeValue& dt)
 {
 	m_bHaveSchedule = true;
 	m_nextTimeDelay = dt;
@@ -197,7 +197,7 @@ int CDialogSession::ScheduleNextLine(float dt)
 }
 
 ////////////////////////////////////////////////////////////////////////////
-void CDialogSession::DoPlay(float dt)
+void CDialogSession::DoPlay(const CTimeValue& dt)
 {
 	if (m_bFirstUpdate == false)
 		m_curTime += dt;
@@ -214,7 +214,7 @@ void CDialogSession::DoPlay(float dt)
 			if (pContext->IsStillPlaying())
 			{
 				m_endGraceTimeOut -= dt;
-				if (m_endGraceTimeOut >= 0.0f)
+				if (m_endGraceTimeOut >= 0)
 					return;
 				else
 					break;
@@ -230,7 +230,7 @@ void CDialogSession::DoPlay(float dt)
 	if (m_bHaveSchedule)
 	{
 		m_nextTimeDelay -= dt;
-		if (m_nextTimeDelay <= 0.0f)
+		if (m_nextTimeDelay <= 0)
 		{
 			m_bHaveSchedule = false;
 			m_curScriptLine = m_nextScriptLine;
@@ -301,7 +301,7 @@ void CDialogSession::DoPlay(float dt)
 			}
 			// wait for some grace time and stop if timed out
 			m_endGraceTimeOut -= dt;
-			bContinue = m_endGraceTimeOut >= 0.0f;
+			bContinue = m_endGraceTimeOut >= 0;
 		}
 	}
 
@@ -439,12 +439,12 @@ void CDialogSession::SetAutoDelete(bool bAutoDelete)
 }
 
 ////////////////////////////////////////////////////////////////////////////
-bool CDialogSession::Update(float dt)
+bool CDialogSession::Update(const CTimeValue& dt)
 {
 	if (!m_bPlaying)
 		return false;
 
-	if (dt > 0.0f)
+	if (dt > 0)
 	{
 		DoPlay(dt);
 	}

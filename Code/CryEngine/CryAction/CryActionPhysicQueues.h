@@ -34,7 +34,7 @@ public:
 	CryActionRayCaster&          GetRayCaster()          { return m_rayCaster; }
 	CryActionIntersectionTester& GetIntersectionTester() { return m_intersectionTester; }
 
-	void                         Update(float frameTime)
+	void                         Update(const CTimeValue& frameTime)
 	{
 		m_rayCaster.Update(frameTime);
 		m_intersectionTester.Update(frameTime);
