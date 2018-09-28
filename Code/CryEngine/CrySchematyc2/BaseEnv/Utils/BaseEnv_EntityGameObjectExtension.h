@@ -40,7 +40,7 @@ public:
 	virtual void                 SerializeSpawnInfo(TSerialize serialize) override;
 	virtual ISerializableInfoPtr GetSpawnInfo() override;
 	virtual void                 Update(SEntityUpdateContext& context, int updateSlot) override;
-	virtual void                 PostUpdate(float frameTime) override;
+	virtual void                 PostUpdate(const CTimeValue& frameTime) override;
 	virtual void                 PostRemoteSpawn() override;
 	virtual void                 ProcessEvent(const SEntityEvent& event) override;
 	virtual uint64               GetEventMask() const override;

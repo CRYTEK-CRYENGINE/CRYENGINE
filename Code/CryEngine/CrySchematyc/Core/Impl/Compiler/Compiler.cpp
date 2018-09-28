@@ -329,9 +329,9 @@ bool CCompiler::CompileClass(const IScriptClass& scriptClass)
 
 		// Send results to log.
 
-		const float time = gEnv->pTimer->TicksToSeconds(CryGetTicks() - startTime);
+		const CTimeValue time = GetGTimer()->TicksToTime(CryGetTicks() - startTime);
 
-		SCHEMATYC_COMPILER_COMMENT("----- %s : time = %f(s), warnings = %d, errors = %d -----\n", logScope.errorCount == 0 ? "Success" : "Failed", time, logScope.warningCount, logScope.errorCount);
+		SCHEMATYC_COMPILER_COMMENT("----- %s : time = %f(s), warnings = %d, errors = %d -----\n", logScope.errorCount == 0 ? "Success" : "Failed", (float)time.GetSeconds(), logScope.warningCount, logScope.errorCount);
 
 		// Notify listeners that class has been compiled.
 

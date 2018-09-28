@@ -94,7 +94,7 @@ namespace SchematycBaseEnv
 		if(!gEnv->pGameFramework->IsGamePaused() && !gEnv->IsEditing() && ((updateFlags & UpdateFlags::s_StagePrePhysics) != 0))
 		{
 			Schematyc2::IUpdateScheduler& updateScheduler = gEnv->pSchematyc2->GetUpdateScheduler();
-			updateScheduler.BeginFrame(gEnv->pTimer->GetFrameTime());
+			updateScheduler.BeginFrame(GetGTimer()->GetFrameTime());
 			updateScheduler.Update(Schematyc2::EUpdateStage::PrePhysics | Schematyc2::EUpdateDistribution::Earliest, Schematyc2::EUpdateStage::PrePhysics | Schematyc2::EUpdateDistribution::End);
 		}
 	}
@@ -108,7 +108,7 @@ namespace SchematycBaseEnv
 			Schematyc2::IUpdateScheduler& updateScheduler = gEnv->pSchematyc2->GetUpdateScheduler();
 			if(!updateScheduler.InFrame())
 			{
-				updateScheduler.BeginFrame(gEnv->pTimer->GetFrameTime());
+				updateScheduler.BeginFrame(GetGTimer()->GetFrameTime());
 			}
 
 			const int updateFlags = GetUpdateFlags();

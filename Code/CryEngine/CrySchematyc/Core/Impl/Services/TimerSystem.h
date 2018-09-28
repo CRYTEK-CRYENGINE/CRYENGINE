@@ -26,10 +26,10 @@ private:
 	struct STimer
 	{
 		STimer();
-		STimer(int64 _time, const TimerId& _timerId, const STimerDuration& _duration, const TimerCallback& _callback, const PrivateTimerFlags& _privateFlags);
+		STimer(const CTimeValue& _time, const TimerId& _timerId, const STimerDuration& _duration, const TimerCallback& _callback, const PrivateTimerFlags& _privateFlags);
 		STimer(const STimer& rhs);
 
-		int64             time;
+		CTimeValue        time;
 		TimerId           timerId;
 		STimerDuration    duration;
 		TimerCallback     callback;

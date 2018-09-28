@@ -16,12 +16,12 @@ namespace Schematyc
 {
 CScriptTimer::CScriptTimer()
 	: CScriptElementBase(EScriptElementFlags::None)
-	, m_params(STimerDuration(1.0f), ETimerFlags::AutoStart)
+	, m_params(STimerDuration(1), ETimerFlags::AutoStart)
 {}
 
 CScriptTimer::CScriptTimer(const CryGUID& guid, const char* szName)
 	: CScriptElementBase(guid, szName, EScriptElementFlags::None)
-	, m_params(STimerDuration(1.0f), ETimerFlags::AutoStart)
+	, m_params(STimerDuration(1), ETimerFlags::AutoStart)
 {}
 
 void CScriptTimer::EnumerateDependencies(const ScriptDependencyEnumerator& enumerator, EScriptDependencyType type) const {}
@@ -101,7 +101,7 @@ void CScriptTimer::SerializeParams(Serialization::IArchive& archive)
 		{
 			if (m_params.duration.units != prevUnits)
 			{
-				m_params.duration = STimerDuration(uint32(1));
+				m_params.duration = STimerDuration().Frames(1);
 			}
 			archive(m_params.duration.frames, "frames", "Duration");
 			break;
@@ -110,7 +110,7 @@ void CScriptTimer::SerializeParams(Serialization::IArchive& archive)
 		{
 			if (m_params.duration.units != prevUnits)
 			{
-				m_params.duration = STimerDuration(1.0f);
+				m_params.duration = STimerDuration(1);
 			}
 			archive(m_params.duration.seconds, "seconds", "Duration");
 			break;
@@ -119,7 +119,7 @@ void CScriptTimer::SerializeParams(Serialization::IArchive& archive)
 		{
 			if (m_params.duration.units != prevUnits)
 			{
-				m_params.duration = STimerDuration(1.0f, 1.0f);
+				m_params.duration = STimerDuration(1, 1);
 			}
 			archive(m_params.duration.range.min, "min", "Minimum");
 			archive(m_params.duration.range.max, "max", "Maximum");
@@ -164,13 +164,13 @@ void CScriptTimer::ValidateDuration(STimerDuration& duration, Serialization::IAr
 		}
 	case ETimerUnits::Seconds:
 		{
-			const float min = 0.2f;
-			const float max = 1000.0f;
+			const CTimeValue min = "0.2";
+			const CTimeValue max = 1000;
 			if (duration.seconds < min)
 			{
 				if (pArchive)
 				{
-					pArchive->warning(duration.seconds, "Minimum delay is %f seconds!", min);
+					pArchive->warning(duration.seconds, "Minimum delay is %f seconds!", (float)min.GetSeconds());
 				}
 				if (bApplyCorrections)
 				{
@@ -181,7 +181,7 @@ void CScriptTimer::ValidateDuration(STimerDuration& duration, Serialization::IAr
 			{
 				if (pArchive)
 				{
-					pArchive->warning(duration.seconds, "Maximum delay is %f seconds!", max);
+					pArchive->warning(duration.seconds, "Maximum delay is %f seconds!", (float)max.GetSeconds());
 				}
 				if (bApplyCorrections)
 				{
@@ -192,13 +192,13 @@ void CScriptTimer::ValidateDuration(STimerDuration& duration, Serialization::IAr
 		}
 	case ETimerUnits::Random:
 		{
-			const float min = 0.2f;
-			const float max = 1000.0f;
+			const CTimeValue min = "0.2";
+			const CTimeValue max = 1000;
 			if (duration.range.min < min)
 			{
 				if (pArchive)
 				{
-					pArchive->warning(duration.range.min, "Minimum delay is %f seconds!", min);
+					pArchive->warning(duration.range.min, "Minimum delay is %f seconds!", (float)min.GetSeconds());
 				}
 				if (bApplyCorrections)
 				{
@@ -209,7 +209,7 @@ void CScriptTimer::ValidateDuration(STimerDuration& duration, Serialization::IAr
 			{
 				if (pArchive)
 				{
-					pArchive->warning(duration.range.max, "Maximum delay is %f seconds!", max);
+					pArchive->warning(duration.range.max, "Maximum delay is %f seconds!", (float)max.GetSeconds());
 				}
 				if (bApplyCorrections)
 				{

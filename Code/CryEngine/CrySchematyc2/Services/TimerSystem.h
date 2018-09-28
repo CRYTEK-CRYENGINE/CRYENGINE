@@ -43,10 +43,10 @@ namespace Schematyc2
 		struct STimer
 		{
 			STimer();
-			STimer(int64 _time, TimerId _timerId, const STimerDuration& _duration, const TimerCallback& _callback, EPrivateTimerFlags _privateFlags);
+			STimer(const CTimeValue& _time, TimerId _timerId, const STimerDuration& _duration, const TimerCallback& _callback, EPrivateTimerFlags _privateFlags);
 			STimer(const STimer& rhs);
 
-			int64              time;
+			CTimeValue         time;
 			TimerId            timerId;
 			STimerDuration     duration;
 			TimerCallback      callback;

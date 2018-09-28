@@ -23,7 +23,7 @@ void SStopSignal::ReflectType(CTypeDesc<SStopSignal>& desc)
 	desc.SetDescription("Sent when object stops running.");
 }
 
-SUpdateSignal::SUpdateSignal(float _time)
+SUpdateSignal::SUpdateSignal(const CTimeValue& _time)
 	: time(_time)
 {}
 
@@ -32,7 +32,7 @@ void SUpdateSignal::ReflectType(CTypeDesc<SUpdateSignal>& desc)
 	desc.SetGUID("b2561caa-0753-458b-a91f-e8e38b0f0cdf"_cry_guid);
 	desc.SetLabel("Update");
 	desc.SetDescription("Sent when object updates.");
-	desc.AddMember(&SUpdateSignal::time, 'time', "time", "Time", "Time(s) since last update", 0.0f);
+	desc.AddMember(&SUpdateSignal::time, 'time', "time", "Time", "Time(s) since last update", CTimeValue(0));
 }
 
 void RegisterCoreEnvSignals(IEnvRegistrar& registrar)

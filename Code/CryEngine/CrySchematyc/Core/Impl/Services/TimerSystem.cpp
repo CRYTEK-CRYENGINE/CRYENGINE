@@ -20,7 +20,7 @@ TimerId CTimerSystem::CreateTimer(const STimerParams& params, const TimerCallbac
 	SCHEMATYC_CORE_ASSERT(callback);
 	if (callback)
 	{
-		uint64 time = 0;
+		CTimeValue time;
 		const TimerId timerId = static_cast<TimerId>(ms_nextTimerId++);
 		STimerDuration duration = params.duration;
 		PrivateTimerFlags privateFlags = EPrivateTimerFlags::None;
@@ -28,17 +28,17 @@ TimerId CTimerSystem::CreateTimer(const STimerParams& params, const TimerCallbac
 		{
 		case ETimerUnits::Frames:
 			{
-				time = m_frameCounter;
+				time = CTimeValue(m_frameCounter);
 				break;
 			}
 		case ETimerUnits::Seconds:
 			{
-				time = gEnv->pTimer->GetFrameStartTime().GetMilliSecondsAsInt64();
+				time = GetGTimer()->GetFrameStartTime();
 				break;
 			}
 		case ETimerUnits::Random:
 			{
-				time = gEnv->pTimer->GetFrameStartTime().GetMilliSecondsAsInt64();
+				time = GetGTimer()->GetFrameStartTime();
 				duration.units = ETimerUnits::Seconds;
 				duration.seconds = cry_random(duration.range.min, duration.range.max);
 				break;
@@ -81,12 +81,12 @@ bool CTimerSystem::StartTimer(const TimerId& timerId)
 			{
 			case ETimerUnits::Frames:
 				{
-					timer.time = m_frameCounter;
+					timer.time = CTimeValue(m_frameCounter);
 					break;
 				}
 			case ETimerUnits::Seconds:
 				{
-					timer.time = gEnv->pTimer->GetFrameStartTime().GetMilliSecondsAsInt64();
+					timer.time = GetGTimer()->GetFrameStartTime();
 					break;
 				}
 			}
@@ -126,13 +126,13 @@ void CTimerSystem::ResetTimer(const TimerId& timerId)
 			{
 			case ETimerUnits::Frames:
 				{
-					timer.time = m_frameCounter;
+					timer.time = CTimeValue(m_frameCounter);
 					break;
 				}
 			case ETimerUnits::Seconds:
 			case ETimerUnits::Random:
 				{
-					timer.time = gEnv->pTimer->GetFrameStartTime().GetMilliSecondsAsInt64();
+					timer.time = GetGTimer()->GetFrameStartTime();
 					break;
 				}
 			}
@@ -164,15 +164,16 @@ STimerDuration CTimerSystem::GetTimeRemaining(const TimerId& timerId) const
 			{
 			case ETimerUnits::Frames:
 				{
-					const int64 time = m_frameCounter;
-					const uint32 timeRemaining = timer.duration.frames - static_cast<uint32>(time - timer.time);
-					return STimerDuration(std::max<uint32>(timeRemaining, 0));
+					// PERSONAL NOTE: Treating frame count's as CTimeValue, e.g. 1 frame = 1 second......slightly messier but preserves the older format.
+					const int64  time = m_frameCounter;
+					const int64  timeRemaining = timer.duration.frames - (time - (uint32)timer.time.GetSeconds());
+					return STimerDuration().Frames(std::max<uint32>((uint32)timeRemaining, 0));
 				}
 			case ETimerUnits::Seconds:
 				{
-					const int64 time = gEnv->pTimer->GetFrameStartTime().GetMilliSecondsAsInt64();
-					const float timeRemaining = timer.duration.seconds - (static_cast<float>(time - timer.time) / 1000.0f);
-					return STimerDuration(std::max<float>(timeRemaining, 0.0f));
+					const CTimeValue time = GetGTimer()->GetFrameStartTime();
+					const CTimeValue timeRemaining = timer.duration.seconds - (time - timer.time);
+					return STimerDuration(std::max(timeRemaining, CTimeValue(0)));
 				}
 			}
 		}
@@ -183,7 +184,7 @@ STimerDuration CTimerSystem::GetTimeRemaining(const TimerId& timerId) const
 void CTimerSystem::Update()
 {
 	const int64 frameCounter = m_frameCounter++;
-	const int64 timeMs = gEnv->pTimer->GetFrameStartTime().GetMilliSecondsAsInt64();
+	const CTimeValue timeNow = GetGTimer()->GetFrameStartTime();
 	// Update active timers.
 	uint32 timerCount = m_timers.size();
 	for (uint32 timerIdx = 0; timerIdx < timerCount; ++timerIdx)
@@ -193,20 +194,20 @@ void CTimerSystem::Update()
 		{
 			if (timer.privateFlags.Check(EPrivateTimerFlags::Active))
 			{
-				int64 time = 0;
-				int64 endTime = 0;
+				CTimeValue time;
+				CTimeValue endTime;
 				switch (timer.duration.units)
 				{
 				case ETimerUnits::Frames:
 					{
-						time = frameCounter;
+						time = CTimeValue(frameCounter);
 						endTime = timer.time + timer.duration.frames;
 						break;
 					}
 				case ETimerUnits::Seconds:
 					{
-						time = timeMs;
-						endTime = timer.time + static_cast<int64>((timer.duration.seconds * 1000.0f));
+						time = timeNow;
+						endTime = timer.time + timer.duration.seconds;
 						break;
 					}
 				}
@@ -248,7 +249,7 @@ CTimerSystem::STimer::STimer()
 	, privateFlags(EPrivateTimerFlags::None)
 {}
 
-CTimerSystem::STimer::STimer(int64 _time, const TimerId& _timerId, const STimerDuration& _duration, const TimerCallback& _callback, const PrivateTimerFlags& _privateFlags)
+CTimerSystem::STimer::STimer(const CTimeValue& _time, const TimerId& _timerId, const STimerDuration& _duration, const TimerCallback& _callback, const PrivateTimerFlags& _privateFlags)
 	: time(_time)
 	, timerId(_timerId)
 	, duration(_duration)

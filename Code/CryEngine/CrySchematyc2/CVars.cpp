@@ -21,7 +21,7 @@ namespace Schematyc2
 	int    CVars::sc_MaxRecursionDepth        = 100;
 	ICVar* CVars::sc_ExperimentalFeatures     = nullptr;
 
-	float  CVars::sc_FunctionTimeLimit        = 0.0f;
+	CTimeValue  CVars::sc_FunctionTimeLimit   = 0;
 	float  CVars::sc_RelevanceGridCellSize    = 16.0f;
 	int    CVars::sc_RelevanceGridDebugStatic = 0;
 	int    CVars::sc_UseNewGraphPipeline      = 0;
@@ -47,7 +47,7 @@ namespace Schematyc2
 		sc_MaxRecursionDepth = REGISTER_CVAR(sc_MaxRecursionDepth, sc_MaxRecursionDepth, VF_NULL, "Maximum recursion depth")->GetIVal();
 		sc_ExperimentalFeatures = REGISTER_STRING("sc_ExperimentalFeatures", "", VF_NULL, "Enable one or more experimental features");
 
-		sc_FunctionTimeLimit = REGISTER_CVAR(sc_FunctionTimeLimit, sc_FunctionTimeLimit, VF_NULL, "Display critical error if Schematyc function takes more than x(s) to process")->GetFVal();
+		sc_FunctionTimeLimit = REGISTER_CVAR(sc_FunctionTimeLimit, sc_FunctionTimeLimit, VF_NULL, "Display critical error if Schematyc function takes more than x(s) to process")->GetTime();
 		sc_RelevanceGridCellSize = REGISTER_CVAR(sc_RelevanceGridCellSize, sc_RelevanceGridCellSize, VF_NULL, "This is the grid cell size of the relevance map")->GetFVal();
 		sc_RelevanceGridDebugStatic = REGISTER_CVAR(sc_RelevanceGridDebugStatic, sc_RelevanceGridDebugStatic, VF_DEV_ONLY,
 			_HELP("Enable debug draw of static entities in the relevance grid.\n"

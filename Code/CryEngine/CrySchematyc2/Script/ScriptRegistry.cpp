@@ -49,7 +49,7 @@ namespace Schematyc2
 	CNewScriptFile::CNewScriptFile(const SGUID& guid, const char* szName)
 		: m_guid(guid)
 		, m_name(szName)
-		, m_timeStamp(gEnv->pTimer->GetAsyncTime())
+		, m_timeStamp(GetGTimer()->GetAsyncTime())
 	{}
 
 	SGUID CNewScriptFile::GetGUID() const

@@ -164,7 +164,7 @@ namespace Schematyc2
 		virtual void Disconnect(CUpdateScope& scope) override;
 		virtual bool ScopeDestroyed(CUpdateScope& scope) override;
 		virtual bool InFrame() const override;
-		virtual bool BeginFrame(float frameTime) override;
+		virtual bool BeginFrame(const CTimeValue& frameTime) override;
 		virtual bool Update(UpdatePriority beginPriority = EUpdateStage::PrePhysics | EUpdateDistribution::Earliest, UpdatePriority endPriority = EUpdateStage::Post | EUpdateDistribution::End, CUpdateRelevanceContext* pRelevanceContext = nullptr) override;
 		virtual bool EndFrame() override;
 		virtual void VerifyCleanup() override;
@@ -284,7 +284,7 @@ namespace Schematyc2
 
 		SlotVector        m_slots;
 		CBucket           m_buckets[s_bucketCount];
-		float             m_frameTimes[s_bucketCount];
+		CTimeValue        m_frameTimes[s_bucketCount];
 		size_t            m_currentBucketIdx;
 		bool              m_bInFrame;
 		SFrameUpdateStats m_stats;

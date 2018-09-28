@@ -111,7 +111,7 @@ public:
 	virtual bool Connect(const SUpdateParams& params) override;
 	virtual void Disconnect(CConnectionScope& scope) override;
 	virtual bool InFrame() const override;
-	virtual bool BeginFrame(float frameTime) override;
+	virtual bool BeginFrame(const CTimeValue& frameTime) override;
 	virtual bool Update(UpdatePriority beginPriority = EUpdateStage::PrePhysics | EUpdateDistribution::Earliest, UpdatePriority endPriority = EUpdateStage::Post | EUpdateDistribution::End) override;
 	virtual bool EndFrame() override;
 	virtual void VerifyCleanup() override;
@@ -122,7 +122,7 @@ private:
 
 	SlotVector m_slots;
 	CBucket    m_buckets[BucketCount];
-	float      m_frameTimes[BucketCount];
+	CTimeValue m_frameTimes[BucketCount];
 	uint32     m_currentBucketIdx;
 	bool       m_bInFrame;
 };

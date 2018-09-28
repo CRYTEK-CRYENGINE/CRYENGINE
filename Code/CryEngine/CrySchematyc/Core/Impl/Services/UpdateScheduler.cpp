@@ -155,7 +155,7 @@ CUpdateScheduler::CUpdateScheduler()
 {
 	for (uint32 bucketIdx = 0; bucketIdx < BucketCount; ++bucketIdx)
 	{
-		m_frameTimes[bucketIdx] = 0.0f;
+		m_frameTimes[bucketIdx].SetSeconds(0);
 	}
 }
 
@@ -226,7 +226,7 @@ bool CUpdateScheduler::InFrame() const
 	return m_bInFrame;
 }
 
-bool CUpdateScheduler::BeginFrame(float frameTime)
+bool CUpdateScheduler::BeginFrame(const CTimeValue& frameTime)
 {
 	CRY_ASSERT(!m_bInFrame);
 	if (!m_bInFrame)
@@ -282,7 +282,7 @@ void CUpdateScheduler::Reset()
 	for (uint32 bucketIdx = 0; bucketIdx < BucketCount; ++bucketIdx)
 	{
 		m_buckets[bucketIdx].Reset();
-		m_frameTimes[bucketIdx] = 0.0f;
+		m_frameTimes[bucketIdx].SetSeconds(0);
 	}
 	m_currentBucketIdx = 0;
 	m_bInFrame = false;

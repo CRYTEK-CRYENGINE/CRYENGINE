@@ -23,11 +23,11 @@ struct SStopSignal
 
 struct SUpdateSignal
 {
-	SUpdateSignal(float _time = 0.0f);
+	SUpdateSignal(const CTimeValue& _time = 0);
 
 	static void ReflectType(CTypeDesc<SUpdateSignal>& desc);
 
-	float time = 0.0f;
+	CTimeValue time = 0;
 };
 
 void RegisterCoreEnvSignals(IEnvRegistrar& registrar);

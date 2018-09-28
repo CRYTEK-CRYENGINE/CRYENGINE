@@ -24,8 +24,8 @@ namespace SchematycBaseEnv
 			bool                           bPrime;
 			float                          countScale;
 			float                          speedScale;
-			float                          timeScale;
-			float                          pulsePeriod;
+			mpfloat                        timeScale;
+			CTimeValue                     pulsePeriod;
 			float                          strength;
 		};
 

@@ -21,14 +21,14 @@ namespace Schematyc
 CScript::CScript(const CryGUID& guid, const char* szFilePath)
 	: m_guid(guid)
 	, m_filePath(szFilePath)
-	, m_timeStamp(gEnv->pTimer->GetAsyncTime())
+	, m_timeStamp(GetGTimer()->GetAsyncTime())
 	, m_pRoot(nullptr)
 {}
 
 CScript::CScript(const char* szFilePath)
 	: m_guid()
 	, m_filePath(szFilePath)
-	, m_timeStamp(gEnv->pTimer->GetAsyncTime())
+	, m_timeStamp(GetGTimer()->GetAsyncTime())
 	, m_pRoot(nullptr)
 {
 

@@ -44,8 +44,8 @@ namespace SchematycBaseEnv
 		, bPrime(false)
 		, countScale(1.0f)
 		, speedScale(1.0f)
-		, timeScale(1.0f)
-		, pulsePeriod(0.0f)
+		, timeScale(1)
+		, pulsePeriod(0)
 		, strength(-1.0f)
 	{}
 

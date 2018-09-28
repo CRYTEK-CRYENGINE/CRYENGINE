@@ -104,7 +104,7 @@ namespace SchematycBaseEnv
 
 	void CEntityGameObjectExtension::Update(SEntityUpdateContext& context, int updateSlot) {}
 
-	void CEntityGameObjectExtension::PostUpdate(float frameTime) {}
+	void CEntityGameObjectExtension::PostUpdate(const CTimeValue& frameTime) {}
 
 	void CEntityGameObjectExtension::PostRemoteSpawn() {}
 

@@ -26,6 +26,11 @@ namespace Schematyc2
 		virtual bool operator () (const Serialization::SStruct& value, const char* szName = "", const char* szLabel = nullptr) override;
 		virtual bool operator () (Serialization::IContainer& value, const char* szName = "", const char* szLabel = nullptr) override;
 
+		virtual bool operator () (CTimeValue& value, const char* szName = "", const char* szLabel = nullptr) override						{ return (*this)(value.m_lValue, szName, szLabel); }
+		#define MP_FUNCTION(T) virtual bool operator () (T& value, const char* szName = "", const char* szLabel = nullptr) override	{ return true; }
+		#include <CrySystem\mpfloat.types>
+		#undef MP_FUNCTION
+
 		using IValidatorArchive::operator ();
 
 		virtual uint32 GetWarningCount() const override;
