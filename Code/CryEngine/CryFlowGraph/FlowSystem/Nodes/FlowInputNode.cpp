@@ -199,7 +199,7 @@ public:
 			InputPortConfig<string>("EffectName", _HELP("Name of the force feedback effect to be played/stopped" ), _HELP("Effect Name"), _UICONFIG("enum_global:forceFeedback")),
 			InputPortConfig_Void("Play", _HELP("Play the specified effect")),
 			InputPortConfig<float>("Intensity", 1.f, _HELP("Intensity factor applied to the effect being played")),
-			InputPortConfig<float>("Delay", 0.f, _HELP("Time delay to start the effect")),
+			InputPortConfig<CTimeValue>("Delay", CTimeValue(0), _HELP("Time delay to start the effect")),
 			InputPortConfig_Void("Stop", _HELP("Stop the specified effect")),
 			InputPortConfig_Void("StopAll", _HELP("Stop all currently playing force feedback effects")),
 			{ 0 }
@@ -232,7 +232,7 @@ public:
 						const string effectName = GetPortString(pActInfo, eIP_EffectName).c_str();
 						ForceFeedbackFxId fxId = pForceFeedback->GetEffectIdByName(effectName);
 						const float intensity = GetPortFloat(pActInfo, eIP_Intensity);
-						const float delay = GetPortFloat(pActInfo, eIP_Delay);
+						const CTimeValue delay = GetPortTime(pActInfo, eIP_Delay);
 						pForceFeedback->PlayForceFeedbackEffect(fxId, SForceFeedbackRuntimeParams(intensity, delay));
 					}
 					if (IsPortActive(pActInfo, eIP_Stop))

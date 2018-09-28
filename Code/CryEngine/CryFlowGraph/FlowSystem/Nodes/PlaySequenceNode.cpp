@@ -48,8 +48,8 @@ class CPlaySequence_Node : public CFlowBaseNode<eNCT_Instanced>, public IMovieLi
 	_smart_ptr<IAnimSequence> m_pSequence;
 	SActivationInfo           m_actInfo;
 	EPlayingState             m_playingState;
-	float                     m_currentTime;
-	float                     m_currentSpeed;
+	CTimeValue                m_currentTime;
+	mpfloat                   m_currentSpeed;
 
 public:
 	CPlaySequence_Node(SActivationInfo* pActInfo)
@@ -57,8 +57,8 @@ public:
 		m_pSequence = 0;
 		m_actInfo = *pActInfo;
 		m_playingState = PS_Stopped;
-		m_currentSpeed = 0.0f;
-		m_currentTime = 0.0f;
+		m_currentSpeed = 0;
+		m_currentTime.SetSeconds(0);
 	};
 
 	virtual void GetMemoryUsage(ICrySizer* s) const
@@ -146,9 +146,9 @@ public:
 			InputPortConfig<float>("BlendPosSpeed",      0.0f,                                                                                               _HELP("Speed at which position gets blended into animation.")),
 			InputPortConfig<float>("BlendRotSpeed",      0.0f,                                                                                               _HELP("Speed at which rotation gets blended into animation.")),
 			InputPortConfig<bool>("PerformBlendOut",     false,                                                                                              _HELP("If set to 'true' the cutscene will blend out after it has finished to the new view (please reposition player when 'Started' happens).")),
-			InputPortConfig<float>("StartTime",          0.0f,                                                                                               _HELP("Start time from which the sequence'll begin playing.")),
-			InputPortConfig<float>("PlaySpeed",          1.0f,                                                                                               _HELP("Speed that this sequence plays at. 1.0 = normal speed, 0.5 = half speed, 2.0 = double speed.")),
-			InputPortConfig<float>("JumpToTime",         0.0f,                                                                                               _HELP("Jump to a specific time in the sequence.")),
+			InputPortConfig<CTimeValue>("StartTime",     CTimeValue(0),                                                                                      _HELP("Start time from which the sequence'll begin playing.")),
+			InputPortConfig<mpfloat>("PlaySpeed",        1,                                                                                                  _HELP("Speed that this sequence plays at. 1.0 = normal speed, 0.5 = half speed, 2.0 = double speed.")),
+			InputPortConfig<CTimeValue>("JumpToTime",    CTimeValue(0),                                                                                      _HELP("Jump to a specific time in the sequence.")),
 			InputPortConfig_Void("TriggerJumpToTime",    _HELP("Trigger the animation to jump to 'JumpToTime' seconds.")),
 			InputPortConfig<int>("seqid_SequenceId",     0,                                                                                                  _HELP("ID of the Sequence"),                                                                                                                    _HELP("SequenceId (DEPRECATED)")),
 			InputPortConfig_Void("TriggerJumpToEnd",     _HELP("Trigger the animation to jump to the end of the sequence.")),
@@ -200,7 +200,7 @@ public:
 				}
 				if (IsPortActive(pActInfo, EIP_Start))
 				{
-					StartSequence(pActInfo, GetPortFloat(pActInfo, EIP_StartTime), GetPortFloat(pActInfo, EIP_PlaySpeed));
+					StartSequence(pActInfo, GetPortTime(pActInfo, EIP_StartTime), GetPortMP(pActInfo, EIP_PlaySpeed));
 				}
 				if (IsPortActive(pActInfo, EIP_Pause))
 				{
@@ -208,13 +208,13 @@ public:
 				}
 				if (IsPortActive(pActInfo, EIP_Precache))
 				{
-					PrecacheSequence(pActInfo, GetPortFloat(pActInfo, EIP_StartTime));
+					PrecacheSequence(pActInfo, GetPortTime(pActInfo, EIP_StartTime));
 				}
 				if (IsPortActive(pActInfo, EIP_TriggerJumpToTime))
 				{
 					if (gEnv->pMovieSystem && m_pSequence)
 					{
-						SAnimTime time(GetPortFloat(pActInfo, EIP_JumpToTime));
+						CTimeValue time(GetPortTime(pActInfo, EIP_JumpToTime));
 						time = clamp_tpl(time, m_pSequence->GetTimeRange().start, m_pSequence->GetTimeRange().end);
 						gEnv->pMovieSystem->SetPlayingTime(m_pSequence, time);
 					}
@@ -223,13 +223,13 @@ public:
 				{
 					if (gEnv->pMovieSystem && m_pSequence)
 					{
-						SAnimTime endTime = m_pSequence->GetTimeRange().end;
+						CTimeValue endTime = m_pSequence->GetTimeRange().end;
 						gEnv->pMovieSystem->SetPlayingTime(m_pSequence, endTime);
 					}
 				}
 				if (IsPortActive(pActInfo, EIP_PlaySpeed))
 				{
-					const float playSpeed = GetPortFloat(pActInfo, EIP_PlaySpeed);
+					const mpfloat playSpeed = GetPortMP(pActInfo, EIP_PlaySpeed);
 					if (gEnv->pMovieSystem)
 					{
 						gEnv->pMovieSystem->SetPlayingSpeed(m_pSequence, playSpeed);
@@ -268,7 +268,7 @@ public:
 			}
 			else if (event == IMovieListener::eMovieEvent_Updated)
 			{
-				m_currentTime = gEnv->pMovieSystem->GetPlayingTime(pSequence).ToFloat();
+				m_currentTime = gEnv->pMovieSystem->GetPlayingTime(pSequence);
 				m_currentSpeed = gEnv->pMovieSystem->GetPlayingSpeed(pSequence);
 			}
 		}
@@ -296,7 +296,7 @@ protected:
 		m_playingState = PS_Stopped;
 	}
 
-	void PrecacheSequence(SActivationInfo* pActInfo, float startTime = 0.0f)
+	void PrecacheSequence(SActivationInfo* pActInfo, const CTimeValue& startTime = 0)
 	{
 		IMovieSystem* movieSys = gEnv->pMovieSystem;
 		if (movieSys)
@@ -306,7 +306,7 @@ protected:
 				pSequence = movieSys->FindSequenceById((uint32)GetPortInt(pActInfo, EIP_SequenceId));
 			if (pSequence)
 			{
-				pSequence->PrecacheData(SAnimTime(startTime));
+				pSequence->PrecacheData(startTime);
 			}
 		}
 	}
@@ -338,14 +338,14 @@ protected:
 	{
 		if (gEnv->pMovieSystem && m_pSequence)
 		{
-			const float currentTime = gEnv->pMovieSystem->GetPlayingTime(m_pSequence).ToFloat();
-			const float currentSpeed = gEnv->pMovieSystem->GetPlayingSpeed(m_pSequence);
+			const CTimeValue currentTime = gEnv->pMovieSystem->GetPlayingTime(m_pSequence);
+			const mpfloat currentSpeed   = gEnv->pMovieSystem->GetPlayingSpeed(m_pSequence);
 			ActivateOutput(&m_actInfo, EOP_SequenceTime, currentTime);
 			ActivateOutput(&m_actInfo, EOP_CurrentSpeed, currentSpeed);
 		}
 	}
 
-	void StartSequence(SActivationInfo* pActInfo, float curTime = 0.0f, float curSpeed = 1.0f, bool bNotifyStarted = true)
+	void StartSequence(SActivationInfo* pActInfo, const CTimeValue& curTime = 0, const mpfloat& curSpeed = 1, bool bNotifyStarted = true)
 	{
 		IMovieSystem* pMovieSystem = gEnv->pMovieSystem;
 		if (!pMovieSystem)
@@ -379,7 +379,7 @@ protected:
 			m_pSequence->Resume();
 			pMovieSystem->AddMovieListener(m_pSequence, this);
 			pMovieSystem->PlaySequence(m_pSequence, NULL, true, false);
-			pMovieSystem->SetPlayingTime(m_pSequence, SAnimTime(curTime));
+			pMovieSystem->SetPlayingTime(m_pSequence, curTime);
 			pMovieSystem->SetPlayingSpeed(m_pSequence, curSpeed);
 
 			// set blend parameters only for tracks with Director Node, having camera track inside
@@ -436,7 +436,7 @@ protected:
 		{
 			if (gEnv->pMovieSystem && m_pSequence)
 			{
-				SAnimTime endTime = m_pSequence->GetTimeRange().end;
+				CTimeValue endTime = m_pSequence->GetTimeRange().end;
 				gEnv->pMovieSystem->SetPlayingTime(m_pSequence, endTime);
 			}
 		}

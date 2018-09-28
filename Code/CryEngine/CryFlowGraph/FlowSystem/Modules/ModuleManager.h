@@ -26,7 +26,7 @@ public:
 	// ~ISystemEventListener
 
 	// IGameFrameworkListener
-	virtual void OnPostUpdate(float fDeltaTime);
+	virtual void OnPostUpdate(const CTimeValue& fDeltaTime);
 	virtual void OnSaveGame(ISaveGame* pSaveGame)         {}
 	virtual void OnLoadGame(ILoadGame* pLoadGame)         {}
 	virtual void OnLevelEnd(const char* nextLevel)        {}

@@ -24,8 +24,8 @@ namespace
 static const int MAX_ROWS = 23;             // max number of one-time-flow lines
 static const int MAX_ROWS_CONT = 12;        // max number of rows for continuous flows
 
-static const float MAX_AGE = 10.0f;         // max age of one-time-flows updates before fade out
-static const float MAX_AGE_CONT = 2.5f;     // max age of continuous updates before fade out
+static const CTimeValue MAX_AGE = 10;         // max age of one-time-flows updates before fade out
+static const CTimeValue MAX_AGE_CONT = "2.5"; // max age of continuous updates before fade out
 
 // visuals
 static const float BASE_Y = 50.0f;
@@ -149,7 +149,7 @@ CFlowInspectorDefault::Release()
 CFlowInspectorDefault::PreUpdate(IFlowGraph* pGraph)
 {
 	m_bProcessing = true;
-	m_currentTime = gEnv->pTimer->GetFrameStartTime();
+	m_currentTime = GetGTimer()->GetFrameStartTime();
 }
 
 /* virtual */ void
@@ -168,7 +168,7 @@ CFlowInspectorDefault::PostUpdate(IFlowGraph* pGraph)
 	else
 		DrawLabel(2, 0, headColor, 0.2f, "Continuous Flows [truncated]:");
 
-	DrawRecords(m_contRecords, 1, m_bPaused ? 0.0f : MAX_AGE_CONT);
+	DrawRecords(m_contRecords, 1, m_bPaused ? 0.0f : MAX_AGE_CONT.BADGetSeconds());
 	if (m_newOneTime <= MAX_ROWS)
 		DrawLabel(2, 1 + MAX_ROWS_CONT, headColor, 0.2f, "Flows:");
 	else
@@ -180,7 +180,7 @@ CFlowInspectorDefault::PostUpdate(IFlowGraph* pGraph)
 	if (m_filters.empty() == false)
 		DrawLabel(11, -1, filterColor, 0.0, "Filter Active");
 
-	DrawRecords(m_oneTimeRecords, 1 + 1 + MAX_ROWS_CONT, m_bPaused ? 0.0f : MAX_AGE);
+	DrawRecords(m_oneTimeRecords, 1 + 1 + MAX_ROWS_CONT, m_bPaused ? 0.0f : MAX_AGE.BADGetSeconds());
 #endif
 
 	m_bProcessing = true; // FIXME: actually we should set it to 'false' now, but then we don't get EntityEvents, which occur not during the FG update phase
@@ -316,7 +316,7 @@ CFlowInspectorDefault::UpdateRecords()
 	// clear outdated
 	while (!m_oneTimeRecords.empty())
 	{
-		float age = (m_currentTime - m_oneTimeRecords.front().m_tstamp).GetSeconds();
+		CTimeValue age = m_currentTime - m_oneTimeRecords.front().m_tstamp;
 		if (age <= MAX_AGE) break;
 		m_oneTimeRecords.pop_front();
 	}
@@ -330,7 +330,7 @@ CFlowInspectorDefault::UpdateRecords()
 	// clear outdated in cont
 	while (!m_contRecords.empty())
 	{
-		float age = (m_currentTime - m_contRecords.front().m_tstamp).GetSeconds();
+		CTimeValue age = m_currentTime - m_contRecords.front().m_tstamp;
 		if (age <= MAX_AGE_CONT) break;
 		m_contRecords.pop_front();
 	}
@@ -374,7 +374,7 @@ CFlowInspectorDefault::DrawRecords(const std::deque<TFlowRecord>& inRecords, int
 	while (iter != inRecords.end())
 	{
 		const TFlowRecord& rec(*iter);
-		float age = (m_currentTime - rec.m_tstamp).GetSeconds() - 0.5f;  // -0.5 grace time
+		float age = (m_currentTime - rec.m_tstamp).BADGetSeconds() - 0.5f;  // -0.5 grace time
 		float ageFactor = inMaxAge > 0 ? age / inMaxAge : 0;
 		if (ageFactor < 0) ageFactor = 0;
 		if (ageFactor > 1) ageFactor = 1;

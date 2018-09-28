@@ -396,6 +396,10 @@ inline string CFlowGraphBase::ToString(const TFlowInputData& value)
 		return ToString(*value.GetPtr<bool>());
 	case eFDT_Int:
 		return ToString(*value.GetPtr<int>());
+	case eFDT_Time:
+		return ToString(*value.GetPtr<CTimeValue>());
+	case eFDT_MP:
+		return ToString(*value.GetPtr<mpfloat>());
 	default:
 		return "unknown";
 	}
@@ -579,6 +583,14 @@ public:
 		CFlowGraphBase::PerformActivation(address, value.value);
 	}
 	virtual void DoActivatePort(const SFlowAddress address, const NFlowSystemUtils::Wrapper<bool>& value)
+	{
+		CFlowGraphBase::PerformActivation(address, value.value);
+	}
+	virtual void DoActivatePort(const SFlowAddress address, const NFlowSystemUtils::Wrapper<CTimeValue>& value)
+	{
+		CFlowGraphBase::PerformActivation(address, value.value);
+	}
+	virtual void DoActivatePort(const SFlowAddress address, const NFlowSystemUtils::Wrapper<mpfloat>& value)
 	{
 		CFlowGraphBase::PerformActivation(address, value.value);
 	}

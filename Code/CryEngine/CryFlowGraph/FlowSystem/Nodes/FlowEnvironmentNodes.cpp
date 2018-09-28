@@ -174,12 +174,12 @@ class CFlowNode_TimeOfDayTransitionTrigger : public CFlowBaseNode<eNCT_Instanced
 {
 	typedef uint32 InternalID;  // InternalID is used to control that only 1 of those nodes is active at any time
 
-	float             m_startTOD;
+	CTimeValue        m_startTOD;
 	float             m_startSunLatitude;
 	float             m_startSunLongitude;
-	float             m_durationLeft;
-	float             m_TODTimeToUpdate; // used when update is not every frame
-	float             m_sunTimeToUpdate; // used when update is not every frame
+	CTimeValue        m_durationLeft;
+	CTimeValue        m_TODTimeToUpdate; // used when update is not every frame
+	CTimeValue        m_sunTimeToUpdate; // used when update is not every frame
 	InternalID        m_ID;
 	bool              m_blending;
 	bool              m_paused;
@@ -205,12 +205,12 @@ public:
 	};
 
 	CFlowNode_TimeOfDayTransitionTrigger(SActivationInfo* pActInfo)
-		: m_startTOD(0.0f)
+		: m_startTOD(0)
 		, m_startSunLatitude(0.0f)
 		, m_startSunLongitude(0.0f)
-		, m_durationLeft(0.0f)
-		, m_TODTimeToUpdate(0.0f)
-		, m_sunTimeToUpdate(0.0f)
+		, m_durationLeft(0)
+		, m_TODTimeToUpdate(0)
+		, m_sunTimeToUpdate(0)
 		, m_ID(m_IDCounter++)
 		, m_blending(false)
 		, m_paused(false)
@@ -242,12 +242,12 @@ public:
 	void GetConfiguration(SFlowNodeConfig& config)
 	{
 		static const SInputPortConfig in_config[] = {
-			InputPortConfig<float>("Time",                      -1.0f,                                  _HELP("Blend from the current time in the level to this new specified time. (24 hours value. -1 = no TOD blending)")),
-			InputPortConfig<float>("Duration",                  0.f,                                    _HELP("Blend duration in seconds")),
+			InputPortConfig<CTimeValue>("Time",                  CTimeValue(-1),                        _HELP("Blend from the current time in the level to this new specified time. (24 hours value. -1 = no TOD blending)")),
+			InputPortConfig<CTimeValue>("Duration",              CTimeValue(0),                         _HELP("Blend duration in seconds")),
 			InputPortConfig<float>("SunLatitude",               -1.f,                                   _HELP("Blend from the current sun latitude in the level to this new specified latitude (value in degrees. -1=no latitude blending)")),
 			InputPortConfig<float>("SunLongitude",              -1.f,                                   _HELP("blend from the current sun longitude in the level to this new specified longitude (value in degrees. -1=no longitude blending)")),
-			InputPortConfig<float>("SunPositionUpdateInterval", 1.f,                                    _HELP("Amount of time in seconds between every update for the repositioning of the sun (0 second means the sun position is constantly updated during the transition) ")),
-			InputPortConfig<float>("ForceUpdateInterval",       1.0f,                                   _HELP("amount of time in seconds between every update of the time of day (0 second means the time of day is constantly updated during the transition, not recommended for low spec) ")),
+			InputPortConfig<CTimeValue>("SunPositionUpdateInterval", CTimeValue(1),                     _HELP("Amount of time in seconds between every update for the repositioning of the sun (0 second means the sun position is constantly updated during the transition) ")),
+			InputPortConfig<CTimeValue>("ForceUpdateInterval",       CTimeValue(1),                     _HELP("amount of time in seconds between every update of the time of day (0 second means the time of day is constantly updated during the transition, not recommended for low spec) ")),
 			InputPortConfig_Void("Start",                       _HELP("Starts the transition")),
 			InputPortConfig_Void("Pause",                       _HELP("Pause/Unpause the transition")),
 			{ 0 }
@@ -283,9 +283,9 @@ public:
 				if (IsPortActive(pActInfo, IN_START))
 				{
 					pActInfo->pGraph->SetRegularlyUpdated(pActInfo->myID, true);
-					m_durationLeft = GetPortFloat(pActInfo, IN_DURATION);
-					m_sunTimeToUpdate = GetPortFloat(pActInfo, IN_SUN_POSITION_UPDATE_INTERVAL);
-					m_TODTimeToUpdate = GetPortFloat(pActInfo, IN_TOD_FORCE_UPDATE_INTERVAL);
+					m_durationLeft    = GetPortTime(pActInfo, IN_DURATION);
+					m_sunTimeToUpdate = GetPortTime(pActInfo, IN_SUN_POSITION_UPDATE_INTERVAL);
+					m_TODTimeToUpdate = GetPortTime(pActInfo, IN_TOD_FORCE_UPDATE_INTERVAL);
 					m_startSunLongitude = pTOD->GetSunLongitude();
 					m_startSunLatitude = pTOD->GetSunLatitude();
 					m_startTOD = pTOD->GetTime();
@@ -317,19 +317,19 @@ public:
 				if (!pTOD)
 					break;
 
-				m_durationLeft -= gEnv->pTimer->GetFrameTime();
+				m_durationLeft -= GetGTimer()->GetFrameTime();
 				bool forceUpdate = false;
 				if (m_durationLeft <= 0)
 				{
-					m_durationLeft = 0;
+					m_durationLeft.SetSeconds(0);
 					m_blending = false;
 					pActInfo->pGraph->SetRegularlyUpdated(pActInfo->myID, false);
 					ActivateOutput(pActInfo, OUT_DONE, true);
 					forceUpdate = true;
 					m_activeID = 0xffffffff;
 				}
-				float totalDuration = GetPortFloat(pActInfo, IN_DURATION);
-				float blendPos = totalDuration == 0 ? 1.f : 1.f - (m_durationLeft / totalDuration);
+				CTimeValue totalDuration = GetPortTime(pActInfo, IN_DURATION);
+				nTime blendPos = totalDuration == 0 ? 1 : 1 - (m_durationLeft / totalDuration);
 
 				bool needUpdate = UpdateTOD(blendPos, pActInfo, pTOD, forceUpdate);
 				needUpdate |= UpdateSun(blendPos, pActInfo, pTOD, forceUpdate);
@@ -341,38 +341,38 @@ public:
 		}
 	}
 
-	bool UpdateTOD(float blendPos, SActivationInfo* pActInfo, ITimeOfDay* pTOD, bool forceUpdate)
+	bool UpdateTOD(const nTime& blendPos, SActivationInfo* pActInfo, ITimeOfDay* pTOD, bool forceUpdate)
 	{
 		bool needUpdate = forceUpdate;
-		float endTOD = GetPortFloat(pActInfo, IN_TOD);
+		CTimeValue endTOD = GetPortTime(pActInfo, IN_TOD);
 		if (endTOD < 0)
 			return needUpdate;
 
-		m_TODTimeToUpdate -= gEnv->pTimer->GetFrameTime();
+		m_TODTimeToUpdate -= GetGTimer()->GetFrameTime();
 		if (m_TODTimeToUpdate <= 0 || forceUpdate)
 		{
-			m_TODTimeToUpdate = GetPortFloat(pActInfo, IN_TOD_FORCE_UPDATE_INTERVAL);
-			float currTime = m_startTOD + (endTOD - m_startTOD) * blendPos;
+			m_TODTimeToUpdate = GetPortTime(pActInfo, IN_TOD_FORCE_UPDATE_INTERVAL);
+			CTimeValue currTime = m_startTOD + (endTOD - m_startTOD) * blendPos;
 			pTOD->SetTime(currTime, false);
 			needUpdate = true;
 		}
 		return needUpdate;
 	}
 
-	bool UpdateSun(float blendPos, SActivationInfo* pActInfo, ITimeOfDay* pTOD, bool forceUpdate)
+	bool UpdateSun(const nTime& blendPos, SActivationInfo* pActInfo, ITimeOfDay* pTOD, bool forceUpdate)
 	{
 		bool needUpdate = forceUpdate;
-		m_sunTimeToUpdate -= gEnv->pTimer->GetFrameTime();
+		m_sunTimeToUpdate -= GetGTimer()->GetFrameTime();
 		if (m_sunTimeToUpdate > 0 && !forceUpdate)
 			return needUpdate;
 
-		m_sunTimeToUpdate = GetPortFloat(pActInfo, IN_SUN_POSITION_UPDATE_INTERVAL);
+		m_sunTimeToUpdate = GetPortTime(pActInfo, IN_SUN_POSITION_UPDATE_INTERVAL);
 
 		float endLatitude = GetPortFloat(pActInfo, IN_SUN_LATITUDE);
 		float currLatitude = pTOD->GetSunLatitude();
 		if (endLatitude >= 0)
 		{
-			currLatitude = m_startSunLatitude + (endLatitude - m_startSunLatitude) * blendPos;
+			currLatitude = m_startSunLatitude + (endLatitude - m_startSunLatitude) * BADF blendPos;
 			needUpdate = true;
 		}
 
@@ -380,7 +380,7 @@ public:
 		float currLongitude = pTOD->GetSunLongitude();
 		if (endLongitude >= 0)
 		{
-			currLongitude = m_startSunLongitude + (endLongitude - m_startSunLongitude) * blendPos;
+			currLongitude = m_startSunLongitude + (endLongitude - m_startSunLongitude) * BADF blendPos;
 			needUpdate = true;
 		}
 		if (needUpdate)

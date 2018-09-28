@@ -32,8 +32,9 @@ public:
 			InputPortConfig<bool>("paused", false, _HELP("When set to true will pause time output")),
 			{ 0 }
 		};
+		// PERSONAL IMPROVE: Port configs don't fail to compile if float vs CTimeValue. Somehow should be checked.
 		static const SOutputPortConfig out_config[] = {
-			OutputPortConfig<float>("seconds", _HELP("Outputs the current time in seconds.")),
+			OutputPortConfig<CTimeValue>("seconds", _HELP("Outputs the current time in seconds.")),
 			OutputPortConfig_Void("tick",      _HELP("Outputs event at this port every frame.")),
 			{ 0 }
 		};
@@ -51,7 +52,7 @@ public:
 				bool bPaused = GetPortBool(pActInfo, IN_PAUSED);
 				if (!bPaused)
 				{
-					float fSeconds = gEnv->pTimer->GetFrameStartTime().GetSeconds();
+					CTimeValue fSeconds = GetGTimer()->GetFrameStartTime().GetSeconds();
 					ActivateOutput(pActInfo, OUT_SECONDS, fSeconds);
 					ActivateOutput(pActInfo, OUT_TICK, 0);
 				}
@@ -325,7 +326,7 @@ public:
 	virtual void GetConfiguration(SFlowNodeConfig& config)
 	{
 		static const SInputPortConfig in_config[] = {
-			InputPortConfig<float>("period", _HELP("Tick period in seconds")),
+			InputPortConfig<CTimeValue>("period", _HELP("Tick period in seconds")),
 			InputPortConfig<int>("min",      _HELP("Minimal timer output value")),
 			InputPortConfig<int>("max",      _HELP("Maximal timer output value")),
 			InputPortConfig<bool>("paused",  _HELP("Timer will be paused when set to true")),
@@ -349,7 +350,7 @@ public:
 			{
 				bool bPaused = GetPortBool(pActInfo, IN_PAUSED);
 				pActInfo->pGraph->SetRegularlyUpdated(pActInfo->myID, !bPaused);
-				m_last = gEnv->pTimer->GetFrameStartTime();
+				m_last = GetGTimer()->GetFrameStartTime();
 			}
 			break;
 
@@ -358,10 +359,10 @@ public:
 				if (GetPortBool(pActInfo, IN_PAUSED))
 					return;
 
-				float fPeriod = GetPortFloat(pActInfo, IN_PERIOD);
-				CTimeValue time = gEnv->pTimer->GetFrameStartTime();
+				CTimeValue fPeriod = GetPortTime(pActInfo, IN_PERIOD);
+				CTimeValue time = GetGTimer()->GetFrameStartTime();
 				CTimeValue dt = time - m_last;
-				if (dt.GetSeconds() >= fPeriod)
+				if (dt >= fPeriod)
 				{
 					m_last = time;
 					int nMin = GetPortInt(pActInfo, IN_MIN);
@@ -438,7 +439,7 @@ public:
 			InputPortConfig_AnyType("start",    _HELP("Triggers the start of the counter. If it is counting already, it resets it. Also, wathever was input here, will be output as 'finished' when the counting is done")),
 			InputPortConfig_AnyType("stop",     _HELP("Stops counting")),
 			InputPortConfig_AnyType("continue", _HELP("Continues counting")),
-			InputPortConfig<float>("period",    1.f,                                                                                                                                                                        _HELP("Tick period in seconds")),
+			InputPortConfig<CTimeValue>("period", CTimeValue(1),  _HELP("Tick period in seconds")),
 			InputPortConfig<int>("limit",       _HELP("How many ticks the counter will do before finish")),
 			{ 0 }
 		};
@@ -465,10 +466,10 @@ public:
 
 		case eFE_Update:
 			{
-				float fPeriod = GetPortFloat(pActInfo, IN_PERIOD);
-				CTimeValue time = gEnv->pTimer->GetFrameStartTime();
+				CTimeValue fPeriod = GetPortTime(pActInfo, IN_PERIOD);
+				CTimeValue time = GetGTimer()->GetFrameStartTime();
 				CTimeValue dt = time - m_lastTickTime;
-				if (dt.GetSeconds() >= fPeriod)
+				if (dt >= fPeriod)
 				{
 					m_lastTickTime = time;
 					++m_count;
@@ -487,7 +488,7 @@ public:
 				{
 					pActInfo->pGraph->SetRegularlyUpdated(pActInfo->myID, true);
 					m_count = 0;
-					m_lastTickTime = gEnv->pTimer->GetFrameStartTime();
+					m_lastTickTime = GetGTimer()->GetFrameStartTime();
 				}
 
 				if (IsPortActive(pActInfo, IN_STOP))
@@ -538,18 +539,18 @@ public:
 	virtual void GetConfiguration(SFlowNodeConfig& config)
 	{
 		static const SInputPortConfig in_config[] = {
-			InputPortConfig<float>("Time",       0.0f,                                                   _HELP("TimeOfDay to set (in hours 0-24)")),
+			InputPortConfig<CTimeValue>("Time",  CTimeValue(0),                                          _HELP("TimeOfDay to set (in hours 0-24)")),
 			InputPortConfig_Void("Set",          _HELP("Trigger to Set TimeOfDay to [Time]"),            _HELP("SetTime")),
 			InputPortConfig<bool>("ForceUpdate", false,                                                  _HELP("Force Immediate Update of Sky if true. Only in Special Cases!")),
 			InputPortConfig_Void("Get",          _HELP("Trigger to Get TimeOfDay to [CurTime]"),         _HELP("GetTime")),
-			InputPortConfig<float>("Speed",      1.0f,                                                   _HELP("Speed to bet set (via [SetSpeed]")),
+			InputPortConfig<mpfloat>("Speed",    1,                                                      _HELP("Speed to bet set (via [SetSpeed]")),
 			InputPortConfig_Void("SetSpeed",     _HELP("Trigger to set TimeOfDay Speed to [Speed]")),
 			InputPortConfig_Void("GetSpeed",     _HELP("Trigger to get TimeOfDay Speed to [CurSpeed]")),
 			{ 0 }
 		};
 		static const SOutputPortConfig out_config[] = {
-			OutputPortConfig<float>("CurTime",  _HELP("Current TimeOfDay (set when [GetTime] is triggered)")),
-			OutputPortConfig<float>("CurSpeed", _HELP("Current TimeOfDay Speed (set when [GetSpeed] is triggered)")),
+			OutputPortConfig<CTimeValue>("CurTime",  _HELP("Current TimeOfDay (set when [GetTime] is triggered)")),
+			OutputPortConfig<mpfloat>("CurSpeed",    _HELP("Current TimeOfDay Speed (set when [GetSpeed] is triggered)")),
 			{ 0 }
 		};
 
@@ -571,7 +572,7 @@ public:
 				if (IsPortActive(pActInfo, IN_SET))
 				{
 					const bool bForceUpdate = GetPortBool(pActInfo, IN_FORCEUPDATE);
-					pTOD->SetTime(GetPortFloat(pActInfo, IN_TIME), bForceUpdate);
+					pTOD->SetTime(GetPortTime(pActInfo, IN_TIME), bForceUpdate);
 					ActivateOutput(pActInfo, OUT_CURTIME, pTOD->GetTime());
 				}
 				if (IsPortActive(pActInfo, IN_GET))
@@ -582,7 +583,7 @@ public:
 				{
 					ITimeOfDay::SAdvancedInfo info;
 					pTOD->GetAdvancedInfo(info);
-					info.fAnimSpeed = GetPortFloat(pActInfo, IN_SPEED);
+					info.fAnimSpeed = GetPortMP(pActInfo, IN_SPEED);
 					pTOD->SetAdvancedInfo(info);
 					ActivateOutput(pActInfo, OUT_CURSPEED, info.fAnimSpeed);
 				}
@@ -623,7 +624,7 @@ public:
 
 	CFlowNode_MeasureTime(SActivationInfo* pActInfo)
 	{
-		m_last = 0.0f;
+		m_last.SetSeconds(0);
 	}
 
 	IFlowNodePtr Clone(SActivationInfo* pActInfo)
@@ -646,7 +647,7 @@ public:
 		static const SOutputPortConfig out_config[] = {
 			OutputPortConfig_Void("Started",   _HELP("Triggered on Start")),
 			OutputPortConfig_Void("Stopped",   _HELP("Triggered on Stop")),
-			OutputPortConfig<float>("Elapsed", _HELP("Elapsed time in seconds")),
+			OutputPortConfig<CTimeValue>("Elapsed", _HELP("Elapsed time in seconds")),
 			{ 0 }
 		};
 
@@ -662,14 +663,14 @@ public:
 		case eFE_Activate:
 			if (IsPortActive(pActInfo, EIP_Start))
 			{
-				m_last = gEnv->pTimer->GetFrameStartTime();
+				m_last = GetGTimer()->GetFrameStartTime();
 				ActivateOutput(pActInfo, EOP_Started, true);
 			}
 			if (IsPortActive(pActInfo, EIP_Stop))
 			{
-				CTimeValue dt = gEnv->pTimer->GetFrameStartTime();
+				CTimeValue dt = GetGTimer()->GetFrameStartTime();
 				dt -= m_last;
-				m_last = 0.0f;
+				m_last.SetSeconds(0);
 				ActivateOutput(pActInfo, EOP_Stopped, true);
 				ActivateOutput(pActInfo, EOP_Time, dt.GetSeconds());
 			}
@@ -684,7 +685,6 @@ public:
 private:
 	CTimeValue m_last;
 };
-
 
 //////////////////////////////////////////////////////////////////////////
 // Time of day node.
@@ -703,7 +703,7 @@ public:
 		OUT_MSECS,
 		OUT_PERIOD,
 	};
-	CFlowNode_ServerTime(SActivationInfo* pActInfo) : m_lasttime(0.0f), m_basetime(0.0f)
+	CFlowNode_ServerTime(SActivationInfo* pActInfo) : m_lasttime(0), m_basetime(0)
 	{
 	}
 
@@ -725,8 +725,8 @@ public:
 	virtual void GetConfiguration(SFlowNodeConfig& config)
 	{
 		static const SInputPortConfig in_config[] = {
-			InputPortConfig<float>("basetime", 0.0f, _HELP("Set base time in seconds. All values output will be relative to this time.")),
-			InputPortConfig<float>("period",   0.0f, _HELP("Set period of the timer in seconds. Timer will reset each time after reaching this value.")),
+			InputPortConfig<CTimeValue>("basetime", CTimeValue(0), _HELP("Set base time in seconds. All values output will be relative to this time.")),
+			InputPortConfig<CTimeValue>("period",   CTimeValue(0), _HELP("Set period of the timer in seconds. Timer will reset each time after reaching this value.")),
 			{ 0 }
 		};
 
@@ -749,17 +749,17 @@ public:
 			{
 				pActInfo->pGraph->SetRegularlyUpdated(pActInfo->myID, true);
 				if (IsPortActive(pActInfo, IN_BASETIME))
-					m_basetime = GetPortFloat(pActInfo, IN_BASETIME);
+					m_basetime = GetPortTime(pActInfo, IN_BASETIME);
 
 				if (IsPortActive(pActInfo, IN_PERIOD))
-					m_period = GetPortFloat(pActInfo, IN_PERIOD);
+					m_period = GetPortTime(pActInfo, IN_PERIOD);
 
 				m_msec = 0;
 			}
 			break;
 		case eFE_Update:
 			{
-				CTimeValue now = gEnv->pGameFramework->GetServerTime();
+				CTimeValue now = GetGTimer()->GetServerTime();
 
 				if (now != m_lasttime)
 				{
@@ -778,13 +778,13 @@ public:
 				}
 				if (now.GetSeconds() != m_lasttime.GetSeconds())
 				{
-					float secs = (now - m_basetime).GetSeconds();
-					float period = m_period.GetSeconds();
+					mpfloat secs = (now - m_basetime).GetSeconds();
+					mpfloat period = m_period.GetSeconds();
 
-					if (period > 0.00001f)
+					if (period > "0.00001")
 						secs = fmod_tpl(secs, period);
 
-					ActivateOutput(pActInfo, OUT_SECS, secs);
+					ActivateOutput(pActInfo, OUT_SECS, (uint32)secs);
 				}
 
 				m_lasttime = now;

@@ -575,7 +575,7 @@ public:
 	virtual void OnActionEvent(const SActionEvent& event) {}
 
 	// Since the modelviewmatrix is updated in the update, and flowgraph is updated in the preupdate, we need this postupdate
-	virtual void OnPostUpdate(float fDeltaTime)
+	virtual void OnPostUpdate(const CTimeValue& fDeltaTime)
 	{
 		const CCamera& camera = GetISystem()->GetViewCamera();
 
@@ -857,7 +857,7 @@ public:
 	virtual void OnLoadGame(ILoadGame* pLoadGame)         {}
 	virtual void OnLevelEnd(const char* nextLevel)        {}
 	virtual void OnActionEvent(const SActionEvent& event) {}
-	virtual void OnPostUpdate(float fDeltaTime)
+	virtual void OnPostUpdate(const CTimeValue& fDeltaTime)
 	{
 		// Get it once, then unregister to prevent unnescessary updates
 		if (!m_get)

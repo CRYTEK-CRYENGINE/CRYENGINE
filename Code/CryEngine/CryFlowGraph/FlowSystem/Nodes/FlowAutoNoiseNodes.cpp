@@ -5,6 +5,9 @@
 #include <CryFlowGraph/IFlowBaseNode.h>
 #include <CryMath/PNoise3.h>
 
+// POINT OF INTEREST
+// Basic flow-node setup etc. .-.
+
 //////////////////////////////////////////////////////////////////////////
 class CFlowNode_AutoNoise1D : public CFlowBaseNode<eNCT_Instanced>
 {
@@ -28,8 +31,8 @@ private:
 
 public:
 	CFlowNode_AutoNoise1D( SActivationInfo * pActInfo ) 
-		: m_outputTimer(0.0f)
-		, m_time(0.0f)
+		: m_outputTimer(0)
+		, m_time(0)
 	{};
 
 	virtual void GetConfiguration( SFlowNodeConfig &config ) override
@@ -37,10 +40,10 @@ public:
 		static const SInputPortConfig in_config[] = {
 			InputPortConfig<bool> ( "active" , false, _HELP("if active is true the node will output values constantly in a certain interval.")),
 			InputPortConfig<int>  ( "seed", false, _HELP("the seed for this noise output")),
-			InputPortConfig<float>( "time", 0.0f, _HELP("time to sample noise at. If port activated AND the active port is FALSE it will output. This is also the initial sample time if the active port is FALSE") ),
+			InputPortConfig<CTimeValue>( "time", CTimeValue(0), _HELP("time to sample noise at. If port activated AND the active port is FALSE it will output. This is also the initial sample time if the active port is FALSE") ),
 			InputPortConfig<float>( "frequency", 1.0f, _HELP("scale factor for input value. out = amplitude * Noise1D(frequency * x)") ),
 			InputPortConfig<float>( "amplitude", 1.0f, _HELP("scale factor for noise values. out = amplitude * Noise1D(frequency * x)") ),
-			InputPortConfig<float>( "outputInterval", 0.0f, _HELP("how often the value outputs if active (in seconds)")),
+			InputPortConfig<CTimeValue>( "outputInterval", CTimeValue(0), _HELP("how often the value outputs if active (in seconds)")),
 			InputPortConfig<bool> ( "resetInternalTimeOnDeactivate", false, _HELP("if the node is deactivated (with the active port) internal time resets to 0.0f")),
 			{0}
 		};
@@ -60,19 +63,19 @@ public:
 		{
 		case eFE_Update:
 			{
-				const CTimeValue outputInterval = GetPortFloat(pActInfo, eInPorts_OutputInterval);
-				const CTimeValue frameTime = gEnv->pTimer->GetFrameTime();
+				const CTimeValue outputInterval = GetPortTime(pActInfo, eInPorts_OutputInterval);
+				const CTimeValue frameTime = GetGTimer()->GetFrameTime();
 				
 				m_time += frameTime;
 
-				if (fabs(outputInterval.GetSeconds()) <= std::numeric_limits<float>::epsilon())
+				if (abs(outputInterval) <= BADTIME(std::numeric_limits<float>::epsilon()))
 				{
 					Output(pActInfo);
 				}
 				else
 				{
 					m_outputTimer -= frameTime;
-					if (m_outputTimer.GetSeconds() <= 0.0f)
+					if (m_outputTimer.GetSeconds() <= 0)
 					{
 						m_outputTimer += outputInterval;
 						Output(pActInfo);
@@ -83,8 +86,8 @@ public:
 
 		case eFE_Initialize:
 			{
-				m_outputTimer.SetSeconds( GetPortFloat(pActInfo, eInPorts_OutputInterval) );
-				m_time.SetSeconds( GetPortFloat(pActInfo, eInPorts_Time) );
+				m_outputTimer = GetPortTime(pActInfo, eInPorts_OutputInterval);
+				m_time = GetPortTime(pActInfo, eInPorts_Time);
 				const bool bActive = GetPortBool(pActInfo, eInPorts_Active);
 				const int seed     = GetPortInt(pActInfo, eInPorts_Seed);
 
@@ -104,10 +107,10 @@ public:
 					{
 						if (GetPortBool(pActInfo, eInPorts_ResetInternalTimeOnDeactivate))
 						{
-							m_time.SetSeconds(0.0f);
+							m_time.SetSeconds(0);
 						}
 
-						m_outputTimer.SetSeconds( 0.0f );
+						m_outputTimer.SetSeconds(0);
 					}
 				}
 
@@ -119,7 +122,7 @@ public:
 
 				if (IsPortActive(pActInfo, eInPorts_Time) && !bActive)
 				{
-					m_time.SetSeconds( GetPortFloat(pActInfo, eInPorts_Time) );
+					m_time = GetPortTime(pActInfo, eInPorts_Time);
 					Output(pActInfo);
 				}
 			}
@@ -145,8 +148,8 @@ private:
 	{
 		const float freq      = GetPortFloat(pActInfo, eInPorts_Frequency);
 		const float amplitude = GetPortFloat(pActInfo, eInPorts_Amplitude);
-		const float time      = m_time.GetSeconds();
-		const float out       = amplitude * m_noise.Noise1D(freq * time);
+		const CTimeValue time = m_time;
+		const float out       = amplitude * m_noise.Noise1D(freq * time.BADGetSeconds());
 		ActivateOutput( pActInfo, eOutPorts_Value, out);
 		ActivateOutput( pActInfo, eOutPorts_CurrentTime, time);
 	}
@@ -188,8 +191,8 @@ private:
 
 public:
 	CFlowNode_Auto3DNoise( SActivationInfo * pActInfo ) 
-		: m_outputTimer(0.0f)
-		, m_time(0.0f)
+		: m_outputTimer(0)
+		, m_time(0)
 	{};
 
 	virtual void GetConfiguration( SFlowNodeConfig &config ) override
@@ -220,19 +223,19 @@ public:
 		{
 		case eFE_Update:
 			{
-				const CTimeValue outputInterval = GetPortFloat(pActInfo, eInPorts_OutputInterval);
-				const CTimeValue frameTime = gEnv->pTimer->GetFrameTime();
+				const CTimeValue outputInterval = GetPortTime(pActInfo, eInPorts_OutputInterval);
+				const CTimeValue frameTime = GetGTimer()->GetFrameTime();
 
 				m_time += frameTime;
 
-				if (fabs(outputInterval.GetSeconds()) <= std::numeric_limits<float>::epsilon())
+				if (abs(outputInterval) <= BADTIME(std::numeric_limits<float>::epsilon()))
 				{
 					Output(pActInfo);
 				}
 				else
 				{
 					m_outputTimer -= frameTime;
-					if (m_outputTimer.GetSeconds() <= 0.0f)
+					if (m_outputTimer.GetSeconds() <= 0)
 					{
 						m_outputTimer += outputInterval;
 						Output(pActInfo);
@@ -243,8 +246,8 @@ public:
 
 		case eFE_Initialize:
 			{
-				m_outputTimer.SetSeconds( GetPortFloat(pActInfo, eInPorts_OutputInterval) );
-				m_time.SetSeconds( GetPortFloat(pActInfo, eInPorts_Time) );
+				m_outputTimer = GetPortTime(pActInfo, eInPorts_OutputInterval);
+				m_time = GetPortTime(pActInfo, eInPorts_Time);
 				const bool bActive = GetPortBool(pActInfo, eInPorts_Active);
 				const Vec3 seed = GetPortVec3(pActInfo, eInPorts_Seed);
 
@@ -266,9 +269,9 @@ public:
 					{
 						if (GetPortBool(pActInfo, eInPorts_ResetInternalTimeOnDeactivate))
 						{
-							m_time.SetSeconds( 0.0f );
+							m_time.SetSeconds(0);
 						}
-						m_outputTimer.SetSeconds(0.0f);
+						m_outputTimer.SetSeconds(0);
 					}
 				}
 
@@ -282,7 +285,7 @@ public:
 
 				if (IsPortActive(pActInfo, eInPorts_Time) && !bActive)
 				{
-					m_time.SetSeconds( GetPortFloat(pActInfo, eInPorts_Time) );
+					m_time = GetPortTime(pActInfo, eInPorts_Time);
 					Output(pActInfo);
 				}
 			}
@@ -308,8 +311,12 @@ private:
 	{
 		const Vec3 freq      = GetPortVec3(pActInfo, eInPorts_Frequency);
 		const Vec3 amplitude = GetPortVec3(pActInfo, eInPorts_Amplitude);
-		const float time     = m_time.GetSeconds();
-		const Vec3 out( amplitude.x * m_noise[eDim_First].Noise1D(freq.x * time), amplitude.y * m_noise[eDim_Second].Noise1D(freq.y * time), amplitude.z * m_noise[eDim_Third].Noise1D(freq.z * time));
+		const CTimeValue time = m_time;
+		const Vec3 out( 
+			amplitude.x * m_noise[eDim_First].Noise1D(freq.x * time.BADGetSeconds()), 
+			amplitude.y * m_noise[eDim_Second].Noise1D(freq.y * time.BADGetSeconds()), 
+			amplitude.z * m_noise[eDim_Third].Noise1D(freq.z * time.BADGetSeconds())
+		);
 		ActivateOutput( pActInfo, eOutPorts_Value, out);
 		ActivateOutput( pActInfo, eOutPorts_CurrentTime, time);
 	}

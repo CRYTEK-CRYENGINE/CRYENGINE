@@ -74,7 +74,7 @@ public:
 			InputPortConfig<string>("CollectionName", _HELP("The name of a collection. Only used if no entity-id is specified, otherwise the entity-local variable collection will be used"),"CollectionName"),
 			InputPortConfig<string>("VariableName",   _HELP("The name of the variable to set, will be created if not existing"),                                                             "VariableName"),
 			InputPortConfig<float>("FloatValue",      _HELP("A float value to set to the variable"),                                                                                         "FloatValue"),
-			InputPortConfig<float>("ResetTime",       _HELP("The time after which the variable is reset to its previous value"),                                                             "ResetTime"),
+			InputPortConfig<CTimeValue>("ResetTime",  _HELP("The time after which the variable is reset to its previous value"),                                                             "ResetTime"),
 			{ 0 }
 		};
 
@@ -124,7 +124,7 @@ public:
 					{
 						SET_DRS_USER_SCOPED("SetDrsVariable FlowGraphNode");
 						float newVariableValue = GetPortFloat(pActInfo, eIn_FloatValue);
-						variableCollection->SetVariableValue(variableName, newVariableValue, true, GetPortFloat(pActInfo, eIn_ResetTime));
+						variableCollection->SetVariableValue(variableName, newVariableValue, true, GetPortTime(pActInfo, eIn_ResetTime));
 						ActivateOutput(pActInfo, eOut_VariableCollectionName, variableCollection->GetName().GetText());
 					}
 				}
@@ -183,7 +183,7 @@ public:
 			InputPortConfig<string>("CollectionName", _HELP("The name of a collection. Only used if no entity-id is specified, otherwise the entity-local variable collection will be used"),"CollectionName"),
 			InputPortConfig<string>("VariableName",   _HELP("The name of the variable to set, will be created if not existing"),                                                             "VariableName"),
 			InputPortConfig<int>("IntegerValue",      _HELP("A integer value to set to the variable"),                                                                                       "IntegerValue"),
-			InputPortConfig<float>("ResetTime",       _HELP("The time after which the variable is reset to its previous value"),                                                             "ResetTime"),
+			InputPortConfig<CTimeValue>("ResetTime",  _HELP("The time after which the variable is reset to its previous value"),                                                             "ResetTime"),
 			{ 0 }
 		};
 
@@ -233,7 +233,7 @@ public:
 					{
 						SET_DRS_USER_SCOPED("SetDrsVariable FlowGraphNode");
 						int newVariableValue = GetPortInt(pActInfo, eIn_IntegerValue);
-						variableCollection->SetVariableValue(variableName, newVariableValue, true, GetPortFloat(pActInfo, eIn_ResetTime));
+						variableCollection->SetVariableValue(variableName, newVariableValue, true, GetPortTime(pActInfo, eIn_ResetTime));
 						ActivateOutput(pActInfo, eOut_VariableCollectionName, variableCollection->GetName().GetText());
 					}
 				}
@@ -292,7 +292,7 @@ public:
 			InputPortConfig<string>("CollectionName", _HELP("The name of a collection. Only used if no entity-id is specified, otherwise the entity-local variable collection will be used"),"CollectionName"),
 			InputPortConfig<string>("VariableName",   _HELP("The name of the variable to set, will be created if not existing"),                                                             "VariableName"),
 			InputPortConfig<string>("StringValue",    _HELP("A string value to set to the variable"),                                                                                        "StringValue"),
-			InputPortConfig<float>("ResetTime",       _HELP("The time after which the variable is reset to its previous value"),                                                             "ResetTime"),
+			InputPortConfig<CTimeValue>("ResetTime",  _HELP("The time after which the variable is reset to its previous value"),                                                             "ResetTime"),
 			{ 0 }
 		};
 
@@ -343,7 +343,7 @@ public:
 					{
 						SET_DRS_USER_SCOPED("SetDrsVariable FlowGraphNode");
 						const string& newVariableValue = GetPortString(pActInfo, eIn_StringValue);
-						variableCollection->SetVariableValue(variableName, CHashedString(newVariableValue), true, GetPortFloat(pActInfo, eIn_ResetTime));
+						variableCollection->SetVariableValue(variableName, CHashedString(newVariableValue), true, GetPortTime(pActInfo, eIn_ResetTime));
 						ActivateOutput(pActInfo, eOut_VariableCollectionName, variableCollection->GetName().GetText());
 					}
 				}

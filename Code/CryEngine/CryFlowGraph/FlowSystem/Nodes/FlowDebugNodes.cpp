@@ -29,7 +29,7 @@ public:
 			InputPortConfig<Vec3>("Pos",             _HELP("Position of Sphere")),
 			InputPortConfig<float>("Radius",         _HELP("Radius of Sphere")),
 			InputPortConfig<Vec3>("Color",           _HELP("Color of the Sphere"),                                               NULL,_UICONFIG("dt=color")),
-			InputPortConfig<float>("Time",           _HELP("Duration of the display in seconds. Set to -1 for unlimited time.")),
+			InputPortConfig<CTimeValue>("Time",      _HELP("Duration of the display in seconds. Set to -1 for unlimited time.")),
 			{ 0 }
 		};
 
@@ -50,7 +50,7 @@ public:
 				{
 					const Vec3 pos = GetPortVec3(pActInfo, eIP_Pos);
 					const float radius = GetPortFloat(pActInfo, eIP_Radius);
-					const float time = GetPortFloat(pActInfo, eIP_Time);
+					const CTimeValue time = GetPortTime(pActInfo, eIP_Time);
 					const ColorF color = GetPortVec3(pActInfo, eIP_Color);
 
 					pPersistentDebug->Begin("FG_Sphere", false);
@@ -95,7 +95,7 @@ public:
 			InputPortConfig<Vec3>("Dir",             _HELP("Direction of Line")),
 			InputPortConfig<float>("Length",         _HELP("Length of Line")),
 			InputPortConfig<Vec3>("Color",           _HELP("Color of the Line"),                                                 NULL,_UICONFIG("dt=color")),
-			InputPortConfig<float>("Time",           _HELP("Duration of the display in seconds. Set to -1 for unlimited time.")),
+			InputPortConfig<CTimeValue>("Time",      _HELP("Duration of the display in seconds. Set to -1 for unlimited time.")),
 			{ 0 }
 		};
 
@@ -118,7 +118,7 @@ public:
 					{
 						const Vec3 pos1 = GetPortVec3(pActInfo, eIP_Pos1);
 						const Vec3 pos2 = GetPortVec3(pActInfo, eIP_Pos2);
-						const float time = GetPortFloat(pActInfo, eIP_Time);
+						const CTimeValue time = GetPortTime(pActInfo, eIP_Time);
 						const ColorF color = GetPortVec3(pActInfo, eIP_Color);
 
 						Vec3 offset(pos2);
@@ -172,7 +172,7 @@ public:
 			InputPortConfig<float>("Radius",         _HELP("Radius of Cylinder")),
 			InputPortConfig<float>("Height",         _HELP("Height of Cylinder")),
 			InputPortConfig<Vec3>("Color",           _HELP("Color of the Cylinder"),                                             NULL,_UICONFIG("dt=color")),
-			InputPortConfig<float>("Time",           _HELP("Duration of the display in seconds. Set to -1 for unlimited time.")),
+			InputPortConfig<CTimeValue>("Time",      _HELP("Duration of the display in seconds. Set to -1 for unlimited time.")),
 			{ 0 }
 		};
 
@@ -195,7 +195,7 @@ public:
 					const Vec3 dir = GetPortVec3(pActInfo, eIP_Dir);
 					const float radius = GetPortFloat(pActInfo, eIP_Radius);
 					const float height = GetPortFloat(pActInfo, eIP_Height);
-					const float time = GetPortFloat(pActInfo, eIP_Time);
+					const CTimeValue time = GetPortTime(pActInfo, eIP_Time);
 					const ColorF color = GetPortVec3(pActInfo, eIP_Color);
 
 					pPersistentDebug->Begin("FG_Cylinder", false);
@@ -238,7 +238,7 @@ public:
 			InputPortConfig<Vec3>("Dir",             _HELP("Direction of Direction (arrow)")),
 			InputPortConfig<float>("Radius",         _HELP("Radius of Direction (arrow)")),
 			InputPortConfig<Vec3>("Color",           _HELP("Color of the Direction (arrow)"),                                    NULL,_UICONFIG("dt=color")),
-			InputPortConfig<float>("Time",           _HELP("Duration of the display in seconds. Set to -1 for unlimited time.")),
+			InputPortConfig<CTimeValue>("Time",      _HELP("Duration of the display in seconds. Set to -1 for unlimited time.")),
 			{ 0 }
 		};
 
@@ -260,7 +260,7 @@ public:
 					const Vec3 pos = GetPortVec3(pActInfo, eIP_Pos);
 					const Vec3 dir = GetPortVec3(pActInfo, eIP_Dir);
 					const float radius = GetPortFloat(pActInfo, eIP_Radius);
-					const float time = GetPortFloat(pActInfo, eIP_Time);
+					const CTimeValue time = GetPortTime(pActInfo, eIP_Time);
 					const ColorF color = GetPortVec3(pActInfo, eIP_Color);
 
 					pPersistentDebug->Begin("FG_Direction", false);
@@ -305,7 +305,7 @@ public:
 			InputPortConfig<float>("Radius",         _HELP("Radius of Cone base")),
 			InputPortConfig<float>("Height",         _HELP("Height of Cone")),
 			InputPortConfig<Vec3>("Color",           _HELP("Color of the Cone"),                                                 NULL,_UICONFIG("dt=color")),
-			InputPortConfig<float>("Time",           _HELP("Duration of the display in seconds. Set to -1 for unlimited time.")),
+			InputPortConfig<CTimeValue>("Time",      _HELP("Duration of the display in seconds. Set to -1 for unlimited time.")),
 			{ 0 }
 		};
 
@@ -328,7 +328,7 @@ public:
 					const Vec3 dir = GetPortVec3(pActInfo, eIP_Dir);
 					const float radius = GetPortFloat(pActInfo, eIP_Radius);
 					const float height = GetPortFloat(pActInfo, eIP_Height);
-					const float time = GetPortFloat(pActInfo, eIP_Time);
+					const CTimeValue time = GetPortTime(pActInfo, eIP_Time);
 					const ColorF color = GetPortVec3(pActInfo, eIP_Color);
 
 					pPersistentDebug->Begin("FG_Cone", false);
@@ -369,7 +369,7 @@ public:
 			InputPortConfig<Vec3>("MinPos",          _HELP("Minimum position of AABB")),
 			InputPortConfig<Vec3>("MaxPos",          _HELP("Maximum position of AABB")),
 			InputPortConfig<Vec3>("Color",           _HELP("Color of the AABB"),                                                 NULL,_UICONFIG("dt=color")),
-			InputPortConfig<float>("Time",           _HELP("Duration of the display in seconds. Set to -1 for unlimited time.")),
+			InputPortConfig<CTimeValue>("Time",      _HELP("Duration of the display in seconds. Set to -1 for unlimited time.")),
 			{ 0 }
 		};
 
@@ -390,7 +390,7 @@ public:
 				{
 					const Vec3 minPos = GetPortVec3(pActInfo, eIP_MinPos);
 					const Vec3 maxPos = GetPortVec3(pActInfo, eIP_MaxPos);
-					const float time = GetPortFloat(pActInfo, eIP_Time);
+					const CTimeValue time = GetPortTime(pActInfo, eIP_Time);
 					const ColorF color = GetPortVec3(pActInfo, eIP_Color);
 
 					pPersistentDebug->Begin("FG_AABB", false);
@@ -433,7 +433,7 @@ public:
 			InputPortConfig<float>("InnerRadius",    _HELP("Inner radius of Planar Disc")),
 			InputPortConfig<float>("OuterRadius",    _HELP("Outer radius of Planar Disc")),
 			InputPortConfig<Vec3>("Color",           _HELP("Color of the Planar Disc"),                                          NULL,_UICONFIG("dt=color")),
-			InputPortConfig<float>("Time",           _HELP("Duration of the display in seconds. Set to -1 for unlimited time.")),
+			InputPortConfig<CTimeValue>("Time",      _HELP("Duration of the display in seconds. Set to -1 for unlimited time.")),
 			{ 0 }
 		};
 
@@ -455,7 +455,7 @@ public:
 					const Vec3 pos = GetPortVec3(pActInfo, eIP_Pos);
 					const float innerRadius = GetPortFloat(pActInfo, eIP_InnerRadius);
 					const float outerRadius = GetPortFloat(pActInfo, eIP_OuterRadius);
-					const float time = GetPortFloat(pActInfo, eIP_Time);
+					const CTimeValue time = GetPortTime(pActInfo, eIP_Time);
 					const ColorF color = GetPortVec3(pActInfo, eIP_Color);
 
 					pPersistentDebug->Begin("FG_PlanarDisc", false);
@@ -490,7 +490,7 @@ public:
 	};
 
 	CFlowNode_DrawEntityTag(SActivationInfo* pActInfo)
-		: m_waitTime(0.0f)
+		: m_waitTime(0)
 	{
 	}
 
@@ -509,7 +509,7 @@ public:
 			InputPortConfig<string>("Message", _HELP("The message to display")),
 			InputPortConfig<float>("FontSize", defaultTag.size,                 _HELP("Input font size")),
 			InputPortConfig<Vec3>("Color",     Vec3(defaultTag.color.r,         defaultTag.color.g,                                                          defaultTag.color.b),_HELP("Text color"), NULL, _UICONFIG("dt=color")),
-			InputPortConfig<float>("Time",     defaultTag.fadeTime,             _HELP("Duration of the display in seconds. Set to -1 for unlimited time.")),
+			InputPortConfig<CTimeValue>("Time",defaultTag.fadeTime,             _HELP("Duration of the display in seconds. Set to -1 for unlimited time.")),
 			{ 0 }
 		};
 
@@ -531,7 +531,7 @@ public:
 #if !defined(_RELEASE)
 		if (event == eFE_Initialize && IsPortActive(pActInfo, eIP_Draw))
 		{
-			m_waitTime = 0.0f;
+			m_waitTime.SetSeconds(0);
 			pActInfo->pGraph->SetRegularlyUpdated(pActInfo->myID, false);
 		}
 		else if (event == eFE_Activate && IsPortActive(pActInfo, eIP_Draw))
@@ -548,24 +548,24 @@ public:
 					params.size = GetPortFloat(pActInfo, eIP_FontSize);
 					params.color = ColorF(GetPortVec3(pActInfo, eIP_Color), 1.0f);
 					// the time input from this node goes to fade time but if it is unlimited time we need to set that in the visibleTime, not fade
-					if (GetPortFloat(pActInfo, eIP_Time) < 0.0f)
+					if (GetPortTime(pActInfo, eIP_Time) < 0)
 					{
-						params.fadeTime = 0.0f;
-						params.visibleTime = -1.0f;
-						m_waitTime = -1.0f;
+						params.fadeTime.SetSeconds(0);
+						params.visibleTime.SetSeconds(-1);
+						m_waitTime.SetSeconds(-1);
 					}
 					else
 					{
-						params.fadeTime = GetPortFloat(pActInfo, eIP_Time);
-						params.visibleTime = 0.0f;
+						params.fadeTime = GetPortTime(pActInfo, eIP_Time);
+						params.visibleTime.SetSeconds(0);
 					}
 					params.tagContext = "FG_DrawEntityTag";
 
 					pPersistentDebug->AddEntityTag(params);
 
-					if (m_waitTime != -1.0f)
+					if (m_waitTime != -1)
 					{
-						m_waitTime = gEnv->pTimer->GetFrameStartTime() + (params.fadeTime + params.visibleTime);
+						m_waitTime = GetGTimer()->GetFrameStartTime() + (params.fadeTime + params.visibleTime);
 						pActInfo->pGraph->SetRegularlyUpdated(pActInfo->myID, true);
 					}
 				}
@@ -574,9 +574,9 @@ public:
 		else if (event == eFE_Update)
 		{
 			// unlimited time does not update the node, no need to test for that
-			if (m_waitTime < gEnv->pTimer->GetFrameStartTime())
+			if (m_waitTime < GetGTimer()->GetFrameStartTime())
 			{
-				m_waitTime.SetSeconds(0.0f);
+				m_waitTime.SetSeconds(0);
 				pActInfo->pGraph->SetRegularlyUpdated(pActInfo->myID, false);
 				ActivateOutput(pActInfo, eOP_Done, GetPortAny(pActInfo, eIP_Draw));
 			}
@@ -615,7 +615,7 @@ public:
 	};
 
 	CFlowNode_DrawEntityTagAdvanced(SActivationInfo* pActInfo)
-		: m_waitTime(0.0f)
+		: m_waitTime(0)
 	{
 	}
 
@@ -632,13 +632,13 @@ public:
 		{
 			InputPortConfig_Void("Draw",           _HELP("Draw advanced Entity Tag")),
 			InputPortConfig<string>("Message",     _HELP("The message to display")),
-			InputPortConfig<float>("FadeTime",     defaultTag.fadeTime,                            _HELP("Seconds for fade out")),
+			InputPortConfig<CTimeValue>("FadeTime", defaultTag.fadeTime,                            _HELP("Seconds for fade out")),
 			InputPortConfig<float>("FontSize",     defaultTag.size,                                _HELP("Input font size")),
 			InputPortConfig<float>("ViewDistance", defaultTag.viewDistance,                        _HELP("Distance from camera entity must be within")),
 			InputPortConfig<string>("StaticID",    _HELP("Identifier for displaying static tags")),
 			InputPortConfig<int>("ColumnNum",      defaultTag.column,                              _HELP("Which column to display on (usually 1)")),
 			InputPortConfig<Vec3>("Color",         Vec3(defaultTag.color.r,                        defaultTag.color.g,                                                                        defaultTag.color.b),_HELP("Text color"), NULL, _UICONFIG("dt=color")),
-			InputPortConfig<float>("Time",         defaultTag.visibleTime,                         _HELP("Duration of the display in full alpha in seconds. Set to -1 for unlimited time.")),
+			InputPortConfig<CTimeValue>("Time",    defaultTag.visibleTime,                         _HELP("Duration of the display in full alpha in seconds. Set to -1 for unlimited time.")),
 			{ 0 }
 		};
 
@@ -660,7 +660,7 @@ public:
 #if !defined(_RELEASE)
 		if (event == eFE_Initialize && IsPortActive(pActInfo, eIP_Draw))
 		{
-			m_waitTime = 0.0f;
+			m_waitTime.SetSeconds(0);
 			pActInfo->pGraph->SetRegularlyUpdated(pActInfo->myID, false);
 		}
 		else if (event == eFE_Activate && IsPortActive(pActInfo, eIP_Draw))
@@ -676,8 +676,8 @@ public:
 					params.text = GetPortString(pActInfo, eIP_Message);
 					params.size = GetPortFloat(pActInfo, eIP_FontSize);
 					params.color = ColorF(GetPortVec3(pActInfo, eIP_Color), 1.0f);
-					params.visibleTime = GetPortFloat(pActInfo, eIP_Time);
-					params.fadeTime = GetPortFloat(pActInfo, eIP_FadeTime);
+					params.visibleTime = GetPortTime(pActInfo, eIP_Time);
+					params.fadeTime    = GetPortTime(pActInfo, eIP_FadeTime);
 					params.viewDistance = GetPortFloat(pActInfo, eIP_ViewDistance);
 					params.staticId = GetPortString(pActInfo, eIP_StaticID);
 					params.column = GetPortInt(pActInfo, eIP_Column);
@@ -685,16 +685,16 @@ public:
 
 					pPersistentDebug->AddEntityTag(params);
 
-					m_waitTime = gEnv->pTimer->GetFrameStartTime() + (params.fadeTime + params.visibleTime);
+					m_waitTime = GetGTimer()->GetFrameStartTime() + (params.fadeTime + params.visibleTime);
 					pActInfo->pGraph->SetRegularlyUpdated(pActInfo->myID, true);
 				}
 			}
 		}
 		else if (event == eFE_Update)
 		{
-			if (m_waitTime < gEnv->pTimer->GetFrameStartTime())
+			if (m_waitTime < GetGTimer()->GetFrameStartTime())
 			{
-				m_waitTime.SetSeconds(0.0f);
+				m_waitTime.SetSeconds(0);
 				pActInfo->pGraph->SetRegularlyUpdated(pActInfo->myID, false);
 				ActivateOutput(pActInfo, eOP_Done, GetPortAny(pActInfo, eIP_Draw));
 			}

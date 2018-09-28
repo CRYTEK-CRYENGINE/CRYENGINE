@@ -68,7 +68,7 @@ public:
 			InputPortConfig_AnyType("Show",       _HELP("Show message")),
 			InputPortConfig_AnyType("Hide",       _HELP("Hide message")),
 			InputPortConfig<string>("message",    _HELP("Display this message on the hud")),
-			InputPortConfig<float>("DisplayTime", 0.f,                                      _HELP("How much time the message will be visible. 0 = permanently visible.")),
+			InputPortConfig<CTimeValue>("DisplayTime", CTimeValue(0),                                      _HELP("How much time the message will be visible. 0 = permanently visible.")),
 
 			// this floating point input port is the x position where the message should be displayed
 			InputPortConfig<float>("posX",        50.0f,                                    _HELP("Input x text position")),
@@ -106,13 +106,13 @@ public:
 		case eFE_Initialize:
 			m_isPermanent = false;
 			m_isVisible = false;
-			m_showTimeLeft = 0;
+			m_showTimeLeft.SetSeconds(0);
 			break;
 
 		case eFE_Activate:
 			if (IsPortActive(pActInfo, INP_Show))
 			{
-				m_showTimeLeft = GetPortFloat(pActInfo, INP_DisplayTime);
+				m_showTimeLeft = GetPortTime(pActInfo, INP_DisplayTime);
 				m_isPermanent = m_showTimeLeft == 0;
 				if (!m_isVisible)
 				{
@@ -131,7 +131,7 @@ public:
 
 			if (IsPortActive(pActInfo, INP_DisplayTime))
 			{
-				m_showTimeLeft = GetPortFloat(pActInfo, INP_DisplayTime);
+				m_showTimeLeft = GetPortTime(pActInfo, INP_DisplayTime);
 				m_isPermanent = m_showTimeLeft == 0;
 			}
 			break;
@@ -139,7 +139,7 @@ public:
 		case eFE_Update:
 			if (!m_isPermanent)
 			{
-				m_showTimeLeft -= gEnv->pTimer->GetFrameTime();
+				m_showTimeLeft -= GetGTimer()->GetFrameTime();
 				if (m_showTimeLeft <= 0)
 				{
 					m_isVisible = false;
@@ -211,7 +211,7 @@ protected:
 
 	bool  m_isVisible;
 	bool  m_isPermanent;
-	float m_showTimeLeft;
+	CTimeValue m_showTimeLeft;
 
 };
 

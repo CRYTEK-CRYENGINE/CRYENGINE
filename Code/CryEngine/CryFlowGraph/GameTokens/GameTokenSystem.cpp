@@ -825,11 +825,11 @@ void CGameTokenSystem::DrawToken(const char* pTokenName, const char* pTokenValue
 
 	string buf;
 	buf.Format("%s = %s", pTokenName, pTokenValue);
-	float dt = (gEnv->pTimer->GetFrameStartTime() - timeChanged).GetSeconds();
+	CTimeValue dt = GetGTimer()->GetFrameStartTime() - timeChanged;
 
-	const float COLOR_TIME_LAPSE = 10;  // seconds
+	const CTimeValue COLOR_TIME_LAPSE = 10;  // seconds
 	{
-		float timeNorm = min(1.f, dt / COLOR_TIME_LAPSE);
+		float timeNorm = BADF min(nTime(1), dt / COLOR_TIME_LAPSE);
 		for (int i = 0; i < 4; i++)
 			color[i] = min(1.f, (timeNorm * notChanged[i] + (1.f - timeNorm) * changed[i]));
 	}

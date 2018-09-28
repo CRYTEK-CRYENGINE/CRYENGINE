@@ -102,7 +102,7 @@ public:
 			InputPortConfig<Vec3>("Destination",   _HELP("Destination (degrees on each axis)")),
 			InputPortConfig<bool>("DynamicUpdate", true,                                        _HELP("If dynamic update of Destination [follow-during-rotation] is allowed or not"),       _HELP("DynamicUpdate")),
 			InputPortConfig<int>("ValueType",      0,                                           _HELP("Defines if the 'Value' input will be interpreted as speed or as time (duration)."),  _HELP("ValueType"),     _UICONFIG("enum_int:speed=0,time=1")),
-			InputPortConfig<float>("Value",        0.f,                                         _HELP("Speed (Degrees/sec) or Time (duration in secs), depending on 'ValueType' input.")),
+			InputPortConfig<mpfloat>("Value",      0,                                           _HELP("Speed (Degrees/sec) or Time (duration in secs), depending on 'ValueType' input.")),
 			InputPortConfig<int>("CoordSys",       0,                                           _HELP("Destination in Parent relative, World (absolute) or Local relative angles"),         _HELP("CoordSys"),      _UICONFIG("enum_int:Parent=0,World=1,Local=2")),
 			InputPortConfig_Void("Start",          _HELP("Trigger this to start the movement")),
 			InputPortConfig_Void("Stop",           _HELP("Trigger this to stop the movement")),
@@ -184,7 +184,7 @@ public:
 		if (pEntity->GetPhysics())
 		{
 			Quat targetQuat = (m_sourceQuat | m_targetQuat) < 0 ? -m_targetQuat : m_targetQuat;
-			Vec3 rotVel = Quat::log(targetQuat * !m_sourceQuat) * (2.0f / max(0.01f, (m_endTime - m_localStartTime).GetSeconds()));
+			Vec3 rotVel = Quat::log(targetQuat * !m_sourceQuat) * (2.0f / max(0.01f, (m_endTime - m_localStartTime).BADGetSeconds()));
 
 			pe_action_set_velocity asv;
 			asv.w = rotVel;
@@ -225,7 +225,7 @@ public:
 				if (IsPortActive(pActInfo, IN_DEST) && GetPortBool(pActInfo, IN_DYN_DEST) == true && m_bIsMoving)
 				{
 					ReadSourceAndTargetQuats(pActInfo);
-					m_localStartTime = gEnv->pTimer->GetFrameStartTime();
+					m_localStartTime = GetGTimer()->GetFrameStartTime();
 					CalcEndTime(pActInfo);
 					if (m_valueType == VT_TIME)
 					{
@@ -262,15 +262,15 @@ public:
 					break;
 				}
 
-				CTimeValue curTime = gEnv->pTimer->GetFrameStartTime();
-				const float fDuration = (m_endTime - m_localStartTime).GetSeconds();
-				float fPosition;
-				if (fDuration <= 0.0)
-					fPosition = 1.0;
+				CTimeValue curTime = GetGTimer()->GetFrameStartTime();
+				const CTimeValue fDuration = m_endTime - m_localStartTime;
+				nTime fPosition;
+				if (fDuration <= 0)
+					fPosition = 1;
 				else
 				{
-					fPosition = (curTime - m_localStartTime).GetSeconds() / fDuration;
-					fPosition = clamp_tpl(fPosition, 0.0f, 1.0f);
+					fPosition = (curTime - m_localStartTime) / fDuration;
+					fPosition = CLAMP(fPosition, 0, 1);
 				}
 				if (curTime >= m_endTime)
 				{
@@ -286,7 +286,7 @@ public:
 					// to fix a weird glitch in Jailbreak whereby doors sometimes seem to
 					// overshoot their end orientation (physics proxies seem to be correct
 					// but the render proxies are off).
-					static const float s_Crysis3HacDeactivateDelay = 1.0f;
+					static const CTimeValue s_Crysis3HacDeactivateDelay = 1;
 					if (curTime >= (m_endTime + s_Crysis3HacDeactivateDelay))
 					{
 						pActInfo->pGraph->SetRegularlyUpdated(pActInfo->myID, false);
@@ -298,7 +298,7 @@ public:
 				else
 				{
 					Quat quat;
-					quat.SetSlerp(m_sourceQuat, m_targetQuat, fPosition);
+					quat.SetSlerp(m_sourceQuat, m_targetQuat, BADF fPosition);
 					SetRawEntityRot(pActInfo->pEntity, quat);
 					UpdateCurrentRotOutputs(pActInfo, quat);
 				}
@@ -313,7 +313,7 @@ public:
 
 		ReadSourceAndTargetQuats(pActInfo);
 
-		m_startTime = gEnv->pTimer->GetFrameStartTime();
+		m_startTime = GetGTimer()->GetFrameStartTime();
 		m_localStartTime = m_startTime;
 		CalcEndTime(pActInfo);
 
@@ -348,7 +348,7 @@ public:
 		if (m_valueType == VT_TIME)
 		{
 			CTimeValue timePast = m_localStartTime - m_startTime;
-			float duration = GetPortFloat(pActInfo, IN_VALUE) - timePast.GetSeconds();
+			CTimeValue duration = CTimeValue(GetPortMP(pActInfo, IN_VALUE)) - timePast;
 			m_endTime = m_startTime + duration;
 		}
 		else // when is speed-driven, we just calculate the apropiate endTime and from that on, everything else is the same
@@ -363,10 +363,10 @@ public:
 				angDiff = 360.0f - angDiff;
 			}
 
-			float desiredSpeed = fabsf(GetPortFloat(pActInfo, IN_VALUE));
+			float desiredSpeed = fabsf(BADF GetPortMP(pActInfo, IN_VALUE));
 			if (desiredSpeed < 0.0001f)
 				desiredSpeed = 0.0001f;
-			m_endTime = m_localStartTime + angDiff / desiredSpeed;
+			m_endTime = m_localStartTime + BADTIME(angDiff / desiredSpeed);
 		}
 	}
 

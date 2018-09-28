@@ -591,7 +591,7 @@ void CFlowGraphModuleManager::OnSystemEvent(ESystemEvent event, UINT_PTR wparam,
 }
 
 /* IGameFrameworkListener */
-void CFlowGraphModuleManager::OnPostUpdate(float fDeltaTime)
+void CFlowGraphModuleManager::OnPostUpdate(const CTimeValue& fDeltaTime)
 {
 #if !defined (_RELEASE)
 	if (CV_fg_debugmodules > 0)

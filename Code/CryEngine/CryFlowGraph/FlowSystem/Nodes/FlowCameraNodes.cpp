@@ -63,14 +63,14 @@ public:
 		bool         isSmooth;
 		Ang3         angle;
 		Vec3         shift;
-		float        frequency;
+		mpfloat      frequency; // Time = 1 second/frequency e.g. 1/12'th of a second.
 		float        randomness;
 		float        distance;
 		float        rangeMin;
 		float        rangeMax;
-		float        sustainDuration;
-		float        fadeInDuration;
-		float        fadeOutDuration;
+		CTimeValue   sustainDuration;
+		CTimeValue   fadeInDuration;
+		CTimeValue   fadeOutDuration;
 	};
 
 	virtual void GetMemoryUsage(ICrySizer* s) const
@@ -91,7 +91,7 @@ public:
 				char buf[300];
 				cry_sprintf(buf, "-- %s : Angle: (%4.3f,%4.3f,%4.3f)  Shift: (%4.3f,%4.3f,%4.3f )  Freq: %3.1f  Random: %3.1f  Distance: %3.1f  RangeMin: %3.1f RangeMax: %3.1f sustainDuration: %3.1f FadeInDur: %3.1f  FadeOutDur: %3.1f \n",
 				            m_Presets[i].pName, m_Presets[i].angle.x, m_Presets[i].angle.y, m_Presets[i].angle.z, m_Presets[i].shift.x, m_Presets[i].shift.y, m_Presets[i].shift.z, m_Presets[i].frequency,
-				            m_Presets[i].randomness, m_Presets[i].distance, m_Presets[i].rangeMin, m_Presets[i].rangeMax, m_Presets[i].sustainDuration, m_Presets[i].fadeInDuration, m_Presets[i].fadeOutDuration);
+				            m_Presets[i].randomness, m_Presets[i].distance, m_Presets[i].rangeMin, m_Presets[i].rangeMax, (float)m_Presets[i].sustainDuration.GetSeconds(), (float)m_Presets[i].fadeInDuration.GetSeconds(), (float)m_Presets[i].fadeOutDuration.GetSeconds());
 
 				cry_strcat(pPresetsHelp, buf);
 			}
@@ -118,14 +118,14 @@ public:
 			InputPortConfig<bool>("Smooth",           false,                                     _HELP("Smooth shakes avoid sudden direction changes.")),
 			InputPortConfig<Vec3>("Angle",            Vec3(0.7f,                                 0.7f,                                                                                                                                              0.7f),  _HELP("Shake Angles")),
 			InputPortConfig<Vec3>("Shift",            Vec3(0.01f,                                0.01f,                                                                                                                                             0.01f), _HELP("Shake shifting")),
-			InputPortConfig<float>("Frequency",       12.0f,                                     _HELP("Frequency. Can be changed dynamically."),                                                                                                   0,      _UICONFIG("v_min=0,v_max=100")),
+			InputPortConfig<mpfloat>("Frequency",     12,                                        _HELP("Frequency. Can be changed dynamically."),                                                                                                   0,      _UICONFIG("v_min=0,v_max=100")),
 			InputPortConfig<float>("Randomness",      1.f,                                       _HELP("Randomness")),
 			InputPortConfig<float>("Distance",        0.0f,                                      _HELP("Distance to effect source. If an entity is asociated to the node, distance from that entity to the current camera will be used instead")),
 			InputPortConfig<float>("RangeMin",        0.0f,                                      _HELP("Maximum strength effect range")),
 			InputPortConfig<float>("RangeMax",        30.0f,                                     _HELP("Effect range")),
-			InputPortConfig<float>("SustainDuration", 0.f,                                       _HELP("duration of the non fading part of the shake. (total duration is fadein + this + fadeout ). -1 = permanent")),
-			InputPortConfig<float>("FadeInDuration",  0.f,                                       _HELP("Fade in time (seconds)")),
-			InputPortConfig<float>("FadeOutDuration", 3.f,                                       _HELP("Fade out time (seconds)")),
+			InputPortConfig<CTimeValue>("SustainDuration", CTimeValue(0),                        _HELP("duration of the non fading part of the shake. (total duration is fadein + this + fadeout ). -1 = permanent")),
+			InputPortConfig<CTimeValue>("FadeInDuration",  CTimeValue(0),                        _HELP("Fade in time (seconds)")),
+			InputPortConfig<CTimeValue>("FadeOutDuration", CTimeValue(3),                        _HELP("Fade out time (seconds)")),
 			InputPortConfig_Void("Stop",              _HELP("Stop the shaking (will fade out)")),
 #ifdef _RELEASE
 			InputPortConfig<int>("Preset",            0,                                         _HELP("Preset input values. When this is used, all parameter inputs are ignored.")),
@@ -196,10 +196,10 @@ public:
 		params.shakeShift = inputParams.shift;
 		params.sustainDuration = inputParams.sustainDuration;
 		params.bPermanent = (params.sustainDuration == -1);
-		float freq = inputParams.frequency;
-		if (iszero(freq) == false)
-			freq = 1.0f / freq;
-		params.frequency = freq;
+		mpfloat freq = inputParams.frequency;
+		if (freq != 0)
+			freq = 1 / freq;
+		params.frequency.SetSeconds(freq);
 		params.randomness = inputParams.randomness;
 		params.bFlipVec = true;           // GetPortBool(pActInfo, EIP_Flip);
 		params.bUpdateOnly = bUpdateOnly; // it's an update if and only if Frequency has been changed
@@ -281,14 +281,14 @@ public:
 			inputParams.view = eViewType(GetPortInt(pActInfo, EIP_ViewType));
 			inputParams.angle = Ang3(DEG2RAD(GetPortVec3(pActInfo, EIP_Angle)));
 			inputParams.shift = GetPortVec3(pActInfo, EIP_Shift);
-			inputParams.frequency = GetPortFloat(pActInfo, EIP_Frequency);
+			inputParams.frequency = GetPortMP(pActInfo, EIP_Frequency);
 			inputParams.randomness = GetPortFloat(pActInfo, EIP_Randomness);
 			inputParams.distance = GetPortFloat(pActInfo, EIP_Distance);
 			inputParams.rangeMin = GetPortFloat(pActInfo, EIP_RangeMin);
 			inputParams.rangeMax = GetPortFloat(pActInfo, EIP_RangeMax);
-			inputParams.sustainDuration = GetPortFloat(pActInfo, EIP_SustainDuration);
-			inputParams.fadeInDuration = GetPortFloat(pActInfo, EIP_FadeInDuration);
-			inputParams.fadeOutDuration = GetPortFloat(pActInfo, EIP_FadeOutDuration);
+			inputParams.sustainDuration = GetPortTime(pActInfo, EIP_SustainDuration);
+			inputParams.fadeInDuration  = GetPortTime(pActInfo, EIP_FadeInDuration);
+			inputParams.fadeOutDuration = GetPortTime(pActInfo, EIP_FadeOutDuration);
 		}
 	}
 
@@ -299,10 +299,10 @@ public:
 CFlowNode_CameraViewShakeEx::SInputParams CFlowNode_CameraViewShakeEx::m_Presets[] =
 {
 	//                                             Ground Smooth      angle                      shift													fr  rnd			d   rm  rm   sd   fi     fo
-	{ "DistantExplosion", ER_None, VT_FirstPerson, false, false, Ang3(0.6f,  0.6f,  0.6f),  Vec3(0.001f,   0.001f,   0.001f),   10, 2,    0, 0, 30, 0, 0.2f, 1.2f },
-	{ "CloseExplosion",   ER_None, VT_FirstPerson, false, false, Ang3(0.5f,  0.5f,  0.5f),  Vec3(0.003f,   0.003f,   0.003f),   30, 5,    0, 0, 30, 0, 0,    1.1f },
-	{ "SmallTremor",      ER_None, VT_FirstPerson, false, false, Ang3(0.2f,  0.2f,  0.2f),  Vec3(0.0001f,  0.0001f,  0.0001f),  18, 1.3f, 0, 0, 30, 2, 1.2f, 3.f  },
-	{ "SmallTremor2",     ER_None, VT_FirstPerson, false, false, Ang3(0.25f, 0.25f, 0.25f), Vec3(0.00045f, 0.00045f, 0.00045f), 13, 2,    0, 0, 30, 2, 1.2f, 3.f  },
+	{ "DistantExplosion", ER_None, VT_FirstPerson, false, false, Ang3(0.6f,  0.6f,  0.6f),  Vec3(0.001f,   0.001f,   0.001f),   10, 2,    0, 0, 30, 0, "0.2", "0.2" },
+	{ "CloseExplosion",   ER_None, VT_FirstPerson, false, false, Ang3(0.5f,  0.5f,  0.5f),  Vec3(0.003f,   0.003f,   0.003f),   30, 5,    0, 0, 30, 0, 0,     "1.1" },
+	{ "SmallTremor",      ER_None, VT_FirstPerson, false, false, Ang3(0.2f,  0.2f,  0.2f),  Vec3(0.0001f,  0.0001f,  0.0001f),  18, 1.3f, 0, 0, 30, 2, "1.2", 3  },
+	{ "SmallTremor2",     ER_None, VT_FirstPerson, false, false, Ang3(0.25f, 0.25f, 0.25f), Vec3(0.00045f, 0.00045f, 0.00045f), 13, 2,    0, 0, 30, 2, "1.2", 3  },
 };
 
 //////////////////////////////////////////////////////////////////////////

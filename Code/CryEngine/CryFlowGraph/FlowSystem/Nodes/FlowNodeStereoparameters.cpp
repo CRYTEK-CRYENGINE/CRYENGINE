@@ -103,8 +103,8 @@ public:
 	};
 
 	CFlowNode_StereoParameters(SActivationInfo* activationInfo)
-		: m_duration(0.0f)
-		, m_startTime(0.0f)
+		: m_duration(0)
+		, m_startTime(0)
 	{
 		m_startEyeDistance = m_targetEyeDistance = m_currentEyeDistance = gEnv->pConsole->GetCVar("r_StereoEyeDist")->GetFVal();
 		m_startScreenDistance = m_targetScreenDistance = m_currentScreenDistance = gEnv->pConsole->GetCVar("r_StereoScreenDist")->GetFVal();
@@ -119,7 +119,7 @@ public:
 			InputPortConfig<float>("EyeDistance",    _HELP("Set stereo eye distance")),
 			InputPortConfig<float>("ScreenDistance", 1.0f,                             _HELP("Set stereo screen distance")),
 			InputPortConfig<float>("HUDDistance",    1.0f,                             _HELP("Set stereo HUD distance")),
-			InputPortConfig<float>("Duration",       1.0f,                             _HELP("Duration of the interpolation in seconds (0 = set immediately)")),
+			InputPortConfig<CTimeValue>("Duration",  CTimeValue(1),                    _HELP("Duration of the interpolation in seconds (0 = set immediately)")),
 			InputPortConfig_Void("Start",            _HELP("Starts interpolation")),
 			{ 0 }
 		};
@@ -127,7 +127,7 @@ public:
 			OutputPortConfig<float>("CurrentEyeDistance",    _HELP("Current value of eye distance")),
 			OutputPortConfig<float>("CurrentScreenDistance", _HELP("Current value of screen distance")),
 			OutputPortConfig<float>("CurrentHUDDistance",    _HELP("Current value of HUD distance")),
-			OutputPortConfig<float>("TimeLeft",              _HELP("Time left to the end of the interpolation")),
+			OutputPortConfig<CTimeValue>("TimeLeft",         _HELP("Time left to the end of the interpolation")),
 			OutputPortConfig_Void("Done",                    _HELP("Interpolation is done.")),
 			{ 0 }
 		};
@@ -147,7 +147,7 @@ public:
 			m_targetEyeDistance = GetPortFloat(activationInfo, EIP_EyeDistance);
 			m_targetScreenDistance = GetPortFloat(activationInfo, EIP_ScreenDistance);
 			m_targetHUDDistance = GetPortFloat(activationInfo, EIP_HUDDistance);
-			m_duration = GetPortFloat(activationInfo, EIP_Duration);
+			m_duration = GetPortTime(activationInfo, EIP_Duration);
 
 			break;
 
@@ -156,7 +156,7 @@ public:
 			{
 				activationInfo->pGraph->SetRegularlyUpdated(activationInfo->myID, true);
 
-				m_startTime = gEnv->pTimer->GetFrameStartTime().GetMilliSeconds();
+				m_startTime = GetGTimer()->GetFrameStartTime();
 
 				m_startEyeDistance = gEnv->pConsole->GetCVar("r_StereoEyeDist")->GetFVal();
 				m_startScreenDistance = gEnv->pConsole->GetCVar("r_StereoScreenDist")->GetFVal();
@@ -170,13 +170,13 @@ public:
 			if (IsPortActive(activationInfo, EIP_HUDDistance))
 				m_targetHUDDistance = GetPortFloat(activationInfo, EIP_HUDDistance);
 			if (IsPortActive(activationInfo, EIP_Duration))
-				m_duration = GetPortFloat(activationInfo, EIP_Duration);
+				m_duration = GetPortTime(activationInfo, EIP_Duration);
 
 			break;
 
 		case eFE_Update:
-			float currentTime = gEnv->pTimer->GetFrameStartTime().GetMilliSeconds();
-			float endTime = m_startTime + m_duration * 1000.0f;
+			CTimeValue currentTime = GetGTimer()->GetFrameStartTime();
+			CTimeValue endTime = m_startTime + m_duration;
 
 			if (currentTime > endTime)
 			{
@@ -185,20 +185,20 @@ public:
 				currentTime = endTime;
 			}
 
-			float s = 1.0f;
-			if (endTime - m_startTime > 0.0f)
+			nTime s = 1;
+			if (endTime - m_startTime > 0)
 			{
-				s = CLAMP((currentTime - m_startTime) / (endTime - m_startTime), 0.0f, 1.0f);
+				s = CLAMP((currentTime - m_startTime) / (endTime - m_startTime), 0, 1);
 			}
 
-			m_currentEyeDistance = LERP(m_startEyeDistance, m_targetEyeDistance, s);
-			m_currentScreenDistance = LERP(m_startScreenDistance, m_targetScreenDistance, s);
-			m_currentHUDDistance = LERP(m_startHUDDistance, m_targetHUDDistance, s);
+			m_currentEyeDistance = LERP(m_startEyeDistance, m_targetEyeDistance, BADF s);
+			m_currentScreenDistance = LERP(m_startScreenDistance, m_targetScreenDistance, BADF s);
+			m_currentHUDDistance = LERP(m_startHUDDistance, m_targetHUDDistance, BADF s);
 
 			ActivateOutput(activationInfo, EOP_CurrentEyeDistance, m_currentEyeDistance);
 			ActivateOutput(activationInfo, EOP_CurrentScreenDistance, m_currentScreenDistance);
 			ActivateOutput(activationInfo, EOP_CurrentHUDDistance, m_currentHUDDistance);
-			ActivateOutput(activationInfo, EOP_TimeLeft, (currentTime - m_startTime) / 1000.0f);
+			ActivateOutput(activationInfo, EOP_TimeLeft, (currentTime - m_startTime));
 
 			gEnv->pConsole->GetCVar("r_StereoEyeDist")->Set(m_currentEyeDistance);
 			gEnv->pConsole->GetCVar("r_StereoScreenDist")->Set(m_currentScreenDistance);
@@ -228,8 +228,8 @@ private:
 	float m_currentScreenDistance;
 	float m_currentHUDDistance;
 
-	float m_duration;
-	float m_startTime;
+	CTimeValue m_duration;
+	CTimeValue m_startTime;
 };
 
 REGISTER_FLOW_NODE("Stereo:ReadStereoParameters", CFlowNode_ReadStereoParameters);

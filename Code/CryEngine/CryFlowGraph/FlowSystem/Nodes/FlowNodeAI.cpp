@@ -125,7 +125,7 @@ public:
 		if (event != eFE_Update)
 			return;
 
-		float currTime = gEnv->pTimer->GetCurrTime();
+		CTimeValue currTime = GetGTimer()->GetFrameStartTime();
 
 		RecalcAICounters();
 
@@ -395,7 +395,7 @@ public:
 
 	CFlowNode_AIActiveCountMonitor(SActivationInfo* pActInfo)
 		: m_active(false)
-		, m_monitorRefreshTimeout(2.0f)
+		, m_monitorRefreshTimeout(2)
 	{
 	}
 
@@ -410,7 +410,7 @@ public:
 			InputPortConfig_Void("Stop",         _HELP("Stops monitoring loop")),
 			InputPortConfig<int>("MaxActiveAIs", 0,                                                                 _HELP("Maximum number of active AI which is being used as condition for the node outputs")),
 			InputPortConfig<bool>("Loop",        false,                                                             _HELP("Activates monitoring loop mode")),
-			InputPortConfig<float>("LoopPeriod", 2.0f,                                                              _HELP("Period of time between check when loop mode is active")),
+			InputPortConfig<CTimeValue>("LoopPeriod", CTimeValue(2),                                                _HELP("Period of time between check when loop mode is active")),
 			{ 0 }
 		};
 
@@ -437,10 +437,10 @@ public:
 			{
 				CRY_ASSERT(m_active);
 
-				const float frameTime = gEnv->pTimer->GetFrameTime();
-				const float timeOut = m_monitorRefreshTimeout - frameTime;
+				const CTimeValue frameTime = GetGTimer()->GetFrameTime();
+				const CTimeValue timeOut = m_monitorRefreshTimeout - frameTime;
 
-				if (timeOut > 0.0f)
+				if (timeOut > 0)
 				{
 					//No time for check yet, continue running time-out
 					m_monitorRefreshTimeout = timeOut;
@@ -466,7 +466,7 @@ public:
 						const bool loopingMode = GetPortBool(pActInfo, eInput_Loop);
 						if (loopingMode)
 						{
-							m_monitorRefreshTimeout = GetPortFloat(pActInfo, eInput_LoopPeriod);
+							m_monitorRefreshTimeout = GetPortTime(pActInfo, eInput_LoopPeriod);
 						}
 						else
 						{
@@ -507,7 +507,7 @@ public:
 			//Make sure active state is restored properly
 			if (m_active)
 			{
-				const float storedRefreshTime = m_monitorRefreshTimeout;
+				const CTimeValue storedRefreshTime = m_monitorRefreshTimeout;
 				ActivateUpdate(pActInfo);
 
 				m_monitorRefreshTimeout = storedRefreshTime;
@@ -532,7 +532,7 @@ private:
 		pActInfo->pGraph->SetRegularlyUpdated(pActInfo->myID, true);
 		m_active = true;
 
-		m_monitorRefreshTimeout = 0.0f; //This is so first update is immediate after activation
+		m_monitorRefreshTimeout.SetSeconds(0); //This is so first update is immediate after activation
 	}
 
 	void DeactivateUpdate(SActivationInfo* pActInfo)
@@ -544,7 +544,7 @@ private:
 	//Shared between all node instances
 	static SActiveAIStatistics s_activeAIStatistics;
 
-	float                      m_monitorRefreshTimeout;
+	CTimeValue                 m_monitorRefreshTimeout;
 	bool                       m_active;
 };
 
@@ -1966,7 +1966,7 @@ public:
 			InputPortConfig_Void("Stop",              _HELP("Stops the communication played with this node on the AI")),
 			InputPortConfig<string>("Communication",  "",                                                                           _HELP("Name of the communication to play"),                                                                     0, _UICONFIG("enum_global_def:communications")),
 			InputPortConfig<string>("Channel",        "group",                                                                      _HELP("Name of the channel to play the communication in"),                                                      0, _UICONFIG("enum_string:=,Global=global,Group=group,Personal=personal")),
-			InputPortConfig<float>("ContextExpirity", 0.0f,                                                                         _HELP("The context expiration of the communication (how much time must past before it can be played again)")),
+			InputPortConfig<CTimeValue>("ContextExpirity", CTimeValue(0),                                                           _HELP("The context expiration of the communication (how much time must past before it can be played again)")),
 			InputPortConfig<bool>("SkipSound",        false,                                                                        _HELP("Force communication playback to skip sound component.")),
 			InputPortConfig<bool>("SkipAnim",         false,                                                                        _HELP("Force communication playback to skip animation component.")),
 			InputPortConfig<EntityId>("TargetId",     _HELP("Optional entity Id for whom the communication should be targeted at")),
@@ -2049,7 +2049,7 @@ public:
 			request.channelID = pCommunicationManager->GetChannelID(GetPortString(pActInfo, EIP_ChannelName));
 			request.commID = pCommunicationManager->GetCommunicationID(GetPortString(pActInfo, EIP_CommName));
 			request.configID = pCommunicationManager->GetConfigID(pAIProxy->GetCommunicationConfigName());
-			request.contextExpiry = GetPortFloat(pActInfo, EIP_ContextExpiry);
+			request.contextExpiry = GetPortTime(pActInfo, EIP_ContextExpiry);
 			request.ordering = SCommunicationRequest::Ordered;
 			request.skipCommSound = GetPortBool(pActInfo, EIP_SkipSound);
 			request.skipCommAnimation = GetPortBool(pActInfo, EIP_SkipAnim);

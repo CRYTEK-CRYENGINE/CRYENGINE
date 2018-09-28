@@ -40,7 +40,7 @@ IFlowNodePtr CFlowDelayNode::Clone(SActivationInfo* pActInfo)
 
 void CFlowDelayNode::Serialize(SActivationInfo* pActInfo, TSerialize ser)
 {
-	CTimeValue curTime = gEnv->pTimer->GetFrameStartTime();
+	CTimeValue curTime = GetGTimer()->GetFrameStartTime();
 
 	ser.BeginGroup("Local");
 	// Editor mode: map with
@@ -55,11 +55,11 @@ void CFlowDelayNode::Serialize(SActivationInfo* pActInfo, TSerialize ser)
 		// when writing, currently relative values are stored!
 		ser.Value("m_activations", m_activations);
 #if 0
-		CryLogAlways("CDelayNode write: current time(ms): %f", curTime.GetMilliSeconds());
+		CryLogAlways("CDelayNode write: current time(ms): %f", (float)curTime.GetMilliSeconds());
 		Activations::iterator iter = m_activations.begin();
 		while (iter != m_activations.end())
 		{
-			CryLogAlways("CDelayNode write: ms=%d  timevalue(ms): %f", (*iter).first, (*iter).second.m_timeout.GetMilliSeconds());
+			CryLogAlways("CDelayNode write: ms=%d  timevalue(ms): %f", (*iter).first, (float)(*iter).second.m_timeout.GetMilliSeconds());
 			++iter;
 		}
 #endif
@@ -78,10 +78,10 @@ void CFlowDelayNode::Serialize(SActivationInfo* pActInfo, TSerialize ser)
 			ser.Value("m_activations", m_activations);
 			Activations::iterator iter = m_activations.begin();
 #if 0
-			CryLogAlways("CDelayNode read: current time(ms): %f", curTime.GetMilliSeconds());
+			CryLogAlways("CDelayNode read: current time(ms): %f", (float)curTime.GetMilliSeconds());
 			while (iter != m_activations.end())
 			{
-				CryLogAlways("CDelayNode read: ms=%d  timevalue(ms): %f", (*iter).first, (*iter).second.m_timeout.GetMilliSeconds());
+				CryLogAlways("CDelayNode read: ms=%d  timevalue(ms): %f", (*iter).first, (float)(*iter).second.m_timeout.GetMilliSeconds());
 				++iter;
 			}
 #endif
@@ -110,7 +110,7 @@ void CFlowDelayNode::GetConfiguration(SFlowNodeConfig& config)
 {
 	static const SInputPortConfig inputs[] = {
 		InputPortConfig_AnyType("in",         _HELP("Value to be passed after [Delay] time"), _HELP("In")),
-		InputPortConfig<float>("delay",       1.0f,                                           _HELP("Delay time in seconds"),                                                                                             _HELP("Delay")),
+		InputPortConfig<CTimeValue>("delay",  CTimeValue(1),                                  _HELP("Delay time in seconds"),                                                                                             _HELP("Delay")),
 		InputPortConfig<bool>("resetOnInput", false,                                          _HELP("When true, the node is reseted with each input (delay counter is reseted to 0, and previous inputs are forgotten)")),
 		{ 0 }
 	};
@@ -152,8 +152,8 @@ void CFlowDelayNode::ProcessEvent(EFlowEvent event, SActivationInfo* pActInfo)
 			{
 				if (shouldReset)
 					m_activations.clear();
-				const float delay = GetDelayTime(pActInfo);
-				CTimeValue finishTime = gEnv->pTimer->GetFrameStartTime() + delay;
+				const CTimeValue delay = GetDelayTime(pActInfo);
+				CTimeValue finishTime = GetGTimer()->GetFrameStartTime() + delay;
 				m_activations[(int)finishTime.GetMilliSeconds()] = SDelayData(finishTime, GetPortAny(pActInfo, 0));
 				pActInfo->pGraph->SetRegularlyUpdated(pActInfo->myID, true);
 			}
@@ -169,8 +169,8 @@ void CFlowDelayNode::ProcessEvent(EFlowEvent event, SActivationInfo* pActInfo)
 					m_activations.clear();
 				}
 
-				const float delay = GetDelayTime(pActInfo);
-				CTimeValue finishTime = gEnv->pTimer->GetFrameStartTime() + delay;
+				const CTimeValue delay = GetDelayTime(pActInfo);
+				CTimeValue finishTime = GetGTimer()->GetFrameStartTime() + delay;
 				IGameFramework::TimerID timerId = gEnv->pGameFramework->AddTimer(delay, false, functor(CFlowDelayNode::OnTimer),
 				                                                                       this);
 				m_activations[timerId] = SDelayData(finishTime, GetPortAny(pActInfo, 0));
@@ -181,7 +181,7 @@ void CFlowDelayNode::ProcessEvent(EFlowEvent event, SActivationInfo* pActInfo)
 	case eFE_Update:
 		CRY_ASSERT(gEnv->IsEditor());
 		CRY_ASSERT(!m_activations.empty());
-		CTimeValue curTime = gEnv->pTimer->GetFrameStartTime();
+		CTimeValue curTime = GetGTimer()->GetFrameStartTime();
 
 		while (!m_activations.empty() && m_activations.begin()->second.m_timeout < curTime)
 		{
@@ -194,9 +194,9 @@ void CFlowDelayNode::ProcessEvent(EFlowEvent event, SActivationInfo* pActInfo)
 	}
 }
 
-float CFlowDelayNode::GetDelayTime(SActivationInfo* pActInfo) const
+CTimeValue CFlowDelayNode::GetDelayTime(SActivationInfo* pActInfo) const
 {
-	return GetPortFloat(pActInfo, INP_DELAY);
+	return GetPortTime(pActInfo, INP_DELAY);
 }
 
 void CFlowDelayNode::OnTimer(void* pUserData, IGameFramework::TimerID ref)
@@ -240,8 +240,8 @@ public:
 	{
 		static const SInputPortConfig inputs[] = {
 			InputPortConfig_AnyType("In",      _HELP("Value to be passed after delay time")),
-			InputPortConfig<float>("MinDelay", 1.0f,                                         _HELP("Minimum random delay time in seconds")),
-			InputPortConfig<float>("MaxDelay", 2.0f,                                         _HELP("Maximum random delay time in seconds")),
+			InputPortConfig<CTimeValue>("MinDelay", CTimeValue(1),                                         _HELP("Minimum random delay time in seconds")),
+			InputPortConfig<CTimeValue>("MaxDelay", CTimeValue(2),                                         _HELP("Maximum random delay time in seconds")),
 			{ 0 }
 		};
 
@@ -257,9 +257,9 @@ public:
 	}
 
 protected:
-	/* virtual */ float GetDelayTime(SActivationInfo* pActInfo) const
+	/* virtual */ CTimeValue GetDelayTime(SActivationInfo* pActInfo) const
 	{
-		return cry_random(GetPortFloat(pActInfo, 1), GetPortFloat(pActInfo, 2));
+		return cry_random(GetPortTime(pActInfo, 1), GetPortTime(pActInfo, 2));
 	}
 
 	bool GetShouldReset(SActivationInfo* pActInfo)

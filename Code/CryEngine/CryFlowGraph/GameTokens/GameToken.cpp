@@ -21,7 +21,7 @@ CGameTokenSystem* CGameToken::g_pGameTokenSystem = 0;
 
 //////////////////////////////////////////////////////////////////////////
 CGameToken::CGameToken()
-	: m_changed(0.0f)
+	: m_changed(0)
 {
 	m_nFlags = 0;
 }
@@ -44,7 +44,7 @@ void CGameToken::Notify(EGameTokenEvent event)
 
 void CGameToken::TriggerAsChanged(bool bIsGameStart)
 {
-	m_changed = gEnv->pTimer->GetFrameStartTime();
+	m_changed = GetGTimer()->GetFrameStartTime();
 	g_pGameTokenSystem->Notify(EGAMETOKEN_EVENT_CHANGE, this);
 }
 

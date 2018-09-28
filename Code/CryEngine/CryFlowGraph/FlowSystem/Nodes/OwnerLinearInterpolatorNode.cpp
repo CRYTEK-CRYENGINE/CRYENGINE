@@ -42,11 +42,11 @@ class CMoveEntityTo : public CFlowBaseNode<eNCT_Instanced>
 	Vec3       m_position;
 	Vec3       m_destination;
 	Vec3       m_startPos; // position the entity had when Start was last triggered
-	float      m_lastFrameTime;
+	CTimeValue m_lastFrameTime;
 	float      m_topSpeed;
 	float      m_easeOutDistance;
 	float      m_easeInDistance;
-	float      m_startTime;
+	CTimeValue m_startTime;
 	ECoordSys  m_coorSys;
 	EValueType m_valueType;
 	bool       m_bActive;
@@ -62,13 +62,13 @@ public:
 		: m_position(ZERO),
 		m_destination(ZERO),
 		m_startPos(ZERO),
-		m_lastFrameTime(0.0f),
+		m_lastFrameTime(0),
 		m_topSpeed(0.0f),
 		m_easeOutDistance(0.0f),
 		m_easeInDistance(0.0f),
 		m_coorSys(CS_WORLD),
 		m_valueType(VT_SPEED),
-		m_startTime(0.f),
+		m_startTime(0),
 		m_bActive(false),
 		m_stopping(false),
 		m_bForceFinishAsTooNear(false),
@@ -114,7 +114,7 @@ public:
 			InputPortConfig<Vec3>("Destination",      _HELP("Destination")),
 			InputPortConfig<bool>("DynamicUpdate",    true,                                             _HELP("If dynamic update of Destination [follow-during-movement] is allowed or not"),                                  _HELP("DynamicUpdate")),
 			InputPortConfig<int>("ValueType",         0,                                                _HELP("Defines if the 'Value' input will be interpreted as speed or as time (duration)."),                             _HELP("ValueType"),      _UICONFIG("enum_int:speed=0,time=1")),
-			InputPortConfig<float>("Speed",           0.f,                                              _HELP("Speed (m/sec) or time (duration in secs), depending on 'ValueType' input."),                                    _HELP("Value")),
+			InputPortConfig<mpfloat>("Speed",         0,                                                _HELP("Speed (m/sec) or time (duration in secs), depending on 'ValueType' input."),                                    _HELP("Value")),
 			InputPortConfig<float>("EaseDistance",    0.f,                                              _HELP("Distance from destination at which the moving entity starts slowing down (0=no slowing down)"),                 _HELP("EaseInDistance")),
 			InputPortConfig<float>("EaseOutDistance", 0.f,                                              _HELP("Distance from destination at which the moving entity starts slowing down (0=no slowing down)")),
 			InputPortConfig<int>("CoordSys",          0,                                                _HELP("Destination in world, local or parent space (warning : parent space doesn't work if your parent is a brush)"),  _HELP("CoordSys"),       _UICONFIG("enum_int:Parent=0,World=1,Local=2")),
@@ -234,8 +234,8 @@ public:
 		{
 			return;
 		}
-		float time = gEnv->pTimer->GetFrameStartTime().GetSeconds();
-		float timeDifference = time - m_lastFrameTime;
+		CTimeValue time = GetGTimer()->GetFrameStartTime();
+		CTimeValue timeDifference = time - m_lastFrameTime;
 		m_lastFrameTime = time;
 
 		// note - if there's no physics then this will be the same, but if the platform is moved through physics, then
@@ -294,7 +294,7 @@ public:
 				}
 			}
 
-			directionAndSpeed *= (m_topSpeed * timeDifference);
+			directionAndSpeed *= (m_topSpeed * timeDifference.BADGetSeconds());
 
 			if (direction.GetLength() < directionAndSpeed.GetLength())
 			{
@@ -312,8 +312,8 @@ public:
 		else
 		{
 			pe_action_set_velocity setVel;
-			float rTimeStep = timeDifference > 0.000001f ? 1.f / timeDifference : 0.0f;
-			setVel.v = (m_position - oldPosition) * rTimeStep;
+			rTime rTimeStep = timeDifference > "0.000001" ? 1 / timeDifference : 0;
+			setVel.v = (m_position - oldPosition) * BADF rTimeStep;
 			pPhysEnt->Action(&setVel);
 		}
 	}
@@ -406,7 +406,7 @@ public:
 		}
 		else
 		{
-			m_topSpeed = GetPortFloat(pActInfo, IN_VALUE);
+			m_topSpeed = BADF GetPortMP(pActInfo, IN_VALUE);
 			if (m_topSpeed < 0.0f) m_topSpeed = 0.0f;
 		}
 	}
@@ -416,10 +416,10 @@ public:
 	void CalcSpeedFromTimeInput(SActivationInfo* pActInfo)
 	{
 		assert(GetPortInt(pActInfo, IN_VALUETYPE) == VT_TIME);
-		float movementDuration = GetPortFloat(pActInfo, IN_VALUE);
-		float timePassed = gEnv->pTimer->GetFrameStartTime().GetSeconds() - m_startTime;
-		float movementDurationLeft = movementDuration - timePassed;
-		if (movementDurationLeft < 0.0001f) movementDurationLeft = 0.0001f;
+		CTimeValue movementDuration = CTimeValue(GetPortMP(pActInfo, IN_VALUE));
+		CTimeValue timePassed = GetGTimer()->GetFrameStartTime() - m_startTime;
+		CTimeValue movementDurationLeft = movementDuration - timePassed;
+		if (movementDurationLeft < "0.0001") movementDurationLeft.SetSeconds("0.0001");
 		Vec3 movement = m_destination - m_position;
 		float distance = movement.len();
 
@@ -431,7 +431,7 @@ public:
 		float realEaseInDistance = max(m_easeInDistance - m_easeInDistance * EASE_MARGIN_FACTOR, 0.f);
 		float realEaseOutDistance = max(m_easeOutDistance - m_easeOutDistance * EASE_MARGIN_FACTOR, 0.f);
 
-		m_topSpeed = ((realEaseInDistance / factorAverageSpeedEase) + distanceNoEase + (realEaseOutDistance / factorAverageSpeedEase)) / movementDurationLeft;          // this comes just from V = S / T;
+		m_topSpeed = ((realEaseInDistance / factorAverageSpeedEase) + distanceNoEase + (realEaseOutDistance / factorAverageSpeedEase)) / movementDurationLeft.BADGetSeconds();          // this comes just from V = S / T;
 	}
 
 	//////////////////////////////////////////////////////////////////////////
@@ -444,7 +444,7 @@ public:
 		m_bForceFinishAsTooNear = false;
 		m_position = m_coorSys == CS_WORLD ? pEnt->GetWorldPos() : pEnt->GetPos();
 		m_startPos = m_position;
-		m_lastFrameTime = gEnv->pTimer->GetFrameStartTime().GetSeconds();
+		m_lastFrameTime = GetGTimer()->GetFrameStartTime();
 		m_startTime = m_lastFrameTime;
 		ReadDestinationPosFromInput(pActInfo);
 		m_easeOutDistance = GetPortFloat(pActInfo, IN_EASEOUT);

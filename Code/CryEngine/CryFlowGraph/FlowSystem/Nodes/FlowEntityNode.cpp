@@ -1401,7 +1401,7 @@ public:
 		, m_fwdAxis(eFA_XPlus)
 		, m_referenceVector(ZERO)
 		, m_targetEntityId(0)
-		, m_blendDuration (0.0f)
+		, m_blendDuration (0)
 		, m_bIsBlending(false)
 	{}
 
@@ -1432,7 +1432,7 @@ public:
 
 	void CalcBlendingStartParams(IEntity* pNodeEntity, float blendSpeed)
 	{
-		m_timeStart = gEnv->pTimer->GetFrameStartTime();
+		m_timeStart = GetGTimer()->GetFrameStartTime();
 		m_quatEntityNodeStart = pNodeEntity->GetRotation();
 
 		Matrix34 finalMat;
@@ -1445,8 +1445,8 @@ public:
 		float angDiff = RAD2DEG(2 * acosf(qDist.w));   // and then use the amount of rotation on that quat
 		if (angDiff > 180.f)
 			angDiff = 360.0f - angDiff;
-		m_blendDuration = angDiff / blendSpeed; // only can be here if blendSpeed >0
-		if (m_blendDuration < 0.01f)
+		m_blendDuration = BADTIME(angDiff / blendSpeed); // only can be here if blendSpeed >0
+		if (m_blendDuration < "0.01")
 			m_bIsBlending = false;
 	}
 
@@ -1461,8 +1461,8 @@ public:
 
 	void BlendToTarget(SActivationInfo* pActInfo)
 	{
-		const float timeDone = (gEnv->pTimer->GetFrameStartTime() - m_timeStart).GetSeconds();
-		const float blendFactor = timeDone / m_blendDuration;
+		const CTimeValue timeDone = GetGTimer()->GetFrameStartTime() - m_timeStart;
+		const nTime blendFactor = timeDone / m_blendDuration;
 		if (blendFactor >= 1)
 		{
 			m_bIsBlending = false;
@@ -1475,7 +1475,7 @@ public:
 			CalculateLookAtMatrix(pNodeEntity, finalMat);
 
 			const Quat finalQuat(finalMat);
-			const Quat blendedQuat = Quat::CreateNlerp(m_quatEntityNodeStart, finalQuat, blendFactor);
+			const Quat blendedQuat = Quat::CreateNlerp(m_quatEntityNodeStart, finalQuat, BADF blendFactor);
 
 			pNodeEntity->SetRotation(blendedQuat);
 		}
@@ -1615,7 +1615,7 @@ private:
 	Vec3       m_referenceVector;
 	EntityId   m_targetEntityId;
 	CTimeValue m_timeStart;
-	float      m_blendDuration;
+	CTimeValue m_blendDuration;
 	Quat       m_quatEntityNodeStart;
 	bool       m_bIsBlending;
 };

@@ -300,8 +300,8 @@ class CPlayAnimation_Node : public CFlowBaseNode<eNCT_Instanced>
 	bool   m_manualAnimationControlledMovement;
 	bool   m_bLooping;
 
-	float  m_almostDonePercentage;
-	float  m_playbackSpeedMultiplier;
+	mpfloat  m_almostDonePercentage;
+	mpfloat  m_playbackSpeedMultiplier;
 
 public:
 
@@ -335,8 +335,8 @@ public:
 		m_manualAnimationControlledMovement = false;
 		m_token = 0;
 		m_layer = 0;
-		m_almostDonePercentage = 0.85f;
-		m_playbackSpeedMultiplier = 1.0f;
+		m_almostDonePercentage = "0.85";
+		m_playbackSpeedMultiplier = 1;
 	};
 
 	~CPlayAnimation_Node()
@@ -371,15 +371,15 @@ public:
 			InputPortConfig_Void("Start", _HELP("Starts the animation")),
 			InputPortConfig_Void("Stop", _HELP("Stops the animation")),
 			InputPortConfig<string>("anim_Animation", _HELP("Animation name"), 0, _UICONFIG("ref_entity=entityId")),
-			InputPortConfig<float>("BlendInTime", 0.2f, _HELP("Blend in time")),
+			InputPortConfig<CTimeValue>("BlendInTime", CTimeValue("0.2"), _HELP("Blend in time")),
 			InputPortConfig<int>("Layer", _HELP("Layer in which to play the animation (0-15).\nFullbody Animations should be played in layer 0.")),
 			InputPortConfig<bool>("Loop", _HELP("When True animation will loop and will never stop")),
 			InputPortConfig<bool>("StayOnLastFrame", _HELP("When True animation will not reset to the first frame after it finished. Ignored when 'Loop' is true.")),
 			InputPortConfig<bool>("ForceUpdate", false, _HELP("When True animation will play even if not visible")),
 			InputPortConfig<bool>("PauseAnimGraph", false, _HELP("Deprecated, this input has no effect")),
 			InputPortConfig<bool>("ControlMovement", false, _HELP("When True this animation will control the entities movement")),
-			InputPortConfig<float>("AlmostDonePercentage", m_almostDonePercentage, _HELP("Normalised percentage of animation progress at which Almost Done output will trigger, values between 0.05 & 0.95")),
-			InputPortConfig<float>("PlaybackSpeedMultiplier", m_playbackSpeedMultiplier, _HELP("Speed multiplier at which to play the animation")),
+			InputPortConfig<mpfloat>("AlmostDonePercentage", m_almostDonePercentage, _HELP("Normalised percentage of animation progress at which Almost Done output will trigger, values between 0.05 & 0.95")),
+			InputPortConfig<mpfloat>("PlaybackSpeedMultiplier", m_playbackSpeedMultiplier, _HELP("Speed multiplier at which to play the animation")),
 			{ 0 }
 		};
 
@@ -443,18 +443,15 @@ private:
 		if (pCharacterInstance)
 		{
 			CryCharAnimationParams aparams;
-			aparams.m_fTransTime = GetPortFloat(pActInfo, IN_BLEND_TIME);
+			aparams.m_fTransTime = GetPortTime(pActInfo, IN_BLEND_TIME);
 
-			m_almostDonePercentage = clamp_tpl(GetPortFloat(pActInfo, IN_ALMOST_DONE_PERCENTAGE), 0.05f, 0.95f);
+			m_almostDonePercentage = CLAMP(GetPortMP(pActInfo, IN_ALMOST_DONE_PERCENTAGE), "0.05", "0.95");
 
 			m_bLooping = GetPortBool(pActInfo, IN_LOOP);
 			if (m_bLooping)
 				aparams.m_nFlags |= CA_LOOP_ANIMATION;
 
-			m_playbackSpeedMultiplier = GetPortFloat(pActInfo, IN_PLAYBACK_SPEED_MULTIPLIER);
-			aparams.m_fPlaybackSpeed = m_playbackSpeedMultiplier;
-
-			m_playbackSpeedMultiplier = GetPortFloat(pActInfo, IN_PLAYBACK_SPEED_MULTIPLIER);
+			m_playbackSpeedMultiplier = GetPortMP(pActInfo, IN_PLAYBACK_SPEED_MULTIPLIER);
 			aparams.m_fPlaybackSpeed = m_playbackSpeedMultiplier;
 
 			m_bForcedUpdateActivate = false;
@@ -569,8 +566,8 @@ private:
 				if (animation.HasUserToken(m_token))
 				{
 					tokenFound = true;
-					const float animationTime = pSkeletonAnimation->GetAnimationNormalizedTime(&animation);
-					almostDone = animationTime > m_almostDonePercentage;
+					const nTime animationTime = pSkeletonAnimation->GetAnimationNormalizedTime(&animation);
+					almostDone = animationTime.conv<mpfloat>() > m_almostDonePercentage;
 					if (m_bLooping && !almostDone)
 					{
 						m_firedAlmostDone = false;
@@ -1048,7 +1045,7 @@ public:
 			InputPortConfig<EntityId>("Entity2",            _HELP("Entity2")),
 			InputPortConfig<string>("anim_Animation1",      _HELP("Animation1"),0,                                _UICONFIG("ref_entity=Entity1")),
 			InputPortConfig<string>("anim_Animation2",      _HELP("Animation2"),0,                                _UICONFIG("ref_entity=Entity2")),
-			InputPortConfig<float>("ResyncTime",            0.2f,               _HELP("ResyncTime")),
+			InputPortConfig<CTimeValue>("ResyncTime",       CTimeValue("0.2"),  _HELP("ResyncTime")),
 			InputPortConfig<float>("MaxPercentSpeedChange", 10,                 _HELP("MaxPercentSpeedChange")),
 			{ 0 }
 		};
@@ -1092,30 +1089,30 @@ private:
 		if (pAnim2->GetAnimationId() != pChar2->GetIAnimationSet()->GetAnimIDByName(GetPortString(pActInfo, 3)))
 			return;
 
-		float tm1 = pSkel1->GetAnimationNormalizedTime(pAnim1);
-		float tm2 = pSkel2->GetAnimationNormalizedTime(pAnim2);
+		nTime tm1 = pSkel1->GetAnimationNormalizedTime(pAnim1);
+		nTime tm2 = pSkel2->GetAnimationNormalizedTime(pAnim2);
 		if (tm2 < tm1)
 		{
 			std::swap(pAnim1, pAnim2);
 			std::swap(tm1, tm2);
 		}
 
-		if (tm2 - 0.5f > tm1)
+		if (tm2 - "0.5" > tm1)
 		{
-			tm1 += 1.0f;
+			tm1 += 1;
 			std::swap(pAnim1, pAnim2);
 			std::swap(tm1, tm2);
 		}
-		float catchupTime = GetPortFloat(pActInfo, 4);
-		float gamma = (tm2 - tm1) / catchupTime;
+		CTimeValue catchupTime = GetPortTime(pActInfo, 4);
+		float gamma = BADF(tm2 - tm1) / catchupTime.BADGetSeconds();
 		float pb2 = (-gamma + sqrtf(gamma * gamma + 4.0f)) / 2.0f;
 		float pb1 = 1.0f / pb2;
 		float maxPB = GetPortFloat(pActInfo, 5) / 100.0f + 1.0f;
 		float minPB = 1.0f / maxPB;
 		pb2 = clamp_tpl(pb2, minPB, maxPB);
 		pb1 = clamp_tpl(pb1, minPB, maxPB);
-		pAnim1->SetPlaybackScale(pb1);
-		pAnim2->SetPlaybackScale(pb2);
+		pAnim1->SetPlaybackScale(BADMP(pb1));
+		pAnim2->SetPlaybackScale(BADMP(pb2));
 	}
 };
 
@@ -1131,7 +1128,7 @@ public:
 	{
 		static const SInputPortConfig inputs[] = {
 			InputPortConfig<string>("anim_Animation", _HELP("Animation1")),
-			InputPortConfig<float>("TriggerTime",     0.2f,                _HELP("TriggerTime")),
+			InputPortConfig<mpfloat>("TriggerTime",    mpfloat("0.2"),                _HELP("TriggerTime")),
 			{ 0 }
 		};
 		static const SOutputPortConfig out_config[] = {
@@ -1199,13 +1196,13 @@ private:
 			m_state = false;
 			return;
 		}
-		float triggerTime = GetPortFloat(pActInfo, 1);
-		const float animTime = pSkel->GetAnimationNormalizedTime(&anim);
-		if (animTime < triggerTime)
+		mpfloat triggerTime = GetPortMP(pActInfo, 1);
+		const nTime animTime = pSkel->GetAnimationNormalizedTime(&anim);
+		if (animTime.conv<mpfloat>() < triggerTime)
 		{
 			m_state = false;
 		}
-		else if (animTime > triggerTime + 0.5f)
+		else if (animTime.conv<mpfloat>() > triggerTime + "0.5")
 		{
 			m_state = false;
 		}
@@ -1403,19 +1400,19 @@ public:
 			InputPortConfig<int>("Alignment",              0,                                                                                _HELP("Alignment Type\nWildMatch: moves both characters the least amount\nFirstActor: first actor can be rotated but not moved\nFirstActorNoRot: first actor can neither be moved nor rotated\nFirstActorPosition: Slides the characters so the first one is at the in Location specified position\nLocation: moves both character until the reference point of the animation is at Location"),  0,           _UICONFIG("enum_int:WildMatch=0,FirstActor=1,FirstActorNoRot=2,FirstActorPosition=3,Location=4")),
 			InputPortConfig<EntityId>("Entity_01",         _HELP("First Actor"),                                                             "Entity_01",                                                                                                                                                                                                                                                                                                                                                                                     0),
 			InputPortConfig<string>("AnimationName_01",    _HELP("Animation Name")),
-			InputPortConfig<float>("SlideDuration_01",     0.2f,                                                                             _HELP("Time in seconds to slide this entity into position")),
+			InputPortConfig<CTimeValue>("SlideDuration_01",CTimeValue("0.2"),                                                                _HELP("Time in seconds to slide this entity into position")),
 			InputPortConfig<bool>("HorizPhysics1",         false,                                                                            _HELP("Prohibits this character from being pushed through walls etc (safer)"),                                                                                                                                                                                                                                                                                                                   "HPhysics1", 0),
 			InputPortConfig<EntityId>("Entity_02",         _HELP("Second Actor"),                                                            "Entity_02",                                                                                                                                                                                                                                                                                                                                                                                     0),
 			InputPortConfig<string>("AnimationName_02",    _HELP("Animation Name")),
-			InputPortConfig<float>("SlideDuration_02",     0.2f,                                                                             _HELP("Time in seconds to slide this entity into position")),
+			InputPortConfig<CTimeValue>("SlideDuration_02",CTimeValue("0.2"),                                                                _HELP("Time in seconds to slide this entity into position")),
 			InputPortConfig<bool>("HorizPhysics2",         false,                                                                            _HELP("Prohibits this character from being pushed through walls etc (safer)"),                                                                                                                                                                                                                                                                                                                   "HPhysics2", 0),
 			InputPortConfig<EntityId>("Entity_03",         _HELP("Third Actor"),                                                             "Entity_03",                                                                                                                                                                                                                                                                                                                                                                                     0),
 			InputPortConfig<string>("AnimationName_03",    _HELP("Animation Name")),
-			InputPortConfig<float>("SlideDuration_03",     0.2f,                                                                             _HELP("Time in seconds to slide this entity into position")),
+			InputPortConfig<CTimeValue>("SlideDuration_03",CTimeValue("0.2"),                                                                _HELP("Time in seconds to slide this entity into position")),
 			InputPortConfig<bool>("HorizPhysics3",         false,                                                                            _HELP("Prohibits this character from being pushed through walls etc (safer)"),                                                                                                                                                                                                                                                                                                                   "HPhysics3", 0),
 			InputPortConfig<EntityId>("Entity_04",         _HELP("Fourth Actor"),                                                            "Entity_04",                                                                                                                                                                                                                                                                                                                                                                                     0),
 			InputPortConfig<string>("AnimationName_04",    _HELP("Animation Name")),
-			InputPortConfig<float>("SlideDuration_04",     0.2f,                                                                             _HELP("Time in seconds to slide this entity into position")),
+			InputPortConfig<CTimeValue>("SlideDuration_04",CTimeValue("0.2"),                                                                _HELP("Time in seconds to slide this entity into position")),
 			InputPortConfig<bool>("HorizPhysics4",         false,                                                                            _HELP("Prohibits this character from being pushed through walls etc (safer)"),                                                                                                                                                                                                                                                                                                                   "HPhysics4", 0),
 
 			{ 0 }
@@ -1508,10 +1505,10 @@ public:
 						}
 
 						// Get sliding times
-						float slideTime01 = GetPortFloat(pActInfo, eIN_SLIDETIME01);
-						float slideTime02 = GetPortFloat(pActInfo, eIN_SLIDETIME02);
-						float slideTime03 = GetPortFloat(pActInfo, eIN_SLIDETIME03);
-						float slideTime04 = GetPortFloat(pActInfo, eIN_SLIDETIME04);
+						CTimeValue slideTime01 = GetPortTime(pActInfo, eIN_SLIDETIME01);
+						CTimeValue slideTime02 = GetPortTime(pActInfo, eIN_SLIDETIME02);
+						CTimeValue slideTime03 = GetPortTime(pActInfo, eIN_SLIDETIME03);
+						CTimeValue slideTime04 = GetPortTime(pActInfo, eIN_SLIDETIME04);
 
 						// Get physics settings
 						bool allowHPhysics01 = GetPortBool(pActInfo, eIN_ALLOWHPHYSICS01);

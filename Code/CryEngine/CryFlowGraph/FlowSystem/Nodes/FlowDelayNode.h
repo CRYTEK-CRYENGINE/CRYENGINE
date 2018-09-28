@@ -26,7 +26,7 @@ public:
 
 protected:
 	// let derived classes decide how long to delay
-	virtual float GetDelayTime(SActivationInfo*) const;
+	virtual CTimeValue GetDelayTime(SActivationInfo*) const;
 	virtual bool  GetShouldReset(SActivationInfo* pActInfo);
 
 private:

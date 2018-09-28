@@ -1160,7 +1160,7 @@ public:
 						pentPhys->SetParams(&pab);
 					}
 					pe_action_awake aa;
-					aa.minAwakeTime = 0.1f;
+					aa.minAwakeTime.SetSeconds("0.1");
 					pentPhys->Action(&aa);
 					if (aac.pBuddy != WORLD_ENTITY)
 						aac.pBuddy->Action(&aa);

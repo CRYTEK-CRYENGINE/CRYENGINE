@@ -375,12 +375,12 @@ public:
 	}
 
 	CFlowInterpolNode(SActivationInfo* pActInfo)
-		: m_startTime(0.0f),
-		m_endTime(0.0f),
+		: m_startTime(0),
+		m_endTime(0),
 		m_startValue(L::min_val),
 		m_endValue(L::min_val),
-		m_updateFrequency(0.0f),
-		m_lastUpdateTime(0.0f),
+		m_updateFrequency(0),
+		m_lastUpdateTime(0),
 		m_easingFunction(nullptr)
 	{
 	}
@@ -410,8 +410,8 @@ public:
 			InputPortConfig_Void("Stop",                          _HELP("StopInterpol")),
 			InputPortConfig<T>(L::min_name,           L::min_val, _HELP("Start value")),
 			InputPortConfig<T>(L::max_name,           L::max_val, _HELP("End value")),
-			InputPortConfig<float>("Time",            1.0f,       _HELP("Time in seconds")),
-			InputPortConfig<float>("UpdateFrequency", 0.0f,       _HELP("Update frequency in seconds (0 = every frame)")),
+			InputPortConfig<CTimeValue>("Time",            CTimeValue(1),       _HELP("Time in seconds")),
+			InputPortConfig<CTimeValue>("UpdateFrequency", CTimeValue(0),       _HELP("Update frequency in seconds (0 = every frame)")),
 			InputPortConfig<int>("Easing",                        _HELP("Easing-Function that is applied to the interpolation"),0,                                                       _UICONFIG(Easing::GetDropdownString().c_str())),
 			{ 0 }
 		};
@@ -454,12 +454,12 @@ public:
 				}
 				if (IsPortActive(pActInfo, EIP_Start))
 				{
-					m_startTime = gEnv->pTimer->GetFrameStartTime().GetMilliSeconds();
-					m_endTime = m_startTime + GetPortFloat(pActInfo, EIP_Time) * 1000.0f;
+					m_startTime = GetGTimer()->GetFrameStartTime();
+					m_endTime = m_startTime + GetPortTime(pActInfo, EIP_Time);
 					m_easingFunction = Easing::GetFunctionByIndex(GetPortInt(pActInfo, EIP_EasingFunction));
 					GetValue(pActInfo, EIP_StartValue, m_startValue);
 					GetValue(pActInfo, EIP_EndValue, m_endValue);
-					m_updateFrequency = GetPortFloat(pActInfo, EIP_UpdateFrequency) * 1000.0f;
+					m_updateFrequency = GetPortTime(pActInfo, EIP_UpdateFrequency);
 					m_lastUpdateTime = m_startTime;
 					pActInfo->pGraph->SetRegularlyUpdated(pActInfo->myID, true);
 					Interpol(pActInfo, 0.0f);
@@ -468,7 +468,7 @@ public:
 			break;
 		case eFE_Update:
 			{
-				const float fTime = gEnv->pTimer->GetFrameStartTime().GetMilliSeconds();
+				const CTimeValue fTime = GetGTimer()->GetFrameStartTime();
 				if (fTime >= m_endTime)
 				{
 					pActInfo->pGraph->SetRegularlyUpdated(pActInfo->myID, false);
@@ -478,16 +478,16 @@ public:
 				}
 				else if ((fTime - m_lastUpdateTime) >= m_updateFrequency)
 				{
-					const float fDuration = m_endTime - m_startTime;
-					float fPosition;
-					if (fDuration <= 0.0f)
-						fPosition = 1.0f;
+					const CTimeValue fDuration = m_endTime - m_startTime;
+					nTime fPosition;
+					if (fDuration <= 0)
+						fPosition = 1;
 					else
 					{
 						fPosition = (fTime - m_startTime) / fDuration;
-						fPosition = clamp_tpl(fPosition, 0.0f, 1.0f);
+						fPosition = CLAMP(fPosition, 0, 1);
 					}
-					Interpol(pActInfo, fPosition);
+					Interpol(pActInfo, BADF fPosition);
 					m_lastUpdateTime = fTime;
 				}
 			}
@@ -502,11 +502,11 @@ protected:
 		ActivateOutput(pActInfo, EOP_Value, value);
 	}
 
-	float m_startTime;
-	float m_endTime;
+	CTimeValue m_startTime;
+	CTimeValue m_endTime;
 	T m_startValue;
 	T m_endValue;
-	float m_updateFrequency, m_lastUpdateTime;
+	CTimeValue m_updateFrequency, m_lastUpdateTime;
 	Easing::TEasingFunctionPtr m_easingFunction;
 };
 
@@ -610,7 +610,7 @@ public:
 		static const SInputPortConfig in_config[] = {
 			InputPortConfig<T>("InitialValue", L::min_val, _HELP("Initial value")),
 			InputPortConfig<T>("Value",        L::min_val, _HELP("Target value")),
-			InputPortConfig<float>("Time",     1.0f,       _HELP("Smoothing time (seconds)")),
+			InputPortConfig<CTimeValue>("Time",  CTimeValue(1),       _HELP("Smoothing time (seconds)")),
 			{ 0 }
 		};
 		static const SOutputPortConfig out_config[] = {
@@ -669,7 +669,7 @@ public:
 			{
 				T toValue;
 				GetValue(pActInfo, EIP_Value, toValue);
-				SmoothCD(m_val, m_valRate, gEnv->pTimer->GetFrameTime(), toValue, GetPortFloat(pActInfo, EIP_Time));
+				SmoothCD(m_val, m_valRate, GetGTimer()->GetFrameTime(), toValue, GetPortTime(pActInfo, EIP_Time));
 				if (FlowInterpolNodes::valueReached(m_val, toValue, m_minDistToVal))
 				{
 					pActInfo->pGraph->SetRegularlyUpdated(pActInfo->myID, false);
