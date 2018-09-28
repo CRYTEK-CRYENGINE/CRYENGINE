@@ -19,8 +19,8 @@ public:
 
 	virtual EAnimValue        GetValueType() override           { return eAnimValue_Float; }
 
-	virtual TMovieSystemValue GetValue(SAnimTime time) const override;
-	virtual void              SetValue(SAnimTime time, const TMovieSystemValue& value) override;
+	virtual TMovieSystemValue GetValue(const CTimeValue& time) const override;
+	virtual void              SetValue(const CTimeValue& time, const TMovieSystemValue& value) override;
 	virtual TMovieSystemValue GetDefaultValue() const override;
 	virtual void              SetDefaultValue(const TMovieSystemValue& value) override;
 
@@ -28,7 +28,7 @@ public:
 	virtual void              SerializeKey(S2DBezierKey& key, XmlNodeRef& keyNode, bool bLoading) override;
 
 private:
-	float SampleCurve(SAnimTime time) const;
+	float SampleCurve(const CTimeValue& time) const;
 
 	Vec2 m_defaultValue;
 

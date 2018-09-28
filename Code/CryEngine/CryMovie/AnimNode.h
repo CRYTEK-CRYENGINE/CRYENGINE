@@ -77,8 +77,8 @@ public:
 
 	virtual void                            StillUpdate() override              {}
 
-	virtual void                            PrecacheStatic(SAnimTime startTime) {} // Called when the Sequence is explicitly precached
-	virtual void                            PrecacheDynamic(SAnimTime time)     {} // Called while playing
+	virtual void                            PrecacheStatic(const CTimeValue& startTime) {} // Called when the Sequence is explicitly precached
+	virtual void                            PrecacheDynamic(const CTimeValue& time)     {} // Called while playing
 
 	virtual void                            Serialize(XmlNodeRef& xmlNode, bool bLoading, bool bLoadEmptyTracks) override;
 
@@ -102,7 +102,7 @@ public:
 	virtual void             SetTrack(const CAnimParamType& paramType, IAnimTrack* track) override;
 	virtual IAnimTrack*      CreateTrack(const CAnimParamType& paramType) override;
 	virtual void             InitializeTrackDefaultValue(IAnimTrack* pTrack, const CAnimParamType& paramType) override {}
-	virtual void             SetTimeRange(TRange<SAnimTime> timeRange) override;
+	virtual void             SetTimeRange(TRange<CTimeValue> timeRange) override;
 	virtual void             AddTrack(IAnimTrack* pTrack) override;
 	virtual bool             RemoveTrack(IAnimTrack* pTrack) override;
 	virtual void             SerializeAnims(XmlNodeRef& xmlNode, bool bLoading, bool bLoadEmptyTracks);

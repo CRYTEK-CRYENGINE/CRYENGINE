@@ -9,7 +9,7 @@ CGotoTrack::CGotoTrack()
 	m_defaultValue = -1.0f;
 }
 
-TMovieSystemValue CGotoTrack::GetValue(SAnimTime time) const
+TMovieSystemValue CGotoTrack::GetValue(const CTimeValue& time) const
 {
 	size_t nTotalKeys(m_keys.size());
 
@@ -35,7 +35,7 @@ TMovieSystemValue CGotoTrack::GetValue(SAnimTime time) const
 	return TMovieSystemValue(m_defaultValue);
 }
 
-void CGotoTrack::SetValue(SAnimTime time, const TMovieSystemValue& value)
+void CGotoTrack::SetValue(const CTimeValue& time, const TMovieSystemValue& value)
 {
 	SDiscreteFloatKey oKey;
 	oKey.m_value = stl::get<float>(value);

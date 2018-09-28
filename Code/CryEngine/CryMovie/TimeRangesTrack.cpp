@@ -25,19 +25,19 @@ void CTimeRangesTrack::SerializeKey(STimeRangeKey& key, XmlNodeRef& keyNode, boo
 			keyNode->setAttr("loop", key.m_bLoop);
 		}
 
-		if (key.m_startTime != 0.0f)
+		if (key.m_startTime != 0)
 		{
 			keyNode->setAttr("start", key.m_startTime);
 		}
 
-		if (key.m_endTime != 0.0f)
+		if (key.m_endTime != 0)
 		{
 			keyNode->setAttr("end", key.m_endTime);
 		}
 	}
 }
 
-int CTimeRangesTrack::GetActiveKeyIndexForTime(const SAnimTime time)
+int CTimeRangesTrack::GetActiveKeyIndexForTime(const CTimeValue& time)
 {
 	const unsigned int numKeys = m_keys.size();
 

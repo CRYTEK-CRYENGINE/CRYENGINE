@@ -30,7 +30,7 @@ CCompoundSplineTrack::CCompoundSplineTrack(const CAnimParamType& paramType, int 
 	m_subTrackNames[3] = "W";
 }
 
-void CCompoundSplineTrack::SetTimeRange(TRange<SAnimTime> timeRange)
+void CCompoundSplineTrack::SetTimeRange(TRange<CTimeValue> timeRange)
 {
 	for (int i = 0; i < m_nDimensions; i++)
 	{
@@ -78,7 +78,7 @@ bool CCompoundSplineTrack::Serialize(XmlNodeRef& xmlNode, bool bLoading, bool bL
 	return true;
 }
 
-TMovieSystemValue CCompoundSplineTrack::GetValue(SAnimTime time) const
+TMovieSystemValue CCompoundSplineTrack::GetValue(const CTimeValue& time) const
 {
 	switch (m_valueType)
 	{
@@ -304,14 +304,14 @@ void CCompoundSplineTrack::ClearKeys()
 	}
 }
 
-SAnimTime CCompoundSplineTrack::GetKeyTime(int index) const
+CTimeValue CCompoundSplineTrack::GetKeyTime(int index) const
 {
 	assert(index >= 0 && index < GetNumKeys());
 	int i = GetSubTrackIndex(index);
 	assert(i >= 0);
 	if (i < 0)
 	{
-		return SAnimTime::Min();
+		return CTimeValue::Min();
 	}
 	return m_subTracks[i]->GetKeyTime(index);
 }
@@ -319,14 +319,14 @@ SAnimTime CCompoundSplineTrack::GetKeyTime(int index) const
 int CCompoundSplineTrack::NextKeyByTime(int key) const
 {
 	assert(key >= 0 && key < GetNumKeys());
-	SAnimTime time = GetKeyTime(key);
+	CTimeValue time = GetKeyTime(key);
 	int count = 0, result = -1;
-	SAnimTime timeNext = SAnimTime::Max();
+	CTimeValue timeNext = CTimeValue::Max();
 	for (int i = 0; i < GetSubTrackCount(); ++i)
 	{
 		for (int k = 0; k < m_subTracks[i]->GetNumKeys(); ++k)
 		{
-			SAnimTime t = m_subTracks[i]->GetKeyTime(k);
+			CTimeValue t = m_subTracks[i]->GetKeyTime(k);
 			if (t > time)
 			{
 				if (t < timeNext)

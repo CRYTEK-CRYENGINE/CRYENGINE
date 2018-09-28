@@ -50,7 +50,7 @@ CAnimSceneNode::CAnimSceneNode(const int id) : CAnimNode(id)
 	m_backedUpFovForInterp = kDefaultCameraFOV;
 	m_pCurrentCameraTrack = 0;
 	m_currentCameraTrackKeyNumber = 0;
-	m_lastPrecachePoint = SAnimTime::Min();
+	m_lastPrecachePoint = CTimeValue::Min();
 	SetName("Scene");
 
 	CAnimSceneNode::Initialize();
@@ -179,7 +179,7 @@ void CAnimSceneNode::Animate(SAnimContext& animContext)
 
 	if (gEnv->IsEditor() && m_time > animContext.time)
 	{
-		m_lastPrecachePoint = SAnimTime::Min();
+		m_lastPrecachePoint = CTimeValue::Min();
 	}
 
 	PrecacheDynamic(animContext.time);
@@ -230,9 +230,9 @@ void CAnimSceneNode::Animate(SAnimContext& animContext)
 		case eAnimParamType_TimeWarp:
 			{
 				const TMovieSystemValue value = pTrack->GetValue(animContext.time);
-				const float timeScale = std::max(stl::get<float>(value), 0.0f);
+				const mpfloat timeScale = BADMP(std::max(stl::get<float>(value), 0.0f));
 
-				float fixedTimeStep = 0;
+				CTimeValue fixedTimeStep;
 
 				if (GetSequence()->GetFlags() & IAnimSequence::eSeqFlags_CanWarpInFixedTime)
 				{
@@ -241,12 +241,12 @@ void CAnimSceneNode::Animate(SAnimContext& animContext)
 
 				if (fixedTimeStep == 0)
 				{
-					if (m_cvar_t_FixedStep && (m_cvar_t_FixedStep->GetFVal() != 0) && !(GetSequence()->GetFlags() & IAnimSequence::eSeqFlags_Capture))
+					if (m_cvar_t_FixedStep && (m_cvar_t_FixedStep->GetTime() != 0) && !(GetSequence()->GetFlags() & IAnimSequence::eSeqFlags_Capture))
 					{
-						m_cvar_t_FixedStep->Set(0.0f);
+						m_cvar_t_FixedStep->Set(0);
 					}
 
-					gEnv->pTimer->SetTimeScale(timeScale, ITimer::eTSC_Trackview);
+					GetGTimer()->SetTimeScale(timeScale, ITimer::eTSC_Trackview);
 				}
 				else if (m_cvar_t_FixedStep)
 				{
@@ -262,7 +262,7 @@ void CAnimSceneNode::Animate(SAnimContext& animContext)
 
 				if (m_cvar_t_FixedStep)
 				{
-					m_cvar_t_FixedStep->Set(timeStep);
+					m_cvar_t_FixedStep->Set(BADTIME(timeStep));
 				}
 			}
 			break;
@@ -474,7 +474,7 @@ void CAnimSceneNode::OnReset()
 
 	if (GetTrackForParameter(eAnimParamType_TimeWarp))
 	{
-		gEnv->pTimer->SetTimeScale(1.0f, ITimer::eTSC_Trackview);
+		GetGTimer()->SetTimeScale(1, ITimer::eTSC_Trackview);
 
 		if (m_cvar_t_FixedStep)
 		{
@@ -502,9 +502,9 @@ void CAnimSceneNode::ApplyCameraKey(SCameraKey& key, SAnimContext& animContext)
 	{
 		m_pCurrentCameraTrack->GetKey(nextCameraKeyNumber, &nextKey);
 
-		SAnimTime interTime = nextKey.m_time - animContext.time;
+		CTimeValue interTime = nextKey.m_time - animContext.time;
 
-		if (interTime >= SAnimTime(0) && interTime <= SAnimTime(key.m_blendTime))
+		if (interTime >= 0 && interTime <= key.m_blendTime)
 		{
 			bInterpolateCamera = true;
 		}
@@ -572,7 +572,7 @@ void CAnimSceneNode::ApplyCameraKey(SCameraKey& key, SAnimContext& animContext)
 
 	if (bInterpolateCamera && pFirstCameraEntity && pSecondCameraEntity)
 	{
-		float t = 1 - ((nextKey.m_time - animContext.time).ToFloat() / key.m_blendTime);
+		float t = 1 - BADF(nextKey.m_time.GetSeconds() - (animContext.time / key.m_blendTime).conv<mpfloat>());
 		t = min(t, 1.0f);
 		t = pow(t, 3) * (t * (t * 6 - 15) + 10);
 
@@ -805,13 +805,13 @@ void CAnimSceneNode::ApplySequenceKey(IAnimTrack* pTrack, int nPrevKey, int nCur
 
 		if (pSequence)
 		{
-			SAnimTime startTime = SAnimTime::Min();
-			SAnimTime endTime = SAnimTime::Max();
-			SAnimTime duration;
+			CTimeValue startTime = CTimeValue::Min();
+			CTimeValue endTime = CTimeValue::Max();
+			CTimeValue duration;
 
 			if (key.m_boverrideTimes)
 			{
-				duration = max((key.m_endTime - key.m_startTime), SAnimTime(0));
+				duration = max((key.m_endTime - key.m_startTime), CTimeValue(0));
 				startTime = key.m_startTime;
 				endTime = key.m_endTime;
 			}
@@ -851,7 +851,7 @@ void CAnimSceneNode::ApplyGotoKey(CGotoTrack* poGotoTrack, SAnimContext& animCon
 			if (discreteFloadKey.m_value >= 0)
 			{
 				string fullname = m_pSequence->GetName();
-				gEnv->pMovieSystem->GoToFrame(fullname.c_str(), discreteFloadKey.m_value);
+				gEnv->pMovieSystem->GoToFrame(fullname.c_str(), BADTIME(discreteFloadKey.m_value));
 			}
 		}
 	}
@@ -859,7 +859,7 @@ void CAnimSceneNode::ApplyGotoKey(CGotoTrack* poGotoTrack, SAnimContext& animCon
 	m_nLastGotoKey = currentActiveKeyIndex;
 }
 
-bool CAnimSceneNode::GetEntityTransform(IAnimSequence* pSequence, IEntity* pEntity, SAnimTime time, Vec3& vCamPos, Quat& qCamRot)
+bool CAnimSceneNode::GetEntityTransform(IAnimSequence* pSequence, IEntity* pEntity, const CTimeValue& time, Vec3& vCamPos, Quat& qCamRot)
 {
 	const uint iNodeCount = pSequence->GetNodeCount();
 
@@ -891,7 +891,7 @@ bool CAnimSceneNode::GetEntityTransform(IAnimSequence* pSequence, IEntity* pEnti
 	return false;
 }
 
-bool CAnimSceneNode::GetEntityTransform(IEntity* pEntity, SAnimTime time, Vec3& vCamPos, Quat& qCamRot)
+bool CAnimSceneNode::GetEntityTransform(IEntity* pEntity, const CTimeValue& time, Vec3& vCamPos, Quat& qCamRot)
 {
 	CRY_ASSERT(pEntity != NULL);
 
@@ -949,9 +949,9 @@ void CAnimSceneNode::Serialize(XmlNodeRef& xmlNode, bool bLoading, bool bLoadEmp
 	SetFlags(GetFlags() | eAnimNodeFlags_CanChangeName);
 }
 
-void CAnimSceneNode::PrecacheStatic(SAnimTime startTime)
+void CAnimSceneNode::PrecacheStatic(const CTimeValue& startTime)
 {
-	m_lastPrecachePoint = SAnimTime::Min();
+	m_lastPrecachePoint = CTimeValue::Min();
 
 	const uint numTracks = GetTrackCount();
 
@@ -980,10 +980,10 @@ void CAnimSceneNode::PrecacheStatic(SAnimTime startTime)
 	}
 }
 
-void CAnimSceneNode::PrecacheDynamic(SAnimTime time)
+void CAnimSceneNode::PrecacheDynamic(const CTimeValue& time)
 {
 	const uint numTracks = GetTrackCount();
-	SAnimTime lastPrecachePoint = m_lastPrecachePoint;
+	CTimeValue lastPrecachePoint = m_lastPrecachePoint;
 
 	for (uint trackIndex = 0; trackIndex < numTracks; ++trackIndex)
 	{
@@ -1009,16 +1009,16 @@ void CAnimSceneNode::PrecacheDynamic(SAnimTime time)
 		}
 		else if (pAnimTrack->GetParameterType() == eAnimParamType_Camera)
 		{
-			const float fPrecacheCameraTime = CMovieSystem::m_mov_cameraPrecacheTime;
+			const CTimeValue fPrecacheCameraTime = CMovieSystem::m_mov_cameraPrecacheTime;
 
-			if (fPrecacheCameraTime > 0.f)
+			if (fPrecacheCameraTime > 0)
 			{
 				CCameraTrack* pCameraTrack = static_cast<CCameraTrack*>(pAnimTrack);
 
 				SCameraKey key;
-				int keyID = pCameraTrack->GetActiveKey(time + SAnimTime(fPrecacheCameraTime), &key);
+				int keyID = pCameraTrack->GetActiveKey(time + fPrecacheCameraTime, &key);
 
-				if (time < key.m_time && (time + SAnimTime(fPrecacheCameraTime)) > key.m_time && key.m_time > m_lastPrecachePoint)
+				if (time < key.m_time && (time + fPrecacheCameraTime) > key.m_time && key.m_time > m_lastPrecachePoint)
 				{
 					lastPrecachePoint = max(key.m_time, lastPrecachePoint);
 					IEntity* pCameraEntity = gEnv->pEntitySystem->FindEntityByName(key.m_selection);

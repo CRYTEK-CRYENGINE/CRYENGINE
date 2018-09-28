@@ -20,7 +20,7 @@ public:
 	virtual EAnimValue        GetValueType() override           { return eAnimValue_Bool; };
 	virtual CAnimParamType    GetParameterType() const override { return m_paramType; }
 
-	virtual TMovieSystemValue GetValue(SAnimTime time) const override;
+	virtual TMovieSystemValue GetValue(const CTimeValue& time) const override;
 	virtual TMovieSystemValue GetDefaultValue() const override;
 	virtual void              SetDefaultValue(const TMovieSystemValue& defaultValue) override;
 

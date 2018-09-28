@@ -23,13 +23,13 @@ public:
 	virtual void                        RemoveKey(int num) override;
 	virtual void                        ClearKeys() override;
 
-	virtual int                         CreateKey(SAnimTime time) override               { assert(0); return 0; };
+	virtual int                         CreateKey(const CTimeValue& time) override       { assert(0); return 0; };
 	virtual const char*                 GetKeyType() const override                      { return STrackKey::GetType(); }
 	virtual bool                        KeysDeriveTrackDurationKey() const override      { return false; }
 	virtual _smart_ptr<IAnimKeyWrapper> GetWrappedKey(int key) override;
 	virtual void                        GetKey(int index, STrackKey* key) const override { assert(0); };
-	virtual SAnimTime                   GetKeyTime(int index) const override;
-	virtual int                         FindKey(SAnimTime time) override                 { assert(0); return 0; };
+	virtual CTimeValue                  GetKeyTime(int index) const override;
+	virtual int                         FindKey(const CTimeValue& time) override         { assert(0); return 0; };
 	virtual void                        SetKey(int index, const STrackKey* key) override { assert(0); };
 
 	virtual int                         GetFlags() override                              { return m_flags; };
@@ -37,7 +37,7 @@ public:
 	virtual void                        SetFlags(int flags) override                     { m_flags = flags; };
 
 	// Get track value at specified time. Interpolates keys if needed.
-	virtual TMovieSystemValue GetValue(SAnimTime time) const override;
+	virtual TMovieSystemValue GetValue(const CTimeValue& time) const override;
 
 	// Get track default value
 	virtual TMovieSystemValue GetDefaultValue() const override;
@@ -45,13 +45,13 @@ public:
 	// Set track default value
 	virtual void SetDefaultValue(const TMovieSystemValue& value) override;
 
-	virtual void SetTimeRange(TRange<SAnimTime> timeRange) override;
+	virtual void SetTimeRange(TRange<CTimeValue> timeRange) override;
 
 	virtual void Serialize(Serialization::IArchive& ar) override {}
 
 	virtual bool Serialize(XmlNodeRef& xmlNode, bool bLoading, bool bLoadEmptyTracks = true) override;
 
-    virtual bool SerializeKeys(XmlNodeRef& xmlNode, bool bLoading, std::vector<SAnimTime>& keys, const SAnimTime time = SAnimTime(0)) override { return false; };
+    virtual bool SerializeKeys(XmlNodeRef& xmlNode, bool bLoading, std::vector<CTimeValue>& keys, const CTimeValue& time = 0) override { return false; };
 
 	virtual int  NextKeyByTime(int key) const override;
 

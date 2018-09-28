@@ -3,7 +3,7 @@
 #include "StdAfx.h"
 #include "CharacterTrack.h"
 
-#define LOOP_TRANSITION_TIME SAnimTime(1.0f)
+#define LOOP_TRANSITION_TIME CTimeValue(1)
 
 //////////////////////////////////////////////////////////////////////////
 bool CCharacterTrack::Serialize(XmlNodeRef& xmlNode, bool bLoading, bool bLoadEmptyTracks)
@@ -56,26 +56,26 @@ void CCharacterTrack::SerializeKey(SCharacterKey& key, XmlNodeRef& keyNode, bool
 			keyNode->setAttr("unload", key.m_bUnload);
 		if (key.m_bInPlace)
 			keyNode->setAttr("inplace", key.m_bInPlace);
-		if (key.m_startTime != 0.0f)
+		if (key.m_startTime != 0)
 			keyNode->setAttr("start", key.m_startTime);
-		if (key.m_endTime != 0.0f)
+		if (key.m_endTime != 0)
 			keyNode->setAttr("end", key.m_endTime);
 	}
 }
 
-float CCharacterTrack::GetKeyDuration(int key) const
+CTimeValue CCharacterTrack::GetKeyDuration(int key) const
 {
 	assert(key >= 0 && key < (int)m_keys.size());
 	const float EPSILON = 0.001f;
 	if (m_keys[key].m_bLoop)
 	{
-		SAnimTime lastTime = m_timeRange.end;
-		if (key + 1 < (int)m_keys.size() && m_keys[key + 1].GetAnimDuration() > SAnimTime(0.0f))
+		CTimeValue lastTime = m_timeRange.end;
+		if (key + 1 < (int)m_keys.size() && m_keys[key + 1].GetAnimDuration() > 0)
 		{
-			lastTime = m_keys[key + 1].m_time + min(LOOP_TRANSITION_TIME, SAnimTime(GetKeyDuration(key + 1)));
+			lastTime = m_keys[key + 1].m_time + min(LOOP_TRANSITION_TIME, GetKeyDuration(key + 1));
 		}
 		// duration is unlimited but cannot last past end of track or time of next key on track.
-		return max(lastTime - m_keys[key].m_time, SAnimTime(0.0f)).ToFloat();
+		return max(lastTime - m_keys[key].m_time, CTimeValue(0));
 	}
 	else
 	{

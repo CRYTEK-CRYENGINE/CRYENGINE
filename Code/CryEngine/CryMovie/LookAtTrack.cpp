@@ -22,11 +22,11 @@ void CLookAtTrack::SerializeKey(SLookAtKey& key, XmlNodeRef& keyNode, bool bLoad
 	if (bLoading)
 	{
 		const char* pSelection = keyNode->getAttr("node");
-		f32 smoothTime;
+		nTime smoothTime;
 
 		if (!keyNode->getAttr("smoothTime", smoothTime))
 		{
-			smoothTime = 0.0f;
+			smoothTime = 0;
 		}
 
 		const char* lookPose = keyNode->getAttr("lookPose");

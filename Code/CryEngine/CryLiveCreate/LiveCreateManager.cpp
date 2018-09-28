@@ -139,7 +139,7 @@ bool CHostInfo::Connect()
 	                        GetTargetName(), GetPlatformName(), remoteAddress.ToString().c_str());
 
 	// Request a ready flag (until we don't get it the connection is in unconfirmed state)
-	m_lastReadyInfoRequestSentTime = gEnv->pTimer->GetAsyncTime().GetMilliSecondsAsInt64();
+	m_lastReadyInfoRequestSentTime = GetGTimer()->GetAsyncTime().GetMilliSecondsAsInt64();
 	SendRequestMessage("GetReadyFlag");
 
 	// Cleanup the readiness flag
@@ -257,7 +257,7 @@ void CHostInfo::Update()
 		// Ask for the ready-busy flag, if we do not have a confirmed connection yet as a little bit more often
 		{
 			const int64 kResendTime = m_bIsConnectionConfirmed ? 5000 : 500; // ms
-			const int64 currentTime = gEnv->pTimer->GetAsyncTime().GetMilliSecondsAsInt64();
+			const int64 currentTime = GetGTimer()->GetAsyncTime().GetMilliSecondsAsInt64();
 			if ((currentTime - m_lastReadyInfoRequestSentTime) > kResendTime)
 			{
 				m_pManager->LogMessagef(eLogType_Normal, "Requesting ready flag '%s'",

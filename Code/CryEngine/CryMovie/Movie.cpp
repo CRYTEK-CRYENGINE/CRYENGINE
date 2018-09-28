@@ -36,7 +36,7 @@
 #include <../CryAction/IViewSystem.h>
 
 int CMovieSystem::m_mov_NoCutscenes = 0;
-float CMovieSystem::m_mov_cameraPrecacheTime = 1.f;
+CTimeValue CMovieSystem::m_mov_cameraPrecacheTime = 1;
 #if !defined(_RELEASE)
 int CMovieSystem::m_mov_debugCamShake = 0;
 int CMovieSystem::m_mov_debugSequences = 0;
@@ -208,13 +208,13 @@ CMovieSystem::CMovieSystem(ISystem* pSystem)
 	m_bPaused = false;
 	m_bEnableCameraShake = true;
 	m_sequenceStopBehavior = eSSB_GotoEndTime;
-	m_lastUpdateTime.SetValue(0);
+	m_lastUpdateTime.SetSeconds(0);
 	m_captureSeq = NULL;
 	m_bStartCapture = false;
 	m_bEndCapture = false;
 	m_bPreEndCapture = false; // this flag indicates the period of time when "Capture Started" was finished, but "Capture End" has not yet begun.
 	m_bIsInGameCutscene = false;
-	m_fixedTimeStepBackUp = 0;
+	m_fixedTimeStepBackUp.SetSeconds(0);
 	m_cvar_capture_file_format = NULL;
 	m_cvar_capture_frame_once = NULL;
 	m_cvar_capture_folder = NULL;
@@ -228,7 +228,7 @@ CMovieSystem::CMovieSystem(ISystem* pSystem)
 	m_nextSequenceId = 1;
 
 	REGISTER_CVAR2("mov_NoCutscenes", &m_mov_NoCutscenes, 0, 0, "Disable playing of Cut-Scenes");
-	REGISTER_CVAR2("mov_cameraPrecacheTime", &m_mov_cameraPrecacheTime, 1.f, VF_NULL, "");
+	REGISTER_CVAR2("mov_cameraPrecacheTime", &m_mov_cameraPrecacheTime, CTimeValue(1), VF_NULL, "");
 #if !defined(_RELEASE)
 	REGISTER_CVAR2("mov_debugSequences", &m_mov_debugSequences, 0, VF_NULL, "Sequence debug info (0 = off, 1 = only active sequences, 2 = all sequences, 3 = detailed node-in-use info per sequence");
 #endif
@@ -555,7 +555,7 @@ void CMovieSystem::RemoveAllSequences()
 	SetCallback(pCallback);
 }
 
-void CMovieSystem::PlaySequence(const char* pSequenceName, IAnimSequence* pParentSeq, bool bResetFx, bool bTrackedSequence, SAnimTime startTime, SAnimTime endTime)
+void CMovieSystem::PlaySequence(const char* pSequenceName, IAnimSequence* pParentSeq, bool bResetFx, bool bTrackedSequence, const CTimeValue& startTime, const CTimeValue& endTime)
 {
 	IAnimSequence* pSequence = FindSequence(pSequenceName);
 
@@ -570,7 +570,7 @@ void CMovieSystem::PlaySequence(const char* pSequenceName, IAnimSequence* pParen
 }
 
 void CMovieSystem::PlaySequence(IAnimSequence* pSequence, IAnimSequence* parentSeq,
-                                bool bResetFx, bool bTrackedSequence, SAnimTime startTime, SAnimTime endTime)
+                                bool bResetFx, bool bTrackedSequence, const CTimeValue& startTime, const CTimeValue& endTime)
 {
 	assert(pSequence != 0);
 
@@ -608,10 +608,10 @@ void CMovieSystem::PlaySequence(IAnimSequence* pSequence, IAnimSequence* parentS
 
 	PlayingSequence ps;
 	ps.sequence = pSequence;
-	ps.startTime = startTime == SAnimTime::Min() ? pSequence->GetTimeRange().start : startTime;
-	ps.endTime = endTime == SAnimTime::Min() ? pSequence->GetTimeRange().end : endTime;
-	ps.currentTime = startTime == SAnimTime::Min() ? pSequence->GetTimeRange().start : startTime;
-	ps.currentSpeed = 1.0f;
+	ps.startTime = startTime   == CTimeValue::Min() ? pSequence->GetTimeRange().start : startTime;
+	ps.endTime   = endTime     == CTimeValue::Min() ? pSequence->GetTimeRange().end   : endTime;
+	ps.currentTime = startTime == CTimeValue::Min() ? pSequence->GetTimeRange().start : startTime;
+	ps.currentSpeed = 1;
 	ps.trackedSequence = bTrackedSequence;
 	ps.bSingleFrame = false;
 	// Make sure all members are initialized before pushing.
@@ -896,17 +896,17 @@ void CMovieSystem::StillUpdate()
 	}
 }
 
-void CMovieSystem::PreUpdate(float deltaTime)
+void CMovieSystem::PreUpdate(const CTimeValue& deltaTime)
 {
 	UpdateInternal(deltaTime, true);
 }
 
-void CMovieSystem::PostUpdate(float deltaTime)
+void CMovieSystem::PostUpdate(const CTimeValue& deltaTime)
 {
 	UpdateInternal(deltaTime, false);
 }
 
-void CMovieSystem::UpdateInternal(const float deltaTime, const bool bPreUpdate)
+void CMovieSystem::UpdateInternal(const CTimeValue& deltaTime, const bool bPreUpdate)
 {
 	SAnimContext animContext;
 
@@ -921,9 +921,9 @@ void CMovieSystem::UpdateInternal(const float deltaTime, const bool bPreUpdate)
 	}
 
 	// don't update more than once if dt==0.0
-	CTimeValue curTime = gEnv->pTimer->GetFrameStartTime();
+	CTimeValue curTime = GetGTimer()->GetFrameStartTime();
 
-	if (deltaTime == 0.0f && curTime == m_lastUpdateTime && !gEnv->IsEditor())
+	if (deltaTime == 0 && curTime == m_lastUpdateTime && !gEnv->IsEditor())
 	{
 		return;
 	}
@@ -943,7 +943,7 @@ void CMovieSystem::UpdateInternal(const float deltaTime, const bool bPreUpdate)
 			continue;
 		}
 
-		const SAnimTime scaledTimeDelta = SAnimTime(deltaTime * playingSequence.currentSpeed);
+		const CTimeValue scaledTimeDelta = deltaTime * playingSequence.currentSpeed;
 
 		// Increase play time in pre-update
 		if (bPreUpdate)
@@ -1107,11 +1107,11 @@ void CMovieSystem::Resume()
 	m_bPaused = false;
 }
 
-SAnimTime CMovieSystem::GetPlayingTime(IAnimSequence* pSequence)
+CTimeValue CMovieSystem::GetPlayingTime(IAnimSequence* pSequence)
 {
 	if (!pSequence || !IsPlaying(pSequence))
 	{
-		return SAnimTime::Min();
+		return CTimeValue::Min();
 	}
 
 	PlayingSequences::const_iterator it;
@@ -1121,14 +1121,14 @@ SAnimTime CMovieSystem::GetPlayingTime(IAnimSequence* pSequence)
 		return it->currentTime;
 	}
 
-	return SAnimTime::Min();
+	return CTimeValue::Min();
 }
 
-float CMovieSystem::GetPlayingSpeed(IAnimSequence* pSequence)
+mpfloat CMovieSystem::GetPlayingSpeed(IAnimSequence* pSequence)
 {
 	if (!pSequence || !IsPlaying(pSequence))
 	{
-		return -1.0f;
+		return -1;
 	}
 
 	PlayingSequences::const_iterator it;
@@ -1138,10 +1138,10 @@ float CMovieSystem::GetPlayingSpeed(IAnimSequence* pSequence)
 		return it->currentSpeed;
 	}
 
-	return -1.0f;
+	return -1;
 }
 
-bool CMovieSystem::SetPlayingTime(IAnimSequence* pSequence, SAnimTime fTime)
+bool CMovieSystem::SetPlayingTime(IAnimSequence* pSequence, const CTimeValue& fTime)
 {
 	if (!pSequence || !IsPlaying(pSequence))
 	{
@@ -1161,7 +1161,7 @@ bool CMovieSystem::SetPlayingTime(IAnimSequence* pSequence, SAnimTime fTime)
 	return false;
 }
 
-bool CMovieSystem::SetPlayingSpeed(IAnimSequence* pSequence, float fSpeed)
+bool CMovieSystem::SetPlayingSpeed(IAnimSequence* pSequence, const mpfloat& fSpeed)
 {
 	if (!pSequence)
 	{
@@ -1180,10 +1180,10 @@ bool CMovieSystem::SetPlayingSpeed(IAnimSequence* pSequence, float fSpeed)
 	return false;
 }
 
-bool CMovieSystem::GetStartEndTime(IAnimSequence* pSequence, SAnimTime& fStartTime, SAnimTime& fEndTime)
+bool CMovieSystem::GetStartEndTime(IAnimSequence* pSequence, CTimeValue& fStartTime, CTimeValue& fEndTime)
 {
-	fStartTime = SAnimTime(0);
-	fEndTime = SAnimTime(0);
+	fStartTime.SetSeconds(0);
+	fEndTime.SetSeconds(0);
 
 	if (!pSequence || !IsPlaying(pSequence))
 	{
@@ -1202,7 +1202,7 @@ bool CMovieSystem::GetStartEndTime(IAnimSequence* pSequence, SAnimTime& fStartTi
 	return false;
 }
 
-bool CMovieSystem::SetStartEndTime(IAnimSequence* pSeq, const SAnimTime fStartTime, const SAnimTime fEndTime)
+bool CMovieSystem::SetStartEndTime(IAnimSequence* pSeq, const CTimeValue& fStartTime, const CTimeValue& fEndTime)
 {
 	if (!pSeq || !IsPlaying(pSeq))
 	{
@@ -1263,7 +1263,7 @@ void CMovieSystem::GoToFrameCmd(IConsoleCmdArgs* pArgs)
 	}
 
 	const char* pSeqName = pArgs->GetArg(1);
-	float targetFrame = (float)atof(pArgs->GetArg(2));
+	CTimeValue targetFrame = CTimeValue(mpfloat(pArgs->GetArg(2)));
 
 	((CMovieSystem*)gEnv->pMovieSystem)->GoToFrame(pSeqName, targetFrame);
 }
@@ -1325,7 +1325,7 @@ void CMovieSystem::ShowPlayedSequencesDebug()
 		if (!bIsRunning && m_mov_debugSequences == 1)
 			continue;
 
-		const SAnimTime playingTime = bIsRunning ? GetPlayingTime(currentSequence) : SAnimTime(0);
+		const CTimeValue playingTime = bIsRunning ? GetPlayingTime(currentSequence) : 0;
 
 		float x = 1.0f;
 		IRenderAuxText::Draw2dLabel(x, y, 1.2f, bIsRunning ? green : white, false, "%s", szSeqName);
@@ -1334,7 +1334,7 @@ void CMovieSystem::ShowPlayedSequencesDebug()
 		IRenderAuxText::Draw2dLabel(x, y, 1.2f, bIsRunning ? green : white, false, "x %1.1f", GetPlayingSpeed(currentSequence));
 
 		x += 100.0f;
-		IRenderAuxText::Draw2dLabel(x, y, 1.2f, bIsRunning ? green : white, false, "%u", playingTime.GetTicks());
+		IRenderAuxText::Draw2dLabel(x, y, 1.2f, bIsRunning ? green : white, false, "%u", uint(playingTime.GetSeconds() * GetGTimer()->GetTicksPerSecond()));
 
 		if (m_mov_debugSequences == 3)
 		{
@@ -1373,7 +1373,7 @@ void CMovieSystem::ShowPlayedSequencesDebug()
 }
 #endif //#if !defined(_RELEASE)
 
-void CMovieSystem::GoToFrame(const char* seqName, float targetFrame)
+void CMovieSystem::GoToFrame(const char* seqName, const CTimeValue& targetFrame)
 {
 	assert(seqName != NULL);
 
@@ -1394,8 +1394,8 @@ void CMovieSystem::GoToFrame(const char* seqName, float targetFrame)
 
 		if (strcmp(fullname, seqName) == 0)
 		{
-			assert(ps.sequence->GetTimeRange().start <= SAnimTime(targetFrame) && SAnimTime(targetFrame) <= ps.sequence->GetTimeRange().end);
-			ps.currentTime = SAnimTime(targetFrame);
+			assert(ps.sequence->GetTimeRange().start <= targetFrame && targetFrame <= ps.sequence->GetTimeRange().end);
+			ps.currentTime = targetFrame;
 			ps.bSingleFrame = true;
 			break;
 		}
@@ -1457,7 +1457,7 @@ void CMovieSystem::ControlCapture()
 		m_cvar_capture_folder->Set(m_captureKey.m_folder);
 		m_cvar_capture_file_prefix->Set(m_captureKey.m_prefix);
 
-		m_fixedTimeStepBackUp = m_cvar_t_FixedStep->GetFVal();
+		m_fixedTimeStepBackUp = m_cvar_t_FixedStep->GetTime();
 		m_cvar_t_FixedStep->Set(m_captureKey.m_timeStep);
 		m_cvar_capture_frames->Set(m_captureKey.GetStartTimeInFrames() + 1);
 

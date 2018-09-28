@@ -33,7 +33,7 @@ public:
 	virtual void                        RemoveKey(int num) override;
 	virtual void                        ClearKeys() override;
 
-	virtual int                         CreateKey(SAnimTime time) override;
+	virtual int                         CreateKey(const CTimeValue& time) override;
 
 	virtual const char*                 GetKeyType() const override;
 	virtual bool                        KeysDeriveTrackDurationKey() const override;
@@ -45,18 +45,18 @@ public:
 
 	//! Get time of specified key.
 	//! @return key time.
-	virtual SAnimTime GetKeyTime(int index) const override;
+	virtual CTimeValue GetKeyTime(int index) const override;
 
 	//! Find key at given time.
 	//! @return Index of found key, or -1 if key with this time not found.
-	virtual int FindKey(SAnimTime time) override;
+	virtual int FindKey(const CTimeValue& time) override;
 
 	//! Set key at specified location.
 	//! @param key Must be valid pointer to compatible key structure.
 	virtual void SetKey(int index, const STrackKey* key) override;
 
 	//! Set or create a key at a specific time
-	void SetKeyAtTime(SAnimTime time, STrackKey* key);
+	void SetKeyAtTime(const CTimeValue& time, STrackKey* key);
 
 	//! Get track flags.
 	virtual int GetFlags() override { return m_flags; };
@@ -68,7 +68,7 @@ public:
 	virtual void SetFlags(int flags) override { m_flags = flags; };
 
 	// Get track value at specified time. Interpolates keys if needed.
-	virtual TMovieSystemValue GetValue(SAnimTime time) const override { return TMovieSystemValue(SMovieSystemVoid()); }
+	virtual TMovieSystemValue GetValue(const CTimeValue& time) const override { return TMovieSystemValue(SMovieSystemVoid()); }
 
 	// Get track default value
 	virtual TMovieSystemValue GetDefaultValue() const override { return TMovieSystemValue(SMovieSystemVoid()); }
@@ -78,7 +78,7 @@ public:
 
 	/** Assign active time range for this track.
 	 */
-	virtual void SetTimeRange(TRange<SAnimTime> timeRange) override { m_timeRange = timeRange; }
+	virtual void SetTimeRange(TRange<CTimeValue> timeRange) override { m_timeRange = timeRange; }
 	
 	//! Serialize unique parameters for this track.
 	virtual void Serialize(Serialization::IArchive& ar) override {}
@@ -90,7 +90,7 @@ public:
 
 	/** Serialize the keys of this animation track to XML.
 	 */
-	virtual bool SerializeKeys(XmlNodeRef& xmlNode, bool bLoading, std::vector<SAnimTime>& keys, const SAnimTime time = SAnimTime(0)) override;
+	virtual bool SerializeKeys(XmlNodeRef& xmlNode, bool bLoading, std::vector<CTimeValue>& keys, const CTimeValue& time = CTimeValue(0)) override;
 
 	/** Serialize single key of this track.
 	    override this in derived classes.
@@ -101,7 +101,7 @@ public:
 	/** Get last key before specified time.
 	   @return Index of key, or -1 if such key not exist.
 	 */
-	int             GetActiveKey(SAnimTime time, KeyType* key);
+	int             GetActiveKey(const CTimeValue& time, KeyType* key);
 
 	virtual void    GetKeyValueRange(float& fMin, float& fMax) const override { fMin = m_fMinKeyValue; fMax = m_fMaxKeyValue; }
 	virtual void    SetKeyValueRange(float fMin, float fMax) override         { m_fMinKeyValue = fMin; m_fMaxKeyValue = fMax; }
@@ -113,10 +113,10 @@ protected:
 
 	typedef std::vector<KeyType> Keys;
 	Keys              m_keys;
-	TRange<SAnimTime> m_timeRange;
+	TRange<CTimeValue> m_timeRange;
 
 	int               m_currKey : 31;
-	SAnimTime         m_lastTime;
+	CTimeValue        m_lastTime;
 	int               m_flags;
 
 	float             m_fMinKeyValue;
@@ -125,8 +125,8 @@ protected:
 	struct SCompKeyTime
 	{
 		bool operator()(const KeyType& l, const KeyType& r) const { return l.m_time < r.m_time; }
-		bool operator()(SAnimTime l, const KeyType& r) const      { return l < r.m_time; }
-		bool operator()(const KeyType& l, SAnimTime r) const      { return l.m_time < r; }
+		bool operator()(const CTimeValue& l, const KeyType& r) const      { return l < r.m_time; }
+		bool operator()(const KeyType& l, const CTimeValue& r) const      { return l.m_time < r; }
 	};
 };
 
@@ -136,7 +136,7 @@ inline TAnimTrack<KeyType>::TAnimTrack()
 	, m_flags(0)
 	, m_fMinKeyValue(0.0f)
 	, m_fMaxKeyValue(0.0f)
-	, m_lastTime(SAnimTime::Min())
+	, m_lastTime(CTimeValue::Min())
 	, m_guid(CryGUID::Create())
 {
 }
@@ -172,14 +172,14 @@ inline void TAnimTrack<KeyType >::SetKey(int index, const STrackKey* key)
 }
 
 template<class KeyType>
-inline SAnimTime TAnimTrack<KeyType >::GetKeyTime(int index) const
+inline CTimeValue TAnimTrack<KeyType >::GetKeyTime(int index) const
 {
 	assert(index >= 0 && index < (int)m_keys.size());
 	return m_keys[index].m_time;
 }
 
 template<class KeyType>
-inline void TAnimTrack<KeyType >::SetKeyAtTime(SAnimTime time, STrackKey* key)
+inline void TAnimTrack<KeyType >::SetKeyAtTime(const CTimeValue& time, STrackKey* key)
 {
 	assert(key != 0);
 	const int keyIndex = FindKey(time);
@@ -198,7 +198,7 @@ inline void TAnimTrack<KeyType >::SetKeyAtTime(SAnimTime time, STrackKey* key)
 }
 
 template<class KeyType>
-inline int TAnimTrack<KeyType >::CreateKey(SAnimTime time)
+inline int TAnimTrack<KeyType >::CreateKey(const CTimeValue& time)
 {
 	const typename Keys::iterator iter = std::lower_bound(m_keys.begin(), m_keys.end(), time, SCompKeyTime());
 
@@ -210,7 +210,7 @@ inline int TAnimTrack<KeyType >::CreateKey(SAnimTime time)
 }
 
 template<class KeyType>
-inline int TAnimTrack<KeyType >::FindKey(SAnimTime time)
+inline int TAnimTrack<KeyType >::FindKey(const CTimeValue& time)
 {
 	const typename Keys::iterator iter = std::lower_bound(m_keys.begin(), m_keys.end(), time, SCompKeyTime());
 
@@ -229,7 +229,7 @@ inline bool TAnimTrack<KeyType >::Serialize(XmlNodeRef& xmlNode, bool bLoading, 
 	{
 		int num = xmlNode->getChildCount();
 
-		TRange<SAnimTime> timeRange;
+		TRange<CTimeValue> timeRange;
 		timeRange.start.Serialize(xmlNode, bLoading, "startTimeTicks", "StartTime");
 		timeRange.end.Serialize(xmlNode, bLoading, "endTimeTicks", "EndTime");
 		int flags = m_flags;
@@ -273,14 +273,14 @@ inline bool TAnimTrack<KeyType >::Serialize(XmlNodeRef& xmlNode, bool bLoading, 
 }
 
 template<class KeyType>
-inline bool TAnimTrack<KeyType >::SerializeKeys(XmlNodeRef& xmlNode, bool bLoading, std::vector<SAnimTime>& keys, const SAnimTime time)
+inline bool TAnimTrack<KeyType >::SerializeKeys(XmlNodeRef& xmlNode, bool bLoading, std::vector<CTimeValue>& keys, const CTimeValue& time)
 {
 	if (bLoading)
 	{
 		int numCur = GetNumKeys();
 		int numNew = xmlNode->getChildCount();
 
-		TRange<SAnimTime> timeRange;
+		TRange<CTimeValue> timeRange;
 		timeRange.start.Serialize(xmlNode, bLoading, "startTimeTicks", "StartTime");
 		timeRange.end.Serialize(xmlNode, bLoading, "endTimeTicks", "EndTime");
 		int flags = m_flags;
@@ -288,7 +288,7 @@ inline bool TAnimTrack<KeyType >::SerializeKeys(XmlNodeRef& xmlNode, bool bLoadi
 		SetFlags(flags);
 		SetTimeRange(timeRange);
 
-		SAnimTime timeOffset(0);
+		CTimeValue timeOffset(0);
 		m_keys.resize(numCur + numNew);
 		for (int i = 0; i < numNew; i++)
 		{
@@ -360,7 +360,7 @@ _smart_ptr<IAnimKeyWrapper> TAnimTrack<KeyType >::GetWrappedKey(int key)
 }
 
 template<class KeyType>
-inline int TAnimTrack<KeyType >::GetActiveKey(SAnimTime time, KeyType* key)
+inline int TAnimTrack<KeyType >::GetActiveKey(const CTimeValue& time, KeyType* key)
 {
 	if (key == NULL)
 	{

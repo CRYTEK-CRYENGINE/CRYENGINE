@@ -19,10 +19,10 @@ public:
 	virtual const char*          GetName() const override;
 	virtual uint32               GetId() const override                        { return m_id; }
 
-	SAnimTime                    GetTime() const                               { return m_time; }
+	CTimeValue                   GetTime() const                               { return m_time; }
 
-	virtual float                GetFixedTimeStep() const override             { return m_fixedTimeStep; }
-	virtual void                 SetFixedTimeStep(float dt) override           { m_fixedTimeStep = dt; }
+	virtual const CTimeValue&    GetFixedTimeStep() const override             { return m_fixedTimeStep; }
+	virtual void                 SetFixedTimeStep(const CTimeValue& dt) override { m_fixedTimeStep = dt; }
 
 	virtual void                 SetOwner(IAnimSequenceOwner* pOwner) override { m_pOwner = pOwner; }
 	virtual IAnimSequenceOwner*  GetOwner() const override                     { return m_pOwner; }
@@ -38,8 +38,8 @@ public:
 	virtual const IAnimSequence* GetParentSequence() const override;
 	virtual bool                 IsAncestorOf(const IAnimSequence* pSequence) const override;
 
-	virtual void                 SetTimeRange(TRange<SAnimTime> timeRange) override;
-	virtual TRange<SAnimTime>    GetTimeRange() override { return m_timeRange; };
+	virtual void                 SetTimeRange(TRange<CTimeValue> timeRange) override;
+	virtual TRange<CTimeValue>   GetTimeRange() override { return m_timeRange; };
 
 	virtual int                  GetNodeCount() const override;
 	virtual IAnimNode*           GetNode(int index) const override;
@@ -66,9 +66,9 @@ public:
 	virtual bool       IsActivated() const override { return m_bActive; }
 	virtual void       Deactivate() override;
 
-	virtual void       PrecacheData(SAnimTime startTime) override;
-	virtual void       PrecacheStatic(const SAnimTime startTime);
-	virtual void       PrecacheDynamic(SAnimTime time);
+	virtual void       PrecacheData(const CTimeValue& startTime) override;
+	virtual void       PrecacheStatic(const CTimeValue&  startTime);
+	virtual void       PrecacheDynamic(const CTimeValue&  time);
 	virtual void       PrecacheEntity(IEntity* pEntity);
 
 	virtual void       StillUpdate() override;
@@ -123,7 +123,7 @@ private:
 	uint32            m_id;
 	string            m_name;
 	mutable string    m_fullNameHolder;
-	TRange<SAnimTime> m_timeRange;
+	TRange<CTimeValue> m_timeRange;
 	TrackEvents       m_events;
 
 	// Listeners
@@ -147,8 +147,8 @@ private:
 
 	IAnimNode*            m_pActiveDirector;
 
-	SAnimTime             m_time;
-	float                 m_fixedTimeStep;
+	CTimeValue            m_time;
+	CTimeValue            m_fixedTimeStep;
 
 	SSequenceAudioTrigger m_audioTrigger;
 

@@ -31,8 +31,8 @@ public:
 	virtual unsigned int   GetParamCount() const override;
 	virtual CAnimParamType GetParamType(unsigned int nIndex) const override;
 
-	virtual void           PrecacheStatic(SAnimTime startTime) override;
-	virtual void           PrecacheDynamic(SAnimTime time) override;
+	virtual void           PrecacheStatic(const CTimeValue& startTime) override;
+	virtual void           PrecacheDynamic(const CTimeValue& time) override;
 
 protected:
 	virtual bool GetParamInfoFromType(const CAnimParamType& paramId, SParamInfo& info) const override;
@@ -45,18 +45,18 @@ private:
 
 	void         ApplyGotoKey(CGotoTrack* poGotoTrack, SAnimContext& animContext);
 
-	bool         GetEntityTransform(IAnimSequence* pSequence, IEntity* pEntity, SAnimTime time, Vec3& vCamPos, Quat& qCamRot);
-	bool         GetEntityTransform(IEntity* pEntity, SAnimTime time, Vec3& vCamPos, Quat& qCamRot);
+	bool         GetEntityTransform(IAnimSequence* pSequence, IEntity* pEntity, const CTimeValue& time, Vec3& vCamPos, Quat& qCamRot);
+	bool         GetEntityTransform(IEntity* pEntity, const CTimeValue& time, Vec3& vCamPos, Quat& qCamRot);
 
 	virtual void InitializeTrackDefaultValue(IAnimTrack* pTrack, const CAnimParamType& paramType) override;
 
 	// Cached parameters of node at given time.
-	SAnimTime        m_time;
+	CTimeValue       m_time;
 	CCameraTrack*    m_pCurrentCameraTrack;
 	int              m_currentCameraTrackKeyNumber;
 	CAnimEntityNode* m_pCamNodeOnHoldForInterp;
 	float            m_backedUpFovForInterp;
-	SAnimTime        m_lastPrecachePoint;
+	CTimeValue       m_lastPrecachePoint;
 
 	//! Last animated key in track.
 	int                     m_lastCameraKey;

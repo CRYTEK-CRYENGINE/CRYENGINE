@@ -72,14 +72,14 @@ void CAudioNode::Animate(SAnimContext& animContext)
 					m_audioTriggerTracks.resize(numAudioTriggerTracks);
 				}
 
-				if (!animContext.bResetting && !bMuted && animContext.time > SAnimTime(0))
+				if (!animContext.bResetting && !bMuted && animContext.time > 0)
 				{
 					SAudioTriggerKey audioTriggerKey;
 					SAudioInfo& audioTriggerInfo = m_audioTriggerTracks[numAudioTriggerTracks - 1];
 					const int audioTriggerKeyNum = static_cast<CAudioTriggerTrack*>(pTrack)->GetActiveKey(animContext.time, &audioTriggerKey);
 					if (audioTriggerKeyNum >= 0)
 					{
-						const SAnimTime audioTriggerKeyTime = (animContext.time - audioTriggerKey.m_time);
+						const CTimeValue audioTriggerKeyTime = (animContext.time - audioTriggerKey.m_time);
 
 						if (audioTriggerInfo.audioKeyStart < audioTriggerKeyNum)
 						{
@@ -94,7 +94,7 @@ void CAudioNode::Animate(SAnimContext& animContext)
 
 						audioTriggerInfo.audioKeyStart = audioTriggerKeyNum;
 
-						if (audioTriggerKey.m_duration > SAnimTime(0) && audioTriggerKeyTime >= audioTriggerKey.m_duration)
+						if (audioTriggerKey.m_duration > 0 && audioTriggerKeyTime >= audioTriggerKey.m_duration)
 						{
 							if (audioTriggerInfo.audioKeyStop < audioTriggerKeyNum)
 							{
@@ -140,9 +140,9 @@ void CAudioNode::Animate(SAnimContext& animContext)
 					SAudioFileKey audioFileKey;
 					SAudioInfo& audioFileInfo = m_audioFileTracks[numAudioFileTracks - 1];
 					const int audioFileKeyNum = static_cast<CAudioFileTrack*>(pTrack)->GetActiveKey(animContext.time, &audioFileKey);
-					if (audioFileKeyNum >= 0 && audioFileKey.m_duration > SAnimTime(0) && !(audioFileKey.m_bNoTriggerInScrubbing && animContext.bSingleFrame))
+					if (audioFileKeyNum >= 0 && audioFileKey.m_duration > 0 && !(audioFileKey.m_bNoTriggerInScrubbing && animContext.bSingleFrame))
 					{
-						const SAnimTime audioKeyTime = (animContext.time - audioFileKey.m_time);
+						const CTimeValue audioKeyTime = (animContext.time - audioFileKey.m_time);
 						if (animContext.time <= audioFileKey.m_time + audioFileKey.m_duration)
 						{
 							if (audioFileInfo.audioKeyStart < audioFileKeyNum)

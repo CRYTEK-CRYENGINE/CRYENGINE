@@ -36,7 +36,7 @@ public:
 
 	virtual void           SerializeKey(SFaceSequenceKey& key, XmlNodeRef& keyNode, bool bLoading) override
 	{
-		key.m_duration.Serialize(keyNode, bLoading, "durationTicks", "duration");
+		key.m_duration.Serialize(keyNode, bLoading, "durationT", "duration");
 
 		if (bLoading)
 		{
@@ -57,7 +57,7 @@ public:
 
 	virtual void           SerializeKey(SCommentKey& key, XmlNodeRef& keyNode, bool bLoading) override
 	{
-		key.m_duration.Serialize(keyNode, bLoading, "durationTicks", "duration");
+		key.m_duration.Serialize(keyNode, bLoading, "durationT", "duration");
 
 		if (bLoading)
 		{
@@ -105,8 +105,8 @@ public:
 			key.m_startTriggerId = CryAudio::StringToId(key.m_startTriggerName.c_str());
 			key.m_stopTriggerId = CryAudio::StringToId(key.m_stopTriggerName.c_str());
 
-			int32 durationTicks;
-			if (!keyNode->getAttr("durationTicks", durationTicks))
+			CTimeValue duration;
+			if (!keyNode->getAttr("durationT", duration))
 			{
 				// Backwards compat
 				float duration;
@@ -114,11 +114,11 @@ public:
 				{
 					duration = 0.0f;
 				}
-				key.m_duration = SAnimTime(duration);
+				key.m_duration = BADTIME(duration);
 			}
 			else
 			{
-				key.m_duration = SAnimTime(durationTicks);
+				key.m_duration = duration;
 			}
 		}
 		else
@@ -133,7 +133,7 @@ public:
 				keyNode->setAttr("stopTrigger", key.m_stopTriggerName.c_str());
 			}
 
-			keyNode->setAttr("durationTicks", key.m_duration.GetTicks());
+			keyNode->setAttr("durationT", key.m_duration);
 		}
 	}
 };
@@ -321,9 +321,9 @@ public:
 			keyNode->getAttr("overridetimes", key.m_boverrideTimes);
 			keyNode->getAttr("speed", key.m_speed);
 
-			if (key.m_speed <= 0.0f)
+			if (key.m_speed <= 0)
 			{
-				key.m_speed = 1.0f;
+				key.m_speed = 1;
 			}
 		}
 		else
@@ -349,7 +349,7 @@ public:
 
 	virtual void           SerializeKey(SEventKey& key, XmlNodeRef& keyNode, bool bLoading) override
 	{
-		key.m_duration.Serialize(keyNode, bLoading, "durationTicks", "length");
+		key.m_duration.Serialize(keyNode, bLoading, "durationT", "length");
 
 		if (bLoading)
 		{
@@ -443,7 +443,7 @@ public:
 
 	virtual void           SerializeKey(SMannequinKey& key, XmlNodeRef& keyNode, bool bLoading) override
 	{
-		key.m_duration.Serialize(keyNode, bLoading, "durationTicks", "duration");
+		key.m_duration.Serialize(keyNode, bLoading, "durationT", "duration");
 
 		if (bLoading)
 		{
@@ -518,7 +518,7 @@ public:
 			keyNode->setAttr("bufferToCapture", key.m_bufferToCapture);
 		}
 
-		key.m_duration.Serialize(keyNode, bLoading, "durationTicks", "duration");
+		key.m_duration.Serialize(keyNode, bLoading, "durationT", "duration");
 	}
 };
 

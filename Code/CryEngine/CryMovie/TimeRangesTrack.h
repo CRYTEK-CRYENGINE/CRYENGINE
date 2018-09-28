@@ -18,7 +18,7 @@ public:
 
 	virtual CAnimParamType GetParameterType() const override { return eAnimParamType_TimeRanges; }
 
-	int                    GetActiveKeyIndexForTime(const SAnimTime time);
+	int                    GetActiveKeyIndexForTime(const CTimeValue& time);
 };
 
 #endif

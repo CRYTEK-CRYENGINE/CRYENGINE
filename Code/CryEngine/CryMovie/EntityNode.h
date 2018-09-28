@@ -21,7 +21,7 @@
 // are kept in memory.
 // This value should be adjusted so that the streaming system has enough
 // time to stream the keys in.
-#define ANIMATION_KEY_PRELOAD_INTERVAL SAnimTime(2.0f)
+#define ANIMATION_KEY_PRELOAD_INTERVAL CTimeValue(2)
 
 // remove comment to enable the check.
 //#define CHECK_FOR_TOO_MANY_ONPROPERTY_SCRIPT_CALLS
@@ -74,8 +74,8 @@ public:
 
 	virtual void             CreateDefaultTracks() override;
 
-	virtual void             PrecacheStatic(SAnimTime startTime) override;
-	virtual void             PrecacheDynamic(SAnimTime time) override;
+	virtual void             PrecacheStatic(const CTimeValue& startTime) override;
+	virtual void             PrecacheDynamic(const CTimeValue& time) override;
 
 	virtual Vec3             GetPos() override    { return m_pos; };
 	virtual Quat             GetRotate() override { return m_rotate; };
@@ -117,10 +117,10 @@ protected:
 	Vec3                 Adjust3DSoundOffset(bool bVoice, IEntity* pEntity, Vec3& oSoundPos) const;
 	void                 AnimateCharacterTrack(class CCharacterTrack* track, SAnimContext& animContext, int layer, int trackIndex, SAnimState& animState, IEntity* pEntity, ICharacterInstance* pCharacter);
 	bool                 CheckTimeJumpingOrOtherChanges(const SAnimContext& animContext, int32 activeKeys[], int32 numActiveKeys, ICharacterInstance* pCharacter, int layer, int trackIndex, SAnimState& animState);
-	void                 UpdateAnimTimeJumped(int32 keyIndex, class CCharacterTrack * track, SAnimTime ectime, ICharacterInstance * pCharacter, int layer, bool bAnimEvents, int trackIndex, SAnimState & animState);
-	void                 UpdateAnimRegular(int32 numActiveKeys, int32 activeKeys[], class CCharacterTrack * track, SAnimTime ectime, ICharacterInstance * pCharacter, int layer, bool bAnimEvents);
-	void                 UpdateAnimBlendGap(int32 activeKeys[], class CCharacterTrack * track, SAnimTime ectime, ICharacterInstance * pCharacter, int layer);
-	void                 ApplyAnimKey(int32 keyIndex, class CCharacterTrack * track, SAnimTime ectime, ICharacterInstance * pCharacter, int layer, int animIndex, bool bAnimEvents);
+	void                 UpdateAnimTimeJumped(int32 keyIndex, class CCharacterTrack * track, const CTimeValue& ectime, ICharacterInstance * pCharacter, int layer, bool bAnimEvents, int trackIndex, SAnimState & animState);
+	void                 UpdateAnimRegular(int32 numActiveKeys, int32 activeKeys[], class CCharacterTrack * track, const CTimeValue& ectime, ICharacterInstance * pCharacter, int layer, bool bAnimEvents);
+	void                 UpdateAnimBlendGap(int32 activeKeys[], class CCharacterTrack * track, const CTimeValue& ectime, ICharacterInstance * pCharacter, int layer);
+	void                 ApplyAnimKey(int32 keyIndex, class CCharacterTrack * track, const CTimeValue& ectime, ICharacterInstance * pCharacter, int layer, int animIndex, bool bAnimEvents);
 	void                 StopExpressions();
 	void                 AnimateExpressionTrack(class CExprTrack* pTrack, SAnimContext& animContext);
 	void                 AnimateFacialSequence(class CFaceSequenceTrack* pTrack, SAnimContext& animContext);
@@ -167,7 +167,7 @@ protected:
 	Vec3 m_scale;
 
 private:
-	void UpdateEntityPosRotVel(const Vec3& targetPos, const Quat& targetRot, const bool initialState, const int flags, SAnimTime fTime);
+	void UpdateEntityPosRotVel(const Vec3& targetPos, const Quat& targetRot, const bool initialState, const int flags, const CTimeValue& fTime);
 	void StopEntity();
 	void UpdateTargetCamera(IEntity* pEntity, const Quat& rotation);
 	void RestoreEntityDefaultValues();
@@ -184,9 +184,9 @@ private:
 	_smart_ptr<IAnimNode> m_target;
 
 	// Cached parameters of node at given time.
-	SAnimTime m_time;
-	Vec3      m_velocity;
-	Vec3      m_angVelocity;
+	CTimeValue m_time;
+	Vec3       m_velocity;
+	Vec3       m_angVelocity;
 
 	// Camera2Camera interpolation values
 	Vec3 m_vInterpPos;
@@ -203,7 +203,7 @@ private:
 
 		//! This is used to indicate that a time-jumped blending is currently happening in the animation track.
 		bool  m_bTimeJumped[3];
-		float m_jumpTime[3];
+		CTimeValue m_jumpTime[3];
 	};
 
 	SAnimState              m_baseAnimState;
@@ -246,7 +246,7 @@ private:
 		float m_amp;
 		float m_freq;
 
-		Vec3  Get(SAnimTime time) const;
+		Vec3  Get(const CTimeValue& time) const;
 
 		Noise() : m_amp(0.0f), m_freq(0.0f) {}
 	};

@@ -11,10 +11,10 @@ struct PlayingSequence
 	_smart_ptr<IAnimSequence> sequence;
 
 	//! Start/End/Current playing time for this sequence.
-	SAnimTime startTime;
-	SAnimTime endTime;
-	SAnimTime currentTime;
-	float     currentSpeed;
+	CTimeValue startTime;
+	CTimeValue endTime;
+	CTimeValue currentTime;
+	mpfloat    currentSpeed;
 
 	//! Sequence from other sequence's sequence track
 	bool trackedSequence;
@@ -95,9 +95,9 @@ public:
 	// Sequence playback.
 	//////////////////////////////////////////////////////////////////////////
 	virtual void                                PlaySequence(const char* sequence, IAnimSequence* parentSeq = NULL, bool bResetFX = true,
-	                                                         bool bTrackedSequence = false, SAnimTime startTime = SAnimTime::Min(), SAnimTime endTime = SAnimTime::Min()) override;
+	                                                         bool bTrackedSequence = false, const CTimeValue& startTime = CTimeValue::Min(), const CTimeValue& endTime = CTimeValue::Min()) override;
 	virtual void                                PlaySequence(IAnimSequence* seq, IAnimSequence* parentSeq = NULL, bool bResetFX = true,
-	                                                         bool bTrackedSequence = false, SAnimTime startTime = SAnimTime::Min(), SAnimTime endTime = SAnimTime::Min()) override;
+	                                                         bool bTrackedSequence = false, const CTimeValue& startTime = CTimeValue::Min(), const CTimeValue& endTime = CTimeValue::Min()) override;
 	virtual void                                PlayOnLoadSequences() override;
 
 	virtual bool                                StopSequence(const char* sequence) override;
@@ -110,8 +110,8 @@ public:
 
 	virtual void                                Reset(bool bPlayOnReset, bool bSeekToStart) override;
 	virtual void                                StillUpdate() override;
-	virtual void                                PreUpdate(const float dt) override;
-	virtual void                                PostUpdate(const float dt) override;
+	virtual void                                PreUpdate(const CTimeValue& dt) override;
+	virtual void                                PostUpdate(const CTimeValue& dt) override;
 	virtual void                                Render() override;
 
 	virtual void                                StartCapture(IAnimSequence* seq, const SCaptureKey& key) override;
@@ -138,16 +138,16 @@ public:
 	virtual void                                SetSequenceStopBehavior(ESequenceStopBehavior behavior) override;
 	virtual IMovieSystem::ESequenceStopBehavior GetSequenceStopBehavior() override;
 
-	virtual SAnimTime                           GetPlayingTime(IAnimSequence* pSeq) override;
-	virtual bool                                SetPlayingTime(IAnimSequence* pSeq, SAnimTime fTime) override;
+	virtual CTimeValue                          GetPlayingTime(IAnimSequence* pSeq) override;
+	virtual bool                                SetPlayingTime(IAnimSequence* pSeq, const CTimeValue& fTime) override;
 
-	virtual float                               GetPlayingSpeed(IAnimSequence* pSeq) override;
-	virtual bool                                SetPlayingSpeed(IAnimSequence* pSeq, float fTime) override;
+	virtual mpfloat                             GetPlayingSpeed(IAnimSequence* pSeq) override;
+	virtual bool                                SetPlayingSpeed(IAnimSequence* pSeq, const mpfloat& fTime) override;
 
-	virtual bool                                GetStartEndTime(IAnimSequence* pSeq, SAnimTime& fStartTime, SAnimTime& fEndTime) override;
-	virtual bool                                SetStartEndTime(IAnimSequence* pSeq, const SAnimTime fStartTime, const SAnimTime fEndTime) override;
+	virtual bool                                GetStartEndTime(IAnimSequence* pSeq, CTimeValue& fStartTime, CTimeValue& fEndTime) override;
+	virtual bool                                SetStartEndTime(IAnimSequence* pSeq, const CTimeValue& fStartTime, const CTimeValue& fEndTime) override;
 
-	virtual void                                GoToFrame(const char* seqName, float targetFrame) override;
+	virtual void                                GoToFrame(const char* seqName, const CTimeValue& targetFrame) override;
 
 	virtual const char*                         GetOverrideCamName() const override       { return m_mov_overrideCam->GetString(); }
 
@@ -183,7 +183,7 @@ private:
 #endif
 
 	void DoNodeStaticInitialisation();
-	void UpdateInternal(const float dt, const bool bPreUpdate);
+	void UpdateInternal(const CTimeValue& dt, const bool bPreUpdate);
 
 #ifdef MOVIESYSTEM_SUPPORT_EDITING
 	virtual EAnimNodeType           GetNodeTypeFromString(const char* pString) const override;
@@ -226,7 +226,7 @@ private:
 	IAnimSequence*        m_captureSeq;
 	SCaptureKey           m_captureKey;
 
-	float                 m_fixedTimeStepBackUp;
+	CTimeValue            m_fixedTimeStepBackUp;
 	ICVar*                m_cvar_capture_file_format;
 	ICVar*                m_cvar_capture_frame_once;
 	ICVar*                m_cvar_capture_folder;
@@ -246,7 +246,7 @@ private:
 	uint32 m_nextSequenceId;
 
 public:
-	static float m_mov_cameraPrecacheTime;
+	static CTimeValue m_mov_cameraPrecacheTime;
 #if !defined(_RELEASE)
 	static int   m_mov_debugCamShake;
 	static int   m_mov_debugSequences;

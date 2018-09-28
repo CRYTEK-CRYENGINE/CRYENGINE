@@ -537,7 +537,7 @@ void CAnimNode::SerializeAnims(XmlNodeRef& xmlNode, bool bLoading, bool bLoadEmp
 	}
 }
 
-void CAnimNode::SetTimeRange(TRange<SAnimTime> timeRange)
+void CAnimNode::SetTimeRange(TRange<CTimeValue> timeRange)
 {
 	for (unsigned int i = 0; i < m_tracks.size(); i++)
 	{

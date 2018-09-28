@@ -40,10 +40,10 @@ public:
 	virtual void             InitializeTrackDefaultValue(IAnimTrack* pTrack, const CAnimParamType& paramType) override;
 	virtual void             Serialize(XmlNodeRef& xmlNode, bool bLoading, bool bLoadEmptyTracks) override;
 
-	virtual void             SetParameter(SAnimTime time, const EAnimParamType& paramType, const TMovieSystemValue& value) override;
-	TMovieSystemValue        GetParameter(SAnimTime time, const EAnimParamType& paramType) const override;
+	virtual void             SetParameter(const CTimeValue& time, const EAnimParamType& paramType, const TMovieSystemValue& value) override;
+	TMovieSystemValue        GetParameter(const CTimeValue& time, const EAnimParamType& paramType) const override;
 
-	virtual bool             GetShakeRotation(SAnimTime time, Quat& rot) override;
+	virtual bool             GetShakeRotation(const CTimeValue& time, Quat& rot) override;
 	virtual void             SetCameraShakeSeed(const uint cameraShakeSeedValue) override { m_cameraShakeSeedValue = cameraShakeSeedValue; }
 
 protected:
@@ -68,7 +68,7 @@ private:
 		float frequencyMult;
 		float noiseAmpMult;
 		float noiseFreqMult;
-		float timeOffset;
+		CTimeValue timeOffset;
 
 		Vec3  phase;
 		Vec3  phaseNoise;
@@ -81,10 +81,10 @@ private:
 			frequencyMult = 0.0f;
 			noiseAmpMult = 0.0f;
 			noiseFreqMult = 0.0f;
-			timeOffset = 0.0f;
+			timeOffset.SetSeconds(0);
 		}
 
-		Ang3 ApplyCameraShake(CPNoise3& noiseGen, SAnimTime time, Ang3 angles, CAnimSplineTrack* pFreqTrack, EntityId camEntityId, int shakeIndex, const uint shakeSeed);
+		Ang3 ApplyCameraShake(CPNoise3& noiseGen, const CTimeValue& time, Ang3 angles, CAnimSplineTrack* pFreqTrack, EntityId camEntityId, int shakeIndex, const uint shakeSeed);
 	};
 
 	ShakeParam m_shakeParam[SHAKE_COUNT];

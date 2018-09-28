@@ -30,17 +30,17 @@ CAnimSequence::CAnimSequence(IMovieSystem* pMovieSystem, uint32 id)
 	m_pMovieSystem = pMovieSystem;
 	m_flags = 0;
 	m_pParentSequence = NULL;
-	m_timeRange.Set(SAnimTime(0.0f), SAnimTime(10.0f));
+	m_timeRange.Set(0, 10);
 	m_bPaused = false;
 	m_bActive = false;
 	m_pOwner = NULL;
 	m_pActiveDirector = NULL;
-	m_fixedTimeStep = 0;
+	m_fixedTimeStep.SetSeconds(0);
 	m_precached = false;
 	m_bResetting = false;
 	m_guid = CryGUID::Create();
 	m_id = id;
-	m_time = SAnimTime::Min();
+	m_time = CTimeValue::Min();
 }
 
 void CAnimSequence::SetName(const char* name)
@@ -553,12 +553,12 @@ void CAnimSequence::Deactivate()
 	m_precached = false;
 }
 
-void CAnimSequence::PrecacheData(SAnimTime startTime)
+void CAnimSequence::PrecacheData(const CTimeValue& startTime)
 {
 	PrecacheStatic(startTime);
 }
 
-void CAnimSequence::PrecacheStatic(const SAnimTime startTime)
+void CAnimSequence::PrecacheStatic(const CTimeValue& startTime)
 {
 	// pre-cache animation keys
 	for (AnimNodes::const_iterator it = m_nodes.begin(); it != m_nodes.end(); ++it)
@@ -593,7 +593,7 @@ void CAnimSequence::PrecacheStatic(const SAnimTime startTime)
 	m_precached = true;
 }
 
-void CAnimSequence::PrecacheDynamic(SAnimTime time)
+void CAnimSequence::PrecacheDynamic(const CTimeValue& time)
 {
 	// pre-cache animation keys
 	for (AnimNodes::const_iterator it = m_nodes.begin(); it != m_nodes.end(); ++it)
@@ -635,7 +635,7 @@ void CAnimSequence::Serialize(XmlNodeRef& xmlNode, bool bLoading, bool bLoadEmpt
 			return;
 		}
 
-		TRange<SAnimTime> timeRange;
+		TRange<CTimeValue> timeRange;
 		m_name = xmlNode->getAttr("Name");
 		xmlNode->getAttr("Flags", m_flags);
 		timeRange.start.Serialize(xmlNode, bLoading, "startTimeTicks", "StartTime");
@@ -782,7 +782,7 @@ void CAnimSequence::Serialize(XmlNodeRef& xmlNode, bool bLoading, bool bLoadEmpt
 	}
 }
 
-void CAnimSequence::SetTimeRange(TRange<SAnimTime> timeRange)
+void CAnimSequence::SetTimeRange(TRange<CTimeValue> timeRange)
 {
 	m_timeRange = timeRange;
 
@@ -797,7 +797,7 @@ void CAnimSequence::SetTimeRange(TRange<SAnimTime> timeRange)
 
 void CAnimSequence::ComputeTimeRange()
 {
-	TRange<SAnimTime> timeRange = m_timeRange;
+	TRange<CTimeValue> timeRange = m_timeRange;
 
 	// Set time range to be in range of largest animation track.
 	for (AnimNodes::iterator it = m_nodes.begin(); it != m_nodes.end(); ++it)

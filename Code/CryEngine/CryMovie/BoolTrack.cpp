@@ -9,7 +9,7 @@ CBoolTrack::CBoolTrack(const CAnimParamType& paramType)
 {
 }
 
-TMovieSystemValue CBoolTrack::GetValue(SAnimTime time) const
+TMovieSystemValue CBoolTrack::GetValue(const CTimeValue& time) const
 {
 	bool value = m_bDefaultValue;
 	int nkeys = m_keys.size();

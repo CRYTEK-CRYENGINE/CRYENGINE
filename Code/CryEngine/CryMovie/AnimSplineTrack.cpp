@@ -11,7 +11,7 @@ CAnimSplineTrack::CAnimSplineTrack(const CAnimParamType& paramType)
 {
 }
 
-void CAnimSplineTrack::SetValue(SAnimTime time, const TMovieSystemValue& value)
+void CAnimSplineTrack::SetValue(const CTimeValue& time, const TMovieSystemValue& value)
 {
 	S2DBezierKey key;
 	key.m_time = time;
@@ -19,7 +19,7 @@ void CAnimSplineTrack::SetValue(SAnimTime time, const TMovieSystemValue& value)
 	SetKeyAtTime(time, &key);
 }
 
-TMovieSystemValue CAnimSplineTrack::GetValue(SAnimTime time) const
+TMovieSystemValue CAnimSplineTrack::GetValue(const CTimeValue& time) const
 {
 	if (GetNumKeys() == 0)
 	{
@@ -126,7 +126,7 @@ void CAnimSplineTrack::SerializeKey(S2DBezierKey& key, XmlNodeRef& keyNode, bool
 	}
 }
 
-float CAnimSplineTrack::SampleCurve(SAnimTime time) const
+float CAnimSplineTrack::SampleCurve(const CTimeValue& time) const
 {
 	if (time <= m_keys.front().m_time)
 	{
@@ -150,14 +150,14 @@ float CAnimSplineTrack::SampleCurve(SAnimTime time) const
 		return startIter->m_controlPoint.m_value;
 	}
 
-	const SAnimTime deltaTime = iter->m_time - startIter->m_time;
+	const CTimeValue deltaTime = iter->m_time - startIter->m_time;
 
-	if (deltaTime == SAnimTime(0))
+	if (deltaTime == 0)
 	{
 		return startIter->m_controlPoint.m_value;
 	}
 
-	const float timeInSegment = (time - startIter->m_time).ToFloat();
-	const float factor = Bezier::InterpolationFactorFromX(timeInSegment, deltaTime.ToFloat(), startIter->m_controlPoint, iter->m_controlPoint);
+	const CTimeValue timeInSegment = time - startIter->m_time;
+	const float factor = Bezier::InterpolationFactorFromX(timeInSegment.BADGetSeconds(), deltaTime.BADGetSeconds(), startIter->m_controlPoint, iter->m_controlPoint);
 	return Bezier::EvaluateY(factor, startIter->m_controlPoint, iter->m_controlPoint);
 }

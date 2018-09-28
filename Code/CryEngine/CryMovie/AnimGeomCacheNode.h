@@ -20,7 +20,7 @@ public:
 	virtual void           CreateDefaultTracks() override;
 	virtual void           OnReset() override;
 	virtual void           Activate(bool bActivate) override;
-	virtual void           PrecacheDynamic(SAnimTime startTime) override;
+	virtual void           PrecacheDynamic(const CTimeValue& startTime) override;
 
 	virtual unsigned int   GetParamCount() const override;
 	virtual CAnimParamType GetParamType(unsigned int nIndex) const override;

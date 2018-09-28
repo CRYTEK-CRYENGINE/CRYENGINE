@@ -71,7 +71,7 @@ void CAnimGeomCacheNode::Animate(SAnimContext& animContext)
 					pTimeRangesTrack->GetKey(currentKeyIndex, &key);
 					pGeomCacheRenderNode->SetLooping(key.m_bLoop);
 
-					const float playbackTime = (animContext.time - key.m_time).ToFloat() * key.m_speed + key.m_startTime;
+					const CTimeValue playbackTime = animContext.time - key.m_time * key.m_speed + key.m_startTime;
 					pGeomCacheRenderNode->SetPlaybackTime(min(playbackTime, key.m_endTime));
 
 					if (playbackTime > key.m_endTime)
@@ -82,7 +82,7 @@ void CAnimGeomCacheNode::Animate(SAnimContext& animContext)
 				else
 				{
 					pGeomCacheRenderNode->SetLooping(false);
-					pGeomCacheRenderNode->SetPlaybackTime(0.0f);
+					pGeomCacheRenderNode->SetPlaybackTime(0);
 					pGeomCacheRenderNode->StopStreaming();
 				}
 			}
@@ -118,7 +118,7 @@ void CAnimGeomCacheNode::Activate(bool bActivate)
 			if (gEnv->IsEditor() && gEnv->IsEditorGameMode() == false)
 			{
 				pGeomCacheRenderNode->SetLooping(false);
-				pGeomCacheRenderNode->SetPlaybackTime(0.0f);
+				pGeomCacheRenderNode->SetPlaybackTime(0);
 			}
 
 			pGeomCacheRenderNode->StopStreaming();
@@ -185,10 +185,10 @@ IGeomCacheRenderNode* CAnimGeomCacheNode::GetGeomCacheRenderNode()
 	return NULL;
 }
 
-void CAnimGeomCacheNode::PrecacheDynamic(SAnimTime startTime)
+void CAnimGeomCacheNode::PrecacheDynamic(const CTimeValue& startTime)
 {
 	const ICVar* pBufferAheadTimeCVar = gEnv->pConsole->GetCVar("e_GeomCacheBufferAheadTime");
-	const float startPrecacheTime = pBufferAheadTimeCVar ? pBufferAheadTimeCVar->GetFVal() : 1.0f;
+	const CTimeValue startPrecacheTime = pBufferAheadTimeCVar ? pBufferAheadTimeCVar->GetTime() : 1;
 
 	IGeomCacheRenderNode* pGeomCacheRenderNode = GetGeomCacheRenderNode();
 
@@ -210,14 +210,14 @@ void CAnimGeomCacheNode::PrecacheDynamic(SAnimTime startTime)
 					continue;
 				}
 
-				const int currentKeyIndex = pTimeRangesTrack->GetActiveKeyIndexForTime(startTime + SAnimTime(startPrecacheTime));
+				const int currentKeyIndex = pTimeRangesTrack->GetActiveKeyIndexForTime(startTime + startPrecacheTime);
 
 				if (currentKeyIndex != -1)
 				{
 					STimeRangeKey key;
 					pTimeRangesTrack->GetKey(currentKeyIndex, &key);
 
-					if (startTime < key.m_time + SAnimTime(key.m_startTime))
+					if (startTime < key.m_time + key.m_startTime)
 					{
 						pGeomCacheRenderNode->SetLooping(key.m_bLoop);
 						pGeomCacheRenderNode->StartStreaming(key.m_startTime);

@@ -20,8 +20,8 @@ public:
 	virtual EAnimValue        GetValueType() override           { return eAnimValue_DiscreteFloat; }
 	virtual CAnimParamType    GetParameterType() const override { return eAnimParamType_Goto; }
 
-	virtual TMovieSystemValue GetValue(SAnimTime time) const override;
-	virtual void              SetValue(SAnimTime time, const TMovieSystemValue& value) override;
+	virtual TMovieSystemValue GetValue(const CTimeValue& time) const override;
+	virtual void              SetValue(const CTimeValue& time, const TMovieSystemValue& value) override;
 	virtual void              SetDefaultValue(const TMovieSystemValue& value) override;
 
 	virtual void              SerializeKey(SDiscreteFloatKey& key, XmlNodeRef& keyNode, bool bLoading) override;

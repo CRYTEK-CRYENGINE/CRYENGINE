@@ -140,7 +140,7 @@ void CAnimLightNode::Animate(SAnimContext& ec)
 	}
 }
 
-bool CAnimLightNode::GetValueFromTrack(CAnimParamType type, float time, float& value) const
+bool CAnimLightNode::GetValueFromTrack(CAnimParamType type, const CTimeValue& time, float& value) const
 {
 	IAnimTrack* pTrack = GetTrackForParameter(type);
 	if (pTrack == nullptr)
@@ -151,7 +151,7 @@ bool CAnimLightNode::GetValueFromTrack(CAnimParamType type, float time, float& v
 	return true;
 }
 
-bool CAnimLightNode::GetValueFromTrack(CAnimParamType type, float time, Vec3& value) const
+bool CAnimLightNode::GetValueFromTrack(CAnimParamType type, const CTimeValue& time, Vec3& value) const
 {
 	IAnimTrack* pTrack = GetTrackForParameter(type);
 	if (pTrack == nullptr)

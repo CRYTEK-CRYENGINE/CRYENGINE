@@ -197,7 +197,7 @@ CUtilityService::FileTransferInProgress::FileTransferInProgress(IServiceNetworkC
 	, m_destFile(destFile)
 	, m_fileSize(fileSize)
 	, m_fileDataLeft(fileSize)
-	, m_startTime(gEnv->pTimer->GetAsyncTime())
+	, m_startTime(GetGTimer()->GetAsyncTime())
 {
 	if (!gEnv->pThreadManager->SpawnThread(this, "LiveCreateUtilityService"))
 	{
@@ -264,7 +264,7 @@ bool CUtilityService::FileTransferInProgress::Update()
 	// finished
 	if (m_fileDataLeft == 0)
 	{
-		const float time = gEnv->pTimer->GetAsyncTime().GetDifferenceInSeconds(m_startTime);
+		const float time = GetGTimer()->GetAsyncTime().GetDifferenceInSeconds(m_startTime);
 		gEnv->pLog->LogAlways("FileTransfer for '%s' completed in %1.2fs (%1.2f MB/s)",
 		                      m_destFilePath.c_str(), time, ((float)m_fileSize / time) / (1024.0f * 1024.0f));
 	}

@@ -25,7 +25,7 @@ public:
 
 	//! Gets the duration of an animation key. If it's a looped animation,
 	//! a special consideration is required to compute the actual duration.
-	float        GetKeyDuration(int key) const;
+	CTimeValue   GetKeyDuration(int key) const;
 
 	virtual int  GetAnimationLayerIndex() const override    { return m_iAnimationLayer; }
 	virtual void SetAnimationLayerIndex(int index) override { m_iAnimationLayer = index; }

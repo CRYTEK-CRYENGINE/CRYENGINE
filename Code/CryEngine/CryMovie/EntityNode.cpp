@@ -37,9 +37,9 @@
 #define g_nodeParams            g_nodeParamsEnt
 #define AddSupportedParam       AddSupportedParamEnt
 
-static const float EPSILON = 0.01f;
+static const nTime EPSILON = "0.01";
 static float movie_physicalentity_animation_lerp;
-static float movie_timeJumpTransitionTime = 1.f;
+static CTimeValue movie_timeJumpTransitionTime = 1;
 
 static const char* s_VariablePrefixes[] =
 {
@@ -138,7 +138,7 @@ CAnimEntityNode::CAnimEntityNode(const int id) : CAnimNode(id)
 	m_baseAnimState.m_lastAnimationKeys[2][1] = -1;
 
 	m_baseAnimState.m_bTimeJumped[0] = m_baseAnimState.m_bTimeJumped[1] = m_baseAnimState.m_bTimeJumped[2] = false;
-	m_baseAnimState.m_jumpTime[0] = m_baseAnimState.m_jumpTime[1] = m_baseAnimState.m_jumpTime[2] = 0.0f;
+	m_baseAnimState.m_jumpTime[0] = m_baseAnimState.m_jumpTime[1] = m_baseAnimState.m_jumpTime[2] = CTimeValue(0);
 
 #ifdef CHECK_FOR_TOO_MANY_ONPROPERTY_SCRIPT_CALLS
 	m_OnPropertyCalls = 0;
@@ -183,7 +183,7 @@ void CAnimEntityNode::Initialize()
 
 		REGISTER_CVAR(movie_physicalentity_animation_lerp, 0.85f, 0, "Lerp value for animation-driven physical entities");
 
-		REGISTER_CVAR(movie_timeJumpTransitionTime, 1.f, 0, "Jump transition time");
+		REGISTER_CVAR(movie_timeJumpTransitionTime, CTimeValue(1), 0, "Jump transition time");
 	}
 }
 
@@ -1219,7 +1219,7 @@ void CAnimEntityNode::Animate(SAnimContext& animContext)
 					m_audioTriggerTracks.resize(numAudioTriggerTracks);
 				}
 
-				if (!animContext.bResetting && !bMute && animContext.time > SAnimTime(0))
+				if (!animContext.bResetting && !bMute && animContext.time > 0)
 				{
 					SAudioTriggerKey audioTriggerKey;
 					const int audioTriggerKeyNum = static_cast<CAudioTriggerTrack*>(pTrack)->GetActiveKey(animContext.time, &audioTriggerKey);
@@ -1240,8 +1240,8 @@ void CAnimEntityNode::Animate(SAnimContext& animContext)
 
 						audioTriggerInfo.audioKeyStart = audioTriggerKeyNum;
 
-						SAnimTime const soundKeyTime = (animContext.time - audioTriggerKey.m_time);
-						if (audioTriggerKey.m_duration > SAnimTime(0) && soundKeyTime >= audioTriggerKey.m_duration)
+						const CTimeValue soundKeyTime = (animContext.time - audioTriggerKey.m_time);
+						if (audioTriggerKey.m_duration > 0 && soundKeyTime >= audioTriggerKey.m_duration)
 						{
 							if (audioTriggerInfo.audioKeyStop < audioTriggerKeyNum)
 							{
@@ -1289,9 +1289,9 @@ void CAnimEntityNode::Animate(SAnimContext& animContext)
 					SAudioInfo& audioFileInfo = m_audioFileTracks[numAudioFileTracks - 1];
 					CAudioFileTrack* pAudioFileTrack = static_cast<CAudioFileTrack*>(pTrack);
 					const int audioFileKeyNum = pAudioFileTrack->GetActiveKey(animContext.time, &audioFileKey);
-					if (pEntity && audioFileKeyNum >= 0 && audioFileKey.m_duration > SAnimTime(0) && !(audioFileKey.m_bNoTriggerInScrubbing && animContext.bSingleFrame))
+					if (pEntity && audioFileKeyNum >= 0 && audioFileKey.m_duration > 0 && !(audioFileKey.m_bNoTriggerInScrubbing && animContext.bSingleFrame))
 					{
-						const SAnimTime audioKeyTime = (animContext.time - audioFileKey.m_time);
+						const CTimeValue audioKeyTime = (animContext.time - audioFileKey.m_time);
 						if (animContext.time <= audioFileKey.m_time + audioFileKey.m_duration)
 						{
 							if (audioFileInfo.audioKeyStart < audioFileKeyNum)
@@ -1656,7 +1656,7 @@ void CAnimEntityNode::Animate(SAnimContext& animContext)
 		{
 			if (entityUpdateFlags)
 			{
-				UpdateEntityPosRotVel(m_pos, m_rotate, animContext.time == SAnimTime(0), (EUpdateEntityFlags)entityUpdateFlags, animContext.time);
+				UpdateEntityPosRotVel(m_pos, m_rotate, animContext.time == 0, (EUpdateEntityFlags)entityUpdateFlags, animContext.time);
 			}
 
 			if (bScaleModified)
@@ -1773,7 +1773,7 @@ void CAnimEntityNode::PrepareAnimations()
 
 						if (animId >= 0)
 						{
-							float duration = pAnimations->GetDuration_sec(animId);
+							CTimeValue duration = pAnimations->GetDuration(animId);
 
 							if (duration != key.m_defaultAnimDuration)
 							{
@@ -1801,7 +1801,7 @@ void CAnimEntityNode::PrepareAnimations()
 
 							if (pSequence)
 							{
-								key.m_duration = SAnimTime(pSequence->GetTimeRange().Length());
+								key.m_duration = pSequence->GetTimeRange().Length();
 								pTrack->SetKey(i, &key);
 							}
 						}
@@ -1945,7 +1945,7 @@ void CAnimEntityNode::OnStop()
 	StopEntity();
 }
 
-void CAnimEntityNode::UpdateEntityPosRotVel(const Vec3& targetPos, const Quat& targetRot, const bool initialState, const int flags, SAnimTime fTime)
+void CAnimEntityNode::UpdateEntityPosRotVel(const Vec3& targetPos, const Quat& targetRot, const bool initialState, const int flags, const CTimeValue& fTime)
 {
 	IEntity* pEntity = GetEntity();
 
@@ -1972,20 +1972,20 @@ void CAnimEntityNode::UpdateEntityPosRotVel(const Vec3& targetPos, const Quat& t
 		pe_status_pos psp;
 		pPhysEnt->GetStatus(&psp);
 
-		const float rTimeStep = 1.f / max(gEnv->pTimer->GetFrameTime(), 100e-3f);
+		const rTime rTimeStep = 1 / max(GetGTimer()->GetFrameTime(), CTimeValue("0.1"));
 		pe_action_set_velocity setVel;
 		setVel.v = dynamics.v;
 		setVel.w = dynamics.w;
 
 		if (flags & (eUpdateEntity_Animation | eUpdateEntity_Position))
 		{
-			setVel.v = (targetPos - psp.pos) * (rTimeStep * movie_physicalentity_animation_lerp);
+			setVel.v = (targetPos - psp.pos) * (BADF rTimeStep * movie_physicalentity_animation_lerp);
 		}
 
 		if (flags & (eUpdateEntity_Animation | eUpdateEntity_Rotation))
 		{
 			const Quat dq = targetRot * psp.q.GetInverted();
-			setVel.w = dq.v * (2.f * rTimeStep * movie_physicalentity_animation_lerp); //This is an approximation
+			setVel.w = dq.v * (2.f * BADF rTimeStep * movie_physicalentity_animation_lerp); //This is an approximation
 		}
 
 		pPhysEnt->Action(&setVel);
@@ -2029,9 +2029,9 @@ void CAnimEntityNode::ApplyEventKey(CEventTrack* track, int keyIndex, SEventKey&
 		if (pCharacter)
 		{
 			CryCharAnimationParams aparams;
-			aparams.m_fTransTime = 0.15f;
+			aparams.m_fTransTime.SetSeconds("0.15");
 
-			aparams.m_fTransTime = 0.0f;
+			aparams.m_fTransTime.SetSeconds(0);
 			aparams.m_nFlags = CA_TRACK_VIEW_EXCLUSIVE;
 
 			ISkeletonAnim* pSkeletonAnimation = pCharacter->GetISkeletonAnim();
@@ -2047,10 +2047,10 @@ void CAnimEntityNode::ApplyEventKey(CEventTrack* track, int keyIndex, SEventKey&
 
 			if (animId >= 0)
 			{
-				const float duration = pAnimations->GetDuration_sec(animId);
-				if (duration != key.m_duration.ToFloat())
+				const CTimeValue duration = pAnimations->GetDuration(animId);
+				if (duration != key.m_duration)
 				{
-					key.m_duration = SAnimTime(duration);
+					key.m_duration = duration;
 					track->SetKey(keyIndex, &key);
 				}
 			}
@@ -2175,7 +2175,7 @@ void CAnimEntityNode::ReleaseAllAnims()
 
 		pCharacter->GetISkeletonAnim()->StopAnimationsAllLayers();
 
-		pCharacter->SetPlaybackScale(1.0000f);
+		pCharacter->SetPlaybackScale(1);
 		pCharacter->GetISkeletonAnim()->SetAnimationDrivenMotion(m_bWasTransRot);
 		m_baseAnimState.m_layerPlaysAnimation[0] = m_baseAnimState.m_layerPlaysAnimation[1] = m_baseAnimState.m_layerPlaysAnimation[2] = false;
 
@@ -2215,11 +2215,11 @@ void CAnimEntityNode::OnEndAnimation(const char* sAnimation)
 }
 
 // return active keys ( maximum: 2 in case of overlap ) in the right order
-static int32 GetActiveKeys(int32 activeKeys[], SAnimTime ectime, CCharacterTrack* track)
+static int32 GetActiveKeys(int32 activeKeys[], const CTimeValue& ectime, CCharacterTrack* track)
 {
 	int32 numActiveKeys = 0;
 
-	SAnimTime time;
+	CTimeValue time;
 	bool swap = false;
 
 	int32 numKeys = track->GetNumKeys();
@@ -2229,7 +2229,7 @@ static int32 GetActiveKeys(int32 activeKeys[], SAnimTime ectime, CCharacterTrack
 		SCharacterKey key;
 		track->GetKey(i, &key);
 
-		if ((key.m_time <= ectime) && (key.m_time + SAnimTime(track->GetKeyDuration(i)) > ectime))
+		if ((key.m_time <= ectime) && (key.m_time + track->GetKeyDuration(i) > ectime))
 		{
 			activeKeys[numActiveKeys] = i;
 
@@ -2273,10 +2273,10 @@ static int32 GetActiveKeys(int32 activeKeys[], SAnimTime ectime, CCharacterTrack
 	return numActiveKeys;
 }
 
-static bool GetNearestKeys(int32 activeKeys[], SAnimTime ectime, CCharacterTrack* track, int32& numActiveKeys)
+static bool GetNearestKeys(int32 activeKeys[], const CTimeValue& ectime, CCharacterTrack* track, int32& numActiveKeys)
 {
-	SAnimTime nearestLeft = SAnimTime::Min();
-	SAnimTime nearestRight = SAnimTime::Max();
+	CTimeValue nearestLeft = CTimeValue::Min();
+	CTimeValue nearestRight = CTimeValue::Max();
 
 	int32 left = -1, right = -1;
 
@@ -2287,7 +2287,7 @@ static bool GetNearestKeys(int32 activeKeys[], SAnimTime ectime, CCharacterTrack
 		SCharacterKey key;
 		track->GetKey(i, &key);
 
-		SAnimTime endTime = key.m_time + SAnimTime(track->GetKeyDuration(i));
+		CTimeValue endTime = key.m_time + track->GetKeyDuration(i);
 
 		if ((endTime < ectime) && (endTime > nearestLeft))
 		{
@@ -2380,7 +2380,7 @@ void CAnimEntityNode::AnimateCharacterTrack(class CCharacterTrack* pTrack, SAnim
 			SCharacterKey key;
 			pTrack->GetKey(k, &key);
 
-			float t = (animContext.time - key.m_time).ToFloat();
+			CTimeValue t = animContext.time - key.m_time;
 			t = key.m_startTime + t * key.m_speed;
 
 			if (key.m_animation[0])
@@ -2412,7 +2412,7 @@ void CAnimEntityNode::AnimateCharacterTrack(class CCharacterTrack* pTrack, SAnim
 				}
 
 				aparams.m_nLayerID = layer;
-				aparams.m_fTransTime = -1.0f;
+				aparams.m_fTransTime.SetSeconds(-1);
 
 				pCharacter->GetISkeletonAnim()->StartAnimation(key.m_animation, aparams);
 
@@ -2425,7 +2425,7 @@ void CAnimEntityNode::AnimateCharacterTrack(class CCharacterTrack* pTrack, SAnim
 
 				if (animId >= 0)
 				{
-					float duration = pAnimations->GetDuration_sec(animId);
+					CTimeValue duration = pAnimations->GetDuration(animId);
 
 					if (key.m_defaultAnimDuration != duration)
 					{
@@ -2444,7 +2444,7 @@ void CAnimEntityNode::AnimateCharacterTrack(class CCharacterTrack* pTrack, SAnim
 			// There is no animation left playing - exit TrackViewExclusive mode
 			pCharacter->GetISkeletonAnim()->SetTrackViewExclusive(0);
 			pCharacter->GetISkeletonAnim()->StopAnimationsAllLayers();
-			pCharacter->SetPlaybackScale(1.0000f);
+			pCharacter->SetPlaybackScale(1);
 			pCharacter->GetISkeletonAnim()->SetAnimationDrivenMotion(m_bWasTransRot);
 			m_bIsAnimDriven = false;
 			NotifyEntityScript(pEntity, "OnSequenceAnimationStop");
@@ -2504,14 +2504,14 @@ void CAnimEntityNode::AnimateExpressionTrack(CExprTrack* pTrack, SAnimContext& a
 			return;
 		}
 
-		float fKeyLentgh = exprKey.m_blendIn + exprKey.m_hold + exprKey.m_blendOut;
-		float fOffset = (animContext.time - exprKey.m_time).ToFloat();
+		CTimeValue fKeyLentgh = exprKey.m_blendIn + exprKey.m_hold + exprKey.m_blendOut;
+		CTimeValue fOffset = animContext.time - exprKey.m_time;
 
 		CryCharMorphParams morphParams;
 		morphParams.m_fAmplitude = exprKey.m_amp;
-		morphParams.m_fBlendIn = exprKey.m_blendIn;
-		morphParams.m_fBlendOut = exprKey.m_blendOut;
-		morphParams.m_fLength = exprKey.m_hold;
+		morphParams.m_fBlendIn   = exprKey.m_blendIn;
+		morphParams.m_fBlendOut  = exprKey.m_blendOut;
+		morphParams.m_fLength    = exprKey.m_hold;
 		morphParams.m_fStartTime = fOffset;
 
 		ICharacterInstance* pInst = pEntity->GetCharacter(0);
@@ -2558,10 +2558,10 @@ void CAnimEntityNode::AnimateFacialSequence(CFaceSequenceTrack* pTrack, SAnimCon
 
 		if (pSequence)
 		{
-			key.m_duration = SAnimTime(pSequence->GetTimeRange().Length());
+			key.m_duration = pSequence->GetTimeRange().Length();
 			pTrack->SetKey(nkey, &key);
 
-			SAnimTime t = animContext.time - key.m_time;
+			CTimeValue t = animContext.time - key.m_time;
 
 			if (t <= key.m_duration)
 			{
@@ -2571,7 +2571,7 @@ void CAnimEntityNode::AnimateFacialSequence(CFaceSequenceTrack* pTrack, SAnimCon
 					pFaceInstance->PauseSequence(eFacialSequenceLayer_Trackview, true);
 				}
 
-				pFaceInstance->SeekSequence(eFacialSequenceLayer_Trackview, t.ToFloat());
+				pFaceInstance->SeekSequence(eFacialSequenceLayer_Trackview, t);
 			}
 			else
 			{
@@ -2725,12 +2725,12 @@ void CAnimEntityNode::AnimateLookAt(CLookAtTrack* pTrack, SAnimContext& animCont
 				pIPoseBlenderLook->SetLayer(lookIKLayer);
 				pIPoseBlenderLook->SetTarget(pos);
 				pIPoseBlenderLook->SetFadeoutAngle(DEG2RAD(120.0f));
-				pIPoseBlenderLook->SetPolarCoordinatesSmoothTimeSeconds(key.m_smoothTime);
+				pIPoseBlenderLook->SetPolarCoordinatesSmoothTime(key.m_smoothTime);
 
 				CryCharAnimationParams animationparams;
 				animationparams.m_nFlags = CA_TRACK_VIEW_EXCLUSIVE | CA_LOOP_ANIMATION;
 				animationparams.m_nLayerID = lookIKLayer;
-				animationparams.m_fTransTime = 1.0f;
+				animationparams.m_fTransTime.SetSeconds(1);
 				pCharacter->GetISkeletonAnim()->StartAnimation(key.m_lookPose, animationparams);
 			}
 		}
@@ -2953,44 +2953,44 @@ void CAnimEntityNode::Serialize(XmlNodeRef& xmlNode, bool bLoading, bool bLoadEm
 	CAnimNode::Serialize(xmlNode, bLoading, bLoadEmptyTracks);
 }
 
-void CAnimEntityNode::ApplyAnimKey(int32 keyIndex, class CCharacterTrack* track, SAnimTime ectime,
+void CAnimEntityNode::ApplyAnimKey(int32 keyIndex, class CCharacterTrack* track, const CTimeValue& ectime,
 																		 ICharacterInstance* pCharacter, int layer, int animIndex, bool bAnimEvents)
 {
 	SCharacterKey key;
 	track->GetKey(keyIndex, &key);
 
-	float t = (ectime - key.m_time).ToFloat();
+	CTimeValue t = ectime - key.m_time;
 	t = key.m_startTime + t * key.m_speed;
-	float maxEndTime = key.GetMaxEndTime();
-	float duration = key.GetAnimDuration();
+	CTimeValue maxEndTime = key.GetMaxEndTime();
+	CTimeValue duration = key.GetAnimDuration();
 
-	if ((maxEndTime - key.m_startTime) > 0.0f && key.GetCroppedAnimDuration() > 0.0f)
+	if ((maxEndTime - key.m_startTime) > 0 && key.GetCroppedAnimDuration() > 0)
 	{
 		if (t < key.m_startTime)
 		{
 			t = key.m_startTime;
 		}
-		else if (key.m_bLoop && key.GetCroppedAnimDuration() > 0.0f)
+		else if (key.m_bLoop && key.GetCroppedAnimDuration() > 0)
 		{
-			t = fmod(t, duration);
+			t = t % duration;
 		}
 		else if (t > maxEndTime)
 		{
 			t = maxEndTime;
 		}
 
-		pCharacter->SetPlaybackScale(0.0000f);
-		float fNormalizedTime = t / duration;
-		assert(fNormalizedTime >= 0.0f && fNormalizedTime <= 1.0f);
+		pCharacter->SetPlaybackScale(0);
+		nTime fNormalizedTime = t / duration;
+		assert(fNormalizedTime >= 0 && fNormalizedTime <= 1);
 		pCharacter->GetISkeletonAnim()->ManualSeekAnimationInFIFO(layer, animIndex, fNormalizedTime, bAnimEvents);
 		pCharacter->GetISkeletonAnim()->SetLayerNormalizedTime(layer, fNormalizedTime);
 	}
 }
 
 void CAnimEntityNode::UpdateAnimTimeJumped(int32 keyIndex, class CCharacterTrack* track,
-																						 SAnimTime ectime, ICharacterInstance* pCharacter, int layer, bool bAnimEvents, int trackIndex, SAnimState& animState)
+	const CTimeValue& ectime, ICharacterInstance* pCharacter, int layer, bool bAnimEvents, int trackIndex, SAnimState& animState)
 {
-	f32 blendWeight = 0.0f;
+	mpfloat blendWeight = 0;
 	ISkeletonAnim* pISkeletonAnim = pCharacter->GetISkeletonAnim();
 
 	if (pISkeletonAnim->GetNumAnimsInFIFO(layer) == 2)
@@ -2998,13 +2998,13 @@ void CAnimEntityNode::UpdateAnimTimeJumped(int32 keyIndex, class CCharacterTrack
 		SCharacterKey key;
 		track->GetKey(keyIndex, &key);
 
-		float transitionTime = clamp_tpl(track->GetKeyDuration(keyIndex), FLT_EPSILON, movie_timeJumpTransitionTime);
-		blendWeight = (ectime.ToFloat() - animState.m_jumpTime[trackIndex]) / transitionTime;
-		assert(0 <= blendWeight && blendWeight <= 1.0f);
+		CTimeValue transitionTime = clamp_tpl(track->GetKeyDuration(keyIndex), TV_EPSILON, movie_timeJumpTransitionTime);
+		blendWeight = ((ectime - animState.m_jumpTime[trackIndex]) / transitionTime).conv<mpfloat>();
+		assert(0 <= blendWeight && blendWeight <= 1);
 
-		if (blendWeight > 1.0f)
+		if (blendWeight > 1)
 		{
-			blendWeight = 1.0f;
+			blendWeight = 1;
 		}
 		else if (blendWeight < 0)
 		{
@@ -3021,7 +3021,7 @@ void CAnimEntityNode::UpdateAnimTimeJumped(int32 keyIndex, class CCharacterTrack
 	ApplyAnimKey(keyIndex, track, ectime, pCharacter, layer, 1, bAnimEvents);
 }
 
-void CAnimEntityNode::UpdateAnimRegular(int32 numActiveKeys, int32 activeKeys[], class CCharacterTrack* track, SAnimTime ectime, ICharacterInstance* pCharacter, int layer, bool bAnimEvents)
+void CAnimEntityNode::UpdateAnimRegular(int32 numActiveKeys, int32 activeKeys[], class CCharacterTrack* track, const CTimeValue& ectime, ICharacterInstance* pCharacter, int layer, bool bAnimEvents)
 {
 	// cross-fade
 	if (numActiveKeys == 2)
@@ -3031,12 +3031,12 @@ void CAnimEntityNode::UpdateAnimRegular(int32 numActiveKeys, int32 activeKeys[],
 
 		track->GetKey(activeKeys[1], &key2);
 
-		const SAnimTime key1EndTime = key1.m_time + SAnimTime(track->GetKeyDuration(activeKeys[0]));
-		const SAnimTime t0 = key1EndTime - key2.m_time;
-		const SAnimTime t = ectime - key2.m_time;
-		const f32 blendWeight = (key1EndTime == key2.m_time) ? 1.0f : (t / t0).ToFloat();
+		const CTimeValue key1EndTime = key1.m_time + track->GetKeyDuration(activeKeys[0]);
+		const CTimeValue t0 = key1EndTime - key2.m_time;
+		const CTimeValue t = ectime - key2.m_time;
+		const mpfloat blendWeight = (key1EndTime == key2.m_time) ? 1 : (t / t0).conv<mpfloat>();
 
-		assert(0 <= blendWeight && blendWeight <= 1.0f);
+		assert(0 <= blendWeight && blendWeight <= 1);
 		pCharacter->GetISkeletonAnim()->SetTrackViewMixingWeight(layer, blendWeight);
 	}
 
@@ -3051,30 +3051,30 @@ void CAnimEntityNode::UpdateAnimRegular(int32 numActiveKeys, int32 activeKeys[],
 	}
 }
 
-void CAnimEntityNode::UpdateAnimBlendGap(int32 activeKeys[], class CCharacterTrack* track, SAnimTime ectime, ICharacterInstance* pCharacter, int layer)
+void CAnimEntityNode::UpdateAnimBlendGap(int32 activeKeys[], class CCharacterTrack* track, const CTimeValue& ectime, ICharacterInstance* pCharacter, int layer)
 {
-	f32 blendWeight = 0.0f;
+	mpfloat blendWeight = 0;
 	SCharacterKey key1, key2;
 	track->GetKey(activeKeys[0], &key1);
 	track->GetKey(activeKeys[1], &key2);
 
-	SAnimTime key1EndTime = key1.m_time + SAnimTime(track->GetKeyDuration(activeKeys[0]));
-	SAnimTime t0 = key2.m_time - key1EndTime;
-	SAnimTime t = ectime - key1EndTime;
+	CTimeValue key1EndTime = key1.m_time + track->GetKeyDuration(activeKeys[0]);
+	CTimeValue t0 = key2.m_time - key1EndTime;
+	CTimeValue t = ectime - key1EndTime;
 
 	if (key1EndTime == key2.m_time)
 	{
-		blendWeight = 1.0f;
+		blendWeight = 1;
 	}
 	else
 	{
-		blendWeight = (t / t0).ToFloat();
+		blendWeight = (t / t0).conv<mpfloat>();
 	}
 
-	pCharacter->SetPlaybackScale(0.0000f);
-	f32 endTimeNorm = 1.0f;
+	pCharacter->SetPlaybackScale(0);
+	nTime endTimeNorm(1);
 
-	if (key1.GetAnimDuration() > 0.0f)
+	if (key1.GetAnimDuration() > 0)
 	{
 		endTimeNorm = key1.GetMaxEndTime() / key1.GetAnimDuration();
 	}
@@ -3082,19 +3082,19 @@ void CAnimEntityNode::UpdateAnimBlendGap(int32 activeKeys[], class CCharacterTra
 	// The animation system will remove this animation from it's transition queue if it's on it's last
 	// frame. We need to force this animation to not be unloaded so we can blend the last frame of this
 	// animation with the first frame of the next
-	if (endTimeNorm >= 1.0f)
+	if (endTimeNorm >= 1)
 		endTimeNorm -= EPSILON;
 
-	assert(endTimeNorm >= 0.0f && endTimeNorm <= 1.0f);
+	assert(endTimeNorm >= 0 && endTimeNorm <= 1);
 	pCharacter->GetISkeletonAnim()->ManualSeekAnimationInFIFO(layer, 0, endTimeNorm, false);
-	f32 startTimeNorm = 0.0f;
+	nTime startTimeNorm(0);
 
-	if (key2.GetAnimDuration() > 0.0f)
+	if (key2.GetAnimDuration() > 0)
 	{
 		startTimeNorm = key2.m_startTime / key2.GetAnimDuration();
 	}
 
-	assert(startTimeNorm >= 0.0f && startTimeNorm <= 1.0f);
+	assert(startTimeNorm >= 0 && startTimeNorm <= 1);
 	pCharacter->GetISkeletonAnim()->ManualSeekAnimationInFIFO(layer, 1, startTimeNorm, false);
 	pCharacter->GetISkeletonAnim()->SetTrackViewMixingWeight(layer, blendWeight);
 }
@@ -3107,7 +3107,7 @@ bool CAnimEntityNode::CheckTimeJumpingOrOtherChanges(const SAnimContext& animCon
 
 	if (bJustJumped)
 	{
-		animState.m_jumpTime[trackIndex] = animContext.time.ToFloat();
+		animState.m_jumpTime[trackIndex] = animContext.time;
 	}
 
 	bool bKeysChanged = HaveKeysChanged(activeKeys, animState.m_lastAnimationKeys[trackIndex]);
@@ -3115,14 +3115,14 @@ bool CAnimEntityNode::CheckTimeJumpingOrOtherChanges(const SAnimContext& animCon
 
 	if (animState.m_bTimeJumped[trackIndex])
 	{
-		const bool bJumpBlendingDone = (animContext.time.ToFloat() - animState.m_jumpTime[trackIndex]) > movie_timeJumpTransitionTime;
+		const bool bJumpBlendingDone = (animContext.time - animState.m_jumpTime[trackIndex]) > movie_timeJumpTransitionTime;
 
 		bAnyChange = bAnyChange || bJumpBlendingDone;
 
 		if (bAnyChange)
 		{
 			animState.m_bTimeJumped[trackIndex] = false;
-			animState.m_jumpTime[trackIndex] = 0;
+			animState.m_jumpTime[trackIndex].SetSeconds(0);
 		}
 	}
 	else if (animState.m_bTimeJumped[trackIndex] == false)
@@ -3150,7 +3150,7 @@ bool CAnimEntityNode::CheckTimeJumpingOrOtherChanges(const SAnimContext& animCon
 	return bAnyChange;
 }
 
-void CAnimEntityNode::PrecacheStatic(SAnimTime time)
+void CAnimEntityNode::PrecacheStatic(const CTimeValue& time)
 {
 	// Update durations of all character animations.
 	IEntity* pEntity = GetEntity();
@@ -3182,7 +3182,7 @@ void CAnimEntityNode::PrecacheStatic(SAnimTime time)
 	}
 }
 
-void CAnimEntityNode::PrecacheDynamic(SAnimTime time)
+void CAnimEntityNode::PrecacheDynamic(const CTimeValue& time)
 {
 	// Update durations of all character animations.
 	IEntity* pEntity = GetEntity();
@@ -3252,10 +3252,11 @@ void CAnimEntityNode::PrecacheDynamic(SAnimTime time)
 	}
 }
 
-Vec3 CAnimEntityNode::Noise::Get(SAnimTime time) const
+Vec3 CAnimEntityNode::Noise::Get(const CTimeValue& time) const
 {
 	Vec3 noise;
-	const float phase = time.ToFloat() * m_freq;
+	// Float inaccuracy is fine, noise generation.
+	const float phase = (float)time.GetSeconds() * m_freq;
 	const Vec3 phase0 = Vec3(15.0f * m_freq, 55.1f * m_freq, 101.2f * m_freq);
 
 	noise.x = gEnv->pSystem->GetNoiseGen()->Noise1D(phase + phase0.x) * m_amp;

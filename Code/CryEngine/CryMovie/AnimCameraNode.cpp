@@ -275,7 +275,7 @@ void CAnimCameraNode::Animate(SAnimContext& animContext)
 	}
 }
 
-bool CAnimCameraNode::GetShakeRotation(SAnimTime time, Quat& rotation)
+bool CAnimCameraNode::GetShakeRotation(const CTimeValue& time, Quat& rotation)
 {
 	Vec4 shakeMult = Vec4(m_shakeParam[0].amplitudeMult, m_shakeParam[1].amplitudeMult,
 	                      m_shakeParam[0].frequencyMult, m_shakeParam[1].frequencyMult);
@@ -349,7 +349,7 @@ void CAnimCameraNode::OnStop()
 	m_pLastFrameActiveCameraNode = NULL;
 }
 
-void CAnimCameraNode::SetParameter(SAnimTime time, const EAnimParamType& paramType, const TMovieSystemValue& value)
+void CAnimCameraNode::SetParameter(const CTimeValue& time, const EAnimParamType& paramType, const TMovieSystemValue& value)
 {
 	if (m_bIgnoreSetParam)
 	{
@@ -397,14 +397,14 @@ void CAnimCameraNode::SetParameter(SAnimTime time, const EAnimParamType& paramTy
 	case eAnimParamType_ShakeWorking:
 		{
 			const Vec4 values = stl::get<Vec4>(value);
-			m_shakeParam[0].timeOffset = values.x;
-			m_shakeParam[1].timeOffset = values.y;
+			m_shakeParam[0].timeOffset = BADTIME(values.x);
+			m_shakeParam[1].timeOffset = BADTIME(values.y);
 		}
 		break;
 	}
 }
 
-TMovieSystemValue CAnimCameraNode::GetParameter(SAnimTime time, const EAnimParamType& paramType) const
+TMovieSystemValue CAnimCameraNode::GetParameter(const CTimeValue& time, const EAnimParamType& paramType) const
 {
 	switch (paramType)
 	{
@@ -425,7 +425,7 @@ TMovieSystemValue CAnimCameraNode::GetParameter(SAnimTime time, const EAnimParam
 	case eAnimParamType_ShakeNoise:
 		return TMovieSystemValue(Vec4(m_shakeParam[0].noiseAmpMult, m_shakeParam[1].noiseAmpMult, m_shakeParam[0].noiseFreqMult, m_shakeParam[1].noiseFreqMult));
 	case eAnimParamType_ShakeWorking:
-		return TMovieSystemValue(Vec4(m_shakeParam[0].timeOffset, m_shakeParam[1].timeOffset, 0.0f, 0.0f));
+		return TMovieSystemValue(Vec4(m_shakeParam[0].timeOffset.BADGetSeconds(), m_shakeParam[1].timeOffset.BADGetSeconds(), 0.0f, 0.0f));
 	}
 
 	return TMovieSystemValue(SMovieSystemVoid());
@@ -514,14 +514,14 @@ void CAnimCameraNode::Activate(bool bActivate)
 	}
 };
 
-Ang3 CAnimCameraNode::ShakeParam::ApplyCameraShake(CPNoise3& noiseGen, SAnimTime time, Ang3 angles, CAnimSplineTrack* pFreqTrack, EntityId camEntityId, int shakeIndex, const uint shakeSeed)
+Ang3 CAnimCameraNode::ShakeParam::ApplyCameraShake(CPNoise3& noiseGen, const CTimeValue& time, Ang3 angles, CAnimSplineTrack* pFreqTrack, EntityId camEntityId, int shakeIndex, const uint shakeSeed)
 {
 	Ang3 rotation;
 	Ang3 rotationNoise;
 
 	float noiseAmpMult = this->amplitudeMult * this->noiseAmpMult;
 
-	float t = this->timeOffset;
+	float t = this->timeOffset.BADGetSeconds();
 
 	this->phase = Vec3((t + 15.0f) * this->frequency.x,
 	                   (t + 55.1f) * this->frequency.y,

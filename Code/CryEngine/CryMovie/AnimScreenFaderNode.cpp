@@ -21,16 +21,16 @@ void AddSupportedParams(const char* sName, int paramId, EAnimValue valueType)
 }
 };
 
-bool CalculateIsolatedKeyColor(const SScreenFaderKey& key, SAnimTime time, Vec4& colorOut)
+bool CalculateIsolatedKeyColor(const SScreenFaderKey& key, const CTimeValue& time, Vec4& colorOut)
 {
-	SAnimTime ratio = time - key.m_time;
+	CTimeValue ratio = time - key.m_time;
 
-	if (ratio < SAnimTime(0))
+	if (ratio < 0)
 	{
 		return false;
 	}
 
-	if (key.m_fadeTime == 0.f)
+	if (key.m_fadeTime == 0)
 	{
 		colorOut = key.m_fadeColor;
 
@@ -46,15 +46,16 @@ bool CalculateIsolatedKeyColor(const SScreenFaderKey& key, SAnimTime time, Vec4&
 	else
 	{
 		colorOut = key.m_fadeColor;
-		float floatRatio = ratio.ToFloat() / key.m_fadeTime;
+		nTime floatRatio = ratio / key.m_fadeTime;
 
+		// Float inaccuracy is fine, coloring
 		if (key.m_fadeType == SScreenFaderKey::eFT_FadeIn)
 		{
-			colorOut.w = std::max(0.f, 1.f - floatRatio);
+			colorOut.w = std::max(0.f, 1.f - (float)floatRatio);
 		}
 		else
 		{
-			colorOut.w = std::min(1.f, floatRatio);
+			colorOut.w = std::min(1.f, (float)floatRatio);
 		}
 	}
 
@@ -128,13 +129,13 @@ void CAnimScreenFaderNode::Animate(SAnimContext& animContext)
 				}
 			}
 
-			if (m_bActive || SAnimTime(key.m_fadeTime) + key.m_time > animContext.time)
+			if (m_bActive || key.m_fadeTime + key.m_time > animContext.time)
 			{
-				float ratio = (key.m_fadeTime > 0) ? ((animContext.time - key.m_time) / key.m_fadeTime).ToFloat() : 1.f;
+				nTime ratio = (key.m_fadeTime > 0) ? (animContext.time - key.m_time) / key.m_fadeTime : nTime(1);
 
-				if (ratio < 0.f) { ratio = 0.f; }
+				if (ratio < 0) { ratio = 0; }
 
-				ratio = std::min(ratio, 1.f);
+				ratio = std::min(ratio, nTime(1));
 
 				switch (key.m_fadeChangeType)
 				{
@@ -151,7 +152,7 @@ void CAnimScreenFaderNode::Animate(SAnimContext& animContext)
 					break;
 
 				case SScreenFaderKey::eFCT_Sin:
-					ratio = sinf(ratio * 3.14159265f * 0.5f);
+					ratio = BADnT( sinf(BADF(ratio * "3.14159265" * "0.5")) );
 					break;
 				}
 
@@ -185,7 +186,8 @@ void CAnimScreenFaderNode::Animate(SAnimContext& animContext)
 					key.m_fadeColor.w = 1.f;
 				}
 
-				pTrack->SetDrawColor(m_startColor + (key.m_fadeColor - m_startColor) * ratio);
+				// Float inaccuracy is fine, coloring
+				pTrack->SetDrawColor(m_startColor + (key.m_fadeColor - m_startColor) * (float)ratio);
 
 				if (pTrack->GetDrawColor().w < 0.01f)
 				{

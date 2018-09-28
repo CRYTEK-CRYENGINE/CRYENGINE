@@ -29,8 +29,8 @@ private:
 	virtual bool            GetParamInfoFromType(const CAnimParamType& paramId, SParamInfo& info) const override;
 
 private:
-	bool GetValueFromTrack(CAnimParamType type, float time, float& value) const;
-	bool GetValueFromTrack(CAnimParamType type, float time, Vec3& value) const;
+	bool GetValueFromTrack(CAnimParamType type, const CTimeValue& time, float& value) const;
+	bool GetValueFromTrack(CAnimParamType type, const CTimeValue& time, Vec3& value) const;
 
 private:
 	float m_fRadius;
