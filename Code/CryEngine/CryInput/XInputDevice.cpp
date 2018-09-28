@@ -234,13 +234,13 @@ void CXInputDevice::Update(bool bFocus)
 
 	UpdateConnectedState(connected);
 
-	float frameTime = gEnv->pTimer->GetFrameTime();
-	float now = gEnv->pTimer->GetFrameStartTime().GetSeconds();
-	if ((m_fVibrationTimer && m_fVibrationTimer < now) || g_pInputCVars->i_forcefeedback == 0 ||
-	    gEnv->pSystem->IsPaused() || frameTime < 0.001f)
+	CTimeValue frameTime = GetGTimer()->GetFrameTime(ITimer::ETIMER_UI);
+	CTimeValue now = GetGTimer()->GetFrameStartTime(ITimer::ETIMER_UI);
+	if ((m_fVibrationTimer != 0 && m_fVibrationTimer < now) || g_pInputCVars->i_forcefeedback == 0 ||
+	    gEnv->pSystem->IsPaused() || frameTime < "0.001")
 	{
-		m_fVibrationTimer = 0;
-		SetVibration(0, 0, 0.0f);
+		m_fVibrationTimer.SetSeconds(0);
+		SetVibration(0, 0, 0);
 	}
 
 	// Force inputs to get sent out when we're disconnecting or
@@ -442,8 +442,8 @@ void CXInputDevice::Update(bool bFocus)
 
 void CXInputDevice::ClearKeyState()
 {
-	m_fVibrationTimer = 0;
-	SetVibration(0, 0, 0.0f);
+	m_fVibrationTimer.SetSeconds(0);
+	SetVibration(0, 0, 0);
 
 	CInputDevice::ClearKeyState();
 }
@@ -532,7 +532,7 @@ bool CXInputDevice::SetForceFeedback(IFFParams params)
 	return SetVibration(min(1.0f, (float)abs(params.strengthA)) * 65535.f, min(1.0f, (float)abs(params.strengthB)) * 65535.f, params.timeInSeconds, params.effectId);
 }
 
-bool CXInputDevice::SetVibration(USHORT leftMotor, USHORT rightMotor, float timing, EFFEffectId effectId)
+bool CXInputDevice::SetVibration(USHORT leftMotor, USHORT rightMotor, const CTimeValue& timing, EFFEffectId effectId)
 {
 	//if(g_bConnected[m_deviceNo])
 	if (m_connected)
@@ -542,11 +542,11 @@ bool CXInputDevice::SetVibration(USHORT leftMotor, USHORT rightMotor, float timi
 
 		if (effectId == eFF_Rumble_Basic)
 		{
-			const float now = gEnv->pTimer->GetFrameStartTime().GetSeconds();
+			const CTimeValue now = GetGTimer()->GetFrameStartTime(ITimer::ETIMER_UI);
 
-			if (m_fVibrationTimer > 0.0f)
+			if (m_fVibrationTimer > 0)
 			{
-				const float oldRumbleRatio = (float)__fsel(-timing, 1.0f, min(1.0f, (fabsf(m_fVibrationTimer - now) * (float)__fres((timing + FLT_EPSILON)))));
+				const float oldRumbleRatio = BADF((timing >= 0) ? min(nTime(1), (abs(m_fVibrationTimer - now)/(timing + TV_EPSILON))) : 1);
 
 				//Store only 'basic', without frame part
 				m_basicLeftMotorRumble = max(leftMotor, (USHORT)(m_basicLeftMotorRumble * oldRumbleRatio));
@@ -566,7 +566,7 @@ bool CXInputDevice::SetVibration(USHORT leftMotor, USHORT rightMotor, float timi
 				desiredVibrationRight = max(rightMotor, (USHORT)GetClampedRightMotorAccumulatedVibration());
 			}
 
-			m_fVibrationTimer = (float)__fsel(-timing, 0.0f, now + timing);
+			m_fVibrationTimer = (timing >= 0) ? now + timing : 0;
 		}
 		else if (effectId == eFF_Rumble_Frame)
 		{

@@ -215,7 +215,7 @@ void CSDLMouse::Update(bool focus)
 
 			if (inertia > 0.0f)
 			{
-				float dt = gEnv->pTimer->GetFrameTime();
+				float dt = GetGTimer()->GetFrameTime();
 				if (dt > 0.1f) dt = 0.1f;
 				m_deltas = (m_deltasInertia += (m_deltas - m_deltasInertia) * inertia * dt);
 			}
@@ -350,7 +350,7 @@ void CSDLMouse::GrabInput()
 	   }
 	   else//mouse smooth with acceleration
 	   {
-	    float dt = min(gEnv->pTimer->GetFrameTime(),0.1f);
+	    float dt = min(GetGTimer()->GetFrameTime(),0.1f);
 
 	    Vec2 delta;
 
@@ -439,7 +439,7 @@ void CSDLMouse::SmoothDeltas(float accel, float decel)
 	}
 	else  //mouse smooth with acceleration
 	{
-		float dt = min(gEnv->pTimer->GetFrameTime(), 0.1f);
+		float dt = min(GetGTimer()->GetFrameTime(), 0.1f);
 
 		Vec2 delta;
 

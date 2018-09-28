@@ -44,7 +44,7 @@ private:
 	//void AddInputItem(const IInput::InputItem& item);
 
 	//triggers the speed of the vibration motors -> leftMotor is for low frequencies, the right one is for high frequencies
-	bool        SetVibration(USHORT leftMotor = 0, USHORT rightMotor = 0, float timing = 0, EFFEffectId effectId = eFF_Rumble_Basic);
+	bool        SetVibration(USHORT leftMotor = 0, USHORT rightMotor = 0, const CTimeValue& timing = 0, EFFEffectId effectId = eFF_Rumble_Basic);
 	void        ProcessAnalogStick(SInputSymbol* pSymbol, SHORT prev, SHORT current, SHORT threshold);
 
 	ILINE float GetClampedLeftMotorAccumulatedVibration() const  { return clamp_tpl(m_basicLeftMotorRumble + m_frameLeftMotorRumble, 0.0f, 65535.0f); }
@@ -58,7 +58,7 @@ private:
 
 	float            m_basicLeftMotorRumble, m_basicRightMotorRumble;
 	float            m_frameLeftMotorRumble, m_frameRightMotorRumble;
-	float            m_fVibrationTimer;
+	CTimeValue       m_fVibrationTimer;
 	float            m_fDeadZone;
 	//std::vector<IInput::InputItem>	mInputQueue;	//!< queued inputs
 

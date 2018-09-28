@@ -705,16 +705,16 @@ bool CBaseInput::ShouldBlockInputEventPosting(const EKeyId keyId, const EInputDe
 
 void CBaseInput::UpdateBlockingInputs()
 {
-	const float fElapsedTime = gEnv->pTimer->GetFrameTime(ITimer::ETIMER_UI);
+	const CTimeValue fElapsedTime = GetGTimer()->GetFrameTime(ITimer::ETIMER_UI);
 
 	TInputBlockData::iterator iter = m_inputBlockData.begin();
 	TInputBlockData::iterator iterEnd = m_inputBlockData.end();
 	while (iter != iterEnd)
 	{
 		SInputBlockData& curBlockingInput = *iter;
-		float& fBlockDuration = curBlockingInput.fBlockDuration;
+		CTimeValue& fBlockDuration = curBlockingInput.fBlockDuration;
 		fBlockDuration -= fElapsedTime;
-		if (fBlockDuration < 0.0f) // Time is up, remove now
+		if (fBlockDuration < 0) // Time is up, remove now
 		{
 			iter = m_inputBlockData.erase(iter);
 		}
@@ -809,7 +809,7 @@ void CBaseInput::ForceFeedbackEvent(const SFFOutputEvent& event)
 				break;
 
 			case eFF_Rumble_Frame:
-				params.timeInSeconds = 0.0f;
+				params.timeInSeconds.SetSeconds(0);
 				params.strengthA = event.amplifierS;
 				params.strengthB = event.amplifierA;
 				break;
@@ -828,7 +828,7 @@ void CBaseInput::ForceFeedbackSetDeviceIndex(int index)
 	if (m_forceFeedbackDeviceIndex != index)
 	{
 		// Disable rumble on current device before switching, otherwise it will stay on
-		ForceFeedbackEvent(SFFOutputEvent(eIDT_Gamepad, eFF_Rumble_Frame, SFFTriggerOutputData::Initial::ZeroIt, 0.0f, 0.0f, 0.0f));
+		ForceFeedbackEvent(SFFOutputEvent(eIDT_Gamepad, eFF_Rumble_Frame, SFFTriggerOutputData::Initial::ZeroIt, 0, 0.0f, 0.0f));
 		m_forceFeedbackDeviceIndex = index;
 	}
 }
@@ -877,7 +877,7 @@ void CBaseInput::OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_PTR lpa
 	else if (event == ESYSTEM_EVENT_FAST_SHUTDOWN)
 	{
 		CryLogAlways("BaseInput - Shutting down all force feedback");
-		ForceFeedbackEvent(SFFOutputEvent(eIDT_Gamepad, eFF_Rumble_Basic, SFFTriggerOutputData::Initial::ZeroIt, 0.0f, 0.0f, 0.0f));
+		ForceFeedbackEvent(SFFOutputEvent(eIDT_Gamepad, eFF_Rumble_Basic, SFFTriggerOutputData::Initial::ZeroIt, 0, 0.0f, 0.0f));
 	}
 }
 

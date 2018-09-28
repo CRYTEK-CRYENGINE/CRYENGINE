@@ -144,7 +144,7 @@ void CSDLPad::Update(bool bFocus)
 
 	if (m_supportsFeedback && m_vibrateTime > 0.0f)
 	{
-		m_vibrateTime -= gEnv->pTimer->GetFrameTime();
+		m_vibrateTime -= GetGTimer()->GetFrameTime();
 		if (m_vibrateTime <= 0.0f)
 		{
 			SDL_HapticDestroyEffect(m_pHapticDevice, m_curHapticEffect);
