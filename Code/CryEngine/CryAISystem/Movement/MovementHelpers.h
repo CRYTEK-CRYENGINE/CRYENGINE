@@ -25,7 +25,7 @@ public:
 	bool IsAgentStuck() const;
 
 private:
-	float m_accumulatedTimeAgentIsStuck;
+	CTimeValue m_accumulatedTimeAgentIsStuck;
 	float m_agentDistanceToTheEndInPreviousUpdate;
 };
 

@@ -25,9 +25,9 @@ public:
 	bool         Play(const CommPlayID& playID, const SCommunicationRequest& request,
 	                  const SCommunication& comm, uint32 variationIdx, ICommunicationFinishedListener* listener, void* param);
 	void         Stop(const CommPlayID& playID);
-	void         Update(float updateTime);
+	void         Update(const CTimeValue& updateTime);
 
-	bool         IsPlaying(const CommPlayID& playID, float* remainingTime = 0) const;
+	bool         IsPlaying(const CommPlayID& playID, CTimeValue* remainingTime = 0) const;
 
 	virtual void OnCommunicationHandlerEvent(
 	  IAICommunicationHandler::ECommunicationHandlerEvent type, CommPlayID playID, EntityId actorID);
@@ -79,7 +79,7 @@ public:
 
 		CommID                          commID;
 
-		float                           timeout;
+		CTimeValue                      timeout;
 		uint32                          flags;
 
 		//Tracks whether this playstate has finished.
@@ -90,7 +90,7 @@ private:
 
 	void CleanUpPlayState(const CommPlayID& playID, PlayState& playState);
 
-	bool UpdatePlaying(const CommPlayID& playId, PlayState& playing, float updateTime);
+	bool UpdatePlaying(const CommPlayID& playId, PlayState& playing, const CTimeValue& updateTime);
 	void BlockingSettings(IAIObject* aiObject, PlayState& playing, bool set);
 
 	typedef std::map<CommPlayID, PlayState> PlayingCommunications;

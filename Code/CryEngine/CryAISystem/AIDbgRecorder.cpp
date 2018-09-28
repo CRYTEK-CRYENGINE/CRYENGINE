@@ -140,13 +140,13 @@ void CAIDbgRecorder::Record(const IAIObject* pTarget, IAIRecordable::e_AIDbgEven
 
 	// Fetch the current AI tick and the time that tick started
 	int frame = GetAISystem()->GetAITickCount();
-	float time = GetAISystem()->GetFrameStartTimeSeconds();
+	CTimeValue time = GetAISystem()->GetFrameStartTime();
 
 	char bufferString[BUFFER_SIZE];
 
 	if (!pString)
 		pString = "<null>";
-	cry_sprintf(bufferString, "%6d:%9.3f: <%s> %s\t\t\t%s\n", frame, time, pTarget->GetName(), pEventString, pString);
+	cry_sprintf(bufferString, "%6d:%9.3f: <%s> %s\t\t\t%s\n", frame, (float)time.GetSeconds(), pTarget->GetName(), pEventString, pString);
 	LogString(bufferString);
 }
 

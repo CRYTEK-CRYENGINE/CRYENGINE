@@ -22,9 +22,9 @@
 //===================================================================
 // GetTargetAliveTime
 //===================================================================
-float CPuppet::GetTargetAliveTime()
+CTimeValue CPuppet::GetTargetAliveTime()
 {
-	float fTargetStayAliveTime = gAIEnv.CVars.RODAliveTime;
+	CTimeValue fTargetStayAliveTime = gAIEnv.CVars.RODAliveTime;
 
 	const CAIObject* pLiveTarget = GetLiveTarget(m_refAttentionTarget).GetAIObject();
 	if (!pLiveTarget)
@@ -47,9 +47,9 @@ float CPuppet::GetTargetAliveTime()
 		const float fTargetDist = vTargetDir.NormalizeSafe();
 
 		// Scale target life time based on target speed.
-		const float fMoveInc = gAIEnv.CVars.RODMoveInc;
+		const CTimeValue fMoveInc = gAIEnv.CVars.RODMoveInc;
 		{
-			float fIncrease = 0.0f;
+			CTimeValue fIncrease;
 
 			const Vec3& vTargetVel = pLiveTarget->GetVelocity();
 			const float fSpeed = vTargetVel.GetLength2D();
@@ -60,10 +60,10 @@ float CPuppet::GetTargetAliveTime()
 				// Super speed run or super jump.
 				if (fSpeed > 12.0f || vTargetVel.z > 7.0f)
 				{
-					fIncrease += fMoveInc * 2.0f;
+					fIncrease += fMoveInc * 2;
 
 					// Dazzle the shooter for a moment.
-					m_targetDazzlingTime = 1.0f;
+					m_targetDazzlingTime.SetSeconds(1);
 				}
 				else if (fSpeed > 6.0f)
 				{
@@ -72,16 +72,16 @@ float CPuppet::GetTargetAliveTime()
 			}
 			else if (fSpeed > 6.0f)
 			{
-				fIncrease *= fMoveInc;
+				fIncrease *= fMoveInc.GetSeconds();
 			}
 
 			fTargetStayAliveTime += fIncrease;
 		}
 
 		// Scale target life time based on target stance.
-		const float fStanceInc = gAIEnv.CVars.RODStanceInc;
+		const CTimeValue fStanceInc = gAIEnv.CVars.RODStanceInc;
 		{
-			float fIncrease = 0.0f;
+			CTimeValue fIncrease;
 
 			const SAIBodyInfo& bi = pLiveActor->GetBodyInfo();
 			if (bi.stance == STANCE_CROUCH && m_targetZone > AIZONE_KILL)
@@ -93,15 +93,15 @@ float CPuppet::GetTargetAliveTime()
 		}
 
 		// Scale target life time based on target vs. shooter orientation.
-		const float fDirectionInc = gAIEnv.CVars.RODDirInc;
+		const CTimeValue fDirectionInc = gAIEnv.CVars.RODDirInc;
 		{
-			float fIncrease = 0.0f;
+			CTimeValue fIncrease;
 
 			const float thr1 = cosf(DEG2RAD(30.0f));
 			const float thr2 = cosf(DEG2RAD(95.0f));
 			float dot = -vTargetDir.Dot(pLiveTarget->GetViewDir());
 			if (dot < thr2)
-				fIncrease += fDirectionInc * 2.0f;
+				fIncrease += fDirectionInc * 2;
 			else if (dot < thr1)
 				fIncrease += fDirectionInc;
 
@@ -111,7 +111,7 @@ float CPuppet::GetTargetAliveTime()
 		if (!m_allowedToHitTarget)
 		{
 			// If the agent is set not to be allowed to hit the target, let the others shoot first.
-			const float fAmbientFireInc = gAIEnv.CVars.RODAmbientFireInc;
+			const CTimeValue fAmbientFireInc = gAIEnv.CVars.RODAmbientFireInc;
 			fTargetStayAliveTime += fAmbientFireInc;
 		}
 		else if (m_targetZone == AIZONE_KILL)
@@ -120,14 +120,14 @@ float CPuppet::GetTargetAliveTime()
 			const SAIBodyInfo bi = GetBodyInfo();
 			if (!bi.GetLinkedVehicleEntity())
 			{
-				const float fKillZoneInc = gAIEnv.CVars.RODKillZoneInc;
+				const CTimeValue fKillZoneInc = gAIEnv.CVars.RODKillZoneInc;
 				fTargetStayAliveTime += fKillZoneInc;
 			}
 		}
 	}
 
 	CCCPOINT(CPuppet_GetTargetAliveTime_A);
-	return max(0.0f, fTargetStayAliveTime);
+	return max(CTimeValue(0), fTargetStayAliveTime);
 }
 
 //===================================================================
@@ -158,26 +158,26 @@ void CPuppet::UpdateHealthTracking()
 	}
 
 	// Calculate the rate of death.
-	float fTargetStayAliveTime = GetTargetAliveTime();
+	CTimeValue fTargetStayAliveTime = GetTargetAliveTime();
 
 	// This catches the case when the target turns on and off the armor.
 	if (m_targetDamageHealthThr > fTargetMaxHealth)
 		m_targetDamageHealthThr = fTargetMaxHealth;
 
-	if (fTargetHealth >= m_targetDamageHealthThr || fTargetStayAliveTime <= FLT_EPSILON)
+	if (fTargetHealth >= m_targetDamageHealthThr || fTargetStayAliveTime <= TV_EPSILON)
 	{
 		m_targetDamageHealthThr = fTargetHealth;
 	}
 	else
 	{
-		const float fFrametime = GetAISystem()->GetFrameDeltaTime();
-		m_targetDamageHealthThr = max(0.0f, m_targetDamageHealthThr - (1.0f / fTargetStayAliveTime) * m_Parameters.m_fAccuracy * fFrametime);
+		const CTimeValue fFrametime = GetAISystem()->GetFrameDeltaTime();
+		m_targetDamageHealthThr = max(0.0f, m_targetDamageHealthThr - BADF((1 / fTargetStayAliveTime) * fFrametime * BADMP(m_Parameters.m_fAccuracy)));
 	}
 
 	if (gAIEnv.CVars.DebugDrawDamageControl > 0)
 	{
 		if (!m_targetDamageHealthThrHistory)
-			m_targetDamageHealthThrHistory = new CValueHistory<float>(100, 0.1f);
+			m_targetDamageHealthThrHistory = new CValueHistory<float>(100, "0.1");
 		m_targetDamageHealthThrHistory->Sample(m_targetDamageHealthThr, GetAISystem()->GetFrameDeltaTime());
 
 #ifdef CRYAISYSTEM_DEBUG
@@ -189,10 +189,10 @@ void CPuppet::UpdateHealthTracking()
 //====================================================================
 // GetFiringReactionTime
 //====================================================================
-float CPuppet::GetFiringReactionTime(const Vec3& targetPos) const
+CTimeValue CPuppet::GetFiringReactionTime(const Vec3& targetPos) const
 {
 	// Apply archetype modifier
-	float fReactionTime = gAIEnv.CVars.RODReactionTime * GetParameters().m_PerceptionParams.reactionTime;
+	CTimeValue fReactionTime = gAIEnv.CVars.RODReactionTime * GetParameters().m_PerceptionParams.reactionTime;
 
 	const CAIActor* pLiveTarget = GetLiveTarget(m_refAttentionTarget).GetAIObject();
 	if (!pLiveTarget)
@@ -226,12 +226,12 @@ float CPuppet::GetFiringReactionTime(const Vec3& targetPos) const
 			}
 		}
 
-		const float fDistInc = min(1.0f, gAIEnv.CVars.RODReactionDistInc);
+		const CTimeValue fDistInc = min(CTimeValue(1), gAIEnv.CVars.RODReactionDistInc);
 		// Increase reaction time if the target is further away.
 		if (m_targetZone == AIZONE_COMBAT_NEAR)
 			fReactionTime += fDistInc;
 		else if (m_targetZone >= AIZONE_COMBAT_FAR)
-			fReactionTime += fDistInc * 2.0f;
+			fReactionTime += fDistInc * 2;
 
 		// Increase the reaction time of the target is leaning.
 		const SAIBodyInfo& bi = pLiveActor->GetBodyInfo();
@@ -249,7 +249,7 @@ float CPuppet::GetFiringReactionTime(const Vec3& targetPos) const
 		if (fLeaningDot < thr1)
 			fReactionTime += gAIEnv.CVars.RODReactionDirInc;
 		else if (fLeaningDot < thr2)
-			fReactionTime += gAIEnv.CVars.RODReactionDirInc * 2.0f;
+			fReactionTime += gAIEnv.CVars.RODReactionDirInc * 2;
 	}
 
 	return fReactionTime;
@@ -260,8 +260,8 @@ float CPuppet::GetFiringReactionTime(const Vec3& targetPos) const
 //====================================================================
 void CPuppet::UpdateFireReactionTimer(const Vec3& vTargetPos)
 {
-	const float fFrametime = GetAISystem()->GetFrameDeltaTime();
-	const float fReactionTime = GetFiringReactionTime(vTargetPos);
+	const CTimeValue fFrametime = GetAISystem()->GetFrameDeltaTime();
+	const CTimeValue fReactionTime = GetFiringReactionTime(vTargetPos);
 
 	// Update the fire reaction timer
 	bool bReacting = false;
@@ -269,14 +269,14 @@ void CPuppet::UpdateFireReactionTimer(const Vec3& vTargetPos)
 	{
 		if (GetAttentionTargetType() == AITARGET_VISUAL && GetAttentionTargetThreat() == AITHREAT_AGGRESSIVE)
 		{
-			m_firingReactionTime = min(m_firingReactionTime + fFrametime, fReactionTime + 0.001f);
+			m_firingReactionTime = min(m_firingReactionTime + fFrametime, fReactionTime + "0.001");
 			bReacting = true;
 		}
 	}
 
 	if (!bReacting)
 	{
-		m_firingReactionTime = max(0.0f, m_firingReactionTime - fFrametime);
+		m_firingReactionTime = max(CTimeValue(0), m_firingReactionTime - fFrametime);
 	}
 
 	m_firingReactionTimePassed = m_firingReactionTime >= fReactionTime;
@@ -326,8 +326,8 @@ std::vector<Vec3> CPuppet::s_projectedPoints(16);
 //====================================================================
 Vec3 CPuppet::UpdateTargetTracking(CWeakRef<CAIObject> refTarget, const Vec3& vTargetPos)
 {
-	const float fFrametime = GetAISystem()->GetFrameDeltaTime();
-	const float fReactionTime = GetFiringReactionTime(vTargetPos);
+	const CTimeValue fFrametime = GetAISystem()->GetFrameDeltaTime();
+	const CTimeValue fReactionTime = GetFiringReactionTime(vTargetPos);
 
 	// Update the fire reaction timer
 	UpdateFireReactionTimer(vTargetPos);
@@ -337,7 +337,7 @@ Vec3 CPuppet::UpdateTargetTracking(CWeakRef<CAIObject> refTarget, const Vec3& vT
 	if (!pLiveTarget)
 	{
 		ResetTargetTracking();
-		m_targetBiasDirection += (Vec3(0, 0, -1) - m_targetBiasDirection) * fFrametime;
+		m_targetBiasDirection += (Vec3(0, 0, -1) - m_targetBiasDirection) * fFrametime.BADGetSeconds();
 		return vTargetPos;
 	}
 
@@ -353,9 +353,9 @@ Vec3 CPuppet::UpdateTargetTracking(CWeakRef<CAIObject> refTarget, const Vec3& vT
 		fFocusTargetValue += 1.0f;
 	Limit(fFocusTargetValue, 0.0f, 1.0f);
 	if (fFocusTargetValue > m_targetFocus)
-		m_targetFocus += (fFocusTargetValue - m_targetFocus) * fFrametime;
+		m_targetFocus += (fFocusTargetValue - m_targetFocus) * fFrametime.BADGetSeconds();
 	else
-		m_targetFocus += (fFocusTargetValue - m_targetFocus) * 0.4f * fFrametime;
+		m_targetFocus += (fFocusTargetValue - m_targetFocus) * 0.4f * fFrametime.BADGetSeconds();
 
 	// Calculate a silhouette which is later used to miss the player intentionally.
 	// The silhouette is the current target AABB extruded into the movement direction.
@@ -392,7 +392,7 @@ Vec3 CPuppet::UpdateTargetTracking(CWeakRef<CAIObject> refTarget, const Vec3& vT
 			AIWarning("CPuppet::UpdateTargetTracking() Target %s does not have physics!", pTarget->GetName());
 			AIAssert(0);
 			ResetTargetTracking();
-			m_targetBiasDirection += (Vec3(0, 0, -1) - m_targetBiasDirection) * fFrametime;
+			m_targetBiasDirection += (Vec3(0, 0, -1) - m_targetBiasDirection) * fFrametime.BADGetSeconds();
 			return vTargetPos;
 		}
 
@@ -472,7 +472,7 @@ Vec3 CPuppet::UpdateTargetTracking(CWeakRef<CAIObject> refTarget, const Vec3& vT
 
 	if (desiredTargetBias.NormalizeSafe(ZERO) > 0.0f)
 	{
-		m_targetBiasDirection += (desiredTargetBias - m_targetBiasDirection) * 4.0f * fFrametime;
+		m_targetBiasDirection += (desiredTargetBias - m_targetBiasDirection) * 4.0f * fFrametime.BADGetSeconds();
 		m_targetBiasDirection.NormalizeSafe(ZERO);
 	}
 
@@ -521,7 +521,7 @@ bool CPuppet::CanDamageTarget(IAIObject* target) const
 		if (m_fireMode == FIREMODE_KILL)
 			return true;
 
-		if (m_targetDazzlingTime > 0.0f)
+		if (m_targetDazzlingTime > 0)
 			return false;
 
 		// HACK: [16:05:08 mieszko]: I'm not sure it's a hack. I just don't think this kind of things should be
@@ -593,7 +593,7 @@ void CPuppet::ResetTargetTracking()
 //====================================================================
 // GetCoverFireTime
 //====================================================================
-float CPuppet::GetCoverFireTime() const
+CTimeValue CPuppet::GetCoverFireTime() const
 {
 	return m_CurrentWeaponDescriptor.coverFireTime * gAIEnv.CVars.RODCoverFireTimeMod;
 }
@@ -641,7 +641,7 @@ void CPuppet::HandleBurstFireInit()
 	// When starting burst in warn zone, force first bullets to miss
 	// TODO: not nice to handle it this way!
 	if (m_targetZone == AIZONE_WARN)
-		m_targetSeenTime = std::max(0.0f, m_targetSeenTime - (cry_random(1, 3)) / 10.0f);
+		m_targetSeenTime = std::max(CTimeValue(0), m_targetSeenTime - cry_random<CTimeValue>(1, 3) / 10);
 
 	/* Márcio: does not work for Burst fire weapons - does not seem to have any benefits anyways
 	   IAIActorProxy *pProxy = GetProxy();

@@ -67,7 +67,7 @@ void Group::Reset(EObjectResetType type)
 	m_targetLocation.zero();
 }
 
-void Group::Update(float updateTime)
+void Group::Update(const CTimeValue& updateTime)
 {
 	while (!m_notifications.empty())
 	{

@@ -41,7 +41,7 @@ public:
 	virtual void         OnReload()                                                  {}
 	virtual void         OnShoot()                                                   { ++m_ShotsCount; }
 	virtual int          GetShotCount() const                                        { return m_ShotsCount; }
-	virtual float        GetTimeToNextShot() const;
+	virtual CTimeValue   GetTimeToNextShot() const;
 
 protected:
 	CPuppet* m_pShooter;
@@ -55,15 +55,15 @@ protected:
 	};
 
 	EBurstState m_weaponBurstState;
-	float       m_weaponBurstTime;
-	float       m_weaponBurstTimeScale;
-	float       m_weaponBurstTimeWithoutShot;
+	CTimeValue  m_weaponBurstTime;
+	mpfloat     m_weaponBurstTimeScale;
+	CTimeValue  m_weaponBurstTimeWithoutShot;
 	int         m_weaponBurstBulletCount;
 	int         m_curBurstBulletCount;
-	float       m_curBurstPauseTime;
-	float       m_weaponTriggerTime;
+	CTimeValue  m_curBurstPauseTime;
+	CTimeValue  m_weaponTriggerTime;
 	bool        m_weaponTriggerState;
-	float       m_coverFireTime;
+	CTimeValue  m_coverFireTime;
 	int         m_ShotsCount;
 
 	class DrawFireEffect
@@ -76,7 +76,7 @@ protected:
 		};
 
 		EState GetState() const;
-		bool   Update(float updateTime, CPuppet* pShooter, IAIObject* pTarget, const AIWeaponDescriptor& descriptor,
+		bool   Update(const CTimeValue& updateTime, CPuppet* pShooter, IAIObject* pTarget, const AIWeaponDescriptor& descriptor,
 		              Vec3& aimTarget, bool canFire);
 
 		void Reset();
@@ -85,15 +85,15 @@ protected:
 		struct State
 		{
 			State()
-				: time(0.0f)
-				, idleTime(0.0f)
+				: time(0)
+				, idleTime(0)
 				, startSeed(cry_random(0.0f, 1337.0f))
 				, state(Running)
 			{
 			}
 
-			float  time;
-			float  idleTime;
+			CTimeValue  time;
+			CTimeValue  idleTime;
 			float  startSeed;
 			EState state;
 
@@ -144,7 +144,7 @@ public:
 	virtual void         OnShoot()                                                   { m_lastStep = 0; }
 	virtual int          GetShotCount() const                                        { return 0; }
 	virtual void         GetProjectileInfo(SFireCommandProjectileInfo& info) const   { info.fSpeedScale = m_projectileSpeedScale; }
-	virtual float        GetTimeToNextShot() const;
+	virtual CTimeValue   GetTimeToNextShot() const;
 
 	// Must be declared in parent fire command handler
 	virtual bool IsUsingPrimaryWeapon() const = 0;
@@ -273,7 +273,7 @@ public:
 	virtual void         OnShoot()                                                   {}
 	virtual int          GetShotCount() const                                        { return 0; }
 	virtual void         GetProjectileInfo(SFireCommandProjectileInfo& info) const   { info.trackingId = m_trackingId; }
-	virtual float        GetTimeToNextShot() const;
+	virtual CTimeValue   GetTimeToNextShot() const;
 
 private:
 	enum EAimMode

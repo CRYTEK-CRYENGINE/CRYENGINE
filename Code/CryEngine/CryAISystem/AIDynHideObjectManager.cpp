@@ -24,7 +24,7 @@
 #include <float.h>
 
 // When the cache is full, items older than this will be purged to free space.
-static const float CACHED_ITEM_TIMEOUT = 5.0f;
+static const CTimeValue CACHED_ITEM_TIMEOUT = 5;
 // Maximum number of new items that will be setup per query.
 static const int MAX_NEW_ITEMS_PER_QUERY = 10;
 // The cache size.
@@ -72,11 +72,11 @@ int CAIDynHideObjectManager::GetNewCacheItem()
 	{
 		// Free the old items.
 		CTimeValue curTime = GetAISystem()->GetFrameStartTime();
-		float maxTime = 0;
+		CTimeValue maxTime;
 		int maxIdx = 0; // If all the times are the same (or even 0!), delete the first item.
 		for (int i = 0; i < HIDEOBJECT_CACHE_SIZE; ++i)
 		{
-			float dt = (curTime - m_cache[i].timeStamp).GetSeconds();
+			CTimeValue dt = curTime - m_cache[i].timeStamp;
 			if (dt > CACHED_ITEM_TIMEOUT)
 				FreeCacheItem(i);
 			else
@@ -423,7 +423,7 @@ void CAIDynHideObjectManager::DebugDraw()
 	{
 		int cachedIdx = it->second;
 		SCachedDynamicObject* pCached = &m_cache[cachedIdx];
-		float dt = (curTime - pCached->timeStamp).GetSeconds();
+		CTimeValue dt = curTime - pCached->timeStamp;
 		IEntity* pEntity = gEnv->pEntitySystem->GetEntity(pCached->id);
 		if (!pEntity) continue;
 

@@ -978,15 +978,15 @@ void CAIActionManager::Serialize(TSerialize ser)
 
 void CAIActionManager::ReloadActions()
 {
-	CTimeValue t1 = gEnv->pTimer->GetAsyncTime();
+	CTimeValue t1 = GetGTimer()->GetAsyncTime();
 	AIAssert(gEnv->pEntitySystem);
 	if (gAIEnv.pSmartObjectManager)
 	{
 		this->LoadLibrary(AI_ACTIONS_PATH);
 	}
 
-	CTimeValue t2 = gEnv->pTimer->GetAsyncTime();
-	AILogComment("All AI Actions reloaded in %g mSec.", (t2 - t1).GetMilliSeconds());
+	CTimeValue t2 = GetGTimer()->GetAsyncTime();
+	AILogComment("All AI Actions reloaded in %g mSec.", (float)(t2 - t1).GetMilliSeconds());
 }
 
 void CActiveAction::Serialize(TSerialize ser)

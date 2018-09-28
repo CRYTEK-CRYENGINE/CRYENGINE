@@ -33,7 +33,7 @@ CUnitImg::CUnitImg() :
 	m_fWidth(0.6f),
 	m_fDistance(0.f),
 	m_fDistance2(0.f),
-	m_lastReinforcementTime(0.f)
+	m_lastReinforcementTime(0)
 {
 	// Empty
 }
@@ -54,7 +54,7 @@ CUnitImg::CUnitImg(CWeakRef<CAIActor> refUnit) :
 	m_fWidth(0.6f),
 	m_fDistance(0.f),
 	m_fDistance2(0.f),
-	m_lastReinforcementTime(0.f)
+	m_lastReinforcementTime(0)
 {
 	m_lastMoveTime = GetAISystem()->GetFrameStartTime();
 
@@ -259,7 +259,7 @@ bool CUnitImg::IsPlanFinished() const
 //----------------------------------------------------------------------------------------------------
 void CUnitImg::Reset()
 {
-	m_lastReinforcementTime.SetSeconds(0.f);
+	m_lastReinforcementTime.SetSeconds(0);
 }
 
 //

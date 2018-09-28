@@ -12,11 +12,11 @@
 
 //
 //----------------------------------------------------------------------------------------------------------
-COPStick::COPStick(float fStickDistance, float fEndAccuracy, float fDuration, int nFlags, int nFlagsAux, ETraceEndMode eTraceEndMode) :
+COPStick::COPStick(float fStickDistance, float fEndAccuracy, const CTimeValue& fDuration, int nFlags, int nFlagsAux, ETraceEndMode eTraceEndMode) :
 	m_vLastUsedTargetPos(ZERO),
 	m_fTrhDistance(1.f),  // regenerate path if target moved for more than this
 	m_eTraceEndMode(eTraceEndMode),
-	m_fApproachTime(-1.f),
+	m_fApproachTime(-1),
 	m_fHijackDistance(-1.f),
 	m_fStickDistance(fStickDistance),
 	m_fEndAccuracy(fEndAccuracy),
@@ -35,8 +35,8 @@ COPStick::COPStick(float fStickDistance, float fEndAccuracy, float fDuration, in
 	m_bPathFound(false),
 	m_bBodyIsAligned(false),
 	m_bAlignBodyBeforeMove(false),
-	m_fCorrectBodyDirTime(0.0f),
-	m_fTimeSpentAligning(0.0f)
+	m_fCorrectBodyDirTime(0),
+	m_fTimeSpentAligning(0)
 {
 	if (m_fStickDistance < 0.f)
 	{
@@ -53,7 +53,7 @@ COPStick::COPStick(float fStickDistance, float fEndAccuracy, float fDuration, in
 	m_pathLengthForTeleport = 20.0f;
 	m_playerDistForTeleport = 3.0f;
 
-	m_lastVisibleTime.SetValue(0);
+	m_lastVisibleTime.SetSeconds(0);
 	ClearTeleportData();
 
 	if (m_bContinuous)
@@ -78,11 +78,11 @@ COPStick::COPStick(const XmlNodeRef& node) :
 	// which uses the same class, COPStick
 	m_eTraceEndMode(stricmp(node->getTag(), "Stick") ? eTEM_MinimumDistance : eTEM_FixedDistance),
 
-	m_fApproachTime(-1.f),
+	m_fApproachTime(-1),
 	m_fHijackDistance(-1.f),
 	m_fStickDistance(0.f),
 	m_fEndAccuracy(0.f),
-	m_fDuration(0.f),
+	m_fDuration(0),
 	m_bContinuous(s_xml.GetBool(node, "continuous", false)),
 	m_bTryShortcutNavigation(s_xml.GetBool(node, "tryShortcutNavigation")),
 	m_bUseLastOpResult(s_xml.GetBool(node, "useLastOp")),
@@ -104,12 +104,12 @@ COPStick::COPStick(const XmlNodeRef& node) :
 	m_sLocateName(node->getAttr("locateName")),
 	m_bBodyIsAligned(false),
 	m_bAlignBodyBeforeMove(s_xml.GetBool(node, "alignBeforeMove")),
-	m_fCorrectBodyDirTime(0.0f),
-	m_fTimeSpentAligning(0.0f)
+	m_fCorrectBodyDirTime(0),
+	m_fTimeSpentAligning(0)
 {
 	if (node->getAttr("duration", m_fDuration))
 	{
-		m_fDuration = fabsf(m_fDuration);
+		m_fDuration = abs(m_fDuration);
 	}
 	else
 	{
@@ -140,7 +140,7 @@ COPStick::COPStick(const XmlNodeRef& node) :
 	if (gAIEnv.CVars.DebugPathFinding)
 		AILogAlways("COPStick::COPStick %p", this);
 
-	m_lastVisibleTime.SetValue(0);
+	m_lastVisibleTime.SetSeconds(0);
 	ClearTeleportData();
 
 	if (m_bContinuous)
@@ -182,8 +182,8 @@ void COPStick::Reset(CPipeUser* pPipeUser)
 	SAFE_DELETE(m_pTraceDirective);
 
 	m_bBodyIsAligned = false;
-	m_fCorrectBodyDirTime = 0.0f;
-	m_fTimeSpentAligning = 0.0f;
+	m_fCorrectBodyDirTime.SetSeconds(0);
+	m_fTimeSpentAligning.SetSeconds(0);
 
 	m_bPathFound = false;
 	m_vLastUsedTargetPos.zero();
@@ -331,14 +331,14 @@ void COPStick::Serialize(TSerialize ser)
 //===================================================================
 float COPStick::GetEndDistance(CPipeUser* pPipeUser) const
 {
-	if (m_fDuration > 0.f)
+	if (m_fDuration > 0)
 	{
 		float fNormalSpeed, fMinSpeed, fMaxSpeed;
 		pPipeUser->GetMovementSpeedRange(pPipeUser->m_State.fMovementUrgency, false,
 		                                 fNormalSpeed, fMinSpeed, fMaxSpeed);
 
 		if (fNormalSpeed > 0.f)
-			return -fNormalSpeed * m_fDuration;
+			return -fNormalSpeed * m_fDuration.BADGetSeconds();
 	}
 	return m_fStickDistance;
 }
@@ -520,8 +520,8 @@ bool COPStick::TryToTeleport(CPipeUser* pPipeUser)
 		Vec3 moveDir = m_teleportEnd - m_teleportCurrent;
 		float distToEnd = moveDir.NormalizeSafe();
 
-		float dt = (now - m_lastVisibleTime).GetSeconds();
-		float dist = dt * m_maxTeleportSpeed;
+		CTimeValue dt = now - m_lastVisibleTime;
+		float dist = dt.BADGetSeconds() * m_maxTeleportSpeed;
 		if (dist > distToEnd)
 			dist = distToEnd;
 
@@ -534,10 +534,10 @@ bool COPStick::TryToTeleport(CPipeUser* pPipeUser)
 	Vec3 moveDir = m_teleportEnd - m_teleportCurrent;
 	float distToEnd = moveDir.NormalizeSafe();
 
-	float dt = (now - m_lastTeleportTime).GetSeconds();
+	CTimeValue dt = now - m_lastTeleportTime;
 	m_lastTeleportTime = now;
 
-	float dist = dt * m_maxTeleportSpeed;
+	float dist = dt.BADGetSeconds() * m_maxTeleportSpeed;
 	bool reachedEnd = false;
 	if (dist > distToEnd)
 	{
@@ -694,14 +694,14 @@ EGoalOpResult COPStick::Execute(CPipeUser* pPipeUser)
 				Vec3 actualBodyDir = pPipeUser->GetBodyInfo().vAnimBodyDir;
 				const bool lookingTowardsMoveTarget = (actualBodyDir.Dot(dirToMoveTarget) > cosf(DEG2RAD(17.0f)));
 				if (lookingTowardsMoveTarget)
-					m_fCorrectBodyDirTime += gEnv->pTimer->GetFrameTime();
+					m_fCorrectBodyDirTime += GetGTimer()->GetFrameTime();
 				else
-					m_fCorrectBodyDirTime = 0.0f;
+					m_fCorrectBodyDirTime.SetSeconds(0);
 
-				const float timeSpentAligning = m_fTimeSpentAligning + gEnv->pTimer->GetFrameTime();
+				const CTimeValue timeSpentAligning = m_fTimeSpentAligning + GetGTimer()->GetFrameTime();
 				m_fTimeSpentAligning = timeSpentAligning;
 
-				if (m_fCorrectBodyDirTime > 0.2f || timeSpentAligning > 8.0f)
+				if (m_fCorrectBodyDirTime > "0.2" || timeSpentAligning > 8)
 				{
 					pPipeUser->ResetBodyTargetDir();
 					m_bBodyIsAligned = true;
@@ -989,11 +989,11 @@ bool COPStick::HandleHijack(CPipeUser* pPipeUser, const Vec3& vStickTargetPos, f
 	if (((eTraceResult != eGOR_IN_PROGRESS) && !m_bContinuous) ||
 	    (m_bPathFound && (fPathDistanceLeft < HIJACK_DISTANCE)))
 	{
-		float fFrameStartTimeInSeconds = GetAISystem()->GetFrameStartTimeSeconds();
+		CTimeValue fFrameStartTimeInSeconds = GetAISystem()->GetFrameStartTime();
 
-		if (m_fApproachTime == -1.f)
+		if (m_fApproachTime == -1)
 		{
-			const float MIN_APPROACH_TIME = 0.3f;
+			const CTimeValue MIN_APPROACH_TIME = "0.3";
 			m_fApproachTime = fFrameStartTimeInSeconds + MIN_APPROACH_TIME;
 			m_fHijackDistance = fToStickTargetLength2D;
 		}
@@ -1009,7 +1009,7 @@ bool COPStick::HandleHijack(CPipeUser* pPipeUser, const Vec3& vStickTargetPos, f
 			if (fNewDistance >= fOldDistance - MOVEMENT_STOPPED_SECOND_EPSILON)
 			{
 				// We're done!
-				m_fApproachTime = -1.f;
+				m_fApproachTime.SetSeconds(-1);
 				m_fHijackDistance = -1.f;
 
 				if (gAIEnv.CVars.DebugPathFinding)
@@ -1048,7 +1048,7 @@ void COPStick::HandleTargetPrediction(CPipeUser* pPipeUser, const Vec3& vStickTa
 	}
 	else
 	{
-		int64 dt = (now - m_lastTargetPosTime).GetMilliSecondsAsInt64();
+		CTimeValue dt = now - m_lastTargetPosTime;
 		if (dt > 0)
 		{
 			Vec3 targetVel = vStickTargetPos - m_lastTargetPos;
@@ -1056,7 +1056,7 @@ void COPStick::HandleTargetPrediction(CPipeUser* pPipeUser, const Vec3& vStickTa
 			if (targetVel.GetLengthSquared() > 5.0f) // try to catch sudden jumps
 				targetVel.zero();
 			else
-				targetVel /= (static_cast<float>(dt) * 0.001f);
+				targetVel /= dt.BADGetSeconds();
 
 			// Danny todo make this time timestep independent (exp dependency on dt)
 			const float frac = 0.1f;

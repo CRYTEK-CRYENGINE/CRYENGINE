@@ -194,13 +194,13 @@ private:
 	struct FreshData
 	{
 		FreshData()
-			: timeOfFreshestVisualStimulus(0.0f)
+			: timeOfFreshestVisualStimulus(0)
 			, freshestVisualPosition(ZERO)
 			, freshestVisualDirection(ZERO)
 		{
 		}
 
-		float timeOfFreshestVisualStimulus;
+		CTimeValue timeOfFreshestVisualStimulus;
 		Vec3  freshestVisualPosition;
 		Vec3  freshestVisualDirection;
 	};

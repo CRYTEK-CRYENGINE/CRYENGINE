@@ -69,20 +69,20 @@ struct AccurateStopTimer
 
 	ILINE void Reset()
 	{
-		total_.SetValue(0);
-		start_.SetValue(0);
+		total_.SetSeconds(0);
+		start_.SetSeconds(0);
 	}
 
 	ILINE void Start()
 	{
 		assert(state_ != Running);
 		state_ = Running;
-		start_ = gEnv->pTimer->GetAsyncTime();
+		start_ = GetGTimer()->GetAsyncTime();
 	}
 
 	ILINE void Stop()
 	{
-		total_ += gEnv->pTimer->GetAsyncTime() - start_;
+		total_ += GetGTimer()->GetAsyncTime() - start_;
 		assert(state_ != Stopped);
 		state_ = Stopped;
 	}
@@ -95,7 +95,7 @@ struct AccurateStopTimer
 	ILINE CTimeValue GetTime() const
 	{
 		if (state_ == Running)
-			return gEnv->pTimer->GetAsyncTime() - start_;
+			return GetGTimer()->GetAsyncTime() - start_;
 		else
 			return total_;
 	}

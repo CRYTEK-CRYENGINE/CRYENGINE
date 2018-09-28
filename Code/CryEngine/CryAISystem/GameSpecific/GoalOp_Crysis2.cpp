@@ -155,12 +155,12 @@ IGoalOp* CGoalOpFactoryCrysis2::GetGoalOp(EGoalOperations op, GoalParameters& pa
 	{
 	case eGO_ADJUSTAIM:
 		{
-			pResult = new COPCrysis2AdjustAim((params.nValue & 0x02) != 0, (params.nValue & 0x04) != 0, params.fValue);
+			pResult = new COPCrysis2AdjustAim((params.nValue & 0x02) != 0, (params.nValue & 0x04) != 0, BADTIME(params.fValue));
 		}
 		break;
 	case eGO_PEEK:
 		{
-			pResult = new COPCrysis2Peek((params.nValue & 0x02) != 0, params.fValue);
+			pResult = new COPCrysis2Peek((params.nValue & 0x02) != 0, BADTIME(params.fValue));
 		}
 		break;
 	case eGO_HIDE:
@@ -170,7 +170,7 @@ IGoalOp* CGoalOpFactoryCrysis2::GetGoalOp(EGoalOperations op, GoalParameters& pa
 		break;
 	case eGO_COMMUNICATE:
 		{
-			pResult = new COPCrysis2Communicate(CommID(params.nValue), CommChannelID(params.nValueAux), params.fValue, static_cast<EAIRegister>(int(params.fValueAux)),
+			pResult = new COPCrysis2Communicate(CommID(params.nValue), CommChannelID(params.nValueAux), BADTIME(params.fValue), static_cast<EAIRegister>(int(params.fValueAux)),
 			                                    params.bValue ? SCommunicationRequest::Unordered : SCommunicationRequest::Ordered);
 		}
 		break;
@@ -203,7 +203,7 @@ IGoalOp* CGoalOpFactoryCrysis2::GetGoalOp(EGoalOperations op, GoalParameters& pa
 		break;
 	case eGO_FIREWEAPONS:
 		{
-			pResult = new COPCrysis2FlightFireWeapons(static_cast<EAIRegister>(params.nValue), params.fValue, params.fValueAux, params.bValue, static_cast<uint32>(params.nValueAux));
+			pResult = new COPCrysis2FlightFireWeapons(static_cast<EAIRegister>(params.nValue), BADTIME(params.fValue), BADTIME(params.fValueAux), params.bValue, static_cast<uint32>(params.nValueAux));
 		}
 		break;
 	default:
@@ -215,19 +215,19 @@ IGoalOp* CGoalOpFactoryCrysis2::GetGoalOp(EGoalOperations op, GoalParameters& pa
 
 //
 //-------------------------------------------------------------------------------------------------------------
-COPCrysis2AdjustAim::COPCrysis2AdjustAim(bool useLastOpAsBackup, bool allowProne, float timeout) :
+COPCrysis2AdjustAim::COPCrysis2AdjustAim(bool useLastOpAsBackup, bool allowProne, const CTimeValue& timeout) :
 	m_useLastOpAsBackup(useLastOpAsBackup),
 	m_allowProne(allowProne),
-	m_timeoutMs((int)(timeout * 1000.0f)),
-	m_timeoutRandomness(0.0f),
+	m_timeout(timeout),
+	m_timeoutRandomness(0),
 	m_bestPostureID(-1),
 	m_queryID(0)
 {
-	m_startTime.SetValue(0);
-	m_lastGood.SetValue(0);
+	m_startTime.SetSeconds(0);
+	m_lastGood.SetSeconds(0);
 
-	m_nextUpdateMs = RandomizeTimeInterval();
-	m_runningTimeoutMs = 0;
+	m_nextUpdate = RandomizeTimeInterval();
+	m_runningTimeout.SetSeconds(0);
 }
 
 //
@@ -235,29 +235,26 @@ COPCrysis2AdjustAim::COPCrysis2AdjustAim(bool useLastOpAsBackup, bool allowProne
 COPCrysis2AdjustAim::COPCrysis2AdjustAim(const XmlNodeRef& node) :
 	m_useLastOpAsBackup(s_xml.GetBool(node, "useLastOpResultAsBackup")),
 	m_allowProne(s_xml.GetBool(node, "allowProne")),
-	m_timeoutRandomness(0.0f),
-	m_timeoutMs(0),
+	m_timeoutRandomness(0),
+	m_timeout(0),
 	m_bestPostureID(-1),
 	m_queryID(0)
 {
-	float timeout = 0.0f;
-	node->getAttr("timeout", timeout);
-	m_timeoutMs = (int)(timeout * 1000.0f);
-
+	node->getAttr("timeout", m_timeout);
 	node->getAttr("timeoutRandomness", m_timeoutRandomness);
 
-	m_startTime.SetValue(0);
-	m_lastGood.SetValue(0);
+	m_startTime.SetSeconds(0);
+	m_lastGood.SetSeconds(0);
 
-	m_nextUpdateMs = RandomizeTimeInterval();
-	m_runningTimeoutMs = 0;
+	m_nextUpdate = RandomizeTimeInterval();
+	m_runningTimeout.SetSeconds(0);
 }
 
 //
 //-------------------------------------------------------------------------------------------------------------
-int COPCrysis2AdjustAim::RandomizeTimeInterval() const
+CTimeValue COPCrysis2AdjustAim::RandomizeTimeInterval() const
 {
-	return cry_random(250, 500);
+	return cry_random<CTimeValue>("0.25", "0.5");
 }
 
 //
@@ -273,12 +270,12 @@ EGoalOpResult COPCrysis2AdjustAim::Execute(CPipeUser* pPipeUser)
 
 	CTimeValue now(GetAISystem()->GetFrameStartTime());
 
-	if (!m_startTime.GetValue())
+	if (m_startTime != 0)
 	{
-		m_runningTimeoutMs = m_timeoutMs;
+		m_runningTimeout = m_timeout;
 
-		if (m_timeoutRandomness > 0.0001f)
-			m_runningTimeoutMs += (int)cry_random(0.0f, m_timeoutRandomness * 1000.0f);
+		if (m_timeoutRandomness > "0.0001")
+			m_runningTimeout += cry_random(CTimeValue(0), m_timeoutRandomness);
 
 		m_startTime = now;
 		m_lastGood = now;
@@ -302,11 +299,11 @@ EGoalOpResult COPCrysis2AdjustAim::Execute(CPipeUser* pPipeUser)
 	}
 
 	bool isMoving = (pPipeUser->m_State.fDesiredSpeed >= 0.001f) && !pPipeUser->m_State.vMoveDir.IsZero();
-	int64 elapsedMs = (now - m_startTime).GetMilliSecondsAsInt64();
+	CTimeValue elapsed = now - m_startTime;
 
-	if ((elapsedMs >= m_nextUpdateMs) && isMoving)
-		m_nextUpdateMs += 150;
-	else if (elapsedMs >= m_nextUpdateMs)
+	if ((elapsed >= m_nextUpdate) && isMoving)
+		m_nextUpdate += "0.15";
+	else if (elapsed >= m_nextUpdate)
 	{
 		PostureManager::PostureID postureID = -1;
 		PostureManager::PostureInfo* posture;
@@ -361,17 +358,16 @@ EGoalOpResult COPCrysis2AdjustAim::Execute(CPipeUser* pPipeUser)
 			}
 		}
 
-		m_nextUpdateMs += RandomizeTimeInterval();
+		m_nextUpdate += RandomizeTimeInterval();
 		if (pPipeUser->m_State.bodystate == STANCE_PRONE)
-			m_nextUpdateMs += 2000;
+			m_nextUpdate += 2;
 	}
 
-	bool finished = (m_runningTimeoutMs > 0) && (elapsedMs >= m_runningTimeoutMs);
+	bool finished = (m_runningTimeout > 0) && (elapsed >= m_runningTimeout);
 	if (!finished)
 	{
-		int timeToNextShotMs = (int)(pPuppet->GetTimeToNextShot() * 1000.0f);
-
-		finished = (timeToNextShotMs > 0) && (timeToNextShotMs > (m_runningTimeoutMs - elapsedMs));
+		CTimeValue timeToNextShot = pPuppet->GetTimeToNextShot();
+		finished = (timeToNextShot > 0) && (timeToNextShot > (m_runningTimeout - elapsed));
 	}
 
 	if (finished)
@@ -417,7 +413,7 @@ bool COPCrysis2AdjustAim::ProcessQueryResult(CPipeUser* pipeUser, AsyncState que
 	}
 	else
 	{
-		if ((now - m_lastGood).GetMilliSecondsAsInt64() > 500)
+		if (now - m_lastGood > "0.5")
 		{
 			pipeUser->SetSignal(1, "OnNoAimPosture", 0, 0, gAIEnv.SignalCRCs.m_nOnNoAimPosture);
 
@@ -450,9 +446,9 @@ void COPCrysis2AdjustAim::Reset(CPipeUser* pPipeUser)
 		m_queryID = 0;
 	}
 
-	m_startTime.SetValue(0);
-	m_lastGood.SetValue(0);
-	m_nextUpdateMs = RandomizeTimeInterval();
+	m_startTime.SetSeconds(0);
+	m_lastGood.SetSeconds(0);
+	m_nextUpdate = RandomizeTimeInterval();
 	m_bestPostureID = -1;
 }
 
@@ -463,7 +459,7 @@ void COPCrysis2AdjustAim::Serialize(TSerialize ser)
 	ser.BeginGroup("COPCrysis2AdjustAim");
 	{
 		ser.Value("m_startTime", m_startTime);
-		ser.Value("m_nextUpdateMs", m_nextUpdateMs);
+		ser.Value("m_nextUpdate", m_nextUpdate);
 		ser.Value("m_useLastOpAsBackup", m_useLastOpAsBackup);
 	}
 	ser.EndGroup();
@@ -545,47 +541,44 @@ void COPCrysis2AdjustAim::DebugDraw(CPipeUser* pPipeUser) const
 
 //
 //-------------------------------------------------------------------------------------------------------------
-COPCrysis2Peek::COPCrysis2Peek(bool useLastOpAsBackup, float timeout) :
+COPCrysis2Peek::COPCrysis2Peek(bool useLastOpAsBackup, const CTimeValue& timeout) :
 	m_useLastOpAsBackup(useLastOpAsBackup),
-	m_timeoutMs((int)(timeout * 1000.0f)),
-	m_timeoutRandomness(0.0f),
+	m_timeout(timeout),
+	m_timeoutRandomness(0),
 	m_bestPostureID(-1),
 	m_queryID(0)
 {
-	m_startTime.SetValue(0);
-	m_lastGood.SetValue(0);
+	m_startTime.SetSeconds(0);
+	m_lastGood.SetSeconds(0);
 
-	m_nextUpdateMs = RandomizeTimeInterval();
-	m_runningTimeoutMs = 0;
+	m_nextUpdate = RandomizeTimeInterval();
+	m_runningTimeout.SetSeconds(0);
 }
 
 //
 //-------------------------------------------------------------------------------------------------------------
 COPCrysis2Peek::COPCrysis2Peek(const XmlNodeRef& node) :
 	m_useLastOpAsBackup(s_xml.GetBool(node, "useLastOpResultAsBackup")),
-	m_timeoutRandomness(0.0f),
-	m_timeoutMs(0),
+	m_timeoutRandomness(0),
+	m_timeout(0),
 	m_bestPostureID(-1),
 	m_queryID(0)
 {
-	float timeout = 0.0f;
-	node->getAttr("timeout", timeout);
-	m_timeoutMs = (int)(timeout * 1000.0f);
-
+	node->getAttr("timeout", m_timeout);
 	node->getAttr("timeoutRandomness", m_timeoutRandomness);
 
-	m_startTime.SetValue(0);
-	m_lastGood.SetValue(0);
+	m_startTime.SetSeconds(0);
+	m_lastGood.SetSeconds(0);
 
-	m_nextUpdateMs = RandomizeTimeInterval();
-	m_runningTimeoutMs = 0;
+	m_nextUpdate = RandomizeTimeInterval();
+	m_runningTimeout.SetSeconds(0);
 }
 
 //
 //-------------------------------------------------------------------------------------------------------------
-int COPCrysis2Peek::RandomizeTimeInterval() const
+CTimeValue COPCrysis2Peek::RandomizeTimeInterval() const
 {
-	return cry_random(250, 500);
+	return cry_random<CTimeValue>("0.25", "0.5");
 }
 
 //
@@ -608,12 +601,12 @@ EGoalOpResult COPCrysis2Peek::Execute(CPipeUser* pPipeUser)
 
 	CTimeValue now(GetAISystem()->GetFrameStartTime());
 
-	if (!m_startTime.GetValue())
+	if (m_startTime != 0)
 	{
-		m_runningTimeoutMs = m_timeoutMs;
+		m_runningTimeout = m_timeout;
 
-		if (m_timeoutRandomness > 0.0001f)
-			m_runningTimeoutMs += (int)cry_random(0.0f, m_timeoutRandomness * 1000.0f);
+		if (m_timeoutRandomness > "0.0001")
+			m_runningTimeout += cry_random(CTimeValue(0), m_timeoutRandomness);
 
 		m_startTime = now;
 		m_lastGood = now;
@@ -634,9 +627,9 @@ EGoalOpResult COPCrysis2Peek::Execute(CPipeUser* pPipeUser)
 		return eGOR_FAILED;
 	}
 
-	int64 elapsedMs = (now - m_startTime).GetMilliSecondsAsInt64();
+	CTimeValue elapsed = now - m_startTime;
 
-	if (elapsedMs >= m_nextUpdateMs)
+	if (elapsed >= m_nextUpdate)
 	{
 		PostureManager::PostureID postureID = -1;
 		PostureManager::PostureInfo* posture;
@@ -686,10 +679,10 @@ EGoalOpResult COPCrysis2Peek::Execute(CPipeUser* pPipeUser)
 			}
 		}
 
-		m_nextUpdateMs += RandomizeTimeInterval();
+		m_nextUpdate += RandomizeTimeInterval();
 	}
 
-	bool finished = (m_runningTimeoutMs > 0) && (elapsedMs >= m_runningTimeoutMs);
+	bool finished = (m_runningTimeout > 0) && (elapsed >= m_runningTimeout);
 
 	if (finished)
 	{
@@ -734,7 +727,7 @@ bool COPCrysis2Peek::ProcessQueryResult(CPipeUser* pipeUser, AsyncState querySta
 	}
 	else
 	{
-		if ((now - m_lastGood).GetMilliSecondsAsInt64() > 500)
+		if (now - m_lastGood > "0.5")
 		{
 			pipeUser->SetSignal(1, "OnNoPeekPosture", 0, 0, gAIEnv.SignalCRCs.m_nOnNoPeekPosture);
 
@@ -766,9 +759,9 @@ void COPCrysis2Peek::Reset(CPipeUser* pPipeUser)
 		m_queryID = 0;
 	}
 
-	m_startTime.SetValue(0);
-	m_lastGood.SetValue(0);
-	m_nextUpdateMs = RandomizeTimeInterval();
+	m_startTime.SetSeconds(0);
+	m_lastGood.SetSeconds(0);
+	m_nextUpdate = RandomizeTimeInterval();
 	m_bestPostureID = -1;
 }
 
@@ -779,7 +772,7 @@ void COPCrysis2Peek::Serialize(TSerialize ser)
 	ser.BeginGroup("COPCrysis2Peek");
 	{
 		ser.Value("m_startTime", m_startTime);
-		ser.Value("m_nextUpdateMs", m_nextUpdateMs);
+		ser.Value("m_nextUpdate", m_nextUpdate);
 		ser.Value("m_useLastOpAsBackup", m_useLastOpAsBackup);
 	}
 	ser.EndGroup();
@@ -937,7 +930,7 @@ EGoalOpResult COPCrysis2Hide::Execute(CPipeUser* pPipeUser)
 
 #ifdef CRYAISYSTEM_DEBUG
 				if (gAIEnv.CVars.DebugDrawCover)
-					GetAISystem()->AddDebugCylinder(pos + CoverUp * 0.015f, CoverUp, pPipeUser->GetParameters().m_fPassRadius, 0.025f, Col_Red, 3.5f);
+					GetAISystem()->AddDebugCylinder(pos + CoverUp * 0.015f, CoverUp, pPipeUser->GetParameters().m_fPassRadius, 0.025f, Col_Red, "3.5");
 #endif
 			}
 			else if (pPipeUser->m_CurrentHideObject.IsValid())
@@ -1042,10 +1035,10 @@ EGoalOpResult COPCrysis2Hide::Execute(CPipeUser* pPipeUser)
 					pPipeUser->SetCoverState(ICoverUser::EStateFlags::None);
 
 					pPipeUser->SetCoverRegister(CoverID());
-					pPipeUser->SetCoverBlacklisted(coverID, true, 10.0f);
+					pPipeUser->SetCoverBlacklisted(coverID, true, 10);
 				}
 				else
-					pPipeUser->IgnoreCurrentHideObject(10.0f);
+					pPipeUser->IgnoreCurrentHideObject(10);
 
 				Reset(pPipeUser);
 
@@ -1246,7 +1239,7 @@ void COPCrysis2Hide::UpdateMovingToCoverAnimation(CPipeUser* pPipeUser) const
 }
 
 COPCrysis2Communicate::COPCrysis2Communicate(
-  CommID commID, CommChannelID channelID, float expirity, EAIRegister target,
+  CommID commID, CommChannelID channelID, const CTimeValue& expirity, EAIRegister target,
   SCommunicationRequest::EOrdering ordering)
 	: m_commID(commID)
 	, m_channelID(channelID)
@@ -1257,7 +1250,7 @@ COPCrysis2Communicate::COPCrysis2Communicate(
 }
 
 COPCrysis2Communicate::COPCrysis2Communicate(const XmlNodeRef& node) :
-	m_expirity(0.f),
+	m_expirity(0),
 	m_target(AI_REG_NONE)
 {
 	const char* szName = s_xml.GetMandatoryString(node, "name");
@@ -2354,7 +2347,7 @@ float COPCrysis2Fly::CheckTargetEntity(const CPipeUser* pPipeUser, const Vec3& l
 
 		if (pEntity)
 		{
-			float frameTime = gEnv->pTimer->GetFrameTime();
+			CTimeValue frameTime = GetGTimer()->GetFrameTime();
 
 			Vec3 targetEntityPos = pEntity->GetPos();
 
@@ -2396,7 +2389,7 @@ float COPCrysis2Fly::CheckTargetEntity(const CPipeUser* pPipeUser, const Vec3& l
 				{
 					if (m_currentSpeed > 1.0f)
 					{
-						m_currentSpeed = m_currentSpeed - m_currentSpeed * frameTime;
+						m_currentSpeed = m_currentSpeed - m_currentSpeed * frameTime.BADGetSeconds();
 						ret = m_currentSpeed;
 					}
 					else
@@ -2419,7 +2412,7 @@ float COPCrysis2Fly::CheckTargetEntity(const CPipeUser* pPipeUser, const Vec3& l
 				{
 					if (m_currentSpeed > 1.0f)
 					{
-						m_currentSpeed = m_currentSpeed - m_currentSpeed * frameTime;
+						m_currentSpeed = m_currentSpeed - m_currentSpeed * frameTime.BADGetSeconds();
 						ret = m_currentSpeed;
 					}
 					else
@@ -2436,7 +2429,7 @@ float COPCrysis2Fly::CheckTargetEntity(const CPipeUser* pPipeUser, const Vec3& l
 			}
 			else if (!behind)
 			{
-				m_currentSpeed = m_currentSpeed + (targetSpeed - m_currentSpeed) * frameTime;
+				m_currentSpeed = m_currentSpeed + (targetSpeed - m_currentSpeed) * frameTime.BADGetSeconds();
 				ret = m_currentSpeed;
 			}
 			else
@@ -3517,9 +3510,9 @@ EGoalOpResult COPCrysis2ChaseTarget::Execute(CPipeUser* pPipeUser)
 					for (size_t i = 0; i < m_PathOut.size(); ++i)
 					{
 						if (i > 0)
-							GetAISystem()->AddDebugLine(m_PathOut[i - 1], m_PathOut[i], Col_Blue, 10.0f, 10.0f);
+							GetAISystem()->AddDebugLine(m_PathOut[i - 1], m_PathOut[i], Col_Blue, 10, 10.0f);
 
-						GetAISystem()->AddDebugSphere(m_PathOut[i], 1.0f, 255, 255, 255, 10.0f);
+						GetAISystem()->AddDebugSphere(m_PathOut[i], 1.0f, 255, 255, 255, 10);
 					}
 #endif
 
@@ -3612,12 +3605,12 @@ EGoalOpResult COPCrysis2ChaseTarget::Execute(CPipeUser* pPipeUser)
 	return result;
 }
 
-COPCrysis2FlightFireWeapons::COPCrysis2FlightFireWeapons() : m_State(eFP_START), m_NextState(eFP_STOP), m_InitCoolDown(0.0f), m_WaitTime(-1.0f), m_minTime(0.0f), m_maxTime(0.0f), m_PausedTime(0.0f), m_PauseOverrideTime(0.0f), m_target(AI_REG_NONE), m_targetId(0), m_Rotation(0.0f), m_OnlyLookAt(false), m_LastTarget(ZERO), m_FirePrimary(false), m_SecondaryWeapons(0)
+COPCrysis2FlightFireWeapons::COPCrysis2FlightFireWeapons() : m_State(eFP_START), m_NextState(eFP_STOP), m_InitCoolDown(0.0f), m_WaitTime(-1), m_minTime(0), m_maxTime(0), m_PausedTime(0), m_PauseOverrideTime(0), m_target(AI_REG_NONE), m_targetId(0), m_Rotation(0.0f), m_OnlyLookAt(false), m_LastTarget(ZERO), m_FirePrimary(false), m_SecondaryWeapons(0)
 {
 
 };
 
-COPCrysis2FlightFireWeapons::COPCrysis2FlightFireWeapons(const XmlNodeRef& node) : m_State(eFP_START), m_NextState(eFP_STOP), m_InitCoolDown(0.0f), m_WaitTime(-1.0f), m_PausedTime(0.0f), m_PauseOverrideTime(0.0f), m_FirePrimary(false), m_SecondaryWeapons(0), m_minTime(0.0f), m_maxTime(0.0f), m_target(AI_REG_NONE), m_targetId(0), m_Rotation(0.0f), m_OnlyLookAt(false), m_LastTarget(ZERO)
+COPCrysis2FlightFireWeapons::COPCrysis2FlightFireWeapons(const XmlNodeRef& node) : m_State(eFP_START), m_NextState(eFP_STOP), m_InitCoolDown(0.0f), m_WaitTime(-1), m_PausedTime(0), m_PauseOverrideTime(0), m_FirePrimary(false), m_SecondaryWeapons(0), m_minTime(0), m_maxTime(0), m_target(AI_REG_NONE), m_targetId(0), m_Rotation(0.0f), m_OnlyLookAt(false), m_LastTarget(ZERO)
 {
 	node->getAttr("primary", m_FirePrimary);
 	node->getAttr("secondary", m_SecondaryWeapons);
@@ -3627,7 +3620,7 @@ COPCrysis2FlightFireWeapons::COPCrysis2FlightFireWeapons(const XmlNodeRef& node)
 	s_xml.GetRegister(node, "register", m_target);
 }
 
-COPCrysis2FlightFireWeapons::COPCrysis2FlightFireWeapons(EAIRegister reg, float minTime, float maxTime, bool primary, uint32 secondary) : m_State(eFP_START), m_NextState(eFP_STOP), m_InitCoolDown(0.0f), m_WaitTime(-1.0f), m_PausedTime(0.0f), m_PauseOverrideTime(0.0f), m_Rotation(0.0f), m_target(reg), m_minTime(minTime), m_maxTime(maxTime), m_FirePrimary(primary), m_SecondaryWeapons(secondary), m_OnlyLookAt(false), m_LastTarget(ZERO)
+COPCrysis2FlightFireWeapons::COPCrysis2FlightFireWeapons(EAIRegister reg, const CTimeValue& minTime, const CTimeValue& maxTime, bool primary, uint32 secondary) : m_State(eFP_START), m_NextState(eFP_STOP), m_InitCoolDown(0.0f), m_WaitTime(-1), m_PausedTime(0), m_PauseOverrideTime(0), m_Rotation(0.0f), m_target(reg), m_minTime(minTime), m_maxTime(maxTime), m_FirePrimary(primary), m_SecondaryWeapons(secondary), m_OnlyLookAt(false), m_LastTarget(ZERO)
 {}
 
 COPCrysis2FlightFireWeapons::~COPCrysis2FlightFireWeapons()
@@ -3648,8 +3641,8 @@ void COPCrysis2FlightFireWeapons::Reset(CPipeUser* pPipeUser)
 	m_FirePrimary = 0;
 	m_SecondaryWeapons = 0;
 
-	m_PausedTime = 0.0f;
-	m_PauseOverrideTime = 0.0f;
+	m_PausedTime.SetSeconds(0);
+	m_PauseOverrideTime.SetSeconds(0);
 
 	m_OnlyLookAt = false;
 
@@ -3756,16 +3749,16 @@ void COPCrysis2FlightFireWeapons::ParseParam(const char* param, const GoalParams
 		{
 			m_NextState = m_State;
 			m_State = eFP_PAUSED;
-			m_PausedTime = 0.0f;
-			m_PauseOverrideTime = 0.0f;
+			m_PausedTime.SetSeconds(0);
+			m_PauseOverrideTime.SetSeconds(0);
 		}
 		else if (!paused && ((m_State == eFP_PAUSED) || (m_State == eFP_PAUSED_OVERRIDE)))
 		{
 			m_State = m_NextState;
 			m_NextState = eFP_STOP;
 
-			m_PausedTime = 0.0f;
-			m_PauseOverrideTime = 0.0f;
+			m_PausedTime.SetSeconds(0);
+			m_PauseOverrideTime.SetSeconds(0);
 		}
 	}
 }
@@ -4010,14 +4003,14 @@ EGoalOpResult COPCrysis2FlightFireWeapons::Execute(CPipeUser* pPipeUser)
 		break;
 
 	case eFP_WAIT_INIT:
-		if (m_maxTime > 0.0f && m_minTime > 0.0f)
+		if (m_maxTime > 0 && m_minTime > 0)
 		{
-			m_WaitTime = gEnv->pTimer->GetCurrTime() + cry_random(m_minTime, m_maxTime);
+			m_WaitTime = GetGTimer()->GetFrameStartTime() + cry_random(m_minTime, m_maxTime);
 			m_State = eFP_WAIT;
 		}
 		else
 		{
-			m_WaitTime = -1.0f;
+			m_WaitTime.SetSeconds(-1);
 			m_State = eFP_RUN_INDEFINITELY;
 		}
 		m_NextState = eFP_STOP;
@@ -4025,7 +4018,7 @@ EGoalOpResult COPCrysis2FlightFireWeapons::Execute(CPipeUser* pPipeUser)
 	case eFP_WAIT:
 	case eFP_PREPARE:
 		{
-			if (m_State == eFP_WAIT && gEnv->pTimer->GetCurrTime() > m_WaitTime)
+			if (m_State == eFP_WAIT && GetGTimer()->GetFrameStartTime() > m_WaitTime)
 			{
 				pPipeUser->m_State.fire = eAIFS_Off;
 				pPipeUser->m_State.fireSecondary = eAIFS_Off;
@@ -4048,32 +4041,32 @@ EGoalOpResult COPCrysis2FlightFireWeapons::Execute(CPipeUser* pPipeUser)
 
 	case eFP_PAUSED_OVERRIDE:
 
-		m_PauseOverrideTime -= gEnv->pTimer->GetFrameTime();
+		m_PauseOverrideTime -= GetGTimer()->GetFrameTime();
 
 		ExecuteShoot(pPipeUser, playerPos);
 
-		if (0.0f > m_PauseOverrideTime)
+		if (m_PauseOverrideTime < 0)
 		{
 			m_State = eFP_PAUSED;
-			m_PauseOverrideTime = 0.0f;
-			m_PausedTime = 0.0f;
+			m_PauseOverrideTime.SetSeconds(0);
+			m_PausedTime.SetSeconds(0);
 		}
 
 	case eFP_PAUSED:
 		{
 			if (eFP_RUN_INDEFINITELY != m_NextState)
 			{
-				float delta = gEnv->pTimer->GetFrameTime();
+				CTimeValue delta = GetGTimer()->GetFrameTime();
 				m_WaitTime += delta;
 				m_PausedTime += delta;
 			}
 
-			if (!(m_PauseOverrideTime > FLT_EPSILON) && m_PausedTime > 3.0f)
+			if (!(m_PauseOverrideTime > TV_EPSILON) && m_PausedTime > 3)
 			{
 				if (cry_random(0.0f, 1.0f) > 0.9f)
 				{
 					m_State = eFP_PAUSED_OVERRIDE;
-					m_PauseOverrideTime = cry_random(2.0f, 4.0f);
+					m_PauseOverrideTime = cry_random<CTimeValue>(2, 4);
 				}
 			}
 

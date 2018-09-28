@@ -17,7 +17,7 @@ public:
 
 	void StartFor(EntityId actorID, const char* commName, int variationNumber = 0);
 	void Stop(EntityId actorID);
-	void Update(float updateTime);
+	void Update(const CTimeValue& updateTime);
 
 private:
 	// ICommunicationFinishedListener

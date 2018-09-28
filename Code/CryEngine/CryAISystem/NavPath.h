@@ -164,7 +164,7 @@ public:
 	/// Return value indicates if we're still tracing the path - false means we reached the end
 	bool UpdateAndSteerAlongPath(Vec3& dirOut, float& distToEndOut, float& distToPathOut, bool& isResolvingSticking,
 	                             Vec3& pathDirOut, Vec3& pathAheadDirOut, Vec3& pathAheadPosOut, Vec3 currentPos, const Vec3& currentVel,
-	                             float lookAhead, float pathRadius, float dt, bool resolveSticking, bool twoD) override;
+	                             float lookAhead, float pathRadius, const CTimeValue& dt, bool resolveSticking, bool twoD) override;
 
 	/// Iterates over the path and fills the navigation methods for the path segments.
 	/// Cuts the path at the path point where the next navSO animation should be played.
@@ -245,7 +245,7 @@ private:
 	float m_currentFrac;
 
 	/// How long we've been stuck for - used to reduce the lookAhead
-	float m_stuckTime;
+	CTimeValue m_stuckTime;
 
 	/// Indicates if this path finishes at approx the location that was requested, or
 	/// if it uses some other end position (e.g. from a partial path)

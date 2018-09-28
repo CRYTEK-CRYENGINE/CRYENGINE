@@ -32,25 +32,25 @@ public:
 	virtual Vec3           GetCoverNormal(const Vec3& position) const override;     // normal pointing out of the cover surface
 	virtual Vec3           GetCoverLocation(const CoverID& coverID) const override;
 
-	virtual void SetCoverBlacklisted(const CoverID& coverID, bool blacklist, float time) override;
+	virtual void SetCoverBlacklisted(const CoverID& coverID, bool blacklist, const CTimeValue& time) override;
 	virtual bool IsCoverBlackListed(const CoverID& coverId) const override;
 
 	virtual void UpdateCoverEyes() override;
 	virtual const DynArray<Vec3>& GetCoverEyes() const override { return m_eyes; }
 
-	void Update(float timeDelta);
+	void Update(const CTimeValue& timeDelta);
 
 	void          DebugDraw() const;
 
 private:
-	void          UpdateBlacklisted(float timeDelta);
+	void          UpdateBlacklisted(const CTimeValue& timeDelta);
 	bool          UpdateCompromised(const Vec3& coverPos, const Vec3& coverNormal, float minEffectiveCoverHeight = 0.001f);
 	void          UpdateNormal(const Vec3& pos);
 
 	void ResetState();
 	bool IsInCover(const Vec3& pos, float radius, const Vec3* eyes, uint32 eyeCount) const;
 
-	typedef std::unordered_map<CoverID, float, stl::hash_uint32> CoverBlacklistMap;
+	typedef std::unordered_map<CoverID, CTimeValue, stl::hash_uint32> CoverBlacklistMap;
 	typedef DynArray<Vec3> CoverEyes;
 
 	CoverID           m_coverID;

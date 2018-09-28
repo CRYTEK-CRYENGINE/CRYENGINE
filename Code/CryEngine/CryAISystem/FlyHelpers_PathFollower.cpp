@@ -189,7 +189,7 @@ void PathFollower::Init(const SShape& path, const PathFollowerParams& params, co
 	m_targetPosition = CalculatePathPosition(m_targetLocation);
 }
 
-PathEntityOut PathFollower::Update(const PathEntityIn& pathEntity, const float elapsedSeconds)
+PathEntityOut PathFollower::Update(const PathEntityIn& pathEntity, const CTimeValue& elapsedSeconds)
 {
 	CRY_ASSERT(m_pCurrentPath);
 
@@ -203,7 +203,7 @@ PathEntityOut PathFollower::Update(const PathEntityIn& pathEntity, const float e
 
 	if (closeToTargetPosition)
 	{
-		const float plannedAdvance = m_params.desiredSpeed * elapsedSeconds;
+		const float plannedAdvance = m_params.desiredSpeed * elapsedSeconds.BADGetSeconds();
 		m_targetLocation = CalculateNextPathLocation(m_targetLocation, plannedAdvance);
 		if (m_stopAtFinalLocation)
 		{

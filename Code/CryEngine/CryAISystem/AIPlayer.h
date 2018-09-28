@@ -102,9 +102,9 @@ private:
 
 	struct SThrownItem
 	{
-		SThrownItem(EntityId id) : id(id), time(0.0f), pos(0, 0, 0), vel(0, 0, 0), r(0.1f) {}
+		SThrownItem(EntityId id) : id(id), time(0), pos(0, 0, 0), vel(0, 0, 0), r(0.1f) {}
 		inline bool operator<(const SThrownItem& rhs) const { return time < rhs.time; }
-		float    time;
+		CTimeValue time;
 		Vec3     pos, vel;
 		float    r;
 		EntityId id;
@@ -116,8 +116,8 @@ private:
 		SStuntTargetAIActor(CAIActor* pAIActor, const Vec3& pos) : pAIActor(pAIActor), t(0), exposed(0), signalled(false), threatPos(pos) {}
 		CAIActor* pAIActor;
 		Vec3      threatPos;
-		float     t;
-		float     exposed;
+		CTimeValue t;
+		CTimeValue exposed;
 		bool      signalled;
 	};
 	std::vector<SStuntTargetAIActor> m_stuntTargets;
@@ -131,26 +131,26 @@ private:
 
 	Vec3  m_stuntDir;
 
-	float m_playerStuntSprinting;
-	float m_playerStuntJumping;
-	float m_playerStuntCloaking;
-	float m_playerStuntUncloaking;
+	CTimeValue m_playerStuntSprinting;
+	CTimeValue m_playerStuntJumping;
+	CTimeValue m_playerStuntCloaking;
+	CTimeValue m_playerStuntUncloaking;
 
-	float m_mercyTimer;
+	CTimeValue m_mercyTimer;
 
 	void CollectExposedCover();
 	void ReleaseExposedCoverObjects();
 	void AddExposedCoverObject(IPhysicalEntity* pPhysEnt);
 	void CollectExposedCoverRayComplete(const QueuedRayID& rayID, const RayCastResult& result);
 
-	float m_coverExposedTime;
-	float m_coolMissCooldown;
+	CTimeValue m_coverExposedTime;
+	CTimeValue m_coolMissCooldown;
 
 	struct SExposedCoverObject
 	{
-		SExposedCoverObject(IPhysicalEntity* pPhysEnt, float t) : pPhysEnt(pPhysEnt), t(t) {}
+		SExposedCoverObject(IPhysicalEntity* pPhysEnt, const CTimeValue& t) : pPhysEnt(pPhysEnt), t(t) {}
 		IPhysicalEntity* pPhysEnt;
-		float            t;
+		CTimeValue       t;
 	};
 
 	struct ExposedCoverState

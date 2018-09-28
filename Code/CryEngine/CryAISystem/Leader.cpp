@@ -223,6 +223,8 @@ void CLeader::ProcessSignal(AISIGNAL& signal)
 
 	if (signal.Compare(gAIEnv.SignalCRCs.m_nAIORD_ATTACK))
 	{
+		// PERSONAL DEBUG: How to update and trace AI signals better?? More'n likely missed Signal time creation & reading....
+		// Hard to grep/trace down.....SignalCRC's don't help much.
 		ELeaderActionSubType attackType = static_cast<ELeaderActionSubType>(data.iValue);
 		LeaderActionParams params;
 		params.type = LA_ATTACK;
@@ -230,7 +232,7 @@ void CLeader::ProcessSignal(AISIGNAL& signal)
 		params.unitProperties = data.iValue2;
 		params.id = data.nID;
 		params.pAIObject = gAIEnv.pAIObjectManager->GetAIObjectByName(data.GetObjectName());
-		params.fDuration = data.fValue;
+		params.fDuration = data.tVal;
 		params.vPoint = data.point;
 		params.name = data.GetObjectName();
 		Attack(&params);

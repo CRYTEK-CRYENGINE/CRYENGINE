@@ -17,13 +17,13 @@
 
 namespace TargetTrackHelpers
 {
-const float STargetTrackStimulusConfig::INVALID_VALUE = 0.0f;
+const int STargetTrackStimulusConfig::INVALID_VALUE = 0;
 
 //////////////////////////////////////////////////////////////////////////
 SEnvelopeData::SEnvelopeData()
 	: m_fCurrentValue(0.0f)
-	, m_fStartTime(0.0f)
-	, m_fLastInvokeTime(0.0f)
+	, m_fStartTime(0)
+	, m_fLastInvokeTime(0)
 	, m_fLastRunningValue(0.0f)
 	, m_fLastReleasingValue(0.0f)
 	, m_bReinvoked(false)
@@ -58,14 +58,14 @@ STargetTrackStimulusEvent::STargetTrackStimulusEvent(tAIObjectID ownerId, tAIObj
 //////////////////////////////////////////////////////////////////////////
 STargetTrackPulseConfig::STargetTrackPulseConfig()
 	: m_fValue(0.0f)
-	, m_fDuration(0.0f)
+	, m_fDuration(0)
 	, m_bInherited(false)
 {
 
 }
 
 //////////////////////////////////////////////////////////////////////////
-STargetTrackPulseConfig::STargetTrackPulseConfig(const char* szPulse, float fValue, float fDuration)
+STargetTrackPulseConfig::STargetTrackPulseConfig(const char* szPulse, float fValue, const CTimeValue& fDuration)
 	: m_sPulse(szPulse)
 	, m_fValue(fValue)
 	, m_fDuration(fDuration)
@@ -122,7 +122,7 @@ STargetTrackStimulusConfig::STargetTrackStimulusConfig()
 	: m_fPeak(0.0f)
 	, m_fAttack(INVALID_VALUE)
 	, m_fDecay(INVALID_VALUE)
-	, m_fSustainRatio(INVALID_VALUE)
+	, m_fSustainRatio((float)INVALID_VALUE)
 	, m_fRelease(INVALID_VALUE)
 	, m_fIgnore(INVALID_VALUE)
 	, m_bHostileOnly(false)
@@ -132,19 +132,19 @@ STargetTrackStimulusConfig::STargetTrackStimulusConfig()
 }
 
 //////////////////////////////////////////////////////////////////////////
-STargetTrackStimulusConfig::STargetTrackStimulusConfig(const char* szStimulus, bool bHostileOnly, float fPeak, float fSustainRatio, float fAttack, float fDecay, float fRelease, float fIgnore)
+STargetTrackStimulusConfig::STargetTrackStimulusConfig(const char* szStimulus, bool bHostileOnly, float fPeak, float fSustainRatio, const CTimeValue& fAttack, const CTimeValue& fDecay, const CTimeValue& fRelease, const CTimeValue& fIgnore)
 	: m_sStimulus(szStimulus)
 	, m_bHostileOnly(bHostileOnly)
 	, m_ucInheritanceMask(0)
 {
 	assert(szStimulus && szStimulus[0]);
 
-	m_fPeak = (fPeak > FLT_EPSILON ? fPeak : INVALID_VALUE);
-	m_fAttack = (fAttack > FLT_EPSILON ? fAttack : INVALID_VALUE);
-	m_fDecay = (fDecay > FLT_EPSILON ? fDecay : INVALID_VALUE);
+	m_fPeak   = (fPeak > FLT_EPSILON ? fPeak : INVALID_VALUE);
+	m_fAttack = (fAttack > TV_EPSILON ? fAttack : INVALID_VALUE);
+	m_fDecay  = (fDecay > TV_EPSILON ? fDecay : INVALID_VALUE);
 	m_fSustainRatio = (fSustainRatio > FLT_EPSILON ? fSustainRatio : INVALID_VALUE);
-	m_fRelease = (fRelease > FLT_EPSILON ? fRelease : INVALID_VALUE);
-	m_fIgnore = (fIgnore > FLT_EPSILON ? fIgnore : INVALID_VALUE);
+	m_fRelease = (fRelease > TV_EPSILON ? fRelease : INVALID_VALUE);
+	m_fIgnore  = (fIgnore > TV_EPSILON ? fIgnore : INVALID_VALUE);
 }
 
 //////////////////////////////////////////////////////////////////////////

@@ -55,8 +55,8 @@ CFormation::CFormation()
 	, m_pPathMarker(nullptr)
 	, m_iSpecialPointIndex(-1)
 	, m_fMaxFollowDistance(0.0f)
-	, m_maxUpdateSightTimeMs(0)
-	, m_minUpdateSightTimeMs(0)
+	, m_maxUpdateSightTime(0)
+	, m_minUpdateSightTime(0)
 	, m_fSightRotationRange(0.0f)
 	, m_orientationType(OT_MOVE)
 	, m_dbgVector1(ZERO)
@@ -176,7 +176,7 @@ void CFormation::Create(CFormationDescriptor& desc, CWeakRef<CAIObject> refOwner
 	m_vLastPos = pOwner->GetPos();
 	m_vLastTargetPos.zero();
 	m_vLastMoveDir = pOwner->GetMoveDir();
-	m_fLastUpdateTime = 0.f;//GetAISystem()->GetCurrentTime();
+	m_fLastUpdateTime.SetSeconds(0);//GetAISystem()->GetCurrentTime();
 	m_vDesiredTargetPos.zero();
 
 	m_refOwner = refOwner;
@@ -372,7 +372,7 @@ void CFormation::Update()
 	{
 		m_vLastMoveDir = pOwner->GetMoveDir();
 		m_bFirstUpdate = false;
-		m_fLastUpdateTime = 0.0f;//GetAISystem()->GetFrameStartTime();
+		m_fLastUpdateTime.SetSeconds(0);//GetAISystem()->GetFrameStartTime();
 		for (TFormationPoints::iterator itrPoint(m_FormationPoints.begin()); itrPoint != itFormEnd; ++itrPoint)
 		{
 			CAIObject* const pWorldPoint = itrPoint->m_refWorldPoint.GetAIObject();
@@ -386,12 +386,11 @@ void CFormation::Update()
 
 	// if it's in init movement, we don't consider the update threshold, but any movement!=0
 	CTimeValue currentTime = GetAISystem()->GetFrameStartTime();
-	int64 updateTimeMs = (currentTime - m_fLastUpdateTime).GetMilliSecondsAsInt64();
-	if (updateTimeMs <= 10)
+	CTimeValue updateTime  = currentTime - m_fLastUpdateTime;
+	if (updateTime.GetMilliSeconds() <= 10)
 		return;
 
-	float updateTimeFloat = (float)(updateTimeMs);
-	float intervalRangeFloat = (float)(m_maxUpdateSightTimeMs - m_minUpdateSightTimeMs);
+	CTimeValue intervalRange = m_maxUpdateSightTime - m_minUpdateSightTime;
 
 	Vec3 vOwnerPos = pOwner->GetPhysicsPos();
 
@@ -481,15 +480,13 @@ void CFormation::Update()
 		// randomly rotate the look-at dummy targets when formation is not moving
 		if (m_fSightRotationRange > 0)
 		{
-			float intervalRange = intervalRangeFloat;
-
 			for (TFormationPoints::iterator itrPoint(m_FormationPoints.begin()); itrPoint != itFormEnd; ++itrPoint)
 			{
 				CFormationPoint& frmPoint = (*itrPoint);
-				int randomIntervalMs = m_minUpdateSightTimeMs + cry_random(0U, (uint32)intervalRange);
-				int pointUpdateTimeMs = (int)(currentTime - frmPoint.m_fLastUpdateSightTime).GetMilliSecondsAsInt64();
+				CTimeValue randomInterval = m_minUpdateSightTime + cry_random(CTimeValue(0), intervalRange);
+				CTimeValue pointUpdateTime = currentTime - frmPoint.m_fLastUpdateSightTime;
 
-				if (pointUpdateTimeMs > randomIntervalMs)
+				if (pointUpdateTime > randomInterval)
 				{
 					frmPoint.m_fLastUpdateSightTime = currentTime;
 					Vec3 pos = frmPoint.m_vPoint;// m_vPoints[i];
@@ -525,10 +522,7 @@ void CFormation::Update()
 		return;
 	}
 
-	float invUpdateTime = updateTimeFloat * 0.001f;
-
 	// formation's owner has moved
-
 	if (!m_refReferenceTarget.IsValid())
 	{
 		CAIObject* const pReservation0 = m_FormationPoints[0].m_refReservation.GetAIObject();
@@ -600,14 +594,14 @@ void CFormation::Update()
 			posRot = pos.x * formDirXAxis + pos.y * m_vMoveDir;
 			pos = posRot + vOwnerPos;
 			frmPoint.m_LastPosition = pFormationDummy->GetPos();
-			frmPoint.m_Dir = (pos - frmPoint.m_LastPosition) * invUpdateTime;
+			frmPoint.m_Dir = (pos - frmPoint.m_LastPosition) * updateTime.BADGetSeconds();
 			frmPoint.SetPos(pos, vOwnerPos, m_bForceReachable);
 
 			if (!pFormationDummy->IsEnabled())
 				pFormationDummy->Event(AIEVENT_ENABLE, NULL);
 
 			// blend the speed estimation to smooth it since it's very noisy
-			float newSpeed = (frmPoint.m_LastPosition - pos).GetLength() * invUpdateTime;
+			float newSpeed = (frmPoint.m_LastPosition - pos).GetLength() * updateTime.BADGetSeconds();
 			frmPoint.m_Speed = speedUpdateFrac * newSpeed + (1.0f - speedUpdateFrac) * frmPoint.m_Speed;
 
 			//Update dummy targets
@@ -699,13 +693,13 @@ void CFormation::Update()
 						frmPoint.SetPos(smoothedPos, pointAlongLeaderPath, m_bForceReachable, bPlayerLeader);
 					}
 
-					float newSpeed = (frmPoint.m_LastPosition - pFormationDummy->GetPos()).GetLength() * invUpdateTime;
+					float newSpeed = (frmPoint.m_LastPosition - pFormationDummy->GetPos()).GetLength() * updateTime.BADGetSeconds();
 					frmPoint.m_Speed = speedUpdateFrac * newSpeed + (1.0f - speedUpdateFrac) * frmPoint.m_Speed;
 				}
 
 				CCCPOINT(CFormation_Update_F);
 
-				frmPoint.m_Dir = (pFormationDummy->GetPos() - frmPoint.m_LastPosition) * invUpdateTime;
+				frmPoint.m_Dir = (pFormationDummy->GetPos() - frmPoint.m_LastPosition) * updateTime.BADGetSeconds();
 				frmPoint.m_LastPosition = pFormationDummy->GetPos();
 
 				//rotate 90 degrees
@@ -1229,7 +1223,7 @@ void CFormation::SetUpdate(bool bUpdate)
 {
 	m_bUpdate = bUpdate;
 	if (bUpdate)
-		m_fLastUpdateTime.SetValue(0); // force update the next time, when SetUpdate(true) is called
+		m_fLastUpdateTime.SetSeconds(0); // force update the next time, when SetUpdate(true) is called
 }
 
 //----------------------------------------------------------------------
@@ -1278,8 +1272,8 @@ void CFormation::Serialize(TSerialize ser)
 		ser.Value("m_iSpecialPointIndex", m_iSpecialPointIndex);
 		ser.Value("m_fMaxFollowDistance", m_fMaxFollowDistance);
 		ser.Value("m_fLastUpdateTime", m_fLastUpdateTime);
-		ser.Value("m_fMaxUpdateSightTime", m_maxUpdateSightTimeMs);
-		ser.Value("m_fMinUpdateSightTime", m_minUpdateSightTimeMs);
+		ser.Value("m_fMaxUpdateSightTime", m_maxUpdateSightTime);
+		ser.Value("m_fMinUpdateSightTime", m_minUpdateSightTime);
 		ser.Value("m_fSightRotationRange", m_fSightRotationRange);
 		ser.Value("m_szDescriptor", m_szDescriptor);
 
@@ -1300,7 +1294,7 @@ void CFormation::Serialize(TSerialize ser)
 		}
 		else
 		{
-			m_fLastUpdateTime = 0.0f;
+			m_fLastUpdateTime.SetSeconds(0);
 			if (ser.BeginOptionalGroup("FormationPathMarker", true))
 			{
 				if (m_pPathMarker)
@@ -1666,9 +1660,9 @@ void CFormation::SetReferenceTarget(const CAIObject* pTarget, float speed)
 	Update();
 }
 
-void CFormation::SetUpdateSight(float angleRange, float minTime /*=0*/, float maxTime /*=0*/)
+void CFormation::SetUpdateSight(float angleRange, const CTimeValue& minTime /*=0*/, const CTimeValue& maxTime /*=0*/)
 {
 	m_fSightRotationRange = angleRange;
-	m_minUpdateSightTimeMs = (int)(minTime * 1000.0f);
-	m_maxUpdateSightTimeMs = (int)(maxTime * 1000.0f);
+	m_minUpdateSightTime  = minTime;
+	m_maxUpdateSightTime  = maxTime;
 }

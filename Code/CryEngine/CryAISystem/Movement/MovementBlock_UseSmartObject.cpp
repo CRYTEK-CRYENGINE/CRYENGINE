@@ -20,7 +20,7 @@ UseSmartObject::UseSmartObject(
   const MovementStyle& style)
 	: Base(path, style)
 	, m_smartObjectMNMData(mnmData)
-	, m_timeSpentWaitingForSmartObjectToBecomeFree(0.0f)
+	, m_timeSpentWaitingForSmartObjectToBecomeFree(0)
 {
 
 }
@@ -28,7 +28,7 @@ UseSmartObject::UseSmartObject(
 void UseSmartObject::Begin(IMovementActor& actor)
 {
 	Base::Begin(actor);
-	m_timeSpentWaitingForSmartObjectToBecomeFree = 0.0f;
+	m_timeSpentWaitingForSmartObjectToBecomeFree.SetSeconds(0);
 }
 
 Movement::Block::Status UseSmartObject::Update(const MovementUpdateContext& context)
@@ -74,8 +74,8 @@ UseExactPositioningBase::TryRequestingExactPositioningResult UseSmartObject::Try
 			// Smart object is busy so stop movement and wait for your turn
 			context.actor.GetAdapter().ClearMovementState();
 
-			m_timeSpentWaitingForSmartObjectToBecomeFree += gEnv->pTimer->GetFrameTime();
-			if (m_timeSpentWaitingForSmartObjectToBecomeFree > 10.0f)
+			m_timeSpentWaitingForSmartObjectToBecomeFree += GetGTimer()->GetFrameTime();
+			if (m_timeSpentWaitingForSmartObjectToBecomeFree > 10)
 			{
 				const EntityId actorEntityId = context.actor.GetEntityId();
 				if (IEntity* entity = gEnv->pEntitySystem->GetEntity(actorEntityId))

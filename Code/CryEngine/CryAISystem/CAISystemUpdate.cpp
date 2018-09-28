@@ -142,7 +142,7 @@ void CAISystem::UpdateDebugStuff()
 		for (size_t i = 0; i < m_DEBUG_fakeTracers.size(); )
 		{
 			m_DEBUG_fakeTracers[i].t -= m_frameDeltaTime;
-			if (m_DEBUG_fakeTracers[i].t < 0.0f)
+			if (m_DEBUG_fakeTracers[i].t < 0)
 			{
 				m_DEBUG_fakeTracers[i] = m_DEBUG_fakeTracers.back();
 				m_DEBUG_fakeTracers.pop_back();
@@ -164,7 +164,7 @@ void CAISystem::UpdateDebugStuff()
 		for (size_t i = 0; i < m_DEBUG_fakeHitEffect.size(); )
 		{
 			m_DEBUG_fakeHitEffect[i].t -= m_frameDeltaTime;
-			if (m_DEBUG_fakeHitEffect[i].t < 0.0f)
+			if (m_DEBUG_fakeHitEffect[i].t < 0)
 			{
 				m_DEBUG_fakeHitEffect[i] = m_DEBUG_fakeHitEffect.back();
 				m_DEBUG_fakeHitEffect.pop_back();
@@ -194,12 +194,12 @@ void CAISystem::UpdateDebugStuff()
 			else
 				++i;
 		}
-		m_DEBUG_screenFlash = max(0.0f, m_DEBUG_screenFlash - m_frameDeltaTime);
+		m_DEBUG_screenFlash = max(CTimeValue(0), m_DEBUG_screenFlash - m_frameDeltaTime);
 	}
 	else
 	{
 		m_DEBUG_fakeDamageInd.clear();
-		m_DEBUG_screenFlash = 0.0f;
+		m_DEBUG_screenFlash.SetSeconds(0);
 	}
 
 	#endif // #if CRY_PLATFORM_WINDOWS
@@ -233,8 +233,8 @@ void CAISystem::UpdateAmbientFire()
 	if (gAIEnv.CVars.AmbientFireEnable == 0)
 		return;
 
-	int64 dt((GetFrameStartTime() - m_lastAmbientFireUpdateTime).GetMilliSecondsAsInt64());
-	if (dt < (int)(gAIEnv.CVars.AmbientFireUpdateInterval * 1000.0f))
+	CTimeValue dt(GetFrameStartTime() - m_lastAmbientFireUpdateTime);
+	if (dt < gAIEnv.CVars.AmbientFireUpdateInterval)
 		return;
 
 	// Marcio: Update ambient fire towards all players.
@@ -405,9 +405,9 @@ void CAISystem::UpdateExpensiveAccessoryQuota()
 	for (unsigned i = 0; i < m_delayedExpAccessoryUpdates.size(); )
 	{
 		SAIDelayedExpAccessoryUpdate& update = m_delayedExpAccessoryUpdates[i];
-		update.timeMs -= (int)(m_frameDeltaTime * 1000.0f);
+		update.time -= m_frameDeltaTime;
 
-		if (update.timeMs < 0)
+		if (update.time < 0)
 		{
 			update.pPuppet->SetAllowedToUseExpensiveAccessory(update.state);
 			m_delayedExpAccessoryUpdates[i] = m_delayedExpAccessoryUpdates.back();
@@ -417,11 +417,9 @@ void CAISystem::UpdateExpensiveAccessoryQuota()
 			++i;
 	}
 
-	const int UpdateTimeMs = 3000;
-	const float fUpdateTimeMs = (float)UpdateTimeMs;
-
-	int64 dt((GetFrameStartTime() - m_lastExpensiveAccessoryUpdateTime).GetMilliSecondsAsInt64());
-	if (dt < UpdateTimeMs)
+	const CTimeValue UpdateTime = 3;
+	CTimeValue dt(GetFrameStartTime() - m_lastExpensiveAccessoryUpdateTime);
+	if (dt < UpdateTime)
 		return;
 
 	m_lastExpensiveAccessoryUpdateTime = GetFrameStartTime();
@@ -496,15 +494,15 @@ void CAISystem::UpdateExpensiveAccessoryQuota()
 		{
 			//		puppets[i].first->SetAllowedToUseExpensiveAccessory(true);
 
-			int timeMs = (int)(fUpdateTimeMs * 0.5f + cry_random(0.0f, fUpdateTimeMs) * 0.4f);
-			m_delayedExpAccessoryUpdates.push_back(SAIDelayedExpAccessoryUpdate(puppets[i].first, timeMs, true));
+			CTimeValue time = UpdateTime * "0.5" + cry_random(CTimeValue(0), UpdateTime) * "0.4";
+			m_delayedExpAccessoryUpdates.push_back(SAIDelayedExpAccessoryUpdate(puppets[i].first, time, true));
 		}
 	}
 
 	for (unsigned i = 0, ni = stateRemoved.size(); i < ni; ++i)
 	{
-		int timeMs = (int)(cry_random(0.0f, fUpdateTimeMs) * 0.4f);
-		m_delayedExpAccessoryUpdates.push_back(SAIDelayedExpAccessoryUpdate(stateRemoved[i], timeMs, false));
+		CTimeValue time = cry_random(CTimeValue(0), UpdateTime) * "0.4";
+		m_delayedExpAccessoryUpdates.push_back(SAIDelayedExpAccessoryUpdate(stateRemoved[i], time, false));
 	}
 }
 

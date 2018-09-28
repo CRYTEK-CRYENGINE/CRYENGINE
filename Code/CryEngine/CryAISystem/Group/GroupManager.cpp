@@ -31,7 +31,7 @@ void CGroupManager::Reset(EObjectResetType type)
 	}
 }
 
-void CGroupManager::Update(float updateTime)
+void CGroupManager::Update(const CTimeValue& updateTime)
 {
 	Groups::iterator it = m_groups.begin();
 	Groups::iterator end = m_groups.end();

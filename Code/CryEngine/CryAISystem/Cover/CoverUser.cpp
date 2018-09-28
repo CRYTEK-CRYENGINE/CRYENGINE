@@ -112,7 +112,7 @@ const CoverUser::Params& CoverUser::GetParams() const
 	return m_params;
 }
 
-void CoverUser::SetCoverBlacklisted(const CoverID& coverID, bool blacklist, float time)
+void CoverUser::SetCoverBlacklisted(const CoverID& coverID, bool blacklist, const CTimeValue& time)
 {
 	if (blacklist)
 	{
@@ -139,7 +139,7 @@ void CoverUser::UpdateCoverEyes()
 	}
 }
 
-void CoverUser::Update(float timeDelta)
+void CoverUser::Update(const CTimeValue& timeDelta)
 {
 	CRY_PROFILE_REGION(PROFILE_AI, "CoverUser::Update");
 
@@ -175,14 +175,14 @@ void CoverUser::Update(float timeDelta)
 	}
 }
 
-void CoverUser::UpdateBlacklisted(float timeDelta)
+void CoverUser::UpdateBlacklisted(const CTimeValue& timeDelta)
 {
 	for (auto it = m_coverBlacklistMap.begin(); it != m_coverBlacklistMap.end();)
 	{
-		float& time = it->second;
+		CTimeValue& time = it->second;
 		time -= timeDelta;
 
-		if (time <= 0.0f)
+		if (time <= 0)
 		{
 			it = m_coverBlacklistMap.erase(it);
 		}

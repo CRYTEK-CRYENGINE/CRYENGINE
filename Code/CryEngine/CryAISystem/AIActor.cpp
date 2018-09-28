@@ -128,7 +128,7 @@ void CActorCollisionAvoidance::InitializeCollisionObstacle(CCollisionAvoidanceSy
 }
 	
 
-void CActorCollisionAvoidance::ApplyComputedVelocity(const Vec2& avoidanceVelocity, float updateTime)
+void CActorCollisionAvoidance::ApplyComputedVelocity(const Vec2& avoidanceVelocity, const CTimeValue& updateTime)
 {
 	m_pActor->m_State.allowStrafing = false;
 	m_pActor->ResetBodyTargetDir();
@@ -167,14 +167,14 @@ void CActorCollisionAvoidance::ApplyComputedVelocity(const Vec2& avoidanceVeloci
 		if (m_pActor->m_State.fDesiredSpeed > 0.5f)
 		{
 			m_radiusIncrement = min(
-				m_radiusIncrement + (m_pActor->m_movementAbility.collisionAvoidanceRadiusIncrement * gAIEnv.CVars.CollisionAvoidanceRadiusIncrementIncreaseRate * updateTime),
+				m_radiusIncrement + (m_pActor->m_movementAbility.collisionAvoidanceRadiusIncrement * gAIEnv.CVars.CollisionAvoidanceRadiusIncrementIncreaseRate * updateTime.BADGetSeconds()),
 				m_pActor->m_movementAbility.collisionAvoidanceRadiusIncrement
 			);
 		}
 		else
 		{
 			m_radiusIncrement = max(
-				m_radiusIncrement - (m_pActor->m_movementAbility.collisionAvoidanceRadiusIncrement * gAIEnv.CVars.CollisionAvoidanceRadiusIncrementDecreaseRate * updateTime),
+				m_radiusIncrement - (m_pActor->m_movementAbility.collisionAvoidanceRadiusIncrement * gAIEnv.CVars.CollisionAvoidanceRadiusIncrementDecreaseRate * updateTime.BADGetSeconds()),
 				0.0f
 			);
 		}
@@ -203,7 +203,7 @@ CAIActor::CAIActor()
 	, m_territoryShape(0)
 	, m_lastBodyDir(ZERO)
 	, m_bodyTurningSpeed(0)
-	, m_stimulusStartTime(-100.f)
+	, m_stimulusStartTime(-100)
 	, m_activeCoordinationCount(0)
 	, m_navigationTypeID(0)
 	, m_runningBehaviorTree(false)
@@ -472,7 +472,7 @@ void CAIActor::Reset(EObjectResetType type)
 		SetObservable(type == AIOBJRESET_INIT);
 	}
 
-	m_stimulusStartTime = -100.f;
+	m_stimulusStartTime.SetSeconds(-100);
 
 	m_bodyInfo = SAIBodyInfo();
 
@@ -587,12 +587,12 @@ void CAIActor::Update(IAIObject::EUpdateType type)
 		}
 	}
 
-	const float dt = pAISystem->GetFrameDeltaTime();
-	if (dt > 0.f)
+	const CTimeValue dt = pAISystem->GetFrameDeltaTime();
+	if (dt > 0)
 	{
 		// Update body angle and body turn speed
 		float turnAngle = Ang3::CreateRadZ(m_lastBodyDir, GetEntityDir());
-		m_bodyTurningSpeed = turnAngle / dt;
+		m_bodyTurningSpeed = turnAngle / dt.BADGetSeconds();
 	}
 	else
 	{
@@ -657,12 +657,12 @@ void CAIActor::Update(IAIObject::EUpdateType type)
 					m_State.eTargetType = AITARGET_MEMORY;
 					m_State.nTargetType = pAttTarget->GetType();
 					m_State.bTargetEnabled = true;
-					m_stimulusStartTime = GetAISystem()->GetFrameStartTimeSeconds();
+					m_stimulusStartTime = GetAISystem()->GetFrameStartTime();
 					break;
 
 				case AITARGET_MEMORY:
 				case AITARGET_SOUND:
-					if (GetAISystem()->GetFrameStartTimeSeconds() - m_stimulusStartTime >= 5.f)
+					if (GetAISystem()->GetFrameStartTime() - m_stimulusStartTime >= 5)
 					{
 						m_State.nTargetType = -1;
 						m_State.bTargetEnabled = false;
@@ -1251,7 +1251,7 @@ void CAIActor::UpdateHealthHistory()
 {
 	if (!GetProxy()) return;
 	if (!m_healthHistory)
-		m_healthHistory = new CValueHistory<float>(100, 0.1f);
+		m_healthHistory = new CValueHistory<float>(100, "0.1");
 	//better add float functions here
 	float health = (GetProxy()->GetActorHealth() + GetProxy()->GetActorArmor());
 	float maxHealth = (float)GetProxy()->GetActorMaxHealth();
@@ -1984,7 +1984,7 @@ void CAIActor::HandleVisualStimulus(SAIEVENT* pAIEvent)
 			if (IsHostile(pEventOwnerAI))
 			{
 				m_State.nTargetType = static_cast<CAIObject*>(pEventOwnerAI)->GetType();
-				m_stimulusStartTime = GetAISystem()->GetFrameStartTimeSeconds();
+				m_stimulusStartTime = GetAISystem()->GetFrameStartTime();
 
 				m_State.eTargetThreat = AITHREAT_AGGRESSIVE;
 				m_State.eTargetType = AITARGET_VISUAL;
@@ -2030,7 +2030,7 @@ void CAIActor::HandleSoundEvent(SAIEVENT* pAIEvent)
 				if ((m_State.eTargetType != AITARGET_MEMORY) && (m_State.eTargetType != AITARGET_VISUAL))
 				{
 					m_State.nTargetType = static_cast<CAIObject*>(pEventOwnerAI)->GetType();
-					m_stimulusStartTime = GetAISystem()->GetFrameStartTimeSeconds();
+					m_stimulusStartTime = GetAISystem()->GetFrameStartTime();
 
 					m_State.nTargetType = static_cast<CAIObject*>(pEventOwnerAI)->GetType();
 					m_State.eTargetThreat = AITHREAT_AGGRESSIVE;

@@ -12,7 +12,7 @@ public:
 	~CGroupManager();
 
 	void                  Reset(EObjectResetType type);
-	void                  Update(float updateTime);
+	void                  Update(const CTimeValue& updateTime);
 
 	void                  AddGroupMember(const GroupID& groupID, tAIObjectID objectID);
 	void                  RemoveGroupMember(const GroupID& groupID, tAIObjectID objectID);

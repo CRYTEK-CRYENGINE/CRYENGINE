@@ -73,7 +73,7 @@ public:
 	virtual void OnSoundEvent(const SSoundStimulusParams& soundParams, const char* szDebugText) override;
 	virtual void SetSoundObstructionOnHitCallback(const IAuditionMap::SoundObstructionOnHitCallback& callback) override;
 
-	void Update(float deltaTime);
+	void Update(const CTimeValue& deltaTime);
 
 protected:
 

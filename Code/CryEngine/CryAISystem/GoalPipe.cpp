@@ -643,12 +643,12 @@ void CGoalPipe::PushGoal(EGoalOperations op, bool bBlocking, EGroupType eGroupin
 		break;
 	case eGO_BACKOFF:
 		{
-			newgoal.pGoalOp = new COPBackoff(params.fValue, params.fValueAux, params.nValue);
+			newgoal.pGoalOp = new COPBackoff(params.fValue, BADTIME(params.fValueAux), params.nValue);
 		}
 		break;
 	case eGO_FIRECMD:
 		{
-			newgoal.pGoalOp = new COPFireCmd(static_cast<EFireMode>(params.nValue), params.bValue, params.fValue, params.fValueAux);
+			newgoal.pGoalOp = new COPFireCmd(static_cast<EFireMode>(params.nValue), params.bValue, BADTIME(params.fValue), BADTIME(params.fValueAux));
 		}
 		break;
 	case eGO_STANCE:
@@ -667,7 +667,7 @@ void CGoalPipe::PushGoal(EGoalOperations op, bool bBlocking, EGroupType eGroupin
 			if (!gEnv->pSystem)
 				AIError("CGoalPipe::PushGoal Pushing goals without a valid System instance [Code bug]");
 
-			newgoal.pGoalOp = new COPTimeout(params.fValue, params.fValueAux);
+			newgoal.pGoalOp = new COPTimeout(BADTIME(params.fValue), BADTIME(params.fValueAux));
 		}
 		break;
 	case eGO_SPEED:
@@ -678,7 +678,7 @@ void CGoalPipe::PushGoal(EGoalOperations op, bool bBlocking, EGroupType eGroupin
 		break;
 	case eGO_LOOKAROUND:
 		{
-			newgoal.pGoalOp = new COPLookAround(params.fValue, params.fValueAux, params.vPos.x, params.vPos.y, params.nValueAux != 0, (params.nValue & AI_BREAK_ON_LIVE_TARGET) != 0, (params.nValue & AILASTOPRES_USE) != 0, params.bValue);
+			newgoal.pGoalOp = new COPLookAround(params.fValue, BADTIME(params.fValueAux), BADTIME(params.vPos.x), BADTIME(params.vPos.y), params.nValueAux != 0, (params.nValue & AI_BREAK_ON_LIVE_TARGET) != 0, (params.nValue & AILASTOPRES_USE) != 0, params.bValue);
 		}
 		break;
 	case eGO_LOCATE:
@@ -729,15 +729,16 @@ void CGoalPipe::PushGoal(EGoalOperations op, bool bBlocking, EGroupType eGroupin
 	case eGO_STICKMINIMUMDISTANCE:
 	case eGO_STICK:
 		{
-			float duration, endDistance;
+			float endDistance;
+			CTimeValue duration;
 			if (params.nValue & AI_USE_TIME)
 			{
-				duration = fabsf(params.fValue);
+				duration = abs(BADTIME(params.fValue));
 				endDistance = 0.0f;
 			}
 			else
 			{
-				duration = 0.0f;
+				duration.SetSeconds(0);
 				endDistance = params.fValue;
 			}
 
@@ -845,16 +846,16 @@ void CGoalPipe::PushGoal(EGoalOperations op, bool bBlocking, EGroupType eGroupin
 			switch (int(params.fValue))
 			{
 			case 0:
-				newgoal.pGoalOp = new COPWaitSignal(params.str, params.fValueAux);
+				newgoal.pGoalOp = new COPWaitSignal(params.str, BADTIME(params.fValueAux));
 				break;
 			case 1:
-				newgoal.pGoalOp = new COPWaitSignal(params.str, params.strAux, params.fValueAux);
+				newgoal.pGoalOp = new COPWaitSignal(params.str, params.strAux, BADTIME(params.fValueAux));
 				break;
 			case 2:
-				newgoal.pGoalOp = new COPWaitSignal(params.str, params.nValue, params.fValueAux);
+				newgoal.pGoalOp = new COPWaitSignal(params.str, params.nValue, BADTIME(params.fValueAux));
 				break;
 			case 3:
-				newgoal.pGoalOp = new COPWaitSignal(params.str, EntityId(params.nValue), params.fValueAux);
+				newgoal.pGoalOp = new COPWaitSignal(params.str, EntityId(params.nValue), BADTIME(params.fValueAux));
 				break;
 			default:
 				return;

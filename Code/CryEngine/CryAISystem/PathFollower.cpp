@@ -328,7 +328,7 @@ void CPathFollower::StartFollowing(const Vec3& curPos, const Vec3& curVel)
 	int newLASegIndex;
 	// the large time passed just means that the initial lookahead should not be limited how
 	// far it goes - except by the LA distance.
-	GetNewLookAheadPos(newLAPos, newLASegIndex, m_curLAPos, m_curLASegmentIndex, curPos, curVel, 100.0f);
+	GetNewLookAheadPos(newLAPos, newLASegIndex, m_curLAPos, m_curLASegmentIndex, curPos, curVel, 100);
 	m_curLAPos = newLAPos;
 	m_curLASegmentIndex = newLASegIndex;
 
@@ -354,7 +354,7 @@ void CPathFollower::StartFollowing(const Vec3& curPos, const Vec3& curVel)
 // distance from curPos
 //===================================================================
 void CPathFollower::GetNewLookAheadPos(Vec3& newLAPos, int& newLASegIndex, const Vec3& curLAPos, int curLASegIndex,
-                                       const Vec3& curPos, const Vec3& curVel, float dt) const
+                                       const Vec3& curPos, const Vec3& curVel, const CTimeValue& dt) const
 {
 	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
@@ -371,7 +371,7 @@ void CPathFollower::GetNewLookAheadPos(Vec3& newLAPos, int& newLASegIndex, const
 
 	// limit the total amount we probe ahead
 	static float maxDistScale = 3.0f;
-	float maxProbeDist = maxDistScale * dt * m_params.maxSpeed;
+	float maxProbeDist = maxDistScale * dt.BADGetSeconds() * m_params.maxSpeed;
 	float totalProbeDist = 0.0f; // how far probe moved in total
 
 	float curDist;
@@ -435,7 +435,7 @@ void CPathFollower::GetNewLookAheadPos(Vec3& newLAPos, int& newLASegIndex, const
 // UseLookAheadPos
 //===================================================================
 void CPathFollower::UseLookAheadPos(Vec3& velocity, bool& reachedEnd, const Vec3 LAPos, const Vec3 curPos, const Vec3 curVel,
-                                    float dt, int curLASegmentIndex, float& lastOutputSpeed) const
+                                    const CTimeValue& dt, int curLASegmentIndex, float& lastOutputSpeed) const
 {
 	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
@@ -491,8 +491,8 @@ void CPathFollower::UseLookAheadPos(Vec3& velocity, bool& reachedEnd, const Vec3
 	   const float minSpeedEndOfPath = 0.5f + slowDownSpeed * (directDistToEnd / slowDownDist);
 	   float minSpeed = min(m_params.minSpeed, minSpeedEndOfPath);*/
 
-	float maxOutputSpeed = min(lastOutputSpeed + dt * m_params.maxAccel, m_params.maxSpeed);
-	float minOutputSpeed = m_params.stopAtEnd ? 0.0f : max(lastOutputSpeed - dt * m_params.maxDecel, m_params.minSpeed);
+	float maxOutputSpeed = min(lastOutputSpeed + dt.BADGetSeconds() * m_params.maxAccel, m_params.maxSpeed);
+	float minOutputSpeed = m_params.stopAtEnd ? 0.0f : max(lastOutputSpeed - dt.BADGetSeconds() * m_params.maxDecel, m_params.minSpeed);
 
 	Limit(speed, minOutputSpeed, maxOutputSpeed);
 	velocity *= speed;
@@ -545,7 +545,7 @@ uint32 CPathFollower::GetIndex(const Vec3& pos) const
 // the lookahead distance. Then move towards it.
 // For the moment do no speed control
 //===================================================================
-bool CPathFollower::Update(PathFollowResult& result, const Vec3& curPos, const Vec3& curVel, float dt)
+bool CPathFollower::Update(PathFollowResult& result, const Vec3& curPos, const Vec3& curVel, const CTimeValue& dt)
 {
 	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
@@ -596,13 +596,13 @@ bool CPathFollower::Update(PathFollowResult& result, const Vec3& curPos, const V
 	if (result.predictedStates)
 	{
 		result.predictedStates->resize(0);
-		int nDesiredPredictions = (int)(result.desiredPredictionTime / result.predictionDeltaTime + 0.5f);
+		int nDesiredPredictions = (int)(result.desiredPredictionTime / result.predictionDeltaTime + "0.5");
 
 		// Danny todo having a very small value here improves the smoothness of the prediction, but
 		// it's expensive too.
-		static float idealDt = 0.05f;
+		static CTimeValue idealDt = "0.05";
 		int stepsPerPrediction = (int) (result.predictionDeltaTime / idealDt);
-		float actualDt = result.predictionDeltaTime / stepsPerPrediction;
+		CTimeValue actualDt = result.predictionDeltaTime / stepsPerPrediction;
 
 		// copy the variables so we use/modify them for prediction
 		Vec3 predCurLAPos = m_curLAPos;
@@ -634,7 +634,7 @@ bool CPathFollower::Update(PathFollowResult& result, const Vec3& curPos, const V
 				else
 				{
 					// now assume physics would do what it's told
-					predCurPos += predCurVel * actualDt; // predCurVel seems slightly better than using velocity, or even midpoint method
+					predCurPos += predCurVel * actualDt.BADGetSeconds(); // predCurVel seems slightly better than using velocity, or even midpoint method
 					predCurVel = velocity;
 				}
 			}

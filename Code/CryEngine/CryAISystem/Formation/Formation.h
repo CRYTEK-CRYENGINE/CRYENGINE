@@ -87,8 +87,8 @@ private:
 	int                       m_iSpecialPointIndex;
 	float                     m_fMaxFollowDistance;
 	CTimeValue                m_fLastUpdateTime;
-	int                       m_maxUpdateSightTimeMs;
-	int                       m_minUpdateSightTimeMs;
+	CTimeValue                m_maxUpdateSightTime;
+	CTimeValue                m_minUpdateSightTime;
 	float                     m_fSightRotationRange;
 	eOrientationType          m_orientationType;
 
@@ -152,7 +152,7 @@ public:
 	void                    Reset();
 	void                    Serialize(TSerialize ser);
 	Vec3                    GetPredictedPointPosition(CWeakRef<const CAIObject> refRequestor, const Vec3& ownerPos, const Vec3& ownerLookDir, Vec3 ownerMoveDir) const;
-	void                    SetUpdateSight(float angleRange, float minTime = 0.0f, float maxTime = 0.0f);
+	void                    SetUpdateSight(float angleRange, const CTimeValue& minTime = 0, const CTimeValue& maxTime = 0);
 
 	inline void             SetOrientationType(eOrientationType t) { m_orientationType = t; }
 

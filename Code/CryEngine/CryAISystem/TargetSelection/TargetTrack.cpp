@@ -27,10 +27,10 @@
 // Error ratio beyond the agent's update rate to consider the stimulus invocation to still be running
 // A higher value means we lessen the impact of thrashing via the invocation turning on/off rapidly,
 //	but it has the impact of introducing latency
-static const float TARGET_TRACK_RUNNING_THRESHOLD = 0.01f;
+static const CTimeValue TARGET_TRACK_RUNNING_THRESHOLD = "0.01";
 
 //////////////////////////////////////////////////////////////////////////
-bool CTargetTrack::SStimulusInvocation::IsRunning(float fUpdateInterval) const
+bool CTargetTrack::SStimulusInvocation::IsRunning(const CTimeValue& fUpdateInterval) const
 {
 	bool bResult = m_bMustRun;
 	if (!bResult)
@@ -38,8 +38,8 @@ bool CTargetTrack::SStimulusInvocation::IsRunning(float fUpdateInterval) const
 		CAISystem* pAISystem = GetAISystem();
 		assert(pAISystem);
 
-		const float fCurrTime = pAISystem->GetFrameStartTimeSeconds();
-		bResult = (fCurrTime - m_envelopeData.m_fLastInvokeTime - fUpdateInterval * 2.0f <= TARGET_TRACK_RUNNING_THRESHOLD);
+		const CTimeValue fCurrTime = pAISystem->GetFrameStartTime();
+		bResult = (fCurrTime - m_envelopeData.m_fLastInvokeTime - fUpdateInterval * 2 <= TARGET_TRACK_RUNNING_THRESHOLD);
 	}
 
 	return bResult;
@@ -81,12 +81,12 @@ CTargetTrack::CTargetTrack()
 	, m_uConfigHash(0)
 	, m_iLastUpdateFrame(0)
 	, m_fTrackValue(0.0f)
-	, m_fFirstVisualTime(0.0f)
-	, m_fLastVisualTime(0.0f)
+	, m_fFirstVisualTime(0)
+	, m_fLastVisualTime(0)
 	, m_fThreatRatio(0.0f)
 {
 #ifdef TARGET_TRACK_DEBUG
-	m_fLastDebugDrawTime = 0.0f;
+	m_fLastDebugDrawTime.SetSeconds(0);
 	m_uDebugGraphIndex = 0;
 #endif //TARGET_TRACK_DEBUG
 }
@@ -121,11 +121,11 @@ void CTargetTrack::ResetForPool()
 	m_object.Reset();
 	m_uConfigHash = 0;
 
-	m_fLastVisualTime = 0.0f;
+	m_fLastVisualTime.SetSeconds(0);
 
 	m_iLastUpdateFrame = 0;
 	m_fTrackValue = 0.0f;
-	m_fFirstVisualTime = 0.0f;
+	m_fFirstVisualTime.SetSeconds(0);
 	m_fThreatRatio = 0.0f;
 	m_StimuliInvocations.clear();
 }
@@ -159,7 +159,7 @@ float CTargetTrack::GetHighestEnvelopeValue() const
 }
 
 //////////////////////////////////////////////////////////////////////////
-float CTargetTrack::GetUpdateInterval() const
+CTimeValue CTargetTrack::GetUpdateInterval() const
 {
 	CPipeUser* pPipeUser = CastToCPipeUserSafe(m_groupOwner.GetAIObject());
 	if (pPipeUser)
@@ -201,7 +201,7 @@ CWeakRef<CAIObject> CTargetTrack::GetAITarget() const
 }
 
 //////////////////////////////////////////////////////////////////////////
-bool CTargetTrack::Update(float fCurrTime, TargetTrackHelpers::ITargetTrackConfigProxy* pConfigProxy)
+bool CTargetTrack::Update(const CTimeValue& fCurrTime, TargetTrackHelpers::ITargetTrackConfigProxy* pConfigProxy)
 {
 	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
@@ -217,8 +217,8 @@ bool CTargetTrack::Update(float fCurrTime, TargetTrackHelpers::ITargetTrackConfi
 		bHasTarget = false;
 		m_iLastUpdateFrame = iFrameId;
 
-		float fLastInvokeTime = 0.0f;
-		float fLastStartInvoke = 0.0f;
+		CTimeValue fLastInvokeTime;
+		CTimeValue fLastStartInvoke;
 		m_fTrackValue = 0.0f;
 		EAITargetType eNewTargetType = AITARGET_NONE;
 		EAITargetContextType eNewTargetSubType = AITARGET_CONTEXT_UNKNOWN;
@@ -230,8 +230,8 @@ bool CTargetTrack::Update(float fCurrTime, TargetTrackHelpers::ITargetTrackConfi
 		//    behind without the AI knowing where the player is. Win!
 		// 2. When the player runs behind an object, the AI has an idea
 		//    where the player is going to pop out. Cool!
-		const float timeSinceVisual = fCurrTime - m_fLastVisualTime;
-		const float intuitionTime = 1.0f;
+		const CTimeValue timeSinceVisual = fCurrTime - m_fLastVisualTime;
+		const CTimeValue intuitionTime = 1;
 		const bool intuition = (m_eTargetType == AITARGET_MEMORY) && (timeSinceVisual < intuitionTime);
 		CAIObject* target = m_object.GetAIObject();
 
@@ -315,9 +315,9 @@ bool CTargetTrack::Update(float fCurrTime, TargetTrackHelpers::ITargetTrackConfi
 
 	if (!bHasTarget || m_eTargetType != AITARGET_VISUAL)
 	{
-		m_fFirstVisualTime = 0.0f;
+		m_fFirstVisualTime.SetSeconds(0);
 	}
-	else if (m_fFirstVisualTime <= 0.0f)  //  && (m_eTargetType == AITARGET_VISUAL)
+	else if (m_fFirstVisualTime <= 0)  //  && (m_eTargetType == AITARGET_VISUAL)
 	{
 		m_fFirstVisualTime = fCurrTime;
 	}
@@ -472,7 +472,7 @@ void CTargetTrack::UpdateStimulusInvoke(SStimulusInvocation& invoke, const Targe
 	CAISystem* pAISystem = GetAISystem();
 	assert(pAISystem);
 
-	const float fCurrTime = pAISystem->GetFrameStartTimeSeconds();
+	const CTimeValue fCurrTime = pAISystem->GetFrameStartTime();
 
 	if (!invoke.IsRunning(GetUpdateInterval()))
 	{
@@ -546,14 +546,14 @@ void CTargetTrack::UpdatePulseValue(SStimulusInvocation::SPulseTrigger& pulseTri
 	CAISystem* pAISystem = GetAISystem();
 	assert(pAISystem);
 
-	const float fCurrTime = pAISystem->GetFrameStartTimeSeconds();
+	const CTimeValue fCurrTime = pAISystem->GetFrameStartTime();
 
 	pulseTrigger.fTriggerTime = fCurrTime;
 	pulseTrigger.bObsolete = false;
 }
 
 //////////////////////////////////////////////////////////////////////////
-float CTargetTrack::UpdateStimulusValue(float fCurrTime, SStimulusInvocation& invoke, const TargetTrackHelpers::STargetTrackStimulusConfig* pStimulusConfig,
+float CTargetTrack::UpdateStimulusValue(const CTimeValue& fCurrTime, SStimulusInvocation& invoke, const TargetTrackHelpers::STargetTrackStimulusConfig* pStimulusConfig,
                                         TargetTrackHelpers::ITargetTrackConfigProxy* pConfigProxy, SStimData& stimData)
 {
 	assert(pStimulusConfig);
@@ -578,13 +578,13 @@ float CTargetTrack::UpdateStimulusValue(float fCurrTime, SStimulusInvocation& in
 }
 
 //////////////////////////////////////////////////////////////////////////
-float CTargetTrack::GetStimulusTotalValue(float fCurrTime, float fEnvelopeValue, float fPulseValue, float fModValue) const
+float CTargetTrack::GetStimulusTotalValue(const CTimeValue& fCurrTime, float fEnvelopeValue, float fPulseValue, float fModValue) const
 {
 	return (fEnvelopeValue + fPulseValue) * fModValue;
 }
 
 //////////////////////////////////////////////////////////////////////////
-float CTargetTrack::GetStimulusEnvelopeValue(float fCurrTime, const SStimulusInvocation& invoke, const TargetTrackHelpers::STargetTrackStimulusConfig* pStimulusConfig) const
+float CTargetTrack::GetStimulusEnvelopeValue(const CTimeValue& fCurrTime, const SStimulusInvocation& invoke, const TargetTrackHelpers::STargetTrackStimulusConfig* pStimulusConfig) const
 {
 	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
@@ -594,30 +594,30 @@ float CTargetTrack::GetStimulusEnvelopeValue(float fCurrTime, const SStimulusInv
 	{
 		// Check if this stimulus should be ignored for a brief startup time when freshly invoked (new invoke or invocation from zero Stimulus)
 		const bool bUseIgnoreTime = (invoke.m_envelopeData.m_fLastReleasingValue < FLT_EPSILON && !invoke.m_envelopeData.m_bReinvoked);
-		const float fIgnoreEnd = invoke.m_envelopeData.m_fStartTime + (bUseIgnoreTime ? pStimulusConfig->m_fIgnore : 0.0f);
+		const CTimeValue fIgnoreEnd = invoke.m_envelopeData.m_fStartTime + (bUseIgnoreTime ? pStimulusConfig->m_fIgnore : 0);
 		if (bUseIgnoreTime && fCurrTime < fIgnoreEnd)
 		{
 			return 0.0f;
 		}
 
 		//Attack
-		const float fAttackEnd = fIgnoreEnd + pStimulusConfig->m_fAttack;
+		const CTimeValue fAttackEnd = fIgnoreEnd + pStimulusConfig->m_fAttack;
 		//If the stimulus defines an attack value and we are in the attack period
-		if (pStimulusConfig->m_fAttack && fCurrTime <= fAttackEnd)
+		if (pStimulusConfig->m_fAttack != 0 && fCurrTime <= fAttackEnd)
 		{
-			const float fDuration = fAttackEnd - fIgnoreEnd;
-			const float fAttackRatio = (fCurrTime - fIgnoreEnd) / (fDuration > FLT_EPSILON ? fDuration : 1.0f);
-			return invoke.m_envelopeData.m_fLastReleasingValue + (pStimulusConfig->m_fPeak - invoke.m_envelopeData.m_fLastReleasingValue) * fAttackRatio;
+			const CTimeValue fDuration = fAttackEnd - fIgnoreEnd;
+			const nTime fAttackRatio = (fCurrTime - fIgnoreEnd) / (fDuration > TV_EPSILON ? fDuration : 1);
+			return invoke.m_envelopeData.m_fLastReleasingValue + (pStimulusConfig->m_fPeak - invoke.m_envelopeData.m_fLastReleasingValue) * BADF fAttackRatio;
 		}
 
 		// Decay
-		const float fDecayEnd = fAttackEnd + pStimulusConfig->m_fDecay;
+		const CTimeValue fDecayEnd = fAttackEnd + pStimulusConfig->m_fDecay;
 		//If the stimulus defines a decay value and we are in the decay period
-		if (pStimulusConfig->m_fDecay && fCurrTime <= fDecayEnd)
+		if (pStimulusConfig->m_fDecay != 0 && fCurrTime <= fDecayEnd)
 		{
-			const float fDuration = fDecayEnd - fAttackEnd;
-			const float fDecayRatio = (fCurrTime - fAttackEnd) / (fDuration > FLT_EPSILON ? fDuration : 1.0f);
-			return (pStimulusConfig->m_fPeak - fDecayRatio * (pStimulusConfig->m_fPeak - pStimulusConfig->m_fPeak * pStimulusConfig->m_fSustainRatio));
+			const CTimeValue fDuration = fDecayEnd - fAttackEnd;
+			const nTime fDecayRatio = (fCurrTime - fAttackEnd) / (fDuration > TV_EPSILON ? fDuration : 1);
+			return (pStimulusConfig->m_fPeak - BADF fDecayRatio * (pStimulusConfig->m_fPeak - pStimulusConfig->m_fPeak * pStimulusConfig->m_fSustainRatio));
 		}
 
 		// Sustain
@@ -625,16 +625,16 @@ float CTargetTrack::GetStimulusEnvelopeValue(float fCurrTime, const SStimulusInv
 	}
 
 	// Release
-	const float fReleaseStart = invoke.m_envelopeData.m_fLastInvokeTime;
-	const float fReleaseEnd = fReleaseStart + pStimulusConfig->m_fRelease;
-	const float fReleaseDuration = fReleaseEnd - fReleaseStart;
-	const float fDeltaTime = fCurrTime - fReleaseStart;
-	const float fReleaseRatio = (fReleaseDuration > FLT_EPSILON) ? (fDeltaTime / fReleaseDuration) : fDeltaTime;
-	return max(0.0f, invoke.m_envelopeData.m_fLastRunningValue - fReleaseRatio * invoke.m_envelopeData.m_fLastRunningValue);
+	const CTimeValue fReleaseStart = invoke.m_envelopeData.m_fLastInvokeTime;
+	const CTimeValue fReleaseEnd = fReleaseStart + pStimulusConfig->m_fRelease;
+	const CTimeValue fReleaseDuration = fReleaseEnd - fReleaseStart;
+	const CTimeValue fDeltaTime = fCurrTime - fReleaseStart;
+	const nTime fReleaseRatio = (fReleaseDuration > TV_EPSILON) ? (fDeltaTime / fReleaseDuration) : fDeltaTime.GetSeconds().conv<nTime>();
+	return max(0.0f, invoke.m_envelopeData.m_fLastRunningValue - BADF fReleaseRatio * invoke.m_envelopeData.m_fLastRunningValue);
 }
 
 //////////////////////////////////////////////////////////////////////////
-float CTargetTrack::GetStimulusPulseValue(float fCurrTime, const SStimulusInvocation& invoke, const TargetTrackHelpers::STargetTrackStimulusConfig* pStimulusConfig) const
+float CTargetTrack::GetStimulusPulseValue(const CTimeValue& fCurrTime, const SStimulusInvocation& invoke, const TargetTrackHelpers::STargetTrackStimulusConfig* pStimulusConfig) const
 {
 	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
@@ -653,11 +653,11 @@ float CTargetTrack::GetStimulusPulseValue(float fCurrTime, const SStimulusInvoca
 		{
 			const TargetTrackHelpers::STargetTrackPulseConfig& pulseDef = itPulseDef->second;
 
-			const float fDT = fCurrTime - pulseTrigger.fTriggerTime;
-			const float fRatio = clamp_tpl((pulseDef.m_fDuration > FLT_EPSILON ? 1.0f - fDT / pulseDef.m_fDuration : 0.0f), 0.0f, 1.0f);
-			fPulseValue += pulseDef.m_fValue * fRatio;
+			const CTimeValue fDT = fCurrTime - pulseTrigger.fTriggerTime;
+			const nTime fRatio = CLAMP((pulseDef.m_fDuration > TV_EPSILON ? 1 - fDT / pulseDef.m_fDuration : 0), 0, 1);
+			fPulseValue += pulseDef.m_fValue * BADF fRatio;
 
-			if (fRatio <= 0.0f)
+			if (fRatio <= 0)
 			{
 				pulseTrigger.bObsolete = true;
 			}
@@ -703,7 +703,7 @@ void CTargetTrack::DebugDraw(CDebugDrawContext& dc, int iIndex, float& fColumnX,
 	CAISystem* pAISystem = GetAISystem();
 	assert(pAISystem);
 
-	const float fCurrTime = pAISystem->GetFrameStartTimeSeconds();
+	const CTimeValue fCurrTime = pAISystem->GetFrameStartTime();
 
 	const ColorB textCol(255, 255, 255, 255);
 	const ColorB textActiveCol(0, 128, 0, 255);

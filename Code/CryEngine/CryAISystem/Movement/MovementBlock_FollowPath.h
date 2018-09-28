@@ -27,7 +27,7 @@ private:
 	Movement::Helpers::StuckDetector m_stuckDetector;
 	std::shared_ptr<Vec3>            m_lookTarget;
 	float                            m_finishBlockEndDistance;
-	float                            m_accumulatedPathFollowerFailureTime;
+	CTimeValue                       m_accumulatedPathFollowerFailureTime;
 	bool                             m_bLastFollowBlock;
 };
 }

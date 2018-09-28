@@ -40,7 +40,7 @@ private:
 	Vec3                  m_position;
 	CStrongRef<CAIObject> m_dummyTarget;
 	CTimeValue            m_timeWhenShootingShouldEnd;
-	float                 m_duration;
+	CTimeValue            m_duration;
 	ShootAt               m_shootAt;
 	EFireMode             m_fireMode;
 	EStance               m_stance;

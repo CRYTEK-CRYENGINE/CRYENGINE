@@ -231,7 +231,7 @@ void CSmartObjectBase::OnReused(IEntity* pEntity)
 CSmartObject::CSmartObject(EntityId entityId)
 	: CSmartObjectBase(entityId)
 	, m_States(CState::GetDefaultStates())
-	, m_fLookAtLimit(0.0f)
+	, m_fLookAtLimit(0)
 	, m_vLookAtPos(ZERO)
 	, m_eValidationResult(eSOV_Unknown)
 	, m_bHidden(false)
@@ -267,7 +267,7 @@ void CSmartObject::OnReused(IEntity* pEntity)
 	m_States.insert(CState("Idle"));
 
 	m_fRandom = cry_random(0.0f, 0.5f);
-	m_fLookAtLimit = 0.0f;
+	m_fLookAtLimit = 0;
 	m_vLookAtPos.zero();
 	m_eValidationResult = eSOV_Unknown;
 	m_bHidden = false;
@@ -1219,13 +1219,13 @@ void CSmartObjectManager::RecalculateUserSize()
 	}
 }
 
-float CSmartObjectManager::CalculateDelayTime(CSmartObject* pUser, const Vec3& posUser,
+CTimeValue CSmartObjectManager::CalculateDelayTime(CSmartObject* pUser, const Vec3& posUser,
                                               CSmartObject* pObject, const Vec3& posObject, CCondition* pCondition) const
 {
 	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	if (!pCondition->bEnabled)
-		return -1.0f;
+		return -1;
 
 	if (pUser == pObject)
 	{
@@ -1240,7 +1240,7 @@ float CSmartObjectManager::CalculateDelayTime(CSmartObject* pUser, const Vec3& p
 			delta *= 1.0f + (pUser->m_fRandom + pObject->m_fRandom - 0.5f) * pCondition->fRandomnessFactor;
 		}
 
-		return pCondition->fMinDelay + (pCondition->fMaxDelay - pCondition->fMinDelay) * (1.0f - delta);
+		return pCondition->fMinDelay + (pCondition->fMaxDelay - pCondition->fMinDelay) * BADMP(1.0f - delta);
 	}
 
 	Vec3 direction = posObject - posUser;
@@ -1258,7 +1258,7 @@ float CSmartObjectManager::CalculateDelayTime(CSmartObject* pUser, const Vec3& p
 	float distance2 = direction.GetLengthSquared();
 
 	if (pCondition->fDistanceTo && (distance2 > limitTo2 || distance2 < limitFrom2))
-		return -1.0f;
+		return -1;
 
 	float dot = 2.0f;
 	if (pCondition->fOrientationLimit < 360.0f)
@@ -1276,7 +1276,7 @@ float CSmartObjectManager::CalculateDelayTime(CSmartObject* pUser, const Vec3& p
 		}
 
 		if (dot < cosLimit)
-			return -1.0f;
+			return -1;
 	}
 
 	float delta = 0.0f;
@@ -1358,7 +1358,7 @@ float CSmartObjectManager::CalculateDelayTime(CSmartObject* pUser, const Vec3& p
 	if (divider)
 		delta = (delta + offset) / divider;
 
-	return pCondition->fMinDelay + (pCondition->fMaxDelay - pCondition->fMinDelay) * (1.0f - delta);
+	return pCondition->fMinDelay + (pCondition->fMaxDelay - pCondition->fMinDelay) * BADMP(1.0f - delta);
 }
 
 int CSmartObjectManager::TriggerEvent(const char* sEventName, IEntity*& pUser, IEntity*& pObject, QueryEventMap* pQueryEvents /*= NULL*/, const Vec3* pExtraPoint /*= NULL*/, bool bHighPriority /*= false*/)
@@ -1404,7 +1404,7 @@ int CSmartObjectManager::TriggerEvent(const char* sEventName, IEntity*& pUser, I
 	// specific user or object is not requested
 	// check the rules on all users and objects
 
-	float minDelay = FLT_MAX;
+	CTimeValue minDelay = CTimeValue::Max();
 	CCondition* pMinRule = NULL;
 	CSmartObject* pMinUser = NULL;
 	CSmartObject* pMinObject = NULL;
@@ -1456,8 +1456,8 @@ int CSmartObjectManager::TriggerEvent(const char* sEventName, IEntity*& pUser, I
 			if (!pRule->pObjectClass)
 			{
 				// calculate delay time
-				float fDelayTime = CalculateDelayTime(pSOUser, soPos, pSOUser, soPos, pRule);
-				if (fDelayTime >= 0.0f && fDelayTime <= minDelay)
+				CTimeValue fDelayTime = CalculateDelayTime(pSOUser, soPos, pSOUser, soPos, pRule);
+				if (fDelayTime >= 0 && fDelayTime <= minDelay)
 				{
 					// mark this as best
 					minDelay = fDelayTime;
@@ -1466,7 +1466,7 @@ int CSmartObjectManager::TriggerEvent(const char* sEventName, IEntity*& pUser, I
 				}
 
 				// add it to the query list
-				if (pQueryEvents && fDelayTime >= 0.0f)
+				if (pQueryEvents && fDelayTime >= 0)
 				{
 					CQueryEvent q;
 					q.pUser = pSOUser;
@@ -1614,8 +1614,8 @@ int CSmartObjectManager::TriggerEvent(const char* sEventName, IEntity*& pUser, I
 					continue;
 
 				// calculate delay time
-				float fDelayTime = CalculateDelayTime(pSOUser, pos, pSOObject, objectPos, pRule);
-				if (fDelayTime >= 0.0f && fDelayTime <= minDelay)
+				CTimeValue fDelayTime = CalculateDelayTime(pSOUser, pos, pSOObject, objectPos, pRule);
+				if (fDelayTime >= 0 && fDelayTime <= minDelay)
 				{
 					minDelay = fDelayTime;
 					pMinUser = pSOUser;
@@ -1624,7 +1624,7 @@ int CSmartObjectManager::TriggerEvent(const char* sEventName, IEntity*& pUser, I
 				}
 
 				// add it to the query list
-				if (pQueryEvents && fDelayTime >= 0.0f)
+				if (pQueryEvents && fDelayTime >= 0)
 				{
 					CQueryEvent q;
 					q.pUser = pSOUser;
@@ -1654,7 +1654,7 @@ int CSmartObjectManager::TriggerEvent(const char* sEventName, IEntity*& pUser, I
 
 int CSmartObjectManager::TriggerEventUserObject(const char* sEventName, CSmartObject* pUser, CSmartObject* pObject, QueryEventMap* pQueryEvents, const Vec3* pExtraPoint, bool bHighPriority /*=false*/)
 {
-	float minDelay = FLT_MAX;
+	CTimeValue minDelay = CTimeValue::Max();
 	CCondition* pMinRule = NULL;
 	CEvent* pEvent = String2Event(sEventName);
 
@@ -1702,15 +1702,15 @@ int CSmartObjectManager::TriggerEventUserObject(const char* sEventName, CSmartOb
 			if (pUser == pObject)
 			{
 				// calculate delay time
-				float fDelayTime = CalculateDelayTime(pUser, pos, pUser, pos, pRule);
-				if (fDelayTime >= 0.0f && fDelayTime <= minDelay)
+				CTimeValue fDelayTime = CalculateDelayTime(pUser, pos, pUser, pos, pRule);
+				if (fDelayTime >= 0 && fDelayTime <= minDelay)
 				{
 					minDelay = fDelayTime;
 					pMinRule = pRule;
 				}
 
 				// add it to the query list
-				if (pQueryEvents && fDelayTime >= 0.0f)
+				if (pQueryEvents && fDelayTime >= 0)
 				{
 					CQueryEvent q;
 					q.pUser = pUser;
@@ -1815,15 +1815,15 @@ int CSmartObjectManager::TriggerEventUserObject(const char* sEventName, CSmartOb
 				continue;
 
 			// calculate delay time
-			float fDelayTime = CalculateDelayTime(pUser, pos, pObject, objectPos, pRule);
-			if (fDelayTime >= 0.0f && fDelayTime <= minDelay)
+			CTimeValue fDelayTime = CalculateDelayTime(pUser, pos, pObject, objectPos, pRule);
+			if (fDelayTime >= 0 && fDelayTime <= minDelay)
 			{
 				minDelay = fDelayTime;
 				pMinRule = pRule;
 			}
 
 			// add it to the query list
-			if (pQueryEvents && fDelayTime >= 0.0f)
+			if (pQueryEvents && fDelayTime >= 0)
 			{
 				CQueryEvent q;
 				q.pUser = pUser;
@@ -1855,7 +1855,7 @@ int CSmartObjectManager::TriggerEventUser(const char* sEventName, CSmartObject* 
 
 	// check the rules for all objects
 
-	float minDelay = FLT_MAX;
+	CTimeValue minDelay = CTimeValue::Max();
 	CCondition* pMinRule = NULL;
 	CSmartObject* pMinObject = NULL;
 	CEvent* pEvent = String2Event(sEventName);
@@ -1899,8 +1899,8 @@ int CSmartObjectManager::TriggerEventUser(const char* sEventName, CSmartObject* 
 			if (!pRule->pObjectClass)
 			{
 				// calculate delay time
-				float fDelayTime = CalculateDelayTime(pUser, soPos, pUser, soPos, pRule);
-				if (fDelayTime >= 0.0f && fDelayTime <= minDelay)
+				CTimeValue fDelayTime = CalculateDelayTime(pUser, soPos, pUser, soPos, pRule);
+				if (fDelayTime >= 0 && fDelayTime <= minDelay)
 				{
 					// mark this as best
 					minDelay = fDelayTime;
@@ -1909,7 +1909,7 @@ int CSmartObjectManager::TriggerEventUser(const char* sEventName, CSmartObject* 
 				}
 
 				// add it to the query list
-				if (pQueryEvents && fDelayTime >= 0.0f)
+				if (pQueryEvents && fDelayTime >= 0)
 				{
 					CQueryEvent q;
 					q.pUser = pUser;
@@ -2056,8 +2056,8 @@ int CSmartObjectManager::TriggerEventUser(const char* sEventName, CSmartObject* 
 					continue;
 
 				// calculate delay time
-				float fDelayTime = CalculateDelayTime(pUser, pos, pObject, objectPos, pRule);
-				if (fDelayTime >= 0.0f && fDelayTime <= minDelay)
+				CTimeValue fDelayTime = CalculateDelayTime(pUser, pos, pObject, objectPos, pRule);
+				if (fDelayTime >= 0 && fDelayTime <= minDelay)
 				{
 					minDelay = fDelayTime;
 					pMinObject = pObject;
@@ -2065,7 +2065,7 @@ int CSmartObjectManager::TriggerEventUser(const char* sEventName, CSmartObject* 
 				}
 
 				// add it to the query list
-				if (pQueryEvents && fDelayTime >= 0.0f)
+				if (pQueryEvents && fDelayTime >= 0)
 				{
 					CQueryEvent q;
 					q.pUser = pUser;
@@ -2105,7 +2105,7 @@ int CSmartObjectManager::TriggerEventObject(const char* sEventName, CSmartObject
 
 	// check the rules on all users
 
-	float minDelay = FLT_MAX;
+	CTimeValue minDelay = CTimeValue::Max();
 	CCondition* pMinRule = NULL;
 	CSmartObject* pMinUser = NULL;
 	CEvent* pEvent = String2Event(sEventName);
@@ -2221,8 +2221,8 @@ int CSmartObjectManager::TriggerEventObject(const char* sEventName, CSmartObject
 			}
 
 			// calculate delay time
-			float fDelayTime = CalculateDelayTime(pUser, userPos, pObject, pos, pRule);
-			if (fDelayTime >= 0.0f && fDelayTime <= minDelay)
+			CTimeValue fDelayTime = CalculateDelayTime(pUser, userPos, pObject, pos, pRule);
+			if (fDelayTime >= 0 && fDelayTime <= minDelay)
 			{
 				minDelay = fDelayTime;
 				pMinUser = pUser;
@@ -2230,7 +2230,7 @@ int CSmartObjectManager::TriggerEventObject(const char* sEventName, CSmartObject
 			}
 
 			// add it to the query list
-			if (pQueryEvents && fDelayTime >= 0.0f)
+			if (pQueryEvents && fDelayTime >= 0)
 			{
 				CQueryEvent q;
 				q.pUser = pUser;
@@ -2363,7 +2363,7 @@ void CSmartObjectManager::Update()
 						else
 							pPipeUser->m_posLookAtSmartObject.zero();
 					}
-					pSmartObject->m_fLookAtLimit = 0.0f;
+					pSmartObject->m_fLookAtLimit = 0;
 					break; // exit the loop! this was the last user class.
 				}
 				if (current->IsSmartObjectUser())
@@ -2417,13 +2417,11 @@ int CSmartObjectManager::Process(CSmartObject* pSmartObjectUser, CSmartObjectCla
 
 	CTimeValue now = GetAISystem()->GetFrameStartTime();
 
-	int64 timeElapsedMs = (now - lastUpdateTime).GetMilliSecondsAsInt64();
-	if (lastUpdateTime.GetMilliSecondsAsInt64() == 0)
-		timeElapsedMs = 0;
-	else if (timeElapsedMs > 200)
-		timeElapsedMs = 200;
-
-	float timeElapsedMsToFloat = (float)(timeElapsedMs);
+	CTimeValue timeElapsed = now - lastUpdateTime;
+	if (lastUpdateTime == 0)
+		timeElapsed.SetSeconds(0);
+	else if (timeElapsed > "0.2")
+		timeElapsed.SetSeconds("0.2");
 
 	pSmartObjectUser->m_mapLastUpdateTimes[pClass] = now;
 
@@ -2444,8 +2442,6 @@ int CSmartObjectManager::Process(CSmartObject* pSmartObjectUser, CSmartObjectCla
 	Vec3 soPos = pSmartObjectUser->GetPos();
 
 	m_tmpVecDelayTimes.clear();
-
-	float fTimeElapsed = timeElapsedMsToFloat * 0.001f;
 
 	// check all conditions matching with his class and state
 	//MapConditions::iterator itConditions = m_Conditions.find( pClass );
@@ -2503,16 +2499,16 @@ int CSmartObjectManager::Process(CSmartObject* pSmartObjectUser, CSmartObjectCla
 
 			// calculated delta times should be stored only for now.
 			// later existing events will be updated and for new objects new events will be added
-			float fDelayTime = CalculateDelayTime(pSmartObjectUser, soPos, pSmartObjectUser, soPos, pCondition);
-			if (fDelayTime > 0.0f)
+			CTimeValue fDelayTime = CalculateDelayTime(pSmartObjectUser, soPos, pSmartObjectUser, soPos, pCondition);
+			if (fDelayTime > 0)
 			{
 				PairObjectCondition poc(pSmartObjectUser, pCondition);
-				m_tmpVecDelayTimes.push_back(std::make_pair(poc, fTimeElapsed / fDelayTime));
+				m_tmpVecDelayTimes.push_back(std::make_pair(poc, (timeElapsed / fDelayTime).conv<mpfloat>()));
 			}
-			else if (fDelayTime == 0.0f)
+			else if (fDelayTime == 0)
 			{
 				PairObjectCondition poc(pSmartObjectUser, pCondition);
-				m_tmpVecDelayTimes.push_back(std::make_pair(poc, 1.0f));
+				m_tmpVecDelayTimes.push_back(std::make_pair(poc, 1));
 			}
 
 			// this condition is done
@@ -2670,16 +2666,16 @@ int CSmartObjectManager::Process(CSmartObject* pSmartObjectUser, CSmartObjectCla
 
 			// calculated delta times should be stored only for now.
 			// later existing events will be updated and for new objects new events will be added
-			float fDelayTime = CalculateDelayTime(pSmartObjectUser, pos, pSmartObject, objectPos, pCondition);
-			if (fDelayTime > 0.0f)
+			CTimeValue fDelayTime = CalculateDelayTime(pSmartObjectUser, pos, pSmartObject, objectPos, pCondition);
+			if (fDelayTime > 0)
 			{
 				PairObjectCondition poc(pSmartObject, pCondition);
-				m_tmpVecDelayTimes.push_back(std::make_pair(poc, fTimeElapsed / fDelayTime));
+				m_tmpVecDelayTimes.push_back(std::make_pair(poc, (timeElapsed / fDelayTime).conv<mpfloat>()));
 			}
-			else if (fDelayTime == 0.0f)
+			else if (fDelayTime == 0)
 			{
 				PairObjectCondition poc(pSmartObject, pCondition);
-				m_tmpVecDelayTimes.push_back(std::make_pair(poc, 1.0f));
+				m_tmpVecDelayTimes.push_back(std::make_pair(poc, 1));
 			}
 		}
 	}
@@ -2691,18 +2687,18 @@ int CSmartObjectManager::Process(CSmartObject* pSmartObjectUser, CSmartObjectCla
 	int i = events.size(), use = -1, lookat = -1;
 	while (i--)
 	{
-		float thisLookat = events[i].m_pCondition->fLookAtPerc;
-		if (thisLookat <= 0.0f || thisLookat >= 1.0f)
-			thisLookat = FLT_MAX;
+		mpfloat thisLookat = events[i].m_pCondition->fLookAtPerc;
+		if (thisLookat <= 0 || thisLookat >= 1)
+			thisLookat = mpfloat::Max();
 
 		PairObjectCondition poc(events[i].m_pObject, events[i].m_pCondition);
-		VecDelayTimes::iterator itTimes = std::lower_bound(m_tmpVecDelayTimes.begin(), m_tmpVecDelayTimes.end(), std::make_pair(poc, 0.0f), Pred_IgnoreSecond());
+		VecDelayTimes::iterator itTimes = std::lower_bound(m_tmpVecDelayTimes.begin(), m_tmpVecDelayTimes.end(), std::make_pair(poc, mpfloat(0)), Pred_IgnoreSecond());
 		if (itTimes != m_tmpVecDelayTimes.end() && itTimes->first == poc)
 		{
 			events[i].m_Delay += itTimes->second;
 
 			// remove from list. later all remained entries will be added as new events
-			itTimes->second = -1.0f;
+			itTimes->second = -1;
 
 			// is this smart object ready to be used?
 			if (events[i].m_Delay >= 1)
@@ -2717,7 +2713,7 @@ int CSmartObjectManager::Process(CSmartObject* pSmartObjectUser, CSmartObjectCla
 				// check is this better lookat target
 				if (events[i].m_Delay > thisLookat)
 				{
-					thisLookat = (events[i].m_Delay - thisLookat) / (1.0f - thisLookat);
+					thisLookat = (events[i].m_Delay - thisLookat) / (1 - thisLookat);
 					if (thisLookat > pSmartObjectUser->m_fLookAtLimit)
 					{
 						pSmartObjectUser->m_fLookAtLimit = thisLookat;
@@ -2729,10 +2725,10 @@ int CSmartObjectManager::Process(CSmartObject* pSmartObjectUser, CSmartObjectCla
 		else
 		{
 			// events for objects not satisfying the condition will be forgotten and then removed from this vector
-			if (events[i].m_pCondition->fMemory > 0.001f)
-				events[i].m_Delay -= fTimeElapsed / events[i].m_pCondition->fMemory;
+			if (events[i].m_pCondition->fMemory > "0.001")
+				events[i].m_Delay -= (timeElapsed / events[i].m_pCondition->fMemory).conv<mpfloat>();
 			else
-				events[i].m_Delay = -1.0f;
+				events[i].m_Delay = -1;
 		}
 
 		// delete unimportant events
@@ -3213,13 +3209,13 @@ void CSmartObjectManager::DebugDraw()
 	int i = m_vDebugUse.size();
 	while (i--)
 	{
-		float age = (fTime - m_vDebugUse[i].m_Time).GetSeconds();
-		if (age < 0.5f)
+		CTimeValue age = fTime - m_vDebugUse[i].m_Time;
+		if (age < "0.5")
 		{
 			Vec3 from = m_vDebugUse[i].m_pUser->GetPos();
 			Vec3 to = m_vDebugUse[i].m_pObject->GetPos();
-			age = abs(1.0f - 4.0f * age);
-			age = abs(1.0f - 2.0f * age);
+			age = abs(CTimeValue(1) - 4 * age);
+			age = abs(CTimeValue(1) - 2 * age);
 			//ColorF color1(age, age, 1.0f, abs(1.0f-2.0f*age)), color2(1.0f-age, 1.0f-age, 1.0f, abs(1.0f-2.0f*age));
 			//dc->DrawLineColor( from, color1, to, color2 );
 		}
@@ -3350,7 +3346,7 @@ void CSmartObjectManager::DoRemove(IEntity* pEntity, bool bDeleteSmartObject)
 		// in case this is a navigation smart object entity!
 		UnregisterFromNavigation(pSmartObject);
 
-		CDebugUse debugUse = { 0.0f, pSmartObject, pSmartObject };
+		CDebugUse debugUse = { 0, pSmartObject, pSmartObject };
 		VectorDebugUse::iterator it = m_vDebugUse.begin();
 		while (it != m_vDebugUse.end())
 		{
@@ -4053,15 +4049,15 @@ uint32 CSmartObjectManager::GetSOClassTemplateIStatObj(IEntity* pEntity, IStatOb
 
 void CSmartObjectManager::ReloadSmartObjectRules()
 {
-	CTimeValue t1 = gEnv->pTimer->GetAsyncTime();
+	CTimeValue t1 = GetGTimer()->GetAsyncTime();
 	AIAssert(gEnv->pEntitySystem);
 	// reset states of smart objects to initial state
 	ClearConditions();
 	// ...and reload them
 	LoadSmartObjectsLibrary();
 	SoftReset();
-	CTimeValue t2 = gEnv->pTimer->GetAsyncTime();
-	AILogComment("All smart object rules reloaded in %g mSec.", (t2 - t1).GetMilliSeconds());
+	CTimeValue t2 = GetGTimer()->GetAsyncTime();
+	AILogComment("All smart object rules reloaded in %g mSec.", (float)(t2 - t1).GetMilliSeconds());
 }
 
 int CSmartObjectManager::SmartObjectEvent(const char* sEventName, IEntity*& pUser, IEntity*& pObject, const Vec3* pExtraPoint /*= NULL*/, bool bHighPriority /*= false */)
@@ -4627,14 +4623,14 @@ const AgentPathfindingProperties* CSmartObjectManager::GetPFPropertiesOfSoUser(c
 	return GetAISystem()->GetPFPropertiesOfPathType("AIPATH_DEFAULT");
 }
 
-void CSmartObjectManager::UpdateBannedSOs(float frameDeltaTime)
+void CSmartObjectManager::UpdateBannedSOs(const CTimeValue& frameDeltaTime)
 {
 	// Update banned SOs
 	SmartObjectFloatMap::iterator it = m_bannedNavSmartObjects.begin();
 	while (it != m_bannedNavSmartObjects.end())
 	{
 		it->second -= frameDeltaTime;
-		if (it->second <= 0.0f)
+		if (it->second <= 0)
 			it = m_bannedNavSmartObjects.erase(it);
 		else
 			++it;

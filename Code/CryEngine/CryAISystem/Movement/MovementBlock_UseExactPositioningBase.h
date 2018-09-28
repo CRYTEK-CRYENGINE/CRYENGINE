@@ -65,7 +65,7 @@ protected:
 
 private:
 	CNavPath                         m_path;
-	float                            m_accumulatedPathFollowerFailureTime;
+	CTimeValue                       m_accumulatedPathFollowerFailureTime;
 	Movement::Helpers::StuckDetector m_stuckDetector;
 };
 }

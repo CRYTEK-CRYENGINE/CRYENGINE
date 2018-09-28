@@ -17,7 +17,7 @@ class PipeUserMovementActorAdapter : public IMovementActorAdapter
 {
 public:
 	PipeUserMovementActorAdapter(CPipeUser& pipeUser)
-		: m_lookTimeOffset(.0f)
+		: m_lookTimeOffset(0)
 		, m_attachedPipeUser(pipeUser)
 	{
 	}
@@ -56,12 +56,12 @@ public:
 	virtual void                  SetStance(const MovementStyle::Stance stance) override;
 
 	virtual std::shared_ptr<Vec3> CreateLookTarget() override;
-	virtual void                  SetLookTimeOffset(float lookTimeOffset) override;
-	virtual void                  UpdateLooking(float updateTime, std::shared_ptr<Vec3> lookTarget, const bool targetReachable, const float pathDistanceToEnd, const Vec3& followTargetPosition, const MovementStyle& style) override;
+	virtual void                  SetLookTimeOffset(const CTimeValue& lookTimeOffset) override;
+	virtual void                  UpdateLooking(const CTimeValue& updateTime, std::shared_ptr<Vec3> lookTarget, const bool targetReachable, const float pathDistanceToEnd, const Vec3& followTargetPosition, const MovementStyle& style) override;
 	// ~IMovementActorCommunicationInterface
 
 private:
-	float      m_lookTimeOffset;
+	CTimeValue m_lookTimeOffset;
 	CPipeUser& m_attachedPipeUser;
 };
 

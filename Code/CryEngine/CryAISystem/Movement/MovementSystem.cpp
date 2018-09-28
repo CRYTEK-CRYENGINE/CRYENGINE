@@ -28,7 +28,7 @@ bool IsActorValidForMovementUpdateContextCreation(MovementActor& actor)
 }
 
 MovementUpdateContext CreateMovementUpdateContextFrom(
-  MovementActor& actor, MovementSystem& system, const float updateTime)
+  MovementActor& actor, MovementSystem& system, const CTimeValue& updateTime)
 {
 	IPathFollower* pathFollower = actor.callbacks.getPathFollowerFunction();
 
@@ -178,7 +178,7 @@ void MovementSystem::GetRequestStatus(const MovementRequestID& requestID, Moveme
 	}
 }
 
-void MovementSystem::Update(float updateTime)
+void MovementSystem::Update(const CTimeValue& updateTime)
 {
 	UpdateActors(updateTime);
 
@@ -365,7 +365,7 @@ bool MovementSystem::IsPlannerWorkingOnRequestID(const MovementActor& actor, con
 	return (actor.requestIdCurrentlyInPlanner == id) && (id != MovementRequestID::Invalid());
 }
 
-void MovementSystem::UpdateActors(float updateTime)
+void MovementSystem::UpdateActors(const CTimeValue& updateTime)
 {
 	using namespace Movement;
 
@@ -381,7 +381,7 @@ void MovementSystem::UpdateActors(float updateTime)
 	}
 }
 
-MovementSystem::ActorUpdateStatus MovementSystem::UpdateActor(MovementActor& actor, float updateTime)
+MovementSystem::ActorUpdateStatus MovementSystem::UpdateActor(MovementActor& actor, const CTimeValue& updateTime)
 {
 	// Construct a movement context which contains everything needed for
 	// updating the passed in actor. Everything is validated once, here,

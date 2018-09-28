@@ -19,7 +19,7 @@ FollowPath::FollowPath(
   const bool bLastFollowBlock)
 	: m_path(path)
 	, m_finishBlockEndDistance(endDistance)
-	, m_accumulatedPathFollowerFailureTime(0.0f)
+	, m_accumulatedPathFollowerFailureTime(0)
 	, m_style(style)
 	, m_bLastFollowBlock(bLastFollowBlock)
 {
@@ -27,7 +27,7 @@ FollowPath::FollowPath(
 
 void FollowPath::Begin(IMovementActor& actor)
 {
-	m_accumulatedPathFollowerFailureTime = 0.0f;
+	m_accumulatedPathFollowerFailureTime.SetSeconds(0);
 	m_stuckDetector.Reset();
 	Movement::Helpers::BeginPathFollowing(actor, m_style, m_path);
 
@@ -38,7 +38,7 @@ void FollowPath::Begin(IMovementActor& actor)
 		// the looking code from kicking in for X seconds.
 		// It's good because the agent normally needs some time to start
 		// movement transitions etc.
-		static float lookTimeOffset = -1.5f;
+		static CTimeValue lookTimeOffset = "-1.5";
 		actor.GetAdapter().SetLookTimeOffset(lookTimeOffset);
 		m_lookTarget = actor.GetAdapter().CreateLookTarget();
 	}
@@ -79,7 +79,7 @@ Movement::Block::Status FollowPath::Update(const MovementUpdateContext& context)
 		// If it keeps on failing we don't expect to recover.
 		// We report back that we can't be finished and the planner
 		// will attempt to re-plan for the current situation.
-		if (m_accumulatedPathFollowerFailureTime > 3.0f)
+		if (m_accumulatedPathFollowerFailureTime > 3)
 		{
 			return Movement::Block::CantBeFinished;
 		}

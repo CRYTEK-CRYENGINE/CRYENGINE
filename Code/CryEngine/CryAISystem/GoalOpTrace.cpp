@@ -31,16 +31,16 @@ COPTrace::COPTrace(bool bExactFollow, float fEndAccuracy, bool bForceReturnParti
 	, m_bForceReturnPartialPath(bForceReturnPartialPath)
 	, m_lastPosition(ZERO)
 	, m_prevFrameStartTime(-1000ll)
-	, m_TimeStep(0.1f)
+	, m_TimeStep("0.1")
 	, m_looseAttentionId(0)
-	, m_fTotalTracingTime(0.f)
+	, m_fTotalTracingTime(0)
 	, m_inhibitPathRegen(false)
 	, m_bWaitingForPathResult(false)
 	, m_bWaitingForBusySmartObject(false)
 	, m_earlyPathRegen(false)
 	, m_bControlSpeed(true)
 	, m_fTravelDist(0.f)
-	, m_accumulatedFailureTime(0.0f)
+	, m_accumulatedFailureTime(0)
 	, m_actorTargetRequester(eTATR_None)
 	, m_pendingActorTargetRequester(eTATR_None)
 	, m_stopOnAnimationStart(bStopOnAnimationStart)
@@ -67,16 +67,16 @@ COPTrace::COPTrace(const XmlNodeRef& node)
 	, m_bForceReturnPartialPath(s_xml.GetBool(node, "forceReturnPartialPath"))
 	, m_lastPosition(ZERO)
 	, m_prevFrameStartTime(-1000ll)
-	, m_TimeStep(0.1f)
+	, m_TimeStep("0.1")
 	, m_looseAttentionId(0)
-	, m_fTotalTracingTime(0.f)
+	, m_fTotalTracingTime(0)
 	, m_inhibitPathRegen(false)
 	, m_bWaitingForPathResult(false)
 	, m_bWaitingForBusySmartObject(false)
 	, m_earlyPathRegen(false)
 	, m_bControlSpeed(true)
 	, m_fTravelDist(0.f)
-	, m_accumulatedFailureTime(0.0f)
+	, m_accumulatedFailureTime(0)
 	, m_actorTargetRequester(eTATR_None)
 	, m_pendingActorTargetRequester(eTATR_None)
 	, m_stopOnAnimationStart(s_xml.GetBool(node, "stopOnAnimationStart"))
@@ -103,16 +103,16 @@ COPTrace::COPTrace(const COPTrace& rhs)
 	, m_bForceReturnPartialPath(rhs.m_bForceReturnPartialPath)
 	, m_lastPosition(ZERO)
 	, m_prevFrameStartTime(-1000ll)
-	, m_TimeStep(0.1f)
+	, m_TimeStep("0.1")
 	, m_looseAttentionId(0)
-	, m_fTotalTracingTime(0.f)
+	, m_fTotalTracingTime(0)
 	, m_inhibitPathRegen(false)
 	, m_bWaitingForPathResult(false)
 	, m_bWaitingForBusySmartObject(false)
 	, m_earlyPathRegen(false)
 	, m_bControlSpeed(true)
 	, m_fTravelDist(0.f)
-	, m_accumulatedFailureTime(0.0f)
+	, m_accumulatedFailureTime(0)
 	, m_actorTargetRequester(eTATR_None)
 	, m_pendingActorTargetRequester(eTATR_None)
 	, m_refNavTarget()
@@ -193,7 +193,7 @@ void COPTrace::Reset(CPipeUser* pPipeUser)
 	m_refPipeUser.Reset();
 	m_refNavTarget.Release();
 
-	m_fTotalTracingTime = 0.f;
+	m_fTotalTracingTime.SetSeconds(0);
 	m_Maneuver = eMV_None;
 	m_ManeuverDist = 0.f;
 	m_ManeuverTime = GetAISystem()->GetFrameStartTime();
@@ -209,9 +209,9 @@ void COPTrace::Reset(CPipeUser* pPipeUser)
 	m_passingStraightNavSO = false;
 	m_fTravelDist = 0;
 
-	m_TimeStep = 0.1f;
-	m_prevFrameStartTime = -1000ll;
-	m_accumulatedFailureTime = 0.0f;
+	m_TimeStep.SetSeconds("0.1");
+	m_prevFrameStartTime.SetSeconds(-1000);
+	m_accumulatedFailureTime.SetSeconds(0);
 
 	if (pPipeUser)
 	{
@@ -344,7 +344,7 @@ bool COPTrace::ExecuteTrace(CPipeUser* pPipeUser, bool bFullUpdate)
 		return bTraceFinished;
 
 	// On first frame: [6/4/2010 evgeny]
-	if (m_prevFrameStartTime.GetValue() < 0ll)
+	if (m_prevFrameStartTime < 0)
 	{
 		// Reset the action input before starting to move.
 		// Calling SetAGInput instead of ResetAGInput since we want to reset
@@ -360,9 +360,7 @@ bool COPTrace::ExecuteTrace(CPipeUser* pPipeUser, bool bFullUpdate)
 
 	CTimeValue now = GetAISystem()->GetFrameStartTime();
 
-	float ftimeStep = static_cast<float>((m_prevFrameStartTime.GetValue() > 0ll)
-	                                     ? (now - m_prevFrameStartTime).GetMilliSecondsAsInt64()
-	                                     : 0);
+	CTimeValue ftimeStep = (m_prevFrameStartTime > 0) ? now - m_prevFrameStartTime : 0;
 	m_prevFrameStartTime = now;
 
 	bool isUsing3DNavigation = pPipeUser->IsUsing3DNavigation();
@@ -398,14 +396,14 @@ bool COPTrace::ExecuteTrace(CPipeUser* pPipeUser, bool bFullUpdate)
 	ExecuteTraceDebugDraw(pPipeUser);
 #endif
 
-	float timeStep = max(0.0f, ftimeStep * 0.001f);
+	CTimeValue timeStep = max(CTimeValue(0), ftimeStep);
 	m_fTotalTracingTime += timeStep;
 	m_TimeStep = timeStep;
 
 	// If this path was generated with the pathfinder quietly regenerate the path
 	// periodically in case something has moved.
 	if (bForceRegeneratePath || (bFullUpdate && !m_inhibitPathRegen && !m_passingStraightNavSO && !m_bWaitingForBusySmartObject &&
-	                             pPipeUser->m_movementAbility.pathRegenIntervalDuringTrace > 0.01f &&
+	                             pPipeUser->m_movementAbility.pathRegenIntervalDuringTrace > "0.01" &&
 	                             pPipeUser->m_movementAbility.pathRegenIntervalDuringTrace < m_fTotalTracingTime &&
 	                             !pPipeUser->m_Path.GetParams().precalculatedPath &&
 	                             !pPipeUser->m_Path.GetParams().inhibitPathRegeneration))
@@ -505,13 +503,13 @@ void COPTrace::ExecuteManeuver(CPipeUser* pPipeUser, const Vec3& steerDir)
 	CTimeValue now(GetAISystem()->GetFrameStartTime());
 
 	// prevent very small wiggles.
-	const int maneuverTimeMinLimitMs = 300;
-	const int maneuverTimeMaxLimitMs = 5000;
-	const int manTimeMs = (int)(m_Maneuver != eMV_None ? (now - m_ManeuverTime).GetMilliSecondsAsInt64() : 0);
+	const CTimeValue maneuverTimeMinLimit = "0.3";
+	const CTimeValue maneuverTimeMaxLimit = "0.5";
+	const CTimeValue manTime = (m_Maneuver != eMV_None) ? now - m_ManeuverTime : 0;
 
 	// if maneuvering only stop when closely lined up
 	static float exitDiffCos = 0.98f;
-	if (diffCos > exitDiffCos && m_Maneuver != eMV_None && manTimeMs > maneuverTimeMinLimitMs)
+	if (diffCos > exitDiffCos && m_Maneuver != eMV_None && manTime > maneuverTimeMinLimit)
 	{
 		m_Maneuver = eMV_None;
 		return;
@@ -569,7 +567,7 @@ void COPTrace::ExecuteManeuver(CPipeUser* pPipeUser, const Vec3& steerDir)
 			dist = 0.0f;
 		m_ManeuverDist += dist;
 
-		if (manTimeMs > maneuverTimeMaxLimitMs)
+		if (manTime > maneuverTimeMaxLimit)
 		{
 			m_Maneuver = m_Maneuver == eMV_Fwd ? eMV_Back : eMV_Fwd;
 			m_ManeuverDist = 0.0f;
@@ -713,7 +711,7 @@ bool COPTrace::ExecutePathFollower(CPipeUser* pPipeUser, bool fullUpdate, IPathF
 	if (!pPathFollower)
 		return true;
 
-	if (m_TimeStep <= 0.f)
+	if (m_TimeStep <= 0)
 		return false;
 
 	if (ExecutePreamble(pPipeUser))
@@ -775,18 +773,18 @@ bool COPTrace::ExecutePathFollower(CPipeUser* pPipeUser, bool fullUpdate, IPathF
 		highPriority = true;
 	}
 
-	const float PREDICTION_DELTA_TIME = 0.1f;
-	const float PREDICTION_TIME = 1.f;
+	const CTimeValue PREDICTION_DELTA_TIME = "0.1";
+	const CTimeValue PREDICTION_TIME = 1;
 
 	if (highPriority)
 	{
 		result.desiredPredictionTime = PREDICTION_TIME;
-		predictedStates.resize(size_t(PREDICTION_TIME / PREDICTION_DELTA_TIME + 0.5f));
+		predictedStates.resize(size_t(PREDICTION_TIME / PREDICTION_DELTA_TIME + "0.5"));
 		result.predictedStates = &predictedStates;
 	}
 	else
 	{
-		result.desiredPredictionTime = 0.f;
+		result.desiredPredictionTime.SetSeconds(0);
 		predictedStates.clear();
 		result.predictedStates = 0;
 	}
@@ -868,11 +866,11 @@ bool COPTrace::ExecutePathFollower(CPipeUser* pPipeUser, bool fullUpdate, IPathF
 	{
 		if (!runningSO) // do not regenerate path while running SO
 		{
-			m_accumulatedFailureTime += gEnv->pTimer->GetFrameTime();
+			m_accumulatedFailureTime += GetGTimer()->GetFrameTime();
 
-			if (m_accumulatedFailureTime > 0.5f)
+			if (m_accumulatedFailureTime > "0.5")
 			{
-				m_accumulatedFailureTime = 0.0f;
+				m_accumulatedFailureTime.SetSeconds(0);
 
 				bool forceRegeneratePath = true;
 				RegeneratePath(pPipeUser, &forceRegeneratePath);
@@ -952,7 +950,7 @@ bool COPTrace::Execute2D(CPipeUser* const pPipeUser, bool fullUpdate)
 			m_fTravelDist += Distance::Point_Point2D(curPos, m_lastPosition);
 			m_lastPosition = curPos;
 			// prevent path regen
-			m_fTotalTracingTime = 0.0f;
+			m_fTotalTracingTime.SetSeconds(0);
 			return false;
 		}
 
@@ -1073,10 +1071,10 @@ bool COPTrace::Execute2D(CPipeUser* const pPipeUser, bool fullUpdate)
 			float newDesiredSpeed = (1.0f - maxMod) * minSpeed + maxMod * normalSpeed;
 
 			float change = newDesiredSpeed - pPipeUser->m_State.fDesiredSpeed;
-			if (change > m_TimeStep * pPipeUser->m_movementAbility.maxAccel)
-				change = m_TimeStep * pPipeUser->m_movementAbility.maxAccel;
-			else if (change < -m_TimeStep * pPipeUser->m_movementAbility.maxDecel)
-				change = -m_TimeStep * pPipeUser->m_movementAbility.maxDecel;
+			if (change > m_TimeStep.BADGetSeconds() * pPipeUser->m_movementAbility.maxAccel)
+				change = m_TimeStep.BADGetSeconds() * pPipeUser->m_movementAbility.maxAccel;
+			else if (change < -m_TimeStep.BADGetSeconds() * pPipeUser->m_movementAbility.maxDecel)
+				change = -m_TimeStep.BADGetSeconds() * pPipeUser->m_movementAbility.maxDecel;
 			pPipeUser->m_State.fDesiredSpeed += change;
 		}
 
@@ -1246,10 +1244,10 @@ bool COPTrace::Execute3D(CPipeUser* pPipeUser, bool fullUpdate)
 
 		float newDesiredSpeed = (1.0f - maxMod) * minSpeed + maxMod * normalSpeed;
 		float change = newDesiredSpeed - pPipeUser->m_State.fDesiredSpeed;
-		if (change > m_TimeStep * pPipeUser->m_movementAbility.maxAccel)
-			change = m_TimeStep * pPipeUser->m_movementAbility.maxAccel;
-		else if (change < -m_TimeStep * pPipeUser->m_movementAbility.maxDecel)
-			change = -m_TimeStep * pPipeUser->m_movementAbility.maxDecel;
+		if (change > m_TimeStep.BADGetSeconds() * pPipeUser->m_movementAbility.maxAccel)
+			change = m_TimeStep.BADGetSeconds() * pPipeUser->m_movementAbility.maxAccel;
+		else if (change < -m_TimeStep.BADGetSeconds() * pPipeUser->m_movementAbility.maxDecel)
+			change = -m_TimeStep.BADGetSeconds() * pPipeUser->m_movementAbility.maxDecel;
 		pPipeUser->m_State.fDesiredSpeed += change;
 
 		pPipeUser->m_State.vMoveDir = steerDir;
@@ -1474,7 +1472,7 @@ bool COPTrace::HandleAnimationPhase(CPipeUser* pPipeUser, bool bFullUpdate, bool
 				*pbForceRegeneratePath = false;
 
 				m_actorTargetRequester = eTATR_None;
-				m_prevFrameStartTime.SetValue(0ll);
+				m_prevFrameStartTime.SetSeconds(0);
 
 				// Update distance traveled during the exact-pos anim.
 				Vec3 opPos = pPipeUser->GetPhysicsPos();

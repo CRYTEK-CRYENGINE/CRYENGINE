@@ -51,29 +51,29 @@ void CNavigation::LoadNavigationData(const char* szLevel, const char* szMission)
 {
 	LOADING_TIME_PROFILE_SECTION(GetISystem());
 
-	CTimeValue startTime = gEnv->pTimer->GetAsyncCurTime();
+	CTimeValue startTime = GetGTimer()->GetAsyncCurTime();
 	
 	char fileNameAreas[1024];
 	cry_sprintf(fileNameAreas, "%s/areas%s.bai", szLevel, szMission);
 
 	GetAISystem()->ReadAreasFromFile(fileNameAreas);
 
-	CTimeValue endTime = gEnv->pTimer->GetAsyncCurTime();
-	AILogLoading("Navigation Data Loaded in %5.2f sec", (endTime - startTime).GetSeconds());
+	CTimeValue endTime = GetGTimer()->GetAsyncCurTime();
+	AILogLoading("Navigation Data Loaded in %5.2f sec", (float)(endTime - startTime).GetSeconds());
 }
 
-void CNavigation::Update(CTimeValue frameStartTime, float frameDeltaTime)
+void CNavigation::Update(const CTimeValue& frameStartTime, const CTimeValue& frameDeltaTime)
 {
 	// Update path devalues.
 	for (ShapeMap::iterator it = m_mapDesignerPaths.begin(); it != m_mapDesignerPaths.end(); ++it)
-		it->second.devalueTime = max(0.0f, it->second.devalueTime - frameDeltaTime);
+		it->second.devalueTime = max(CTimeValue(0), it->second.devalueTime - frameDeltaTime);
 }
 
 void CNavigation::Reset(IAISystem::EResetReason reason)
 {
 	// Reset path devalue stuff.
 	for (ShapeMap::iterator it = m_mapDesignerPaths.begin(); it != m_mapDesignerPaths.end(); ++it)
-		it->second.devalueTime = 0;
+		it->second.devalueTime.SetSeconds(0);
 }
 
 // copies a designer path into provided list if a path of such name is found
@@ -385,7 +385,7 @@ void CNavigation::DeleteNavigationShape(const char* szName)
 		m_mapDesignerPaths.erase(di);
 }
 
-const char* CNavigation::GetNearestPathOfTypeInRange(IAIObject* requester, const Vec3& reqPos, float range, int type, float devalue, bool useStartNode)
+const char* CNavigation::GetNearestPathOfTypeInRange(IAIObject* requester, const Vec3& reqPos, float range, int type, const CTimeValue& devalue, bool useStartNode)
 {
 	AIAssert(requester);
 	float rangeSq(sqr(range));
@@ -405,7 +405,7 @@ const char* CNavigation::GetNearestPathOfTypeInRange(IAIObject* requester, const
 		if (path.type != type)
 			continue;
 		// Skip locked paths
-		if (path.devalueTime > 0.01f)
+		if (path.devalueTime > "0.01")
 			continue;
 
 		// Skip paths too far away
@@ -490,7 +490,7 @@ void CNavigation::DebugDraw() const
 	for (ShapeMap::const_iterator it = m_mapDesignerPaths.begin(); it != m_mapDesignerPaths.end(); ++it)
 	{
 		const SShape& path = it->second;
-		if (path.devalueTime < 0.01f)
+		if (path.devalueTime < "0.01")
 			continue;
 		dc->Draw3dLabel(path.shape.front(), 1, "%.1f", path.devalueTime);
 	}

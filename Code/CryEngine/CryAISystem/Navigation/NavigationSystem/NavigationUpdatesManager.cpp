@@ -13,7 +13,7 @@ CMNMUpdatesManager::CMNMUpdatesManager(NavigationSystem* pNavSystem)
 	, m_bWasRegenerationRequestedThisUpdateCycle(false)
 	, m_bPostponeUpdatesForStabilization(false)
 	, m_bExplicitRegenerationToggle(false)
-	, m_lastUpdateTime(0.0f)
+	, m_lastUpdateTime(0)
 {
 }
 
@@ -45,7 +45,7 @@ void CMNMUpdatesManager::UpdatePostponedChanges()
 {
 	if (m_bPostponeUpdatesForStabilization)
 	{
-		if (gEnv->pTimer->GetFrameStartTime().GetDifferenceInSeconds(m_lastUpdateTime) < gAIEnv.CVars.NavmeshStabilizationTimeToUpdate)
+		if (GetGTimer()->GetFrameStartTime() - m_lastUpdateTime < gAIEnv.CVars.NavmeshStabilizationTimeToUpdate)
 		{
 			return;
 		}
@@ -171,7 +171,7 @@ void CMNMUpdatesManager::EntityChanged(int physicalEntityId, const AABB& aabb)
 		return;
 	}
 
-	m_lastUpdateTime = gEnv->pTimer->GetFrameStartTime();
+	m_lastUpdateTime = GetGTimer()->GetFrameStartTime();
 
 	auto it = m_postponedEntityUpdatesMap.find(physicalEntityId);
 	if (it != m_postponedEntityUpdatesMap.end())
@@ -195,7 +195,7 @@ void CMNMUpdatesManager::WorldChanged(const AABB& aabb)
 #if NAVIGATION_SYSTEM_PC_ONLY
 	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
-	m_lastUpdateTime = gEnv->pTimer->GetFrameStartTime();
+	m_lastUpdateTime = GetGTimer()->GetFrameStartTime();
 
 	SRequestParams queueAndState = GetRequestParams(false);
 	RequestQueueWorldUpdate(queueAndState, aabb);
@@ -240,7 +240,7 @@ CMNMUpdatesManager::EUpdateRequestStatus CMNMUpdatesManager::RequestMeshUpdate(N
 
 	if (!bImmediateUpdate)
 	{
-		m_lastUpdateTime = gEnv->pTimer->GetFrameStartTime();
+		m_lastUpdateTime = GetGTimer()->GetFrameStartTime();
 	}
 
 	SRequestParams requestParams = GetRequestParams(m_bExplicitRegenerationToggle);
@@ -262,7 +262,7 @@ CMNMUpdatesManager::EUpdateRequestStatus CMNMUpdatesManager::RequestMeshDifferen
 {
 	CRY_PROFILE_FUNCTION(PROFILE_AI);
 	
-	m_lastUpdateTime = gEnv->pTimer->GetFrameStartTime();
+	m_lastUpdateTime = GetGTimer()->GetFrameStartTime();
 	
 	SRequestParams queueAndState = GetRequestParams(m_bExplicitRegenerationToggle);
 	if (!RequestQueueMeshDifferenceUpdate(queueAndState, meshID, oldVolume, newVolume))

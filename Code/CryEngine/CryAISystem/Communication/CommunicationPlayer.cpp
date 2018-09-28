@@ -207,7 +207,7 @@ bool CommunicationPlayer::Play(const CommPlayID& playID, const SCommunicationReq
 	else
 		playState.finishedFlags |= PlayState::FinishedAnimation;
 
-	if (playState.timeout <= 0.000001f)
+	if (playState.timeout <= "0.000001") // MP_EPSILON
 		playState.finishedFlags |= PlayState::FinishedTimeout;
 
 	BlockingSettings(aiObject, playState, true);
@@ -215,7 +215,7 @@ bool CommunicationPlayer::Play(const CommPlayID& playID, const SCommunicationReq
 	return true;
 }
 
-void CommunicationPlayer::Update(float updateTime)
+void CommunicationPlayer::Update(const CTimeValue& updateTime)
 {
 	PlayingCommunications::iterator it = m_playing.begin();
 	PlayingCommunications::iterator end = m_playing.end();
@@ -242,7 +242,7 @@ void CommunicationPlayer::Update(float updateTime)
 	}
 }
 
-bool CommunicationPlayer::UpdatePlaying(const CommPlayID& playId, PlayState& playState, float updateTime)
+bool CommunicationPlayer::UpdatePlaying(const CommPlayID& playId, PlayState& playState, const CTimeValue& updateTime)
 {
 
 	// Only return false when playing could not happen due to congestion
@@ -273,10 +273,10 @@ bool CommunicationPlayer::UpdatePlaying(const CommPlayID& playId, PlayState& pla
 		}
 	}
 
-	if (playState.timeout > 0.0f)
+	if (playState.timeout > 0)
 	{
 		playState.timeout -= updateTime;
-		if (playState.timeout <= 0.0f)
+		if (playState.timeout <= 0)
 			playState.finishedFlags |= PlayState::FinishedTimeout;
 	}
 
@@ -376,7 +376,7 @@ void CommunicationPlayer::Stop(const CommPlayID& playID)
 	}
 }
 
-bool CommunicationPlayer::IsPlaying(const CommPlayID& playID, float* remainingTime) const
+bool CommunicationPlayer::IsPlaying(const CommPlayID& playID, CTimeValue* remainingTime) const
 {
 	PlayingCommunications::const_iterator it = m_playing.find(playID);
 	if (it != m_playing.end())

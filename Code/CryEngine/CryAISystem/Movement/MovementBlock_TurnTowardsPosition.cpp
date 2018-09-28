@@ -12,8 +12,8 @@ namespace MovementBlocks
 {
 TurnTowardsPosition::TurnTowardsPosition(const Vec3& position)
 	: m_positionToTurnTowards(position)
-	, m_timeSpentAligning(0.0f)
-	, m_correctBodyDirTime(0.0f)
+	, m_timeSpentAligning(0)
+	, m_correctBodyDirTime(0)
 {
 }
 
@@ -33,15 +33,15 @@ Movement::Block::Status TurnTowardsPosition::Update(const MovementUpdateContext&
 	if (lookingTowardsMoveTarget)
 		m_correctBodyDirTime += context.updateTime;
 	else
-		m_correctBodyDirTime = 0.0f;
+		m_correctBodyDirTime.SetSeconds(0);
 
-	const float timeSpentAligning = m_timeSpentAligning + context.updateTime;
+	const CTimeValue timeSpentAligning = m_timeSpentAligning + context.updateTime;
 	m_timeSpentAligning = timeSpentAligning;
 
-	if (m_correctBodyDirTime > 0.2f)
+	if (m_correctBodyDirTime > "0.2")
 		return Movement::Block::Finished;
 
-	const float timeout = 8.0f;
+	const CTimeValue timeout = 8;
 	if (timeSpentAligning > timeout)
 	{
 		gEnv->pLog->LogWarning("Agent '%s' at %f %f %f failed to turn towards %f %f %f within %f seconds. Proceeding anyway.",

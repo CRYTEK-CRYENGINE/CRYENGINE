@@ -701,7 +701,7 @@ COPFollowPath::COPFollowPath(bool pathFindToStart, bool reverse, bool startNeare
 	m_bControlSpeed(bControlSpeed),
 	m_loops(loops),
 	m_loopCounter(0),
-	m_notMovingTimeMs(0),
+	m_notMovingTime(0),
 	m_returningToPath(false),
 	m_fDesiredSpeedOnPath(desiredSpeedOnPath)
 {
@@ -717,7 +717,7 @@ COPFollowPath::COPFollowPath(const XmlNodeRef& node) :
 	m_bUsePointList(s_xml.GetBool(node, "usePointList")),
 	m_loops(0),
 	m_loopCounter(0),
-	m_notMovingTimeMs(0),
+	m_notMovingTime(0),
 	m_returningToPath(false),
 	m_pTraceDirective(0),
 	m_pPathFindDirective(0),
@@ -742,7 +742,7 @@ COPFollowPath::COPFollowPath(const COPFollowPath& rhs)
 	, m_bControlSpeed(rhs.m_bControlSpeed)
 	, m_loops(rhs.m_loops)
 	, m_loopCounter(0)
-	, m_notMovingTimeMs(0)
+	, m_notMovingTime(0)
 	, m_returningToPath(false)
 	, m_fEndAccuracy(rhs.m_fEndAccuracy)
 	, m_fDesiredSpeedOnPath(rhs.m_fDesiredSpeedOnPath)
@@ -762,7 +762,7 @@ void COPFollowPath::Reset(CPipeUser* pPipeUser)
 	delete m_pPathFindDirective;
 	m_pPathFindDirective = 0;
 	m_loopCounter = 0;
-	m_notMovingTimeMs = 0;
+	m_notMovingTime.SetSeconds(0);
 	m_returningToPath = false;
 	m_fEndAccuracy = defaultTraceEndAccuracy;
 	m_fDesiredSpeedOnPath = 0.0f;
@@ -784,7 +784,7 @@ void COPFollowPath::Serialize(TSerialize ser)
 		ser.Value("m_loopCounter", m_loopCounter);
 		ser.Value("m_TraceEndAccuracy", m_fEndAccuracy);
 		ser.Value("m_fDesiredSpeedOnPath", m_fDesiredSpeedOnPath);
-		ser.Value("m_notMovingTimeMs", m_notMovingTimeMs);
+		ser.Value("m_notMovingTime", m_notMovingTime);
 		ser.Value("m_returningToPath", m_returningToPath);
 		ser.Value("m_bUsePointList", m_bUsePointList);
 		ser.Value("m_bControlSpeed", m_bControlSpeed);
@@ -926,19 +926,19 @@ EGoalOpResult COPFollowPath::Execute(CPipeUser* pPipeUser)
 	// to the requested speed and if it drops dramatically for certain time, this code
 	// will trigger and try to move the agent back on the path. [Mikko]
 
-	int timeout = 700;
+	CTimeValue timeout = "0.7";
 	if (pPipeUser->GetType() == AIOBJECT_VEHICLE)
-		timeout = 7000;
+		timeout.SetSeconds(7);
 
 	if (pPipeUser->GetSubType() == CAIObject::STP_2D_FLY)
-		m_notMovingTimeMs = 0;
+		m_notMovingTime.SetSeconds(0);
 
-	if (m_notMovingTimeMs > timeout)
+	if (m_notMovingTime > timeout)
 	{
 		CCCPOINT(COPFollowPath_Execute_Stuck);
 
 		// Stuck or lost, move to the nearest point on path.
-		AIWarning("COPFollowPath::Entity %s has not been moving fast enough for %.1fs it might be stuck, find back to path.", GetNameSafe(pPipeUser), m_notMovingTimeMs * 0.001f);
+		AIWarning("COPFollowPath::Entity %s has not been moving fast enough for %.1fs it might be stuck, find back to path.", GetNameSafe(pPipeUser), (float)m_notMovingTime.GetSeconds());
 
 		// Create the PathStartPoint if needed
 		// (MATT) And if definately is, sometimes. But fix this code duplication. {2009/02/18}
@@ -955,7 +955,7 @@ EGoalOpResult COPFollowPath::Execute(CPipeUser* pPipeUser)
 		m_pPathFindDirective = new COPPathFind("FollowPath", m_refPathStartPoint.GetAIObject());
 		delete m_pTraceDirective;
 		m_pTraceDirective = 0;
-		m_notMovingTimeMs = 0;
+		m_notMovingTime.SetSeconds(0);
 		m_returningToPath = true;
 	}
 
@@ -1042,7 +1042,7 @@ void COPFollowPath::ExecuteDry(CPipeUser* pPipeUser)
 		// HACK: The following code together with some logic in the execute tries to keep track
 		// if the agent is not moving for some time (is stuck), and pathfinds back to the path. [Mikko]
 		CTimeValue time(pSystem->GetFrameStartTime());
-		int64 dt((time - m_lastTime).GetMilliSecondsAsInt64());
+		CTimeValue dt = time - m_lastTime;
 
 		float speed = pPipeUser->GetVelocity().GetLength();
 		float desiredSpeed = pPipeUser->m_State.fDesiredSpeed;
@@ -1051,12 +1051,12 @@ void COPFollowPath::ExecuteDry(CPipeUser* pPipeUser)
 		{
 			float ratio = clamp_tpl(speed / desiredSpeed, 0.0f, 1.0f);
 			if (ratio < 0.1f)
-				m_notMovingTimeMs += (int)dt;
+				m_notMovingTime += dt;
 			else
-				m_notMovingTimeMs -= (int)dt;
+				m_notMovingTime -= dt;
 
-			if (m_notMovingTimeMs < 0)
-				m_notMovingTimeMs = 0;
+			if (m_notMovingTime < 0)
+				m_notMovingTime.SetSeconds(0);
 		}
 		m_lastTime = time;
 	}
@@ -1065,7 +1065,7 @@ void COPFollowPath::ExecuteDry(CPipeUser* pPipeUser)
 //===================================================================
 // COPBackoff
 //===================================================================
-COPBackoff::COPBackoff(float distance, float duration, int filter, float minDistance)
+COPBackoff::COPBackoff(float distance, const CTimeValue& duration, int filter, float minDistance)
 {
 	m_fDistance = distance;
 	m_fDuration = duration;
@@ -1098,7 +1098,7 @@ COPBackoff::COPBackoff(float distance, float duration, int filter, float minDist
 
 COPBackoff::COPBackoff(const XmlNodeRef& node) :
 	m_fDistance(0.f),
-	m_fDuration(0.f),
+	m_fDuration(0),
 	m_fMinDistance(0.f),
 	m_pPathfindDirective(0),
 	m_pTraceDirective(0),
@@ -1448,7 +1448,7 @@ EGoalOpResult COPBackoff::Execute(CPipeUser* pPipeUser)
 			m_fInitTime = GetAISystem()->GetFrameStartTime();
 		}
 
-		if (m_fDuration > 0 && (GetAISystem()->GetFrameStartTime() - m_fInitTime).GetSeconds() > m_fDuration)
+		if (m_fDuration > 0 && GetAISystem()->GetFrameStartTime() - m_fInitTime > m_fDuration)
 		{
 			Reset(pPipeUser);
 			return eGOR_SUCCEEDED;
@@ -1567,16 +1567,16 @@ void COPBackoff::DebugDraw(CPipeUser* pPipeUser) const
 	dc->DrawCone(m_moveEnd + Vec3(0, 0, 0.25f), dir, 0.3f, 0.8f, color);
 }
 
-COPTimeout::COPTimeout(float fIntervalMin, float fIntervalMax) :
+COPTimeout::COPTimeout(const CTimeValue& fIntervalMin, const CTimeValue& fIntervalMax) :
 	m_fIntervalMin(fIntervalMin),
-	m_fIntervalMax((fIntervalMax > 0.f) ? fIntervalMax : fIntervalMin)
+	m_fIntervalMax((fIntervalMax > 0) ? fIntervalMax : fIntervalMin)
 {
 	Reset(0);
 }
 
 COPTimeout::COPTimeout(const XmlNodeRef& node) :
-	m_fIntervalMin(0.f),
-	m_fIntervalMax(-1.f)
+	m_fIntervalMin(0),
+	m_fIntervalMax(-1)
 {
 	if (!node->getAttr("interval", m_fIntervalMin))
 	{
@@ -1584,7 +1584,7 @@ COPTimeout::COPTimeout(const XmlNodeRef& node) :
 	}
 
 	node->getAttr("intervalMax", m_fIntervalMax);
-	if (m_fIntervalMax <= 0.f)
+	if (m_fIntervalMax <= 0)
 	{
 		m_fIntervalMax = m_fIntervalMin;
 	}
@@ -1594,39 +1594,39 @@ COPTimeout::COPTimeout(const XmlNodeRef& node) :
 
 void COPTimeout::Reset(CPipeUser* pPipeUser)
 {
-	m_actualIntervalMs = 0;
-	m_startTime.SetValue(0);
+	m_actualInterval.SetSeconds(0);
+	m_startTime.SetSeconds(0);
 }
 
 void COPTimeout::Serialize(TSerialize ser)
 {
-	uint64 timeElapsed = 0;
+	CTimeValue timeElapsed;
 	if (ser.IsWriting())
 	{
 		CTimeValue time = GetAISystem()->GetFrameStartTime();
-		timeElapsed = (time - m_startTime).GetMilliSecondsAsInt64();
+		timeElapsed = time - m_startTime;
 	}
 	ser.Value("timeElapsed", timeElapsed);
 	if (ser.IsReading())
 	{
 		CTimeValue time = GetAISystem()->GetFrameStartTime();
-		m_startTime.SetMilliSeconds(time.GetMilliSecondsAsInt64() - timeElapsed);
+		m_startTime = time - timeElapsed;
 	}
-	ser.Value("m_actualIntervalMs", m_actualIntervalMs);
+	ser.Value("m_actualInterval", m_actualInterval);
 }
 
 EGoalOpResult COPTimeout::Execute(CPipeUser* pPipeUser)
 {
 	CRY_PROFILE_FUNCTION(PROFILE_AI);
 	CTimeValue time = GetAISystem()->GetFrameStartTime();
-	if (m_startTime.GetMilliSecondsAsInt64() <= 0)
+	if (m_startTime <= 0)
 	{
-		m_actualIntervalMs = (int)(1000.0f * (m_fIntervalMin + ((m_fIntervalMax - m_fIntervalMin) * cry_random(0.0f, 1.0f))));
+		m_actualInterval = m_fIntervalMin + (m_fIntervalMax - m_fIntervalMin) * cry_random<CTimeValue>(0, 1);
 		m_startTime = time;
 	}
 
 	CTimeValue timeElapsed = time - m_startTime;
-	if (timeElapsed.GetMilliSecondsAsInt64() > m_actualIntervalMs)
+	if (timeElapsed > m_actualInterval)
 	{
 		Reset(pPipeUser);
 		return eGOR_DONE;
@@ -1672,22 +1672,22 @@ EGoalOpResult COPStrafe::Execute(CPipeUser* pPipeUser)
 	return eGOR_DONE;
 }
 
-COPFireCmd::COPFireCmd(EFireMode eFireMode, bool bUseLastOp, float fIntervalMin, float fIntervalMax) :
+COPFireCmd::COPFireCmd(EFireMode eFireMode, bool bUseLastOp, const CTimeValue& fIntervalMin, const CTimeValue& fIntervalMax) :
 	m_eFireMode(eFireMode),
 	m_bUseLastOp(bUseLastOp),
 	m_fIntervalMin(fIntervalMin),
 	m_fIntervalMax(fIntervalMax),
-	m_actualIntervalMs(-1000)
+	m_actualInterval(-1)
 {
-	m_startTime.SetValue(0);
+	m_startTime.SetSeconds(0);
 }
 
 COPFireCmd::COPFireCmd(const XmlNodeRef& node) :
 	m_eFireMode(FIREMODE_OFF),
 	m_bUseLastOp(s_xml.GetBool(node, "useLastOp")),
-	m_fIntervalMin(-1.f),
-	m_fIntervalMax(-1.f),
-	m_actualIntervalMs(-1000)
+	m_fIntervalMin(-1),
+	m_fIntervalMax(-1),
+	m_actualInterval(-1)
 {
 	s_xml.GetFireMode(node, "mode", m_eFireMode, CGoalOpXMLReader::MANDATORY);
 
@@ -1698,13 +1698,13 @@ COPFireCmd::COPFireCmd(const XmlNodeRef& node) :
 
 	node->getAttr("timeoutMax", m_fIntervalMax);
 
-	m_startTime.SetValue(0);
+	m_startTime.SetSeconds(0);
 }
 
 void COPFireCmd::Reset(CPipeUser* pPipeUser)
 {
-	m_actualIntervalMs = -1000;
-	m_startTime.SetValue(0);
+	m_actualInterval.SetSeconds(-1);
+	m_startTime.SetSeconds(0);
 	pPipeUser->SetFireTarget(NILREF);
 }
 
@@ -1715,27 +1715,27 @@ EGoalOpResult COPFireCmd::Execute(CPipeUser* pPipeUser)
 
 	CTimeValue time = GetAISystem()->GetFrameStartTime();
 	// if this is a first time
-	if (m_startTime.GetMilliSecondsAsInt64() <= 0)
+	if (m_startTime <= 0)
 	{
 		pPipeUser->SetFireMode(m_eFireMode);
 		pPipeUser->SetFireTarget(m_bUseLastOp ? pPipeUser->m_refLastOpResult : NILREF);
 
 		m_startTime = time;
 
-		if (m_fIntervalMin < 0.0f)
-			m_actualIntervalMs = -1000;
-		else if (m_fIntervalMax > 0.0f)
-			m_actualIntervalMs = (int)(cry_random(m_fIntervalMin, m_fIntervalMax) * 1000.0f);
+		if (m_fIntervalMin < 0)
+			m_actualInterval.SetSeconds(-1);
+		else if (m_fIntervalMax > 0)
+			m_actualInterval = cry_random(m_fIntervalMin, m_fIntervalMax);
 		else
-			m_actualIntervalMs = (int)(m_fIntervalMin * 1000.0f);
+			m_actualInterval = m_fIntervalMin;
 	}
 
 	CTimeValue timeElapsed = time - m_startTime;
 
-	if ((m_actualIntervalMs < 0) || (m_actualIntervalMs < timeElapsed.GetMilliSecondsAsInt64()))
+	if ((m_actualInterval < 0) || (m_actualInterval < timeElapsed))
 	{
 		// stop firing if was timed
-		if (m_actualIntervalMs > 0)
+		if (m_actualInterval > 0)
 			pPipeUser->SetFireMode(FIREMODE_OFF);
 
 		Reset(pPipeUser);
@@ -1969,8 +1969,8 @@ EGoalOpResult COPLookAt::Execute(CPipeUser* pPipeUser)
 			return eGOR_SUCCEEDED;
 
 		// Time out if angle threshold isn't reached for some time (to avoid deadlocks)
-		float elapsedTime = (GetAISystem()->GetFrameStartTime() - m_startTime).GetSeconds();
-		if (elapsedTime > 8.0f)
+		CTimeValue elapsedTime = GetAISystem()->GetFrameStartTime() - m_startTime;
+		if (elapsedTime > 8)
 		{
 			AIWarning("LookAt goal op timed out. Didn't reach wanted angle threshold for %f seconds.", elapsedTime);
 			Reset(pPipeUser);
@@ -2041,14 +2041,14 @@ void COPLookAt::Serialize(TSerialize ser)
 
 //
 //----------------------------------------------------------------------------------------------------------
-COPLookAround::COPLookAround(float lookAtRange, float scanIntervalRange, float intervalMin, float intervalMax, bool bBodyTurn, bool breakOnLiveTarget, bool bUseLastOp, bool checkForObstacles)
+COPLookAround::COPLookAround(float lookAtRange, const CTimeValue& scanIntervalRange, const CTimeValue& intervalMin, const CTimeValue& intervalMax, bool bBodyTurn, bool breakOnLiveTarget, bool bUseLastOp, bool checkForObstacles)
 	: m_fLastDot(0.0f)
 	, m_fLookAroundRange(lookAtRange)
 	, m_fIntervalMin(intervalMin)
 	, m_fIntervalMax(intervalMax)
 	, m_fScanIntervalRange(scanIntervalRange)
-	, m_scanTimeOutMs(0)
-	, m_timeOutMs(0)
+	, m_scanTimeOut(0)
+	, m_timeOut(0)
 	, m_eLookStyle(LOOKSTYLE_DEFAULT)
 	, m_breakOnLiveTarget(breakOnLiveTarget)
 	, m_useLastOp(bUseLastOp)
@@ -2073,11 +2073,11 @@ COPLookAround::COPLookAround(float lookAtRange, float scanIntervalRange, float i
 COPLookAround::COPLookAround(const XmlNodeRef& node)
 	: m_fLastDot(0.0f)
 	, m_fLookAroundRange(0.f)
-	, m_fIntervalMin(-1.f)
-	, m_fIntervalMax(-1.f)
-	, m_fScanIntervalRange(-1.f)
-	, m_scanTimeOutMs(0)
-	, m_timeOutMs(0)
+	, m_fIntervalMin(-1)
+	, m_fIntervalMax(-1)
+	, m_fScanIntervalRange(-1)
+	, m_scanTimeOut(0)
+	, m_timeOut(0)
 	, m_eLookStyle(s_xml.GetBool(node, "bodyTurn", true) ? LOOKSTYLE_SOFT : LOOKSTYLE_SOFT_NOLOWER)
 	, m_breakOnLiveTarget(s_xml.GetBool(node, "breakOnLiveTarget"))
 	, m_useLastOp(s_xml.GetBool(node, "useLastOp"))
@@ -2215,7 +2215,7 @@ EGoalOpResult COPLookAround::Execute(CPipeUser* pPipeUser)
 
 		ExecuteDry(pPipeUser);
 
-		if (m_timeOutMs < 0)
+		if (m_timeOut < 0)
 		{
 			// If no time out is specified, we bail out once the target is reached.
 			const Vec3& opPos = pPipeUser->GetPos();
@@ -2237,9 +2237,9 @@ EGoalOpResult COPLookAround::Execute(CPipeUser* pPipeUser)
 		else
 		{
 			// If time out is specified, keep looking around until the time out finishes.
-			int64 elapsed = (GetAISystem()->GetFrameStartTime() - m_startTime).GetMilliSecondsAsInt64();
+			CTimeValue elapsed = GetAISystem()->GetFrameStartTime() - m_startTime;
 
-			if (elapsed > m_timeOutMs)
+			if (elapsed > m_timeOut)
 			{
 				Reset(pPipeUser);
 
@@ -2258,7 +2258,7 @@ void COPLookAround::ExecuteDry(CPipeUser* pPipeUser)
 		return;
 
 	CTimeValue now(GetAISystem()->GetFrameStartTime());
-	int64 scanElapsedMs = (now - m_scanStartTime).GetMilliSecondsAsInt64();
+	CTimeValue scanElapsed = now - m_scanStartTime;
 
 	if (pPipeUser->GetAttentionTarget())
 	{
@@ -2266,8 +2266,8 @@ void COPLookAround::ExecuteDry(CPipeUser* pPipeUser)
 		Vec3 reqDir = pPipeUser->GetAttentionTarget()->GetPos() - pPipeUser->GetPos();
 		reqDir.Normalize();
 
-		const float maxRatePerSec = DEG2RAD(25.0f);
-		const float maxRate = maxRatePerSec * GetAISystem()->GetFrameDeltaTime();
+		const rTime maxRatePerSec = BADrT(DEG2RAD(25.0f));
+		const float maxRate = BADF(maxRatePerSec * GetAISystem()->GetFrameDeltaTime());
 		const float thr = cosf(maxRate);
 
 		float cosAngle = m_initialDir.Dot(reqDir);
@@ -2293,8 +2293,8 @@ void COPLookAround::ExecuteDry(CPipeUser* pPipeUser)
 
 	// Smooth transition from last value to new value if scanning, otherwise just as fast as possible.
 	float t = 1.0f;
-	if (m_scanTimeOutMs > 0)
-		t = (1.0f - cosf(clamp_tpl(static_cast<float>(scanElapsedMs) / static_cast<float>(m_scanTimeOutMs), 0.0f, 1.0f) * gf_PI)) * 0.5f;
+	if (m_scanTimeOut > 0)
+		t = (1.0f - cosf(BADF CLAMP(scanElapsed/m_scanTimeOut, 0, 1) * gf_PI)) * 0.5f;
 
 	Vec3 dir = GetLookAtDir(pPipeUser, m_lastLookAngle + (m_lookAngle - m_lastLookAngle) * t, m_lastLookZOffset + (m_lookZOffset - m_lastLookZOffset) * t);
 	Vec3 pos = pPipeUser->GetPos() + dir;
@@ -2302,7 +2302,7 @@ void COPLookAround::ExecuteDry(CPipeUser* pPipeUser)
 	m_looseAttentionId = pPipeUser->SetLooseAttentionTarget(pos);
 
 	// Once one sweep is finished, start another.
-	if (scanElapsedMs > m_scanTimeOutMs)
+	if (scanElapsed > m_scanTimeOut)
 	{
 		UpdateLookAtTarget(pPipeUser);
 
@@ -2340,11 +2340,11 @@ void COPLookAround::Reset(CPipeUser* pPipeUser)
 //===================================================================
 void COPLookAround::DebugDraw(CPipeUser* pPipeUser) const
 {
-	int64 scanElapsed = (GetAISystem()->GetFrameStartTime() - m_scanStartTime).GetMilliSecondsAsInt64();
+	CTimeValue scanElapsed = GetAISystem()->GetFrameStartTime() - m_scanStartTime;
 
 	float t(1.0f);
-	if (m_scanTimeOutMs > 0)
-		t = (1.0f - cosf(clamp_tpl(scanElapsed / (m_scanTimeOutMs * 0.001f), 0.0f, 1.0f) * gf_PI)) / 2.0f;
+	if (m_scanTimeOut > 0)
+		t = (1.0f - cosf(BADF CLAMP(scanElapsed / m_scanTimeOut, 0, 1) * gf_PI)) / 2.0f;
 	Vec3 dir = GetLookAtDir(pPipeUser, m_lastLookAngle + (m_lookAngle - m_lastLookAngle) * t, m_lastLookZOffset + (m_lookZOffset - m_lastLookZOffset) * t);
 
 	CDebugDrawContext dc;
@@ -2367,9 +2367,9 @@ void COPLookAround::Serialize(TSerialize ser)
 		ser.Value("m_fLookAroundRange", m_fLookAroundRange);
 		ser.Value("m_fIntervalMin", m_fIntervalMin);
 		ser.Value("m_fIntervalMax", m_fIntervalMax);
-		ser.Value("m_fTimeOutMs", m_timeOutMs);
+		ser.Value("m_fTimeOut", m_timeOut);
 		ser.Value("m_fScanIntervalRange", m_fScanIntervalRange);
-		ser.Value("m_scanTimeOutMs", m_scanTimeOutMs);
+		ser.Value("m_scanTimeOut", m_scanTimeOut);
 		ser.Value("m_startTime", m_startTime);
 		ser.Value("m_scanStartTime", m_scanStartTime);
 		ser.Value("m_breakOnLiveTarget", m_breakOnLiveTarget);
@@ -2948,7 +2948,7 @@ EGoalOpResult COPTacticalPos::Execute(CPipeUser* pPipeUser)
 			else
 			{
 				// Could not reach the point, mark it ignored so that we do not try to pick it again.
-				pPipeUser->IgnoreCurrentHideObject(10.0f);
+				pPipeUser->IgnoreCurrentHideObject(10);
 
 				Reset(pPipeUser);
 				SendStateSignal(pPipeUser, eTPGOpState_DestinationReached);
@@ -3274,8 +3274,8 @@ COPLook::COPLook(int lookMode, bool bBodyTurn, EAIRegister nReg)
 	, m_nReg(nReg)
 	, m_nLookID(0)
 	, m_bInitialised(false)
-	, m_fLookTime(0.0f)
-	, m_fTimeLeft(0.0f)
+	, m_fLookTime(0)
+	, m_fTimeLeft(0)
 {
 	// Pick the soft/hard lookstyles that match the bodyturn parameter
 	ELookStyle eSoft, eHard;
@@ -3295,22 +3295,22 @@ COPLook::COPLook(int lookMode, bool bBodyTurn, EAIRegister nReg)
 	switch (lookMode)
 	{
 	case AILOOKMOTIVATION_LOOK:
-		m_fLookTime = 1.5f;
+		m_fLookTime.SetSeconds("1.5");
 		m_eLookThere = eSoft;
 		m_eLookBack = eSoft;
 		break;
 	case AILOOKMOTIVATION_GLANCE:
-		m_fLookTime = 0.8f;
+		m_fLookTime.SetSeconds("0.8");
 		m_eLookThere = eHard;
 		m_eLookBack = eHard;
 		break;
 	case AILOOKMOTIVATION_STARTLE:
-		m_fLookTime = 0.8f;
+		m_fLookTime.SetSeconds("0.8");
 		m_eLookThere = eHard;
 		m_eLookBack = eSoft;
 		break;
 	case AILOOKMOTIVATION_DOUBLETAKE:
-		m_fLookTime = 1.2f;
+		m_fLookTime.SetSeconds("1.2");
 		m_eLookThere = eSoft;
 		m_eLookBack = eHard;
 		break;
@@ -3325,8 +3325,8 @@ COPLook::COPLook(const XmlNodeRef& node)
 	, m_nReg(AI_REG_LASTOP)
 	, m_nLookID(0)
 	, m_bInitialised(false)
-	, m_fLookTime(0.0f)
-	, m_fTimeLeft(0.0f)
+	, m_fLookTime(0)
+	, m_fTimeLeft(0)
 {
 	s_xml.GetRegister(node, "register", m_nReg);
 
@@ -3349,22 +3349,22 @@ COPLook::COPLook(const XmlNodeRef& node)
 	switch (eLookMode)
 	{
 	case AILOOKMOTIVATION_LOOK:
-		m_fLookTime = 1.5f;
+		m_fLookTime.SetSeconds("1.5");
 		m_eLookThere = eSoft;
 		m_eLookBack = eSoft;
 		break;
 	case AILOOKMOTIVATION_GLANCE:
-		m_fLookTime = 0.8f;
+		m_fLookTime.SetSeconds("0.8");
 		m_eLookThere = eHard;
 		m_eLookBack = eHard;
 		break;
 	case AILOOKMOTIVATION_STARTLE:
-		m_fLookTime = 0.8f;
+		m_fLookTime.SetSeconds("0.8");
 		m_eLookThere = eHard;
 		m_eLookBack = eSoft;
 		break;
 	case AILOOKMOTIVATION_DOUBLETAKE:
-		m_fLookTime = 1.2f;
+		m_fLookTime.SetSeconds("1.2");
 		m_eLookThere = eSoft;
 		m_eLookBack = eHard;
 		break;
@@ -3415,7 +3415,7 @@ EGoalOpResult COPLook::Execute(CPipeUser* pPipeUser)
 
 	//m_fTimeLeft -= pAISystem->GetFrameDeltaTime(); Not accurate
 	m_fTimeLeft -= GetAISystem()->GetUpdateInterval();
-	if (m_fTimeLeft < 0.0f)
+	if (m_fTimeLeft < 0)
 	{
 		Reset(pPipeUser);
 		return eGOR_SUCCEEDED;
@@ -3920,52 +3920,49 @@ void COPSteer::Serialize(TSerialize ser)
 COPWaitSignal::COPWaitSignal(const XmlNodeRef& node) :
 	m_sSignal(s_xml.GetMandatoryString(node, "name")),
 	m_edMode(edNone),
-	m_intervalMs(0)
+	m_interval(0)
 {
-	float fInterval = 0.0f;
-	node->getAttr("timeout", fInterval);
-	m_intervalMs = (int)(fInterval * 1000.0f);
-
+	node->getAttr("timeout", m_interval);
 	Reset(NULL);
 }
 
 //
 //----------------------------------------------------------------------------------------------------------
-COPWaitSignal::COPWaitSignal(const char* sSignal, float fInterval /*= 0*/)
+COPWaitSignal::COPWaitSignal(const char* sSignal, const CTimeValue& fInterval /*= 0*/)
 {
 	m_edMode = edNone;
 	m_sSignal = sSignal;
-	m_intervalMs = (int)(fInterval * 1000.0f);
+	m_interval = fInterval;
 	Reset(NULL);
 }
 
-COPWaitSignal::COPWaitSignal(const char* sSignal, const char* sObjectName, float fInterval /*= 0*/)
+COPWaitSignal::COPWaitSignal(const char* sSignal, const char* sObjectName, const CTimeValue& fInterval /*= 0*/)
 {
 	m_edMode = edString;
 	m_sObjectName = sObjectName;
 
 	m_sSignal = sSignal;
-	m_intervalMs = (int)(fInterval * 1000.0f);
+	m_interval = fInterval;
 	Reset(NULL);
 }
 
-COPWaitSignal::COPWaitSignal(const char* sSignal, int iValue, float fInterval /*= 0*/)
+COPWaitSignal::COPWaitSignal(const char* sSignal, int iValue, const CTimeValue& fInterval /*= 0*/)
 {
 	m_edMode = edInt;
 	m_iValue = iValue;
 
 	m_sSignal = sSignal;
-	m_intervalMs = (int)(fInterval * 1000.0f);
+	m_interval = fInterval;
 	Reset(NULL);
 }
 
-COPWaitSignal::COPWaitSignal(const char* sSignal, EntityId nID, float fInterval /*= 0*/)
+COPWaitSignal::COPWaitSignal(const char* sSignal, EntityId nID, const CTimeValue& fInterval /*= 0*/)
 {
 	m_edMode = edId;
 	m_nID = nID;
 
 	m_sSignal = sSignal;
-	m_intervalMs = (int)(fInterval * 1000.0f);
+	m_interval = fInterval;
 	Reset(NULL);
 }
 
@@ -4022,7 +4019,7 @@ void COPWaitSignal::Reset(CPipeUser* pPipeUser)
 		// later it may happen that this is called from signal handler (by inserting a goal pipe)
 		m_bSignalReceived = false;
 	}
-	m_startTime.SetSeconds(0.0f);
+	m_startTime.SetSeconds(0);
 }
 
 //
@@ -4036,9 +4033,9 @@ EGoalOpResult COPWaitSignal::Execute(CPipeUser* pPipeUser)
 		return eGOR_DONE;
 	}
 
-	if (m_intervalMs <= 0)
+	if (m_interval <= 0)
 	{
-		if (!m_startTime.GetValue())
+		if (!m_startTime.GetSeconds())
 		{
 			pPipeUser->m_listWaitGoalOps.insert(pPipeUser->m_listWaitGoalOps.begin(), this); //push_front
 			m_startTime.SetMilliSeconds(1);
@@ -4047,14 +4044,14 @@ EGoalOpResult COPWaitSignal::Execute(CPipeUser* pPipeUser)
 	}
 
 	CTimeValue time = GetAISystem()->GetFrameStartTime();
-	if (!m_startTime.GetValue())
+	if (!m_startTime.GetSeconds())
 	{
 		m_startTime = time;
 		pPipeUser->m_listWaitGoalOps.insert(pPipeUser->m_listWaitGoalOps.begin(), this); //push_front
 	}
 
 	CTimeValue timeElapsed = time - m_startTime;
-	if (timeElapsed.GetMilliSecondsAsInt64() > m_intervalMs)
+	if (timeElapsed > m_interval)
 		return eGOR_DONE;
 
 	return eGOR_IN_PROGRESS;
@@ -4070,7 +4067,7 @@ void COPWaitSignal::Serialize(TSerialize ser)
 		ser.Value("m_bSignalReceived", m_bSignalReceived);
 		if (ser.IsReading())
 		{
-			m_startTime.SetSeconds(0.0f);
+			m_startTime.SetSeconds(0);
 		}
 		ser.EndGroup();
 	}
@@ -5606,7 +5603,7 @@ void COPCompanionStick::AdjustSpeed(CPipeUser* pPipeUser)
 }
 #endif // 0
 
-COPCommunication::COPCommunication(const char* commName, const char* channelName, const char* ordering, float expirity, float minSilence, bool ignoreSound, bool ignoreAnim)
+COPCommunication::COPCommunication(const char* commName, const char* channelName, const char* ordering, const CTimeValue& expirity, const CTimeValue& minSilence, bool ignoreSound, bool ignoreAnim)
 	:
 	m_ordering(SCommunicationRequest::Unordered)
 	, m_expirity(expirity)
@@ -5615,7 +5612,7 @@ COPCommunication::COPCommunication(const char* commName, const char* channelName
 	, m_ignoreAnim(ignoreAnim)
 	, m_bInitialized(false)
 	, m_commFinished(false)
-	, m_timeout(8.0f)
+	, m_timeout(8)
 	, m_playID(0)
 	, m_waitUntilFinished(true)
 {
@@ -5647,13 +5644,13 @@ COPCommunication::COPCommunication(const XmlNodeRef& node) :
 	m_channelID(0)
 	, m_commID(0)
 	, m_ordering(SCommunicationRequest::Unordered)
-	, m_expirity(0.0f)
-	, m_minSilence(-1.0f)
+	, m_expirity(0)
+	, m_minSilence(-1)
 	, m_ignoreSound(false)
 	, m_ignoreAnim(false)
 	, m_bInitialized(false)
 	, m_commFinished(false)
-	, m_timeout(8.0f)
+	, m_timeout(8)
 	, m_playID(0)
 	, m_waitUntilFinished(s_xml.GetBool(node, "waitUntilFinished", true))
 {
@@ -5797,10 +5794,10 @@ EGoalOpResult COPCommunication::Execute(CPipeUser* pPipeUser)
 		}
 
 		// Time out if angle threshold isn't reached for some time (to avoid deadlocks)
-		float elapsedTime = (GetAISystem()->GetFrameStartTime() - m_startTime).GetSeconds();
+		CTimeValue elapsedTime = GetAISystem()->GetFrameStartTime() - m_startTime;
 		if (elapsedTime > m_timeout)
 		{
-			AIWarning("Communication goal op timed out, never received return from manager. Waited %.2f seconds.", elapsedTime);
+			AIWarning("Communication goal op timed out, never received return from manager. Waited %.2f seconds.", (float)elapsedTime.GetSeconds());
 			Reset(pPipeUser);
 			return eGOR_FAILED;
 		}

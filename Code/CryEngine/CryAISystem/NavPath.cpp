@@ -45,7 +45,7 @@ void PathPointDescriptor::Serialize(TSerialize ser)
 CNavPath::CNavPath()
 	: m_endDir(ZERO)
 	, m_currentFrac(0.0f)
-	, m_stuckTime(0.0f)
+	, m_stuckTime(0)
 	, m_pathEndIsAsRequested(true)
 	, m_fDiscardedPathLength(0)
 {
@@ -289,7 +289,7 @@ void CNavPath::Clear(const char* dbgString)
 	m_debugLines.clear();
 	m_debugSpheres.clear();
 	m_currentFrac = 0.0f;
-	m_stuckTime = 0.0f;
+	m_stuckTime.SetSeconds(0);
 	m_pathEndIsAsRequested = true;
 	m_fDiscardedPathLength = 0;
 }
@@ -811,7 +811,7 @@ void CNavPath::Dump(const char* name) const
 bool CNavPath::UpdateAndSteerAlongPath(Vec3& dirOut, float& distToEndOut, float& distToPathOut, bool& isResolvingStickingOut,
                                        Vec3& pathDirOut, Vec3& pathAheadDirOut, Vec3& pathAheadPosOut,
                                        Vec3 currentPos, const Vec3& currentVel,
-                                       float lookAhead, float pathRadius, float dt, bool resolveSticking, bool twoD)
+                                       float lookAhead, float pathRadius, const CTimeValue& dt, bool resolveSticking, bool twoD)
 {
 	CRY_PROFILE_FUNCTION(PROFILE_AI);
 	m_debugLines.clear();
@@ -849,7 +849,7 @@ bool CNavPath::UpdateAndSteerAlongPath(Vec3& dirOut, float& distToEndOut, float&
 		// prevent sticking if the path position isn't moving and the agent is some way from the path
 		Vec3 newPathPosition = GetPrevPathPoint()->vPos * (1.0f - m_currentFrac) + GetNextPathPoint()->vPos * m_currentFrac;
 		float dist = (newPathPosition - origPathPosition).GetLength();
-		float expectedDist = twoD ? dt* currentVel.GetLength2D() : dt* currentVel.GetLength();
+		float expectedDist = twoD ? dt.BADGetSeconds()* currentVel.GetLength2D() : dt.BADGetSeconds()* currentVel.GetLength();
 
 		distToPathOut = twoD ? (currentPos - newPathPosition).GetLength2D() : (currentPos - newPathPosition).GetLength();
 
@@ -859,13 +859,13 @@ bool CNavPath::UpdateAndSteerAlongPath(Vec3& dirOut, float& distToEndOut, float&
 		else
 			m_stuckTime -= min(m_stuckTime, dt);
 
-		static float minStickTime = 0.2f;
-		static float maxStickTime = 1.0f;
+		static CTimeValue minStickTime = "0.2";
+		static CTimeValue maxStickTime = 1;
 		static float stickTimeRate = 1.0f;
 		if (m_stuckTime > minStickTime)
 		{
 			isResolvingStickingOut = true;
-			workingLookAhead *= 1.0f / (1.0f + stickTimeRate * (m_stuckTime - minStickTime));
+			workingLookAhead *= 1.0f / (1.0f + stickTimeRate * (m_stuckTime - minStickTime).BADGetSeconds());
 		}
 		if (m_stuckTime > maxStickTime)
 			m_stuckTime = maxStickTime;

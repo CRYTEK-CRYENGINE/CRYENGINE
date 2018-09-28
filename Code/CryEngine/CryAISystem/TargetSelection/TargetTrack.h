@@ -37,19 +37,19 @@ public:
 	virtual const Vec3&          GetTargetPos() const       { return m_vTargetPos; }
 	virtual const Vec3&          GetTargetDir() const       { return m_vTargetDir; }
 	virtual float                GetTrackValue() const      { return m_fTrackValue; }
-	virtual float                GetFirstVisualTime() const { return m_fFirstVisualTime; }
+	virtual const CTimeValue&    GetFirstVisualTime() const { return m_fFirstVisualTime; }
 	virtual EAITargetType        GetTargetType() const      { return m_eTargetType; }
 	virtual EAITargetContextType GetTargetContext() const   { return m_eTargetContextType; }
 	virtual EAITargetThreat      GetTargetThreat() const    { return m_eTargetThreat; }
 
 	virtual float                GetHighestEnvelopeValue() const;
-	virtual float                GetUpdateInterval() const;
+	virtual CTimeValue           GetUpdateInterval() const;
 
 	void                         Init(tAIObjectID aiGroupOwnerId, tAIObjectID aiObjectId, uint32 uConfigHash);
 	void                         ResetForPool();
 	void                         Serialize(TSerialize ser);
 
-	bool                         Update(float fCurrTime, TargetTrackHelpers::ITargetTrackConfigProxy* pConfigProxy);
+	bool                         Update(const CTimeValue& fCurrTime, TargetTrackHelpers::ITargetTrackConfigProxy* pConfigProxy);
 
 	// Invoke a stimulus on the track
 	bool InvokeStimulus(const TargetTrackHelpers::STargetTrackStimulusEvent& stimulusEvent, uint32 uStimulusNameHash);
@@ -67,8 +67,8 @@ public:
 
 #ifdef TARGET_TRACK_DEBUG
 	// Debugging
-	void   SetLastDebugDrawTime(float fTime) const     { m_fLastDebugDrawTime = fTime; }
-	float  GetLastDebugDrawTime() const                { return m_fLastDebugDrawTime; }
+	void   SetLastDebugDrawTime(const CTimeValue& fTime) const { m_fLastDebugDrawTime = fTime; }
+	const CTimeValue& GetLastDebugDrawTime()				  const { return m_fLastDebugDrawTime; }
 	void   SetDebugGraphIndex(uint32 uDebugGraphIndex) { m_uDebugGraphIndex = uDebugGraphIndex; }
 	uint32 GetDebugGraphIndex() const                  { return m_uDebugGraphIndex; }
 	void   DebugDraw(CDebugDrawContext& dc, int iIndex, float& fColumnX, float& fColumnY, TargetTrackHelpers::ITargetTrackConfigProxy* pConfigProxy) const;
@@ -81,19 +81,19 @@ public:
 		struct SPulseTrigger
 		{
 			uint32       uPulseNameHash;
-			float        fTriggerTime;
+			CTimeValue   fTriggerTime;
 			mutable bool bObsolete;
 
 			SPulseTrigger()
 				: uPulseNameHash(0)
-				, fTriggerTime(0.0f)
+				, fTriggerTime(0)
 				, bObsolete(false)
 			{
 			}
 
 			SPulseTrigger(uint32 hash)
 				: uPulseNameHash(hash)
-				, fTriggerTime(0.0f)
+				, fTriggerTime(0)
 				, bObsolete(false)
 			{
 			}
@@ -126,7 +126,7 @@ public:
 		{
 		}
 
-		bool IsRunning(float fUpdateInterval) const;
+		bool IsRunning(const CTimeValue& fUpdateInterval) const;
 		void Serialize(TSerialize ser);
 	};
 
@@ -155,11 +155,11 @@ private:
 	void UpdatePulseValue(SStimulusInvocation::SPulseTrigger& pulseTrigger) const;
 
 	// Helpers to calculate the current value of a stimulus invocation
-	float UpdateStimulusValue(float fCurrTime, SStimulusInvocation& invoke, const TargetTrackHelpers::STargetTrackStimulusConfig* pStimulusConfig, TargetTrackHelpers::ITargetTrackConfigProxy* pConfigProxy, SStimData& stimData);
-	float GetStimulusEnvelopeValue(float fCurrTime, const SStimulusInvocation& invoke, const TargetTrackHelpers::STargetTrackStimulusConfig* pStimulusConfig) const;
-	float GetStimulusPulseValue(float fCurrTime, const SStimulusInvocation& invoke, const TargetTrackHelpers::STargetTrackStimulusConfig* pStimulusConfig) const;
+	float UpdateStimulusValue(const CTimeValue& fCurrTime, SStimulusInvocation& invoke, const TargetTrackHelpers::STargetTrackStimulusConfig* pStimulusConfig, TargetTrackHelpers::ITargetTrackConfigProxy* pConfigProxy, SStimData& stimData);
+	float GetStimulusEnvelopeValue(const CTimeValue& fCurrTime, const SStimulusInvocation& invoke, const TargetTrackHelpers::STargetTrackStimulusConfig* pStimulusConfig) const;
+	float GetStimulusPulseValue(const CTimeValue& fCurrTime, const SStimulusInvocation& invoke, const TargetTrackHelpers::STargetTrackStimulusConfig* pStimulusConfig) const;
 	float GetStimulusModifierValue(const SStimulusInvocation& invoke, TargetTrackHelpers::ITargetTrackConfigProxy* pConfigProxy, const TargetTrackHelpers::STargetTrackStimulusConfig* pStimulusConfig) const;
-	float GetStimulusTotalValue(float fCurrTime, float fEnvelopeValue, float fPulseValue, float fModValue) const;
+	float GetStimulusTotalValue(const CTimeValue& fCurrTime, float fEnvelopeValue, float fPulseValue, float fModValue) const;
 
 	TStimuliInvocationContainer m_StimuliInvocations;
 
@@ -173,13 +173,13 @@ private:
 	uint32                      m_uConfigHash;
 	int                         m_iLastUpdateFrame;
 	float                       m_fTrackValue;
-	float                       m_fFirstVisualTime;
-	float                       m_fLastVisualTime;
+	CTimeValue                  m_fFirstVisualTime;
+	CTimeValue                  m_fLastVisualTime;
 	float                       m_fThreatRatio;
 
 #ifdef TARGET_TRACK_DEBUG
 	// Debugging
-	mutable float m_fLastDebugDrawTime;
+	mutable CTimeValue m_fLastDebugDrawTime;
 	uint32        m_uDebugGraphIndex;
 #endif //TARGET_TRACK_DEBUG
 };

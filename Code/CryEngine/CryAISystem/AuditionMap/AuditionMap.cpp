@@ -122,7 +122,7 @@ void CAuditionMap::UnregisterGlobalListener(const SListenerInstanceId& listenerI
 	m_globalListeners.erase(listenerInstanceId);
 }
 
-void CAuditionMap::Update(float deltaTime)
+void CAuditionMap::Update(const CTimeValue& deltaTime)
 {
 /*
 #if (AUDITION_MAP_GENERIC_DEBUGGING != 0)

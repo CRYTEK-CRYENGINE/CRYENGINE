@@ -29,24 +29,24 @@ public:
 
 	void Reset()
 	{
-		m_closest = std::numeric_limits<float>::max();
-		m_lastProgress = gEnv->pTimer->GetCurrTime();
+		m_closest = CTimeValue::Max();
+		m_lastProgress = GetGTimer()->GetFrameStartTime();
 	}
 
-	Status Update(const float distToEnd)
+	Status Update(const CTimeValue& distToEnd)
 	{
-		const float now = gEnv->pTimer->GetCurrTime();
+		const CTimeValue now = GetGTimer()->GetFrameStartTime();
 
-		if (distToEnd + 0.05f < m_closest)
+		if (distToEnd + "0.05" < m_closest)
 		{
 			m_closest = distToEnd;
 			m_lastProgress = now;
 		}
 		else
 		{
-			const float timeWithoutProgress = now - m_lastProgress;
+			const CTimeValue timeWithoutProgress = now - m_lastProgress;
 
-			if (timeWithoutProgress > 2.0f)
+			if (timeWithoutProgress > 2)
 			{
 				return StuckDetector::UserIsStuck;
 			}
@@ -56,8 +56,8 @@ public:
 	}
 
 private:
-	float m_closest;
-	float m_lastProgress;
+	CTimeValue m_closest;
+	CTimeValue m_lastProgress;
 };
 
 ////////////////////////////////////////////////////////////
@@ -154,12 +154,12 @@ private:
 	bool                m_bForceReturnPartialPath;
 	Vec3                m_lastPosition;
 	CTimeValue          m_prevFrameStartTime;
-	float               m_TimeStep;
+	CTimeValue          m_TimeStep;
 	CWeakRef<CPipeUser> m_refPipeUser;  // The destructor needs to know the most recent pipe user
 	int                 m_looseAttentionId;
 	/// keep track of how long we've been tracing a path for - however, this is more of a time
 	/// since the last "event" - it can get reset when we regenerate the path etc
-	float m_fTotalTracingTime;
+	CTimeValue m_fTotalTracingTime;
 	bool  m_inhibitPathRegen;
 
 	bool  m_bWaitingForPathResult;
@@ -170,7 +170,7 @@ private:
 
 	/// How far we've moved since the very start
 	float m_fTravelDist;
-	float m_accumulatedFailureTime;
+	CTimeValue m_accumulatedFailureTime;
 
 	enum ETraceActorTgtRequest
 	{

@@ -18,13 +18,13 @@ std::map<string, std::pair<unsigned, float>> CCalculationStopper::m_mapCallRate;
 //===================================================================
 // CCalculationStopper
 //===================================================================
-CCalculationStopper::CCalculationStopper(const char* szName, float fCalculationTime, float fCallsPerSecond)
+CCalculationStopper::CCalculationStopper(const char* szName, const CTimeValue& fCalculationTime, float fCallsPerSecond)
 
 #ifdef STOPPER_CAN_USE_COUNTER
 	: m_stopCounter(0), m_fCallsPerSecond(fCallsPerSecond)
 #endif
 {
-	m_endTime = gEnv->pTimer->GetAsyncTime() + CTimeValue(fCalculationTime);
+	m_endTime = GetGTimer()->GetAsyncTime() + fCalculationTime;
 
 #ifdef STOPPER_CAN_USE_COUNTER
 	if (m_useCounter)
@@ -64,7 +64,7 @@ bool CCalculationStopper::ShouldCalculationStop() const
 	{
 #ifdef CALIBRATE_STOPPER
 		++m_calls;
-		if (gEnv->pTimer->GetAsyncTime() > m_endTime)
+		if (GetGTimer()->GetAsyncTime() > m_endTime)
 		{
 			std::pair<unsigned, float>& record = m_mapCallRate[m_name];
 			record.first += m_calls;
@@ -76,12 +76,12 @@ bool CCalculationStopper::ShouldCalculationStop() const
 			return false;
 		}
 #else
-		return gEnv->pTimer->GetAsyncTime() > m_endTime;
+		return GetGTimer()->GetAsyncTime() > m_endTime;
 #endif
 	}
 }
 
-float CCalculationStopper::GetSecondsRemaining() const
+CTimeValue CCalculationStopper::GetTimeRemaining() const
 {
 #ifdef STOPPER_CAN_USE_COUNTER
 	if (m_useCounter)
@@ -91,6 +91,6 @@ float CCalculationStopper::GetSecondsRemaining() const
 	else
 #endif
 	{
-		return (m_endTime - gEnv->pTimer->GetAsyncTime()).GetSeconds();
+		return m_endTime - GetGTimer()->GetAsyncTime();
 	}
 }

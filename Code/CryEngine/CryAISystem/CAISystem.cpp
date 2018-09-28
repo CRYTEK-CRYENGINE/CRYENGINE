@@ -189,24 +189,23 @@ CAISystem::CAISystem(ISystem* pSystem)
 	, m_pSmartObjectManager(nullptr)
 	, m_bUpdateSmartObjects(false)
 	, m_IsEnabled(true)
-	, m_enabledActorsUpdateError(0.0f)
+	, m_enabledActorsUpdateError(0)
 	, m_enabledActorsUpdateHead(0)
 	, m_totalActorsUpdateCount(0)
-	, m_disabledActorsUpdateError(0.0f)
+	, m_disabledActorsUpdateError(0)
 	, m_disabledActorsHead(0)
 	, m_iteratingActorSet(false)
 	, m_pScriptAI(nullptr)
 	, m_walkabilityGeometryBox(nullptr)
-	, m_DEBUG_screenFlash(0.0f)
+	, m_DEBUG_screenFlash(0)
 	, m_bCodeCoverageFailed(false)
 	, m_nTickCount(0)
 	, m_bInitialized(false)
-	, m_frameDeltaTime(0.0f)
-	, m_frameStartTimeSeconds(0.0f)
-	, m_lastVisBroadPhaseTime(-10.0f)
-	, m_lastAmbientFireUpdateTime(-10.0f)
-	, m_lastExpensiveAccessoryUpdateTime(-10.0f)
-	, m_lastGroupUpdateTime(-10.0f)
+	, m_frameDeltaTime(0)
+	, m_lastVisBroadPhaseTime(-10)
+	, m_lastAmbientFireUpdateTime(-10)
+	, m_lastExpensiveAccessoryUpdateTime(-10)
+	, m_lastGroupUpdateTime(-10)
 	, m_nFrameTicks(0)
 	, m_agentDebugTarget(0)
 {
@@ -340,10 +339,9 @@ bool CAISystem::Init()
 	m_nTickCount = 0;
 	gAIEnv.pWorld = gEnv->pPhysicalWorld;
 
-	m_frameStartTime = gEnv->pTimer->GetFrameStartTime();
+	m_frameStartTime = GetGTimer()->GetFrameStartTime();
 	m_fLastPuppetUpdateTime = m_frameStartTime;
-	m_frameDeltaTime = 0.0f;
-	m_frameStartTimeSeconds = m_frameStartTime.GetSeconds();
+	m_frameDeltaTime.SetSeconds(0);
 
 	// Register fire command factories.
 	RegisterFirecommandHandler(CREATE_FIRECOMMAND_DESC("instant", CFireCommandInstant));
@@ -1767,7 +1765,7 @@ void CAISystem::Reset(IAISystem::EResetReason reason)
 		// Reset the AI recordable stuff when entering game mode.
 		if (reason == IAISystem::RESET_ENTER_GAME)
 		{
-			CTimeValue startTime = gEnv->pTimer->GetFrameStartTime();
+			CTimeValue startTime = GetGTimer()->GetFrameStartTime();
 			CRecorderUnit* pRecord = static_cast<CRecorderUnit*>(pObject->GetAIDebugRecord());
 			if (pRecord)
 			{
@@ -1787,7 +1785,7 @@ void CAISystem::Reset(IAISystem::EResetReason reason)
 	m_DEBUG_fakeTracers.clear();
 	m_DEBUG_fakeHitEffect.clear();
 	m_DEBUG_fakeDamageInd.clear();
-	m_DEBUG_screenFlash = 0.0f;
+	m_DEBUG_screenFlash.SetSeconds(0);
 
 #endif //CRYAISYSTEM_DEBUG
 
@@ -1832,10 +1830,10 @@ void CAISystem::Reset(IAISystem::EResetReason reason)
 
 	m_pSmartObjectManager->ResetBannedSOs();
 
-	m_lastAmbientFireUpdateTime.SetSeconds(-10.0f);
-	m_lastExpensiveAccessoryUpdateTime.SetSeconds(-10.0f);
-	m_lastVisBroadPhaseTime.SetSeconds(-10.0f);
-	m_lastGroupUpdateTime.SetSeconds(-10.0f);
+	m_lastAmbientFireUpdateTime.SetSeconds(-10);
+	m_lastExpensiveAccessoryUpdateTime.SetSeconds(-10);
+	m_lastVisBroadPhaseTime.SetSeconds(-10);
+	m_lastGroupUpdateTime.SetSeconds(-10);
 
 	m_delayedExpAccessoryUpdates.clear();
 
@@ -2400,12 +2398,12 @@ void CAISystem::FlushSystemNavigation(bool bDeleteAll)
 	}
 }
 
-float CAISystem::GetUpdateInterval() const
+CTimeValue CAISystem::GetUpdateInterval() const
 {
-	if (gAIEnv.CVars.AIUpdateInterval)
+	if (gAIEnv.CVars.AIUpdateInterval != 0)
 		return gAIEnv.CVars.AIUpdateInterval;
 	else
-		return 0.1f;
+		return CTimeValue("0.1");
 }
 
 //
@@ -2503,7 +2501,7 @@ void CAISystem::RegisterSchematycEnvPackage(Schematyc::IEnvRegistrar& registrar)
 
 //
 //-----------------------------------------------------------------------------------------------------------
-void CAISystem::Update(CTimeValue frameStartTime, float frameDeltaTime)
+void CAISystem::Update(const CTimeValue& frameStartTime, const CTimeValue& frameDeltaTime)
 {
 	CRY_PROFILE_REGION(PROFILE_AI, "AI System: Update");
 	CRYPROFILE_SCOPE_PROFILE_MARKER("AI System: Update");
@@ -2536,7 +2534,6 @@ void CAISystem::Update(CTimeValue frameStartTime, float frameDeltaTime)
 			m_pAIActionManager->Update();
 
 		m_frameStartTime = frameStartTime;
-		m_frameStartTimeSeconds = frameStartTime.GetSeconds();
 		m_frameDeltaTime = frameDeltaTime;
 
 		CAIRadialOcclusionRaycast::UpdateActiveCount();
@@ -2593,7 +2590,7 @@ void CAISystem::Update(CTimeValue frameStartTime, float frameDeltaTime)
 		{
 			CRY_PROFILE_REGION(PROFILE_AI, "AIUpdate 3 - Groups");
 
-			const int64 dt = (frameStartTime - m_lastGroupUpdateTime).GetMilliSecondsAsInt64();
+			const CTimeValue dt = frameStartTime - m_lastGroupUpdateTime;
 			if (dt > gAIEnv.CVars.AIUpdateInterval)
 			{
 				for (AIGroupMap::iterator it = m_mapAIGroups.begin(); it != m_mapAIGroups.end(); ++it)
@@ -2632,10 +2629,10 @@ void CAISystem::Update(CTimeValue frameStartTime, float frameDeltaTime)
 		uint32 fullUpdateCount = 0;
 		if (activeAIActorCount > 0)
 		{
-			const float updateInterval = max(gAIEnv.CVars.AIUpdateInterval, 0.0001f);
-			const float updatesPerSecond = (activeAIActorCount / updateInterval) + m_enabledActorsUpdateError;
-			unsigned actorUpdateCount = (unsigned)floorf(updatesPerSecond * m_frameDeltaTime);
-			if (m_frameDeltaTime > 0.0f)
+			const CTimeValue updateInterval = max(gAIEnv.CVars.AIUpdateInterval, CTimeValue("0.0001"));
+			const rTime updatesPerSecond = (activeAIActorCount / updateInterval) + m_enabledActorsUpdateError;
+			unsigned actorUpdateCount = (unsigned)floor(updatesPerSecond * m_frameDeltaTime);
+			if (m_frameDeltaTime > 0)
 				m_enabledActorsUpdateError = updatesPerSecond - actorUpdateCount / m_frameDeltaTime;
 
 			uint32 skipped = 0;
@@ -2807,10 +2804,10 @@ void CAISystem::Update(CTimeValue frameStartTime, float frameDeltaTime)
 		if (!m_disabledAIActorsSet.empty())
 		{
 			uint32 inactiveAIActorCount = m_disabledAIActorsSet.size();
-			const float updateInterval = 0.3f;
-			const float updatesPerSecond = (inactiveAIActorCount / updateInterval) + m_disabledActorsUpdateError;
-			unsigned aiActorDisabledUpdateCount = (unsigned)floorf(updatesPerSecond * m_frameDeltaTime);
-			if (m_frameDeltaTime > 0.0f)
+			const CTimeValue updateInterval = "0.3";
+			const rTime updatesPerSecond = (inactiveAIActorCount / updateInterval) + m_disabledActorsUpdateError;
+			unsigned aiActorDisabledUpdateCount = (unsigned)floor(updatesPerSecond * m_frameDeltaTime);
+			if (m_frameDeltaTime > 0)
 				m_disabledActorsUpdateError = updatesPerSecond - aiActorDisabledUpdateCount / m_frameDeltaTime;
 
 			m_disabledActorsHead %= inactiveAIActorCount;
@@ -2840,12 +2837,12 @@ void CAISystem::Update(CTimeValue frameStartTime, float frameDeltaTime)
 
 		//
 		//	update all leaders here (should be not every update (full update only))
-		const static float leaderUpdateRate(.2f);
-		static float leaderNoUpdatedTime(.0f);
+		const static CTimeValue leaderUpdateRate(".2");
+		static CTimeValue leaderNoUpdatedTime(0);
 		leaderNoUpdatedTime += m_frameDeltaTime;
 		if (leaderNoUpdatedTime > leaderUpdateRate)
 		{
-			leaderNoUpdatedTime = 0.0f;
+			leaderNoUpdatedTime.SetSeconds(0);
 			AIObjectOwners::iterator aio = gAIEnv.pAIObjectManager->m_Objects.find(AIOBJECT_LEADER);
 
 			for (; aio != gAIEnv.pAIObjectManager->m_Objects.end(); ++aio)
@@ -2993,7 +2990,7 @@ void CAISystem::Update(CTimeValue frameStartTime, float frameDeltaTime)
 	}
 
 	// Update asynchronous TPS processing
-	float fMaxTime = gAIEnv.CVars.TacticalPointUpdateTime;
+	CTimeValue fMaxTime = gAIEnv.CVars.TacticalPointUpdateTime;
 	gAIEnv.pTacticalPointSystem->Update(fMaxTime);
 
 	// Housekeeping
@@ -3184,7 +3181,7 @@ IAIObject* CAISystem::GetNearestToObjectInRange(IAIObject* pRef, unsigned short 
 	if (pRet)
 	{
 		if (!bDevalue)
-			Devalue(pRef, pRet, true, .05f);    // no devalue - just make sure it's not used in the same update again
+			Devalue(pRef, pRet, true, ".05");    // no devalue - just make sure it's not used in the same update again
 		else
 			Devalue(pRef, pRet, true);
 	}
@@ -3261,7 +3258,7 @@ IAIObject* CAISystem::GetRandomObjectInRange(IAIObject* pRef, unsigned short nTy
 	}
 
 	if (pRet && (pPuppet != NULL))
-		pPuppet->Devalue(pRet, false, 2.f);
+		pPuppet->Devalue(pRet, false, 2);
 
 	return pRet;
 }
@@ -3372,7 +3369,7 @@ IAIObject* CAISystem::GetBehindObjectInRange(IAIObject* pRef, unsigned short nTy
 
 //
 //-----------------------------------------------------------------------------------------------------------
-void CAISystem::Devalue(IAIObject* pRef, IAIObject* pObject, bool group, float fDevalueTime)
+void CAISystem::Devalue(IAIObject* pRef, IAIObject* pObject, bool group, const CTimeValue& fDevalueTime)
 {
 	if (!pRef || !pObject)
 		return;
@@ -4158,7 +4155,7 @@ float CAISystem::GetRayPerceptionModifier(const Vec3& start, const Vec3& end, co
 			if (icvDrawPerceptionDebugging != 0)
 			{
 				cry_sprintf(text, "%s-0", actorName ? actorName : "");
-				AddPerceptionDebugLine(text, start + Vec3(0.f, 0.f, -0.1f), end + Vec3(0.f, 0.f, -0.1f), 50, 255, 50, 1.f, 3.f);
+				AddPerceptionDebugLine(text, start + Vec3(0.f, 0.f, -0.1f), end + Vec3(0.f, 0.f, -0.1f), 50, 255, 50, 1, 3.f);
 			}
 #endif //CRYAISYSTEM_DEBUG
 
@@ -4186,7 +4183,7 @@ float CAISystem::GetRayPerceptionModifier(const Vec3& start, const Vec3& end, co
 							AddPerceptionDebugLine(text,
 							                       Vec3(intersectionPos.x, intersectionPos.y, shape.aabb.min.z),
 							                       Vec3(intersectionPos.x, intersectionPos.y, shape.aabb.max.z),
-							                       50, 255, 50, 1.f, 3.f);
+							                       50, 255, 50, 1, 3.f);
 						}
 					}
 #endif    //CRYAISYSTEM_DEBUG
@@ -4228,17 +4225,17 @@ float CAISystem::GetRayPerceptionModifier(const Vec3& start, const Vec3& end, co
 						Vec3 startPos(start + (inPos / rayLen) * (end - start) + Vec3(0.f, 0.f, -0.1f));
 						Vec3 endPos(start + (outPos / rayLen) * (end - start) + Vec3(0.f, 0.f, -0.1f));
 						cry_sprintf(text, "%s-%d-1", actorName ? actorName : "", out);
-						AddPerceptionDebugLine(text, startPos, endPos, 50, 255, 50, 1.f, 3.f);
+						AddPerceptionDebugLine(text, startPos, endPos, 50, 255, 50, 1, 3.f);
 						cry_sprintf(text, "%s-%d-2", actorName ? actorName : "", out);
 						AddPerceptionDebugLine(text,
 						                       Vec3(startPos.x, startPos.y, shape.aabb.min.z),
 						                       Vec3(startPos.x, startPos.y, shape.aabb.max.z),
-						                       50, 255, 50, 1.f, 3.f);
+						                       50, 255, 50, 1, 3.f);
 						cry_sprintf(text, "%s-%d-3", actorName ? actorName : "", out);
 						AddPerceptionDebugLine(text,
 						                       Vec3(endPos.x, endPos.y, shape.aabb.min.z),
 						                       Vec3(endPos.x, endPos.y, shape.aabb.max.z),
-						                       50, 255, 50, 1.f, 3.f);
+						                       50, 255, 50, 1, 3.f);
 					}
 #endif    //CRYAISYSTEM_DEBUG
 
@@ -4259,13 +4256,13 @@ float CAISystem::GetRayPerceptionModifier(const Vec3& start, const Vec3& end, co
 					{
 						cry_sprintf(text, "%s-%d-1", actorName ? actorName : "", nIntersects);
 						Vec3 startPos(start + (intersects[nIntersects - 1] / rayLen) * (end - start) + Vec3(0.f, 0.f, -0.1f));
-						AddPerceptionDebugLine(text, startPos, end + Vec3(0.f, 0.f, -0.1f), 50, 255, 50, 1.f, 3.f);
+						AddPerceptionDebugLine(text, startPos, end + Vec3(0.f, 0.f, -0.1f), 50, 255, 50, 1, 3.f);
 
 						cry_sprintf(text, "%s-%d-2", actorName ? actorName : "", nIntersects);
 						AddPerceptionDebugLine(text,
 						                       Vec3(startPos.x, startPos.y, shape.aabb.min.z),
 						                       Vec3(startPos.x, startPos.y, shape.aabb.max.z),
-						                       50, 255, 50, 1.f, 3.f);
+						                       50, 255, 50, 1, 3.f);
 					}
 #endif    //CRYAISYSTEM_DEBUG
 
@@ -4774,14 +4771,13 @@ void CAISystem::SerializeInternal(TSerialize ser)
 		//m_pNavigation->Serialize(ser);
 
 		ser.Value("m_frameStartTime", m_frameStartTime);
-		ser.Value("m_frameStartTimeSeconds", m_frameStartTimeSeconds);
 		ser.Value("m_frameDeltaTime", m_frameDeltaTime);
 		ser.Value("m_fLastPuppetUpdateTime", m_fLastPuppetUpdateTime);
 		if (ser.IsReading())
 		{
 			// Danny: physics doesn't serialise its time (it doesn't really use it) so we can
 			// set it here.
-			GetISystem()->GetIPhysicalWorld()->SetPhysicsTime(m_frameStartTime.GetSeconds());
+			GetISystem()->GetIPhysicalWorld()->SetPhysicsTime(m_frameStartTime);
 		}
 
 		AIObjectOwners::iterator itobjend = gAIEnv.pAIObjectManager->m_Objects.end();
@@ -5003,7 +4999,7 @@ unsigned int CAISystem::GetDangerSpots(const IAIObject* requester, float range, 
 //===================================================================
 // DynOmniLightEvent
 //===================================================================
-void CAISystem::DynOmniLightEvent(const Vec3& pos, float radius, EAILightEventType type, EntityId shooterId, float time)
+void CAISystem::DynOmniLightEvent(const Vec3& pos, float radius, EAILightEventType type, EntityId shooterId, const CTimeValue& time)
 {
 	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
@@ -5023,7 +5019,7 @@ void CAISystem::DynOmniLightEvent(const Vec3& pos, float radius, EAILightEventTy
 //===================================================================
 // DynSpotLightEvent
 //===================================================================
-void CAISystem::DynSpotLightEvent(const Vec3& pos, const Vec3& dir, float radius, float fov, EAILightEventType type, EntityId shooterId, float time)
+void CAISystem::DynSpotLightEvent(const Vec3& pos, const Vec3& dir, float radius, float fov, EAILightEventType type, EntityId shooterId, const CTimeValue& time)
 {
 	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
@@ -5366,11 +5362,11 @@ float CAISystem::ProcessBalancedDamage(IEntity* pShooterEntity, IEntity* pTarget
 
 					float maxHealth = (float)pTargetActor->GetProxy()->GetActorMaxHealth();
 
-					DEBUG_AddFakeDamageIndicator(pShooterPuppet, (damage / maxHealth) * 5.0f);
+					DEBUG_AddFakeDamageIndicator(pShooterPuppet, BADTIME(damage / maxHealth) * 5);
 
-					m_DEBUG_screenFlash += damage / maxHealth;
-					if (m_DEBUG_screenFlash > 2.0f)
-						m_DEBUG_screenFlash = 2.0f;
+					m_DEBUG_screenFlash += BADTIME(damage / maxHealth);
+					if (m_DEBUG_screenFlash > 2)
+						m_DEBUG_screenFlash.SetSeconds(2);
 
 #endif    //CRYAISYSTEM_DEBUG
 

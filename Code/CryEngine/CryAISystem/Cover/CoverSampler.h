@@ -16,7 +16,7 @@ public:
 	virtual void                         Release();
 
 	virtual ESamplerState                StartSampling(const ICoverSampler::Params& params);
-	virtual ESamplerState                Update(float timeLimitPerFrame, float timeLimitTotal);
+	virtual ESamplerState                Update(const CTimeValue& timeLimitPerFrame, const CTimeValue& timeLimitTotal);
 	virtual ESamplerState                GetState() const;
 
 	virtual uint32                       GetSampleCount() const;

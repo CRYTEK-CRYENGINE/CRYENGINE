@@ -23,8 +23,8 @@ public:
 
 private:
 	Vec3  m_positionToTurnTowards;
-	float m_timeSpentAligning;
-	float m_correctBodyDirTime;
+	CTimeValue m_timeSpentAligning;
+	CTimeValue m_correctBodyDirTime;
 };
 }
 }

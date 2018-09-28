@@ -53,7 +53,7 @@ void CVisionMap::Reset()
 	}
 
 #if VISIONMAP_DEBUG
-	m_debugTimer = 0.0f;
+	m_debugTimer.SetSeconds(0);
 	m_numberOfPVSUpdatesThisFrame = 0;
 	m_numberOfVisibilityUpdatesThisFrame = 0;
 	m_numberOfRayCastsSubmittedThisFrame = 0;
@@ -62,8 +62,8 @@ void CVisionMap::Reset()
 	memset(m_latencyInfo, 0, sizeof(m_latencyInfo));
 	memset(m_pendingRayCounts, 0, sizeof(m_pendingRayCounts));
 
-	m_pvsUpdateQueueLatency = 0.0f;
-	m_visibilityUpdateQueueLatency = 0.0f;
+	m_pvsUpdateQueueLatency.SetSeconds(0);
+	m_visibilityUpdateQueueLatency.SetSeconds(0);
 #endif
 
 	m_observers.clear();
@@ -427,7 +427,7 @@ void CVisionMap::ObservableChanged(const ObservableID& observableID, const Obser
 	{
 		CRY_PROFILE_REGION(PROFILE_AI, "CVisionMap::ObservableChanged_VisibilityChanged");
 
-		CTimeValue now = gEnv->pTimer->GetFrameStartTime();
+		CTimeValue now = GetGTimer()->GetFrameStartTime();
 
 		for (Observers::iterator observersIt = m_observers.begin(), end = m_observers.end(); observersIt != end; ++observersIt)
 		{
@@ -533,7 +533,7 @@ const ObservableParams* CVisionMap::GetObservableParams(const ObservableID& obse
 	return &observableInfo.observableParams;
 }
 
-void CVisionMap::Update(float frameTime)
+void CVisionMap::Update(const CTimeValue& frameTime)
 {
 	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
@@ -860,7 +860,7 @@ bool CVisionMap::RayCastSubmit(const QueuedRayID& queuedRayID, RayCastRequest& r
 #if VISIONMAP_DEBUG
 	m_numberOfRayCastsSubmittedThisFrame++;
 
-	float latency = m_debugTimer - pendingRayInfo.pvsEntry.rayQueueTimestamp;
+	CTimeValue latency = m_debugTimer - pendingRayInfo.pvsEntry.rayQueueTimestamp;
 	LatencyInfo* latencyInfo = &m_latencyInfo[pendingRayInfo.pvsEntry.priority];
 	latencyInfo->buffer[latencyInfo->bufferIndex].latency = latency;
 	latencyInfo->buffer[latencyInfo->bufferIndex].occurred = m_debugTimer;
@@ -1029,7 +1029,7 @@ void CVisionMap::UpdateVisibilityStatus(ObserverInfo& observerInfo)
 
 void CVisionMap::UpdateObservers()
 {
-	CTimeValue now = gEnv->pTimer->GetFrameStartTime();
+	CTimeValue now = GetGTimer()->GetFrameStartTime();
 
 	// Update PVS ////////////////////////////////////////////////////////////
 
@@ -1142,23 +1142,23 @@ void CVisionMap::DebugDrawVisionMapStats()
 {
 	struct DisplayInfo
 	{
-		float avg;
-		float min;
-		float max;
+		CTimeValue avg;
+		CTimeValue min;
+		CTimeValue max;
 		int   count;
 	};
 
 	DisplayInfo displayInfoArray[CRY_ARRAY_COUNT(m_latencyInfo)];
-	float cutOffTime = m_debugTimer - 10.0f;
+	CTimeValue cutOffTime = m_debugTimer - 10;
 
 	for (int i = 0; i < CRY_ARRAY_COUNT(m_latencyInfo); i++)
 	{
 		DisplayInfo* displayInfo = &displayInfoArray[i];
 		LatencyInfo* latencyInfo = &m_latencyInfo[i];
 		int count = 0;
-		displayInfo->min = FLT_MAX;
-		displayInfo->max = 0.0f;
-		displayInfo->avg = 0.0f;
+		displayInfo->min = CTimeValue::Max();
+		displayInfo->max.SetSeconds(0);
+		displayInfo->avg.SetSeconds(0);
 
 		for (int j = 0; j < latencyInfo->usedBufferSize; j++)
 		{
@@ -1177,7 +1177,7 @@ void CVisionMap::DebugDrawVisionMapStats()
 		}
 		else
 		{
-			displayInfo->min = 0.0f;
+			displayInfo->min.SetSeconds(0);
 		}
 
 		displayInfo->count = count;

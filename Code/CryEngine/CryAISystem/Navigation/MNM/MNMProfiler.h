@@ -64,13 +64,13 @@ struct MNMProfiler
 
 	inline void StartTimer(TimerNames timer)
 	{
-		runningTimer[timer] = gEnv->pTimer->GetAsyncTime();
+		runningTimer[timer] = GetGTimer()->GetAsyncTime();
 	}
 
 	inline void StopTimer(TimerNames timer)
 	{
-		CTimeValue end = gEnv->pTimer->GetAsyncTime();
-		assert(runningTimer[timer].GetValue() != 0);
+		CTimeValue end = GetGTimer()->GetAsyncTime();
+		assert(runningTimer[timer] != 0);
 
 		CTimeValue timerElapsed = end - runningTimer[timer];
 		timers[timer].elapsed += timerElapsed;

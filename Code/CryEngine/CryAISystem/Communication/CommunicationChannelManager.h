@@ -15,7 +15,7 @@ public:
 
 	void                               Clear();
 	void                               Reset();
-	void                               Update(float updateTime);
+	void                               Update(const CTimeValue& updateTime);
 
 	CommChannelID                      GetChannelID(const char* name) const;
 	const SCommunicationChannelParams& GetChannelParams(const CommChannelID& channelID) const;

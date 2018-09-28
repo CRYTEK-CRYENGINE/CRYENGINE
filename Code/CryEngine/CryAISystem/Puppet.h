@@ -43,7 +43,7 @@ struct CSpeedControl
 	//	static const float	m_CMaxDist;
 
 	CSpeedControl() : vLastPos(0.0f, 0.0f, 0.0f), fPrevDistance(0.0f){}
-	void Reset(const Vec3 vPos, CTimeValue fTime)
+	void Reset(const Vec3 vPos, const CTimeValue& fTime)
 	{
 		fPrevDistance = 0;
 		fLastTime = fTime;
@@ -52,15 +52,15 @@ struct CSpeedControl
 };
 
 typedef std::multimap<float, SHideSpot>                    MultimapRangeHideSpots;
-typedef std::map<CWeakRef<CAIObject>, float>               DevaluedMap;
+typedef std::map<CWeakRef<CAIObject>, CTimeValue>          DevaluedMap;
 typedef std::map<CWeakRef<CAIObject>, CWeakRef<CAIObject>> ObjectObjectMap;
 
 struct SShootingStatus
 {
 	bool      triggerPressed;             // True if the weapon trigger is being pressed.
-	float     timeSinceTriggerPressed;    // Time in seconds since last time trigger is pressed.
+	CTimeValue timeSinceTriggerPressed;   // Time in seconds since last time trigger is pressed.
 	bool      friendOnWay;                // True if the fire if blocked by friendly unit.
-	float     friendOnWayElapsedTime;     // Time in seconds the line of fire is blocked by friendly unit.
+	CTimeValue friendOnWayElapsedTime;    // Time in seconds the line of fire is blocked by friendly unit.
 	EFireMode fireMode;                   // Fire mode status, see EFireMode.
 };
 
@@ -68,16 +68,16 @@ struct SSoundPerceptionDescriptor
 {
 	float fMinDist;         // Minimum distance from sound origin to recognize it
 	float fRadiusScale;     // Scalar value applied to radius to amplify or reduce the effect of the sound
-	float fSoundTime;       // How long to remember the sound
+	CTimeValue fSoundTime;       // How long to remember the sound
 	float fBaseThreat;      // Base threat value
 	float fLinStepMin;      // Linear step ranges used based on ratio of distance to sound and sound radius
 	float fLinStepMax;
 
-	SSoundPerceptionDescriptor(float _fMinDist = 0.0f, float _fRadiusScale = 1.0f, float _fSoundTime = 0.0f, float _fBaseThreat = 0.0f, float _fLinStepMin = 0.0f, float _fLinStepMax = 1.0f)
+	SSoundPerceptionDescriptor(float _fMinDist = 0.0f, float _fRadiusScale = 1.0f, const CTimeValue& _fSoundTime = CTimeValue(0), float _fBaseThreat = 0.0f, float _fLinStepMin = 0.0f, float _fLinStepMax = 1.0f)
 	{
 		Set(_fMinDist, _fRadiusScale, _fSoundTime, _fBaseThreat, _fLinStepMin, _fLinStepMax);
 	}
-	void Set(float _fMinDist = 0.0f, float _fRadiusScale = 1.0f, float _fSoundTime = 0.0f, float _fBaseThreat = 0.0f, float _fLinStepMin = 0.0f, float _fLinStepMax = 1.0f)
+	void Set(float _fMinDist = 0.0f, float _fRadiusScale = 1.0f, const CTimeValue& _fSoundTime = CTimeValue(0), float _fBaseThreat = 0.0f, float _fLinStepMin = 0.0f, float _fLinStepMax = 1.0f)
 	{
 		fMinDist = _fMinDist;
 		fRadiusScale = _fRadiusScale;
@@ -134,10 +134,10 @@ public:
 	CAIObject* GetFireTargetObject() const;
 
 	// Returns the reaction time of between allowed to fire and allowed to damage target.
-	float GetFiringReactionTime(const Vec3& targetPos) const;
+	CTimeValue GetFiringReactionTime(const Vec3& targetPos) const;
 
 	// Returns true if the reaction time pas passed.
-	float GetCurrentFiringReactionTime() const { return m_firingReactionTime; }
+	const CTimeValue& GetCurrentFiringReactionTime() const { return m_firingReactionTime; }
 	bool  HasFiringReactionTimePassed() const  { return m_firingReactionTimePassed; }
 
 	// Returns the current status shooting related parameters.
@@ -192,7 +192,7 @@ public:
 	// Inherited from IPipeUser
 	virtual void Update(EUpdateType type);
 	virtual void UpdateProxy(EUpdateType type);
-	virtual void Devalue(IAIObject* pObject, bool bDevaluePuppets, float fAmount = 20.f);
+	virtual void Devalue(IAIObject* pObject, bool bDevaluePuppets, const CTimeValue& fAmount = 20);
 	virtual bool IsDevalued(IAIObject* pObject);
 	virtual void ClearDevalued();
 
@@ -279,7 +279,7 @@ public:
 	bool         CanAimWithoutObstruction(const Vec3& vTargetPos);
 	bool         CheckLineOfFire(const Vec3& vTargetPos, float fDistance, float fSoftDistance, EStance stance = STANCE_NULL) const;
 
-	float        GetTimeToNextShot() const;
+	CTimeValue   GetTimeToNextShot() const;
 
 	virtual void MakeIgnorant(bool bIgnorant) { m_bCanReceiveSignals = !bIgnorant; }
 
@@ -361,7 +361,7 @@ protected:
 	bool IsMeleeFireCommand() const     { return m_fireMode == FIREMODE_MELEE || m_fireMode == FIREMODE_MELEE_FORCED; }
 
 	// decides whether to fire or not
-	void FireCommand(float updateTime);
+	void FireCommand(const CTimeValue& updateTime);
 	// process secondary fire
 	void FireSecondary(CAIObject* pTarget, ERequestedGrenadeType prefGrenadeType = eRGT_ANY);
 	// process melee fire
@@ -391,14 +391,14 @@ protected:
 
 	int               m_Alertness;
 
-	float             m_fLastTimeAwareOfPlayer;
+	CTimeValue        m_fLastTimeAwareOfPlayer;
 	TPlayerActionType m_playerAwarenessType;
 
 	bool              m_allowedToHitTarget;
 	bool              m_allowedToUseExpensiveAccessory;
 	bool              m_firingReactionTimePassed;
-	float             m_firingReactionTime;
-	float             m_outOfAmmoTimeOut;
+	CTimeValue        m_firingReactionTime;
+	CTimeValue        m_outOfAmmoTimeOut;
 
 	bool              m_bWarningTargetDistance;
 
@@ -449,10 +449,10 @@ protected:
 		ST_OFSETTED_LEFT,
 		ST_OFSETTED_RIGHT,
 	};
-	float                  m_lastTimeSeeFromHead;
+	CTimeValue             m_lastTimeSeeFromHead;
 
-	float                  m_timeSinceTriggerPressed;
-	float                  m_friendOnWayElapsedTime;
+	CTimeValue             m_timeSinceTriggerPressed;
+	CTimeValue             m_friendOnWayElapsedTime;
 
 	bool                   m_bCoverFireEnabled;
 
@@ -552,10 +552,10 @@ public:
 	                                               Vec3* posOut);
 
 	bool  IsFireTargetValid(const Vec3& pos, const CAIObject* pTargetObject);
-	float GetCoverFireTime() const;
+	CTimeValue GetCoverFireTime() const;
 	float GetBurstFireDistanceScale() const;
 
-	float GetTargetAliveTime();
+	CTimeValue GetTargetAliveTime();
 
 	Vec3  InterpolateLookOrAimTargetPos(const Vec3& current, const Vec3& target, float maxRate);
 
@@ -617,10 +617,10 @@ public:
 	EAITargetZone         m_targetZone;
 	float                 m_targetDistanceToSilhouette;
 	float                 m_targetEscapeLastMiss;
-	float                 m_targetSeenTime;
-	float                 m_targetLostTime;
-	float                 m_targetDazzlingTime;
-	float                 m_burstEffectTime;
+	CTimeValue            m_targetSeenTime;
+	CTimeValue            m_targetLostTime;
+	CTimeValue            m_targetDazzlingTime;
+	CTimeValue            m_burstEffectTime;
 	int                   m_burstEffectState;
 
 	size_t                m_lastMissShotsCount;
@@ -643,15 +643,15 @@ public:
 	CAIRadialOccypancy            m_steeringOccupancy;
 	float                         m_steeringOccupancyBias;
 	bool                          m_steeringEnabled;
-	float                         m_steeringAdjustTime;
+	CTimeValue                    m_steeringAdjustTime;
 	float                         m_fLastNavTest;
 
 	CValueHistory<float>*         m_targetDamageHealthThrHistory;
 
 	CWeakRef<CAIVehicle> GetAvoidedVehicle() { return m_refAvoidedVehicle; }
-	inline int64         GetVehicleAvoidingTime()
+	inline CTimeValue         GetVehicleAvoidingTime()
 	{
-		return (GetAISystem()->GetFrameStartTime() - m_vehicleAvoidingTime).GetMilliSecondsAsInt64();
+		return GetAISystem()->GetFrameStartTime() - m_vehicleAvoidingTime;
 	}
 
 	virtual void EnableFire(bool enable);
@@ -666,7 +666,7 @@ public:
 		{
 			CCCPOINT(CPuppet_SetAvoidedVehicle_Reset);
 			refVehicle.Reset();
-			m_vehicleAvoidingTime = 0.0f;
+			m_vehicleAvoidingTime.SetSeconds(0);
 		}
 		else
 		{
@@ -757,10 +757,10 @@ public:
 
 		gEnv->pAISystem->DisableGlobalPerceptionScaling();
 	}
-	virtual bool  IsAlarmed() const               { return m_alarmedTime > 0.01f; }
+	virtual bool  IsAlarmed() const               { return m_alarmedTime > "0.01"; }
 	virtual float GetPerceptionAlarmLevel() const { return max(GetParameters().m_PerceptionParams.minAlarmLevel, m_alarmedLevel); }
 
-	float m_alarmedTime;
+	CTimeValue m_alarmedTime;
 	float m_alarmedLevel;
 	bool  m_damagePartsUpdated;
 

@@ -39,7 +39,7 @@ private:
 		SAIBubbleRequestContainer(const SBubbleRequestId& _requestId, const uint32 _messageNameId, const SAIBubbleRequest& _request)
 			:messageNameId(_messageNameId)
 			,requestId(_requestId)
-			,expiringTime(.0f)
+			,expiringTime(0)
 			,request(_request)
 			,startExpiringTime(true)
 			,neverExpireFromTime(false)
@@ -68,9 +68,9 @@ private:
 		}
 
 	private:
-		void UpdateDuration(const float duration)
+		void UpdateDuration(const CTimeValue& duration)
 		{
-			expiringTime = gEnv->pTimer->GetFrameStartTime() + (duration ? CTimeValue(duration) : CTimeValue(gAIEnv.CVars.BubblesSystemDecayTime));
+			expiringTime = GetGTimer()->GetFrameStartTime() + (duration != 0 ? duration : gAIEnv.CVars.BubblesSystemDecayTime);
 		}
 
 		uint32           messageNameId;

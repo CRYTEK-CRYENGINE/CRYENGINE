@@ -27,9 +27,9 @@ public:
 	/// name is used during calibration. fCalculationTime is the amount of time (in seconds).
 	/// fCallsPerSecond is for when we are running in "counter" mode - the time
 	/// gets converted into a number of calls to ShouldCalculationStop
-	CCalculationStopper(const char* szName, float fCalculationTime, float fCallsPerSecond);
+	CCalculationStopper(const char* szName, const CTimeValue& fCalculationTime, float fCallsPerSecond);
 	bool  ShouldCalculationStop() const;
-	float GetSecondsRemaining() const;
+	CTimeValue GetTimeRemaining() const;
 
 #ifdef STOPPER_CAN_USE_COUNTER
 	static bool m_useCounter;
@@ -50,7 +50,7 @@ private:
 #ifdef CALIBRATE_STOPPER
 public:
 	mutable unsigned m_calls;
-	float            m_dt;
+	CTimeValue       m_dt;
 	string           m_name;
 	/// the pair is calls and time (seconds)
 	typedef std::map<string, std::pair<unsigned, float>> TMapCallRate;

@@ -70,8 +70,8 @@ protected:
 	{
 		struct StreamUnitBase
 		{
-			float m_StartTime;
-			StreamUnitBase(float time) : m_StartTime(time){}
+			CTimeValue m_StartTime;
+			StreamUnitBase(const CTimeValue& time) : m_StartTime(time){}
 		};
 		typedef std::vector<StreamUnitBase*> TStream;
 
@@ -79,15 +79,15 @@ protected:
 		virtual ~StreamBase() { ClearImpl(); }
 		virtual bool SaveStream(FILE* pFile) = 0;
 		virtual bool LoadStream(FILE* pFile) = 0;
-		virtual void AddValue(const IAIRecordable::RecorderEventData* pEventData, float t) = 0;
-		virtual bool WriteValue(const IAIRecordable::RecorderEventData* pEventData, float t) = 0;
+		virtual void AddValue(const IAIRecordable::RecorderEventData* pEventData, const CTimeValue& t) = 0;
+		virtual bool WriteValue(const IAIRecordable::RecorderEventData* pEventData, const CTimeValue& t) = 0;
 		virtual bool LoadValue(FILE* pFile) = 0;
 		virtual void Clear() { ClearImpl(); }
-		void         Seek(float whereTo);
+		void         Seek(const CTimeValue& whereTo);
 		int          GetCurrentIdx();
 		int          GetSize();
-		float        GetStartTime();
-		float        GetEndTime();
+		CTimeValue   GetStartTime();
+		CTimeValue   GetEndTime();
 		bool         IsEmpty()       { return m_Stream.empty(); }
 
 		char const*  GetName() const { return m_name; }
@@ -112,20 +112,20 @@ protected:
 		struct StreamUnit : public StreamBase::StreamUnitBase
 		{
 			string m_String;
-			StreamUnit(float time, const char* pStr) : StreamUnitBase(time), m_String(pStr){}
+			StreamUnit(const CTimeValue& time, const char* pStr) : StreamUnitBase(time), m_String(pStr){}
 		};
 		StreamStr(char const* name, bool bUseIndex = false);
 		bool  SaveStream(FILE* pFile);
 		bool  LoadStream(FILE* pFile);
-		void  AddValue(const IAIRecordable::RecorderEventData* pEventData, float t);
-		bool  WriteValue(float t, const char* str, FILE* pFile);
-		bool  WriteValue(const IAIRecordable::RecorderEventData* pEventData, float t);
-		bool  LoadValue(float& t, string& name, FILE* pFile);
+		void  AddValue(const IAIRecordable::RecorderEventData* pEventData, const CTimeValue& t);
+		bool  WriteValue(const CTimeValue& t, const char* str, FILE* pFile);
+		bool  WriteValue(const IAIRecordable::RecorderEventData* pEventData, const CTimeValue& t);
+		bool  LoadValue(CTimeValue& t, string& name, FILE* pFile);
 		bool  LoadValue(FILE* pFile);
 		void  Clear();
-		void* GetCurrent(float& startingFrom);
-		bool  GetCurrentString(string& sOut, float& startingFrom);
-		void* GetNext(float& startingFrom);
+		void* GetCurrent(CTimeValue& startingFrom);
+		bool  GetCurrentString(string& sOut, CTimeValue& startingFrom);
+		void* GetNext(CTimeValue& startingFrom);
 
 		// Index usage for optimizing disk write usage
 		virtual bool LoadStringIndex(FILE* pFile);
@@ -146,20 +146,20 @@ protected:
 	{
 		struct StreamUnit : public StreamBase::StreamUnitBase
 		{
-			StreamUnit(float time, const Vec3& pos) : StreamUnitBase(time), m_Pos(pos) {}
+			StreamUnit(const CTimeValue& time, const Vec3& pos) : StreamUnitBase(time), m_Pos(pos) {}
 			Vec3 m_Pos;
 		};
 		StreamVec3(char const* name, bool bUseFilter = false) : StreamBase(name), m_bUseFilter(bUseFilter) {}
 		bool  SaveStream(FILE* pFile);
 		bool  LoadStream(FILE* pFile);
-		void  AddValue(const IAIRecordable::RecorderEventData* pEventData, float t);
-		bool  WriteValue(float t, const Vec3& vec, FILE* pFile);
-		bool  WriteValue(const IAIRecordable::RecorderEventData* pEventData, float t);
-		bool  LoadValue(float& t, Vec3& vec, FILE* pFile);
+		void  AddValue(const IAIRecordable::RecorderEventData* pEventData, const CTimeValue& t);
+		bool  WriteValue(const CTimeValue& t, const Vec3& vec, FILE* pFile);
+		bool  WriteValue(const IAIRecordable::RecorderEventData* pEventData, const CTimeValue& t);
+		bool  LoadValue(CTimeValue& t, Vec3& vec, FILE* pFile);
 		bool  LoadValue(FILE* pFile);
-		void* GetCurrent(float& startingFrom);
-		bool  GetCurrentString(string& sOut, float& startingFrom);
-		void* GetNext(float& startingFrom);
+		void* GetCurrent(CTimeValue& startingFrom);
+		bool  GetCurrentString(string& sOut, CTimeValue& startingFrom);
+		void* GetNext(CTimeValue& startingFrom);
 
 		// Returns TRUE if the point should be recorded
 		bool FilterPoint(const IAIRecordable::RecorderEventData* pEventData) const;
@@ -171,20 +171,20 @@ protected:
 	{
 		struct StreamUnit : public StreamBase::StreamUnitBase
 		{
-			StreamUnit(float time, float val) : StreamUnitBase(time), m_Val(val) {}
+			StreamUnit(const CTimeValue& time, float val) : StreamUnitBase(time), m_Val(val) {}
 			float m_Val;
 		};
 		StreamFloat(char const* name, bool bUseFilter = false) : StreamBase(name), m_bUseFilter(bUseFilter) {}
 		bool  SaveStream(FILE* pFile);
 		bool  LoadStream(FILE* pFile);
-		void  AddValue(const IAIRecordable::RecorderEventData* pEventData, float t);
-		bool  WriteValue(float t, float val, FILE* pFile);
-		bool  WriteValue(const IAIRecordable::RecorderEventData* pEventData, float t);
-		bool  LoadValue(float& t, float& val, FILE* pFile);
+		void  AddValue(const IAIRecordable::RecorderEventData* pEventData, const CTimeValue& t);
+		bool  WriteValue(const CTimeValue& t, float val, FILE* pFile);
+		bool  WriteValue(const IAIRecordable::RecorderEventData* pEventData, const CTimeValue& t);
+		bool  LoadValue(CTimeValue& t, float& val, FILE* pFile);
 		bool  LoadValue(FILE* pFile);
-		void* GetCurrent(float& startingFrom);
-		bool  GetCurrentString(string& sOut, float& startingFrom);
-		void* GetNext(float& startingFrom);
+		void* GetCurrent(CTimeValue& startingFrom);
+		bool  GetCurrentString(string& sOut, CTimeValue& startingFrom);
+		void* GetNext(CTimeValue& startingFrom);
 
 		// Returns TRUE if the point should be recorded
 		bool FilterPoint(const IAIRecordable::RecorderEventData* pEventData) const;

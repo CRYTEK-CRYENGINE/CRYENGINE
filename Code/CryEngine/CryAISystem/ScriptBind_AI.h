@@ -1572,8 +1572,7 @@ public:
 	//!		<param name="commName">The name of the communication to play</param>
 	//!		<param name="channelName">The name of the channel where the communication will play</param>
 	int PlayCommunication(IFunctionHandler* pH, ScriptHandle entityId, const char* commName, const char* channelName,
-	                      float contextExpiry);
-
+	                      const CTimeValue contextExpiry);
 	//! <code>AI.StopCommunication(playID)</code>
 	//! <description>Stops given communication.</description>
 	//!		<param name="playID">The id of the communication to stop.</param>
@@ -1602,7 +1601,7 @@ public:
 	//!		true - if a valid update was performed
 	//!		nil - if not (Interest system is disabled, parameters not valid, etc)
 	//! </returns>
-	int RegisterInterestingEntity(IFunctionHandler* pH, ScriptHandle entityId, float radius, float baseInterest, const char* actionName, Vec3 offset, float pause, int shared);
+	int RegisterInterestingEntity(IFunctionHandler* pH, ScriptHandle entityId, float radius, float baseInterest, const char* actionName, Vec3 offset, const CTimeValue pause, int shared);
 
 	//! <code>AI.UnregisterInterestingEntity(entityId)</code>
 	//! <description>Unregisters the entity with the interest system. Any errors go to the error log.</description>

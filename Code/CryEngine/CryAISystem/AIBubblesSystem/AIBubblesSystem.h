@@ -5,4 +5,4 @@
 #include <CryAISystem/IAIBubblesSystem.h>
 
 bool AIQueueBubbleMessage(const char* messageName, const EntityId entityID,
-                          const char* message, uint32 flags, float duration = 0, SAIBubbleRequest::ERequestType requestType = SAIBubbleRequest::eRT_ErrorMessage);
+                          const char* message, uint32 flags, const CTimeValue& duration = 0, SAIBubbleRequest::ERequestType requestType = SAIBubbleRequest::eRT_ErrorMessage);

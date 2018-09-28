@@ -252,11 +252,11 @@ private:
 
 	struct SAIRefinforcementCallDebug
 	{
-		SAIRefinforcementCallDebug(const Vec3& from, const Vec3& to, float t, const char* perf) :
+		SAIRefinforcementCallDebug(const Vec3& from, const Vec3& to, const CTimeValue& t, const char* perf) :
 			from(from), to(to), t(t), performer(perf) {}
 		Vec3   from, to;
 		string performer;
-		float  t;
+		CTimeValue  t;
 	};
 
 	int                               m_reinforcementSpotsAllAlerted;

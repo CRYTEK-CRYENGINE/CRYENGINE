@@ -19,13 +19,13 @@ bool CommunicationChannelManager::LoadChannel(const XmlNodeRef& channelNode, con
 			return false;
 		}
 
-		float minSilence = 0.0f;
+		CTimeValue minSilence;
 		channelNode->getAttr("minSilence", minSilence);
 
-		float flushSilence = minSilence;
+		CTimeValue flushSilence = minSilence;
 		channelNode->getAttr("flushSilence", flushSilence);
 
-		float actorMinSilence = 0.0f;
+		CTimeValue actorMinSilence;
 		channelNode->getAttr("actorMinSilence", actorMinSilence);
 
 		bool ignoreActorSilence = false;
@@ -114,7 +114,7 @@ void CommunicationChannelManager::Reset()
 	m_personalChannels.clear();
 }
 
-void CommunicationChannelManager::Update(float updateTime)
+void CommunicationChannelManager::Update(const CTimeValue& updateTime)
 {
 	CRY_PROFILE_FUNCTION(PROFILE_AI);
 

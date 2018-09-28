@@ -701,7 +701,7 @@ void CFlowNode_AISequenceActionAnimation::HandleSequenceEvent(SequenceEvent sequ
 
 				if (!req.signalAnimation)
 				{
-					const float loopDuration = GetPortFloat(&m_actInfo, InputPort_LoopDuration);
+					const CTimeValue loopDuration = GetPortTime(&m_actInfo, InputPort_LoopDuration);
 					if ((loopDuration >= 0) || (loopDuration == -1))
 					{
 						req.loopDuration = loopDuration;
@@ -834,7 +834,7 @@ void CFlowNode_AISequenceActionWait::ProcessEvent(EFlowEvent event, SActivationI
 	case eFE_Update:
 	{
 		const CTimeValue timeElapsed = GetAISystem()->GetFrameStartTime() - m_startTime;
-		if (timeElapsed.GetMilliSecondsAsInt64() > m_waitTimeMs)
+		if (timeElapsed > m_waitTime)
 		{
 			pActInfo->pGraph->SetRegularlyUpdated(pActInfo->myID, false);
 			
@@ -850,7 +850,7 @@ void CFlowNode_AISequenceActionWait::ProcessEvent(EFlowEvent event, SActivationI
 	}
 	case eFE_Activate:
 	{
-		m_waitTimeMs = 0;
+		m_waitTime.SetSeconds(0);
 		
 		if (const SequenceId assignedSequenceId = GetAssignedSequenceId())
 		{
@@ -870,7 +870,7 @@ void CFlowNode_AISequenceActionWait::HandleSequenceEvent(SequenceEvent sequenceE
 	switch (sequenceEvent)
 	{
 	case AIActionSequence::StartAction:
-		m_waitTimeMs = int(1000.0f * GetPortFloat(&m_actInfo, InputPort_Time));
+		m_waitTime  = GetPortTime(&m_actInfo, InputPort_Time);
 		m_startTime = GetAISystem()->GetFrameStartTime();
 		break;
 	case AIActionSequence::SequenceStopped:
@@ -913,12 +913,12 @@ void CFlowNode_AISequenceActionShoot::ProcessEvent(EFlowEvent event, SActivation
 	case eFE_Update:
 	{
 		CTimeValue timeElapsed = GetAISystem()->GetFrameStartTime() - m_startTime;
-		if (m_fireTimeMS < 0 || m_fireTimeMS < timeElapsed.GetMilliSecondsAsInt64())
+		if (m_fireTime < 0 || m_fireTime < timeElapsed)
 		{
 			if (CPipeUser* pPipeUser = CastToCPipeUserSafe(m_actInfo.pEntity->GetAI()))
 			{
 				// stop firing if was timed
-				if (m_fireTimeMS > 0)
+				if (m_fireTime > 0)
 					pPipeUser->SetFireMode(FIREMODE_OFF);
 
 				pPipeUser->SetFireTarget(NILREF);
@@ -1003,7 +1003,7 @@ void CFlowNode_AISequenceActionShoot::HandleSequenceEvent(SequenceEvent sequence
 						pPipeUser->SetFireTarget(GetWeakRef(static_cast<CAIObject*>(pRefPoint)));
 
 						m_startTime = GetAISystem()->GetFrameStartTime();
-						m_fireTimeMS = int(1000.0f * GetPortFloat(&m_actInfo, InputPort_Duration));
+						m_fireTime  = GetPortTime(&m_actInfo, InputPort_Duration);
 
 						m_actInfo.pGraph->SetRegularlyUpdated(m_actInfo.myID, true);
 						return;

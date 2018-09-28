@@ -70,7 +70,7 @@ public:
 	~PathFollower();
 
 	void          Init(const SShape& path, const PathFollowerParams& params, const PathEntityIn& pathEntity);
-	PathEntityOut Update(const PathEntityIn& pathEntity, const float elapsedSeconds);
+	PathEntityOut Update(const PathEntityIn& pathEntity, const CTimeValue& elapsedSeconds);
 
 	void          SetFinalPathLocation(const Vec3& position);
 	void          ResetFinalPathLocation();

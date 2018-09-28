@@ -402,7 +402,7 @@ private:
 	bool                  m_bControlSpeed;
 	int                   m_loops;
 	int                   m_loopCounter;
-	int                   m_notMovingTimeMs;
+	CTimeValue            m_notMovingTime;
 	CTimeValue            m_lastTime;
 	bool                  m_returningToPath;
 	float                 m_fEndAccuracy;
@@ -421,7 +421,7 @@ public:
 	/// If distance < 0 then the backoff is done from the agent's current position,
 	/// else it is done from the target position.
 	/// If duration > 0 then backoff stops after that duration
-	COPBackoff(float distance, float duration = 0.f, int filter = 0, float minDistance = 0.f);
+	COPBackoff(float distance, const CTimeValue& duration = 0, int filter = 0, float minDistance = 0.f);
 	COPBackoff(const XmlNodeRef& node);
 	COPBackoff(const COPBackoff& rhs);
 	virtual ~COPBackoff() { Reset(0); }
@@ -443,7 +443,7 @@ private:
 	std::vector<int>      m_MoveDirections;
 
 	float                 m_fDistance;
-	float                 m_fDuration;
+	CTimeValue            m_fDuration;
 	CTimeValue            m_fInitTime;
 	CTimeValue            m_fLastUpdateTime;
 	bool                  m_bUseLastOp;
@@ -472,11 +472,11 @@ private:
 class COPTimeout : public CGoalOp
 {
 	CTimeValue m_startTime;
-	float      m_fIntervalMin, m_fIntervalMax;
-	int        m_actualIntervalMs;
+	CTimeValue m_fIntervalMin, m_fIntervalMax;
+	CTimeValue m_actualInterval;
 
 public:
-	COPTimeout(float fIntervalMin, float fIntervalMax = 0.f);
+	COPTimeout(const CTimeValue& fIntervalMin, const CTimeValue& fIntervalMax = 0);
 	COPTimeout(const XmlNodeRef& node);
 
 	virtual EGoalOpResult Execute(CPipeUser*);
@@ -512,13 +512,13 @@ class COPFireCmd : public CGoalOp
 	EFireMode  m_eFireMode;
 	bool       m_bUseLastOp;
 
-	float      m_fIntervalMin;
-	float      m_fIntervalMax;
-	int        m_actualIntervalMs;
+	CTimeValue m_fIntervalMin;
+	CTimeValue m_fIntervalMax;
+	CTimeValue m_actualInterval;
 	CTimeValue m_startTime;
 
 public:
-	COPFireCmd(EFireMode eFireMode, bool bUseLastOp, float fIntervalMin, float fIntervalMax);
+	COPFireCmd(EFireMode eFireMode, bool bUseLastOp, const CTimeValue& fIntervalMin, const CTimeValue& fIntervalMax);
 	COPFireCmd(const XmlNodeRef& node);
 
 	virtual void          Reset(CPipeUser* pPipeUser);
@@ -571,10 +571,10 @@ class COPLookAround : public CGoalOp
 {
 	float      m_fLastDot;
 	float      m_fLookAroundRange;
-	float      m_fIntervalMin, m_fIntervalMax;
-	float      m_fScanIntervalRange;
-	int        m_scanTimeOutMs;
-	int        m_timeOutMs;
+	CTimeValue m_fIntervalMin, m_fIntervalMax;
+	CTimeValue m_fScanIntervalRange;
+	CTimeValue m_scanTimeOut;
+	CTimeValue m_timeOut;
 	CTimeValue m_startTime;
 	CTimeValue m_scanStartTime;
 	ELookStyle m_eLookStyle;
@@ -594,17 +594,17 @@ class COPLookAround : public CGoalOp
 
 	ILINE void RandomizeScanTimeout()
 	{
-		m_scanTimeOutMs = (int)((m_fScanIntervalRange + cry_random(0.2f, 1.0f)) * 1000.0f);
+		m_scanTimeOut = m_fScanIntervalRange + cry_random<CTimeValue>("0.2", 1);
 	}
 
 	ILINE void RandomizeTimeout()
 	{
-		m_timeOutMs = (int)(cry_random(m_fIntervalMin, m_fIntervalMax) * 1000.0f);
+		m_timeOut = cry_random(m_fIntervalMin, m_fIntervalMax);
 	}
 
 public:
 	void Reset(CPipeUser* pPipeUser);
-	COPLookAround(float lookAtRange, float scanIntervalRange, float intervalMin, float intervalMax, bool bBodyTurn, bool breakOnLiveTarget, bool useLastOp, bool checkForObstacles);
+	COPLookAround(float lookAtRange, const CTimeValue& scanIntervalRange, const CTimeValue& intervalMin, const CTimeValue& intervalMax, bool bBodyTurn, bool breakOnLiveTarget, bool useLastOp, bool checkForObstacles);
 	COPLookAround(const XmlNodeRef& node);
 
 	virtual EGoalOpResult Execute(CPipeUser* pPipeUser);
@@ -855,7 +855,7 @@ class COPLook : public CGoalOp
 	EAIRegister m_nReg;
 	int         m_nLookID; // keep track of this look command
 	bool        m_bInitialised;
-	float       m_fLookTime, m_fTimeLeft;
+	CTimeValue  m_fLookTime, m_fTimeLeft;
 
 public:
 	COPLook(int lookMode, bool bBodyTurn, EAIRegister nReg);
@@ -1010,17 +1010,17 @@ class COPWaitSignal : public CGoalOp
 	EntityId   m_nID;
 
 	CTimeValue m_startTime;
-	int        m_intervalMs;
+	CTimeValue m_interval;
 	bool       m_bSignalReceived;
 
 public:
 	COPWaitSignal(const XmlNodeRef& node);
 
 	// (MATT) Note that it appears all but the first form could be removed {2008/08/09}
-	COPWaitSignal(const char* sSignal, float fInterval = 0);
-	COPWaitSignal(const char* sSignal, const char* sObjectName, float fInterval = 0);
-	COPWaitSignal(const char* sSignal, int iValue, float fInterval = 0);
-	COPWaitSignal(const char* sSignal, EntityId nID, float fInterval = 0);
+	COPWaitSignal(const char* sSignal, const CTimeValue& fInterval = 0);
+	COPWaitSignal(const char* sSignal, const char* sObjectName, const CTimeValue& fInterval = 0);
+	COPWaitSignal(const char* sSignal, int iValue, const CTimeValue& fInterval = 0);
+	COPWaitSignal(const char* sSignal, EntityId nID, const CTimeValue& fInterval = 0);
 
 	virtual EGoalOpResult Execute(CPipeUser* pPipeUser);
 	virtual void          Reset(CPipeUser* pPipeUser);
@@ -1257,13 +1257,13 @@ class COPCommunication : public CGoalOp, ICommunicationManager::ICommInstanceLis
 	CommID                           m_commID;
 	CommChannelID                    m_channelID;
 	SCommunicationRequest::EOrdering m_ordering;
-	float                            m_expirity;
-	float                            m_minSilence;
+	CTimeValue                       m_expirity;
+	CTimeValue                       m_minSilence;
 
 	bool                             m_ignoreSound;
 	bool                             m_ignoreAnim;
 
-	float                            m_timeout;
+	CTimeValue                       m_timeout;
 	CTimeValue                       m_startTime;
 
 	CommPlayID                       m_playID;
@@ -1275,7 +1275,7 @@ class COPCommunication : public CGoalOp, ICommunicationManager::ICommInstanceLis
 	bool m_waitUntilFinished;
 
 public:
-	COPCommunication(const char* commName, const char* channelName, const char* ordering = "unordered", float expirity = 0.0f, float minSilence = -1.0f, bool ignoreSound = false, bool ignoreAnim = false);
+	COPCommunication(const char* commName, const char* channelName, const char* ordering = "unordered", const CTimeValue& expirity = 0, const CTimeValue& minSilence = -1, bool ignoreSound = false, bool ignoreAnim = false);
 	COPCommunication(const XmlNodeRef& node);
 
 	virtual ~COPCommunication(){ Reset(0); }

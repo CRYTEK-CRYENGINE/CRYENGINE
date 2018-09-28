@@ -41,7 +41,7 @@ void CMissLocationSensor::Reset()
 	m_lastCollectionLocation.zero();
 }
 
-void CMissLocationSensor::Update(float timeLimit)
+void CMissLocationSensor::Update(const CTimeValue& timeLimit)
 {
 	while (true)
 	{
@@ -131,14 +131,14 @@ void CMissLocationSensor::Collect(int types)
 	m_lastCollectionLocation = feet;
 }
 
-bool CMissLocationSensor::Filter(float timeLimit)
+bool CMissLocationSensor::Filter(const CTimeValue& timeLimit)
 {
 	if (m_entities.empty())
 		return true;
 
-	CTimeValue now = gEnv->pTimer->GetAsyncTime();
+	CTimeValue now = GetGTimer()->GetAsyncTime();
 	CTimeValue start = now;
-	CTimeValue endTime = now + CTimeValue(timeLimit);
+	CTimeValue endTime = now + timeLimit;
 
 	float MaxMass = gAIEnv.CVars.CoolMissesMaxLightweightEntityMass;
 
@@ -317,7 +317,7 @@ bool CMissLocationSensor::Filter(float timeLimit)
 			entity->Release();
 		}
 
-		now = gEnv->pTimer->GetAsyncTime();
+		now = GetGTimer()->GetAsyncTime();
 
 		if (m_entities.empty())
 			return true;
@@ -435,7 +435,7 @@ bool CMissLocationSensor::GetLocation(CAIObject* target, const Vec3& shootPos, c
 	if (gAIEnv.CVars.DebugDrawCoolMisses)
 	{
 		GetAISystem()->AddDebugCone(location.position + Vec3(0.0f, 0.0f, 0.75f), Vec3(0.0f, 0.0f, -1.0f), 0.225f, 0.35f,
-		                            Col_Green, 0.5f);
+		                            Col_Green, "0.5");
 	}
 #endif
 

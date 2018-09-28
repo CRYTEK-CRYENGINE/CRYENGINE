@@ -91,7 +91,7 @@ private:
 
 	void CancelMovementRequest();
 
-	void SetCoverBlacklisted(const CoverID& coverID, bool blacklist, float time);
+	void SetCoverBlacklisted(const CoverID& coverID, bool blacklist, const CTimeValue& time);
 	bool IsCoverBlackListed(const CoverID& coverId) const;
 
 	void ProcessCoverEnteredEvent(const CoverID& coverID);
@@ -106,7 +106,7 @@ private:
 	//////////////////////////////////////////////////////////////////////////
 
 	// Properties
-	float m_blackListTime = 10.0f;
+	CTimeValue m_blackListTime = 10;
 	float m_effectiveCoverHeight = 0.85f;
 	float m_distanceToCover = 0.5f;
 	float m_inCoverRadius = 0.3f;

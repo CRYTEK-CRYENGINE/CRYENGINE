@@ -196,8 +196,8 @@ EGoalOpResult COPCharge::Execute(CPipeUser* pOperand)
 	{
 		// Make sure we do not sped too much time in the approach
 		CTimeValue currentTime = GetAISystem()->GetFrameStartTime();
-		float elapsed = (currentTime - m_approachStartTime).GetSeconds();
-		if (elapsed > 7.0f)
+		CTimeValue elapsed = currentTime - m_approachStartTime;
+		if (elapsed > 7)
 		{
 			Reset(m_pOperand);
 			return eGOR_FAILED;
@@ -362,9 +362,9 @@ void COPCharge::ExecuteDry(CPipeUser* pOperand)
 	else if (m_state == STATE_ANTICIPATE)
 	{
 		CTimeValue currentTime = GetAISystem()->GetFrameStartTime();
-		float elapsed = (currentTime - m_anticipateTime).GetSeconds();
+		CTimeValue elapsed = currentTime - m_anticipateTime;
 
-		if (elapsed > 0.3f)
+		if (elapsed > "0.3")
 			m_state = STATE_CHARGE;
 	}
 	else if (m_state == STATE_CHARGE || m_state == STATE_FOLLOW_TROUGH)
@@ -634,7 +634,7 @@ COPSeekCover::COPSeekCover(bool uncover, float radius, float minRadius, int iter
 	m_useLastOpAsBackup(useLastOpAsBackup),
 	m_towardsLastOpResult(towardsLastOpResult),
 	m_endAccuracy(0.0f),
-	m_notMovingTimeMs(0),
+	m_notMovingTime(0),
 	m_pRoot(0),
 	m_state(0),
 	m_center(0, 0, 0),
@@ -654,7 +654,7 @@ COPSeekCover::COPSeekCover(const XmlNodeRef& node)
 	m_useLastOpAsBackup(s_xml.GetBool(node, "useLastOpAsBackup", true)),
 	m_towardsLastOpResult(s_xml.GetBool(node, "towardsLastOpResult", true)),
 	m_endAccuracy(0.f),
-	m_notMovingTimeMs(0),
+	m_notMovingTime(0),
 	m_pTraceDirective(0),
 	m_pRoot(0),
 	m_state(0),
@@ -687,7 +687,7 @@ void COPSeekCover::Reset(CPipeUser* pOperand)
 {
 	SAFE_DELETE(m_pTraceDirective);
 
-	m_notMovingTimeMs = 0;
+	m_notMovingTime.SetSeconds(0);
 	m_state = 0;
 	if (pOperand)
 	{
@@ -709,7 +709,7 @@ void COPSeekCover::Serialize(TSerialize ser)
 		ser.Value("m_useLastOpAsBackup", m_useLastOpAsBackup);
 		ser.Value("m_towardsLastOpResult", m_towardsLastOpResult);
 		ser.Value("m_lastTime", m_lastTime);
-		ser.Value("m_notMovingTimeMs", m_notMovingTimeMs);
+		ser.Value("m_notMovingTime", m_notMovingTime);
 		ser.Value("m_state", m_state);
 
 		if (ser.IsWriting())
@@ -1265,15 +1265,15 @@ EGoalOpResult COPSeekCover::Execute(CPipeUser* pOperand)
 	// to the requested speed and if it drops dramatically for certain time, this code
 	// will trigger and try to move the agent back on the path. [Mikko]
 
-	int timeout = 1500;
+	CTimeValue timeout = "1.5";
 	if (pOperand->GetType() == AIOBJECT_VEHICLE)
-		timeout = 7000;
+		timeout.SetSeconds(7);
 
-	if (m_notMovingTimeMs > timeout)
+	if (m_notMovingTime > timeout)
 	{
 		// Stuck or lost, move to the nearest point on path.
 		AIWarning("COPSeekCover::Entity %s has not been moving fast enough for %.1fs it might be stuck, abort.",
-		          pOperand->GetName(), m_notMovingTimeMs * 0.001f);
+		          pOperand->GetName(), (float)m_notMovingTime.GetSeconds());
 
 		Reset(pOperand);
 
@@ -1312,7 +1312,7 @@ void COPSeekCover::ExecuteDry(CPipeUser* pOperand)
 		// HACK: The following code together with some logic in the execute tries to keep track
 		// if the agent is not moving for some time (is stuck), and pathfinds back to the path. [Mikko]
 		CTimeValue time(pSystem->GetFrameStartTime());
-		int64 dt((time - m_lastTime).GetMilliSecondsAsInt64());
+		CTimeValue dt = time - m_lastTime;
 
 		float speed = pOperand->GetVelocity().GetLength();
 		float desiredSpeed = pOperand->m_State.fDesiredSpeed;
@@ -1320,12 +1320,12 @@ void COPSeekCover::ExecuteDry(CPipeUser* pOperand)
 		{
 			float ratio = clamp_tpl(speed / desiredSpeed, 0.0f, 1.0f);
 			if (ratio < 0.1f)
-				m_notMovingTimeMs += (int)dt;
+				m_notMovingTime += dt;
 			else
-				m_notMovingTimeMs -= (int)dt;
+				m_notMovingTime -= dt;
 
-			if (m_notMovingTimeMs < 0)
-				m_notMovingTimeMs = 0;
+			if (m_notMovingTime < 0)
+				m_notMovingTime.SetSeconds(0);
 		}
 
 		m_lastTime = time;

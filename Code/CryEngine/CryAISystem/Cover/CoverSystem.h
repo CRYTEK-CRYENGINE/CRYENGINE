@@ -79,7 +79,7 @@ public:
 	EntityId                  GetCoverOccupant(const CoverID& coverID) const;
 	bool                      IsCoverPhysicallyOccupiedByAnyOtherCoverUser(const CoverID& coverID, const ICoverUser& coverUserSearchingForEmptySpace) const;
 
-	void                      Update(float updateTime);
+	void                      Update(const CTimeValue& updateTime);
 	void                      DebugDraw();
 	void                      DebugDrawSurfaceEffectiveHeight(const CoverSurface& surface, const Vec3* eyes, uint32 eyeCount);
 	void                      DebugDrawCoverUser(const EntityId entityId);

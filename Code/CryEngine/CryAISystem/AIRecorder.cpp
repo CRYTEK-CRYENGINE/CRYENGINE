@@ -92,7 +92,7 @@ void CRecorderUnit::RecordEvent(IAIRecordable::e_AIDbgEvent event, const IAIReco
 {
 	if (!m_pRecorder || !m_pRecorder->IsRunning()) return;
 
-	float time = (GetAISystem()->GetFrameStartTime() - m_startTime).GetSeconds();
+	CTimeValue time = GetAISystem()->GetFrameStartTime() - m_startTime;
 
 	if (CAIRecorder::m_pFile) //(Hack!)
 	{
@@ -205,11 +205,11 @@ CRecorderUnit::~CRecorderUnit()
 
 //
 //----------------------------------------------------------------------------------------------
-void CRecorderUnit::StreamBase::Seek(float whereTo)
+void CRecorderUnit::StreamBase::Seek(const CTimeValue& whereTo)
 {
 	m_CurIdx = 0;
 
-	if (whereTo > FLT_EPSILON)
+	if (whereTo > TV_EPSILON)
 	{
 		const int iMaxIndex = max((int)m_Stream.size() - 1, 0);
 		while (m_CurIdx < iMaxIndex && m_Stream[m_CurIdx]->m_StartTime <= whereTo)
@@ -245,19 +245,19 @@ void CRecorderUnit::StreamBase::ClearImpl()
 
 //
 //----------------------------------------------------------------------------------------------
-float CRecorderUnit::StreamBase::GetStartTime()
+CTimeValue CRecorderUnit::StreamBase::GetStartTime()
 {
 	if (m_Stream.empty())
-		return 0.0f;
+		return 0;
 	return m_Stream.front()->m_StartTime;
 }
 
 //
 //----------------------------------------------------------------------------------------------
-float CRecorderUnit::StreamBase::GetEndTime()
+CTimeValue CRecorderUnit::StreamBase::GetEndTime()
 {
 	if (m_Stream.empty())
-		return 0.0f;
+		return 0;
 	return m_Stream.back()->m_StartTime;
 }
 
@@ -283,7 +283,7 @@ CRecorderUnit::StreamStr::StreamStr(char const* name, bool bUseIndex /*= false*/
 
 //
 //----------------------------------------------------------------------------------------------
-void* CRecorderUnit::StreamStr::GetCurrent(float& startingFrom)
+void* CRecorderUnit::StreamStr::GetCurrent(CTimeValue& startingFrom)
 {
 	if (m_CurIdx < 0 || m_CurIdx >= (int)m_Stream.size())
 		return NULL;
@@ -293,7 +293,7 @@ void* CRecorderUnit::StreamStr::GetCurrent(float& startingFrom)
 
 //
 //----------------------------------------------------------------------------------------------
-bool CRecorderUnit::StreamStr::GetCurrentString(string& sOut, float& startingFrom)
+bool CRecorderUnit::StreamStr::GetCurrentString(string& sOut, CTimeValue& startingFrom)
 {
 	sOut = (char*)GetCurrent(startingFrom);
 	return (!sOut.empty());
@@ -301,7 +301,7 @@ bool CRecorderUnit::StreamStr::GetCurrentString(string& sOut, float& startingFro
 
 //
 //----------------------------------------------------------------------------------------------
-void* CRecorderUnit::StreamStr::GetNext(float& startingFrom)
+void* CRecorderUnit::StreamStr::GetNext(CTimeValue& startingFrom)
 {
 	if (++m_CurIdx >= (int)m_Stream.size())
 	{
@@ -424,7 +424,7 @@ bool CRecorderUnit::StreamStr::GetStringFromIndex(uint32 uIndex, string& sOut) c
 
 //
 //----------------------------------------------------------------------------------------------
-void CRecorderUnit::StreamStr::AddValue(const IAIRecordable::RecorderEventData* pEventData, float t)
+void CRecorderUnit::StreamStr::AddValue(const IAIRecordable::RecorderEventData* pEventData, const CTimeValue& t)
 {
 	// Make an index for it, but don't record it. It'll be saved to file later with the right index
 	if (m_bUseIndex)
@@ -437,14 +437,14 @@ void CRecorderUnit::StreamStr::AddValue(const IAIRecordable::RecorderEventData* 
 
 //
 //----------------------------------------------------------------------------------------------
-bool CRecorderUnit::StreamStr::WriteValue(const IAIRecordable::RecorderEventData* pEventData, float t)
+bool CRecorderUnit::StreamStr::WriteValue(const IAIRecordable::RecorderEventData* pEventData, const CTimeValue& t)
 {
 	return WriteValue(t, pEventData->pString, CAIRecorder::m_pFile);
 }
 
 //
 //----------------------------------------------------------------------------------------------
-bool CRecorderUnit::StreamStr::WriteValue(float t, const char* str, FILE* pFile)
+bool CRecorderUnit::StreamStr::WriteValue(const CTimeValue& t, const char* str, FILE* pFile)
 {
 	// When using index, we have the string length be all bits on to represent this fact
 	int strLen = ~0;
@@ -475,7 +475,7 @@ bool CRecorderUnit::StreamStr::WriteValue(float t, const char* str, FILE* pFile)
 bool CRecorderUnit::StreamStr::LoadValue(FILE* pFile)
 {
 	string name;
-	float time;
+	CTimeValue time;
 	if (!LoadValue(time, name, pFile)) return false;
 
 	// Check chronological ordering
@@ -508,14 +508,14 @@ bool CRecorderUnit::StreamStr::SaveStream(FILE* pFile)
 	for (uint32 idx(0); idx < m_Stream.size(); ++idx)
 	{
 		StreamUnit* pCurUnit = static_cast<StreamUnit*>(m_Stream[idx]);
-		float t = pCurUnit->m_StartTime;
+		CTimeValue t = pCurUnit->m_StartTime;
 		const char* pStr = pCurUnit->m_String.c_str();
 		if (!WriteValue(t, pStr, pFile)) return false;
 	}
 	return true;
 }
 
-bool CRecorderUnit::StreamStr::LoadValue(float& t, string& name, FILE* pFile)
+bool CRecorderUnit::StreamStr::LoadValue(CTimeValue& t, string& name, FILE* pFile)
 {
 	int strLen;
 	if (!fread(&t, sizeof(t), 1, pFile)) return false;
@@ -566,7 +566,7 @@ bool CRecorderUnit::StreamStr::LoadStream(FILE* pFile)
 
 //
 //----------------------------------------------------------------------------------------------
-void* CRecorderUnit::StreamVec3::GetCurrent(float& startingFrom)
+void* CRecorderUnit::StreamVec3::GetCurrent(CTimeValue& startingFrom)
 {
 	if (m_CurIdx < 0 || m_CurIdx >= (int)m_Stream.size())
 		return NULL;
@@ -576,7 +576,7 @@ void* CRecorderUnit::StreamVec3::GetCurrent(float& startingFrom)
 
 //
 //----------------------------------------------------------------------------------------------
-bool CRecorderUnit::StreamVec3::GetCurrentString(string& sOut, float& startingFrom)
+bool CRecorderUnit::StreamVec3::GetCurrentString(string& sOut, CTimeValue& startingFrom)
 {
 	sOut.clear();
 
@@ -592,7 +592,7 @@ bool CRecorderUnit::StreamVec3::GetCurrentString(string& sOut, float& startingFr
 
 //
 //----------------------------------------------------------------------------------------------
-void* CRecorderUnit::StreamVec3::GetNext(float& startingFrom)
+void* CRecorderUnit::StreamVec3::GetNext(CTimeValue& startingFrom)
 {
 	if (++m_CurIdx >= (int)m_Stream.size())
 	{
@@ -622,7 +622,7 @@ bool CRecorderUnit::StreamVec3::FilterPoint(const IAIRecordable::RecorderEventDa
 
 //
 //----------------------------------------------------------------------------------------------
-void CRecorderUnit::StreamVec3::AddValue(const IAIRecordable::RecorderEventData* pEventData, float t)
+void CRecorderUnit::StreamVec3::AddValue(const IAIRecordable::RecorderEventData* pEventData, const CTimeValue& t)
 {
 	if (FilterPoint(pEventData))
 	{
@@ -632,7 +632,7 @@ void CRecorderUnit::StreamVec3::AddValue(const IAIRecordable::RecorderEventData*
 
 //
 //----------------------------------------------------------------------------------------------
-bool CRecorderUnit::StreamVec3::WriteValue(const IAIRecordable::RecorderEventData* pEventData, float t)
+bool CRecorderUnit::StreamVec3::WriteValue(const IAIRecordable::RecorderEventData* pEventData, const CTimeValue& t)
 {
 	bool bResult = true;
 
@@ -646,7 +646,7 @@ bool CRecorderUnit::StreamVec3::WriteValue(const IAIRecordable::RecorderEventDat
 
 //
 //----------------------------------------------------------------------------------------------
-bool CRecorderUnit::StreamVec3::WriteValue(float t, const Vec3& vec, FILE* pFile)
+bool CRecorderUnit::StreamVec3::WriteValue(const CTimeValue& t, const Vec3& vec, FILE* pFile)
 {
 	if (!fwrite(&t, sizeof(t), 1, pFile)) return false;
 	if (!fwrite(&vec.x, sizeof(vec.x), 1, pFile)) return false;
@@ -657,7 +657,7 @@ bool CRecorderUnit::StreamVec3::WriteValue(float t, const Vec3& vec, FILE* pFile
 
 //
 //----------------------------------------------------------------------------------------------
-bool CRecorderUnit::StreamVec3::LoadValue(float& t, Vec3& vec, FILE* pFile)
+bool CRecorderUnit::StreamVec3::LoadValue(CTimeValue& t, Vec3& vec, FILE* pFile)
 {
 	if (!fread(&t, sizeof(t), 1, pFile)) return false;
 	if (!fread(&vec.x, sizeof(vec.x), 1, pFile)) return false;
@@ -670,7 +670,7 @@ bool CRecorderUnit::StreamVec3::LoadValue(float& t, Vec3& vec, FILE* pFile)
 bool CRecorderUnit::StreamVec3::LoadValue(FILE* pFile)
 {
 	Vec3 vec;
-	float time;
+	CTimeValue time;
 	if (!LoadValue(time, vec, pFile)) return false;
 
 	// Check chronological ordering
@@ -706,7 +706,7 @@ bool CRecorderUnit::StreamVec3::SaveStream(FILE* pFile)
 	for (uint32 idx(0); idx < m_Stream.size(); ++idx)
 	{
 		StreamUnit* pCurUnit(static_cast<StreamUnit*>(m_Stream[idx]));
-		float time = pCurUnit->m_StartTime;
+		CTimeValue time = pCurUnit->m_StartTime;
 		Vec3& vect = pCurUnit->m_Pos;
 		if (!WriteValue(time, vect, pFile)) return false;
 	}
@@ -715,7 +715,7 @@ bool CRecorderUnit::StreamVec3::SaveStream(FILE* pFile)
 
 //
 //----------------------------------------------------------------------------------------------
-void* CRecorderUnit::StreamFloat::GetCurrent(float& startingFrom)
+void* CRecorderUnit::StreamFloat::GetCurrent(CTimeValue& startingFrom)
 {
 	if (m_CurIdx < 0 || m_CurIdx >= (int)m_Stream.size())
 		return NULL;
@@ -725,7 +725,7 @@ void* CRecorderUnit::StreamFloat::GetCurrent(float& startingFrom)
 
 //
 //----------------------------------------------------------------------------------------------
-bool CRecorderUnit::StreamFloat::GetCurrentString(string& sOut, float& startingFrom)
+bool CRecorderUnit::StreamFloat::GetCurrentString(string& sOut, CTimeValue& startingFrom)
 {
 	sOut.clear();
 
@@ -740,7 +740,7 @@ bool CRecorderUnit::StreamFloat::GetCurrentString(string& sOut, float& startingF
 
 //
 //----------------------------------------------------------------------------------------------
-void* CRecorderUnit::StreamFloat::GetNext(float& startingFrom)
+void* CRecorderUnit::StreamFloat::GetNext(CTimeValue& startingFrom)
 {
 	if (++m_CurIdx >= (int)m_Stream.size())
 	{
@@ -770,7 +770,7 @@ bool CRecorderUnit::StreamFloat::FilterPoint(const IAIRecordable::RecorderEventD
 
 //
 //----------------------------------------------------------------------------------------------
-void CRecorderUnit::StreamFloat::AddValue(const IAIRecordable::RecorderEventData* pEventData, float t)
+void CRecorderUnit::StreamFloat::AddValue(const IAIRecordable::RecorderEventData* pEventData, const CTimeValue& t)
 {
 	if (FilterPoint(pEventData))
 	{
@@ -780,7 +780,7 @@ void CRecorderUnit::StreamFloat::AddValue(const IAIRecordable::RecorderEventData
 
 //
 //----------------------------------------------------------------------------------------------
-bool CRecorderUnit::StreamFloat::WriteValue(const IAIRecordable::RecorderEventData* pEventData, float t)
+bool CRecorderUnit::StreamFloat::WriteValue(const IAIRecordable::RecorderEventData* pEventData, const CTimeValue& t)
 {
 	bool bResult = true;
 
@@ -794,7 +794,7 @@ bool CRecorderUnit::StreamFloat::WriteValue(const IAIRecordable::RecorderEventDa
 
 //
 //----------------------------------------------------------------------------------------------
-bool CRecorderUnit::StreamFloat::WriteValue(float t, float val, FILE* pFile)
+bool CRecorderUnit::StreamFloat::WriteValue(const CTimeValue& t, float val, FILE* pFile)
 {
 	if (!fwrite(&t, sizeof(t), 1, pFile)) return false;
 	if (!fwrite(&val, sizeof(val), 1, pFile)) return false;
@@ -803,7 +803,7 @@ bool CRecorderUnit::StreamFloat::WriteValue(float t, float val, FILE* pFile)
 
 //
 //----------------------------------------------------------------------------------------------
-bool CRecorderUnit::StreamFloat::LoadValue(float& t, float& val, FILE* pFile)
+bool CRecorderUnit::StreamFloat::LoadValue(CTimeValue& t, float& val, FILE* pFile)
 {
 	if (!fread(&t, sizeof(t), 1, pFile)) return false;
 	if (!fread(&val, sizeof(val), 1, pFile)) return false;
@@ -814,7 +814,7 @@ bool CRecorderUnit::StreamFloat::LoadValue(float& t, float& val, FILE* pFile)
 bool CRecorderUnit::StreamFloat::LoadValue(FILE* pFile)
 {
 	float val;
-	float time;
+	CTimeValue time;
 	if (!LoadValue(time, val, pFile)) return false;
 
 	// Check chronological ordering
@@ -850,7 +850,7 @@ bool CRecorderUnit::StreamFloat::SaveStream(FILE* pFile)
 	for (uint32 idx(0); idx < m_Stream.size(); ++idx)
 	{
 		StreamUnit* pCurUnit(static_cast<StreamUnit*>(m_Stream[idx]));
-		float time = pCurUnit->m_StartTime;
+		CTimeValue time = pCurUnit->m_StartTime;
 		float val = pCurUnit->m_Val;
 		if (!WriteValue(time, val, pFile)) return false;
 	}
@@ -1554,7 +1554,7 @@ void CAIRecorder::Reset(void)
 {
 	DestroyDummyObjects();
 
-	const CTimeValue frameStartTime = gEnv->pTimer->GetFrameStartTime();
+	const CTimeValue frameStartTime = GetGTimer()->GetFrameStartTime();
 	for (TUnits::iterator unitIter = m_Units.begin(); unitIter != m_Units.end(); ++unitIter)
 	{
 		unitIter->second->ResetStreams(frameStartTime);

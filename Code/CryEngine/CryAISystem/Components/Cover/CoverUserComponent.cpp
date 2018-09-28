@@ -81,7 +81,7 @@ void CEntityAICoverUserComponent::ReflectType(Schematyc::CTypeDesc<CEntityAICove
 	desc.AddMember(&CEntityAICoverUserComponent::m_effectiveCoverHeight, 'ech', "effectiveCoverHeight", "Min Effective Cover Height", nullptr, 0.85f);
 	desc.AddMember(&CEntityAICoverUserComponent::m_inCoverRadius, 'icr', "inCoverRadius", "In Cover Radius", nullptr, 0.3f);
 	desc.AddMember(&CEntityAICoverUserComponent::m_distanceToCover, 'dtc', "distToCover", "Distance To Cover", nullptr, 0.5f);
-	desc.AddMember(&CEntityAICoverUserComponent::m_blackListTime, 'blt', "blacklistTime", "Blacklist Time", nullptr, 10.0f);
+	desc.AddMember(&CEntityAICoverUserComponent::m_blackListTime, 'blt', "blacklistTime", "Blacklist Time", nullptr, CTimeValue(10));
 }
 
 void CEntityAICoverUserComponent::Register(Schematyc::IEnvRegistrar& registrar)
@@ -310,7 +310,7 @@ void CEntityAICoverUserComponent::OnSetCoverCompromised(CoverID coverId, ICoverU
 	}
 }
 
-void CEntityAICoverUserComponent::SetCoverBlacklisted(const CoverID& coverID, bool blacklist, float time)
+void CEntityAICoverUserComponent::SetCoverBlacklisted(const CoverID& coverID, bool blacklist, const CTimeValue& time)
 {
 	m_pCoverUser->SetCoverBlacklisted(coverID, blacklist, time);
 }

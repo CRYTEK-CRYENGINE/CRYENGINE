@@ -148,7 +148,7 @@ SShape::SShape(const ListPositions& shape_, bool allowMask, IAISystem::ENavigati
 
 SShape::SShape() : navType(IAISystem::NAV_UNSET)
 	, type(0)
-	, devalueTime(0.0f)
+	, devalueTime(0)
 	, height(0.0f)
 	, temporary(false)
 	, aabb(AABB::RESET)

@@ -1009,7 +1009,7 @@ void CAIGroup::UpdateReinforcementLogic()
 					CAIActor* const pAIActor = CastToCPuppetSafe(it->m_refUnit.GetAIObject());
 					if (!pAIActor) continue;
 					if (!pAIActor->IsEnabled()) continue;
-					if ((GetAISystem()->GetFrameStartTime() - it->m_lastReinforcementTime).GetSeconds() < 3.f) continue;
+					if ((GetAISystem()->GetFrameStartTime() - it->m_lastReinforcementTime).GetSeconds() < 3) continue;
 					IAIActorProxy* pProxy = pAIActor->GetProxy();
 					if (!pProxy || pProxy->IsCurrentBehaviorExclusive()) continue;
 
@@ -1094,7 +1094,7 @@ void CAIGroup::UpdateReinforcementLogic()
 				pNearestCallerImg->m_lastReinforcementTime = GetAISystem()->GetFrameStartTime();
 
 #ifdef CRYAISYSTEM_DEBUG
-				m_DEBUG_reinforcementCalls.push_back(SAIRefinforcementCallDebug(pUnit->GetPos() + Vec3(0, 0, 0.3f), nearestSpot->pAI->GetPos() + Vec3(0, 0, 0.3f), 7.0f, nearestSpot->pAI->GetName()));
+				m_DEBUG_reinforcementCalls.push_back(SAIRefinforcementCallDebug(pUnit->GetPos() + Vec3(0, 0, 0.3f), nearestSpot->pAI->GetPos() + Vec3(0, 0, 0.3f), 7, nearestSpot->pAI->GetName()));
 #endif
 				m_refReinfPendingUnit = StaticCast<CPuppet>(pNearestCallerImg->m_refUnit);
 				// Remove the spot (when confirmed)
@@ -1110,8 +1110,8 @@ void CAIGroup::UpdateReinforcementLogic()
 #ifdef CRYAISYSTEM_DEBUG
 	for (unsigned i = 0; i < m_DEBUG_reinforcementCalls.size(); )
 	{
-		m_DEBUG_reinforcementCalls[i].t -= gEnv->pTimer->GetFrameTime();
-		if (m_DEBUG_reinforcementCalls[i].t < 0.0f)
+		m_DEBUG_reinforcementCalls[i].t -= GetGTimer()->GetFrameTime();
+		if (m_DEBUG_reinforcementCalls[i].t < 0)
 		{
 			m_DEBUG_reinforcementCalls[i] = m_DEBUG_reinforcementCalls.back();
 			m_DEBUG_reinforcementCalls.pop_back();

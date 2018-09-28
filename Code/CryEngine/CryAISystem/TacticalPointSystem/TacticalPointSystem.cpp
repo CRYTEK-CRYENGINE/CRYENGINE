@@ -33,7 +33,7 @@
 #include "Navigation/NavigationSystem/NavigationSystem.h"
 
 // Maximum time that an async query can execute before it is aborted as an error
-const float MAX_SYNC_TIME_MS = 20;
+const int MAX_SYNC_TIME_MS = 20;
 
 CTacticalPointSystem::CVarsDef CTacticalPointSystem::CVars;
 
@@ -506,12 +506,12 @@ int CTacticalPointSystem::SyncQueryShortlist
 	// Skipping the queue, we immediately evaluate the query
 	// It is very important that synchronous queries are completed in a timely manner
 	// However, for development purposes, set a very high time limit, then check the actual time taken to issue a warning
-	CTimeValue startTime = gEnv->pTimer->GetAsyncTime();
-	CTimeValue timeLimit = startTime + 1.0f;   // Up to 1 second!
+	CTimeValue startTime = GetGTimer()->GetAsyncTime();
+	CTimeValue timeLimit = startTime + 1;   // Up to 1 second!
 	bOk = ContinueQueryEvaluation(evaluation, timeLimit);
 
 	// Check the actual time taken and issue a warning below
-	CTimeValue elapsed = gEnv->pTimer->GetAsyncTime() - startTime;
+	CTimeValue elapsed = GetGTimer()->GetAsyncTime() - startTime;
 
 	CAIActor* pAIActor = static_cast<CAIActor*>(context.pAIActor);
 	if (!bOk)
@@ -521,7 +521,7 @@ int CTacticalPointSystem::SyncQueryShortlist
 		return -1;
 	}
 #ifdef CRYAISYSTEM_DEBUG
-	if (elapsed.GetMilliSecondsAsInt64() >= MAX_SYNC_TIME_MS)
+	if (elapsed.GetMilliSeconds() >= MAX_SYNC_TIME_MS)
 	{
 		AIWarningID("<TacticalPointSystem> ", "Query '%s' performed by '%s' took too long! (%dms >= %dms)",
 		            pQuery->GetName(), pAIActor ? pAIActor->GetName() : "<null>", (uint32)elapsed.GetMilliSeconds(), (uint32)(MAX_SYNC_TIME_MS));
@@ -586,9 +586,9 @@ void CTacticalPointSystem::AddQueryForDebug(SQueryEvaluation& evaluation)
 
 	EntityId targetAI = evaluation.queryInstance.queryContext.actorEntityId;
 	evaluation.owner = targetAI;
-	evaluation.timePlaced = gEnv->pTimer->GetAsyncTime(); // (MATT) Would use frame time, but that appears junk! {2009/11/22}
+	evaluation.timePlaced = GetGTimer()->GetAsyncTime(); // (MATT) Would use frame time, but that appears junk! {2009/11/22}
 	evaluation.timeErase = evaluation.timePlaced;
-	evaluation.timeErase += CTimeValue(CVars.TacticalPointsDebugTime);
+	evaluation.timeErase += CVars.TacticalPointsDebugTime;
 
 	// Find any existing entry for this entity
 	std::list<SQueryEvaluation>::iterator it = m_lstQueryEvaluationsForDebug.begin();
@@ -757,7 +757,7 @@ bool CTacticalPointSystem::ContinueQueryEvaluation(SQueryEvaluation& eval, CTime
 		}
 	}
 	while (bOk && (eval.eEvalState != SQueryEvaluation::eCompleted) &&
-	       (eval.eEvalState != SQueryEvaluation::eWaitingForDeferred) && (currTime = gEnv->pTimer->GetAsyncTime()) < timeLimit);
+	       (eval.eEvalState != SQueryEvaluation::eWaitingForDeferred) && (currTime = GetGTimer()->GetAsyncTime()) < timeLimit);
 
 	return bOk;
 }
@@ -948,7 +948,7 @@ bool CTacticalPointSystem::ContinueHeapEvaluation(SQueryEvaluation& eval, CTimeV
 	int iDefCondsSize = (int)eval.vDefConds.size();
 	int iExpWeightsSize = (int)eval.vExpWeights.size();
 
-	CTimeValue currTime = gEnv->pTimer->GetAsyncTime();
+	CTimeValue currTime = GetGTimer()->GetAsyncTime();
 
 	// Check that there are actually some unrejected points to consider
 	// If they all failed on cheap tests or none were generated, go on to next option
@@ -1109,7 +1109,7 @@ bool CTacticalPointSystem::ContinueHeapEvaluation(SQueryEvaluation& eval, CTimeV
 				eval.eEvalState = SQueryEvaluation::eCompleted;
 		}
 	}
-	while (eval.eEvalState == SQueryEvaluation::eHeapEvaluation && (currTime = gEnv->pTimer->GetAsyncTime()) < timeLimit);
+	while (eval.eEvalState == SQueryEvaluation::eHeapEvaluation && (currTime = GetGTimer()->GetAsyncTime()) < timeLimit);
 
 	// The heap is left as any points we didn't have to fully evaluate and invalid range, of the ones we rejected
 
@@ -1509,11 +1509,11 @@ bool CTacticalPointSystem::GenerateInternal(TTacticalPointQuery query, const Que
 								location.z += effectiveCoverHeight;
 
 								if (pPD)
-									pPD->AddCone(location, Vec3(0.0f, 0.0f, -1.0f), 0.25f, effectiveCoverHeight, Col_Red, 3.5f);
+									pPD->AddCone(location, Vec3(0.0f, 0.0f, -1.0f), 0.25f, effectiveCoverHeight, Col_Red, "3.5");
 							}
 						}
 						else if (pPD)
-							pPD->AddSphere(location, fAgentRadius, Col_Red, 3.5f);
+							pPD->AddSphere(location, fAgentRadius, Col_Red, "3.5");
 					}
 				}
 				else
@@ -1528,7 +1528,7 @@ bool CTacticalPointSystem::GenerateInternal(TTacticalPointQuery query, const Que
 						if (surface.IsCircleInCover(vObjectAuxPos, location, fAgentRadius))
 							accumulator.push_back(CTacticalPoint(coverID, location));
 						else if (pPD)
-							pPD->AddSphere(location, 0.75f, Col_Red, 3.0f);
+							pPD->AddSphere(location, 0.75f, Col_Red, 3);
 					}
 				}
 			}
@@ -2083,7 +2083,7 @@ ETacticalPointDeferredState CTacticalPointSystem::DeferredBoolTestInternal(TTact
 				{
 					IPersistantDebug* debug = gEnv->pGameFramework->GetIPersistantDebug();
 					debug->Begin("eTPQ_T_Visible", false);
-					debug->AddLine(vWaistPos, vWaistPos + vDelta, (result ? Col_Green : Col_Red), 10.0f);
+					debug->AddLine(vWaistPos, vWaistPos + vDelta, (result ? Col_Green : Col_Red), 10);
 				}
 			}
 
@@ -2127,7 +2127,7 @@ ETacticalPointDeferredState CTacticalPointSystem::DeferredBoolTestInternal(TTact
 					{
 						IPersistantDebug* debug = gEnv->pGameFramework->GetIPersistantDebug();
 						debug->Begin("eTPQ_T_CanShoot", false);
-						debug->AddLine(vPoint, vPoint + vDelta, Col_Blue, 10.0f);
+						debug->AddLine(vPoint, vPoint + vDelta, Col_Blue, 10);
 					}
 
 				}
@@ -2213,8 +2213,8 @@ ETacticalPointDeferredState CTacticalPointSystem::DeferredBoolTestInternal(TTact
 				{
 					IPersistantDebug* debug = gEnv->pGameFramework->GetIPersistantDebug();
 					debug->Begin("eTPQ_T_CanShootTwoRayTest", false);
-					debug->AddLine(vPointRight, vPointRight + vDeltaRight, Col_Blue, 10.0f);
-					debug->AddLine(vPointLeft, vPointLeft + vDeltaLeft, Col_Blue, 10.0f);
+					debug->AddLine(vPointRight, vPointRight + vDeltaRight, Col_Blue, 10);
+					debug->AddLine(vPointLeft, vPointLeft + vDeltaLeft, Col_Blue, 10);
 				}
 			}
 
@@ -3460,12 +3460,12 @@ void CTacticalPointSystem::DestroyAllQueries()
 	m_mQueryEvaluationsInProgress.clear();
 }
 
-void CTacticalPointSystem::Update(const float fBudgetSeconds)
+void CTacticalPointSystem::Update(const CTimeValue& fBudgetSeconds)
 {
 	// Convert to absolute integer values time limit for precision and efficiency
 	// Convert to floats only for debugging
-	CTimeValue timeStart = gEnv->pTimer->GetAsyncTime();
-	CTimeValue timeLimit = timeStart + CTimeValue(fBudgetSeconds);
+	CTimeValue timeStart = GetGTimer()->GetAsyncTime();
+	CTimeValue timeLimit = timeStart + fBudgetSeconds;
 	CTimeValue lastTime = timeStart;
 
 	int nQueriesProcessed = 0;
@@ -3502,7 +3502,7 @@ void CTacticalPointSystem::Update(const float fBudgetSeconds)
 		SQueryEvaluation& evaluation = m_mQueryEvaluationsInProgress.begin()->second;
 		ContinueQueryEvaluation(evaluation, timeLimit);
 
-		CTimeValue currTime = gEnv->pTimer->GetAsyncTime();
+		CTimeValue currTime = GetGTimer()->GetAsyncTime();
 		evaluation.queryInstance.nFramesProcessed++;
 		lastTime = currTime;
 
@@ -3810,7 +3810,7 @@ TPSQueryTicket CTacticalPointSystem::AsyncQuery(TPSQueryID queryID, const QueryC
 	instance.nQueryID = queryID;
 	instance.pReceiver = pReciever;
 	instance.queryContext = m_context;
-	instance.timeRequested = gEnv->pTimer->GetAsyncTime(); // (MATT) Would use frame time, but that appears junk! {2009/11/22}
+	instance.timeRequested = GetGTimer()->GetAsyncTime(); // (MATT) Would use frame time, but that appears junk! {2009/11/22}
 	instance.flags = flags;
 
 	// Check the instance for validity
@@ -3941,7 +3941,7 @@ void CTacticalPointSystem::DebugDraw() const
 	dc->SetAlphaBlended(true);
 	dc->SetDrawInFront(true);
 
-	CTimeValue timeNow = gEnv->pTimer->GetAsyncTime(); // (MATT) Would use frame time, but that appears junk! {2009/11/22}
+	CTimeValue timeNow = GetGTimer()->GetAsyncTime(); // (MATT) Would use frame time, but that appears junk! {2009/11/22}
 
 	// Iterate through entry list
 	std::list<SQueryEvaluation>::const_iterator entryIter = m_lstQueryEvaluationsForDebug.begin();
@@ -3961,12 +3961,12 @@ void CTacticalPointSystem::DebugDraw() const
 		if (!iDrawMode)
 			continue;
 
-		float fPercentageLifetime = (timeNow - sEntry.timePlaced).GetSeconds() / (sEntry.timeErase - sEntry.timePlaced).GetSeconds();
-		fPercentageLifetime = clamp_tpl(fPercentageLifetime, 0.0f, 1.0f);
+		nTime fPercentageLifetime = (timeNow - sEntry.timePlaced) / (sEntry.timeErase - sEntry.timePlaced);
+		fPercentageLifetime = CLAMP(fPercentageLifetime, 0, 1);
 
 		//	Disapparation effect when time nearly up
-		float fPercentageDisapparation = 0.1f;
-		if (!sEntry.bPersistent && (1.0f - fPercentageLifetime) < fPercentageDisapparation)
+		nTime fPercentageDisapparation = "0.1";
+		if (!sEntry.bPersistent && (1 - fPercentageLifetime) < fPercentageDisapparation)
 		{
 			switch (iFadeMode)
 			{
@@ -3974,11 +3974,11 @@ void CTacticalPointSystem::DebugDraw() const
 				break;
 
 			case 2: // Alpha fade
-				fAlphaModifier = (1.0f - fPercentageLifetime) / fPercentageDisapparation;
+				fAlphaModifier = BADF((1 - fPercentageLifetime) / fPercentageDisapparation);
 				break;
 
 			case 3: // Blink
-				if ((timeNow - sEntry.timePlaced).GetPeriodicFraction(CTimeValue(0.2f)) > 0.5f)
+				if ((timeNow - sEntry.timePlaced).GetPeriodicFraction("0.2") > "0.5")
 					continue; // Don't display points in 'off' part of blink cycle
 				break;
 			}

@@ -5,7 +5,7 @@
 #include "../DebugDrawContext.h"
 
 bool AIQueueBubbleMessage(const char* messageName, const EntityId entityID,
-                          const char* message, uint32 flags, float duration /*= 0*/, SAIBubbleRequest::ERequestType requestType /* = eRT_ErrorMessage */)
+                          const char* message, uint32 flags, const CTimeValue& duration /*= 0*/, SAIBubbleRequest::ERequestType requestType /* = eRT_ErrorMessage */)
 {
 #ifdef CRYAISYSTEM_DEBUG
 	if (IAIBubblesSystem* pAIBubblesSystem = gAIEnv.pBubblesSystem)
@@ -213,7 +213,7 @@ void CAIBubblesSystem::Update()
 	if (!m_entityRequestsMap.empty())
 	{
 		CDebugDrawContext debugDrawContext;
-		const CTimeValue currentTimestamp = gEnv->pTimer->GetFrameStartTime();
+		const CTimeValue currentTimestamp = GetGTimer()->GetFrameStartTime();
 		EntityRequestsMap::iterator it = m_entityRequestsMap.begin();
 		EntityRequestsMap::iterator end = m_entityRequestsMap.end();
 		for (; it != end; ++it)

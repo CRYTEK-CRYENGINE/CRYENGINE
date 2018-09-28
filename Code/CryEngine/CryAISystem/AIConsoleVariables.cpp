@@ -22,7 +22,7 @@ void AIConsoleVars::Init()
 	               "Usage: ai_DebugDrawAStarOpenList [AI agent name]\n"
 	               "Default is 0, which disables the debug draw. Requires ai_DebugPathfinding=1 to be activated.");
 
-	REGISTER_CVAR2("ai_DebugDrawAStarOpenListTime", &DebugDrawAStarOpenListTime, 10.0f, VF_CHEAT | VF_CHEAT_NOCHECK,
+	REGISTER_CVAR2("ai_DebugDrawAStarOpenListTime", &DebugDrawAStarOpenListTime, CTimeValue(10), VF_CHEAT | VF_CHEAT_NOCHECK,
 	               "The amount of time to draw the A* open list.");
 
 	REGISTER_CVAR2("ai_DrawNode", &DrawNode, "none", VF_CHEAT | VF_CHEAT_NOCHECK,
@@ -120,10 +120,10 @@ void AIConsoleVars::Init()
 	               "The maximum segment length used by CheckWalkabilityFast when querying for world geometry from physics.\n"
 	               "Default: 1.75\n");
 
-	REGISTER_CVAR2("ai_TacticalPointUpdateTime", &TacticalPointUpdateTime, 0.0005f, VF_NULL,
+	REGISTER_CVAR2("ai_TacticalPointUpdateTime", &TacticalPointUpdateTime, CTimeValue("0.0005"), VF_NULL,
 	               "Maximum allowed update time in main AI thread for Tactical Point System\n"
 	               "Usage: ai_TacticalPointUpdateTime <number>\n"
-	               "Default is 0.0003");
+	               "Default is 0.0005");
 
 	DefineConstIntCVarName("ai_UpdateAllAlways", UpdateAllAlways, 0, VF_CHEAT | VF_CHEAT_NOCHECK,
 	                       "If non-zero then over-rides the auto-disabling of invisible/distant AI");
@@ -131,10 +131,10 @@ void AIConsoleVars::Init()
 	                       "Uses a (calibrated) counter instead of time in AI updates");
 
 	// is not cheat protected because it changes during game, depending on your settings
-	REGISTER_CVAR2("ai_UpdateInterval", &AIUpdateInterval, 0.13f, VF_NULL,
+	REGISTER_CVAR2("ai_UpdateInterval", &AIUpdateInterval, CTimeValue("0.13"), VF_NULL,
 	               "In seconds the amount of time between two full updates for AI  \n"
 	               "Usage: ai_UpdateInterval <number>\n"
-	               "Default is 0.1. Number is time in seconds");
+	               "Default is 0.13, Number is time in seconds");
 	DefineConstIntCVarName("ai_AdjustPathsAroundDynamicObstacles", AdjustPathsAroundDynamicObstacles, 1, VF_CHEAT | VF_CHEAT_NOCHECK,
 	                       "Set to 1/0 to enable/disable AI path adjustment around dynamic obstacles");
 	// is not cheat protected because it changes during game, depending on your settings
@@ -151,7 +151,7 @@ void AIConsoleVars::Init()
 	// Bubble System cvars
 	REGISTER_CVAR2("ai_BubblesSystem", &EnableBubblesSystem, 1, VF_CHEAT | VF_CHEAT_NOCHECK,
 	               "Enables/disables bubble notifier.");
-	REGISTER_CVAR2("ai_BubblesSystemDecayTime", &BubblesSystemDecayTime, 15.0f, VF_CHEAT | VF_CHEAT_NOCHECK,
+	REGISTER_CVAR2("ai_BubblesSystemDecayTime", &BubblesSystemDecayTime, CTimeValue(15), VF_CHEAT | VF_CHEAT_NOCHECK,
 	               "Specifies the decay time for the bubbles drawn on screen.");
 
 	DefineConstIntCVarName("ai_BubblesSystemAlertnessFilter", BubblesSystemAlertnessFilter, 7, VF_CHEAT | VF_CHEAT_NOCHECK,
@@ -232,23 +232,23 @@ void AIConsoleVars::Init()
 	               "Increase rate of the collision avoidance radius increment.");
 	REGISTER_CVAR2("ai_CollisionAvoidanceRadiusIncrementDecreaseRate", &CollisionAvoidanceRadiusIncrementDecreaseRate, 2.0f, VF_CHEAT | VF_CHEAT_NOCHECK,
 	               "Decrease rate of the collision avoidance radius increment.");
-	REGISTER_CVAR2("ai_CollisionAvoidanceTimestep", &CollisionAvoidanceTimeStep, 0.1f, VF_CHEAT | VF_CHEAT_NOCHECK,
+	REGISTER_CVAR2("ai_CollisionAvoidanceTimestep", &CollisionAvoidanceTimeStep, CTimeValue("0.1"), VF_CHEAT | VF_CHEAT_NOCHECK,
 	               "TimeStep used to calculate an agent's collision free velocity.");
 	REGISTER_CVAR2("ai_CollisionAvoidanceMinSpeed", &CollisionAvoidanceMinSpeed, 0.2f, VF_CHEAT | VF_CHEAT_NOCHECK,
 	               "Minimum speed allowed to be used by ORCA.");
-	REGISTER_CVAR2("ai_CollisionAvoidanceAgentTimeHorizon", &CollisionAvoidanceAgentTimeHorizon, 2.5f, VF_CHEAT | VF_CHEAT_NOCHECK,
+	REGISTER_CVAR2("ai_CollisionAvoidanceAgentTimeHorizon", &CollisionAvoidanceAgentTimeHorizon, CTimeValue("2.5"), VF_CHEAT | VF_CHEAT_NOCHECK,
 	               "Time horizon used to calculate an agent's collision free velocity against other agents.");
-	REGISTER_CVAR2("ai_CollisionAvoidanceObstacleTimeHorizon", &CollisionAvoidanceObstacleTimeHorizon, 1.5f, VF_CHEAT | VF_CHEAT_NOCHECK,
+	REGISTER_CVAR2("ai_CollisionAvoidanceObstacleTimeHorizon", &CollisionAvoidanceObstacleTimeHorizon, CTimeValue("1.5"), VF_CHEAT | VF_CHEAT_NOCHECK,
 	               "Time horizon used to calculate an agent's collision free velocity against static obstacles.");
 	REGISTER_CVAR2("ai_DebugCollisionAvoidanceForceSpeed", &DebugCollisionAvoidanceForceSpeed, 0.0f, VF_CHEAT | VF_CHEAT_NOCHECK,
 	               "Force agents velocity to it's current direction times the specified value.");
 	REGISTER_CVAR2("ai_DebugDrawCollisionAvoidanceAgentName", &DebugDrawCollisionAvoidanceAgentName, "", VF_CHEAT | VF_CHEAT_NOCHECK,
 	               "Name of the agent to draw collision avoidance data for.");
-	REGISTER_CVAR2("ai_SOMSpeedRelaxed", &SOMSpeedRelaxed, 0.4f, VF_NULL,
+	REGISTER_CVAR2("ai_SOMSpeedRelaxed", &SOMSpeedRelaxed, CTimeValue("0.4"), VF_NULL,
 	               "Time before the AI will see the enemy while relaxed.\n"
 	               "Usage: ai_SOMSpeedRelaxed 0.4\n"
 	               "Default is 0.4. A lower value causes the AI to react to the enemy faster.");
-	REGISTER_CVAR2("ai_SOMSpeedCombat", &SOMSpeedCombat, 0.15f, VF_NULL,
+	REGISTER_CVAR2("ai_SOMSpeedCombat", &SOMSpeedCombat, CTimeValue("0.15"), VF_NULL,
 	               "Time before the AI will see the enemy while alarmed.\n"
 	               "Usage: ai_SOMSpeedCombat 0.15\n"
 	               "Default is 0.15. A lower value causes the AI to react to the enemy faster.");
@@ -259,12 +259,12 @@ void AIConsoleVars::Init()
 	               "Multiplier for sightrange when the target is in dark light condition.");
 	REGISTER_CVAR2("ai_SightRangeMediumIllumMod", &SightRangeMediumIllumMod, 0.8f, VF_NULL,
 	               "Multiplier for sightrange when the target is in medium light condition.");
-	REGISTER_CVAR2("ai_PathfindTimeLimit", &AllowedTimeForPathfinding, 0.08f, VF_NULL,
+	REGISTER_CVAR2("ai_PathfindTimeLimit", &AllowedTimeForPathfinding, CTimeValue("0.08"), VF_NULL,
 	               "Specifies how many seconds an individual AI can hold the pathfinder blocked\n"
 	               "Usage: ai_PathfindTimeLimit 0.15\n"
 	               "Default is 0.08. A lower value will result in more path requests that end in NOPATH -\n"
 	               "although the path may actually exist.");
-	REGISTER_CVAR2("ai_PathfinderUpdateTime", &PathfinderUpdateTime, 0.0005f, VF_NULL,
+	REGISTER_CVAR2("ai_PathfinderUpdateTime", &PathfinderUpdateTime, CTimeValue("0.0005"), VF_NULL,
 	               "Maximum pathfinder time per AI update");
 	REGISTER_CVAR2("ai_DrawAgentFOV", &DrawAgentFOV, 0, VF_CHEAT | VF_CHEAT_NOCHECK,
 	               "Toggles the vision cone of the AI agent.\n"
@@ -411,7 +411,7 @@ void AIConsoleVars::Init()
 	               "Maximum distance from the camera for tile to be drawn.\n"
 	               "Usage: ai_NavmeshTileDistanceDraw [0.0-...]\n"
 	               "Default is 200.0\n");
-	REGISTER_CVAR2("ai_NavmeshStabilizationTimeToUpdate", &NavmeshStabilizationTimeToUpdate, 0.3f, VF_CHEAT | VF_CHEAT_NOCHECK,
+	REGISTER_CVAR2("ai_NavmeshStabilizationTimeToUpdate", &NavmeshStabilizationTimeToUpdate, CTimeValue("0.3"), VF_CHEAT | VF_CHEAT_NOCHECK,
 		"Time that navmesh needs to be without any new updates to apply the latest changes.\n"
 		"Usage: ai_NavmeshStabilizationTimeToUpdate [0.0-...]\n"
 		"Default is 0.3\n");
@@ -614,21 +614,21 @@ void AIConsoleVars::Init()
 	DefineConstIntCVarName("ai_DebugTargetSilhouette", DebugTargetSilhouette, 0, VF_CHEAT | VF_CHEAT_NOCHECK,
 	                       "Draws the silhouette used for missing the target while shooting.");
 
-	REGISTER_CVAR2("ai_RODAliveTime", &RODAliveTime, 3.0f, VF_NULL,
+	REGISTER_CVAR2("ai_RODAliveTime", &RODAliveTime, CTimeValue(3), VF_NULL,
 	               "The base level time the player can survive under fire.");
-	REGISTER_CVAR2("ai_RODMoveInc", &RODMoveInc, 3.0f, VF_NULL,
+	REGISTER_CVAR2("ai_RODMoveInc", &RODMoveInc, CTimeValue(3), VF_NULL,
 	               "Increment how the speed of the target affects the alive time (the value is doubled for supersprint). 0=disable");
-	REGISTER_CVAR2("ai_RODStanceInc", &RODStanceInc, 2.0f, VF_NULL,
+	REGISTER_CVAR2("ai_RODStanceInc", &RODStanceInc, CTimeValue(2), VF_NULL,
 	               "Increment how the stance of the target affects the alive time, 0=disable.\n"
 	               "The base value is for crouch, and it is doubled for prone.\n"
 	               "The crouch inc is disable in kill-zone and prone in kill and combat-near -zones");
-	REGISTER_CVAR2("ai_RODDirInc", &RODDirInc, 0.0f, VF_NULL,
+	REGISTER_CVAR2("ai_RODDirInc", &RODDirInc, CTimeValue(0), VF_NULL,
 	               "Increment how the orientation of the target affects the alive time. 0=disable");
-	REGISTER_CVAR2("ai_RODKillZoneInc", &RODKillZoneInc, -4.0f, VF_NULL,
+	REGISTER_CVAR2("ai_RODKillZoneInc", &RODKillZoneInc, CTimeValue(-4), VF_NULL,
 	               "Increment how the target is within the kill-zone of the target.");
 	REGISTER_CVAR2("ai_RODFakeHitChance", &RODFakeHitChance, 0.2f, VF_NULL,
 	               "Percentage of the missed hits that will instead be hits dealing very little damage.");
-	REGISTER_CVAR2("ai_RODAmbientFireInc", &RODAmbientFireInc, 3.0f, VF_NULL,
+	REGISTER_CVAR2("ai_RODAmbientFireInc", &RODAmbientFireInc, CTimeValue(3), VF_NULL,
 	               "Increment for the alive time when the target is within the kill-zone of the target.");
 
 	REGISTER_CVAR2("ai_RODKillRangeMod", &RODKillRangeMod, 0.15f, VF_NULL,
@@ -636,32 +636,32 @@ void AIConsoleVars::Init()
 	REGISTER_CVAR2("ai_RODCombatRangeMod", &RODCombatRangeMod, 0.55f, VF_NULL,
 	               "Combat-zone distance = attackRange * combatRangeMod.");
 
-	REGISTER_CVAR2("ai_RODCoverFireTimeMod", &RODCoverFireTimeMod, 1.0f, VF_NULL,
+	REGISTER_CVAR2("ai_RODCoverFireTimeMod", &RODCoverFireTimeMod, mpfloat(1), VF_NULL,
 	               "Multiplier for cover fire times set in weapon descriptor.");
 
-	REGISTER_CVAR2("ai_RODReactionTime", &RODReactionTime, 1.0f, VF_NULL,
+	REGISTER_CVAR2("ai_RODReactionTime", &RODReactionTime, CTimeValue(1), VF_NULL,
 	               "Uses rate of death as damage control method.");
-	REGISTER_CVAR2("ai_RODReactionDistInc", &RODReactionDistInc, 0.1f, VF_NULL,
+	REGISTER_CVAR2("ai_RODReactionDistInc", &RODReactionDistInc, CTimeValue("0.1"), VF_NULL,
 	               "Increase for the reaction time when the target is in combat-far-zone or warn-zone.\n"
 	               "In warn-zone the increase is doubled.");
-	REGISTER_CVAR2("ai_RODReactionDirInc", &RODReactionDirInc, 2.0f, VF_NULL,
+	REGISTER_CVAR2("ai_RODReactionDirInc", &RODReactionDirInc, CTimeValue(2), VF_NULL,
 	               "Increase for the reaction time when the enemy is outside the players FOV or near the edge of the FOV.\n"
 	               "The increment is doubled when the target is behind the player.");
-	REGISTER_CVAR2("ai_RODReactionLeanInc", &RODReactionLeanInc, 0.2f, VF_NULL,
+	REGISTER_CVAR2("ai_RODReactionLeanInc", &RODReactionLeanInc, CTimeValue("0.2"), VF_NULL,
 	               "Increase to the reaction to when the target is leaning.");
-	REGISTER_CVAR2("ai_RODReactionSuperDarkIllumInc", &RODReactionSuperDarkIllumInc, 0.4f, VF_NULL,
+	REGISTER_CVAR2("ai_RODReactionSuperDarkIllumInc", &RODReactionSuperDarkIllumInc, CTimeValue("0.4"), VF_NULL,
 	               "Increase for reaction time when the target is in super dark light condition.");
-	REGISTER_CVAR2("ai_RODReactionDarkIllumInc", &RODReactionDarkIllumInc, 0.3f, VF_NULL,
+	REGISTER_CVAR2("ai_RODReactionDarkIllumInc", &RODReactionDarkIllumInc, CTimeValue("0.3"), VF_NULL,
 	               "Increase for reaction time when the target is in dark light condition.");
-	REGISTER_CVAR2("ai_RODReactionMediumIllumInc", &RODReactionMediumIllumInc, 0.2f, VF_NULL,
+	REGISTER_CVAR2("ai_RODReactionMediumIllumInc", &RODReactionMediumIllumInc, CTimeValue("0.2"), VF_NULL,
 	               "Increase for reaction time when the target is in medium light condition.");
 
-	REGISTER_CVAR2("ai_RODLowHealthMercyTime", &RODLowHealthMercyTime, 1.5f, VF_NULL,
+	REGISTER_CVAR2("ai_RODLowHealthMercyTime", &RODLowHealthMercyTime, CTimeValue("1.5"), VF_NULL,
 	               "The amount of time the AI will not hit the target when the target crosses the low health threshold.");
 
 	DefineConstIntCVarName("ai_AmbientFireEnable", AmbientFireEnable, 1, VF_CHEAT | VF_CHEAT_NOCHECK,
 	                       "Enable ambient fire system.");
-	REGISTER_CVAR2("ai_AmbientFireUpdateInterval", &AmbientFireUpdateInterval, 1.0f, VF_NULL,
+	REGISTER_CVAR2("ai_AmbientFireUpdateInterval", &AmbientFireUpdateInterval, CTimeValue(1), VF_NULL,
 	               "Ambient fire update interval. Controls how often puppet's ambient fire status is updated.");
 	REGISTER_CVAR2("ai_AmbientFireQuota", &AmbientFireQuota, 2, 0,
 	               "Number of units allowed to hit the player at a time.");
@@ -730,7 +730,7 @@ void AIConsoleVars::Init()
 	DefineConstIntCVarName("ai_InterestSystemCastRays", InterestSystemCastRays, 1, VF_CHEAT | VF_CHEAT_NOCHECK,
 	                       "Makes the Interest System check visibility with rays");
 
-	REGISTER_CVAR2("ai_BannedNavSoTime", &BannedNavSoTime, 15.0f, VF_NULL,
+	REGISTER_CVAR2("ai_BannedNavSoTime", &BannedNavSoTime, CTimeValue(15), VF_NULL,
 	               "Time indicating how long invalid navsos should be banned.");
 	DefineConstIntCVarName("ai_DebugDrawAdaptiveUrgency", DebugDrawAdaptiveUrgency, 0, VF_CHEAT | VF_CHEAT_NOCHECK,
 	                       "Enables drawing the adaptive movement urgency.");
@@ -780,7 +780,7 @@ void AIConsoleVars::Init()
 	DefineConstIntCVarName("ai_IgnoreSoundStimulus", IgnoreSoundStimulus, 0, VF_CHEAT | VF_CHEAT_NOCHECK, "Have the Perception Handler ignore all sound stimulus always");
 	DefineConstIntCVarName("ai_IgnoreBulletRainStimulus", IgnoreBulletRainStimulus, 0, VF_CHEAT | VF_CHEAT_NOCHECK, "Have the Perception Handler ignore all bullet rain stimulus always");
 
-	REGISTER_CVAR2("ai_MNMPathFinderQuota", &MNMPathFinderQuota, 0.001f, VF_CHEAT | VF_CHEAT_NOCHECK,
+	REGISTER_CVAR2("ai_MNMPathFinderQuota", &MNMPathFinderQuota, CTimeValue("0.001"), VF_CHEAT | VF_CHEAT_NOCHECK,
 	               "Set path finding frame time quota in seconds (Set to 0 for no limit)");
 	REGISTER_CVAR2("ai_MNMPathFinderDebug", &MNMPathFinderDebug, 0, VF_CHEAT | VF_CHEAT_NOCHECK,
 	               "[0-1] Enable/Disable debug draw statistics on pathfinder load");
@@ -797,9 +797,9 @@ void AIConsoleVars::Init()
 	DefineConstIntCVarName("ai_UseSmartPathFollower", UseSmartPathFollower, 1, VF_CHEAT | VF_CHEAT_NOCHECK, "Enables Smart PathFollower (default: 1).");
 	DefineConstIntCVarName("ai_UseSmartPathFollower_AABB_based", SmartpathFollower_UseAABB_CheckWalkibility, 1, VF_CHEAT | VF_CHEAT_NOCHECK, "Enables Smart PathFollower to use AABB checks and other optimizations");
 	REGISTER_CVAR2("ai_UseSmartPathFollower_LookAheadDistance", &SmartPathFollower_LookAheadDistance, 10.0f, VF_NULL, "LookAheadDistance of SmartPathFollower");
-	REGISTER_CVAR2("ai_SmartPathFollower_LookAheadPredictionTimeForMovingAlongPathWalk", &SmartPathFollower_LookAheadPredictionTimeForMovingAlongPathWalk, 0.5f, VF_NULL,
+	REGISTER_CVAR2("ai_SmartPathFollower_LookAheadPredictionTimeForMovingAlongPathWalk", &SmartPathFollower_LookAheadPredictionTimeForMovingAlongPathWalk, CTimeValue("0.5"), VF_NULL,
 	               "Defines the time frame the AI is allowed to look ahead while moving strictly along a path to decide whether to cut towards the next point. (Walk only)\n");
-	REGISTER_CVAR2("ai_SmartPathFollower_LookAheadPredictionTimeForMovingAlongPathRunAndSprint", &SmartPathFollower_LookAheadPredictionTimeForMovingAlongPathRunAndSprint, 0.25f, VF_NULL,
+	REGISTER_CVAR2("ai_SmartPathFollower_LookAheadPredictionTimeForMovingAlongPathRunAndSprint", &SmartPathFollower_LookAheadPredictionTimeForMovingAlongPathRunAndSprint, CTimeValue("0.25"), VF_NULL,
 	               "Defines the time frame the AI is allowed to look ahead while moving strictly along a path to decide whether to cut towards the next point. (Run and Sprint only)\n");
 	REGISTER_CVAR2("ai_SmartPathFollower_decelerationHuman", &SmartPathFollower_decelerationHuman, 7.75f, VF_NULL, "Deceleration multiplier for non-vehicles");
 	REGISTER_CVAR2("ai_SmartPathFollower_decelerationVehicle", &SmartPathFollower_decelerationVehicle, 1.0f, VF_NULL, "Deceleration multiplier for vehicles");
@@ -830,7 +830,7 @@ void AIConsoleVars::Init()
 	DefineConstIntCVarName("ai_EnableWarningsErrors", EnableWarningsErrors, 1, VF_CHEAT | VF_CHEAT_NOCHECK, "Enable AI warnings and errors: 1 or 0");
 #endif
 
-	REGISTER_CVAR2("ai_OverlayMessageDuration", &OverlayMessageDuration, 5.0f, VF_DUMPTODISK, "How long (seconds) to overlay AI warnings/errors");
+	REGISTER_CVAR2("ai_OverlayMessageDuration", &OverlayMessageDuration, CTimeValue(5), VF_DUMPTODISK, "How long (seconds) to overlay AI warnings/errors");
 
 	DefineConstIntCVarName("ai_Recorder", Recorder, 0, VF_CHEAT | VF_CHEAT_NOCHECK, "Sets AI Recorder mode. Default is 0 - off.");
 	DefineConstIntCVarName("ai_StatsDisplayMode", StatsDisplayMode, 0, VF_CHEAT | VF_CHEAT_NOCHECK,
@@ -873,7 +873,7 @@ void AIConsoleVars::Init()
 	REGISTER_CVAR2("ai_DrawFireEffectMaxAngle", &DrawFireEffectMaxAngle, 5.0f, VF_CHEAT | VF_CHEAT_NOCHECK,
 	               "Maximum angle actors actors are allowed to go away from their aiming direction during draw fire.");
 
-	REGISTER_CVAR2("ai_DrawFireEffectTimeScale", &DrawFireEffectTimeScale, 1.0f, VF_NULL,
+	REGISTER_CVAR2("ai_DrawFireEffectTimeScale", &DrawFireEffectTimeScale, mpfloat(1), VF_NULL,
 	               "Scale for the weapon's draw fire time setting.");
 
 	DefineConstIntCVarName("ai_AllowedToHitPlayer", AllowedToHitPlayer, 1, VF_CHEAT | VF_CHEAT_NOCHECK,
@@ -900,7 +900,7 @@ void AIConsoleVars::Init()
 	REGISTER_CVAR2("ai_CoolMissesProbability", &CoolMissesProbability, 0.35f, VF_NULL,
 	               "Agents' chance to perform a cool miss!");
 
-	REGISTER_CVAR2("ai_CoolMissesCooldown", &CoolMissesCooldown, 0.25f, VF_NULL,
+	REGISTER_CVAR2("ai_CoolMissesCooldown", &CoolMissesCooldown, CTimeValue("0.25"), VF_NULL,
 	               "Global time between potential cool misses.");
 
 	DefineConstIntCVarName("ai_DynamicHidespotsEnabled", DynamicHidespotsEnabled, 0, VF_CHEAT | VF_CHEAT_NOCHECK,
@@ -911,7 +911,7 @@ void AIConsoleVars::Init()
 
 	REGISTER_CVAR2("ai_LobThrowMinAllowedDistanceFromFriends", &LobThrowMinAllowedDistanceFromFriends, 15.0f, VF_CHEAT | VF_CHEAT_NOCHECK,
 	               "Minimum distance a grenade (or any object thrown using a lob) should land from mates to accept the throw trajectory.");
-	REGISTER_CVAR2("ai_LobThrowTimePredictionForFriendPositions", &LobThrowTimePredictionForFriendPositions, 2.0f, VF_CHEAT | VF_CHEAT_NOCHECK,
+	REGISTER_CVAR2("ai_LobThrowTimePredictionForFriendPositions", &LobThrowTimePredictionForFriendPositions, CTimeValue(2), VF_CHEAT | VF_CHEAT_NOCHECK,
 	               "Time frame used to predict the next position of moving mates to score the landing position of the lob throw");
 	REGISTER_CVAR2("ai_LobThrowPercentageOfDistanceToTargetUsedForInaccuracySimulation", &LobThrowPercentageOfDistanceToTargetUsedForInaccuracySimulation, 0.0,
 	               VF_CHEAT | VF_CHEAT_NOCHECK, "This value identifies percentage of the distance to the target that will be used to simulate human inaccuracy with parabolic throws.");

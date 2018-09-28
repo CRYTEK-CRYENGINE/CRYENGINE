@@ -80,10 +80,10 @@ void CAIVehicle::Update(EUpdateType type)
 		CRY_PROFILE_REGION(PROFILE_AI, "AI system vehicle full update");
 
 		CTimeValue fCurrentTime = GetAISystem()->GetFrameStartTime();
-		if (m_fLastUpdateTime.GetSeconds() > 0.0f)
-			m_fTimePassed = min(0.5f, (fCurrentTime - m_fLastUpdateTime).GetSeconds());
+		if (m_fLastUpdateTime > 0)
+			m_fTimePassed = min(CTimeValue("0.5"), fCurrentTime - m_fLastUpdateTime); // PERSONAL TODO: More minimum frame-time BS
 		else
-			m_fTimePassed = 0;
+			m_fTimePassed.SetSeconds(0);
 
 		m_fLastUpdateTime = fCurrentTime;
 
@@ -435,7 +435,7 @@ void CAIVehicle::FireCommand(void)
 			// finalize a result and check the time.
 			CTimeValue firingDuration;
 
-			firingDuration.SetSeconds(0.0f);
+			firingDuration.SetSeconds(0);
 			firingDuration += m_fFiringStartTime;
 			if (GetAISystem()->GetFrameStartTime() < firingDuration)
 			{
@@ -469,7 +469,7 @@ void CAIVehicle::FireCommand(void)
 			m_State.vShootTargetPos = vTargetPos;
 			m_State.fire = eAIFS_On;
 			CTimeValue firingDuration;
-			firingDuration.SetSeconds(3.0f);
+			firingDuration.SetSeconds(3);
 			firingDuration += m_fFiringStartTime;
 			m_fNextFiringTime = firingDuration;
 		}
@@ -483,12 +483,12 @@ void CAIVehicle::FireCommand(void)
 
 		Vec3 vTargetDir = vTargetPos - vFirePos;
 		//After the rotation of the tunnet has been completed,
-		float fDuration = 2.0f;
+		CTimeValue fDuration = 2;
 		float fBoxRange = 3.0f;
 		float fMaxDot = 30.0f;
 		if (bAAA == true)
 		{
-			fDuration = 2.0f;
+			fDuration.SetSeconds(2);
 			fBoxRange = 30.0f;
 			fMaxDot = 30.0f;
 			PredictMovingTarget(pFireTarget, vTargetPos, vFirePos, 1.0f, 30.0f);
@@ -511,7 +511,7 @@ void CAIVehicle::FireCommand(void)
 			float distanceFromCenter = vTargetDirFromCenter.GetLength();
 			float distanceFromFirePos = vTargetDirFromFirePos.GetLength();
 			float distanceFromCenterToFire = vCenterToFirePos.GetLength();
-			fDuration = 4.0f;
+			fDuration.SetSeconds(4);
 			fBoxRange = 5.0f;
 			fMaxDot = (distanceFromCenter < 15.0f) ? 120.0f : 15.0f;
 			if (distanceFromCenter < distanceFromCenterToFire + 1.5f)
@@ -531,7 +531,7 @@ void CAIVehicle::FireCommand(void)
 		//if there is still a big difference between acutal fire direction and ideal fire direction,
 		if (d > fBoxRange || inner < cos_tpl(DEG2RAD(fMaxDot)) || GetAISystem()->GetFrameStartTime() >= m_fNextFiringTime)
 		{
-			m_fNextFiringTime.SetSeconds(fDuration);
+			m_fNextFiringTime = fDuration;
 			m_fNextFiringTime += GetAISystem()->GetFrameStartTime();
 
 			m_State.vLookTargetPos = vTargetPos;
@@ -589,7 +589,7 @@ void CAIVehicle::FireCommand(void)
 			m_ShootPhase++;
 
 			CTimeValue tValue;
-			tValue.SetSeconds(5.0f);
+			tValue.SetSeconds(5);
 			m_fFiringPauseTime = GetAISystem()->GetFrameStartTime() + tValue;
 
 		}
@@ -608,7 +608,7 @@ void CAIVehicle::FireCommand(void)
 			if (inner > cosval || m_fFiringPauseTime < GetAISystem()->GetFrameStartTime())
 			{
 				CTimeValue tValue;
-				tValue.SetSeconds(0.5f);
+				tValue.SetSeconds("0.5");
 				m_fFiringPauseTime = GetAISystem()->GetFrameStartTime() + tValue;
 				m_ShootPhase++;
 			}
@@ -619,7 +619,7 @@ void CAIVehicle::FireCommand(void)
 			if (m_fFiringPauseTime < GetAISystem()->GetFrameStartTime())
 			{
 				CTimeValue tValue;
-				tValue.SetSeconds(0.5f);
+				tValue.SetSeconds("0.5");
 				m_fFiringPauseTime = GetAISystem()->GetFrameStartTime() + tValue;
 				m_ShootPhase++;
 			}
@@ -630,7 +630,7 @@ void CAIVehicle::FireCommand(void)
 			m_State.vLookTargetPos = m_State.vAimTargetPos = m_State.vShootTargetPos = vActualFireDir * 10.0f + vFirePos; //fix the turret
 
 			CTimeValue tValue;
-			tValue.SetSeconds(3.0f);
+			tValue.SetSeconds("3");
 
 			if (m_fFiringPauseTime < GetAISystem()->GetFrameStartTime())
 			{
@@ -654,7 +654,7 @@ void CAIVehicle::FireCommand(void)
 					}
 					else
 					{
-						tValue.SetSeconds(3.0f);
+						tValue.SetSeconds(3);
 					}
 				}
 				else
@@ -809,7 +809,7 @@ void CAIVehicle::Navigate(CAIObject* pTarget)
 	}
 
 	Vec3 vDir, vTargetPos;
-	float fTime = GetAISystem()->GetFrameDeltaTime();
+	CTimeValue fTime = GetAISystem()->GetFrameDeltaTime();
 	//	int TargetType = AIOBJECT_NONE;
 
 	if (pTarget)
@@ -923,7 +923,7 @@ void CAIVehicle::AlertPuppets(void)
 		unsigned last = maxpts - 1;
 		for (unsigned i = 0; i < maxpts; ++i)
 		{
-			GetAISystem()->AddDebugLine(rect[last], rect[i], 255, 0, 0, 0.2f);
+			GetAISystem()->AddDebugLine(rect[last], rect[i], 255, 0, 0, "0.2");
 			last = i;
 		}
 	}
@@ -1012,9 +1012,9 @@ void CAIVehicle::AlertPuppets(void)
 			Vec3 avoidPos = pPuppet->GetPos() + move;
 			if (debugdraw)
 			{
-				GetAISystem()->AddDebugSphere(pPuppet->GetPos() + Vec3(0, 0, 2), 0.25f, 255, 255, 255, 0.2f);
-				GetAISystem()->AddDebugLine(pPuppet->GetPos(), avoidPos, 255, 255, 255, 0.2f);
-				GetAISystem()->AddDebugLine(avoidPos - Vec3(0, 0, 10), avoidPos + Vec3(0, 0, 10), 255, 255, 255, 0.2f);
+				GetAISystem()->AddDebugSphere(pPuppet->GetPos() + Vec3(0, 0, 2), 0.25f, 255, 255, 255, "0.2");
+				GetAISystem()->AddDebugLine(pPuppet->GetPos(), avoidPos, 255, 255, 255, "0.2");
+				GetAISystem()->AddDebugLine(avoidPos - Vec3(0, 0, 10), avoidPos + Vec3(0, 0, 10), 255, 255, 255, "0.2");
 			}
 
 			if (pPuppet->GetAvoidedVehicle() != this)

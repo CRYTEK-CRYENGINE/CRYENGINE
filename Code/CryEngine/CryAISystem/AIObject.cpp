@@ -496,7 +496,7 @@ IEntity* CAIObject::GetEntity() const
 //====================================================================
 // SetFormationUpdateSight
 //====================================================================
-void CAIObject::SetFormationUpdateSight(float range, float minTime, float maxTime)
+void CAIObject::SetFormationUpdateSight(float range, const CTimeValue& minTime, const CTimeValue& maxTime)
 {
 	if (m_pFormation)
 		m_pFormation->SetUpdateSight(range, minTime, maxTime);

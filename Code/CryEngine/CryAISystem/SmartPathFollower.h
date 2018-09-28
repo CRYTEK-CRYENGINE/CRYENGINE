@@ -147,7 +147,7 @@ class CSmartPathFollower : public IPathFollower
 	/// Used internally to create our list of path control points
 	void  ProcessPath();
 
-	float GetPredictionTimeForMovingAlongPath(const bool isInsideObstacles, const float currentVelocity);
+	CTimeValue GetPredictionTimeForMovingAlongPath(const bool isInsideObstacles, const float currentVelocity);
 
 	bool  IsRemainingPathOverlappingWithNavMeshTileBounds(const NavigationMeshID affectedMeshID, const MNM::TileID affectedTileID) const;
 	bool  IsRemainingPathTraversableOnNavMesh() const;
@@ -175,7 +175,7 @@ public:
 
 	// Attempts to advance the follow target along the path as far as possible while ensuring the follow
 	// target remains reachable. Returns true if the follow target is reachable, false otherwise.
-	virtual bool Update(PathFollowResult& result, const Vec3& curPos, const Vec3& curVel, float dt) override;
+	virtual bool Update(PathFollowResult& result, const Vec3& curPos, const Vec3& curVel, const CTimeValue& dt) override;
 
 	/// Advances the current state in terms of position - effectively pretending that the follower
 	/// has gone further than it has.

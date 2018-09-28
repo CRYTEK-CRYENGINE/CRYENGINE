@@ -21,9 +21,9 @@ struct SCommunicationChannelParams
 	SCommunicationChannelParams() : type(Invalid), minSilence(0), priority(0), actorMinSilence(0), ignoreActorSilence(false), flushSilence(0) {}
 
 	// Minimum silence this channel imposes once normal communication is finished.
-	float                     minSilence;
+	CTimeValue                minSilence;
 	// Minimum silence this channel imposes on manager if its higher priority and flushes the system.
-	float                     flushSilence;
+	CTimeValue                flushSilence;
 
 	string                    name;
 	CommChannelID             parentID;
@@ -31,7 +31,7 @@ struct SCommunicationChannelParams
 	uint8                     priority;
 
 	// Minimum silence this channel imposes on an actor once it starts to play.
-	float actorMinSilence;
+	CTimeValue actorMinSilence;
 	// Indicates whether this channel should ignore actor silenced restriction.
 	bool  ignoreActorSilence;
 };
@@ -39,7 +39,7 @@ struct SCommunicationChannelParams
 struct SCommunicationVariation
 {
 	SCommunicationVariation()
-		: timeout(0.0f)
+		: timeout(0)
 		, flags(0)
 	{
 		condition.reset();
@@ -49,7 +49,7 @@ struct SCommunicationVariation
 	string                   soundName;
 	string                   voiceName;
 
-	float                    timeout;
+	CTimeValue               timeout;
 
 	uint32                   flags;
 	Variables::ExpressionPtr condition;

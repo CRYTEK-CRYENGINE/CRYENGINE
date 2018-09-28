@@ -23,7 +23,7 @@ public:
 	virtual MovementRequestID QueueRequest(const MovementRequest& request) override;
 	virtual void              CancelRequest(const MovementRequestID& id) override;
 	virtual void              GetRequestStatus(const MovementRequestID& id, MovementRequestStatus& status) const override;
-	virtual void              Update(float updateTime) override;
+	virtual void              Update(const CTimeValue& updateTime) override;
 	virtual void              Reset() override;
 	virtual void              RegisterFunctionToConstructMovementBlockForCustomNavigationType(Movement::CustomNavigationBlockCreatorFunction blockFactoryFunction) override;
 	virtual bool              AddActionAbilityCallbacks(const EntityId entityId, const SMovementActionAbilityCallbacks& ability) override;
@@ -49,8 +49,8 @@ private:
 	MovementActor&    GetExistingActorOrCreateNewOne(const EntityId entityId, IMovementActorAdapter& adapter);
 	MovementActor*    GetExistingActor(const EntityId entityId);
 	bool              IsPlannerWorkingOnRequestID(const MovementActor& actor, const MovementRequestID& id) const;
-	void              UpdateActors(float updateTime);
-	ActorUpdateStatus UpdateActor(MovementActor& actor, float updateTime);
+	void              UpdateActors(const CTimeValue& updateTime);
+	ActorUpdateStatus UpdateActor(MovementActor& actor, const CTimeValue& updateTime);
 	void              UpdatePlannerAndDealWithResult(const MovementUpdateContext& context);
 	void              StartWorkingOnNewRequestIfPossible(const MovementUpdateContext& context);
 

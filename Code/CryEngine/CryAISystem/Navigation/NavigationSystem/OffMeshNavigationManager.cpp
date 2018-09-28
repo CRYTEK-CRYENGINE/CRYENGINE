@@ -843,9 +843,9 @@ void OffMeshNavigationManager::UpdateEditorDebugHelpers()
 	if (!gEnv->IsEditing())
 		return;
 
-	static float time = 0.0f;
+	static CTimeValue time;
 
-	time += (gEnv->pTimer->GetFrameTime() * 2.5f);
+	time += (GetGTimer()->GetFrameTime() * "2.5");
 
 	IRenderAuxGeom* pRenderAux = gEnv->pRenderer->GetIRenderAuxGeom();
 
@@ -860,7 +860,7 @@ void OffMeshNavigationManager::UpdateEditorDebugHelpers()
 	TRegisteredObjects::const_iterator objectIt = m_registeredObjects.begin();
 	TRegisteredObjects::const_iterator endIt = m_registeredObjects.end();
 
-	const float alpha = clamp_tpl((1.0f + sinf(time)) * 0.5f, 0.25f, 0.7f);
+	const float alpha = clamp_tpl((1.0f + sinf(time.BADGetSeconds())) * 0.5f, 0.25f, 0.7f);
 	const ColorB color(255, 0, 0, (uint8)(alpha * 255));
 
 	for (; objectIt != endIt; ++objectIt)

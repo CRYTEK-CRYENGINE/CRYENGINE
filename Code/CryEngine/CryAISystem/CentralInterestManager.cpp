@@ -9,7 +9,7 @@
 #include <CryGame/IGameFramework.h>
 
 const int CIM_RAYBUDGET = 1;                  // Max number of rays the interest system may fire per update; 2 would be extravagant
-const float CIM_UPDATE_TIME = .1f;
+const CTimeValue CIM_UPDATE_TIME = "0.1";
 const uint32 CIM_MAX_PIMS_PER_UPDATE = 2;
 const float CIM_MIN_DIST_SQ = 40.f * 40.f;
 const uint32 CIM_INITIAL_INTERESTING = 128;
@@ -39,7 +39,7 @@ void CCentralInterestManager::Init()
 	m_InterestingEntities.reserve(CIM_INITIAL_INTERESTING);
 
 	m_lastUpdated = 0;
-	m_fUpdateTime = 0.f;
+	m_fUpdateTime.SetSeconds(0);
 }
 
 //------------------------------------------------------------------------------------------------------------------------
@@ -81,7 +81,7 @@ void CCentralInterestManager::Reset()
 		itP->Assign(NILREF);
 
 	m_lastUpdated = 0;
-	m_fUpdateTime = 0.f;
+	m_fUpdateTime.SetSeconds(0);
 
 	stl::free_container(m_Listeners);
 
@@ -140,7 +140,7 @@ bool CCentralInterestManager::Enable(bool bEnable)
 
 //------------------------------------------------------------------------------------------------------------------------
 
-void CCentralInterestManager::Update(float fDelta)
+void CCentralInterestManager::Update(const CTimeValue& fDelta)
 {
 	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
@@ -148,7 +148,7 @@ void CCentralInterestManager::Update(float fDelta)
 		return;
 
 	m_fUpdateTime -= fDelta;
-	if (m_fUpdateTime > 0.f)
+	if (m_fUpdateTime > 0)
 		return;
 
 	m_fUpdateTime = CIM_UPDATE_TIME;
@@ -300,7 +300,7 @@ bool CCentralInterestManager::GatherData(IEntity* pEntity, SActorInterestSetting
 
 //------------------------------------------------------------------------------------------------------------------------
 
-bool CCentralInterestManager::RegisterInterestingEntity(IEntity* pEntity, float fRadius, float fBaseInterest, const char* szActionName, const Vec3& vOffset, float fPause, int nbShared)
+bool CCentralInterestManager::RegisterInterestingEntity(IEntity* pEntity, float fRadius, float fBaseInterest, const char* szActionName, const Vec3& vOffset, const CTimeValue& fPause, int nbShared)
 {
 	SEntityInterest* pInterest = NULL;
 	bool bOnlyUpdate = false;
@@ -359,7 +359,7 @@ bool CCentralInterestManager::RegisterInterestingEntity(IEntity* pEntity, float 
 
 //------------------------------------------------------------------------------------------------------------------------
 
-void CCentralInterestManager::ChangeInterestingEntityProperties(IEntity* pEntity, float fRadius, float fBaseInterest, const char* szActionName, const Vec3& vOffset, float fPause, int nbShared)
+void CCentralInterestManager::ChangeInterestingEntityProperties(IEntity* pEntity, float fRadius, float fBaseInterest, const char* szActionName, const Vec3& vOffset, const CTimeValue& fPause, int nbShared)
 {
 	assert(pEntity);
 
@@ -498,7 +498,7 @@ bool CCentralInterestManager::DeregisterInterestedAIActor(IEntity* pEntity)
 
 //------------------------------------------------------------------------------------------------------------------------
 
-void CCentralInterestManager::AddDebugTag(EntityId entityId, const char* szString, float fTime)
+void CCentralInterestManager::AddDebugTag(EntityId entityId, const char* szString, const CTimeValue& fTime)
 {
 	if (IsDebuggingEnabled())
 	{
@@ -510,7 +510,7 @@ void CCentralInterestManager::AddDebugTag(EntityId entityId, const char* szStrin
 			m_pPersistentDebug = gEnv->pGameFramework->GetIPersistantDebug();
 		}
 
-		if (fTime < 0.f)
+		if (fTime < 0)
 		{
 			m_pPersistentDebug->AddEntityTag(SEntityTagParams(entityId, text.c_str()));
 		}
@@ -750,7 +750,7 @@ void CCentralInterestManager::OnInterestEvent(IInterestListener::EInterestEvent 
 
 //-----------------------------------------------------------------------------------------------------
 
-bool SEntityInterest::Set(EntityId entityId, float fRadius, float fInterest, const char* szActionName, const Vec3& vOffset, float fPause, int nbShared)
+bool SEntityInterest::Set(EntityId entityId, float fRadius, float fInterest, const char* szActionName, const Vec3& vOffset, const CTimeValue& fPause, int nbShared)
 {
 	bool bChanged = false;
 
@@ -784,7 +784,7 @@ bool SEntityInterest::Set(EntityId entityId, float fRadius, float fInterest, con
 		bChanged = true;
 	}
 
-	if (fPause >= 0.f && (fPause != m_fPause))
+	if (fPause >= 0 && (fPause != m_fPause))
 	{
 		m_fPause = fPause;
 		bChanged = true;

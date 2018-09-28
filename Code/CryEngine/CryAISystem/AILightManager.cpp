@@ -62,7 +62,7 @@ void CAILightManager::Reset()
 //===================================================================
 // DynOmniLightEvent
 //===================================================================
-void CAILightManager::DynOmniLightEvent(const Vec3& pos, float radius, EAILightEventType type, CAIActor* pShooter, float time)
+void CAILightManager::DynOmniLightEvent(const Vec3& pos, float radius, EAILightEventType type, CAIActor* pShooter, const CTimeValue& time)
 {
 	CCCPOINT(CAILightManager_DynOmniLightEvent);
 
@@ -83,7 +83,7 @@ void CAILightManager::DynOmniLightEvent(const Vec3& pos, float radius, EAILightE
 			light.pos = pos;
 			light.radius = radius;
 			light.type = type;
-			light.t = 0;
+			light.t.SetSeconds(0);
 			return;
 		}
 	}
@@ -93,7 +93,7 @@ void CAILightManager::DynOmniLightEvent(const Vec3& pos, float radius, EAILightE
 //===================================================================
 // DynSpotLightEvent
 //===================================================================
-void CAILightManager::DynSpotLightEvent(const Vec3& pos, const Vec3& dir, float radius, float fov, EAILightEventType type, CAIActor* pShooter, float time)
+void CAILightManager::DynSpotLightEvent(const Vec3& pos, const Vec3& dir, float radius, float fov, EAILightEventType type, CAIActor* pShooter, const CTimeValue& time)
 {
 	if (fov <= 0.0f)
 		return;
@@ -116,7 +116,7 @@ void CAILightManager::DynSpotLightEvent(const Vec3& pos, const Vec3& dir, float 
 			light.dir = dir;
 			light.radius = radius;
 			light.fov = fov;
-			light.t = 0;
+			light.t.SetSeconds(0);
 
 			// Remember refAttrib is strong
 			if (CAIObject* const pAttrib = light.refAttrib.GetAIObject())
@@ -167,7 +167,7 @@ void CAILightManager::Update(bool forceUpdate)
 	CCCPOINT(CAILightManager_Update);
 
 	CTimeValue t = GetAISystem()->GetFrameStartTime();
-	int64 dt = (t - m_lastUpdateTime).GetMilliSecondsAsInt64();
+	CTimeValue dt = t - m_lastUpdateTime;
 	int nDynLightsAtStart = m_dynLights.size();     // Just for debugging - the vector can shrink
 
 	//	if (dt > 0.25f || forceUpdate)
@@ -180,7 +180,7 @@ void CAILightManager::Update(bool forceUpdate)
 		for (unsigned i = 0; i < m_dynLights.size(); )
 		{
 			SAIDynLightSource& light = m_dynLights[i];
-			light.t += (int)dt;
+			light.t += dt;
 
 			// (MATT) Some extra CCCPoints here for debugging, not needed long-term {2009/02/16}
 			if (light.refShooter.IsNil()) // I'm still not sure if a shooter is required for all entries
@@ -220,10 +220,10 @@ void CAILightManager::DebugDraw()
 	if (mode == 0)
 		return;
 
-	static CTimeValue lastTime(0.0f);
+	static CTimeValue lastTime(0);
 	CTimeValue t = GetAISystem()->GetFrameStartTime();
-	float dt = (t - lastTime).GetSeconds();
-	if (!m_updated && dt < 0.0001f)
+	CTimeValue dt = t - lastTime;
+	if (!m_updated && dt < "0.0001")
 		Update(true);
 
 	m_updated = false;
@@ -329,7 +329,7 @@ void CAILightManager::DebugDraw()
 		SAIDynLightSource& light = m_dynLights[i];
 		ColorB c = lightCols[(int)light.level];
 		ColorB ct(c);
-		float a = 1.0f - sqr(1.0f - light.t / (float)light.tmax);
+		float a = 1.0f - sqr(1.0f - BADF(light.t / light.tmax));
 		ct.a = (uint8)(32 + 32 * a);
 
 		if (light.fov < 0)
@@ -612,21 +612,21 @@ void CAILightManager::UpdateTimeOfDay()
 		return;
 	}
 
-	float hour = pTOD->GetTime();
+	CTimeValue hour = pTOD->GetTime();
 
-	if (hour < 5.8f)
+	if (hour < "5.8")
 	{
 		m_ambientLight = AILL_DARK;
 	}
-	else if (hour < 6.15f)
+	else if (hour < "6.15")
 	{
 		m_ambientLight = AILL_MEDIUM;
 	}
-	else if (hour < 18.0f)
+	else if (hour < 18)
 	{
 		m_ambientLight = AILL_LIGHT;
 	}
-	else if (hour < 19.5f)
+	else if (hour < "19.5")
 	{
 		m_ambientLight = AILL_MEDIUM;
 	}

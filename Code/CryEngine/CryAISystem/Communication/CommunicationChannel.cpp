@@ -8,7 +8,7 @@ CommunicationChannel::CommunicationChannel(const CommunicationChannel::Ptr& pare
                                            const CommChannelID& channelID)
 	: m_parent(parent)
 	, m_minSilence(params.minSilence)
-	, m_silence(0.0f)
+	, m_silence(0)
 	, m_flushSilence(params.flushSilence)
 	, m_actorMinSilence(params.actorMinSilence)
 	, m_priority(params.priority)
@@ -18,18 +18,18 @@ CommunicationChannel::CommunicationChannel(const CommunicationChannel::Ptr& pare
 	, m_ignoreActorSilence(params.ignoreActorSilence)
 {}
 
-void CommunicationChannel::Update(float updateTime)
+void CommunicationChannel::Update(const CTimeValue& updateTime)
 {
-	if (!m_occupied && (m_silence > 0.0f))
+	if (!m_occupied && (m_silence > 0))
 		m_silence -= updateTime;
 }
 
-void CommunicationChannel::Occupy(bool occupy, float minSilence)
+void CommunicationChannel::Occupy(bool occupy, const CTimeValue& minSilence)
 {
 	assert((occupy && IsFree()) || (!occupy && !IsFree()));
 
 	if (m_occupied && !occupy)
-		m_silence = (minSilence >= 0.0f) ? minSilence : m_minSilence;
+		m_silence = (minSilence >= 0) ? minSilence : m_minSilence;
 	m_occupied = occupy;
 
 	if (m_parent)
@@ -42,13 +42,13 @@ bool CommunicationChannel::IsFree() const
 	if (m_parent && !m_parent->IsFree())
 		return false;
 
-	return !m_occupied && (m_silence <= 0.0f);
+	return !m_occupied && (m_silence <= 0);
 }
 
 void CommunicationChannel::Clear()
 {
 	m_occupied = false;
-	m_silence = 0.0;
+	m_silence.SetSeconds(0);
 }
 
 void CommunicationChannel::ResetSilence()

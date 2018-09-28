@@ -111,12 +111,12 @@ void PipeUserMovementActorAdapter::ResetMovementContext()
 	m_attachedPipeUser.ResetMovementContext();
 }
 
-void PipeUserMovementActorAdapter::SetLookTimeOffset(float lookTimeOffset)
+void PipeUserMovementActorAdapter::SetLookTimeOffset(const CTimeValue& lookTimeOffset)
 {
 	m_lookTimeOffset = lookTimeOffset;
 }
 
-void PipeUserMovementActorAdapter::UpdateLooking(float updateTime, std::shared_ptr<Vec3> lookTarget, const bool targetReachable, const float pathDistanceToEnd, const Vec3& followTargetPosition, const MovementStyle& style)
+void PipeUserMovementActorAdapter::UpdateLooking(const CTimeValue& updateTime, std::shared_ptr<Vec3> lookTarget, const bool targetReachable, const float pathDistanceToEnd, const Vec3& followTargetPosition, const MovementStyle& style)
 {
 	if (lookTarget.get() && style.ShouldGlanceInMovementDirection())
 	{
@@ -126,16 +126,16 @@ void PipeUserMovementActorAdapter::UpdateLooking(float updateTime, std::shared_p
 		// walking backwards somewhere.
 		// The agent will only glance in the XY-plane.
 
-		static float lookDuration = 0.7f;
-		static float timeBetweenLooks = 4.0f;
+		static CTimeValue lookDuration = "0.7";
+		static CTimeValue timeBetweenLooks = 4;
 		static float blendFactor = 0.5f;            // 1.0 = look straight at follow target, 0.0 = look straight at aim target
 		static float distanceToEndThreshold = 3.0f; // If we're closer to the end than this we won't glance
 
 		m_lookTimeOffset += updateTime;
 		if (m_lookTimeOffset > timeBetweenLooks)
-			m_lookTimeOffset = 0.0f;
+			m_lookTimeOffset.SetSeconds(0);;
 
-		const bool lookAtFollowTarget = m_lookTimeOffset >= 0.0f && m_lookTimeOffset<lookDuration&& targetReachable&& pathDistanceToEnd> distanceToEndThreshold;
+		const bool lookAtFollowTarget = m_lookTimeOffset >= 0 && m_lookTimeOffset < lookDuration && targetReachable && pathDistanceToEnd > distanceToEndThreshold;
 		if (lookAtFollowTarget)
 		{
 			const Vec3 eyePosition = m_attachedPipeUser.GetPos();

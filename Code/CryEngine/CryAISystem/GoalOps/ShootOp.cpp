@@ -48,7 +48,7 @@ ShootOpDictionary g_shootOpDictionary;
 
 ShootOp::ShootOp()
 	: m_position(ZERO)
-	, m_duration(0.0f)
+	, m_duration(0)
 	, m_shootAt(LocalSpacePosition)
 	, m_fireMode(FIREMODE_OFF)
 	, m_stance(STANCE_NULL)
@@ -57,7 +57,7 @@ ShootOp::ShootOp()
 
 ShootOp::ShootOp(const XmlNodeRef& node)
 	: m_position(ZERO)
-	, m_duration(0.0f)
+	, m_duration(0)
 	, m_shootAt(LocalSpacePosition)
 	, m_fireMode(FIREMODE_OFF)
 	, m_stance(STANCE_NULL)
@@ -95,7 +95,7 @@ void ShootOp::Enter(CPipeUser& pipeUser)
 	movementRequest.type = MovementRequest::Stop;
 	gEnv->pAISystem->GetMovementSystem()->QueueRequest(movementRequest);
 
-	m_timeWhenShootingShouldEnd = gEnv->pTimer->GetFrameStartTime() + CTimeValue(m_duration);
+	m_timeWhenShootingShouldEnd = GetGTimer()->GetFrameStartTime() + m_duration;
 }
 
 void ShootOp::Leave(CPipeUser& pipeUser)
@@ -113,7 +113,7 @@ void ShootOp::Update(CPipeUser& pipeUser)
 {
 	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
-	const CTimeValue& now = gEnv->pTimer->GetFrameStartTime();
+	const CTimeValue& now = GetGTimer()->GetFrameStartTime();
 
 	if (now >= m_timeWhenShootingShouldEnd)
 		GoalOpSucceeded();

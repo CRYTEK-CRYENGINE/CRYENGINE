@@ -47,7 +47,7 @@ public:
 	// reads (designer paths) areas from file. clears the existing areas
 	void ReadAreasFromFile(CCryBufferedFileReader&, int fileVersion);
 
-	void Update(CTimeValue currentTime, float frameTime);
+	void Update(const CTimeValue& currentTime, const CTimeValue& frameTime);
 
 	/// This is just for debugging
 	const char* GetNavigationShapeName(int nBuildingID) const;
@@ -63,7 +63,7 @@ public:
 	/// Returns nearest designer created path/shape.
 	/// The devalue parameter specifies how long the path will be unusable by others after the query.
 	/// If useStartNode is true the start point of the path is used to select nearest path instead of the nearest point on path.
-	virtual const char* GetNearestPathOfTypeInRange(IAIObject* requester, const Vec3& pos, float range, int type, float devalue, bool useStartNode);
+	virtual const char* GetNearestPathOfTypeInRange(IAIObject* requester, const Vec3& pos, float range, int type, const CTimeValue& devalue, bool useStartNode);
 
 	IAISystem::ENavigationType CheckNavigationType(const Vec3& pos, int& nBuildingID, IAISystem::tNavCapMask navCapMask) const;
 

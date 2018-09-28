@@ -23,11 +23,11 @@
 #include <CryAISystem/VisionMapTypes.h>
 
 // The variables needs to be carefully tuned to possible the player action speeds.
-static const float PLAYER_ACTION_SPRINT_RESET_TIME = 0.5f;
-static const float PLAYER_ACTION_JUMP_RESET_TIME = 1.3f;
-static const float PLAYER_ACTION_CLOAK_RESET_TIME = 1.5f;
+static const CTimeValue PLAYER_ACTION_SPRINT_RESET_TIME = "0.5";
+static const CTimeValue PLAYER_ACTION_JUMP_RESET_TIME   = "1.3";
+static const CTimeValue PLAYER_ACTION_CLOAK_RESET_TIME  = "1.5";
 
-static const float PLAYER_IGNORE_COVER_TIME = 6.0f;
+static const CTimeValue PLAYER_IGNORE_COVER_TIME = 6;
 
 //
 //---------------------------------------------------------------------------------
@@ -37,13 +37,13 @@ CAIPlayer::CAIPlayer()
 	, m_damagePartsUpdated(false)
 	, m_deathCount(0)
 	, m_stuntDir(ZERO)
-	, m_playerStuntSprinting(-1.0f)
-	, m_playerStuntJumping(-1.0f)
-	, m_playerStuntCloaking(-1.0f)
-	, m_playerStuntUncloaking(-1.0f)
-	, m_mercyTimer(-1.0f)
-	, m_coverExposedTime(-1.0f)
-	, m_coolMissCooldown(0.0f)
+	, m_playerStuntSprinting(-1)
+	, m_playerStuntJumping(-1)
+	, m_playerStuntCloaking(-1)
+	, m_playerStuntUncloaking(-1)
+	, m_mercyTimer(-1)
+	, m_coverExposedTime(-1)
+	, m_coolMissCooldown(0)
 #pragma warning(push)
 #pragma warning(disable: 4355) // 'this': used in base member initializer list
 #if ENABLE_MISSLOCATION_SENSOR
@@ -72,7 +72,7 @@ void CAIPlayer::Reset(EObjectResetType type)
 
 	SetObservable(type == AIOBJRESET_INIT);
 
-	m_fLastUpdateTargetTime = 0.f;
+	m_fLastUpdateTargetTime.SetSeconds(0);
 	m_lastGrabbedEntityID = 0;
 
 	if (m_exposedCoverState.rayID)
@@ -85,9 +85,9 @@ void CAIPlayer::Reset(EObjectResetType type)
 	m_lastThrownItems.clear();
 	m_stuntTargets.clear();
 	m_stuntDir.Set(0, 0, 0);
-	m_mercyTimer = -1.0f;
-	m_coverExposedTime = -1.0f;
-	m_coolMissCooldown = 0.0f;
+	m_mercyTimer.SetSeconds(-1);
+	m_coverExposedTime.SetSeconds(-1);
+	m_coolMissCooldown.SetSeconds(0);
 	m_damagePartsUpdated = false;
 
 #if ENABLE_MISSLOCATION_SENSOR
@@ -114,7 +114,7 @@ void CAIPlayer::AddExposedCoverObject(IPhysicalEntity* pPhysEnt)
 	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	unsigned oldest = 0;
-	float oldestTime = FLT_MAX; // Count down timers, find smallest value.
+	CTimeValue oldestTime = CTimeValue::Max(); // Count down timers, find smallest value.
 	for (unsigned i = 0, ni = m_exposedCoverObjects.size(); i < ni; ++i)
 	{
 		SExposedCoverObject& co = m_exposedCoverObjects[i];
@@ -154,7 +154,7 @@ void CAIPlayer::CollectExposedCover()
 {
 	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
-	if (m_coverExposedTime > 0.0f)
+	if (m_coverExposedTime > 0)
 	{
 		if (m_exposedCoverState.asyncState == AsyncReady)
 		{
@@ -350,8 +350,7 @@ void CAIPlayer::Update(EUpdateType type)
 {
 	if (m_refAttentionTarget.IsValid())
 	{
-		if (!m_refAttentionTarget.GetAIObject()->IsEnabled() ||
-		    (GetAISystem()->GetFrameStartTime() - m_fLastUpdateTargetTime).GetMilliSecondsAsInt64() > 5000)
+		if (!m_refAttentionTarget.GetAIObject()->IsEnabled() || GetAISystem()->GetFrameStartTime() - m_fLastUpdateTargetTime > 5)
 			m_refAttentionTarget.Reset();
 	}
 
@@ -422,7 +421,7 @@ void CAIPlayer::Update(EUpdateType type)
 		m_lightLevel = GetAISystem()->GetLightManager()->GetLightLevelAt(GetPos(), this, &m_usingCombatLight);
 
 #if ENABLE_MISSLOCATION_SENSOR
-		m_pMissLocationSensor->Update(0.005f);
+		m_pMissLocationSensor->Update("0.005");
 #endif
 
 #ifdef CRYAISYSTEM_DEBUG
@@ -446,9 +445,9 @@ void CAIPlayer::Update(EUpdateType type)
 #endif  // #ifdef CRYAISYSTEM_DEBUG
 	}
 
-	const float dt = GetAISystem()->GetFrameDeltaTime();
+	const CTimeValue dt = GetAISystem()->GetFrameDeltaTime();
 
-	if (m_coolMissCooldown > 0.0f)
+	if (m_coolMissCooldown > 0)
 		m_coolMissCooldown -= dt;
 
 	// Exposed (soft) covers. When the player fires the weapon,
@@ -456,24 +455,24 @@ void CAIPlayer::Update(EUpdateType type)
 	// soft cover the player is shooting at.
 
 	// Timeout the cover exposure timer.
-	if (m_coverExposedTime > 0.0f)
+	if (m_coverExposedTime > 0)
 		m_coverExposedTime -= dt;
 	else
-		m_coverExposedTime = -1.0f;
+		m_coverExposedTime.SetSeconds(-1);
 
 	if (GetProxy())
 	{
 		SAIWeaponInfo wi;
 		GetProxy()->QueryWeaponInfo(wi);
 		if (wi.isFiring)
-			m_coverExposedTime = 1.0f;
+			m_coverExposedTime.SetSeconds(1);
 	}
 
 	// Timeout the exposed covers
 	for (unsigned i = 0; i < m_exposedCoverObjects.size(); )
 	{
 		m_exposedCoverObjects[i].t -= dt;
-		if (m_exposedCoverObjects[i].t < 0.0f)
+		if (m_exposedCoverObjects[i].t < 0)
 		{
 			m_exposedCoverObjects[i].pPhysEnt->Release();
 			m_exposedCoverObjects[i] = m_exposedCoverObjects.back();
@@ -496,10 +495,10 @@ void CAIPlayer::Update(EUpdateType type)
 	UpdateCloakScale();
 
 	// Update low health mercy pause
-	if (m_mercyTimer > 0.0f)
+	if (m_mercyTimer > 0)
 		m_mercyTimer -= GetAISystem()->GetFrameDeltaTime();
 	else
-		m_mercyTimer = -1.0f;
+		m_mercyTimer.SetSeconds(-1);
 
 	m_damagePartsUpdated = false;
 }
@@ -530,7 +529,7 @@ void CAIPlayer::UpdatePlayerStuntActions()
 	ActorLookUp& lookUp = *gAIEnv.pActorLookUp;
 	lookUp.Prepare(ActorLookUp::Position);
 
-	const float dt = GetAISystem()->GetFrameDeltaTime();
+	const CTimeValue dt = GetAISystem()->GetFrameDeltaTime();
 
 	// Update thrown entities
 	for (unsigned i = 0; i < m_lastThrownItems.size(); )
@@ -545,12 +544,12 @@ void CAIPlayer::UpdatePlayerStuntActions()
 				m_lastThrownItems[i].pos = pEnt->GetWorldPos();
 				m_lastThrownItems[i].vel = statDyn.v;
 				if (statDyn.v.GetLengthSquared() > sqr(3.0f))
-					m_lastThrownItems[i].time = 0;
+					m_lastThrownItems[i].time.SetSeconds(0);
 			}
 		}
 
 		m_lastThrownItems[i].time += dt;
-		if (!pEnt || m_lastThrownItems[i].time > 1.0f)
+		if (!pEnt || m_lastThrownItems[i].time > 1)
 		{
 			m_lastThrownItems[i] = m_lastThrownItems.back();
 			m_lastThrownItems.pop_back();
@@ -568,27 +567,27 @@ void CAIPlayer::UpdatePlayerStuntActions()
 	m_stuntDir.z = 0;
 	m_stuntDir.NormalizeSafe();
 
-	if (m_playerStuntSprinting > 0.0f)
+	if (m_playerStuntSprinting > 0)
 	{
 		if (speed > 10.0f)
 			m_playerStuntSprinting = PLAYER_ACTION_SPRINT_RESET_TIME;
 		m_playerStuntSprinting -= dt;
 	}
 
-	if (m_playerStuntJumping > 0.0f)
+	if (m_playerStuntJumping > 0)
 	{
 		if (speed > 7.0f)
 			m_playerStuntJumping = PLAYER_ACTION_JUMP_RESET_TIME;
 		m_playerStuntJumping -= dt;
 	}
 
-	if (m_playerStuntCloaking > 0.0f)
+	if (m_playerStuntCloaking > 0)
 		m_playerStuntCloaking -= dt;
 
-	if (m_playerStuntUncloaking > 0.0f)
+	if (m_playerStuntUncloaking > 0)
 		m_playerStuntUncloaking -= dt;
 
-	bool checkMovement = m_playerStuntSprinting > 0.0f || m_playerStuntJumping > 0.0f;
+	bool checkMovement = m_playerStuntSprinting > 0 || m_playerStuntJumping > 0;
 	bool checkItems = !m_lastThrownItems.empty();
 
 	if (checkMovement || checkItems)
@@ -653,7 +652,7 @@ void CAIPlayer::UpdatePlayerStuntActions()
 					{
 						m_stuntTargets[i].threatPos = threatPos;
 						m_stuntTargets[i].exposed += dt;
-						m_stuntTargets[i].t = 0;
+						m_stuntTargets[i].t.SetSeconds(0);
 						found = true;
 						break;
 					}
@@ -672,7 +671,7 @@ void CAIPlayer::UpdatePlayerStuntActions()
 		m_stuntTargets[i].t += dt;
 		CAIActor* pAIActor = m_stuntTargets[i].pAIActor;
 		if (!m_stuntTargets[i].signalled
-		    && m_stuntTargets[i].exposed > 0.15f
+		    && m_stuntTargets[i].exposed > "0.15"
 		    && pAIActor->GetAttentionTarget()
 		    && pAIActor->GetAttentionTarget()->GetEntityID() == GetEntityID())
 		{
@@ -685,7 +684,7 @@ void CAIPlayer::UpdatePlayerStuntActions()
 				pPuppet->SetAlarmed();
 			m_stuntTargets[i].signalled = true;
 		}
-		if (m_stuntTargets[i].t > 2.0f)
+		if (m_stuntTargets[i].t > 2)
 		{
 			m_stuntTargets[i] = m_stuntTargets.back();
 			m_stuntTargets.pop_back();
@@ -697,10 +696,10 @@ void CAIPlayer::UpdatePlayerStuntActions()
 
 bool CAIPlayer::IsDoingStuntActionRelatedTo(const Vec3& pos, float nearDistance)
 {
-	if (m_playerStuntCloaking > 0.0f)
+	if (m_playerStuntCloaking > 0)
 		return true;
 
-	if (m_playerStuntSprinting <= 0.0f && m_playerStuntJumping <= 0.0f)
+	if (m_playerStuntSprinting <= 0 && m_playerStuntJumping <= 0)
 		return false;
 
 	// If the stunt is not done at really close range,
@@ -766,13 +765,13 @@ EntityId CAIPlayer::GetNearestThrownEntity(const Vec3& pos)
 
 void CAIPlayer::AddThrownEntity(EntityId id)
 {
-	float oldestTime = 0.0f;
+	CTimeValue oldestTime;
 	unsigned oldestId = 0;
 	for (unsigned i = 0, ni = m_lastThrownItems.size(); i < ni; ++i)
 	{
 		if (m_lastThrownItems[i].id == id)
 		{
-			m_lastThrownItems[i].time = 0;
+			m_lastThrownItems[i].time.SetSeconds(0);
 			return;
 		}
 		if (m_lastThrownItems[i].time > oldestTime)
@@ -841,7 +840,7 @@ void CAIPlayer::HandleCloaking(bool cloak)
 	CAISystem* pAISystem = GetAISystem();
 
 	m_Parameters.m_bCloaked = cloak;
-	m_Parameters.m_fLastCloakEventTime = pAISystem->GetFrameStartTime().GetSeconds();
+	m_Parameters.m_fLastCloakEventTime = pAISystem->GetFrameStartTime();
 	NotifyPlayerActionToTheLookingAgents(cloak ? "OnTargetCloaked" : "OnTargetUncloaked");
 }
 
@@ -923,11 +922,11 @@ void CAIPlayer::Event(unsigned short eType, SAIEVENT* pEvent)
 		break;
 	case AIEVENT_PLAYER_STUNT_SPRINT:
 		m_playerStuntSprinting = PLAYER_ACTION_SPRINT_RESET_TIME;
-		m_playerStuntJumping = -1.0f;
+		m_playerStuntJumping.SetSeconds(-1);
 		break;
 	case AIEVENT_PLAYER_STUNT_JUMP:
 		m_playerStuntJumping = PLAYER_ACTION_JUMP_RESET_TIME;
-		m_playerStuntSprinting = -1.0f;
+		m_playerStuntSprinting.SetSeconds(-1);
 		break;
 	case AIEVENT_PLAYER_STUNT_PUNCH:
 	case AIEVENT_PLAYER_STUNT_THROW:
@@ -953,7 +952,7 @@ void CAIPlayer::Event(unsigned short eType, SAIEVENT* pEvent)
 	case AIEVENT_LOWHEALTH:
 		{
 			const float scale = (pEvent != NULL) ? pEvent->fThreat : 1.0f;
-			m_mercyTimer = gAIEnv.CVars.RODLowHealthMercyTime * scale;
+			m_mercyTimer = gAIEnv.CVars.RODLowHealthMercyTime * BADMP(scale);
 		}
 		break;
 	case AIEVENT_ENABLE:
@@ -1002,7 +1001,7 @@ void CAIPlayer::RecordEvent(IAIRecordable::e_AIDbgEvent event, const IAIRecordab
 bool CAIPlayer::GetMissLocation(const Vec3& shootPos, const Vec3& shootDir, float maxAngle, Vec3& pos)
 {
 #if ENABLE_MISSLOCATION_SENSOR
-	if (m_coolMissCooldown <= 0.000001f)
+	if (m_coolMissCooldown <= "0.000001")
 		return m_pMissLocationSensor->GetLocation(this, shootPos, shootDir, maxAngle, pos);
 #endif
 
@@ -1064,7 +1063,7 @@ void CAIPlayer::DebugDraw()
 	ColorB color(255, 255, 255);
 
 	// Draw special player actions
-	if (m_playerStuntSprinting > 0.0f)
+	if (m_playerStuntSprinting > 0)
 	{
 		Vec3 pos = GetPos();
 		Vec3 vel = GetVelocity();
@@ -1081,7 +1080,7 @@ void CAIPlayer::DebugDraw()
 		// first argument for Draw2dLabel was 10, not 100, and the text was hardly visible
 		dc->Draw2dLabel(100, 10, 2.5f, color, true, "SPRINTING");
 	}
-	if (m_playerStuntJumping > 0.0f)
+	if (m_playerStuntJumping > 0)
 	{
 		Vec3 pos = GetPos();
 		Vec3 vel = GetVelocity();
@@ -1096,11 +1095,11 @@ void CAIPlayer::DebugDraw()
 
 		dc->Draw2dLabel(100, 40, 2.5f, color, true, "JUMPING");
 	}
-	if (m_playerStuntCloaking > 0.0f)
+	if (m_playerStuntCloaking > 0)
 	{
 		dc->Draw2dLabel(100, 70, 2.5f, color, true, "CLOAKING");
 	}
-	if (m_playerStuntUncloaking > 0.0f)
+	if (m_playerStuntUncloaking > 0)
 	{
 		dc->Draw2dLabel(100, 110, 2.5f, color, true, "UNCLOAKING");
 	}
@@ -1131,7 +1130,7 @@ void CAIPlayer::DebugDraw()
 //---------------------------------------------------------------------------------
 bool CAIPlayer::IsLowHealthPauseActive() const
 {
-	if (m_mercyTimer > 0.0f)
+	if (m_mercyTimer > 0)
 		return true;
 	return false;
 }
@@ -1189,7 +1188,7 @@ void CAIPlayer::Serialize(TSerialize ser)
 	ser.Value("m_playerStuntCloaking", m_playerStuntCloaking);
 	ser.Value("m_playerStuntUncloaking", m_playerStuntUncloaking);
 	ser.Value("m_stuntDir", m_stuntDir);
-	ser.ValueWithDefault("m_mercyTimer", m_mercyTimer, -1.0f);
+	ser.ValueWithDefault("m_mercyTimer", m_mercyTimer, CTimeValue(-1));
 
 	ser.EndGroup();
 }

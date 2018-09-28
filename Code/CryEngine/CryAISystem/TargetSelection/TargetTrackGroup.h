@@ -102,7 +102,7 @@ private:
 	// Debugging
 	bool FindFreeGraphSlot(uint32& outIndex) const;
 
-	float                 m_fLastGraphUpdate;
+	CTimeValue            m_fLastGraphUpdate;
 	IDebugHistoryManager* m_pDebugHistoryManager;
 	enum { DEBUG_GRAPH_OCCUPIED_SIZE = 16 };
 	bool                  m_bDebugGraphOccupied[DEBUG_GRAPH_OCCUPIED_SIZE];

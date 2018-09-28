@@ -58,7 +58,7 @@ public:
 	void Reset();
 	void Clear();
 	void ClearValidationSegments();
-	void Update(float updateTime);
+	void Update(const CTimeValue& updateTime);
 
 	void BreakEvent(const Vec3& position, float radius);
 	void MoveEvent(EntityId entityID, const Matrix34& worldTM);

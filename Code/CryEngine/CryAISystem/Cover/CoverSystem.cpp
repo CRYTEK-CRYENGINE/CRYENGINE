@@ -210,7 +210,7 @@ void CCoverSystem::Clear()
 
 bool CCoverSystem::ReadSurfacesFromFile(const char* fileName)
 {
-	CTimeValue startTime = gEnv->pTimer->GetAsyncTime();
+	CTimeValue startTime = GetGTimer()->GetAsyncTime();
 
 	assert(m_surfaces.empty());
 
@@ -277,7 +277,7 @@ bool CCoverSystem::ReadSurfacesFromFile(const char* fileName)
 		UpdateSurface(CoverSurfaceID(++surfaceID), surfaceInfo);
 	}
 
-	CTimeValue totalTime = gEnv->pTimer->GetAsyncTime() - startTime;
+	CTimeValue totalTime = GetGTimer()->GetAsyncTime() - startTime;
 
 	AILogAlways("Loaded %" PRISIZE_T " AI Cover Surfaces in %g seconds...", m_surfaces.size(), totalTime.GetSeconds());
 
@@ -574,7 +574,7 @@ void CCoverSystem::DrawSurface(const CoverSurfaceID& surfaceID)
 	}
 }
 
-void CCoverSystem::Update(float updateTime)
+void CCoverSystem::Update(const CTimeValue& updateTime)
 {
 	for (auto& coverUser : m_coverUsers)
 	{
@@ -758,7 +758,7 @@ void CCoverSystem::DebugDraw()
 
 					if (sampler->StartSampling(params) == ICoverSampler::InProgress)
 					{
-						while (sampler->Update(0.0001f) == ICoverSampler::InProgress)
+						while (sampler->Update("0.0001") == ICoverSampler::InProgress)
 							;
 
 						sampler->DebugDraw();

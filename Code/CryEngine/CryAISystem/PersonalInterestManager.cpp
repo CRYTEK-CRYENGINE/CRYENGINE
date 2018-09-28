@@ -43,7 +43,7 @@ void CPersonalInterestManager::Reset()
 	m_refInterestDummy.Release();
 	m_IdInterestingEntity = 0;
 	m_IdLastInterestingEntity = 0;
-	m_timeLastInterestingEntity = 0.f;
+	m_timeLastInterestingEntity.SetSeconds(0);
 	m_Settings.Reset();
 	m_vOffsetInterestingEntity.zero();
 	m_bIsPlayingAction = false;
@@ -274,7 +274,7 @@ const SEntityInterest* CPersonalInterestManager::PickMostInteresting() const
 	const SEntityInterest* pRet = NULL;
 	float fMostInterest = m_Settings.m_fInterestFilter;
 
-	const float deltaTime = (GetAISystem()->GetFrameStartTime() - m_timeLastInterestingEntity).GetSeconds();
+	const CTimeValue deltaTime = GetAISystem()->GetFrameStartTime() - m_timeLastInterestingEntity;
 
 	CCentralInterestManager::TVecInteresting* pInterestingEntities = m_pCIM->GetInterestingEntities();
 	CCentralInterestManager::TVecInteresting::const_iterator it = pInterestingEntities->begin();

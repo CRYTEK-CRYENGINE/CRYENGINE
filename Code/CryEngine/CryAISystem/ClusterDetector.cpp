@@ -71,7 +71,7 @@ ClusterDetector::ClusterRequestID ClusterDetector::GenerateUniqueClusterRequestI
 	return ++m_nextUniqueRequestID;
 }
 
-void ClusterDetector::Update(float frameDeltaTime)
+void ClusterDetector::Update(const CTimeValue& frameDeltaTime)
 {
 	if (m_requests.empty())
 		return;

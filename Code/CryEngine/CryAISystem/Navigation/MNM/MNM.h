@@ -80,31 +80,31 @@ inline bool IsTriangleAlreadyInWay(const TriangleID triangleID, const TriangleID
 
 struct AStarContention
 {
-	void SetFrameTimeQuota(float frameTimeQuota)
+	void SetFrameTimeQuota(const CTimeValue& frameTimeQuota)
 	{
-		m_frameTimeQuota.SetSeconds(frameTimeQuota);
+		m_frameTimeQuota = frameTimeQuota;
 	}
 
 	struct ContentionStats
 	{
-		float  frameTimeQuota;
+		CTimeValue  frameTimeQuota;
 
 		uint32 averageSearchSteps;
 		uint32 peakSearchSteps;
 
-		float  averageSearchTime;
-		float  peakSearchTime;
+		CTimeValue  averageSearchTime;
+		CTimeValue  peakSearchTime;
 	};
 
 	ContentionStats GetContentionStats()
 	{
 		ContentionStats stats;
-		stats.frameTimeQuota = m_frameTimeQuota.GetMilliSeconds();
+		stats.frameTimeQuota = m_frameTimeQuota;
 
 		stats.averageSearchSteps = m_totalSearchCount ? m_totalSearchSteps / m_totalSearchCount : 0;
 		stats.peakSearchSteps = m_peakSearchSteps;
 
-		stats.averageSearchTime = m_totalSearchCount ? m_totalComputationTime / (float)m_totalSearchCount : 0.0f;
+		stats.averageSearchTime = m_totalSearchCount ? m_totalComputationTime / m_totalSearchCount : 0;
 		stats.peakSearchTime = m_peakSearchTime;
 
 		return stats;
@@ -112,17 +112,17 @@ struct AStarContention
 
 	void ResetConsumedTimeDuringCurrentFrame()
 	{
-		m_consumedFrameTime.SetValue(0);
+		m_consumedFrameTime.SetSeconds(0);
 	}
 
 protected:
-	AStarContention(float frameTimeQuota = 0.001f)
+	AStarContention(const CTimeValue& frameTimeQuota = "0.001")
 	{
-		m_frameTimeQuota.SetSeconds(frameTimeQuota);
+		m_frameTimeQuota = frameTimeQuota;
 
-		m_consumedFrameTime.SetValue(0);
-		m_currentStepStartTime.SetValue(0);
-		m_currentSearchTime.SetValue(0);
+		m_consumedFrameTime.SetSeconds(0);
+		m_currentStepStartTime.SetSeconds(0);
+		m_currentSearchTime.SetSeconds(0);
 		m_currentSearchSteps = 0;
 
 		ResetContentionStats();
@@ -131,7 +131,7 @@ protected:
 	inline void StartSearch()
 	{
 		m_currentSearchSteps = 0;
-		m_currentSearchTime.SetValue(0);
+		m_currentSearchTime.SetSeconds(0);
 	}
 
 	inline void EndSearch()
@@ -141,20 +141,20 @@ protected:
 		m_totalSearchSteps += m_currentSearchSteps;
 		m_peakSearchSteps = max(m_peakSearchSteps, m_currentSearchSteps);
 
-		const float lastSearchTime = m_currentSearchTime.GetMilliSeconds();
+		const CTimeValue lastSearchTime = m_currentSearchTime;
 		m_totalComputationTime += lastSearchTime;
 		m_peakSearchTime = max(m_peakSearchTime, lastSearchTime);
 	}
 
 	inline void StartStep()
 	{
-		m_currentStepStartTime = gEnv->pTimer->GetAsyncTime();
+		m_currentStepStartTime = GetGTimer()->GetAsyncTime();
 		m_currentSearchSteps++;
 	}
 
 	inline void EndStep()
 	{
-		const CTimeValue stepTime = (gEnv->pTimer->GetAsyncTime() - m_currentStepStartTime);
+		const CTimeValue stepTime = (GetGTimer()->GetAsyncTime() - m_currentStepStartTime);
 		m_consumedFrameTime += stepTime;
 		m_currentSearchTime += stepTime;
 	}
@@ -171,8 +171,8 @@ protected:
 		m_totalSearchSteps = 0;
 		m_peakSearchSteps = 0;
 
-		m_totalComputationTime = 0.0f;
-		m_peakSearchTime = 0.0f;
+		m_totalComputationTime.SetSeconds(0);
+		m_peakSearchTime.SetSeconds(0);
 	}
 
 protected:
@@ -187,8 +187,8 @@ protected:
 	uint32     m_totalSearchSteps;
 	uint32     m_peakSearchSteps;
 
-	float      m_totalComputationTime;
-	float      m_peakSearchTime;
+	CTimeValue m_totalComputationTime;
+	CTimeValue m_peakSearchTime;
 };
 
 struct AStarOpenList
@@ -338,9 +338,9 @@ struct AStarOpenList
 
 	void Reset()
 	{
-		m_consumedFrameTime.SetValue(0);
-		m_currentStepStartTime.SetValue(0);
-		m_currentSearchTime.SetValue(0);
+		m_consumedFrameTime.SetSeconds(0);
+		m_currentStepStartTime.SetSeconds(0);
+		m_currentSearchTime.SetSeconds(0);
 
 		m_currentSearchSteps = 0;
 

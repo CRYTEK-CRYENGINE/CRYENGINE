@@ -52,7 +52,7 @@ public:
 	virtual void                    AddPriorityMapEntry(const PriorityMapEntry& priorityMapEntry);
 	virtual void                    ClearPriorityMap();
 
-	virtual void                    Update(float frameTime);
+	virtual void                    Update(const CTimeValue& frameTime);
 
 #if VISIONMAP_DEBUG
 	void DebugDraw();
@@ -96,7 +96,7 @@ private:
 			, obstructionPosition(ZERO)
 			, lastObserverPositionChecked(ZERO)
 			, lastObservablePositionChecked(ZERO)
-			, rayQueueTimestamp(0.0f)
+			, rayQueueTimestamp(0)
 #endif
 		{};
 
@@ -116,7 +116,7 @@ private:
 		Vec3  obstructionPosition;
 		Vec3  lastObserverPositionChecked;
 		Vec3  lastObservablePositionChecked;
-		float rayQueueTimestamp;
+		CTimeValue rayQueueTimestamp;
 #endif
 	};
 
@@ -131,8 +131,8 @@ private:
 			, queuedForPVSUpdate(false)
 			, queuedForVisibilityUpdate(false)
 			, updateAllVisibilityStatus(false)
-			, nextPVSUpdateTime(0.0f)
-			, nextVisibilityUpdateTime(0.0f)
+			, nextPVSUpdateTime(0)
+			, nextVisibilityUpdateTime(0)
 		{
 		}
 
@@ -229,7 +229,7 @@ private:
 	PendingRays m_pendingRays;
 
 #if VISIONMAP_DEBUG
-	float      m_debugTimer;
+	CTimeValue m_debugTimer;
 	uint32     m_numberOfPVSUpdatesThisFrame;
 	uint32     m_numberOfVisibilityUpdatesThisFrame;
 	uint32     m_numberOfRayCastsSubmittedThisFrame;
@@ -244,8 +244,8 @@ private:
 	{
 		struct
 		{
-			float latency;
-			float occurred;
+			CTimeValue latency;
+			CTimeValue occurred;
 		}   buffer[512];
 
 		int bufferIndex;

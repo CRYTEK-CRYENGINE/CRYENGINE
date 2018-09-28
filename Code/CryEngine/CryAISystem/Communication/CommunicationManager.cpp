@@ -541,7 +541,7 @@ bool CCommunicationManager::LoadVariation(const XmlNodeRef& varNode, SCommunicat
 
 	if (varNode->haveAttr("timeout"))
 	{
-		float timeout = 0.0f;
+		CTimeValue timeout;
 		if (varNode->getAttr("timeout", timeout))
 			variation.timeout = timeout;
 	}
@@ -622,7 +622,7 @@ void CCommunicationManager::ResetHistory()
 	}
 }
 
-void CCommunicationManager::Update(float updateTime)
+void CCommunicationManager::Update(const CTimeValue& updateTime)
 {
 	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
@@ -665,7 +665,7 @@ void CCommunicationManager::UpdateDebugHistoryEntry(IEntity* pEntity, const Comm
 }
 
 ///Updates the time displayed of all tracked debug records
-void CCommunicationManager::UpdateDebugHistory(float updateTime)
+void CCommunicationManager::UpdateDebugHistory(const CTimeValue& updateTime)
 {
 	for (TDebugMapHistory::iterator iter(m_debugHistoryMap.begin()); iter != m_debugHistoryMap.end(); ++iter)
 	{
@@ -676,14 +676,14 @@ void CCommunicationManager::UpdateDebugHistory(float updateTime)
 		{
 			CommDebugEntry& entry = *entryIt;
 
-			entry.m_displayed = (entryIt->m_timeTracked > 2.0f);
+			entry.m_displayed = (entryIt->m_timeTracked > 2);
 			entry.m_timeTracked += updateTime;
 
 		}
 
 		///Clear out old records that haven't been played for awhile
 		CommDebugEntry searchEntry;
-		searchEntry.m_timeTracked = 20.0f;
+		searchEntry.m_timeTracked.SetSeconds(20);
 		entityEntries.erase(std::remove_if(entityEntries.begin(), entityEntries.end(), FindMatchingRecord(searchEntry)), entityEntries.end());
 	}
 
@@ -938,10 +938,10 @@ uint32 CCommunicationManager::GetConfigCommunicationCount(const CommConfigID& co
 	return communicationCount;
 }
 
-bool CCommunicationManager::CanCommunicationPlay(const SCommunicationRequest& request, float* estimatedWaitTime)
+bool CCommunicationManager::CanCommunicationPlay(const SCommunicationRequest& request, CTimeValue* estimatedWaitTime)
 {
 	if (estimatedWaitTime)
-		*estimatedWaitTime = FLT_MAX;
+		*estimatedWaitTime = CTimeValue::Max();
 
 	CommunicationChannel::Ptr channel = m_channels.GetChannel(request.channelID, request.actorID);
 	if (!channel)
@@ -950,7 +950,7 @@ bool CCommunicationManager::CanCommunicationPlay(const SCommunicationRequest& re
 	if (channel->IsFree())
 	{
 		if (estimatedWaitTime)
-			*estimatedWaitTime = 0.0f;
+			*estimatedWaitTime = CTimeValue(0);
 
 		return true;
 	}
@@ -1254,12 +1254,12 @@ void CCommunicationManager::StopCommunication(const CommPlayID& playID)
 		return;
 }
 
-bool CCommunicationManager::IsPlaying(const CommPlayID& playID, float* timeRemaining) const
+bool CCommunicationManager::IsPlaying(const CommPlayID& playID, CTimeValue* timeRemaining) const
 {
 	return m_player.IsPlaying(playID, timeRemaining);
 }
 
-bool CCommunicationManager::IsQueued(const CommPlayID& playID, float* estimatedWaitTime) const
+bool CCommunicationManager::IsQueued(const CommPlayID& playID, CTimeValue* estimatedWaitTime) const
 {
 	QueuedCommunications::const_iterator oit = m_orderedQueue.begin();
 	QueuedCommunications::const_iterator oend = m_orderedQueue.end();
@@ -1381,10 +1381,10 @@ bool CCommunicationManager::Play(const CommPlayID& playID, SCommunicationRequest
 			channel->Occupy(true);
 
 			//Impose minimum actor silence time based on channel's param
-			float actorSilence = channel->GetActorSilence();
+			CTimeValue actorSilence = channel->GetActorSilence();
 			if (actorSilence > 0)
 			{
-				SetRestrictedDuration(request.actorID, actorSilence, 0.0f);
+				SetRestrictedDuration(request.actorID, actorSilence, 0);
 			}
 		}
 
@@ -1395,7 +1395,7 @@ bool CCommunicationManager::Play(const CommPlayID& playID, SCommunicationRequest
 		playing.animName = comm.variations[variation].animationName;
 		playing.skipSound = request.skipCommSound;
 		playing.minSilence = request.minSilence;
-		playing.startTime = gEnv->pTimer->GetCurrTime();
+		playing.startTime = GetGTimer()->GetFrameStartTime();
 
 		if (request.eventListener)
 			request.eventListener->OnCommunicationEvent(CommunicationStarted, request.actorID, playID);
@@ -1479,7 +1479,7 @@ void CCommunicationManager::Queue(QueuedCommunications& queue,
 	QueuedCommunication& back = queue.back();
 
 	back.playID = playID;
-	back.age = 0.0f;
+	back.age.SetSeconds(0);
 	back.request = request;
 
 	if (request.eventListener)
@@ -1514,7 +1514,7 @@ bool CCommunicationManager::RemoveFromQueue(QueuedCommunications& queue, const C
 	return false;
 }
 
-void CCommunicationManager::UpdateQueue(QueuedCommunications& queue, float updateTime)
+void CCommunicationManager::UpdateQueue(QueuedCommunications& queue, const CTimeValue& updateTime)
 {
 	QueuedCommunications::iterator it = queue.begin();
 	QueuedCommunications::iterator end = queue.end();
@@ -1715,14 +1715,14 @@ void CCommunicationManager::UpdateHistory(SCommunication& comm, uint32 variation
 	}
 }
 
-void CCommunicationManager::SetRestrictedDuration(EntityId actorId, float voiceDuration, float animDuration)
+void CCommunicationManager::SetRestrictedDuration(EntityId actorId, const CTimeValue& voiceDuration, const CTimeValue& animDuration)
 {
 	SRestrictedActorParams& actorParams = m_restrictedActors[actorId];
-	if (voiceDuration > 0.0f)
+	if (voiceDuration > 0)
 	{
 		actorParams.m_voiceRestrictedTime = voiceDuration;
 	}
-	if (animDuration > 0.0f)
+	if (animDuration > 0)
 	{
 		actorParams.m_animRestrictedTime = animDuration;
 	}
@@ -1776,7 +1776,7 @@ void CCommunicationManager::GetVariablesNames(const char** variableNames, const 
 	m_variablesDeclaration.GetVariablesNames(variableNames, maxSize, actualSize);
 }
 
-void CCommunicationManager::UpdateActorRestrictions(float updateTime)
+void CCommunicationManager::UpdateActorRestrictions(const CTimeValue& updateTime)
 {
 	TRestrictedActorMap::iterator actorIt = m_restrictedActors.begin();
 	TRestrictedActorMap::iterator endIt = m_restrictedActors.end();
@@ -1955,8 +1955,8 @@ void CCommunicationManager::CullPlayingCommunications()
 	// If communications have been playing for some
 	// time we consider it stuck and remove it.
 
-	const float maxTimeAllowedPlaying = 7.0f;
-	float now = gEnv->pTimer->GetCurrTime();
+	const CTimeValue maxTimeAllowedPlaying = 7;
+	CTimeValue now = GetGTimer()->GetFrameStartTime();
 
 	PlayingCommunications::iterator it = m_playing.begin();
 	PlayingCommunications::iterator end = m_playing.end();
@@ -1965,7 +1965,7 @@ void CCommunicationManager::CullPlayingCommunications()
 	{
 		PlayingCommunication& comm = it->second;
 
-		float elapsed = now - comm.startTime;
+		CTimeValue elapsed = now - comm.startTime;
 
 		if (elapsed > maxTimeAllowedPlaying)
 		{

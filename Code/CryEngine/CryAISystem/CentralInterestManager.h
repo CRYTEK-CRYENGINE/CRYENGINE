@@ -31,12 +31,12 @@ struct IPersistantDebug;
 struct SEntityInterest
 {
 	SEntityInterest() :
-		m_entityId(0), m_fRadius(0.f), m_fInterest(0.f), m_vOffset(ZERO), m_fPause(0.f), m_nbShared(0), m_eSupportedActorClasses(0)
+		m_entityId(0), m_fRadius(0.f), m_fInterest(0.f), m_vOffset(ZERO), m_fPause(0), m_nbShared(0), m_eSupportedActorClasses(0)
 	{
 	}
 
-	SEntityInterest(EntityId entityId, float fRadius, float fInterest, const char* szActionName, const Vec3& vOffset, float fPause, int nbShared)
-		: m_entityId(0), m_fRadius(0.f), m_fInterest(0.f), m_vOffset(ZERO), m_fPause(0.f), m_nbShared(0), m_eSupportedActorClasses(0)
+	SEntityInterest(EntityId entityId, float fRadius, float fInterest, const char* szActionName, const Vec3& vOffset, const CTimeValue& fPause, int nbShared)
+		: m_entityId(0), m_fRadius(0.f), m_fInterest(0.f), m_vOffset(ZERO), m_fPause(0), m_nbShared(0), m_eSupportedActorClasses(0)
 	{
 		Set(entityId, fRadius, fInterest, szActionName, vOffset, fPause, nbShared);
 	}
@@ -46,7 +46,7 @@ struct SEntityInterest
 		Invalidate();
 	}
 
-	bool Set(EntityId entityId, float fRadius, float fInterest, const char* szActionName, const Vec3& vOffset, float fPause, int nbShared);
+	bool Set(EntityId entityId, float fRadius, float fInterest, const char* szActionName, const Vec3& vOffset, const CTimeValue& fPause, int nbShared);
 
 	bool Set(const SEntityInterest& rhs)
 	{
@@ -89,7 +89,7 @@ struct SEntityInterest
 	float    m_fInterest;
 	string   m_sActionName;
 	Vec3     m_vOffset;
-	float    m_fPause;
+	CTimeValue m_fPause;
 	int      m_nbShared;
 
 	enum
@@ -128,21 +128,21 @@ public:
 	bool         IsDebuggingEnabled() { return m_cvDebugInterest ? (m_cvDebugInterest->GetIVal() != 0) : false; }
 
 	// Update the CIM
-	virtual void Update(float fDelta);
+	virtual void Update(const CTimeValue& fDelta);
 
 	void         Serialize(TSerialize ser);
 
 	// Deregister an interesting entity
 	virtual void DeregisterInterestingEntity(IEntity* pEntity);
 
-	virtual void ChangeInterestingEntityProperties(IEntity* pEntity, float fRadius = -1.f, float fBaseInterest = -1.f, const char* szActionName = NULL, const Vec3& vOffset = Vec3Constants<float>::fVec3_Zero, float fPause = -1.f, int nbShared = -1);
+	virtual void ChangeInterestingEntityProperties(IEntity* pEntity, float fRadius = -1.f, float fBaseInterest = -1.f, const char* szActionName = NULL, const Vec3& vOffset = Vec3Constants<float>::fVec3_Zero, const CTimeValue& fPause = -1, int nbShared = -1);
 	virtual void ChangeInterestedAIActorProperties(IEntity* pEntity, float fInterestFilter = -1.f, float fAngleCos = -1.f);
 
 	// Deregister a potential interested AI Actor
 	virtual bool DeregisterInterestedAIActor(IEntity* pEntity);
 
 	// Central shared debugging function, should really be a private/friend of PIM
-	void AddDebugTag(EntityId id, const char* szString, float fTime = -1.f);
+	void AddDebugTag(EntityId id, const char* szString, const CTimeValue& fTime = -1);
 
 	// Add a class to be notified when an entity is interested or interesting
 	virtual void RegisterListener(IInterestListener* pInterestListener, EntityId idInterestingEntity);
@@ -182,7 +182,7 @@ private:
 	CCentralInterestManager();
 	~CCentralInterestManager();
 
-	bool RegisterInterestingEntity(IEntity* pEntity, float fRadius = -1.f, float fBaseInterest = -1.f, const char* szActionName = NULL, const Vec3& vOffset = Vec3Constants<float>::fVec3_Zero, float fPause = -1.f, int nbShared = -1);
+	bool RegisterInterestingEntity(IEntity* pEntity, float fRadius = -1.f, float fBaseInterest = -1.f, const char* szActionName = NULL, const Vec3& vOffset = Vec3Constants<float>::fVec3_Zero, const CTimeValue& fPause = -1, int nbShared = -1);
 	bool RegisterInterestedAIActor(IEntity* pEntity, bool bEnablePIM, float fInterestFilter = -1.f, float fAngleCos = -1.f);
 
 	void RegisterObject(IEntity* pEntity);
@@ -215,7 +215,7 @@ private:
 
 	// Performance
 	uint32 m_lastUpdated;
-	float  m_fUpdateTime;
+	CTimeValue  m_fUpdateTime;
 
 	// Debug
 	ICVar*            m_cvDebugInterest;

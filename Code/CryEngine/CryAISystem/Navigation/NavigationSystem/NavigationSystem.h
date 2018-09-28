@@ -54,12 +54,12 @@ class NavigationSystemDebugDraw
 		NavigationSystemWorkingProgress()
 			: m_initialQueueSize(0)
 			, m_currentQueueSize(0)
-			, m_timeUpdating(0.0f)
+			, m_timeUpdating(0)
 		{
 
 		}
 
-		void Update(const float frameTime, const size_t queueSize);
+		void Update(const CTimeValue& frameTime, const size_t queueSize);
 		void Draw();
 
 	private:
@@ -68,7 +68,7 @@ class NavigationSystemDebugDraw
 		void EndDraw();
 		void DrawQuad(const Vec2& origin, const Vec2& size, const ColorB& color);
 
-		float               m_timeUpdating;
+		CTimeValue          m_timeUpdating;
 		size_t              m_initialQueueSize;
 		size_t              m_currentQueueSize;
 		SAuxGeomRenderFlags m_oldRenderFlags;
@@ -116,7 +116,7 @@ public:
 	}
 
 	void DebugDraw(NavigationSystem& navigationSystem);
-	void UpdateWorkingProgress(const float frameTime, const size_t queueSize);
+	void UpdateWorkingProgress(const CTimeValue& frameTime, const size_t queueSize);
 
 private:
 
@@ -679,7 +679,7 @@ private:
 	};
 
 #if NAVIGATION_SYSTEM_PC_ONLY
-	void UpdateMeshes(const float frameTime, const bool blocking, const bool multiThreaded, const bool bBackground);
+	void UpdateMeshes(const CTimeValue& frameTime, const bool blocking, const bool multiThreaded, const bool bBackground);
 	void SetupGenerator(const NavigationMeshID meshID, const MNM::CNavMesh::SGridParams& paramsGrid,
 	                    uint16 x, uint16 y, uint16 z, MNM::CTileGenerator::Params& params, const VolumeDefCopy& pDef, bool bMarkupUpdate);
 	bool SpawnJob(TileTaskResult& result, NavigationMeshID meshID, const MNM::CNavMesh::SGridParams& paramsGrid,

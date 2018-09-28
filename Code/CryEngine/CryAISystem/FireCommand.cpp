@@ -31,15 +31,15 @@
 CFireCommandInstant::CFireCommandInstant(IAIActor* pShooter)
 	: m_pShooter(((CAIActor*)pShooter)->CastToCPuppet())
 	, m_weaponBurstState(BURST_NONE)
-	, m_weaponBurstTime(0.0f)
-	, m_weaponBurstTimeScale(1.0f)
-	, m_weaponBurstTimeWithoutShot(0.0f)
+	, m_weaponBurstTime(0)
+	, m_weaponBurstTimeScale(1)
+	, m_weaponBurstTimeWithoutShot(0)
 	, m_weaponBurstBulletCount(0)
 	, m_curBurstBulletCount(0)
-	, m_curBurstPauseTime(0.0f)
-	, m_weaponTriggerTime(0.0f)
+	, m_curBurstPauseTime(0)
+	, m_weaponTriggerTime(0)
 	, m_weaponTriggerState(true)
-	, m_coverFireTime(0.0f)
+	, m_coverFireTime(0)
 	, m_ShotsCount(0)
 {
 }
@@ -50,13 +50,13 @@ void CFireCommandInstant::Reset()
 {
 	AIAssert(m_pShooter);
 	m_weaponBurstState = BURST_NONE;
-	m_weaponBurstTime = 0;
+	m_weaponBurstTime.SetSeconds(0);
 	m_weaponBurstTimeScale = 1;
-	m_weaponBurstTimeWithoutShot = 0.0f;
+	m_weaponBurstTimeWithoutShot.SetSeconds(0);
 	m_weaponBurstBulletCount = 0;
 	m_curBurstBulletCount = 0;
-	m_curBurstPauseTime = 0;
-	m_weaponTriggerTime = 0;
+	m_curBurstPauseTime.SetSeconds(0);
+	m_weaponTriggerTime.SetSeconds(0);
 	m_weaponTriggerState = true;
 
 	m_drawFire.Reset();
@@ -66,7 +66,7 @@ void CFireCommandInstant::Reset()
 //--------------------------------------------------------------------------------------------------------
 EAIFireState CFireCommandInstant::Update(IAIObject* pITarget, bool canFire, EFireMode fireMode, const AIWeaponDescriptor& descriptor, Vec3& outShootTargetPos)
 {
-	float dt = GetAISystem()->GetFrameDeltaTime();
+	CTimeValue dt = GetAISystem()->GetFrameDeltaTime();
 
 	m_coverFireTime = descriptor.coverFireTime * gAIEnv.CVars.RODCoverFireTimeMod;
 
@@ -149,25 +149,25 @@ EAIFireState CFireCommandInstant::Update(IAIObject* pITarget, bool canFire, EFir
 
 	const int burstBulletCountMin = descriptor.burstBulletCountMin;
 	const int burstBulletCountMax = descriptor.burstBulletCountMax;
-	const float burstPauseTimeMin = descriptor.burstPauseTimeMin;
-	const float burstPauseTimeMax = descriptor.burstPauseTimeMax;
-	const float singleFireTriggerTime = descriptor.singleFireTriggerTime;
+	const CTimeValue burstPauseTimeMin = descriptor.burstPauseTimeMin;
+	const CTimeValue burstPauseTimeMax = descriptor.burstPauseTimeMax;
+	const CTimeValue singleFireTriggerTime = descriptor.singleFireTriggerTime;
 
-	bool singleFireMode = singleFireTriggerTime > 0.0f;
+	bool singleFireMode = singleFireTriggerTime > 0;
 
 	if (singleFireMode)
 	{
 		m_weaponTriggerTime -= dt;
 
-		if (m_weaponTriggerTime <= 0.0f)
+		if (m_weaponTriggerTime <= 0)
 		{
 			m_weaponTriggerState = !m_weaponTriggerState;
-			m_weaponTriggerTime += singleFireTriggerTime * cry_random(0.75f, 1.25f);
+			m_weaponTriggerTime += singleFireTriggerTime * cry_random<CTimeValue>("0.75", "1.25");
 		}
 	}
 	else
 	{
-		m_weaponTriggerTime = 0.0f;
+		m_weaponTriggerTime.SetSeconds(0);
 		m_weaponTriggerState = true;
 	}
 
@@ -177,28 +177,28 @@ EAIFireState CFireCommandInstant::Update(IAIObject* pITarget, bool canFire, EFir
 	{
 		float distScale = m_pShooter->GetBurstFireDistanceScale();
 
-		const float lostFadeMinTime = m_coverFireTime * 0.25f;
-		const float lostFadeMaxTime = m_coverFireTime;
+		const CTimeValue lostFadeMinTime = m_coverFireTime * "0.25";
+		const CTimeValue lostFadeMaxTime = m_coverFireTime;
 		const int fadeSteps = 6;
 
 		float a = 1.0f;
-		float fade = clamp_tpl((m_pShooter->m_targetLostTime - lostFadeMinTime) / max(lostFadeMaxTime - lostFadeMinTime, FLT_EPSILON), 0.0f, 1.0f);
-		a *= 1.0f - floorf(fade * fadeSteps) / (float)fadeSteps; // more lost, less bullets
-		a *= distScale;                                          // scaling based on the zone (distance)
+		nTime fade = CLAMP((m_pShooter->m_targetLostTime - lostFadeMinTime) / max(lostFadeMaxTime - lostFadeMinTime, TV_EPSILON), 0, 1);
+		a *= 1.0f - floorf(BADF fade * fadeSteps) / (float)fadeSteps; // more lost, less bullets
+		a *= distScale;															  // scaling based on the zone (distance)
 		a *= m_pShooter->IsAllowedToHitTarget() ? 1.0f : 0.2f;
-		m_curBurstBulletCount = (int)(burstBulletCountMin + (burstBulletCountMax - burstBulletCountMin) * a * m_weaponBurstTimeScale);
-		m_curBurstPauseTime = burstPauseTimeMin + (1.0f - sqr(a) * 0.75f) * (burstPauseTimeMax - burstPauseTimeMin) * m_weaponBurstTimeScale;
+		m_curBurstBulletCount = (int)(burstBulletCountMin + (burstBulletCountMax - burstBulletCountMin) * a * BADF m_weaponBurstTimeScale);
+		m_curBurstPauseTime = burstPauseTimeMin + BADMP(1.0f - sqr(a) * 0.75f) * (burstPauseTimeMax - burstPauseTimeMin) * m_weaponBurstTimeScale;
 
-		float chargeTime = std::max(0.0f, descriptor.fChargeTime);
+		CTimeValue chargeTime = std::max(CTimeValue(0), descriptor.fChargeTime);
 
 		if (m_weaponBurstState == BURST_NONE)
 		{
 			// Init
-			m_weaponBurstTime = 0.0f;
-			m_weaponBurstTimeScale = cry_random(1, 6) / 6.0f;
+			m_weaponBurstTime.SetSeconds(0);
+			m_weaponBurstTimeScale = cry_random(1, 6) / mpfloat(6);
 			m_weaponBurstState = BURST_FIRE;
 			m_weaponBurstBulletCount = 0;
-			m_weaponBurstTimeWithoutShot = 0;
+			m_weaponBurstTimeWithoutShot.SetSeconds(0);
 
 			m_pShooter->HandleBurstFireInit();
 		}
@@ -207,11 +207,11 @@ EAIFireState CFireCommandInstant::Update(IAIObject* pITarget, bool canFire, EFir
 			int shotCount = m_pShooter->GetProxy()->GetAndResetShotBulletCount();
 			m_weaponBurstBulletCount += shotCount;
 
-			m_weaponBurstTimeWithoutShot = shotCount ? 0.0f : (m_weaponBurstTimeWithoutShot + dt);
+			m_weaponBurstTimeWithoutShot = shotCount ? 0 : (m_weaponBurstTimeWithoutShot + dt);
 
 			if (m_weaponBurstBulletCount >= m_curBurstBulletCount)
 			{
-				if (m_curBurstPauseTime > 0.0f)
+				if (m_curBurstPauseTime > 0)
 					m_weaponBurstState = BURST_PAUSE;
 			}
 			else if (!singleFireMode && !shotCount && (m_weaponBurstTimeWithoutShot >= (chargeTime + m_curBurstPauseTime)))
@@ -235,7 +235,7 @@ EAIFireState CFireCommandInstant::Update(IAIObject* pITarget, bool canFire, EFir
 
 	if (m_weaponBurstState != BURST_FIRE)
 	{
-		m_weaponTriggerTime = 0;
+		m_weaponTriggerTime.SetSeconds(0);
 		m_weaponTriggerState = true;
 		return eAIFS_Off;
 	}
@@ -284,19 +284,19 @@ void CFireCommandInstant::DebugDraw()
 {
 	if (!m_pShooter) return;
 
-	const float lostFadeMinTime = m_coverFireTime * 0.25f;
-	const float lostFadeMaxTime = m_coverFireTime;
+	const CTimeValue lostFadeMinTime = m_coverFireTime * "0.25";
+	const CTimeValue lostFadeMaxTime = m_coverFireTime;
 	const int fadeSteps = 6;
 
 	float a = 1.0f;
-	float fade = clamp_tpl((m_pShooter->m_targetLostTime - lostFadeMinTime) / (lostFadeMaxTime - lostFadeMinTime), 0.0f, 1.0f);
-	a *= 1.0f - floorf(fade * fadeSteps) / (float)fadeSteps;  // more lost, less bullets
+	nTime fade = CLAMP((m_pShooter->m_targetLostTime - lostFadeMinTime) / (lostFadeMaxTime - lostFadeMinTime), 0, 1);
+	a *= 1.0f - floorf(BADF fade * fadeSteps) / (float)fadeSteps;  // more lost, less bullets
 
 	CDebugDrawContext dc;
 	dc->Draw3dLabel(m_pShooter->GetFirePos() - Vec3(0, 0, 1.5f), 1, "Weapon\nShot:%d/%d\nWait:%.2f/%.2f\nA=%f", m_weaponBurstBulletCount, m_curBurstBulletCount, m_weaponBurstTime, m_curBurstPauseTime, a);
 }
 
-float CFireCommandInstant::GetTimeToNextShot() const
+CTimeValue CFireCommandInstant::GetTimeToNextShot() const
 {
 	return m_curBurstPauseTime;
 }
@@ -306,7 +306,7 @@ CFireCommandInstant::DrawFireEffect::EState CFireCommandInstant::DrawFireEffect:
 	return m_state.state;
 }
 
-bool CFireCommandInstant::DrawFireEffect::Update(float updateTime, CPuppet* pShooter, IAIObject* pTarget, const AIWeaponDescriptor& descriptor,
+bool CFireCommandInstant::DrawFireEffect::Update(const CTimeValue& updateTime, CPuppet* pShooter, IAIObject* pTarget, const AIWeaponDescriptor& descriptor,
                                                  Vec3& aimTarget, bool canFire)
 {
 	if (gAIEnv.CVars.DrawFireEffectEnabled < 1)
@@ -348,10 +348,10 @@ bool CFireCommandInstant::DrawFireEffect::Update(float updateTime, CPuppet* pSho
 		fovFactor = 2.5f * (1.0f - viewAngleCos) / fovCos;
 	fovFactor = clamp_tpl(fovFactor, 0.0f, 1.0f);
 
-	float drawTime = gAIEnv.CVars.DrawFireEffectTimeScale * descriptor.drawTime;
-	drawTime = (0.75f * distanceFactor) * drawTime + (0.25f * fovFactor) * drawTime;
+	CTimeValue drawTime = gAIEnv.CVars.DrawFireEffectTimeScale * descriptor.drawTime;
+	drawTime = BADMP(0.75f * distanceFactor) * drawTime + BADMP(0.25f * fovFactor) * drawTime;
 
-	if (drawTime < 0.125f)
+	if (drawTime < "0.125")
 	{
 		m_state.state = Finished;
 		return true;
@@ -362,11 +362,11 @@ bool CFireCommandInstant::DrawFireEffect::Update(float updateTime, CPuppet* pSho
 	else
 		m_state.idleTime += updateTime;
 
-	if (canFire && drawTime > 0.0f)
+	if (canFire && drawTime > 0)
 	{
-		if (m_state.idleTime >= descriptor.burstPauseTimeMax + 0.15f)
+		if (m_state.idleTime >= descriptor.burstPauseTimeMax + "0.15")
 			m_state = State();
-		m_state.idleTime = 0.0f;
+		m_state.idleTime.SetSeconds(0);
 
 		if (m_state.time > drawTime)
 		{
@@ -382,14 +382,14 @@ bool CFireCommandInstant::DrawFireEffect::Update(float updateTime, CPuppet* pSho
 		targetToShooter.z = 0.0f;
 
 		float distance2D = targetToShooter.NormalizeSafe();
-		float t = clamp_tpl(m_state.time / drawTime, 0.0f, 1.0f);
-		float smoothedInvT = sqr(1.0f - sqr(t));
+		nTime t = CLAMP(m_state.time / drawTime, 0, 1);
+		float smoothedInvT = BADF sqr(1 - sqr(t));
 		float smoothedT = 1.0f - smoothedInvT;
 
 		CPNoise3* noiseGen = gEnv->pSystem->GetNoiseGen();
 
 		float noiseScale = 3.0f * smoothedInvT;
-		float noise = noiseScale * noiseGen->Noise1D(m_state.startSeed + m_state.time * descriptor.sweepFrequency);
+		float noise = noiseScale * noiseGen->Noise1D(m_state.startSeed + BADF(m_state.time.GetSeconds() * descriptor.sweepFrequency));
 
 		Vec3 right(targetToShooter.y, -targetToShooter.x, 0.0f);
 		Vec3 front(targetViewDir);
@@ -426,8 +426,8 @@ bool CFireCommandInstant::DrawFireEffect::Update(float updateTime, CPuppet* pSho
 		{
 			float terrainZ = gEnv->p3DEngine->GetTerrainElevation(aimTarget.x, aimTarget.y);
 
-			GetAISystem()->AddDebugSphere(Vec3(aimTarget.x, aimTarget.y, terrainZ + 0.075f), 0.175f, 106, 90, 205, 1.5f);
-			GetAISystem()->AddDebugSphere(targetPos, 0.25f, 255, 0, 0, 1.5f);
+			GetAISystem()->AddDebugSphere(Vec3(aimTarget.x, aimTarget.y, terrainZ + 0.075f), 0.175f, 106, 90, 205, "1.5");
+			GetAISystem()->AddDebugSphere(targetPos, 0.25f, 255, 0, 0, "1.5");
 		}
 
 		return canHit;
@@ -449,7 +449,7 @@ CFireCommandLob::CFireCommandLob(IAIActor* pShooter)
 	, m_lastStep(0)
 	, m_targetPos(ZERO)
 	, m_throwDir(ZERO)
-	, m_nextFireTime(0.0f)
+	, m_nextFireTime(0)
 	, m_preferredHeight(0.0f)
 	, m_projectileSpeedScale(0.0f)
 	, m_bestScore(-1)
@@ -475,7 +475,7 @@ void CFireCommandLob::Reset()
 	m_lastStep = 0;
 	m_targetPos.zero();
 	m_throwDir.zero();
-	m_nextFireTime = 0.0f;
+	m_nextFireTime.SetSeconds(0);
 	m_preferredHeight = 0.0f;
 	m_projectileSpeedScale = 0.0f;
 	m_bestScore = -1;
@@ -504,7 +504,7 @@ EAIFireState CFireCommandLob::Update(IAIObject* pTarget, bool canFire, EFireMode
 		const CTimeValue currTime = GetAISystem()->GetFrameStartTime();
 
 		// First fire should wait for the charge time
-		if (m_nextFireTime <= 0.0f)
+		if (m_nextFireTime <= 0)
 		{
 			m_nextFireTime = currTime + descriptor.fChargeTime;
 		}
@@ -521,7 +521,7 @@ EAIFireState CFireCommandLob::Update(IAIObject* pTarget, bool canFire, EFireMode
 				if (state != eAIFS_Blocking)
 				{
 					// Calculate next fire time
-					const float fNextFireTime = cry_random(descriptor.burstPauseTimeMin, descriptor.burstPauseTimeMax);
+					const CTimeValue fNextFireTime = cry_random(descriptor.burstPauseTimeMin, descriptor.burstPauseTimeMax);
 					m_nextFireTime = currTime + fNextFireTime;
 					m_lastStep = 0;
 				}
@@ -540,7 +540,7 @@ EAIFireState CFireCommandLob::Update(IAIObject* pTarget, bool canFire, EFireMode
 	}
 	else
 	{
-		m_nextFireTime = 0.0f;
+		m_nextFireTime.SetSeconds(0);
 	}
 
 	return state;
@@ -811,7 +811,7 @@ bool CFireCommandLob::IsValidDestination(ERequestedGrenadeType eReqGrenadeType, 
 		}
 
 		// Check friendly distance
-		const float timePrediction = gAIEnv.CVars.LobThrowTimePredictionForFriendPositions;
+		const CTimeValue timePrediction = gAIEnv.CVars.LobThrowTimePredictionForFriendPositions;
 		AutoAIObjectIter itFriend(gAIEnv.pAIObjectManager->GetFirstAIObject(OBJFILTER_FACTION, m_pShooter->GetFactionID()));
 		IAIObject* pFriend = itFriend->GetObject();
 		while (bValid && (pFriend != NULL))
@@ -824,7 +824,7 @@ bool CFireCommandLob::IsValidDestination(ERequestedGrenadeType eReqGrenadeType, 
 					const Vec3& moveDir = pPipeUser->GetMoveDir();
 					if (!moveDir.IsZero())
 					{
-						friendPositionToEvaluate += moveDir * timePrediction;
+						friendPositionToEvaluate += moveDir * timePrediction.BADGetSeconds();
 					}
 				}
 
@@ -867,9 +867,9 @@ void CFireCommandLob::DebugDraw()
 #endif //CRYAISYSTEM_DEBUG
 }
 
-float CFireCommandLob::GetTimeToNextShot() const
+CTimeValue CFireCommandLob::GetTimeToNextShot() const
 {
-	return 0.0f;
+	return 0;
 }
 
 bool CFireCommandLob::GetOverrideAimingPosition(Vec3& overrideAimingPosition) const
@@ -1114,9 +1114,9 @@ void CFireCommandProjectileFast::DebugDraw()
 	}
 }
 
-float CFireCommandProjectileFast::GetTimeToNextShot() const
+CTimeValue CFireCommandProjectileFast::GetTimeToNextShot() const
 {
-	return 0.0f;
+	return 0;
 }
 
 #if 0
@@ -1372,9 +1372,9 @@ EAIFireState CFireCommandStrafing::Update(IAIObject* pTargetSrc, bool canFire, E
 	return (fire ? eAIFS_On : eAIFS_Off);
 }
 
-float CFireCommandStrafing::GetTimeToNextShot() const
+CTimeValue CFireCommandStrafing::GetTimeToNextShot() const
 {
-	return 0.0f;
+	return 0;
 }
 //====================================================================
 // CFireCommandFastLightMOAR
@@ -1524,9 +1524,9 @@ EAIFireState CFireCommandFastLightMOAR::Update(IAIObject* pTarget, bool canFire,
 	return (canFire ? eAIFS_On : eAIFS_Off);
 }
 
-float CFireCommandFastLightMOAR::GetTimeToNextShot() const
+CTimeValue CFireCommandFastLightMOAR::GetTimeToNextShot() const
 {
-	return 0.0f;
+	return 0;
 }
 
 //====================================================================
@@ -1602,9 +1602,9 @@ EAIFireState CFireCommandHunterMOAR::Update(IAIObject* pTarget, bool canFire, EF
 	return (canFire ? eAIFS_On : eAIFS_Off);
 }
 
-float CFireCommandHunterMOAR::GetTimeToNextShot() const
+CTimeValue CFireCommandHunterMOAR::GetTimeToNextShot() const
 {
-	return 0.0f;
+	return 0;
 }
 //====================================================================
 // CFireCommandHunterSweepMOAR
@@ -1669,9 +1669,9 @@ EAIFireState CFireCommandHunterSweepMOAR::Update(IAIObject* pTarget, bool canFir
 	return (canFire ? eAIFS_On : eAIFS_Off);
 }
 
-float CFireCommandHunterSweepMOAR::GetTimeToNextShot() const
+CTimeValue CFireCommandHunterSweepMOAR::GetTimeToNextShot() const
 {
-	return 0.0f;
+	return 0;
 }
 //====================================================================
 // CFireCommandHunterSingularityCannon
@@ -1712,9 +1712,9 @@ EAIFireState CFireCommandHunterSingularityCannon::Update(IAIObject* pTarget, boo
 	return (canFire ? eAIFS_On : eAIFS_Off);
 }
 
-float CFireCommandHunterSingularityCannon::GetTimeToNextShot() const
+CTimeValue CFireCommandHunterSingularityCannon::GetTimeToNextShot() const
 {
-	return 0.0f;
+	return 0;
 }
 
 //====================================================================
@@ -1868,9 +1868,9 @@ Vec3 CFireCommandHurricane::ChooseMissPoint(CAIObject* pTarget) const
 	return m_pShooter->ChooseMissPoint_Deprecated(vTargetPos);
 }
 
-float CFireCommandHurricane::GetTimeToNextShot() const
+CTimeValue CFireCommandHurricane::GetTimeToNextShot() const
 {
-	return 0.0f;
+	return 0;
 }
 #endif // 0
 //

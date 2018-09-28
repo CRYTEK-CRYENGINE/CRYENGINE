@@ -25,8 +25,8 @@ public:
 	virtual void SetActorStyle(const MovementStyle& style, const INavPath& navPath) override {}
 	virtual std::shared_ptr<Vec3> CreateLookTarget() override { std::shared_ptr<Vec3> zero(new Vec3(ZERO)); return zero; }
 	virtual void ResetMovementContext() override {}
-	virtual void SetLookTimeOffset(float lookTimeOffset) override {}
-	virtual void UpdateLooking(float updateTime, std::shared_ptr<Vec3> lookTarget, const bool targetReachable, const float pathDistanceToEnd, const Vec3& followTargetPosition, const MovementStyle& style) override {}
+	virtual void SetLookTimeOffset(const CTimeValue& lookTimeOffset) override {}
+	virtual void UpdateLooking(const CTimeValue& updateTime, std::shared_ptr<Vec3> lookTarget, const bool targetReachable, const float pathDistanceToEnd, const Vec3& followTargetPosition, const MovementStyle& style) override {}
 	virtual Vec3 GetVelocity() const override;
 	virtual Vec3 GetMoveDirection() const override { return Vec3(ZERO); }
 	virtual void ConfigurePathfollower(const MovementStyle& style) override;

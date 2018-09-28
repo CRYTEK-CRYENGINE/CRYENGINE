@@ -16,8 +16,8 @@ public:
 public:
 	CommunicationChannel(const CommunicationChannel::Ptr& parent, const SCommunicationChannelParams& params, const CommChannelID& channelID);
 
-	void                                                   Update(float updateTime);
-	void                                                   Occupy(bool occupy, float minSilence = -1.0f);
+	void                                                   Update(const CTimeValue& updateTime);
+	void                                                   Occupy(bool occupy, const CTimeValue& minSilence = -1);
 
 	bool                                                   IsFree() const;
 	void                                                   Clear();
@@ -30,7 +30,7 @@ public:
 
 	SCommunicationChannelParams::ECommunicationChannelType GetType()                   { return m_type; }
 
-	float                                                  GetActorSilence() const     { return m_actorMinSilence; }
+	const CTimeValue&                                      GetActorSilence() const     { return m_actorMinSilence; }
 	bool                                                   IgnoresActorSilence() const { return m_ignoreActorSilence; }
 
 	void                                                   ResetSilence();
@@ -42,16 +42,16 @@ private:
 	CommunicationChannel::Ptr m_parent;
 
 	// Minimum silence this channel imposes once normal communication is finished
-	const float m_minSilence;
+	const CTimeValue m_minSilence;
 	// Minimum silence this channel imposes on manager if its higher priority and flushes the system
-	const float m_flushSilence;
+	const CTimeValue m_flushSilence;
 
 	// Minimum silence this channel imposes on an actor once it starts to play
-	const float m_actorMinSilence;
+	const CTimeValue m_actorMinSilence;
 	// Indicates if this channel should ignore minimum actor silence times.
 	bool        m_ignoreActorSilence;
 
-	float       m_silence;
+	CTimeValue  m_silence;
 	bool        m_occupied;
 	SCommunicationChannelParams::ECommunicationChannelType m_type;
 	uint8       m_priority;

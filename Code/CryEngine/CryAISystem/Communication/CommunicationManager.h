@@ -80,11 +80,11 @@ public:
 	virtual CommID        GetCommunicationID(const char* name) const override;
 	virtual const char*   GetCommunicationName(const CommID& communicationID) const override;
 
-	virtual bool          CanCommunicationPlay(const SCommunicationRequest& request, float* estimatedWaitTime = 0) override;
+	virtual bool          CanCommunicationPlay(const SCommunicationRequest& request, CTimeValue* estimatedWaitTime = 0) override;
 	virtual CommPlayID    PlayCommunication(SCommunicationRequest& request) override;
 	virtual void          StopCommunication(const CommPlayID& playID) override;
-	virtual bool          IsPlaying(const CommPlayID& playID, float* timeRemaining = 0) const override;
-	virtual bool          IsQueued(const CommPlayID& playID, float* estimatedWaitTime = 0) const override;
+	virtual bool          IsPlaying(const CommPlayID& playID, CTimeValue* timeRemaining = 0) const override;
+	virtual bool          IsQueued(const CommPlayID& playID, CTimeValue* estimatedWaitTime = 0) const override;
 
 	virtual void          RegisterListener(ICommGlobalListener* eventListener, const char* name = NULL) override { m_globalListeners.Add(eventListener, name); }
 	virtual void          UnregisterListener(ICommGlobalListener* eventListener) override                        { m_globalListeners.Remove(eventListener); }
@@ -94,7 +94,7 @@ public:
 	virtual const char*   GetConfigCommunicationNameByIndex(const CommConfigID& configID, uint32 index) const override;
 
 	//Sets silence durations for actors, exluding them from communication sounds/animations for the length of the duration.
-	virtual void                      SetRestrictedDuration(EntityId actorId, float voiceDuration, float animDuration) override;
+	virtual void                      SetRestrictedDuration(EntityId actorId, const CTimeValue& voiceDuration, const CTimeValue& animDuration) override;
 	//Adds restriction on actor, excluding them from communiction sounds/animations until explicityly removed.
 	virtual void                      AddActorRestriction(EntityId actorId, bool restrictVoice, bool restrictAnimation) override;
 	//Removes restriction on actor, if no more restrictions are present actor will be available for communication sounds/animations.
@@ -114,7 +114,7 @@ public:
 
 	void   Reset();
 	void   ResetHistory();
-	void   Update(float updateTime);
+	void   Update(const CTimeValue& updateTime);
 
 	void   DebugDraw();
 
@@ -162,14 +162,14 @@ private:
 	{
 		CommPlayID            playID;
 		SCommunicationRequest request;
-		float                 age;
+		CTimeValue            age;
 	};
 	typedef std::list<QueuedCommunication> QueuedCommunications;
 
 	void FlushQueue(QueuedCommunications& queue, const CommunicationChannel::Ptr& channel, EntityId targetId);
 	void Queue(QueuedCommunications& queue, const CommPlayID& playID, const SCommunicationRequest& request);
 	bool RemoveFromQueue(QueuedCommunications& queue, const CommPlayID& playID);
-	void UpdateQueue(QueuedCommunications& queue, float updateTime);
+	void UpdateQueue(QueuedCommunications& queue, const CTimeValue& updateTime);
 	void ProcessQueues();
 	bool PlayFromQueue(QueuedCommunication& queued);
 
@@ -194,7 +194,7 @@ private:
 
 	struct PlayingCommunication
 	{
-		PlayingCommunication() : actorID(0), eventListener(NULL), skipSound(false), minSilence(-1.0f), startTime(-1.0f){};
+		PlayingCommunication() : actorID(0), eventListener(NULL), skipSound(false), minSilence(-1), startTime(-1){};
 		PlayingCommunication(const PlayingCommunication& comm) : actorID(comm.actorID), channel(comm.channel), eventListener(NULL), animName(comm.animName), skipSound(comm.skipSound), minSilence(comm.minSilence), startTime(comm.startTime){}
 
 		EntityId                                      actorID;
@@ -202,8 +202,8 @@ private:
 		ICommunicationManager::ICommInstanceListener* eventListener;
 		string animName;
 		bool   skipSound;
-		float  minSilence;
-		float  startTime;
+		CTimeValue  minSilence;
+		CTimeValue  startTime;
 	};
 
 	typedef std::map<CommPlayID, PlayingCommunication> PlayingCommunications;
@@ -240,7 +240,7 @@ private:
 	void ReadDataFromTable(const SmartScriptTable& ssTable, SActorReadabilitySettings& actorReadabilitySettings);
 
 	//Updates duration based actor restrictions, and deletes restrictions that are no longer valid
-	void UpdateActorRestrictions(float updateTime);
+	void UpdateActorRestrictions(const CTimeValue& updateTime);
 	bool IsVoiceRestricted(EntityId actorId);
 	bool IsAnimationRestricted(EntityId actorId);
 
@@ -254,13 +254,13 @@ private:
 
 	struct CommDebugEntry
 	{
-		CommDebugEntry() : m_id(CommPlayID()), m_displayed(false), m_timeTracked(0.0f) {}
+		CommDebugEntry() : m_id(CommPlayID()), m_displayed(false), m_timeTracked(0) {}
 
 		CommDebugEntry(const string& val, CommPlayID pid, const string& type)
-			: m_commName(val), m_id(pid), m_type(type), m_displayed(false), m_timeTracked(0.0f) {}
+			: m_commName(val), m_id(pid), m_type(type), m_displayed(false), m_timeTracked(0) {}
 
 		CommDebugEntry(const string& val, CommPlayID pid, const string& type, CommChannelID cid)
-			: m_commName(val), m_id(pid), m_type(type), m_displayed(false), m_timeTracked(0.0f) { m_channels.insert(cid); }
+			: m_commName(val), m_id(pid), m_type(type), m_displayed(false), m_timeTracked(0) { m_channels.insert(cid); }
 
 		void UpdateChannelInfo(const CommDebugEntry& target) { if (!target.m_channels.empty()) m_channels.insert(*(target.m_channels.begin())); }
 
@@ -272,7 +272,7 @@ private:
 		std::set<CommChannelID> m_channels;
 
 		bool                    m_displayed;
-		float                   m_timeTracked;
+		CTimeValue              m_timeTracked;
 	};
 
 	typedef std::map<EntityId, std::vector<CommDebugEntry>> TDebugMapHistory;
@@ -304,7 +304,7 @@ private:
 	void UpdateDebugHistoryEntry(IEntity* pEntity, const CommDebugEntry& entryToUpdate);
 
 	///Updates the time displayed of all tracked debug records
-	void UpdateDebugHistory(float updateTime);
+	void UpdateDebugHistory(const CTimeValue& updateTime);
 
 	///Checks for a matching entry based on separate possible criteria
 	struct FindMatchingRecord
@@ -315,7 +315,7 @@ private:
 		bool operator()(const CommDebugEntry& entry) const
 		{
 			if (entry.m_commName == m_searchEntry.m_commName && entry.m_id == m_searchEntry.m_id) return true;
-			if (m_searchEntry.m_timeTracked > 0.0f && entry.m_timeTracked > m_searchEntry.m_timeTracked) return true;
+			if (m_searchEntry.m_timeTracked > 0 && entry.m_timeTracked > m_searchEntry.m_timeTracked) return true;
 			return false;
 		}
 

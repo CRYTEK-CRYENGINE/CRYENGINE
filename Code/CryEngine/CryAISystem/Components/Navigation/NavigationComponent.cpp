@@ -225,7 +225,7 @@ void CEntityAINavigationComponent::ProcessEvent(const SEntityEvent& event)
 		}
 		case ENTITY_EVENT_PREPHYSICSUPDATE:
 		{
-			UpdateVelocity(event.fParam[0]);
+			UpdateVelocity(event.tVal);
 			break;
 		}
 		case ENTITY_EVENT_COMPONENT_PROPERTY_CHANGED:
@@ -264,22 +264,22 @@ void CEntityAINavigationComponent::ProcessEvent(const SEntityEvent& event)
 	}
 }
 
-void CEntityAINavigationComponent::UpdateVelocity(float deltaTime)
+void CEntityAINavigationComponent::UpdateVelocity(const CTimeValue& deltaTime)
 {
 	if (!GetEntity()->GetPhysics())
 	{
-		if (deltaTime > 0.0001f)
+		if (deltaTime > "0.0001")
 		{
 			const Vec3 currentPos = GetEntity()->GetWorldPos();
 			
 			// Update current velocity
-			m_currentVelocity = (currentPos - m_currentPosition) / deltaTime;
+			m_currentVelocity = (currentPos - m_currentPosition) / deltaTime.BADGetSeconds();
 			m_currentPosition = currentPos;
 		}
 	}
 }
 
-void CEntityAINavigationComponent::UpdateTransformation(float deltaTime)
+void CEntityAINavigationComponent::UpdateTransformation(const CTimeValue& deltaTime)
 {
 	IEntity* pEntity = GetEntity();
 
@@ -327,7 +327,7 @@ void CEntityAINavigationComponent::UpdateTransformation(float deltaTime)
 
 		Matrix34 localTM = pEntity->GetLocalTM();
 
-		const Vec3 newPosition = localTM.GetTranslation() + (m_requestedVelocity * deltaTime);
+		const Vec3 newPosition = localTM.GetTranslation() + (m_requestedVelocity * deltaTime.BADGetSeconds());
 		Vec3 adjustedPosition = newPosition;
 		FindFloor(newPosition, adjustedPosition);
 

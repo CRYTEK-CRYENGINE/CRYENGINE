@@ -57,7 +57,7 @@ struct LeaderActionParams
 {
 	ELeaderAction        type;
 	ELeaderActionSubType subType;
-	float                fDuration;
+	CTimeValue           fDuration;
 	string               name;
 	Vec3                 vPoint;
 	Vec3                 vPoint2;
@@ -171,7 +171,7 @@ protected:
 	bool               m_bApproachWithNoObstacle;
 	bool               m_bNoTarget;
 	CTimeValue         m_timeRunning;
-	float              m_timeLimit;
+	CTimeValue         m_timeLimit;
 	static const float m_CSearchDistance;
 	Vec3               m_vDefensePoint;
 	Vec3               m_vEnemyPos;
@@ -248,12 +248,12 @@ protected:
 		virtual ~SDangerPoint(){}
 
 		SDangerPoint()
-			: time(.0f)
+			: time(0)
 			, radius(.0f)
 			, point(ZERO)
 		{}
 
-		SDangerPoint(float t, float r, Vec3& p)
+		SDangerPoint(const CTimeValue& t, float r, Vec3& p)
 		{
 			time = t;
 			radius = r;
@@ -266,7 +266,7 @@ protected:
 			ser.Value("radius", radius);
 			ser.Value("point", point);
 		}
-		float time;
+		CTimeValue time;
 		float radius;
 		Vec3  point;
 	};
@@ -303,14 +303,14 @@ protected:
 		SSpecialAction()
 		{
 			status = AS_OFF;
-			lastTime.SetValue(0);
+			lastTime.SetSeconds(0);
 		}
 
 		SSpecialAction(CWeakRef<CAIActor> _refOwner)
 			: refOwner(_refOwner)
 		{
 			status = AS_OFF;
-			lastTime.SetValue(0);
+			lastTime.SetSeconds(0);
 		}
 
 		virtual void Serialize(TSerialize ser)

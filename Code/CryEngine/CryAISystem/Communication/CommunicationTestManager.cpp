@@ -67,7 +67,7 @@ void CommunicationTestManager::Stop(EntityId actorID)
 	}
 }
 
-void CommunicationTestManager::Update(float updateTime)
+void CommunicationTestManager::Update(const CTimeValue& updateTime)
 {
 	m_player.Update(updateTime);
 }

@@ -58,12 +58,12 @@ void CAISystem::DebugDrawRecorderRange() const
 {
 	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
-	const float fRecorderDrawStart = m_recorderDebugContext.fStartPos;
-	const float fRecorderDrawEnd = m_recorderDebugContext.fEndPos;
-	const float fRecorderDrawCursor = m_recorderDebugContext.fCursorPos;
+	const CTimeValue fRecorderDrawStart  = m_recorderDebugContext.fStartPos;
+	const CTimeValue fRecorderDrawEnd    = m_recorderDebugContext.fEndPos;
+	const CTimeValue fRecorderDrawCursor = m_recorderDebugContext.fCursorPos;
 
-	const bool bTimelineValid = (fabsf(fRecorderDrawEnd - fRecorderDrawStart) > FLT_EPSILON);
-	const bool bCursorValid = bTimelineValid ? (fRecorderDrawCursor >= fRecorderDrawStart && fRecorderDrawCursor <= fRecorderDrawEnd) : (fRecorderDrawCursor > FLT_EPSILON);
+	const bool bTimelineValid = (abs(fRecorderDrawEnd - fRecorderDrawStart) > TV_EPSILON);
+	const bool bCursorValid = bTimelineValid ? (fRecorderDrawCursor >= fRecorderDrawStart && fRecorderDrawCursor <= fRecorderDrawEnd) : (fRecorderDrawCursor > TV_EPSILON);
 
 	const ColorB colGray(128, 128, 128, 255);
 
@@ -92,8 +92,8 @@ void CAISystem::DebugDrawRecorderRange() const
 			continue;
 
 		const ColorB colDebug = objectContext.color;
-		float fCurrPosTime = 0.0f;
-		float fCurrDirTime = 0.0f;
+		CTimeValue fCurrPosTime = 0;
+		CTimeValue fCurrDirTime = 0;
 		Vec3* pPos = NULL;
 		Vec3* pDir = NULL;
 
@@ -124,8 +124,8 @@ void CAISystem::DebugDrawRecorderRange() const
 			int j = 0;
 			while (fCurrPosTime <= fRecorderDrawEnd && pPosStream->GetCurrentIdx() < pPosStream->GetSize())
 			{
-				float fNextPosTime = 0.0f;
-				float fNextDirTime = 0.0f;
+				CTimeValue fNextPosTime = 0;
+				CTimeValue fNextDirTime = 0;
 				Vec3* pNextPos = (Vec3*)(pPosStream->GetNext(fNextPosTime));
 				pDirStream->Seek(fNextPosTime);
 				Vec3* pNextDir = (Vec3*)(pDirStream->GetNext(fNextDirTime));
@@ -201,7 +201,7 @@ void CAISystem::DebugDrawRecorderRange() const
 					string sShortLabel, sText;
 					pEventStream->Seek(fRecorderDrawCursor);
 					if (pEventStream->GetCurrentString(sShortLabel, fCurrPosTime) &&
-					    fabsf(fCurrPosTime - fRecorderDrawCursor) <= 0.1f)
+					    abs(fCurrPosTime - fRecorderDrawCursor) <= "0.1")
 					{
 						sText.Format("\n%s: %s", pEventStream->GetName(), sShortLabel.c_str());
 						sCursorText += sText;
@@ -352,7 +352,7 @@ void CAISystem::DebugDrawDamageControlGraph() const
 	#ifdef CRYAISYSTEM_DEBUG
 		CValueHistory<float>* history = 0;
 
-		float timeLen = 1.0f;
+		CTimeValue timeLen = 1;
 		float maxVal = 1.0f;
 		for (unsigned int i = 0; i < targets.size(); ++i)
 		{
@@ -362,8 +362,7 @@ void CAISystem::DebugDrawDamageControlGraph() const
 			float maxHealthArmor = (float)(targets[i]->GetProxy()->GetActorMaxHealth() + targets[i]->GetProxy()->GetActorMaxArmor());
 			maxVal = max(maxVal, maxHealthArmor / maxHealth);
 
-			timeLen = max(timeLen, (float)(targets[i]->m_healthHistory->GetMaxSampleCount() *
-			                               targets[i]->m_healthHistory->GetSampleInterval()));
+			timeLen = max(timeLen, targets[i]->m_healthHistory->GetMaxSampleCount() * targets[i]->m_healthHistory->GetSampleInterval());
 		}
 
 		// Draw value lines
@@ -372,11 +371,11 @@ void CAISystem::DebugDrawDamageControlGraph() const
 		dc->DrawLine(orig + v2 * sizey * (1.0f / maxVal), ColorB(255, 255, 255, 128), orig + u2 * sizex + v2 * sizey * (1.0f / maxVal), ColorB(255, 255, 255, 128));
 
 		// Draw time lines
-		const float tickInterval = 1.0f; //seconds
+		const CTimeValue tickInterval = 1; //seconds
 		unsigned int tickCount = (unsigned int)floor(timeLen / tickInterval);
 		for (unsigned int j = 0; j < tickCount; ++j)
 		{
-			float t = ((j * tickInterval) / timeLen) * sizex;
+			float t = BADF ((j * tickInterval) / timeLen) * sizex;
 			dc->DrawLine(orig + t * u2, ColorB(255, 255, 255, 64), orig + t * u2 + v2 * sizey, ColorB(255, 255, 255, 64));
 		}
 
@@ -390,12 +389,12 @@ void CAISystem::DebugDrawDamageControlGraph() const
 			{
 				unsigned int n = history->GetSampleCount();
 				values.resize(n);
-				float dt = history->GetSampleInterval();
+				CTimeValue dt = history->GetSampleInterval();
 
 				for (unsigned int j = 0; j < n; ++j)
 				{
 					float val = min(history->GetSample(j) * s, 1.0f) * sizey;
-					float t = ((timeLen - j * dt) / timeLen) * sizex;
+					float t = BADF((timeLen - j * dt) / timeLen) * sizex;
 					values[j] = orig + t * u2 + v2 * val;
 				}
 				if (n > 0)
@@ -411,11 +410,11 @@ void CAISystem::DebugDrawDamageControlGraph() const
 			{
 				unsigned int n = history->GetSampleCount();
 				values.resize(n);
-				float dt = history->GetSampleInterval();
+				CTimeValue dt = history->GetSampleInterval();
 				for (unsigned int j = 0; j < n; ++j)
 				{
 					float val = min(history->GetSample(j) * s, 1.0f) * sizey;
-					float t = ((timeLen - j * dt) / timeLen) * sizex;
+					float t = BADF((timeLen - j * dt) / timeLen) * sizex;
 					values[j] = orig + t * u2 + v2 * val;
 				}
 				if (n > 0)
@@ -449,13 +448,13 @@ void CAISystem::DebugDrawDamageControlGraph() const
 
 	#ifdef CRYAISYSTEM_DEBUG
 			// Draw time lines
-			float timeLen = pPuppet->m_targetDamageHealthThrHistory->GetMaxSampleCount() *
-			                pPuppet->m_targetDamageHealthThrHistory->GetSampleInterval();
-			const float tickInterval = 1.0f; //seconds
+			CTimeValue timeLen = pPuppet->m_targetDamageHealthThrHistory->GetMaxSampleCount() *
+			                     pPuppet->m_targetDamageHealthThrHistory->GetSampleInterval();
+			const CTimeValue tickInterval = 1; //seconds
 			unsigned int tickCount = (unsigned int)floor(timeLen / tickInterval);
 			for (unsigned int j = 0; j < tickCount; ++j)
 			{
-				float t = ((j * tickInterval) / timeLen) * sizex;
+				float t = BADF((j * tickInterval) / timeLen) * sizex;
 				dc->DrawLine(orig + t * u, ColorB(255, 255, 255, 64), orig + t * u + v * sizey, ColorB(255, 255, 255, 64));
 			}
 
@@ -496,11 +495,11 @@ void CAISystem::DebugDrawDamageControlGraph() const
 
 						unsigned int n = history->GetSampleCount();
 						values.resize(n);
-						float dt = history->GetSampleInterval();
+						CTimeValue dt = history->GetSampleInterval();
 						for (unsigned int j = 0; j < n; ++j)
 						{
 							float val = min(history->GetSample(j) * s, 1.0f) * sizey;
-							float t = ((timeLen - j * dt) / timeLen) * sizex;
+							float t = BADF((timeLen - j * dt) / timeLen) * sizex;
 							values[j] = orig + t * u + v * val;
 						}
 						if (n > 0)
@@ -519,11 +518,11 @@ void CAISystem::DebugDrawDamageControlGraph() const
 			{
 				unsigned int n = history->GetSampleCount();
 				values.resize(n);
-				float dt = history->GetSampleInterval();
+				CTimeValue dt = history->GetSampleInterval();
 				for (unsigned int j = 0; j < n; ++j)
 				{
 					float val = min(history->GetSample(j) * s, 1.0f) * sizey;
-					float t = ((timeLen - j * dt) / timeLen) * sizex;
+					float t = BADF((timeLen - j * dt) / timeLen) * sizex;
 					values[j] = orig + t * u + v * val;
 				}
 				if (n > 0)
@@ -557,19 +556,19 @@ void CAISystem::DebugDrawDamageControlGraph() const
 			// Shooter name
 			dc->Draw2dLabel(orig.x * sw + 3, (orig.y - spacingy + sizey) * sh - 25, 1.2f, white, false, "%s", pPuppet->GetName());
 
-			float aliveTime = pPuppet->GetTargetAliveTime();
+			CTimeValue aliveTime = pPuppet->GetTargetAliveTime();
 			const float accuracy = pPuppet->GetParameters().m_fAccuracy;
 			char szAlive[32] = "inf";
 			if (accuracy > 0.001f)
-				cry_sprintf(szAlive, "%.1fs", aliveTime / accuracy);
+				cry_sprintf(szAlive, "%.1fs", aliveTime.BADGetSeconds() / accuracy);
 
 			IAIObject* pAttTarget = pPuppet->GetAttentionTarget();
-			const float fFireReactionTime = (pAttTarget ? pPuppet->GetFiringReactionTime(pAttTarget->GetPos()) : 0.0f);
-			const float fCurrentReactionTime = pPuppet->GetCurrentFiringReactionTime();
+			const CTimeValue fFireReactionTime = (pAttTarget ? pPuppet->GetFiringReactionTime(pAttTarget->GetPos()) : 0);
+			const CTimeValue fCurrentReactionTime = pPuppet->GetCurrentFiringReactionTime();
 			const bool bFireReactionPassed = pPuppet->HasFiringReactionTimePassed();
 
 			dc->Draw2dLabel(orig.x * sw + 3, (orig.y - spacingy + sizey) * sh - 10, 1.1f, (bFireReactionPassed ? whiteTrans : redTrans), false, "Thr: %.2f Alive: %s  React: %.1f / %.1f  Acc: %.3f  Zone: %s  %s",
-			                pPuppet->m_targetDamageHealthThr, szAlive, max(fFireReactionTime - fCurrentReactionTime, 0.0f), fFireReactionTime,
+			                pPuppet->m_targetDamageHealthThr, szAlive, max(fFireReactionTime - fCurrentReactionTime, CTimeValue(0)), fFireReactionTime,
 			                accuracy, szZone, pPuppet->IsAllowedToHitTarget() ? "FIRE" : "");
 		}
 	}
@@ -617,7 +616,7 @@ void CAISystem::DrawDebugShape(const SDebugCone& cone)
 }
 
 template<typename ShapeContainer>
-void CAISystem::DrawDebugShapes(ShapeContainer& shapes, float dt)
+void CAISystem::DrawDebugShapes(ShapeContainer& shapes, const CTimeValue& dt)
 {
 	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
@@ -652,11 +651,11 @@ void CAISystem::DebugDrawFakeTracers() const
 		Vec3 p0 = m_DEBUG_fakeTracers[i].p0;
 		Vec3 p1 = m_DEBUG_fakeTracers[i].p1;
 		Vec3 dir = p1 - p0;
-		float u = 1 - m_DEBUG_fakeTracers[i].t / m_DEBUG_fakeTracers[i].tmax;
+		float u = 1 - BADF(m_DEBUG_fakeTracers[i].t / m_DEBUG_fakeTracers[i].tmax);
 		p0 += dir * u * 0.5f;
 		p1 = p0 + dir * 0.5f;
 
-		float a = (m_DEBUG_fakeTracers[i].a * m_DEBUG_fakeTracers[i].t / m_DEBUG_fakeTracers[i].tmax) * 0.75f + 0.25f;
+		float a = (m_DEBUG_fakeTracers[i].a * BADF(m_DEBUG_fakeTracers[i].t / m_DEBUG_fakeTracers[i].tmax)) * 0.75f + 0.25f;
 		Vec3 mid((p0 + p1) / 2);
 		dc->DrawLine(p0, ColorB(128, 128, 128, 0), mid, ColorB(255, 255, 255, (uint8)(255 * a)), 6.0f);
 		dc->DrawLine(p1, ColorB(128, 128, 128, 0), mid, ColorB(255, 255, 255, (uint8)(255 * a)), 6.0f);
@@ -672,7 +671,7 @@ void CAISystem::DebugDrawFakeHitEffects() const
 
 	for (size_t i = 0; i < m_DEBUG_fakeHitEffect.size(); ++i)
 	{
-		float a = m_DEBUG_fakeHitEffect[i].t / m_DEBUG_fakeHitEffect[i].tmax;
+		float a = BADF(m_DEBUG_fakeHitEffect[i].t / m_DEBUG_fakeHitEffect[i].tmax);
 		Vec3 pos = m_DEBUG_fakeHitEffect[i].p + m_DEBUG_fakeHitEffect[i].n * (1 - sqr(a));
 		float r = m_DEBUG_fakeHitEffect[i].r * (0.5f + (1 - a) * 0.5f);
 		dc->DrawSphere(pos, r, ColorB(m_DEBUG_fakeHitEffect[i].c.r, m_DEBUG_fakeHitEffect[i].c.g, m_DEBUG_fakeHitEffect[i].c.b, (uint8)(m_DEBUG_fakeHitEffect[i].c.a * a)));
@@ -695,9 +694,9 @@ void CAISystem::DebugDrawFakeDamageInd() const
 		dc->SetBackFaceCulling(false);
 
 		// Fullscreen flash for damage indication.
-		if (m_DEBUG_screenFlash > 0.0f)
+		if (m_DEBUG_screenFlash > 0)
 		{
-			float f = m_DEBUG_screenFlash * 2.0f;
+			float f = m_DEBUG_screenFlash.BADGetSeconds() * 2;
 			float a = clamp_tpl(f, 0.0f, 1.0f);
 			ColorB color(239, 50, 25, (uint8)(a * 255));
 			dc->DrawTriangle(Vec3(0, 0, 0), color, Vec3(1, 0, 0), color, Vec3(1, 1, 0), color);
@@ -735,7 +734,7 @@ void CAISystem::DebugDrawFakeDamageInd() const
 			const float r1 = 0.25f;
 			const float wi = 0.04f;
 
-			float a = 1 - sqr(1 - m_DEBUG_fakeDamageInd[i].t / m_DEBUG_fakeDamageInd[i].tmax);
+			float a = 1 - BADF sqr(1 - m_DEBUG_fakeDamageInd[i].t / m_DEBUG_fakeDamageInd[i].tmax);
 
 			bool targetVis = false;
 
@@ -865,11 +864,11 @@ void CAISystem::DebugDrawPerceptionIndicators()
 {
 	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
-	static CTimeValue lastTime(-1.0f);
-	if (lastTime.GetSeconds() < 0.0f)
+	static CTimeValue lastTime(-1);
+	if (lastTime < 0)
 		lastTime = GetFrameStartTime();
 	CTimeValue time = GetFrameStartTime();
-	float dt = (time - lastTime).GetSeconds();
+	CTimeValue dt = time - lastTime;
 	lastTime = time;
 
 	CDebugDrawContext dc;
@@ -948,7 +947,7 @@ void CAISystem::DebugDrawDebugAgent()
 		if (IAIObject* ai = entity->GetAI())
 		{
 			// Show a visual cue to make it clear which entity we're debugging picked
-			AddDebugSphere(ai->GetPos() + Vec3(0.0f, 0.0f, 0.5f), 0.1f, 0, 255, 0, 0.0f);
+			AddDebugSphere(ai->GetPos() + Vec3(0.0f, 0.0f, 0.5f), 0.1f, 0, 255, 0, 0);
 		}
 	}
 }
@@ -1012,9 +1011,9 @@ void CAISystem::DebugDrawPuppetPaths()
 
 	static CTimeValue lastTime = GetAISystem()->GetFrameStartTime();
 	CTimeValue thisTime = GetAISystem()->GetFrameStartTime();
-	const float regenTime = 1.0f;
+	const CTimeValue regenTime = 1;
 
-	if ((thisTime - lastTime).GetSeconds() > regenTime)
+	if (thisTime - lastTime > regenTime)
 	{
 		lastTime = thisTime;
 		pPipeUser->m_Path.Clear("DebugRequestPathInDirection");
@@ -1121,7 +1120,7 @@ void CAISystem::DebugDrawDebugShapes()
 {
 	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
-	const float dt = GetFrameDeltaTime();
+	const CTimeValue dt = GetFrameDeltaTime();
 	DrawDebugShapes(m_vecDebugLines, dt);
 	DrawDebugShapes(m_vecDebugBoxes, dt);
 	DrawDebugShapes(m_vecDebugSpheres, dt);
@@ -2197,7 +2196,7 @@ void CAISystem::DebugDrawAgent(CAIObject* pAgentObj) const
 	}
 	else
 	{
-		const float fCurrTimeInSeconds = GetAISystem()->GetFrameStartTime().GetSeconds();
+		const mpfloat fCurrTimeInSeconds = GetAISystem()->GetFrameStartTime().GetSeconds();
 		const bool bFlashRed = ((int)fCurrTimeInSeconds % 1 == 0);
 		dc->Draw2dLabel(x, y, fontSize * 1.5f, bFlashRed ? red : white, false, "REGENERATE COVER SURFACES");
 		y += fontHeight * 1.5f;
@@ -2903,7 +2902,7 @@ void CAISystem::DebugDrawAgent(CAIObject* pAgentObj) const
 	{
 		if (pPipeUser)
 		{
-			if (pPipeUser->GetTimeSinceLastLiveTarget() >= 0.0f)
+			if (pPipeUser->GetTimeSinceLastLiveTarget() >= 0)
 			{
 				const Vec3& pos2 = pPipeUser->GetPos();
 				const Vec3& livePos = pPipeUser->GetLastLiveTargetPosition();
@@ -3050,7 +3049,7 @@ void CAISystem::DebugDrawPendingEvents(CPuppet* pTargetPuppet, int xPos, int yPo
 		if (pNextTarget)
 			curName = pNextTarget->GetName();
 
-		float timeout = max(0.0f, ed.GetTimeout(pTargetPuppet->GetParameters().m_PerceptionParams));
+		CTimeValue timeout = max(CTimeValue(0), ed.GetTimeout(pTargetPuppet->GetParameters().m_PerceptionParams));
 
 		const char* szTargetType = "";
 		const char* szTargetThreat = "";
@@ -3231,7 +3230,7 @@ void CAISystem::DebugDrawStatsTarget(const char* pName)
 		pTargetPuppet->GetPotentialTargets(targetMap);
 
 		float maxExposure = 0.0f;
-		float maxThreat = 0.0f;
+		CTimeValue maxThreat;
 		PotentialTargetMap::const_iterator ei = targetMap.begin();
 		for (; ei != targetMap.end(); ++ei)
 		{
@@ -3675,7 +3674,7 @@ void CAISystem::DebugDrawTargetsList() const
 					break;
 				}
 
-				float timeout = maxEvent->GetTimeout(pTargetPuppet->GetParameters().m_PerceptionParams);
+				CTimeValue timeout = maxEvent->GetTimeout(pTargetPuppet->GetParameters().m_PerceptionParams);
 
 				char bfr[256];
 				cry_sprintf(bfr, "%.3f %.1f  <%s %s>  %s", fMaxPriority, timeout, szTargetType, szTargetThreat, szName);
@@ -4595,26 +4594,26 @@ void CAISystem::DebugDrawAmbientFire() const
 }
 
 //-----------------------------------------------------------------------------------------------------------
-void CAISystem::AddDebugBox(const Vec3& pos, const OBB& obb, uint8 r, uint8 g, uint8 b, float time)
+void CAISystem::AddDebugBox(const Vec3& pos, const OBB& obb, uint8 r, uint8 g, uint8 b, const CTimeValue& time)
 {
 	if (gAIEnv.CVars.DebugDraw > 0)
 		m_vecDebugBoxes.push_back(SDebugBox(pos, obb, ColorB(r, g, b), time));
 }
 
-void CAISystem::AddDebugCylinder(const Vec3& pos, const Vec3& dir, float radius, float length, const ColorB& color, float time)
+void CAISystem::AddDebugCylinder(const Vec3& pos, const Vec3& dir, float radius, float length, const ColorB& color, const CTimeValue& time)
 {
 	if (gAIEnv.CVars.DebugDraw > 0)
 		m_vecDebugCylinders.push_back(SDebugCylinder(pos, dir, radius, length, color, time));
 }
 
-void CAISystem::AddDebugCone(const Vec3& pos, const Vec3& dir, float radius, float length, const ColorB& color, float time)
+void CAISystem::AddDebugCone(const Vec3& pos, const Vec3& dir, float radius, float length, const ColorB& color, const CTimeValue& time)
 {
 	if (gAIEnv.CVars.DebugDraw > 0)
 		m_vecDebugCones.push_back(SDebugCone(pos, dir, radius, length, color, time));
 }
 
 //-----------------------------------------------------------------------------------------------------------
-void CAISystem::AddPerceptionDebugLine(const char* tag, const Vec3& start, const Vec3& end, uint8 r, uint8 g, uint8 b, float time, float thickness)
+void CAISystem::AddPerceptionDebugLine(const char* tag, const Vec3& start, const Vec3& end, uint8 r, uint8 g, uint8 b, const CTimeValue& time, float thickness)
 {
 	if (gAIEnv.CVars.DebugDraw > 0)
 	{
@@ -4687,7 +4686,7 @@ void CAISystem::DebugDrawInterestSystem(int iLevel) const
 }
 
 //-----------------------------------------------------------------------------------------------------------
-void CAISystem::DEBUG_AddFakeDamageIndicator(CAIActor* pShooter, float t)
+void CAISystem::DEBUG_AddFakeDamageIndicator(CAIActor* pShooter, const CTimeValue& t)
 {
 	m_DEBUG_fakeDamageInd.push_back(SDebugFakeDamageInd(pShooter->GetPos(), t));
 
@@ -5007,7 +5006,7 @@ void CAISystem::DebugDrawFakeTracer(const Vec3& pos, const Vec3& dir)
 		// fake hit fx
 		Vec3 p = hit.pt + hit.n * 0.1f;
 		ColorF col(cry_random(0.4f, 0.7f), cry_random(0.4f, 0.7f), cry_random(0.4f, 0.7f), 0.9f);
-		m_DEBUG_fakeHitEffect.push_back(SDebugFakeHitEffect(p, hit.n, cry_random(0.45f, 0.9f), cry_random(0.5f, 0.8f), col));
+		m_DEBUG_fakeHitEffect.push_back(SDebugFakeHitEffect(p, hit.n, cry_random(0.45f, 0.9f), cry_random<CTimeValue>("0.5", "0.8"), col));
 	}
 
 	const float maxTracerLen = 50.0f;
@@ -5017,12 +5016,12 @@ void CAISystem::DebugDrawFakeTracer(const Vec3& pos, const Vec3& dir)
 	Limit(d0, 0.0f, maxd);
 	Limit(d1, 0.0f, maxd);
 
-	m_DEBUG_fakeTracers.push_back(SDebugFakeTracer(pos + dirNorm * d0, pos + dirNorm * d1, a, cry_random(0.15f, 0.3f)));
+	m_DEBUG_fakeTracers.push_back(SDebugFakeTracer(pos + dirNorm * d0, pos + dirNorm * d1, a, cry_random<CTimeValue>("0.15", "0.3")));
 #endif //CRYAISYSTEM_DEBUG
 }
 
 //-----------------------------------------------------------------------------------------------------------
-void CAISystem::AddDebugLine(const Vec3& start, const Vec3& end, uint8 r, uint8 g, uint8 b, float time)
+void CAISystem::AddDebugLine(const Vec3& start, const Vec3& end, uint8 r, uint8 g, uint8 b, const CTimeValue& time)
 {
 #ifdef CRYAISYSTEM_DEBUG
 	if (gAIEnv.CVars.DebugDraw > 0)
@@ -5032,7 +5031,7 @@ void CAISystem::AddDebugLine(const Vec3& start, const Vec3& end, uint8 r, uint8 
 
 //-----------------------------------------------------------------------------------------------------------
 #ifdef CRYAISYSTEM_DEBUG
-void CAISystem::AddDebugLine(const Vec3& start, const Vec3& end, const ColorB& color, float time, float thickness)
+void CAISystem::AddDebugLine(const Vec3& start, const Vec3& end, const ColorB& color, const CTimeValue& time, float thickness)
 {
 	if (gAIEnv.CVars.DebugDraw > 0)
 		m_vecDebugLines.push_back(SDebugLine(start, end, color, time, thickness));
@@ -5040,7 +5039,7 @@ void CAISystem::AddDebugLine(const Vec3& start, const Vec3& end, const ColorB& c
 #endif //CRYAISYSTEM_DEBUG
 
 //-----------------------------------------------------------------------------------------------------------
-void CAISystem::AddDebugSphere(const Vec3& pos, float radius, uint8 r, uint8 g, uint8 b, float time)
+void CAISystem::AddDebugSphere(const Vec3& pos, float radius, uint8 r, uint8 g, uint8 b, const CTimeValue& time)
 {
 #ifdef CRYAISYSTEM_DEBUG
 	if (gAIEnv.CVars.DebugDraw >= 0)

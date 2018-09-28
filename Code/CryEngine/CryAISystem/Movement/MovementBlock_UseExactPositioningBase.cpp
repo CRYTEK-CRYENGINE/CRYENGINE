@@ -17,14 +17,14 @@ UseExactPositioningBase::UseExactPositioningBase(
 	: m_path(path)
 	, m_style(style)
 	, m_state(Prepare)
-	, m_accumulatedPathFollowerFailureTime(0.0f)
+	, m_accumulatedPathFollowerFailureTime(0)
 {
 
 }
 
 void UseExactPositioningBase::Begin(IMovementActor& actor)
 {
-	m_accumulatedPathFollowerFailureTime = 0.0f;
+	m_accumulatedPathFollowerFailureTime.SetSeconds(0);
 	actor.GetAdapter().SetActorStyle(m_style, m_path);
 	m_stuckDetector.Reset();
 }
@@ -141,7 +141,7 @@ Movement::Block::Status UseExactPositioningBase::UpdatePrepare(const MovementUpd
 		// If it keeps on failing we don't expect to recover.
 		// We report back that we can't be finished and the planner
 		// will attempt to re-plan for the current situation.
-		if (m_accumulatedPathFollowerFailureTime > 3.0f)
+		if (m_accumulatedPathFollowerFailureTime > 3)
 		{
 			return Movement::Block::CantBeFinished;
 		}

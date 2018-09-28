@@ -36,12 +36,12 @@ ICoverSampler::ESamplerState CoverSampler::StartSampling(const ICoverSampler::Pa
 	return m_externalState;
 }
 
-ICoverSampler::ESamplerState CoverSampler::Update(float timeLimitPerFrame, float timeLimitTotal)
+ICoverSampler::ESamplerState CoverSampler::Update(const CTimeValue& timeLimitPerFrame, const CTimeValue& timeLimitTotal)
 {
-	CTimeValue now = gEnv->pTimer->GetAsyncTime();
+	CTimeValue now = GetGTimer()->GetAsyncTime();
 	CTimeValue start = now;
-	CTimeValue endTime = now + CTimeValue(timeLimitPerFrame);
-	CTimeValue maxTime = CTimeValue(timeLimitTotal);
+	CTimeValue endTime = now + timeLimitPerFrame;
+	CTimeValue maxTime = timeLimitTotal;
 
 	do
 	{
@@ -178,7 +178,7 @@ ICoverSampler::ESamplerState CoverSampler::Update(float timeLimitPerFrame, float
 			break;
 		}
 
-		now = gEnv->pTimer->GetAsyncTime();
+		now = GetGTimer()->GetAsyncTime();
 
 		if (m_externalState != InProgress)
 			break;
@@ -237,7 +237,7 @@ void CoverSampler::DebugDraw() const
 
 	dc->Draw3dLabel(m_state.origin + CoverUp * 0.5f, 1.35f,
 	                "Time: ~%.2f/%.2fms\nUpdate Count: %d\nPWI Count: %d\nSimplify: %" PRISIZE_T "/%d",
-	                m_state.totalTime.GetMilliSeconds() / (float)m_state.updateCount, m_state.totalTime.GetMilliSeconds(),
+	                (float)m_state.totalTime.GetMilliSeconds() / m_state.updateCount, (float)m_state.totalTime.GetMilliSeconds(),
 	                m_state.updateCount, m_state.pwiCount, m_samples.size(), m_state.originalSurfaceSamples);
 }
 
@@ -397,7 +397,7 @@ float CoverSampler::SampleHeightInterval(const Vec3& position, const Vec3& dir, 
 
 	if (gAIEnv.CVars.DebugDrawCoverSampler & 2)
 	{
-		GetAISystem()->AddDebugLine(top, top + dir, 92, 192, 0, 3.0f);
+		GetAISystem()->AddDebugLine(top, top + dir, 92, 192, 0, 3);
 	}
 
 	IntersectionResult result;
@@ -416,7 +416,7 @@ float CoverSampler::SampleHeightInterval(const Vec3& position, const Vec3& dir, 
 
 		if (gAIEnv.CVars.DebugDrawCoverSampler & 4)
 		{
-			GetAISystem()->AddDebugLine(result.position, result.position + result.normal, 0, 128, 192, 3.0f);
+			GetAISystem()->AddDebugLine(result.position, result.position + result.normal, 0, 128, 192, 3);
 		}
 
 		return interval;
@@ -570,9 +570,9 @@ bool CoverSampler::SampleFloor(const Vec3& position, float searchHeight, float s
 
 	if (gAIEnv.CVars.DebugDrawCoverSampler & 1)
 	{
-		GetAISystem()->AddDebugLine(center, center + dir, 214, 164, 96, 3.0f);
-		GetAISystem()->AddDebugSphere(center, 0.1f, 210, 183, 135, 3.0f);
-		GetAISystem()->AddDebugSphere(center + dir, 0.1f, 139, 69, 19, 3.0f);
+		GetAISystem()->AddDebugLine(center, center + dir, 214, 164, 96, 3);
+		GetAISystem()->AddDebugSphere(center, 0.1f, 210, 183, 135, 3);
+		GetAISystem()->AddDebugSphere(center + dir, 0.1f, 139, 69, 19, 3);
 	}
 
 	IntersectionResult result;
@@ -649,8 +649,8 @@ float CoverSampler::SampleWidthInterval(EDirection direction, float interval, fl
 				}
 				else if (gAIEnv.CVars.DebugDrawCoverSampler & 8)
 				{
-					GetAISystem()->AddDebugSphere(sample.position, 0.035f, 255, 0, 0, 3.0f);
-					GetAISystem()->AddDebugLine(sample.position + CoverUp * CoverOffsetUp, floor + CoverUp * CoverOffsetUp, 255, 0, 0, 3.0f);
+					GetAISystem()->AddDebugSphere(sample.position, 0.035f, 255, 0, 0, 3);
+					GetAISystem()->AddDebugLine(sample.position + CoverUp * CoverOffsetUp, floor + CoverUp * CoverOffsetUp, 255, 0, 0, 3);
 				}
 
 				return height;

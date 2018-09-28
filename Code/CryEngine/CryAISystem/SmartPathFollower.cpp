@@ -523,7 +523,7 @@ bool CSmartPathFollower::FindReachableTarget(float startIndex, float endIndex, f
 		if (reachableIndex >= 0.0f)
 		{
 			if (gAIEnv.CVars.DrawPathFollower > 1)
-				GetAISystem()->AddDebugSphere(m_path.GetPositionAtSegmentIndex(nextIndex), 0.25f, 255, 0, 0, 5.0f);
+				GetAISystem()->AddDebugSphere(m_path.GetPositionAtSegmentIndex(nextIndex), 0.25f, 255, 0, 0, 5);
 		}
 
 		if (reachableIndex >= endIndex)
@@ -570,7 +570,7 @@ bool CSmartPathFollower::CanReachTargetStep(float step, float endIndex, float ne
 	while (CanReachTarget(nextIndex))
 	{
 		if (gAIEnv.CVars.DrawPathFollower > 1)
-			GetAISystem()->AddDebugSphere(m_path.GetPositionAtSegmentIndex(nextIndex), 0.25f, 0, 255, 0, 5.0f);
+			GetAISystem()->AddDebugSphere(m_path.GetPositionAtSegmentIndex(nextIndex), 0.25f, 0, 255, 0, 5);
 
 		reachableIndex = nextIndex;
 
@@ -779,7 +779,7 @@ void CSmartPathFollower::ProcessPath()
 
 // Attempts to advance the follow target along the path as far as possible while ensuring the follow
 // target remains reachable. Returns true if the follow target is reachable, false otherwise.
-bool CSmartPathFollower::Update(PathFollowResult& result, const Vec3& curPos, const Vec3& curVel, float dt)
+bool CSmartPathFollower::Update(PathFollowResult& result, const Vec3& curPos, const Vec3& curVel, const CTimeValue& dt)
 {
 	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
@@ -931,7 +931,7 @@ bool CSmartPathFollower::Update(PathFollowResult& result, const Vec3& curPos, co
 					if (gAIEnv.CVars.SmartPathFollower_useAdvancedPathShortcutting_debug != 0)
 					{
 						gEnv->pGameFramework->GetIPersistantDebug()->Begin("SmartPathFollower_useAdvancedPathShortcutting_debug", false);
-						gEnv->pGameFramework->GetIPersistantDebug()->AddLine(lineseg.start + Vec3(0.0, 0.0f, 1.5f), lineseg.end + Vec3(0.0f, 0.0f, 1.5f), ColorF(1.0f, 0.0f, 0.0f), 1.0f);
+						gEnv->pGameFramework->GetIPersistantDebug()->AddLine(lineseg.start + Vec3(0.0, 0.0f, 1.5f), lineseg.end + Vec3(0.0f, 0.0f, 1.5f), ColorF(1.0f, 0.0f, 0.0f), 1);
 					}
 #endif
 					isAllowedToShortcut = false;
@@ -942,7 +942,7 @@ bool CSmartPathFollower::Update(PathFollowResult& result, const Vec3& curPos, co
 				if (gAIEnv.CVars.SmartPathFollower_useAdvancedPathShortcutting_debug != 0)
 				{
 					gEnv->pGameFramework->GetIPersistantDebug()->Begin("SmartPathFollower_useAdvancedPathShortcutting_debug", false);
-					gEnv->pGameFramework->GetIPersistantDebug()->AddLine(lineseg.start + Vec3(0.0, 0.0f, 1.5f), lineseg.end + Vec3(0.0f, 0.0f, 1.5f), ColorF(0.0f, 1.0f, 0.0f), 1.0f);
+					gEnv->pGameFramework->GetIPersistantDebug()->AddLine(lineseg.start + Vec3(0.0, 0.0f, 1.5f), lineseg.end + Vec3(0.0f, 0.0f, 1.5f), ColorF(0.0f, 1.0f, 0.0f), 1);
 				}
 #endif
 			}
@@ -1045,7 +1045,7 @@ bool CSmartPathFollower::Update(PathFollowResult& result, const Vec3& curPos, co
 	{
 		// If we need to stick to follow a path we don't need to try to cut
 		// and find the shortest way to reach the final target position.
-		const float predictionTime = GetPredictionTimeForMovingAlongPath(isInsideObstacles, curVel.GetLengthSquared2D());
+		const CTimeValue predictionTime = GetPredictionTimeForMovingAlongPath(isInsideObstacles, curVel.GetLengthSquared2D());
 		const float kIncreasedZToleranceForFindingClosestSegment = FLT_MAX; // We basically don't care about the z tolerance
 
 		float currentIndex = m_path.FindClosestSegmentIndex(m_curPos, .0f, m_path.TotalDistance(), kIncreasedZToleranceForFindingClosestSegment, m_params.use2D);
@@ -1076,7 +1076,7 @@ bool CSmartPathFollower::Update(PathFollowResult& result, const Vec3& curPos, co
 		else
 		{
 			const float currentDistance = m_path.GetDistanceAtSegmentIndex(currentIndex);
-			const Vec3 localNextPos = curVel * predictionTime;
+			const Vec3 localNextPos = curVel * predictionTime.BADGetSeconds();
 			const float kMinLookAheadDistanceAllowed = 1.0f;
 			const float lookAheadDistance = max(kMinLookAheadDistanceAllowed, localNextPos.len());
 			const float lookAheadIndex = m_path.FindSegmentIndexAtDistance(currentDistance + lookAheadDistance);
@@ -1134,8 +1134,8 @@ bool CSmartPathFollower::Update(PathFollowResult& result, const Vec3& curPos, co
 			else
 			{
 				// This is used to vaguely indicate if the FT has reached path end and so has the agent
-				const float MaxTimeStep = 0.5f;
-				result.reachedEnd = distToEnd < max(MinDistanceToEnd, speed * min(dt, MaxTimeStep));
+				const CTimeValue MaxTimeStep = "0.5";
+				result.reachedEnd = distToEnd < max(MinDistanceToEnd, speed * min(dt, MaxTimeStep).BADGetSeconds());
 			}
 
 			// TODO: Stability might be improved by detecting and reducing velocities pointing backwards along the path.
@@ -1165,8 +1165,8 @@ bool CSmartPathFollower::Update(PathFollowResult& result, const Vec3& curPos, co
 				m_lastOutputSpeed = curSpeed * dot;
 			}
 			Limit(m_lastOutputSpeed, m_params.minSpeed, m_params.maxSpeed);
-			float maxOutputSpeed = min(m_lastOutputSpeed + dt * m_params.maxAccel, m_params.maxSpeed);
-			float minOutputSpeed = m_params.stopAtEnd ? 0.0f : max(m_lastOutputSpeed - dt * m_params.maxDecel, m_params.minSpeed);
+			float maxOutputSpeed = min(m_lastOutputSpeed + dt.BADGetSeconds() * m_params.maxAccel, m_params.maxSpeed);
+			float minOutputSpeed = m_params.stopAtEnd ? 0.0f : max(m_lastOutputSpeed - dt.BADGetSeconds() * m_params.maxDecel, m_params.minSpeed);
 
 			Limit(speed, minOutputSpeed, maxOutputSpeed);
 			m_lastOutputSpeed = speed;
@@ -1219,15 +1219,15 @@ bool CSmartPathFollower::Update(PathFollowResult& result, const Vec3& curPos, co
 //===================================================================
 // GetPredictionTimeForMovingAlongPath
 //===================================================================
-float CSmartPathFollower::GetPredictionTimeForMovingAlongPath(const bool isInsideObstacles,
+CTimeValue CSmartPathFollower::GetPredictionTimeForMovingAlongPath(const bool isInsideObstacles,
                                                               const float currentSpeedSq)
 {
-	float predictionTime = gAIEnv.CVars.SmartPathFollower_LookAheadPredictionTimeForMovingAlongPathWalk;
+	CTimeValue predictionTime = gAIEnv.CVars.SmartPathFollower_LookAheadPredictionTimeForMovingAlongPathWalk;
 	if (isInsideObstacles)
 	{
 		// Heuristic time to look ahead on the path when the agent moves inside the shape
 		// of dynamic obstacles. We try to don't look ahead too much to stick more to the path
-		predictionTime = 0.2f;
+		predictionTime.SetSeconds("0.2");
 	}
 	else
 	{

@@ -98,7 +98,7 @@ void DynamicCoverManager::AddEntity(EntityId entityID)
 	gEnv->pEntitySystem->AddEntityEventListener(entityID, ENTITY_EVENT_XFORM, this);
 	gEnv->pEntitySystem->AddEntityEventListener(entityID, ENTITY_EVENT_DONE, this);
 
-	m_entityCover.insert(EntityCover::value_type(entityID, EntityCoverState(gEnv->pTimer->GetFrameStartTime())));
+	m_entityCover.insert(EntityCover::value_type(entityID, EntityCoverState(GetGTimer()->GetFrameStartTime())));
 }
 
 void DynamicCoverManager::RemoveEntity(EntityId entityID)
@@ -156,7 +156,7 @@ void DynamicCoverManager::ClearValidationSegments()
 	m_validationQueue.clear();
 }
 
-void DynamicCoverManager::Update(float updateTime)
+void DynamicCoverManager::Update(const CTimeValue& updateTime)
 {
 	PREFAST_SUPPRESS_WARNING(6239);
 	if (!DynamicCoverDeferred && !m_validationQueue.empty())
@@ -165,7 +165,7 @@ void DynamicCoverManager::Update(float updateTime)
 	EntityCover::iterator it = m_entityCover.begin();
 	EntityCover::iterator end = m_entityCover.end();
 
-	CTimeValue now = gEnv->pTimer->GetFrameStartTime();
+	CTimeValue now = GetGTimer()->GetFrameStartTime();
 
 	for (; it != end; ++it)
 	{
@@ -173,7 +173,7 @@ void DynamicCoverManager::Update(float updateTime)
 
 		if (state.state == EntityCoverState::Moving)
 		{
-			if ((now - state.lastMovement).GetMilliSecondsAsInt64() >= 150)
+			if (now - state.lastMovement >=" 0.15")
 			{
 				state.state = EntityCoverState::Sampling;
 
@@ -251,7 +251,7 @@ void DynamicCoverManager::MoveEvent(EntityId entityID, const Matrix34& worldTM)
 			m_entityCoverSampler.Cancel(entityID);
 
 			state.state = EntityCoverState::Moving;
-			state.lastMovement = gEnv->pTimer->GetFrameStartTime();
+			state.lastMovement = GetGTimer()->GetFrameStartTime();
 			state.lastWorldTM = worldTM;
 
 			RemoveEntityCoverSurfaces(state);

@@ -1833,7 +1833,7 @@ public:
 	};
 
 	Timeout()
-		: m_duration(0.0f)
+		: m_duration(0)
 	{
 	}
 
@@ -1893,7 +1893,7 @@ public:
 #endif
 
 private:
-	float m_duration;
+	CTimeValue m_duration;
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -1910,8 +1910,8 @@ public:
 	};
 
 	Wait()
-		: m_duration(0.0f)
-		, m_variation(0.0f)
+		: m_duration(0)
+		, m_variation(0)
 	{
 	}
 
@@ -1956,7 +1956,7 @@ public:
 
 	virtual void OnInitialize(const UpdateContext& context)
 	{
-		if (m_duration >= 0.0f)
+		if (m_duration >= 0)
 		{
 			RuntimeData& runtimeData = GetRuntimeData<RuntimeData>(context);
 			runtimeData.timer.Reset(m_duration, m_variation);
@@ -1978,8 +1978,8 @@ public:
 #endif
 
 private:
-	float m_duration;
-	float m_variation;
+	CTimeValue m_duration;
+	CTimeValue m_variation;
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -2113,7 +2113,7 @@ public:
 	};
 
 	IfTime()
-		: m_timeThreshold(0.0f)
+		: m_timeThreshold(0)
 		, m_compareOp(MoreThan)
 		, m_openGateIfTimestampWasNeverSet(false)
 	{
@@ -2243,7 +2243,7 @@ protected:
 
 private:
 	TimestampID m_timestampID;
-	float       m_timeThreshold;
+	CTimeValue  m_timeThreshold;
 	CompareOp   m_compareOp;
 	bool        m_openGateIfTimestampWasNeverSet;
 
@@ -2271,7 +2271,7 @@ public:
 	};
 
 	WaitUntilTime()
-		: m_timeThreshold(0.0f)
+		: m_timeThreshold(0)
 		, m_succeedIfTimestampWasNeverSet(false)
 		, m_compareOp(MoreThan)
 	{
@@ -2380,7 +2380,7 @@ protected:
 	}
 
 private:
-	float       m_timeThreshold;
+	CTimeValue  m_timeThreshold;
 	TimestampID m_timestampID;
 	CompareOp   m_compareOp;
 	bool        m_succeedIfTimestampWasNeverSet;
@@ -2409,7 +2409,7 @@ public:
 	};
 
 	AssertTime()
-		: m_timeThreshold(0.0f)
+		: m_timeThreshold(0)
 		, m_succeedIfTimestampWasNeverSet(false)
 		, m_compareOp(MoreThan)
 	{
@@ -2504,7 +2504,7 @@ protected:
 		}
 
 		bool valid = false;
-		CTimeValue elapsedTime(0.0f);
+		CTimeValue elapsedTime(0);
 		context.timestamps.GetElapsedTimeSince(m_timestampID, elapsedTime, valid);
 
 		if (valid)
@@ -2520,7 +2520,7 @@ protected:
 
 private:
 
-	float       m_timeThreshold;
+	CTimeValue  m_timeThreshold;
 	TimestampID m_timestampID;
 	CompareOp   m_compareOp;
 	bool        m_succeedIfTimestampWasNeverSet;

@@ -27,7 +27,7 @@ public:
 	virtual TreatType                     GetTreatmentType() const override;
 	virtual void                          InitializeCollisionAgent(CCollisionAvoidanceSystem::SAgentParams& agent) const override;
 	virtual void                          InitializeCollisionObstacle(CCollisionAvoidanceSystem::SObstacleParams& obstacle) const override;
-	virtual void                          ApplyComputedVelocity(const Vec2& avoidanceVelocity, float updateTime) override;
+	virtual void                          ApplyComputedVelocity(const Vec2& avoidanceVelocity, const CTimeValue& updateTime) override;
 
 private:
 	CEntityAINavigationComponent* m_pOwningNavigationComponent;

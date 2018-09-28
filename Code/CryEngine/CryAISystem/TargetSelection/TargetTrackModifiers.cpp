@@ -272,10 +272,10 @@ float CTargetTrackDistanceIgnoreModifier::GetModValue(const CTargetTrack* pTrack
 		modValue = (range > 0.0f) ? (distance / range) : distance;
 	}
 
-	const float now = GetAISystem()->GetFrameStartTimeSeconds();
-	const float dt = (now - envelopeData.m_fStartTime);
+	const CTimeValue now = GetAISystem()->GetFrameStartTime();
+	const CTimeValue dt = (now - envelopeData.m_fStartTime);
 
-	return (float)__fsel(modValue * modConfig.m_fValue - dt, 0.0f, 1.0f);
+	return (float)__fsel(modValue * modConfig.m_fValue - dt.BADGetSeconds(), 0.0f, 1.0f);
 }
 
 bool CTargetTrackPlayerModifier::IsMatchingTag(const char* tag) const

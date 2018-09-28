@@ -24,7 +24,7 @@ void EntityCoverSampler::Clear()
 {
 	m_queue.clear();
 
-	m_lastSort.SetValue(0ll);
+	m_lastSort.SetSeconds(0);
 }
 
 void EntityCoverSampler::Queue(EntityId entityID, const Callback& callback)
@@ -61,11 +61,11 @@ void EntityCoverSampler::Update()
 {
 	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
-	CTimeValue now = gEnv->pTimer->GetFrameStartTime();
+	CTimeValue now = GetGTimer()->GetFrameStartTime();
 
 	while (!m_queue.empty())
 	{
-		if ((now - m_lastSort).GetMilliSecondsAsInt64() > 1250)
+		if (now - m_lastSort > "1.25")
 		{
 			if (CAIObject* player = GetAISystem()->GetPlayer())
 			{
@@ -186,7 +186,7 @@ void EntityCoverSampler::Update()
 			continue;
 		}
 
-		ICoverSampler::ESamplerState state = m_sampler->Update(0.00025f);
+		ICoverSampler::ESamplerState state = m_sampler->Update("0.00025");
 
 		if (gAIEnv.CVars.DebugDrawDynamicCoverSampler)
 			m_sampler->DebugDraw();

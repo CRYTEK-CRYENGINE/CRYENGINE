@@ -243,7 +243,7 @@ void CLeaderAction::CheckLeaderDistance() const
 
 CLeaderAction_Search::CLeaderAction_Search(CLeader* pLeader, const LeaderActionParams& params)
 	: CLeaderAction(pLeader)
-	, m_timeRunning(0.0f)
+	, m_timeRunning(0)
 {
 
 	m_eActionType = LA_SEARCH;
@@ -568,7 +568,7 @@ CLeaderAction_Attack::CLeaderAction_Attack(CLeader* pLeader)
 	, m_bStealth(false)
 	, m_bApproachWithNoObstacle(false)
 	, m_bNoTarget(false)
-	, m_timeLimit(40.0f)
+	, m_timeLimit(40)
 	, m_vDefensePoint(ZERO)
 	, m_vEnemyPos(ZERO)
 {
@@ -1097,7 +1097,9 @@ bool CLeaderAction_Attack_SwitchPositions::ProcessSignal(const AISIGNAL& signal)
 					break;
 				}
 
-			m_DangerPoints.push_back(SDangerPoint(float(pData->iValue), pData->fValue, dpoint));
+			// PERSONAL DEBUG: How to update and trace AI signals better?? More'n likely missed Signal time creation & reading....
+			// Hard to grep/trace down.....SignalCRC's don't help much.
+			m_DangerPoints.push_back(SDangerPoint(pData->tVal, pData->fValue, dpoint));
 
 			if (!bFound)
 			{
@@ -1370,7 +1372,7 @@ CLeaderAction::eActionUpdateResult CLeaderAction_Attack_SwitchPositions::Update(
 	CTimeValue frameTime = GetAISystem()->GetFrameStartTime();
 	if (m_pLiveTarget)
 		m_timeRunning = frameTime;
-	else if ((frameTime - m_timeRunning).GetSeconds() > m_timeLimit)
+	else if (frameTime - m_timeRunning > m_timeLimit)
 		return ACTION_DONE;
 
 	CAIObject* pBeacon = (CAIObject*)GetAISystem()->GetBeacon(m_pLeader->GetGroupId());
@@ -1400,7 +1402,7 @@ CLeaderAction::eActionUpdateResult CLeaderAction_Attack_SwitchPositions::Update(
 
 		m_fFormationScale = 1;
 		m_fFormationSize = pFormation->GetMaxWidth();
-		m_lastScaleUpdateTime.SetSeconds(0.f);
+		m_lastScaleUpdateTime.SetSeconds(0);
 		UpdateFormationScale(pFormation);
 
 		pFormation->SetUpdate(true);
@@ -1704,9 +1706,9 @@ CLeaderAction::eActionUpdateResult CLeaderAction_Attack_SwitchPositions::Update(
 bool CLeaderAction_Attack_SwitchPositions::UpdateFormationScale(CFormation* pFormation)
 {
 	// scale the formation depending on enemy occupied area
-	float t = (GetAISystem()->GetFrameStartTime() - m_lastScaleUpdateTime).GetSeconds();
+	CTimeValue t = GetAISystem()->GetFrameStartTime() - m_lastScaleUpdateTime;
 	bool ret = false;
-	if (t > 2.f)
+	if (t > 2)
 	{
 		m_lastScaleUpdateTime = GetAISystem()->GetFrameStartTime();
 

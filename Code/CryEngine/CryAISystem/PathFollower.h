@@ -69,12 +69,12 @@ class CPathFollower : public IPathFollower
 	/// where we integrate forwards in time.
 	/// curPos and curVel are the position/velocity of the follower
 	void GetNewLookAheadPos(Vec3& newLAPos, int& newLASegIndex, const Vec3& curLAPos, int curLASegIndex,
-	                        const Vec3& curPos, const Vec3& curVel, float dt) const;
+	                        const Vec3& curPos, const Vec3& curVel, const CTimeValue& dt) const;
 
 	/// uses the lookahead and current position to derive a velocity (ultimately using speed control etc) that
 	/// should be applied (i.e. passed to physics) to curPos.
 	void UseLookAheadPos(Vec3& velocity, bool& reachedEnd, const Vec3 LAPos, const Vec3 curPos, const Vec3 curVel,
-	                     float dt, int curLASegmentIndex, float& lastOutputSpeed) const;
+		const CTimeValue& dt, int curLASegmentIndex, float& lastOutputSpeed) const;
 
 	/// As public version but you pass the current state in
 	Vec3 GetPathPointAhead(float dist, float& actualDist, int curLASegmentIndex, Vec3 curLAPos) const;
@@ -107,7 +107,7 @@ public:
 
 	/// Updates the path following progress, resulting in a move instruction and prediction of future
 	/// states if desired.
-	virtual bool Update(PathFollowResult& result, const Vec3& curPos, const Vec3& curVel, float dt) override;
+	virtual bool Update(PathFollowResult& result, const Vec3& curPos, const Vec3& curVel, const CTimeValue& dt) override;
 
 	/// Advances the current state in terms of position - effectively pretending that the follower
 	/// has gone further than it has.

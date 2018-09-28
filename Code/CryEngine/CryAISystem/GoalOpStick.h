@@ -19,7 +19,7 @@
 class COPStick : public CGoalOp
 {
 public:
-	COPStick(float fStickDistance, float fAccuracy, float fDuration, int fFlags, int nFlagsAux, ETraceEndMode eTraceEndMode = eTEM_FixedDistance);
+	COPStick(float fStickDistance, float fAccuracy, const CTimeValue& fDuration, int fFlags, int nFlagsAux, ETraceEndMode eTraceEndMode = eTEM_FixedDistance);
 	COPStick(const XmlNodeRef& node);
 	virtual ~COPStick();
 
@@ -97,7 +97,7 @@ private:
 	CWeakRef<CAIObject> m_refSightTarget;
 
 	ETraceEndMode       m_eTraceEndMode;
-	float               m_fApproachTime;
+	CTimeValue          m_fApproachTime;
 	float               m_fHijackDistance;
 
 	/// Aim to stay/stop this far from the target
@@ -105,9 +105,9 @@ private:
 	/// we aim to stop within m_fAccuracy of the target minus m_fStickDistance
 	float m_fEndAccuracy;
 	/// Stop after this time (0 means disabled)
-	float m_fDuration;
-	float m_fCorrectBodyDirTime;
-	float m_fTimeSpentAligning;
+	CTimeValue m_fDuration;
+	CTimeValue m_fCorrectBodyDirTime;
+	CTimeValue m_fTimeSpentAligning;
 	bool  m_bContinuous;            // stick OR just approach moving target
 	bool  m_bTryShortcutNavigation; //
 	bool  m_bUseLastOpResult;

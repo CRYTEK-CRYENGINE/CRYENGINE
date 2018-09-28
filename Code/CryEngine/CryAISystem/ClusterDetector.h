@@ -108,7 +108,7 @@ public:
 	virtual IClusterRequestPair CreateNewRequest();
 	virtual void                QueueRequest(const ClusterRequestID requestId);
 
-	void                        Update(float frameDeltaTime);
+	void                        Update(const CTimeValue& frameDeltaTime);
 	void                        Reset();
 
 	typedef std::pair<ClusterRequestID, ClusterRequest> ClusterRequestPair;

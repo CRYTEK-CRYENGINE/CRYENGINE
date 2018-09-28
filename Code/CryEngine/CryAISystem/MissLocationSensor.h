@@ -76,9 +76,9 @@ public:
 	virtual ~CMissLocationSensor();
 
 	void Reset();
-	void Update(float timeLimit);
+	void Update(const CTimeValue& timeLimit);
 	void Collect(int objTypes);
-	bool Filter(float timeLimit);
+	bool Filter(const CTimeValue& timeLimit);
 	bool GetLocation(CAIObject* target, const Vec3& shootPos, const Vec3& shootDir, float maxAngle, Vec3& pos);
 
 	void DebugDraw();

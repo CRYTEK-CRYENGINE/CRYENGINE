@@ -60,7 +60,7 @@ public:
 	};
 
 	void Reset(bool bUnload = false);
-	void Update(float updateTime);
+	void Update(const CTimeValue& updateTime);
 
 	void RegisterAgent(ICollisionAvoidanceAgent* agent);
 	void UnregisterAgent(ICollisionAvoidanceAgent* agent);
@@ -73,7 +73,7 @@ private:
 	typedef size_t ObstacleID;
 
 	void                  PopulateState();
-	void                  ApplyResults(float updateTime);
+	void                  ApplyResults(const CTimeValue& updateTime);
 
 	AgentID               CreateAgent(NavigationAgentTypeID navigationTypeID, const INavMeshQueryFilter* pFilter, const char* szName);
 	ObstacleID            CreateObstable();
@@ -265,7 +265,7 @@ struct ICollisionAvoidanceAgent
 	virtual void                  InitializeCollisionAgent(CCollisionAvoidanceSystem::SAgentParams& agent) const = 0;
 	virtual void                  InitializeCollisionObstacle(CCollisionAvoidanceSystem::SObstacleParams& obstacle) const = 0;
 
-	virtual void                  ApplyComputedVelocity(const Vec2& avoidanceVelocity, float updateTime) = 0;
+	virtual void                  ApplyComputedVelocity(const Vec2& avoidanceVelocity, const CTimeValue& updateTime) = 0;
 };
 
 #endif //__CollisionAvoidanceSystem_h__

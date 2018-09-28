@@ -16,7 +16,7 @@ namespace Helpers
 // ----------------------------------------------------------------
 
 StuckDetector::StuckDetector()
-	: m_accumulatedTimeAgentIsStuck(0.0f)
+	: m_accumulatedTimeAgentIsStuck(0)
 	, m_agentDistanceToTheEndInPreviousUpdate(std::numeric_limits<float>::max())
 {
 }
@@ -32,7 +32,7 @@ void StuckDetector::Update(const MovementUpdateContext& context)
 	if (distToEnd + treshold < m_agentDistanceToTheEndInPreviousUpdate)
 	{
 		m_agentDistanceToTheEndInPreviousUpdate = distToEnd;
-		m_accumulatedTimeAgentIsStuck = 0.0f;
+		m_accumulatedTimeAgentIsStuck.SetSeconds(0);;
 	}
 	else
 	{
@@ -42,13 +42,13 @@ void StuckDetector::Update(const MovementUpdateContext& context)
 
 bool StuckDetector::IsAgentStuck() const
 {
-	const float maxAllowedTimeAgentCanBeStuck = 3.0f;
+	const CTimeValue maxAllowedTimeAgentCanBeStuck = 3;
 	return m_accumulatedTimeAgentIsStuck > maxAllowedTimeAgentCanBeStuck;
 }
 
 void StuckDetector::Reset()
 {
-	m_accumulatedTimeAgentIsStuck = 0.0f;
+	m_accumulatedTimeAgentIsStuck.SetSeconds(0);
 	m_agentDistanceToTheEndInPreviousUpdate = std::numeric_limits<float>::max();
 }
 

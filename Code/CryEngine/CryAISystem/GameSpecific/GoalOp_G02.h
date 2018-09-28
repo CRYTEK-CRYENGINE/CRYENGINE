@@ -166,7 +166,7 @@ private:
 	bool                       m_useLastOpAsBackup;
 	bool                       m_towardsLastOpResult;
 	CTimeValue                 m_lastTime;
-	int                        m_notMovingTimeMs;
+	CTimeValue                 m_notMovingTime;
 	COPTrace*                  m_pTraceDirective;
 	Vec3                       m_center, m_forward, m_right;
 	Vec3                       m_target;

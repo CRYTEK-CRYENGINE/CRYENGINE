@@ -102,7 +102,7 @@ struct SShape
 	IAISystem::ENavigationType navType;     /// Navigation type associated with AIPaths
 	int                        type;        /// AIobject/anchor type associated with an AIshape
 	float                      height;      /// Height of the shape. The shape volume is described as [aabb.minz, aabb.minz+height]
-	float                      devalueTime; /// Timeout for occupied AIpaths
+	CTimeValue                 devalueTime; /// Timeout for occupied AIpaths
 	bool                       temporary;   /// Flag indicating if the path is temporary and should be deleted upon reset.
 	bool                       enabled;     /// Flag indicating if the shape is enabled. Disabled shapes are excluded from queries.
 	EAILightLevel              lightLevel;  /// The light level modifier of the shape.

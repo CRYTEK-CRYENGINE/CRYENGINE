@@ -818,7 +818,7 @@ void CTileGenerator::Draw(const EDrawMode mode, const bool bDrawAdditionalInfo) 
 	  m_params.origin.y - m_params.voxelSize.y * border,
 	  m_params.origin.z - m_params.voxelSize.z * borderV);
 
-	const float blinking = 0.25f + 0.75f * fabs_tpl(sin_tpl(gEnv->pTimer->GetCurrTime() * gf_PI));
+	const float blinking = 0.25f + 0.75f * fabs_tpl(sin_tpl(GetGTimer()->GetFrameStartTime().BADGetSeconds() * gf_PI));
 	const ColorB red = (Col_Red * blinking) + (Col_VioletRed * (1.0f - blinking));
 
 	const AABB tileVolume(m_params.origin, m_params.origin + Vec3(m_params.sizeX, m_params.sizeY, m_params.sizeZ));

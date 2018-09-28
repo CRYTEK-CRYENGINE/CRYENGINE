@@ -297,7 +297,7 @@ public:
 		bool                     arrivedAtPathEndEventSent;
 
 		RuntimeData()
-			: lastUpdateTime(0.0f)
+			: lastUpdateTime(0)
 			, isValidPath(false)
 			, arrivedCloseToPathEndEventSent(false)
 			, arrivedAtPathEndEventSent(false)
@@ -351,7 +351,7 @@ public:
 			return;
 		}
 
-		runtimeData.lastUpdateTime = gEnv->pTimer->GetFrameStartTime();
+		runtimeData.lastUpdateTime = GetGTimer()->GetFrameStartTime();
 
 		const FlyHelpers::PathEntityIn pathEntityIn = FlyHelpers::CreatePathEntityIn(pPipeUser);
 		runtimeData.pathFollower.Init(path, m_params, pathEntityIn);
@@ -363,7 +363,7 @@ public:
 			runtimeData.pathFollower.SetFinalPathLocation(targetPosition);
 		}
 
-		runtimeData.pathFollower.Update(pathEntityIn, 1.0f);
+		runtimeData.pathFollower.Update(pathEntityIn, 1);
 	}
 
 	virtual Status Update(const UpdateContext& context) override
@@ -378,7 +378,7 @@ public:
 		CPipeUser* pPipeUser = context.entity.GetAI()->CastToCPipeUser();
 		const FlyHelpers::PathEntityIn pathEntityIn = FlyHelpers::CreatePathEntityIn(pPipeUser);
 
-		const CTimeValue timeNow = gEnv->pTimer->GetFrameStartTime();
+		const CTimeValue timeNow = GetGTimer()->GetFrameStartTime();
 		const CTimeValue timeDelta = timeNow - runtimeData.lastUpdateTime;
 		runtimeData.lastUpdateTime = timeNow;
 
@@ -395,7 +395,7 @@ public:
 			}
 		}
 
-		const float elapsedSeconds = timeDelta.GetSeconds();
+		const CTimeValue elapsedSeconds = timeDelta;
 		FlyHelpers::PathEntityOut pathEntityOut = runtimeData.pathFollower.Update(pathEntityIn, elapsedSeconds);
 
 		pPipeUser->m_State.predictedCharacterStates.nStates = 0;

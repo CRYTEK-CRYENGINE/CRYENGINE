@@ -33,7 +33,7 @@ public:
 	void                          RemoveMember(tAIObjectID objectID);
 
 	void                          Reset(EObjectResetType type);
-	void                          Update(float updateTime);
+	void                          Update(const CTimeValue& updateTime);
 	bool                          Empty() const;
 
 	void                          Swap(Group& other);

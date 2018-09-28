@@ -42,8 +42,8 @@ enum EDesiredTargetMethod
 struct SEnvelopeData
 {
 	float m_fCurrentValue;
-	float m_fStartTime;
-	float m_fLastInvokeTime;
+	CTimeValue m_fStartTime;
+	CTimeValue m_fLastInvokeTime;
 	float m_fLastRunningValue;
 	float m_fLastReleasingValue;
 	bool  m_bReinvoked;
@@ -70,11 +70,11 @@ struct STargetTrackPulseConfig
 {
 	string m_sPulse;
 	float  m_fValue;
-	float  m_fDuration;
+	CTimeValue  m_fDuration;
 	bool   m_bInherited;
 
 	STargetTrackPulseConfig();
-	STargetTrackPulseConfig(const char* szPulse, float fValue, float fDuration);
+	STargetTrackPulseConfig(const char* szPulse, float fValue, const CTimeValue& fDuration);
 	STargetTrackPulseConfig(const STargetTrackPulseConfig& other, bool bInherited = false);
 };
 
@@ -95,7 +95,7 @@ struct STargetTrackModifierConfig
 struct STargetTrackStimulusConfig
 {
 	// ADSR values not used should be marked with this
-	static const float INVALID_VALUE;
+	static const int INVALID_VALUE;
 
 	typedef VectorMap<uint32, STargetTrackPulseConfig> TPulseContainer;
 	TPulseContainer m_pulses;
@@ -108,11 +108,11 @@ struct STargetTrackStimulusConfig
 
 	string                m_sStimulus;
 	float                 m_fPeak;
-	float                 m_fAttack;
-	float                 m_fDecay;
+	CTimeValue            m_fAttack;
+	CTimeValue            m_fDecay;
 	float                 m_fSustainRatio;
-	float                 m_fRelease;
-	float                 m_fIgnore;
+	CTimeValue            m_fRelease;
+	CTimeValue            m_fIgnore;
 	bool                  m_bHostileOnly;
 
 	// Mask to state which properties where inherited
@@ -128,7 +128,7 @@ struct STargetTrackStimulusConfig
 	unsigned char m_ucInheritanceMask;
 
 	STargetTrackStimulusConfig();
-	STargetTrackStimulusConfig(const char* szStimulus, bool bHostileOnly, float fPeak, float fSustainRatio, float fAttack, float fDecay, float fRelease, float fIgnore);
+	STargetTrackStimulusConfig(const char* szStimulus, bool bHostileOnly, float fPeak, float fSustainRatio, const CTimeValue& fAttack, const CTimeValue& fDecay, const CTimeValue& fRelease, const CTimeValue& fIgnore);
 	STargetTrackStimulusConfig(const STargetTrackStimulusConfig& other, bool bInherited = false);
 };
 

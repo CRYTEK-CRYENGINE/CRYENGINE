@@ -478,8 +478,8 @@ void CAIRadialOcclusionRaycast::UpdateActiveCount()
 	CTimeValue curTime = GetAISystem()->GetFrameStartTime();
 	for (unsigned i = 0, ni = m_physListeners.size(); i < ni; ++i)
 	{
-		float dt = (curTime - m_physListeners[i]->m_lastUpdatedTime).GetSeconds();
-		if (dt < 0.3f)
+		CTimeValue dt = curTime - m_physListeners[i]->m_lastUpdatedTime;
+		if (dt < "0.3")
 			m_activeCount++;
 	}
 }

@@ -969,8 +969,8 @@ void CPathObstacles::GetPathObstacles(TPathObstacles& obstacles, const AgentMove
 	static const float maxSpeedScale = 1.0f;
 	pathObstaclesInfo.maxSpeed = movementAbility.movementSpeeds.GetRange(AgentMovementSpeeds::AMS_COMBAT, AgentMovementSpeeds::AMU_RUN).max;
 
-	pathObstaclesInfo.maxDistToCheckAhead = movementAbility.pathRegenIntervalDuringTrace > .0f ?
-	                                        maxSpeedScale * pathObstaclesInfo.maxSpeed * movementAbility.pathRegenIntervalDuringTrace :
+	pathObstaclesInfo.maxDistToCheckAhead = movementAbility.pathRegenIntervalDuringTrace > 0 ?
+	                                        maxSpeedScale * pathObstaclesInfo.maxSpeed * movementAbility.pathRegenIntervalDuringTrace.BADGetSeconds() :
 	                                        pNavPath->GetMaxDistanceFromStart();
 
 	const CPipeUser* pipeUser = pAIActor ? pAIActor->CastToCPipeUser() : NULL;
@@ -1065,7 +1065,7 @@ void CPathObstacles::GetPathObstacles(TPathObstacles& obstacles, const AgentMove
 // CPathObstacles
 //===================================================================
 CPathObstacles::CPathObstacles()
-	: m_lastCalculateTime(0.0f), m_lastCalculatePos(ZERO), m_lastCalculatePathVersion(-1)
+	: m_lastCalculateTime(0), m_lastCalculatePos(ZERO), m_lastCalculatePathVersion(-1)
 {
 }
 
@@ -1087,14 +1087,14 @@ void CPathObstacles::CalculateObstaclesAroundActor(const CPipeUser* pPipeUser)
 		return;
 
 	const float criticalDist = 2.0f;
-	const int64 criticalTimeMs = 2000;
+	const CTimeValue criticalTime = 2;
 
 	CTimeValue now(GetAISystem()->GetFrameStartTime());
-	int64 deltaTimeMs = (now - m_lastCalculateTime).GetMilliSecondsAsInt64();
+	CTimeValue deltaTime = now - m_lastCalculateTime;
 
 	Vec3 pipeUserPos = pPipeUser->GetPos();
 
-	if ((deltaTimeMs < criticalTimeMs)
+	if ((deltaTime < criticalTime)
 	    && (pPipeUser->m_Path.GetVersion() == m_lastCalculatePathVersion)
 	    && pipeUserPos.IsEquivalent(m_lastCalculatePos, criticalDist))
 	{
@@ -1136,15 +1136,15 @@ void CPathObstacles::CalculateObstaclesAroundActor(const CPipeUser* pPipeUser)
 void CPathObstacles::CalculateObstaclesAroundLocation(const Vec3& location, const AgentMovementAbility& movementAbility, const CNavPath* pNavPath)
 {
 	const float criticalDist = 2.0f;
-	const int64 criticalTimeMs = 2000;
+	const CTimeValue criticalTime = 2;
 
 	CTimeValue now(GetAISystem()->GetFrameStartTime());
-	int64 deltaTimeMs = (now - m_lastCalculateTime).GetMilliSecondsAsInt64();
+	CTimeValue deltaTime = now - m_lastCalculateTime;
 
 	// Danny todo: this is/would be a nice optimisation to make - however when finding hidespots
 	// we get here before a path is calculated, so the path obstacle list is invalid (since it
 	// depends on the path).
-	if (deltaTimeMs < criticalTimeMs && pNavPath->GetVersion() == m_lastCalculatePathVersion &&
+	if (deltaTime < criticalTime && pNavPath->GetVersion() == m_lastCalculatePathVersion &&
 	    location.IsEquivalent(m_lastCalculatePos, criticalDist))
 		return;
 

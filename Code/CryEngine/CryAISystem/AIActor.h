@@ -56,7 +56,7 @@ public:
 
 	virtual void InitializeCollisionAgent(CCollisionAvoidanceSystem::SAgentParams& agent) const override;
 	virtual void InitializeCollisionObstacle(CCollisionAvoidanceSystem::SObstacleParams& obstacle) const override;
-	virtual void ApplyComputedVelocity(const Vec2& avoidanceVelocity, float updateTime) override;
+	virtual void ApplyComputedVelocity(const Vec2& avoidanceVelocity, const CTimeValue& updateTime) override;
 
 private:
 	CAIActor* m_pActor;
@@ -376,7 +376,7 @@ protected:
 	float               m_bodyTurningSpeed;
 	Vec3                m_lastBodyDir;
 
-	float               m_stimulusStartTime;
+	CTimeValue          m_stimulusStartTime;
 
 	unsigned int        m_activeCoordinationCount;
 

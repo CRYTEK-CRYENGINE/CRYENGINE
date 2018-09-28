@@ -22,7 +22,7 @@ struct AIConsoleVars
 	DeclareConstIntCVar(DebugDrawNavigationWorldMonitor, 0);
 	DeclareConstIntCVar(NavigationSystemMT, 1);
 	DeclareConstIntCVar(NavGenThreadJobs, 1);
-	float NavmeshStabilizationTimeToUpdate;
+	CTimeValue NavmeshStabilizationTimeToUpdate;
 	float NavmeshTileDistanceDraw;
 	DeclareConstIntCVar(DebugDrawCoverPlanes, 0);
 	DeclareConstIntCVar(DebugDrawCoverLocations, 0);
@@ -203,23 +203,23 @@ struct AIConsoleVars
 	const char* DrawPathAdjustment;
 
 	float       CheckWalkabilityOptimalSectionLength;
-	float       TacticalPointUpdateTime;
+	CTimeValue  TacticalPointUpdateTime;
 	const char* CompatibilityMode;
-	float       AllowedTimeForPathfinding;
-	float       PathfinderUpdateTime;
+	CTimeValue  AllowedTimeForPathfinding;
+	CTimeValue  PathfinderUpdateTime;
 	float       DrawAgentFOV;
 	const char* FilterAgentName;
 	float       AgentStatsDist;
 	int         AiSystem;
 	float       DebugDrawArrowLabelsVisibilityDistance;
 	const char* DebugDrawAStarOpenList;
-	float       DebugDrawAStarOpenListTime;
+	CTimeValue  DebugDrawAStarOpenListTime;
 
 	float       CoverPredictTarget;
 	float       CoverSpacing;
 
 	const char* StatsTarget;
-	float       AIUpdateInterval;
+	CTimeValue  AIUpdateInterval;
 
 	float       CollisionAvoidanceAgentExtraFat;
 	float       CollisionAvoidanceRadiusIncrementIncreaseRate;
@@ -228,10 +228,10 @@ struct AIConsoleVars
 	float       CollisionAvoidanceTargetCutoffRange;
 	float       CollisionAvoidancePathEndCutoffRange;
 	float       CollisionAvoidanceSmartObjectCutoffRange;
-	float       CollisionAvoidanceTimeStep;
+	CTimeValue  CollisionAvoidanceTimeStep;
 	float       CollisionAvoidanceMinSpeed;
-	float       CollisionAvoidanceAgentTimeHorizon;
-	float       CollisionAvoidanceObstacleTimeHorizon;
+	CTimeValue  CollisionAvoidanceAgentTimeHorizon;
+	CTimeValue  CollisionAvoidanceObstacleTimeHorizon;
 	float       DebugCollisionAvoidanceForceSpeed;
 	const char* DebugDrawCollisionAvoidanceAgentName;
 
@@ -248,38 +248,37 @@ struct AIConsoleVars
 	float       BurstWhileMovingDestinationRange;
 	const char* DrawAgentStats;
 
-	float       SOMSpeedRelaxed;
-	float       SOMSpeedCombat;
+	CTimeValue  SOMSpeedRelaxed;
+	CTimeValue  SOMSpeedCombat;
 
 	float       SightRangeSuperDarkIllumMod;
 	float       SightRangeDarkIllumMod;
 	float       SightRangeMediumIllumMod;
 
-	float       RODAliveTime;
-	float       RODMoveInc;
-	float       RODStanceInc;
-	float       RODDirInc;
-	float       RODAmbientFireInc;
-	float       RODKillZoneInc;
+	CTimeValue  RODAliveTime;
+	CTimeValue  RODMoveInc;
+	CTimeValue  RODStanceInc;
+	CTimeValue  RODDirInc;
+	CTimeValue  RODAmbientFireInc;
+	CTimeValue  RODKillZoneInc;
 	float       RODFakeHitChance;
 
 	float       RODKillRangeMod;
 	float       RODCombatRangeMod;
 
-	float       RODReactionTime;
-	float       RODReactionSuperDarkIllumInc;
-	float       RODReactionDarkIllumInc;
-	float       RODReactionMediumIllumInc;
-	float       RODReactionDistInc;
-	float       RODReactionDirInc;
-	float       RODReactionLeanInc;
+	CTimeValue  RODReactionTime;
+	CTimeValue  RODReactionSuperDarkIllumInc;
+	CTimeValue  RODReactionDarkIllumInc;
+	CTimeValue  RODReactionMediumIllumInc;
+	CTimeValue  RODReactionDistInc;
+	CTimeValue  RODReactionDirInc;
+	CTimeValue  RODReactionLeanInc;
 
-	float       RODLowHealthMercyTime;
-
-	float       RODCoverFireTimeMod;
+	CTimeValue  RODLowHealthMercyTime;
+	mpfloat     RODCoverFireTimeMod;
 
 	int         AmbientFireQuota;
-	float       AmbientFireUpdateInterval;
+	CTimeValue  AmbientFireUpdateInterval;
 
 	const char* DrawPerceptionHandlerModifiers;
 	const char* TargetTracks_AgentDebugDraw;
@@ -293,7 +292,7 @@ struct AIConsoleVars
 	const char* ForcePosture;
 	const char* ForceLookAimTarget;
 
-	float       BannedNavSoTime;
+	CTimeValue  BannedNavSoTime;
 	float       WaterOcclusionScale;
 
 	float       MinActorDynamicObstacleAvoidanceRadius;
@@ -311,7 +310,7 @@ struct AIConsoleVars
 
 	int         MNMEditorBackgroundUpdate;
 
-	float       MNMPathFinderQuota;
+	CTimeValue  MNMPathFinderQuota;
 	int         MNMPathFinderDebug;
 
 	int         MNMProfileMemory;
@@ -320,31 +319,31 @@ struct AIConsoleVars
 
 	int         EnableBubblesSystem;
 	float       BubblesSystemFontSize;
-	float       BubblesSystemDecayTime;
+	CTimeValue  BubblesSystemDecayTime;
 	const char* BubblesSystemNameFilter;
 
-	float       OverlayMessageDuration;
+	CTimeValue  OverlayMessageDuration;
 	float       DrawFireEffectDecayRange;
 	float       DrawFireEffectMinDistance;
 	float       DrawFireEffectMinTargetFOV;
 	float       DrawFireEffectMaxAngle;
-	float       DrawFireEffectTimeScale;
+	mpfloat     DrawFireEffectTimeScale;
 
 	float       CoolMissesBoxSize;
 	float       CoolMissesBoxHeight;
 	float       CoolMissesMinMissDistance;
 	float       CoolMissesMaxLightweightEntityMass;
 	float       CoolMissesProbability;
-	float       CoolMissesCooldown;
+	CTimeValue  CoolMissesCooldown;
 
 	float       SmartPathFollower_LookAheadDistance;
-	float       SmartPathFollower_LookAheadPredictionTimeForMovingAlongPathWalk;
-	float       SmartPathFollower_LookAheadPredictionTimeForMovingAlongPathRunAndSprint;
+	CTimeValue  SmartPathFollower_LookAheadPredictionTimeForMovingAlongPathWalk;
+	CTimeValue  SmartPathFollower_LookAheadPredictionTimeForMovingAlongPathRunAndSprint;
 	float       SmartPathFollower_decelerationHuman;
 	float       SmartPathFollower_decelerationVehicle;
 
 	float       LobThrowMinAllowedDistanceFromFriends;
-	float       LobThrowTimePredictionForFriendPositions;
+	CTimeValue  LobThrowTimePredictionForFriendPositions;
 	float       LobThrowPercentageOfDistanceToTargetUsedForInaccuracySimulation;
 	DeclareConstIntCVar(LobThrowSimulateRandomInaccuracy, 0);
 

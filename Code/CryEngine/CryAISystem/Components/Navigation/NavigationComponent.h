@@ -101,8 +101,8 @@ private:
 	void                                 Stop();
 	void                                 Reset();
 
-	void                                 UpdateTransformation(float deltaTime);
-	void                                 UpdateVelocity(float deltaTime);
+	void                                 UpdateTransformation(const CTimeValue& deltaTime);
+	void                                 UpdateVelocity(const CTimeValue& deltaTime);
 
 	bool                                 QueueMovementRequest(const MovementRequest& request);
 	void                                 CancelCurrentMovementRequest();

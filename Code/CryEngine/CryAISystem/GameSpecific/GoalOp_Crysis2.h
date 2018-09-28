@@ -46,18 +46,18 @@ class COPCrysis2AdjustAim : public CGoalOp
 	CTimeValue                     m_lastGood;
 	bool                           m_useLastOpAsBackup;
 	bool                           m_allowProne;
-	float                          m_timeoutRandomness;
-	int                            m_timeoutMs;
-	int                            m_runningTimeoutMs;
-	int                            m_nextUpdateMs;
+	CTimeValue                     m_timeoutRandomness;
+	CTimeValue                     m_timeout;
+	CTimeValue                     m_runningTimeout;
+	CTimeValue                     m_nextUpdate;
 	PostureManager::PostureID      m_bestPostureID;
 	PostureManager::PostureQueryID m_queryID;
 
-	int  RandomizeTimeInterval() const;
+	CTimeValue  RandomizeTimeInterval() const;
 	bool ProcessQueryResult(CPipeUser* pipeUser, AsyncState queryStatus, PostureManager::PostureInfo* postureInfo);
 
 public:
-	COPCrysis2AdjustAim(bool useLastOpAsBackup, bool allowProne, float timeout);
+	COPCrysis2AdjustAim(bool useLastOpAsBackup, bool allowProne, const CTimeValue& timeout);
 	explicit COPCrysis2AdjustAim(const XmlNodeRef& node);
 
 	virtual EGoalOpResult Execute(CPipeUser* pPipeUser);
@@ -77,18 +77,18 @@ class COPCrysis2Peek :
 	CTimeValue                     m_startTime;
 	CTimeValue                     m_lastGood;
 	bool                           m_useLastOpAsBackup;
-	float                          m_timeoutRandomness;
-	int                            m_timeoutMs;
-	int                            m_runningTimeoutMs;
-	int                            m_nextUpdateMs;
+	CTimeValue                     m_timeoutRandomness;
+	CTimeValue                     m_timeout;
+	CTimeValue                     m_runningTimeout;
+	CTimeValue                     m_nextUpdate;
 	PostureManager::PostureID      m_bestPostureID;
 	PostureManager::PostureQueryID m_queryID;
 
-	int  RandomizeTimeInterval() const;
+	CTimeValue  RandomizeTimeInterval() const;
 	bool ProcessQueryResult(CPipeUser* pipeUser, AsyncState queryStatus, PostureManager::PostureInfo* postureInfo);
 
 public:
-	COPCrysis2Peek(bool useLastOpAsBackup, float timeout);
+	COPCrysis2Peek(bool useLastOpAsBackup, const CTimeValue& timeout);
 	explicit COPCrysis2Peek(const XmlNodeRef& node);
 
 	virtual EGoalOpResult Execute(CPipeUser* pPipeUser);
@@ -137,7 +137,7 @@ private:
 class COPCrysis2Communicate : public CGoalOp
 {
 public:
-	COPCrysis2Communicate(CommID commID, CommChannelID channelID, float expirity, EAIRegister target,
+	COPCrysis2Communicate(CommID commID, CommChannelID channelID, const CTimeValue& expirity, EAIRegister target,
 	                      SCommunicationRequest::EOrdering ordering);
 	explicit COPCrysis2Communicate(const XmlNodeRef& node);
 	virtual ~COPCrysis2Communicate();
@@ -148,7 +148,7 @@ private:
 	CommChannelID                    m_channelID;
 	SCommunicationRequest::EOrdering m_ordering;
 
-	float                            m_expirity;
+	CTimeValue                       m_expirity;
 	EAIRegister                      m_target;
 };
 
@@ -544,11 +544,11 @@ class COPCrysis2FlightFireWeapons : public CGoalOpParallel
 	COPCrysis2FlightFireWeaponsState m_NextState;
 	Vec3                             m_LastTarget;
 	float                            m_InitCoolDown;
-	float                            m_WaitTime;
-	float                            m_minTime;
-	float                            m_maxTime;
-	float                            m_PausedTime;
-	float                            m_PauseOverrideTime;
+	CTimeValue                       m_WaitTime;
+	CTimeValue							   m_minTime;
+	CTimeValue                       m_maxTime;
+	CTimeValue                       m_PausedTime;
+	CTimeValue                       m_PauseOverrideTime;
 	float                            m_Rotation;
 	uint32                           m_SecondaryWeapons;
 	uint32                           m_targetId;
@@ -560,7 +560,7 @@ public:
 
 	COPCrysis2FlightFireWeapons();
 	explicit COPCrysis2FlightFireWeapons(const XmlNodeRef& node);
-	COPCrysis2FlightFireWeapons(EAIRegister reg, float minTime, float maxTime, bool primary, uint32 secondary);
+	COPCrysis2FlightFireWeapons(EAIRegister reg, const CTimeValue& minTime, const CTimeValue& maxTime, bool primary, uint32 secondary);
 
 	virtual ~COPCrysis2FlightFireWeapons();
 

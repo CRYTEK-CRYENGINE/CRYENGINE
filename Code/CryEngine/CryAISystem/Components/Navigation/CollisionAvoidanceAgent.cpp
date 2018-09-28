@@ -84,7 +84,7 @@ void CCollisionAvoidanceAgent::InitializeCollisionObstacle(CCollisionAvoidanceSy
 	obstacle.radius = m_pOwningNavigationComponent->GetCollisionAvoidanceProperties().radius;
 }
 
-void CCollisionAvoidanceAgent::ApplyComputedVelocity(const Vec2& avoidanceVelocity, float updateTime)
+void CCollisionAvoidanceAgent::ApplyComputedVelocity(const Vec2& avoidanceVelocity, const CTimeValue& updateTime)
 {
 	PathFollowResult result;
 	result.velocityOut = Vec3(avoidanceVelocity.x, avoidanceVelocity.y, m_pOwningNavigationComponent->GetRequestedVelocity().z);
