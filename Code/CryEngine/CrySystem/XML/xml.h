@@ -228,6 +228,12 @@ public:
 	void setAttr(const char* key, const Quat& value);
 	void setAttr(const char* key, const CryGUID& value);
 
+	void setAttr(const char* key, const CTimeValue& value);
+	#define MP_FUNCTION(T)\
+	void setAttr(const char* key, const T& value);
+	#include "CrySystem\mpfloat.types"
+	#undef MP_FUNCTION
+
 	//! Delete attrbute.
 	void delAttr(const char* key);
 	//! Remove all node attributes.
@@ -253,6 +259,11 @@ public:
 	bool getAttr(const char* key, Quat& value) const;
 	bool getAttr(const char* key, ColorB& value) const;
 	bool getAttr(const char* key, CryGUID& value) const;
+
+	bool getAttr(const char* key, CTimeValue& value) const;
+	#define MP_FUNCTION(T) bool getAttr(const char* key, T& value) const;
+		#include "CrySystem\mpfloat.types"
+	#undef MP_FUNCTION
 
 protected:
 

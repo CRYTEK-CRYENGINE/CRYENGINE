@@ -243,6 +243,20 @@ void CStatoscopeIntervalGroup::WriteDescEvent(void* p) const
 	}
 }
 
+#define MP_FUNCTION(T)\
+void CStatoscopeFrameRecordWriter::AddValue(const T& f)\
+{\
+	m_pDataWriter->WriteDataStr(f.str().c_str());\
+	++m_nWrittenElements;\
+}
+#include <CrySystem\mpfloat.types>
+#undef MP_FUNCTION
+
+void CStatoscopeFrameRecordWriter::AddValue(const CTimeValue& f)
+{
+	AddValue(f.m_lValue);
+}
+
 void CStatoscopeFrameRecordWriter::AddValue(float f)
 {
 	m_pDataWriter->WriteData(f);
@@ -271,9 +285,8 @@ struct SFrameLengthDG : public IStatoscopeDataGroup
 	virtual void Write(IStatoscopeFrameRecord& fr)
 	{
 		IFrameProfileSystem* pFrameProfileSystem = gEnv->pSystem->GetIProfileSystem();
-
-		fr.AddValue(gEnv->pTimer->GetRealFrameTime() * 1000.0f);
-		fr.AddValue(pFrameProfileSystem ? pFrameProfileSystem->GetLostFrameTimeMS() : -1.f);
+		fr.AddValue(GetGTimer()->GetRealFrameTime().GetMilliSeconds());
+		fr.AddValue((pFrameProfileSystem ? pFrameProfileSystem->GetLostFrameTime() : -1).GetMilliSeconds());
 	}
 };
 
@@ -366,14 +379,13 @@ struct SThreadsDG : public IStatoscopeDataGroup
 		if (gEnv->pNetwork)
 			gEnv->pNetwork->GetPerformanceStatistics(&netPerformance);
 		else
-			netPerformance.m_threadTime = 0.0f;
+			netPerformance.m_threadTime.SetSeconds(0);
 
-		float RTWaitingForMTInMS = renderTimes.fWaitForMain * 1000.f;
-		float MTWaitingForRTInMS = renderTimes.fWaitForRender * 1000.f;
-		float RTWaitingForGPUInMS = renderTimes.fWaitForGPU * 1000.f;
-		float RTLoadInMS = renderTimes.fTimeProcessedRT * 1000.f;
-
-		float MTLoadInMS = (gEnv->pTimer->GetRealFrameTime() * 1000.0f) - MTWaitingForRTInMS;
+		mpfloat RTWaitingForMTInMS = renderTimes.fWaitForMain.GetMilliSeconds();
+		mpfloat MTWaitingForRTInMS = renderTimes.fWaitForRender.GetMilliSeconds();
+		mpfloat RTWaitingForGPUInMS = renderTimes.fWaitForGPU.GetMilliSeconds();
+		mpfloat RTLoadInMS = renderTimes.fTimeProcessedRT.GetMilliSeconds();
+		mpfloat MTLoadInMS = GetGTimer()->GetRealFrameTime().GetMilliSeconds() - MTWaitingForRTInMS;
 
 		//Load represents pure RT work, so compensate for GPU sync
 		RTLoadInMS = RTLoadInMS - RTWaitingForGPUInMS;
@@ -383,9 +395,9 @@ struct SThreadsDG : public IStatoscopeDataGroup
 		fr.AddValue(RTLoadInMS);
 		fr.AddValue(RTWaitingForMTInMS);
 		fr.AddValue(RTWaitingForGPUInMS);
-		fr.AddValue(renderTimes.fTimeProcessedRT * 1000);
-		fr.AddValue(renderTimes.fTimeProcessedRTScene * 1000);
-		fr.AddValue(netPerformance.m_threadTime * 1000.f);
+		fr.AddValue(renderTimes.fTimeProcessedRT.GetMilliSeconds());
+		fr.AddValue(renderTimes.fTimeProcessedRTScene.GetMilliSeconds());
+		fr.AddValue(netPerformance.m_threadTime.GetMilliSeconds());
 	}
 };
 
@@ -1485,7 +1497,7 @@ struct SChannelDG : public IStatoscopeDataGroup
 	#if ENABLE_URGENT_RMIS
 				fr.AddValue(m_bandwidthStats.m_channel[index].m_messageQueue.m_urgentRMIs);
 	#endif // ENABLE_URGENT_RMIS
-				fr.AddValue((int)m_bandwidthStats.m_channel[index].m_ping);
+				fr.AddValue(m_bandwidthStats.m_channel[index].m_ping);
 			}
 		}
 	}
@@ -1752,8 +1764,8 @@ void CStatoscopeEventWriter::Reset()
 
 CStatoscope::CStatoscope()
 {
-	m_lastDumpTime = 0.f;
-	m_screenshotLastCaptureTime = 0.f;
+	m_lastDumpTime.SetSeconds(0);
+	m_screenshotLastCaptureTime.SetSeconds(0);
 	m_activeDataGroupMask = 0;
 	m_activeIvDataGroupMask = 0;
 	m_groupMaskInitialized = false;
@@ -1773,17 +1785,17 @@ CStatoscope::CStatoscope()
 	m_pStatoscopeDataGroupsCVar = REGISTER_INT64("e_StatoscopeDataGroups", AlphaBits64("fgmrtuO"), VF_BITFIELD, GetDataGroupsCVarHelpString(m_allDataGroups));
 	m_pStatoscopeIvDataGroupsCVar = REGISTER_INT64("e_StatoscopeIvDataGroups", m_activeIvDataGroupMask, VF_BITFIELD, GetDataGroupsCVarHelpString(m_intervalGroups));
 	m_pStatoscopeLogDestinationCVar = REGISTER_INT_CB("e_StatoscopeLogDestination", eLD_Socket, VF_NULL, "Where the Statoscope log gets written to:\n  0 - file\n  1 - socket\n  2 - telemetry server (default)", OnLogDestinationCVarChange);  // see ELogDestination
-	m_pStatoscopeScreenshotCapturePeriodCVar = REGISTER_FLOAT("e_StatoscopeScreenshotCapturePeriod", -1.0f, VF_NULL, "How many seconds between Statoscope screenshot captures (-1 to disable).");
+	m_pStatoscopeScreenshotCapturePeriodCVar = REGISTER_TIME("e_StatoscopeScreenshotCapturePeriod", CTimeValue(-1), VF_NULL, "How many seconds between Statoscope screenshot captures (-1 to disable).");
 	m_pStatoscopeFilenameUseBuildInfoCVar = REGISTER_INT("e_StatoscopeFilenameUseBuildInfo", 1, VF_NULL, "Set to include the platform and build number in the log filename.");
 	m_pStatoscopeFilenameUseMapCVar = REGISTER_INT("e_StatoscopeFilenameUseMap", 0, VF_NULL, "Set to include the map name in the log filename.");
 	m_pStatoscopeFilenameUseTagCvar = REGISTER_STRING_CB("e_StatoscopeFilenameUseTag", "", VF_NULL, "Set to include tag in the log file name.", OnTagCVarChange);
 	m_pStatoscopeFilenameUseTimeCVar = REGISTER_INT("e_StatoscopeFilenameUseTime", 0, VF_NULL, "Set to include the time and date in the log filename.");
 	m_pStatoscopeFilenameUseDatagroupsCVar = REGISTER_INT("e_StatoscopeFilenameUseDatagroups", 0, VF_NULL, "Set to include the datagroup and date in the log filename.");
-	m_pStatoscopeMinFuncLengthMsCVar = REGISTER_FLOAT("e_StatoscopeMinFuncLengthMs", 0.01f, VF_NULL, "Min func duration (ms) to be logged by statoscope.");
+	m_pStatoscopeMinFuncLengthMsCVar = REGISTER_TIME("e_StatoscopeMinFuncLengthMs", CTimeValue().SetMilliSeconds("0.01"), VF_NULL, "Min func duration to be logged by statoscope.");
 	m_pStatoscopeMaxNumFuncsPerFrameCVar = REGISTER_INT("e_StatoscopeMaxNumFuncsPerFrame", 150, VF_NULL, "Max number of funcs to log per frame.");
 	m_pStatoscopeCreateLogFilePerLevelCVar = REGISTER_INT("e_StatoscopeCreateLogFilePerLevel", 0, VF_NULL, "Create a new perflog file per level.");
-	m_pStatoscopeWriteTimeout = REGISTER_FLOAT("e_StatoscopeWriteTimeout", 1.0f, VF_NULL, "The number of seconds the data writer will stall before it gives up trying to write data (currently only applies to the telemetry data writer).");
-	m_pStatoscopeConnectTimeout = REGISTER_FLOAT("e_StatoscopeConnectTimeout", 5.0f, VF_NULL, "The number of seconds the data writer will stall while trying connect to the telemetry server.");
+	m_pStatoscopeWriteTimeout = REGISTER_TIME("e_StatoscopeWriteTimeout", CTimeValue(1), VF_NULL, "The number of seconds the data writer will stall before it gives up trying to write data (currently only applies to the telemetry data writer).");
+	m_pStatoscopeConnectTimeout = REGISTER_TIME("e_StatoscopeConnectTimeout", CTimeValue(5), VF_NULL, "The number of seconds the data writer will stall while trying connect to the telemetry server.");
 	m_pStatoscopeAllowFPSOverrideCVar = REGISTER_INT("e_StatoscopeAllowFpsOverride", 1, VF_NULL, "Allow overriding of cvars in release for fps captures (MP only).");
 	m_pGameRulesCVar = NULL;
 
@@ -1966,7 +1978,7 @@ void CStatoscope::SetCurrentProfilerRecords(const std::vector<CFrameProfiler*>* 
 		m_perfStatDumpProfilers.clear();
 		m_perfStatDumpProfilers.reserve(std::max((size_t)numProfilers, m_perfStatDumpProfilers.size()));		
 
-		float minFuncTime = m_pStatoscopeMinFuncLengthMsCVar->GetFVal();
+		CTimeValue minFuncTime = m_pStatoscopeMinFuncLengthMsCVar->GetTime();
 
 		int64 smallFuncs = 0;
 		uint32 smallFuncsCount = 0;
@@ -1976,7 +1988,7 @@ void CStatoscope::SetCurrentProfilerRecords(const std::vector<CFrameProfiler*>* 
 			CFrameProfiler* pProfiler = (*profilers)[i];
 
 			// ignore really quick functions or ones what weren't called
-			if (1000.f * gEnv->pTimer->TicksToSeconds(pProfiler->m_selfTime) > minFuncTime)
+			if (GetGTimer()->TicksToTime(pProfiler->m_selfTime) > minFuncTime)
 			{
 				m_perfStatDumpProfilers.push_back(std::make_pair(pProfiler, pProfiler->m_selfTime));
 			}
@@ -2017,9 +2029,9 @@ void CStatoscope::SetCurrentProfilerRecords(const std::vector<CFrameProfiler*>* 
 
 			profilerRecord.m_pProfiler = pProfiler;
 			profilerRecord.m_count = pProfiler->m_count;
-			profilerRecord.m_selfTime = 1000.f * gEnv->pTimer->TicksToSeconds(selfTime);
+			profilerRecord.m_selfTime = GetGTimer()->TicksToTime(selfTime);
 			profilerRecord.m_variance = pProfiler->m_variance;
-			profilerRecord.m_peak = 1000.f * gEnv->pTimer->TicksToSeconds(pProfiler->m_peak);
+			profilerRecord.m_peak     = GetGTimer()->TicksToTime(pProfiler->m_peak);
 
 			records.push_back(profilerRecord);
 		}
@@ -2030,8 +2042,8 @@ void CStatoscope::SetCurrentProfilerRecords(const std::vector<CFrameProfiler*>* 
 
 			profilerRecord.m_pProfiler = NULL;
 			profilerRecord.m_count = smallFuncsCount;
-			profilerRecord.m_selfTime = 1000.f * gEnv->pTimer->TicksToSeconds(smallFuncs);
-			profilerRecord.m_variance = 0;
+			profilerRecord.m_selfTime = GetGTimer()->TicksToTime(smallFuncs);
+			profilerRecord.m_variance = 0.0f;
 
 			records.push_back(profilerRecord);
 		}
@@ -2051,9 +2063,9 @@ void CStatoscope::AddPhysEntity(const phys_profile_info* pInfo)
 {
 	if (m_pPhysEntityProfilers && m_pPhysEntityProfilers->IsEnabled())
 	{
-		float dt = 1000.f * gEnv->pTimer->TicksToSeconds(pInfo->nTicksLast * 1024);
+		CTimeValue dt = GetGTimer()->TicksToTime(pInfo->nTicksLast * 1024);
 
-		if (dt > 0.f)
+		if (dt > 0)
 		{
 			static const char* peTypes[] =
 			{
@@ -2112,7 +2124,7 @@ void CStatoscope::CreateTelemetryStream(const char* postHeader, const char* host
 	SAFE_DELETE(m_pDataWriter);
 	if (postHeader)
 	{
-		m_pDataWriter = new CTelemetryDataWriter(postHeader, hostname, port, m_pStatoscopeWriteTimeout->GetFVal(), m_pStatoscopeConnectTimeout->GetFVal());
+		m_pDataWriter = new CTelemetryDataWriter(postHeader, hostname, port, m_pStatoscopeWriteTimeout->GetTime(), m_pStatoscopeConnectTimeout->GetTime());
 	}
 }
 
@@ -2195,7 +2207,7 @@ void CStatoscope::AddFrameRecord(bool bOutputHeader)
 {
 	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 
-	float currentTime = gEnv->pTimer->GetAsyncTime().GetSeconds();
+	CTimeValue currentTime = GetGTimer()->GetAsyncTime();
 
 	CStatoscopeFrameRecordWriter fr(m_pDataWriter);
 
@@ -2208,9 +2220,9 @@ void CStatoscope::AddFrameRecord(bool bOutputHeader)
 	}
 
 	//auto screen shot logic
-	float screenshotCapturePeriod = m_pStatoscopeScreenshotCapturePeriodCVar->GetFVal();
+	CTimeValue screenshotCapturePeriod = m_pStatoscopeScreenshotCapturePeriodCVar->GetTime();
 
-	if ((m_ScreenShotState == eSSCS_Idle) && (screenshotCapturePeriod >= 0.0f))
+	if ((m_ScreenShotState == eSSCS_Idle) && (screenshotCapturePeriod >= 0))
 	{
 		if (currentTime >= m_screenshotLastCaptureTime + screenshotCapturePeriod)
 		{
@@ -2822,11 +2834,11 @@ void CStatoscope::CreateDataWriter()
 			if (m_logFilename.empty())
 				SetLogFilename();
 
-			m_pDataWriter = new CFileDataWriter(m_logFilename, m_pStatoscopeWriteTimeout->GetFVal() * 10);
+			m_pDataWriter = new CFileDataWriter(m_logFilename, m_pStatoscopeWriteTimeout->GetTime() * 10);
 		}
 		else if (m_pStatoscopeLogDestinationCVar->GetIVal() == eLD_Socket)
 		{
-			m_pDataWriter = new CSocketDataWriter(m_pServer, m_pStatoscopeWriteTimeout->GetFVal() * 10);
+			m_pDataWriter = new CSocketDataWriter(m_pServer, m_pStatoscopeWriteTimeout->GetTime() * 10);
 		}
 		else if (m_pStatoscopeLogDestinationCVar->GetIVal() == eLD_Telemetry)
 		{
@@ -3009,7 +3021,7 @@ void CStatoscopeServer::SendData(const char* buffer, int bufferSize)
 
 	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 
-	//float startTime = gEnv->pTimer->GetAsyncCurTime();
+	//float startTime = GetGTimer()->GetAsyncCurTime();
 	//int origBufferSize = bufferSize;
 	//const char *origBuffer = buffer;
 
@@ -3026,7 +3038,7 @@ void CStatoscopeServer::SendData(const char* buffer, int bufferSize)
 		bufferSize -= ret;
 	}
 
-	//float endTime = gEnv->pTimer->GetAsyncCurTime();
+	//float endTime = GetGTimer()->GetAsyncCurTime();
 	//printf("Statoscope Send Data 0x%p size: %d time: %f time taken %f\n", origBuffer, origBufferSize, endTime, endTime - startTime);
 }
 
@@ -3042,7 +3054,7 @@ bool CStatoscopeServer::CheckError(int err, const char* tag)
 	return false;
 }
 
-CDataWriter::CDataWriter(bool bUseStringPool, float writeTimeout)
+CDataWriter::CDataWriter(bool bUseStringPool, const CTimeValue& writeTimeout)
 {
 	m_bUseStringPool = bUseStringPool;
 	m_bTimedOut = false;
@@ -3131,7 +3143,7 @@ void CDataWriter::WriteData(const void* vpData, int vsize)
 		char* pWriteEnd = pWriteStart + size;
 
 		// Stall until the read thread clears the buffer we need to use
-		CTimeValue startTime = gEnv->pTimer->GetAsyncTime();
+		CTimeValue startTime = GetGTimer()->GetAsyncTime();
 		do
 		{
 			const char* pReadBoundsStart, * pReadBoundsEnd;
@@ -3156,15 +3168,15 @@ void CDataWriter::WriteData(const void* vpData, int vsize)
 						break;
 				}
 			}
-			CTimeValue currentTime = gEnv->pTimer->GetAsyncTime();
-			if (m_writeTimeout != 0.0f && currentTime.GetDifferenceInSeconds(startTime) > m_writeTimeout)
+			CTimeValue currentTime = GetGTimer()->GetAsyncTime();
+			if (m_writeTimeout != 0 && currentTime - startTime > m_writeTimeout)
 			{
-				CryLog("CDataWriter write timeout exceeded: %f", currentTime.GetDifferenceInSeconds(startTime));
+				CryLog("CDataWriter write timeout exceeded: %f", (float)(currentTime - startTime).GetSeconds());
 				m_bTimedOut = true;
 				return;
 			}
 
-			CrySleep(1);
+			CryLowLatencySleep("0.001");
 		}
 		while (true);
 
@@ -3181,7 +3193,7 @@ void CDataWriter::WriteData(const void* vpData, int vsize)
 		vsize -= size;
 	}
 }
-CFileDataWriter::CFileDataWriter(const string& fileName, float writeTimeout)
+CFileDataWriter::CFileDataWriter(const string& fileName, const CTimeValue& writeTimeout)
 	: CDataWriter(true, writeTimeout)
 {
 	m_fileName = fileName;
@@ -3235,7 +3247,7 @@ void CFileDataWriter::SendData(const char* pBuffer, int nBytes)
 	{
 		fwrite(pBuffer, nBytes, 1, m_pFile);
 
-		//float endTime = gEnv->pTimer->GetAsyncCurTime();
+		//float endTime = GetGTimer()->GetAsyncCurTime();
 		//printf("Statoscope Write Data 0x%p size: %d time: %f time taken %f\n", pBuffer, nBytes, endTime, endTime - startTime);
 	}
 	else
@@ -3244,7 +3256,7 @@ void CFileDataWriter::SendData(const char* pBuffer, int nBytes)
 	}
 }
 
-CSocketDataWriter::CSocketDataWriter(CStatoscopeServer* pStatoscopeServer, float writeTimeout)
+CSocketDataWriter::CSocketDataWriter(CStatoscopeServer* pStatoscopeServer, const CTimeValue& writeTimeout)
 	: CDataWriter(true, writeTimeout)
 {
 	m_pStatoscopeServer = pStatoscopeServer;
@@ -3262,7 +3274,7 @@ void CSocketDataWriter::SendData(const char* pBuffer, int nBytes)
 	m_pStatoscopeServer->SendData(pBuffer, nBytes);
 }
 
-CTelemetryDataWriter::CTelemetryDataWriter(const char* postHeader, const char* hostname, int port, float writeTimeout, float connectTimeout)
+CTelemetryDataWriter::CTelemetryDataWriter(const char* postHeader, const char* hostname, int port, const CTimeValue& writeTimeout, const CTimeValue& connectTimeout)
 	: CDataWriter(true, writeTimeout)
 	, m_socket(-1)
 	, m_hasSentHeader(false)
@@ -3348,8 +3360,8 @@ void CTelemetryDataWriter::SendData(const char* pBuffer, int nBytes)
 		{
 			// Wait until the connection is fully established
 			CRYTIMEVAL timeout;
-			timeout.tv_sec = (long)(m_connectTimeout);
-			timeout.tv_usec = (long)((m_connectTimeout - timeout.tv_sec) * 1e6);
+			timeout.tv_sec = (long)(m_connectTimeout.GetSeconds());
+			timeout.tv_usec = (long)(BADF(m_connectTimeout.GetSeconds() - timeout.tv_sec) * 1e6);
 
 			int result = CrySock::WaitForWritableSocket(m_socket, &timeout);
 
@@ -3415,7 +3427,7 @@ void CTelemetryDataWriter::SendToSocket(const char* pData, size_t nSize, const c
 					return;
 				}
 			}
-			CrySleep(1);
+			CryLowLatencySleep("0.001");
 		}
 	}
 }
@@ -3445,16 +3457,16 @@ CStatoscopeIOThread::~CStatoscopeIOThread()
 
 void CStatoscopeIOThread::Flush()
 {
-	CTimeValue startTime = gEnv->pTimer->GetAsyncTime();
+	CTimeValue startTime = GetGTimer()->GetAsyncTime();
 	while (m_sendJobs.size())
 	{
-		CrySleep(1);
-		CTimeValue currentTime = gEnv->pTimer->GetAsyncTime();
-		float timeout = m_pDataWriter->GetWriteTimeout();
-		if (timeout != 0.0f && currentTime.GetDifferenceInSeconds(startTime) > timeout)
+		CryLowLatencySleep("0.001");
+		CTimeValue currentTime = GetGTimer()->GetAsyncTime();
+		CTimeValue timeout = m_pDataWriter->GetWriteTimeout();
+		if (timeout != 0 && (currentTime - startTime) > timeout)
 		{
 			// This should cause the data writer to abort attempting to write data and clear the send jobs queue
-			CryLog("CDataWriter write timeout exceeded during flush: %f", currentTime.GetDifferenceInSeconds(startTime));
+			CryLog("CDataWriter write timeout exceeded during flush: %f", (float)(currentTime - startTime).GetSeconds());
 			m_pDataWriter->TimeOut();
 		}
 	}
@@ -3485,7 +3497,7 @@ void CStatoscopeIOThread::ThreadEntry()
 		}
 		else
 		{
-			CrySleep(1);
+			CryLowLatencySleep("0.001");
 		}
 	}
 }
@@ -3509,7 +3521,7 @@ void CStatoscopeIOThread::QueueSendData(const char* pBuffer, int nBytes)
 			m_numBytesInQueue += newJob.nBytes;
 		}
 
-		//printf("Statoscope Queue Data 0x%p size %d at time: %f\n", pBuffer, nBytes, gEnv->pTimer->GetAsyncCurTime());
+		//printf("Statoscope Queue Data 0x%p size %d at time: %f\n", pBuffer, nBytes, GetGTimer()->GetAsyncCurTime());
 	}
 	else if (nBytes < 0)
 	{

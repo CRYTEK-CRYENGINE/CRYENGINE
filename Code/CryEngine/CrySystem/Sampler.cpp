@@ -34,7 +34,7 @@ public:
 		m_hThread = NULL;
 		m_pSampler = pSampler;
 		m_bStop = false;
-		m_samplePeriodMs = pSampler->GetSamplePeriod();
+		m_samplePeriod = pSampler->GetSamplePeriod();
 
 		m_hProcess = GetCurrentProcess();
 		m_hSampledThread = GetCurrentThread();
@@ -55,9 +55,9 @@ protected:
 	HANDLE    m_hSampledThread;
 	DWORD     m_ThreadId;
 
-	CSampler* m_pSampler;
-	bool      m_bStop;
-	int       m_samplePeriodMs;
+	CSampler*  m_pSampler;
+	bool       m_bStop;
+	CTimeValue m_samplePeriod;
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -148,7 +148,7 @@ void CSamplingThread::Run()
 		if (!m_pSampler->AddSample(ip))
 			break;
 
-		CrySleep(m_samplePeriodMs);
+		CryLowLatencySleep(m_samplePeriod);
 	}
 }
 
@@ -160,7 +160,7 @@ CSampler::CSampler()
 	m_bSamplingFinished = false;
 	m_bSampling = false;
 	m_pSymDB = 0;
-	m_samplePeriodMs = 1; //1ms
+	m_samplePeriod.SetMilliSeconds(1);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -181,7 +181,7 @@ void CSampler::Start()
 	if (m_bSampling)
 		return;
 
-	CryLogAlways("Staring Sampling with interval %dms, max samples: %d ...", m_samplePeriodMs, m_nMaxSamples);
+	CryLogAlways("Staring Sampling with interval %s seconds, max samples: %d ...", m_samplePeriod.GetSeconds().str(), m_nMaxSamples);
 
 	if (!m_pSymDB)
 	{

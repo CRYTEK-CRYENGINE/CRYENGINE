@@ -45,7 +45,7 @@ CReadStream* CReadStream::Allocate(CStreamEngine* pEngine, const EStreamTaskType
 	pReq->m_pBuffer = pReq->m_Params.pBuffer;
 
 #ifdef STREAMENGINE_ENABLE_STATS
-	pReq->m_requestTime = gEnv->pTimer->GetAsyncTime();
+	pReq->m_requestTime = GetGTimer()->GetAsyncTime();
 #endif
 
 	return pReq;
@@ -207,7 +207,7 @@ void CReadStream::SetPriority(EStreamTaskPriority ePriority)
 // unconditionally waits until the callback is called
 // i.e. if the stream hasn't yet finish, it's guaranteed that the user-supplied callback
 // is called before return from this function (unless no callback was specified)
-void CReadStream::Wait(int nMaxWaitMillis)
+void CReadStream::Wait(const CTimeValue& nMaxWait)
 {
 	// lock this object to avoid preliminary destruction
 	CReadStream_AutoPtr pLock(this);
@@ -222,9 +222,9 @@ void CReadStream::Wait(int nMaxWaitMillis)
 
 	CTimeValue t0;
 
-	if (nMaxWaitMillis > 0)
+	if (nMaxWait > 0)
 	{
-		t0 = gEnv->pTimer->GetAsyncTime();
+		t0 = GetGTimer()->GetAsyncTime();
 	}
 
 	while (!m_bFinished && !m_bError)
@@ -235,13 +235,13 @@ void CReadStream::Wait(int nMaxWaitMillis)
 		}
 		if (!m_bFileRequestComplete)
 		{
-			CrySleep(5);
+			CryLowLatencySleep("0.005");
 		}
 
-		if (nMaxWaitMillis > 0)
+		if (nMaxWait > 0)
 		{
-			CTimeValue t1 = gEnv->pTimer->GetAsyncTime();
-			if (CTimeValue(t1 - t0).GetMilliSeconds() > nMaxWaitMillis)
+			CTimeValue t1 = GetGTimer()->GetAsyncTime();
+			if (t1 - t0 > nMaxWait)
 			{
 				// Break if we are waiting for too long.
 				break;

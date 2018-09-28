@@ -71,7 +71,7 @@ public:
 	struct SStats
 	{
 		SStats() : m_nTotalReadBytes(0), m_nCurrentReadBandwith(0),
-			m_nReadBytesInLastSecond(0), m_fReadingDuringLastSecond(.0f),
+			m_nReadBytesInLastSecond(0), m_fReadingDuringLastSecond(0),
 			m_nTempBytesRead(0), m_nActualReadBandwith(0), m_nTempReadOffset(0),
 			m_nTotalReadOffset(0), m_nReadOffsetInLastSecond(0), m_nTempRequestCount(0),
 			m_nTotalRequestCount(0), m_nRequestCountInLastSecond(0)
@@ -84,10 +84,10 @@ public:
 			m_nTotalReadBytes = 0;
 			m_nTotalReadOffset = 0;
 			m_nTotalRequestCount = 0;
-			m_TotalReadTime.SetValue(0);
+			m_TotalReadTime.SetSeconds(0);
 		}
 
-		float      m_fReadingDuringLastSecond;
+		nTime      m_fReadingDuringLastSecond;
 		CTimeValue m_TotalReadTime;
 		uint64     m_nTotalReadBytes;
 		uint64     m_nTotalReadOffset;

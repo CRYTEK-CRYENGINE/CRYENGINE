@@ -42,7 +42,7 @@ public:
 
 protected:
 	// rendering routine
-	void RenderBlock(const float timeStart, const float timeEnd, const ColorB threadColor, const ColorB IOTypeColor);
+	void RenderBlock(const CTimeValue& timeStart, const CTimeValue& timeEnd, const ColorB threadColor, const ColorB IOTypeColor);
 	void Render();
 
 	typedef std::deque<SDiskProfileStatistics*> Statistics;
@@ -66,7 +66,7 @@ public:
 	static int profile_disk;
 	static int profile_disk_max_items;
 	static int profile_disk_max_draw_items;
-	static float profile_disk_timeframe;  // max time for profiling timeframe
+	static CTimeValue profile_disk_timeframe;  // max time for profiling timeframe
 	static int profile_disk_type_filter;  // filter by task types for profiling
 	static int profile_disk_budget;		  // filter by task types for profiling
 };

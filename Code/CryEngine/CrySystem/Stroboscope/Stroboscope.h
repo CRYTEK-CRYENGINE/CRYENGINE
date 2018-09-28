@@ -33,7 +33,7 @@ struct SStrobosopeSamplingData
 	};
 	typedef std::map<SCallstackSampling, float> TCallstacks;
 	typedef std::map<int, TCallstacks>          TFrameCallstacks;
-	typedef std::map<int, float>                TFrameTime;
+	typedef std::map<int, CTimeValue>           TFrameTime;
 
 	struct SThreadResult
 	{
@@ -91,8 +91,8 @@ struct SStrobosopeResult
 		int    Samples;
 		float  Counts;
 	};
-	typedef std::vector<SThreadInfo> TThreadInfo;
-	typedef std::map<int, float>     TFrameTime;
+	typedef std::vector<SThreadInfo>  TThreadInfo;
+	typedef std::map<int, CTimeValue> TFrameTime;
 
 	SStrobosopeResult()
 		: Valid(false)
@@ -140,7 +140,7 @@ public:
 
 	void                     RegisterCommands();
 
-	void                     StartProfiling(float deltaStart = 0, float duration = -1, int throttle = 100, const SThreadInfo::TThreadIds threadIds = SThreadInfo::TThreadIds());
+	void                     StartProfiling(const CTimeValue& deltaStart = 0, const CTimeValue& duration = -1, int throttle = 100, const SThreadInfo::TThreadIds threadIds = SThreadInfo::TThreadIds());
 	void                     StopProfiling();
 	const SStrobosopeResult& GetResult() { UpdateResult(); return m_result; }
 
@@ -162,8 +162,8 @@ private:
 	void DumpOutputResult();
 
 private:
-	float                   m_startTime;
-	float                   m_endTime;
+	CTimeValue              m_startTime;
+	CTimeValue              m_endTime;
 	int                     m_throttle;
 	SThreadInfo::TThreadIds m_threadIds;
 	volatile LONG           m_started;

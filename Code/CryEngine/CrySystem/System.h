@@ -637,6 +637,7 @@ public:
 #endif
 
 	// Current system timer resolution, in units of 100nanoseconds. 5,000 = 0.5 milliseconds (ms)
+	// Needed since other applications may modify the timer resolution.
 	ULONG GetTimeResolution() const override;
 
 	// -------------------------------------------------------------

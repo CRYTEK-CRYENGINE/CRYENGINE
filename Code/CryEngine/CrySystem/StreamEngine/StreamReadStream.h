@@ -66,7 +66,7 @@ public:
 	// unconditionally waits until the callback is called
 	// i.e. if the stream hasn't yet finish, it's guaranteed that the user-supplied callback
 	// is called before return from this function (unless no callback was specified)
-	virtual void                    Wait(int nMaxWaitMillis = -1);
+	virtual void                    Wait(const CTimeValue& nMaxWait = -1);
 
 	virtual uint64                  GetPriority() const;
 

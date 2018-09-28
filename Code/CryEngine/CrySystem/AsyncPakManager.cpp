@@ -62,7 +62,7 @@ CAsyncPakManager::~CAsyncPakManager()
 
 void CAsyncPakManager::Clear()
 {
-	//float startTime = gEnv->pTimer->GetAsyncCurTime();
+	//float startTime = GetGTimer()->GetAsyncCurTime();
 
 	for (TPakMap::iterator it = m_paks.begin();
 	     it != m_paks.end(); ++it)
@@ -82,7 +82,7 @@ void CAsyncPakManager::Clear()
 	assert(m_nTotalOpenLayerPakSize == 0);
 	m_nTotalOpenLayerPakSize = 0;
 
-	//printf("CAsyncPakManager::Clear() %0.4f secs\n", gEnv->pTimer->GetAsyncCurTime() - startTime);
+	//printf("CAsyncPakManager::Clear() %0.4f secs\n", GetGTimer()->GetAsyncCurTime() - startTime);
 }
 
 void CAsyncPakManager::UnloadLevelLoadPaks()

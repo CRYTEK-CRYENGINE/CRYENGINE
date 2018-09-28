@@ -406,14 +406,14 @@ const bool JobManager::CJobManager::WaitForJob(JobManager::SJobState& rJobState)
 {
 #if defined(JOBMANAGER_SUPPORT_PROFILING)
 	SJobProfilingData* pJobProfilingData = gEnv->GetJobManager()->GetProfilingData(rJobState.nProfilerIndex);
-	pJobProfilingData->nWaitBegin = gEnv->pTimer->GetAsyncTime();
+	pJobProfilingData->nWaitBegin = GetGTimer()->GetAsyncTime();
 	pJobProfilingData->nThreadId = CryGetCurrentThreadId();
 #endif
 
 	rJobState.syncVar.Wait();
 
 #if defined(JOBMANAGER_SUPPORT_PROFILING)
-	pJobProfilingData->nWaitEnd = gEnv->pTimer->GetAsyncTime();
+	pJobProfilingData->nWaitEnd = GetGTimer()->GetAsyncTime();
 	pJobProfilingData = NULL;
 #endif
 
@@ -910,7 +910,7 @@ void JobManager::CJobManager::Update(int nJobSystemProfiler)
 	CTimeValue frameEndTime = m_FrameStartTime[m_profilingData.GetPrevFrameIdx()];
 
 	// skip first frames still we have enough data
-	if (frameStartTime.GetValue() == 0)
+	if (frameStartTime == 0)
 		return;
 
 	// compute how long the displayed frame took
@@ -939,7 +939,8 @@ void JobManager::CJobManager::Update(int nJobSystemProfiler)
 	float fGraphHeight = fTextSizePixel;
 	float fGraphWidth = (fScreenWidth - fInfoBoxSize) * 0.70f; // 70%
 
-	float pixelPerTime = (float)fGraphWidth / diffTime.GetValue();
+	// Float inaccuracy is fine, debug/profiling
+	rTime pixelPerSec = mpfloat().lossy(fGraphWidth) / diffTime;
 
 	const int nNumWorker = m_pThreadBackEnd->GetNumWorkerThreads();
 	const int nNumJobs = m_registeredJobs.size();
@@ -1053,7 +1054,7 @@ void JobManager::CJobManager::Update(int nJobSystemProfiler)
 				continue;
 
 			// skip jobs which did never run
-			IF (profilingData.nEndTime.GetValue() == 0 || profilingData.nStartTime.GetValue() == 0, 0)
+			IF (profilingData.nEndTime == 0 || profilingData.nStartTime == 0, 0)
 				continue;
 
 			// get the job profiling rendering data structure
@@ -1073,8 +1074,8 @@ void JobManager::CJobManager::Update(int nJobSystemProfiler)
 				CTimeValue startOffset = profilingData.nStartTime - frameStartTime;
 				CTimeValue endOffset = profilingData.nEndTime - frameStartTime;
 
-				int nGraphOffsetStart = (int)(startOffset.GetValue() * pixelPerTime);
-				int nGraphOffsetEnd = (int)(endOffset.GetValue() * pixelPerTime);
+				int nGraphOffsetStart = (int)(startOffset * pixelPerSec);
+				int nGraphOffsetEnd = (int)(endOffset * pixelPerSec);
 
 				// get the correct worker id
 				uint32 nWorkerIdx = profilingData.nWorkerThread;
@@ -1091,8 +1092,16 @@ void JobManager::CJobManager::Update(int nJobSystemProfiler)
 					DrawUtils::AddToGraph(arrWorkerThreadsRegions[nWorkerIdx], SOrderedProfilingData(pJobProfilingRenderingData->color, nGraphOffsetStart, nGraphOffsetEnd));
 			}
 
+			/* WARNING: Float inaccuracy
+				In previous versions, using GetValue():
+					static const int64 TIMEVALUE_PRECISION = 100000; //!< One second.
+					GetValue() == GetSeconds() * TIMEVALUE_PRECISION;
+
+				Precision was ~10 microseconds. Since this is debug, maintained the same precision accuracy.
+			*/
+
 			// did this job have wait time in this frame
-			if (((profilingData.nWaitEnd.GetValue() - profilingData.nWaitBegin.GetValue()) > 1) &&
+			if (((profilingData.nWaitEnd - profilingData.nWaitBegin).GetMicroSeconds() > 10) &&
 			    ((profilingData.nWaitEnd <= frameEndTime && profilingData.nWaitBegin >= frameStartTime) ||                                            // in this frame
 			     (profilingData.nWaitEnd >= frameStartTime && profilingData.nWaitEnd <= frameEndTime && profilingData.nWaitBegin < frameStartTime) || // from the last frame into this
 			     (profilingData.nWaitBegin >= frameStartTime && profilingData.nWaitBegin <= frameEndTime && profilingData.nWaitEnd > frameEndTime)))  // goes into the next frame
@@ -1108,8 +1117,8 @@ void JobManager::CJobManager::Update(int nJobSystemProfiler)
 				CTimeValue startOffset = profilingData.nWaitBegin - frameStartTime;
 				CTimeValue endOffset = profilingData.nWaitEnd - frameStartTime;
 
-				int nGraphOffsetStart = (int)(startOffset.GetValue() * pixelPerTime);
-				int nGraphOffsetEnd = (int)(endOffset.GetValue() * pixelPerTime);
+				int nGraphOffsetStart = (int)(startOffset * pixelPerSec);
+				int nGraphOffsetEnd = (int)(endOffset * pixelPerSec);
 
 				// add to the right thread(we care only for main and renderthread)
 				if (profilingData.nThreadId == nMainThreadId)
@@ -1145,8 +1154,8 @@ void JobManager::CJobManager::Update(int nJobSystemProfiler)
 				CTimeValue startOffset = pStack[nStackPos - 1].time - frameStartTime;
 				CTimeValue endOffset = rCurrentMarker.time - frameStartTime;
 
-				int GraphOffsetStart = (int)(startOffset.GetValue() * pixelPerTime);
-				int GraphOffsetEnd = (int)(endOffset.GetValue() * pixelPerTime);
+				int GraphOffsetStart = (int)(startOffset * pixelPerSec);
+				int GraphOffsetEnd = (int)(endOffset * pixelPerSec);
 				if (GraphOffsetEnd < nGraphSize)
 					DrawUtils::AddToGraph(arrMainThreadRegion, SOrderedProfilingData(GetRegionColor(pStack[nStackPos - 1].marker), GraphOffsetStart, GraphOffsetEnd));
 
@@ -1167,8 +1176,8 @@ void JobManager::CJobManager::Update(int nJobSystemProfiler)
 					CTimeValue startOffset = pStack[nStackPos - 1].time - frameStartTime;
 					CTimeValue endOffset = rCurrentMarker.time - frameStartTime;
 
-					int GraphOffsetStart = (int)(startOffset.GetValue() * pixelPerTime);
-					int GraphOffsetEnd = (int)(endOffset.GetValue() * pixelPerTime);
+					int GraphOffsetStart = (int)(startOffset * pixelPerSec);
+					int GraphOffsetEnd = (int)(endOffset * pixelPerSec);
 					if (GraphOffsetEnd < nGraphSize)
 						DrawUtils::AddToGraph(arrMainThreadRegion, SOrderedProfilingData(GetRegionColor(pStack[nStackPos - 1].marker), GraphOffsetStart, GraphOffsetEnd));
 
@@ -1200,8 +1209,8 @@ void JobManager::CJobManager::Update(int nJobSystemProfiler)
 				CTimeValue startOffset = pStack[nStackPos - 1].time - frameStartTime;
 				CTimeValue endOffset = rCurrentMarker.time - frameStartTime;
 
-				int GraphOffsetStart = (int)(startOffset.GetValue() * pixelPerTime);
-				int GraphOffsetEnd = (int)(endOffset.GetValue() * pixelPerTime);
+				int GraphOffsetStart = (int)(startOffset * pixelPerSec);
+				int GraphOffsetEnd = (int)(endOffset * pixelPerSec);
 				if (GraphOffsetEnd < nGraphSize)
 					DrawUtils::AddToGraph(arrRenderThreadRegion, SOrderedProfilingData(GetRegionColor(pStack[nStackPos - 1].marker), GraphOffsetStart, GraphOffsetEnd));
 
@@ -1222,8 +1231,8 @@ void JobManager::CJobManager::Update(int nJobSystemProfiler)
 					CTimeValue startOffset = pStack[nStackPos - 1].time - frameStartTime;
 					CTimeValue endOffset = rCurrentMarker.time - frameStartTime;
 
-					int GraphOffsetStart = (int)(startOffset.GetValue() * pixelPerTime);
-					int GraphOffsetEnd = (int)(endOffset.GetValue() * pixelPerTime);
+					int GraphOffsetStart = (int)(startOffset * pixelPerSec);
+					int GraphOffsetEnd = (int)(endOffset * pixelPerSec);
 					if (GraphOffsetEnd < nGraphSize)
 						DrawUtils::AddToGraph(arrRenderThreadRegion, SOrderedProfilingData(GetRegionColor(pStack[nStackPos - 1].marker), GraphOffsetStart, GraphOffsetEnd));
 
@@ -1300,8 +1309,9 @@ void JobManager::CJobManager::Update(int nJobSystemProfiler)
 	CTimeValue accumulatedWorkerTime;
 	for (int i = 0; i < nNumWorker; ++i)
 	{
-		float runTimePercent = 100.0f / (frameEndTime - frameStartTime).GetValue() * arrWorkerProfilingRenderData[i].runTime.GetValue();
-		cry_sprintf(tmpBuffer, "  Worker %d: %05.2f ms %04.1f p", i, arrWorkerProfilingRenderData[i].runTime.GetMilliSeconds(), runTimePercent);
+		// Float inaccuracy is fine, debug/profiling  Value/Value = Seconds/Seconds
+		float runTimePercent = float(100 / (frameEndTime - frameStartTime) * arrWorkerProfilingRenderData[i].runTime);
+		cry_sprintf(tmpBuffer, "  Worker %d: %05.2f ms %04.1f p", i, (float)arrWorkerProfilingRenderData[i].runTime.GetMilliSeconds(), runTimePercent);
 		DrawUtils::WriteShortLabel(fTextSideOffset, fInfoBoxTextOffset, fTextSize, fTextColor, tmpBuffer, 27);
 		fInfoBoxTextOffset += fTextSizePixel;
 
@@ -1313,20 +1323,21 @@ void JobManager::CJobManager::Update(int nJobSystemProfiler)
 	cry_sprintf(tmpBuffer, "-------------------------------");
 	DrawUtils::WriteShortLabel(fTextSideOffset, fInfoBoxTextOffset, fTextSize, fTextColor, tmpBuffer, 27);
 	fInfoBoxTextOffset += fTextSizePixel;
-	float accRunTimePercentage = 100.0f / ((frameEndTime - frameStartTime).GetValue() * nNumWorker) * accumulatedWorkerTime.GetValue();
-	cry_sprintf(tmpBuffer, "Sum: %05.2f ms %04.1f p", accumulatedWorkerTime.GetMilliSeconds(), accRunTimePercentage);
+	// Float inaccuracy is fine, debug/profiling  Value/Value = Seconds/Seconds
+	float accRunTimePercentage = float(100 / ((frameEndTime - frameStartTime) * nNumWorker) * accumulatedWorkerTime);
+	cry_sprintf(tmpBuffer, "Sum: %05.2f ms %04.1f p", (float)accumulatedWorkerTime.GetMilliSeconds(), accRunTimePercentage);
 	DrawUtils::WriteShortLabel(fTextSideOffset, fInfoBoxTextOffset, fTextSize, fTextColor, tmpBuffer, 27);
 	fInfoBoxTextOffset += fTextSizePixel;
 
 	// draw accumulated wait times of main and renderthread
 	fInfoBoxTextOffset += 2.0f * fTextSizePixel;
-	cry_sprintf(tmpBuffer, "MainThread Wait %05.2f ms", waitTimeMainThread.GetMilliSeconds());
+	cry_sprintf(tmpBuffer, "MainThread Wait %05.2f ms", (float)waitTimeMainThread.GetMilliSeconds());
 	DrawUtils::WriteShortLabel(fTextSideOffset, fInfoBoxTextOffset, fTextSize, fTextColor, tmpBuffer, 27);
 	fInfoBoxTextOffset += fTextSizePixel;
-	cry_sprintf(tmpBuffer, "RenderThread Wait %05.2f ms", waitTimeRenderThread.GetMilliSeconds());
+	cry_sprintf(tmpBuffer, "RenderThread Wait %05.2f ms", (float)waitTimeRenderThread.GetMilliSeconds());
 	DrawUtils::WriteShortLabel(fTextSideOffset, fInfoBoxTextOffset, fTextSize, fTextColor, tmpBuffer, 27);
 	fInfoBoxTextOffset += fTextSizePixel;
-	cry_sprintf(tmpBuffer, "MainThread %05.2f ms", (frameEndTime - frameStartTime).GetMilliSeconds());
+	cry_sprintf(tmpBuffer, "MainThread %05.2f ms", (float)(frameEndTime - frameStartTime).GetMilliSeconds());
 	DrawUtils::WriteShortLabel(fTextSideOffset, fInfoBoxTextOffset, fTextSize, fTextColor, tmpBuffer, 27);
 	fInfoBoxTextOffset += fTextSizePixel;
 	fInfoBoxTextOffset += fTextSizePixel;
@@ -1353,7 +1364,7 @@ void JobManager::CJobManager::Update(int nJobSystemProfiler)
 			fInfoBoxTextOffset += 1.4f * fTextSizePixel;
 		}
 
-		cry_sprintf(tmpBuffer, " %-21.21s %05.2f ", arrRegionProfilingData[i].pName.c_str(), arrRegionProfilingData[i].executionTime.GetMilliSeconds());
+		cry_sprintf(tmpBuffer, " %-21.21s %05.2f ", arrRegionProfilingData[i].pName.c_str(), (float)arrRegionProfilingData[i].executionTime.GetMilliSeconds());
 		DrawUtils::WriteShortLabel(fTextSideOffset, fInfoBoxTextOffset, fTextSize, fTextColor, tmpBuffer, 28);
 		DrawUtils::Draw2DBox(fTextSideOffset, fInfoBoxTextOffset + 2.0f, fTextSizePixel * 1.25f, 30 * fTextCharWidth, arrRegionProfilingData[i].color, fScreenHeight, fScreenWidth, pAuxGeomRenderer);
 
@@ -1386,8 +1397,8 @@ void JobManager::CJobManager::Update(int nJobSystemProfiler)
 
 		SJobProflingRenderData& rJobProfilingData = arrJobProfilingRenderData[i];
 		cry_sprintf(tmpBuffer, " %-35.35s (%3d):      %5.2f      %5.2f         %5.2f", rJobProfilingData.pName, rJobProfilingData.invocations,
-		            rJobProfilingData.runTime.GetMilliSeconds(), rJobProfilingData.waitTime.GetMilliSeconds(),
-		            rJobProfilingData.invocations ? rJobProfilingData.runTime.GetMilliSeconds() / rJobProfilingData.invocations : 0.0f);
+		            (float)rJobProfilingData.runTime.GetMilliSeconds(), (float)rJobProfilingData.waitTime.GetMilliSeconds(),
+		            rJobProfilingData.invocations ? (float)rJobProfilingData.runTime.GetMilliSeconds() / rJobProfilingData.invocations : 0.0f);
 
 		DrawUtils::WriteShortLabel(fJobInfoBoxSideOffset, fJobInfoBoxTextOffset - 1, fTextSize, fTextColor, tmpBuffer, 80);
 		DrawUtils::Draw2DBox(fJobInfoBoxSideOffset, fJobInfoBoxTextOffset + 2.0f, fTextSizePixel * 1.25f, fJobInfoBoxTextWidth, rJobProfilingData.color, fScreenHeight, fScreenWidth, pAuxGeomRenderer);
@@ -1437,9 +1448,9 @@ void JobManager::CJobManager::PushProfilingMarker(const char* pName)
 	threadID nThreadID = CryGetCurrentThreadId();
 	uint32 nFrameIdx = m_profilingData.GetFillFrameIdx();
 	if (nThreadID == nMainThreadId && m_nMainThreadMarkerIndex[nFrameIdx] < nMarkerEntries)
-		m_arrMainThreadMarker[nFrameIdx][m_nMainThreadMarkerIndex[nFrameIdx]++] = SMarker(SMarker::PUSH_MARKER, pName, gEnv->pTimer->GetAsyncTime(), true);
+		m_arrMainThreadMarker[nFrameIdx][m_nMainThreadMarkerIndex[nFrameIdx]++] = SMarker(SMarker::PUSH_MARKER, pName, GetGTimer()->GetAsyncTime(), true);
 	if (nThreadID == nRenderThreadId && m_nRenderThreadMarkerIndex[nFrameIdx] < nMarkerEntries)
-		m_arrRenderThreadMarker[nFrameIdx][m_nRenderThreadMarkerIndex[nFrameIdx]++] = SMarker(SMarker::PUSH_MARKER, pName, gEnv->pTimer->GetAsyncTime(), false);
+		m_arrRenderThreadMarker[nFrameIdx][m_nRenderThreadMarkerIndex[nFrameIdx]++] = SMarker(SMarker::PUSH_MARKER, pName, GetGTimer()->GetAsyncTime(), false);
 #endif
 }
 
@@ -1461,9 +1472,9 @@ void JobManager::CJobManager::PopProfilingMarker()
 	threadID nThreadID = CryGetCurrentThreadId();
 	uint32 nFrameIdx = m_profilingData.GetFillFrameIdx();
 	if (nThreadID == nMainThreadId && m_nMainThreadMarkerIndex[nFrameIdx] < nMarkerEntries)
-		m_arrMainThreadMarker[nFrameIdx][m_nMainThreadMarkerIndex[nFrameIdx]++] = SMarker(SMarker::POP_MARKER, gEnv->pTimer->GetAsyncTime(), true);
+		m_arrMainThreadMarker[nFrameIdx][m_nMainThreadMarkerIndex[nFrameIdx]++] = SMarker(SMarker::POP_MARKER, GetGTimer()->GetAsyncTime(), true);
 	if (nThreadID == nRenderThreadId && m_nRenderThreadMarkerIndex[nFrameIdx] < nMarkerEntries)
-		m_arrRenderThreadMarker[nFrameIdx][m_nRenderThreadMarkerIndex[nFrameIdx]++] = SMarker(SMarker::POP_MARKER, gEnv->pTimer->GetAsyncTime(), false);
+		m_arrRenderThreadMarker[nFrameIdx][m_nRenderThreadMarkerIndex[nFrameIdx]++] = SMarker(SMarker::POP_MARKER, GetGTimer()->GetAsyncTime(), false);
 #endif
 }
 

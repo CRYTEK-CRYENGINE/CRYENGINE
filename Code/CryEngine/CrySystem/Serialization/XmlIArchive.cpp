@@ -214,6 +214,19 @@ bool Serialization::CXmlIArchiveVer1::operator()(char& value, const char* name, 
 	return XmlUtil::ReadChildNodeAs<int>(m_pRootNode, m_childIndexOverride, m_childIndexHint, name, value);
 }
 
+bool Serialization::CXmlIArchiveVer1::operator()(CTimeValue& value, const char* name, const char* label)
+{
+	return (*this)(value.m_lValue, name, label);
+}
+
+#define MP_FUNCTION(T)\
+bool Serialization::CXmlIArchiveVer1::operator()(T& value, const char* name, const char* label)\
+{\
+	return XmlUtil::ReadChildNode(m_pRootNode, m_childIndexOverride, m_childIndexHint, name, value);\
+}
+#include <CrySystem\mpfloat.types>
+#undef MP_FUNCTION
+
 bool Serialization::CXmlIArchiveVer1::operator()(const SStruct& ser, const char* name, const char* label)
 {
 	CRY_ASSERT(name);
@@ -417,6 +430,20 @@ bool Serialization::CXmlInputArchive::operator()(char& value, const char* name, 
 	XmlNodeRef node = (m_childIndexOverride >= 0) ? XmlUtil::FindChildNode(m_pRootNode, m_childIndexOverride, m_childIndexHint, name) : m_pRootNode;
 	return node->getAttr(name,value);
 }
+
+bool Serialization::CXmlInputArchive::operator()(CTimeValue& value, const char* name, const char* label)
+{
+	return (*this)(value.m_lValue, name, label);
+}
+
+#define MP_FUNCTION(T)\
+bool Serialization::CXmlInputArchive::operator()(T& value, const char* name, const char* label)\
+{\
+	XmlNodeRef node = (m_childIndexOverride >= 0) ? XmlUtil::FindChildNode(m_pRootNode, m_childIndexOverride, m_childIndexHint, name) : m_pRootNode;\
+	return node->getAttr(name, value);\
+}
+#include <CrySystem\mpfloat.types>
+#undef MP_FUNCTION
 
 bool Serialization::CXmlInputArchive::operator()(const SStruct& ser, const char* name, const char* label)
 {

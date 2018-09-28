@@ -56,7 +56,7 @@ public:
 	int   profile_network;
 	int   profile_additionalsub;
 	float profile_peak;
-	float profile_peak_display;
+	CTimeValue profile_peak_display;
 	float profile_min_display_ms;
 	float profile_row, profile_col;
 	int   profile_meminfo;
@@ -107,9 +107,9 @@ public:
 	int32 m_nCallOverheadCalls;
 
 	//! Smoothed version of frame time, lost time, and overhead.
-	float                     m_frameSecAvg;
-	float                     m_frameLostSecAvg;
-	float                     m_frameOverheadSecAvg;
+	CTimeValue                m_frameSecAvg;
+	CTimeValue                m_frameLostSecAvg;
+	CTimeValue                m_frameOverheadSecAvg;
 
 	CryCriticalSection        m_profilersLock;
 	static CryCriticalSection m_staticProfilersLock;
@@ -321,7 +321,7 @@ public:
 	int                               m_maxProfileCount;
 
 	//////////////////////////////////////////////////////////////////////////
-	//! Smooth frame time in milliseconds.
+	//! PERSONAL IMPROVE: Not only 'smooth frame time in ms' but can also include memory!
 	CFrameProfilerSamplesHistory<float, 32> m_frameTimeHistory;
 	CFrameProfilerSamplesHistory<float, 32> m_frameTimeLostHistory;
 
@@ -406,7 +406,7 @@ public:
 	//! Get number of registered frame profilers.
 	int          GetProfilerCount() const { return (int)m_profilers.size(); };
 	//! Return the fraction used to blend current with average values.
-	float        GetSmoothFactor() const;
+	mpfloat      GetSmoothFactor() const;
 
 	virtual int  GetPeaksCount() const
 	{
@@ -420,7 +420,7 @@ public:
 		return 0;
 	}
 
-	virtual float GetLostFrameTimeMS() const { return 0.0f; }
+	virtual CTimeValue GetLostFrameTime() const { return 0; }
 
 	//! Get frame profiler at specified index.
 	//! @param index must be 0 <= index < GetProfileCount()
@@ -539,7 +539,7 @@ struct CFrameProfileSystem : public IFrameProfileSystem
 	virtual const SPeakRecord*           GetPeak(int index) const   { return 0; }
 	virtual int                          GetProfilerCount() const   { return 0; }
 
-	virtual float                        GetLostFrameTimeMS() const { return 0.f; }
+	virtual CTimeValue                   GetLostFrameTime() const { return 0; }
 
 	virtual CFrameProfiler*              GetProfiler(int index) const;
 
@@ -576,7 +576,7 @@ struct CFrameProfileSystem : public IFrameProfileSystem
 	void                                 SetHistogramScale(float fScale)            {}
 	void                                 SetDrawGraph(bool bDrawGraph)              {}
 	void                                 SetNetworkProfiler(bool bNet)              {}
-	void                                 SetPeakTolerance(float fPeakTimeMillis)    {}
+	void                                 SetPeakTolerance(float fPeakTime)          {}
 	void                                 SetSmoothingTime(float fSmoothTime)        {}
 	void                                 SetPageFaultsGraph(bool bEnabled)          {}
 	void                                 SetThreadSupport(int)                      {}

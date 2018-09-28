@@ -30,7 +30,8 @@ struct SLoadingTimeContainer : public _i_reference_target_t
 
 	SLoadingTimeContainer(SLoadingTimeContainer* pParent, const char* pPureFuncName, const int nRootIndex)
 	{
-		m_dSelfMemUsage = m_dTotalMemUsage = m_dSelfTime = m_dTotalTime = 0;
+		m_dSelfMemUsage = m_dTotalMemUsage = 0;
+		m_dSelfTime = m_dTotalTime.SetSeconds(0);
 		m_nCounter = 1;
 		m_pFuncName = pPureFuncName;
 		m_pParent = pParent;
@@ -83,7 +84,7 @@ struct SLoadingTimeContainer : public _i_reference_target_t
 		Clear();
 	}
 
-	double                              m_dSelfTime, m_dTotalTime;
+	CTimeValue                          m_dSelfTime, m_dTotalTime;
 	double                              m_dSelfMemUsage, m_dTotalMemUsage;
 	uint32                              m_nCounter;
 
@@ -156,7 +157,7 @@ void CLoadingProfilerSystem::OutputLoadingTimeStats(ILog* pLog, int nMode)
 		{
 			const SLoadingTimeContainer* pTimeContainer = &arrNoStack[i];
 			pLog->Log("|%6.1f | %6.1f | %6d | %s|",
-			          pTimeContainer->m_dSelfTime, pTimeContainer->m_dTotalTime, (int)pTimeContainer->m_nCounter, pTimeContainer->m_pFuncName);
+			          (float)pTimeContainer->m_dSelfTime.GetSeconds(), (float)pTimeContainer->m_dTotalTime.GetSeconds(), (int)pTimeContainer->m_nCounter, pTimeContainer->m_pFuncName);
 		}
 
 		if (nLoadingProfileMode == 1)
@@ -178,7 +179,7 @@ void CLoadingProfilerSystem::OutputLoadingTimeStats(ILog* pLog, int nMode)
 		{
 
 			const SLoadingTimeContainer* pTimeContainer = &arrNoStack[i];
-			double bandwidth = pTimeContainer->m_dSelfTime > 0 ? (pTimeContainer->m_selfInfo.m_dOperationSize / pTimeContainer->m_dSelfTime / 1024.0) : 0.;
+			double bandwidth = pTimeContainer->m_dSelfTime > 0 ? (pTimeContainer->m_selfInfo.m_dOperationSize / (float)pTimeContainer->m_dSelfTime.GetSeconds() / 1024.0) : 0.;
 			pLog->Log("|%6d | %6d | %6d |%6d | %6d | %6d | %6.1f | %6d | %s|",
 			          pTimeContainer->m_selfInfo.m_nSeeksCount, pTimeContainer->m_selfInfo.m_nFileOpenCount, pTimeContainer->m_selfInfo.m_nFileReadCount,
 			          pTimeContainer->m_totalInfo.m_nSeeksCount, pTimeContainer->m_totalInfo.m_nFileOpenCount, pTimeContainer->m_totalInfo.m_nFileReadCount,
@@ -216,7 +217,7 @@ public:
 		case ESYSTEM_EVENT_GAME_MODE_SWITCH_END:
 			{
 				SAFE_DELETE(m_pPrecacheProfiler);
-				CLoadingProfilerSystem::SaveTimeContainersToFile(gEnv->bMultiplayer == true ? "mode_switch_mp.crylp" : "mode_switch_sp.crylp", 0.0, true);
+				CLoadingProfilerSystem::SaveTimeContainersToFile(gEnv->bMultiplayer == true ? "mode_switch_mp.crylp" : "mode_switch_sp.crylp", 0, true);
 			}
 
 		case ESYSTEM_EVENT_LEVEL_LOAD_PREPARE:
@@ -245,8 +246,8 @@ public:
 
 					string levelNameFullProfile = levelName + "_LP.crylp";
 					string levelNameThreshold = levelName + "_LP_OneSec.crylp";
-					CLoadingProfilerSystem::SaveTimeContainersToFile(levelNameFullProfile.c_str(), 0.0, false);
-					CLoadingProfilerSystem::SaveTimeContainersToFile(levelNameThreshold.c_str(), 1.0, true);
+					CLoadingProfilerSystem::SaveTimeContainersToFile(levelNameFullProfile.c_str(), 0, false);
+					CLoadingProfilerSystem::SaveTimeContainersToFile(levelNameThreshold.c_str(), 1, true);
 				}
 				break;
 			}
@@ -311,9 +312,8 @@ SLoadingTimeContainer* CLoadingProfilerSystem::StartLoadingSectionProfiling(CLoa
 
 	if (true /*pProfiler && pProfiler->m_pSystem*/)
 	{
-
 		ITimer* pTimer = pProfiler->m_pSystem->GetITimer();
-		pProfiler->m_fConstructorTime = pTimer->GetAsyncTime().GetSeconds();
+		pProfiler->m_fConstructorTime = pTimer->GetAsyncTime();
 		pProfiler->m_fConstructorMemUsage = SLoadingTimeContainer::GetUsedMemory(pProfiler->m_pSystem);
 
 		DiskOperationInfo info;
@@ -376,13 +376,12 @@ void CLoadingProfilerSystem::EndLoadingSectionProfiling(CLoadingTimeProfiler* pP
 
 	if (true /*pProfiler && pProfiler->m_pSystem*/)
 	{
-
 		ITimer* pTimer = pProfiler->m_pSystem->GetITimer();
-		double fSelfTime = pTimer->GetAsyncTime().GetSeconds() - pProfiler->m_fConstructorTime;
+		CTimeValue fSelfTime = pTimer->GetAsyncTime() - pProfiler->m_fConstructorTime;
 		double fMemUsage = SLoadingTimeContainer::GetUsedMemory(pProfiler->m_pSystem);
 		double fSelfMemUsage = fMemUsage - pProfiler->m_fConstructorMemUsage;
 
-		if (fSelfTime < 0.0)
+		if (fSelfTime < 0)
 			assert(0);
 		pProfiler->m_pTimeContainer->m_dSelfTime += fSelfTime;
 		pProfiler->m_pTimeContainer->m_dTotalTime += fSelfTime;
@@ -452,12 +451,12 @@ void CLoadingProfilerSystem::FillProfilersList(std::vector<SLoadingProfilerInfo>
 	for (uint32 i = 0; i < count; ++i)
 	{
 		profilers[i].name = arrNoStack[i].m_pFuncName;
-		profilers[i].selfTime = arrNoStack[i].m_dSelfTime;
+		profilers[i].selfTime   = arrNoStack[i].m_dSelfTime;
 		profilers[i].callsTotal = arrNoStack[i].m_nCounter;
-		profilers[i].totalTime = arrNoStack[i].m_dTotalTime;
+		profilers[i].totalTime  = arrNoStack[i].m_dTotalTime;
 		profilers[i].memorySize = arrNoStack[i].m_dTotalMemUsage;
-		profilers[i].selfInfo = arrNoStack[i].m_selfInfo;
-		profilers[i].totalInfo = arrNoStack[i].m_totalInfo;
+		profilers[i].selfInfo   = arrNoStack[i].m_selfInfo;
+		profilers[i].totalInfo  = arrNoStack[i].m_totalInfo;
 	}
 }
 
@@ -497,7 +496,7 @@ void CLoadingProfilerSystem::CreateNoStackList(PodArray<SLoadingTimeContainer>& 
 
 	#define g_szTestResults "%USER%/TestResults"
 
-void CLoadingProfilerSystem::SaveTimeContainersToFile(const char* name, double fMinTotalTime, bool bClean)
+void CLoadingProfilerSystem::SaveTimeContainersToFile(const char* name, const CTimeValue& fMinTotalTime, bool bClean)
 {
 
 	if (m_pRoot[m_iActiveRoot])
@@ -533,7 +532,7 @@ void CLoadingProfilerSystem::SaveTimeContainersToFile(const char* name, double f
 
 }
 
-void CLoadingProfilerSystem::WriteTimeContainerToFile(SLoadingTimeContainer* p, FILE* f, unsigned int depth, double fMinTotalTime)
+void CLoadingProfilerSystem::WriteTimeContainerToFile(SLoadingTimeContainer* p, FILE* f, unsigned int depth, const CTimeValue& fMinTotalTime)
 {
 	if (p == NULL)
 		return;
@@ -568,7 +567,7 @@ void CLoadingProfilerSystem::UpdateSelfStatistics(SLoadingTimeContainer* p)
 		return;
 
 	p->m_dSelfMemUsage = 0;
-	p->m_dSelfTime = 0;
+	p->m_dSelfTime.SetSeconds(0);
 	p->m_nCounter = 1;
 	p->m_selfInfo.m_dOperationSize = 0;
 	p->m_selfInfo.m_nFileOpenCount = 0;

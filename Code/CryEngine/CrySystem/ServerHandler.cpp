@@ -44,12 +44,12 @@ void ServerHandler::DoScan()
 	}
 	if (!m_clientLocks.empty())
 		SetAffinity();
-	m_lastScan = gEnv->pTimer->GetAsyncTime();
+	m_lastScan = GetGTimer()->GetAsyncTime();
 }
 
 bool ServerHandler::Sync()
 {
-	if ((gEnv->pTimer->GetAsyncTime() - m_lastScan).GetSeconds() > 1.0f)
+	if ((GetGTimer()->GetAsyncTime() - m_lastScan).GetSeconds() > 1.0f)
 	{
 		DoScan();
 	}

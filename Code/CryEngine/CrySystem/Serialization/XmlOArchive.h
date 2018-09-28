@@ -34,6 +34,11 @@ public:
 	bool operator()(uint8& value, const char* name = "", const char* label = 0) override;
 	bool operator()(char& value, const char* name = "", const char* label = 0) override;
 
+	bool operator()(CTimeValue& value, const char* name = "", const char* label = 0) override;
+	#define MP_FUNCTION(T) bool operator()(T& value, const char* name = "", const char* label = 0) override;
+	#include <CrySystem\mpfloat.types>
+	#undef MP_FUNCTION
+
 	bool operator()(const SStruct& ser, const char* name = "", const char* label = 0) override;
 	bool operator()(IContainer& ser, const char* name = "", const char* label = 0) override;
 	bool operator()(SBlackBox& box, const char* name = "", const char* label = 0) override;
@@ -71,6 +76,11 @@ public:
 	bool operator()(int8& value, const char* name = "", const char* label = 0) override;
 	bool operator()(uint8& value, const char* name = "", const char* label = 0) override;
 	bool operator()(char& value, const char* name = "", const char* label = 0) override;
+
+	bool operator()(CTimeValue& value, const char* name = "", const char* label = 0) override;
+	#define MP_FUNCTION(T) bool operator()(T& value, const char* name = "", const char* label = 0) override;
+	#include <CrySystem\mpfloat.types>
+	#undef MP_FUNCTION
 
 	bool operator()(const SStruct& ser, const char* name = "", const char* label = 0) override;
 	bool operator()(IContainer& ser, const char* name = "", const char* label = 0) override;

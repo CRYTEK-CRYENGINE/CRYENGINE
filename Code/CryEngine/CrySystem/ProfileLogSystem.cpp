@@ -31,11 +31,11 @@ void CLogElement::Flush(stack_string& indent)
 {
 	if (m_logElements.empty())
 	{
-		CryLog("%s%s [%.3f ms] %s", indent.c_str(), m_strName.c_str(), m_time, m_strMessage.c_str());
+		CryLog("%s%s [%.3f ms] %s", indent.c_str(), m_strName.c_str(), (float)m_time.GetMilliSeconds(), m_strMessage.c_str());
 		return;
 	}
 
-	CryLog("%s+%s [%.3f ms] %s", indent.c_str(), m_strName.c_str(), m_time, m_strMessage.c_str());
+	CryLog("%s+%s [%.3f ms] %s", indent.c_str(), m_strName.c_str(), (float)m_time.GetMilliSeconds(), m_strMessage.c_str());
 
 	indent += "  ";
 	for (std::list<CLogElement>::iterator it = m_logElements.begin(); it != m_logElements.end(); ++it)
@@ -56,7 +56,7 @@ ILogElement* CLogElement::Log(const char* name, const char* message)
 	return &m_logElements.back();
 }
 
-ILogElement* CLogElement::SetTime(float time)
+ILogElement* CLogElement::SetTime(const CTimeValue& time)
 {
 	m_time = time;
 
@@ -100,7 +100,7 @@ ILogElement* CProfileLogSystem::Log(const char* name, const char* message)
 	return m_pLastElelent;
 }
 
-void CProfileLogSystem::SetTime(ILogElement* pElement, float time)
+void CProfileLogSystem::SetTime(ILogElement* pElement, const CTimeValue& time)
 {
 	if (pElement == NULL)
 	{

@@ -115,7 +115,7 @@ CrySizerStats::CrySizerStats()
 {
 	for (int i = 0; i < g_numTimers; ++i)
 	{
-		m_fTime[i] = 0.0f;
+		m_fTime[i].SetSeconds(0);
 	}
 }
 
@@ -342,8 +342,8 @@ void CrySizerStatsRenderer::render(bool bRefreshMark)
 	bool bOverheadsHeaderPrinted = false;
 	for (i = 0; i < CrySizerStats::g_numTimers; ++i)
 	{
-		float fTime = m_pStats->getTime(i);
-		if (fTime < 20)
+		mpfloat fMilli = m_pStats->getTime(i).GetMilliSeconds();
+		if (fMilli < 20)
 			continue;
 		// print the header
 		if (!bOverheadsHeaderPrinted)
@@ -355,7 +355,7 @@ void CrySizerStatsRenderer::render(bool bRefreshMark)
 		}
 
 		DrawStatsText(fLeft, fTop, fCharScaleX, fTextColor,
-		              "%-*s:%7.1f ms", nNameWidth, szOverheadNames[i], fTime);
+		              "%-*s:%7.1f ms", nNameWidth, szOverheadNames[i], (float)fMilli);
 		fTop += fVStep;
 	}
 }
@@ -418,5 +418,5 @@ void CrySizerStats::startTimer(unsigned nTimer, ITimer* pTimer)
 void CrySizerStats::stopTimer(unsigned nTimer, ITimer* pTimer)
 {
 	assert(nTimer < g_numTimers);
-	m_fTime[nTimer] = 1000 * (pTimer->GetAsyncCurTime() - m_fTime[nTimer]);
+	m_fTime[nTimer] = pTimer->GetAsyncCurTime() - m_fTime[nTimer];
 }

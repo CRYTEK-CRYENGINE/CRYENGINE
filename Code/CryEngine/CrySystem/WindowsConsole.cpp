@@ -286,7 +286,7 @@ void CWindowsConsole::OnUpdate()
 
 		CTimeValue now = m_pTimer->GetAsyncTime();
 
-		if ((now - m_lastStatusUpdate).GetSeconds() > 0.1F)
+		if ((now - m_lastStatusUpdate).GetSeconds() > "0.1")
 		{
 			updateStatus = true;
 		}
@@ -545,11 +545,11 @@ void CWindowsConsole::InputIdle()
 	if (m_pTimer)
 	{
 		CTimeValue now = m_pTimer->GetAsyncTime();
-		float timePassed = (now - m_lastUpdateTime).GetSeconds();
+		CTimeValue timePassed = now - m_lastUpdateTime;
 
-		if (timePassed > 0.2F)
+		if (timePassed > "0.2")
 		{
-			int nDots = (int)(timePassed + 0.5) / 3;
+			int nDots = (int)(timePassed.GetSeconds() + "0.5") / 3;
 			int nDotsMax = m_statusBuffer.Width() - 2;
 
 			if (nDots > nDotsMax)
@@ -653,14 +653,14 @@ void CWindowsConsole::DrawStatus()
 
 			if (m_pConsole)
 			{
-				const float updateRate = m_pTimer ? m_pTimer->GetFrameRate() : 0.0f;
+				const rTime updateRate = m_pTimer ? m_pTimer->GetFrameRate() : 0;
 
 				cry_sprintf(
 				  &bufferRight[len], sizeof(bufferRight) - len,
 				  "upd:%.1fms(%.2f..%.2f) " \
 					  "rate:%.1f/s up:%.1fk/s dn: %.1fk/s",
 				  m_updStats.avgUpdateTime, m_updStats.minUpdateTime, m_updStats.maxUpdateTime,
-				  updateRate, m_nubStats.bandwidthUp / 1000.0f, m_nubStats.bandwidthDown / 1000.0f);
+				  (float)updateRate, m_nubStats.bandwidthUp / 1000.0f, m_nubStats.bandwidthDown / 1000.0f);
 			}
 			else
 			{

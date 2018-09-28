@@ -37,7 +37,7 @@ public:
 	// ~IPlatformOS
 
 	// Called each frame to update the platform listener
-	virtual void        Tick(float realFrameTime);
+	virtual void        Tick(CTimeValue& realFrameTime);
 
 	virtual const char* GetPlatformName() const { return "PC"; };
 
@@ -124,7 +124,7 @@ public:
 	// ~ISystemEventListener
 
 	// IGameFrameworkListener
-	virtual void OnPostUpdate(float fDeltaTime)    {}
+	virtual void OnPostUpdate(const CTimeValue& fDeltaTime)    {}
 	virtual void OnSaveGame(ISaveGame* pSaveGame)  {}
 	virtual void OnLoadGame(ILoadGame* pLoadGame)  {}
 	virtual void OnLevelEnd(const char* nextLevel) {}
@@ -144,7 +144,7 @@ private:
 	CListenerSet<IPlatformOS::IPlatformListener*> m_listeners;
 	std::vector<char>                             m_encryptionMagic;
 	std::vector<uint8>                            m_encryptionKey;
-	float m_delayLevelStartIcon;
+	CTimeValue m_delayLevelStartIcon;
 	int   m_cachePakStatus;
 	int   m_cachePakUser;
 	bool  m_bSignedIn;

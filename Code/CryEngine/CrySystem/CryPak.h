@@ -332,8 +332,7 @@ private:
 
 	_smart_ptr<ICustomMemoryHeap>       m_pInMemoryPaksCPUHeap;
 
-	ITimer*                             m_pITimer;
-	float                               m_fFileAcessTime;                           // Time used to perform file operations
+	CTimeValue                          m_fFileAcessTime;                           // Time used to perform file operations
 	std::vector<ICryPakFileAcesssSink*> m_FileAccessSinks;                          // useful for gathering file access statistics
 
 	const PakVars*                      m_pPakVars;

@@ -44,7 +44,7 @@ CStreamEngine::CStreamEngine()
 	m_Statistics.nCurrentDecompressCount = 0;
 	m_Statistics.nCurrentFinishedCount = 0;
 
-	memset(&m_decompressStats, 0, sizeof(m_decompressStats));
+	m_decompressStats = SStreamEngineDecompressStats();
 
 	m_nUnzipBandwidth = 0;
 	m_nUnzipBandwidthAverage = 0;
@@ -350,8 +350,10 @@ void UpdateIOThreadStats(
 
 	// not in memory reading
 	pNotInMemoryInfo->fActiveDuringLastSecond = pIOThread->m_NotInMemoryStats.m_fReadingDuringLastSecond;
+
+	// Float inaccuracy is fine, debug/profiling
 	pNotInMemoryInfo->fAverageActiveTime =
-	  pIOThread->m_NotInMemoryStats.m_TotalReadTime.GetSeconds() / fSecSinceLastReset * 100;
+	  (float)pIOThread->m_NotInMemoryStats.m_TotalReadTime.GetSeconds() / fSecSinceLastReset * 100;
 
 	pNotInMemoryInfo->nBytesRead = pIOThread->m_NotInMemoryStats.m_nReadBytesInLastSecond;
 	pNotInMemoryInfo->nRequestCount = pIOThread->m_NotInMemoryStats.m_nRequestCountInLastSecond;
@@ -373,7 +375,8 @@ void UpdateIOThreadStats(
 	pNotInMemoryInfo->nSessionReadBandwidth = (uint32)(pNotInMemoryInfo->nTotalBytesRead / fSecSinceLastReset);
 
 	pNotInMemoryInfo->nActualReadBandwidth = pIOThread->m_NotInMemoryStats.m_nActualReadBandwith;
-	float fTotalReadTime = pIOThread->m_NotInMemoryStats.m_TotalReadTime.GetSeconds();
+	// Float inaccuracy is fine, debug/profiling
+	float fTotalReadTime = (float)pIOThread->m_NotInMemoryStats.m_TotalReadTime.GetSeconds();
 	if (fTotalReadTime > 0.0f)
 		pNotInMemoryInfo->nAverageActualReadBandwidth = (uint32)(pNotInMemoryInfo->nTotalBytesRead / fTotalReadTime);
 
@@ -414,32 +417,32 @@ void CStreamEngine::Update()
 		g_cvars.sys_streaming_resetstats = 0;
 	}
 
-	CTimeValue t = gEnv->pTimer->GetAsyncTime();
-	if ((t - m_nLastBandwidthUpdateTime).GetMilliSecondsAsInt64() > 1000)
+	CTimeValue t = GetGTimer()->GetAsyncTime();
+	if ((t - m_nLastBandwidthUpdateTime).GetSeconds() > 1)
 	{
 		// Repeat every second.
-		m_nUnzipBandwidth = m_decompressStats.m_tempUnzipTime.GetValue() == 0 ? 0 : (uint32)(m_decompressStats.m_nTempBytesUnziped / m_decompressStats.m_tempUnzipTime.GetSeconds());
-		m_nDecryptBandwidth = m_decompressStats.m_tempDecryptTime.GetValue() == 0 ? 0 : (uint32)(m_decompressStats.m_nTempBytesDecrypted / m_decompressStats.m_tempDecryptTime.GetSeconds());
-		m_nVerifyBandwidth = m_decompressStats.m_tempVerifyTime.GetValue() == 0 ? 0 : (uint32)(m_decompressStats.m_nTempBytesVerified / m_decompressStats.m_tempVerifyTime.GetSeconds());
+		m_nUnzipBandwidth = m_decompressStats.m_tempUnzipTime == 0 ? 0 : (uint32)(m_decompressStats.m_nTempBytesUnziped / m_decompressStats.m_tempUnzipTime.GetSeconds());
+		m_nDecryptBandwidth = m_decompressStats.m_tempDecryptTime == 0 ? 0 : (uint32)(m_decompressStats.m_nTempBytesDecrypted / m_decompressStats.m_tempDecryptTime.GetSeconds());
+		m_nVerifyBandwidth = m_decompressStats.m_tempVerifyTime == 0 ? 0 : (uint32)(m_decompressStats.m_nTempBytesVerified / m_decompressStats.m_tempVerifyTime.GetSeconds());
 
-		m_decompressStats.m_tempUnzipTime.SetValue(0);
+		m_decompressStats.m_tempUnzipTime.SetSeconds(0);
 		m_decompressStats.m_nTempBytesUnziped = 0;
-		m_decompressStats.m_tempDecryptTime.SetValue(0);
+		m_decompressStats.m_tempDecryptTime.SetSeconds(0);
 		m_decompressStats.m_nTempBytesDecrypted = 0;
-		m_decompressStats.m_tempVerifyTime.SetValue(0);
+		m_decompressStats.m_tempVerifyTime.SetSeconds(0);
 		m_decompressStats.m_nTempBytesVerified = 0;
 
 		m_nLastBandwidthUpdateTime = t;
 	}
-	if (m_decompressStats.m_totalUnzipTime.GetValue() != 0)
+	if (m_decompressStats.m_totalUnzipTime != 0)
 	{
 		m_nUnzipBandwidthAverage = (uint32)(m_decompressStats.m_nTotalBytesUnziped / m_decompressStats.m_totalUnzipTime.GetSeconds());
 	}
-	if (m_decompressStats.m_totalDecryptTime.GetValue() != 0)
+	if (m_decompressStats.m_totalDecryptTime != 0)
 	{
 		m_nDecryptBandwidthAverage = (uint32)(m_decompressStats.m_nTotalBytesDecrypted / m_decompressStats.m_totalDecryptTime.GetSeconds());
 	}
-	if (m_decompressStats.m_totalVerifyTime.GetValue() != 0)
+	if (m_decompressStats.m_totalVerifyTime != 0)
 	{
 		m_nVerifyBandwidthAverage = (uint32)(m_decompressStats.m_nTotalBytesVerified / m_decompressStats.m_totalVerifyTime.GetSeconds());
 	}
@@ -451,15 +454,16 @@ void CStreamEngine::Update()
 	m_Statistics.nDecryptBandwidthAverage = m_nDecryptBandwidthAverage;
 	m_Statistics.nVerifyBandwidthAverage = m_nVerifyBandwidthAverage;
 
-	CTimeValue currentTime = gEnv->pTimer->GetAsyncTime();
+	CTimeValue currentTime = GetGTimer()->GetAsyncTime();
 
+	// Float inaccuracy is fine, debug/profiling
 	CTimeValue timeSinceLastReset = currentTime - m_TimeOfLastReset;
-	float fSecSinceLastReset = timeSinceLastReset.GetSeconds();
+	float fSecSinceLastReset = (float)timeSinceLastReset.GetSeconds();
 
 	CTimeValue timeSinceLastUpdate = currentTime - m_TimeOfLastUpdate;
 
 	// update the stats every second
-	if (timeSinceLastUpdate.GetMilliSecondsAsInt64() > 1000)
+	if (timeSinceLastUpdate.GetSeconds() > 1)
 	{
 		UpdateIOThreadStats(&m_Statistics.hddInfo, &m_Statistics.memoryInfo, m_pThreadIO[eIOThread_HDD], fSecSinceLastReset);
 		UpdateIOThreadStats(&m_Statistics.discInfo, 0, m_pThreadIO[eIOThread_Optical], fSecSinceLastReset);
@@ -475,7 +479,7 @@ void CStreamEngine::Update()
 			if (info.nTotalStreamingRequestCount)
 				info.fAverageCompletionTime = info.fTotalCompletionTime / info.nTotalStreamingRequestCount;
 			else
-				info.fAverageCompletionTime = 0;
+				info.fAverageCompletionTime.SetSeconds(0);
 			info.nSessionReadBandwidth = (uint32)(info.nTotalReadBytes / fSecSinceLastReset);
 			info.nCurrentReadBandwidth = (uint32)(info.nTmpReadBytes / timeSinceLastUpdate.GetSeconds());
 
@@ -553,7 +557,7 @@ void CStreamEngine::UpdateAndWait(bool bAbortAll)
 		// we wake the io threads here to ensure they are removed correctly;
 		for (uint32 i = 0; i < (uint32)eIOThread_Last; ++i)
 			SignalToStartWork((EIOThread)i, true);
-		CrySleep(10);
+		CryLowLatencySleep("0.01");
 	}
 
 	if (bAbortAll)
@@ -837,9 +841,8 @@ void CStreamEngine::UpdateStatistics(CReadStream* pReadStream)
 		info.nTmpReadBytes += nBytesRead;
 		info.nTotalRequestDataSize += pReadStream->m_Params.nSize;
 
-		CTimeValue completionTime = gEnv->pTimer->GetAsyncTime() - pReadStream->GetRequestTime();
-		float fCompletionTime = completionTime.GetMilliSeconds();
-		info.fTotalCompletionTime += fCompletionTime;
+		CTimeValue completionTime = GetGTimer()->GetAsyncTime() - pReadStream->GetRequestTime();
+		info.fTotalCompletionTime += completionTime;
 
 		size_t splitter = name.find_last_of(".");
 		if (splitter != string::npos)
@@ -853,7 +856,7 @@ void CStreamEngine::UpdateStatistics(CReadStream* pReadStream)
 			}
 
 			SExtensionInfo& extensionInfo = findRes->second;
-			extensionInfo.m_fTotalReadTime += pReadStream->m_ReadTime.GetMilliSeconds();
+			extensionInfo.m_fTotalReadTime += pReadStream->m_ReadTime;
 			extensionInfo.m_nTotalRequests++;
 			extensionInfo.m_nTotalReadSize += nBytesRead;
 			extensionInfo.m_nTotalRequestSize += pReadStream->m_Params.nSize;
@@ -1031,9 +1034,9 @@ SStreamJobEngineState CStreamEngine::GetJobEngineState()
 }
 
 #ifdef STREAMENGINE_ENABLE_STATS
-void CStreamEngine::GetBandwidthStats(EStreamTaskType type, float* bandwidth)
+void CStreamEngine::GetBandwidthStats(EStreamTaskType type, rTime* bandwidth)
 {
-	*bandwidth = m_Statistics.typeInfo[type].nCurrentReadBandwidth / 1024.0f;
+	*bandwidth = m_Statistics.typeInfo[type].nCurrentReadBandwidth / 1024;
 }
 #endif
 
@@ -1143,7 +1146,7 @@ void CStreamEngine::DrawStatistics()
 					continue;
 				if (g_cvars.sys_streaming_debug_filter == -1 && pFileRequest->m_eMediaType == eStreamSourceTypeMemory)
 					continue;
-				if (g_cvars.sys_streaming_debug_filter_min_time && (pFileRequest->m_readTime.GetMilliSeconds() < (float)g_cvars.sys_streaming_debug_filter_min_time))
+				if (g_cvars.sys_streaming_debug_filter_min_time != 0 && (pFileRequest->m_readTime < g_cvars.sys_streaming_debug_filter_min_time))
 					continue;
 				if (sFileFilter && sFileFilter[0] && !strstr(pFileRequest->m_strFileName.c_str(), sFileFilter))
 					continue;
@@ -1201,7 +1204,7 @@ void CStreamEngine::DrawStatistics()
 		CryAutoCriticalSection lock(m_csStats);
 		tempRequests = m_statsRequestList;
 
-		size_t nMaxRequests = g_cvars.sys_streaming_debug_filter_min_time ? 1000 : 100;
+		size_t nMaxRequests = g_cvars.sys_streaming_debug_filter_min_time != 0 ? 1000 : 100;
 		if (m_statsRequestList.size() > nMaxRequests)
 			m_statsRequestList.resize(nMaxRequests);
 	}
@@ -1222,7 +1225,7 @@ void CStreamEngine::DrawStatistics()
 	const char* sStatus = (m_bStreamingStatsPaused) ? "Paused" : "";
 	DrawText(tx, ty += ystep, clText, "Streaming IO: %.2f|%.2fMB/s, ACT: %3dmsec, Unzip: %.2fMB/s, Decrypt: %.2fMB/s, Verify: %.2fMB/s, Jobs:%5d (%4d) %s %s",
 	         (float)stats.nTotalCurrentReadBandwidth / (1024 * 1024), (float)stats.nTotalSessionReadBandwidth / (1024 * 1024),
-	         (uint32)stats.fAverageCompletionTime, (float)stats.nDecompressBandwidth / (1024 * 1024), (float)stats.nDecryptBandwidth / (1024 * 1024), (float)stats.nVerifyBandwidth / (1024 * 1024),
+	         (uint32)stats.fAverageCompletionTime.GetMilliSeconds(), (float)stats.nDecompressBandwidth / (1024 * 1024), (float)stats.nDecryptBandwidth / (1024 * 1024), (float)stats.nVerifyBandwidth / (1024 * 1024),
 	         (uint32)stats.nTotalStreamingRequestCount, (uint32)(stats.nTotalRequestCount - stats.nTotalStreamingRequestCount),
 	         sMediaType, sStatus);
 
@@ -1272,7 +1275,7 @@ void CStreamEngine::DrawStatistics()
 			         gEnv->pSystem->GetStreamEngine()->GetStreamTaskTypeName(eTaskType),
 			         (uint32)(info.nTotalReadBytes / max((uint32)1, info.nTotalStreamingRequestCount) / 1024),
 			         (uint32)(info.nTotalReadBytes / (1024 * 1024)), (float)info.nCurrentReadBandwidth / (1024 * 1024),
-			         (float)info.nSessionReadBandwidth / (1024 * 1024), (uint32)info.fAverageCompletionTime,
+			         (float)info.nSessionReadBandwidth / (1024 * 1024), (uint32)info.fAverageCompletionTime.GetMilliSeconds(),
 			         openStats.nOpenRequestCountByType[eTaskType], (float)info.nPendingReadBytes / (1024 * 1024), (uint32)info.nTotalStreamingRequestCount);
 		}
 	}
@@ -1311,13 +1314,14 @@ void CStreamEngine::DrawStatistics()
 				continue;
 			if (g_cvars.sys_streaming_debug_filter == -1 && pFileRequest->m_eMediaType == eStreamSourceTypeMemory)
 				continue;
-			if (g_cvars.sys_streaming_debug_filter_min_time && (pFileRequest->m_readTime.GetMilliSeconds() < (float)g_cvars.sys_streaming_debug_filter_min_time))
+			if (g_cvars.sys_streaming_debug_filter_min_time != 0 && (pFileRequest->m_readTime < g_cvars.sys_streaming_debug_filter_min_time))
 				continue;
 			if (sFileFilter != 0 && sFileFilter[0] && !strstr(pFileRequest->m_strFileName.c_str(), sFileFilter))
 				continue;
 
 			{
-				float fMillis = pFileRequest->m_readTime.GetMilliSeconds();
+				// Float inaccuracy is fine, debug/profiling
+				float fMillis = (float)pFileRequest->m_readTime.GetMilliSeconds();
 				const char* sFlags = "";
 				switch (pFileRequest->m_eMediaType)
 				{
@@ -1392,7 +1396,7 @@ void CStreamEngine::DrawStatistics()
 #ifdef STREAMENGINE_ENABLE_STATS
 void CStreamEngine::ClearStatistics()
 {
-	m_TimeOfLastReset = gEnv->pTimer->GetAsyncTime();
+	m_TimeOfLastReset = GetGTimer()->GetAsyncTime();
 	m_TimeOfLastUpdate = m_TimeOfLastReset;
 
 	m_Statistics.hddInfo.ResetStats();
@@ -1413,7 +1417,7 @@ void CStreamEngine::ClearStatistics()
 
 	m_Statistics.nMaxTempMemory = 0;
 
-	m_Statistics.fAverageCompletionTime = 0;
+	m_Statistics.fAverageCompletionTime.SetSeconds(0);
 
 	for (int i = 0; i < eStreamTaskTypeCount; i++)
 	{

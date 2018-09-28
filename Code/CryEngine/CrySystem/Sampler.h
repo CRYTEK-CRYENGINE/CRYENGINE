@@ -62,8 +62,8 @@ public:
 	bool AddSample(uint64 ip);
 	void SetMaxSamples(int nMaxSamples);
 
-	int  GetSamplePeriod() const     { return m_samplePeriodMs; }
-	void SetSamplePeriod(int millis) { m_samplePeriodMs = millis; }
+	const CTimeValue&  GetSamplePeriod() const   { return m_samplePeriod; }
+	void SetSamplePeriod(const CTimeValue& rate) { m_samplePeriod = rate; }
 
 private:
 	void ProcessSampledData();
@@ -76,7 +76,7 @@ private:
 	bool                         m_bSampling;
 	bool                         m_bSamplingFinished;
 
-	int                          m_samplePeriodMs;
+	CTimeValue                   m_samplePeriod;
 
 	CSamplingThread*             m_pSamplingThread;
 	CSymbolDatabase*             m_pSymDB;
@@ -92,7 +92,7 @@ public:
 	void Stop()                         {}
 	void Update()                       {}
 	void SetMaxSamples(int nMaxSamples) {}
-	void SetSamplePeriod(int millis)    {}
+	void SetSamplePeriod(const CTimeValue& rate) {}
 };
 
 #endif // CRY_PLATFORM_WINDOWS

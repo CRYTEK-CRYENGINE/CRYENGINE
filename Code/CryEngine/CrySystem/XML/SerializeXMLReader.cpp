@@ -14,7 +14,7 @@
 
 CSerializeXMLReaderImpl::CSerializeXMLReaderImpl(const XmlNodeRef& nodeRef) : m_nErrors(0)
 {
-	//m_curTime = gEnv->pTimer->GetFrameStartTime();
+	//m_curTime = GetGTimer()->GetFrameStartTime();
 	assert(!!nodeRef);
 	m_nodeStack.push_back(CParseState());
 	m_nodeStack.back().Init(nodeRef);
@@ -212,21 +212,21 @@ bool CSerializeXMLReaderImpl::Value(const char* name, CTimeValue& value)
 	if (!nodeRef)
 		return false;
 	if (0 == strcmp("zero", nodeRef->getAttr(name)))
-		value = CTimeValue(0.0f);
+		value = CTimeValue(0);
 	else
 	{
-		float delta;
+		CTimeValue delta;
 		if (!GetAttr(nodeRef, name, delta))
 		{
 			//CryWarning( VALIDATOR_MODULE_SYSTEM,VALIDATOR_WARNING,"Failed to read time value %s", name);
 			//Failed();
-			value = gEnv->pTimer->GetFrameStartTime(); // in case we don't find the node, it was assumed to be the default value (0.0)
+			value = GetGTimer()->GetFrameStartTime(); // in case we don't find the node, it was assumed to be the default value (0.0)
 			// 0.0 means current time, whereas "zero" really means CTimeValue(0.0), see above
 			return false;
 		}
 		else
 		{
-			value = CTimeValue(gEnv->pTimer->GetFrameStartTime() + delta);
+			value = GetGTimer()->GetFrameStartTime() + delta;
 		}
 	}
 	return true;

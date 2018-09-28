@@ -183,7 +183,7 @@ DWORD CHTTPDownloader::DoDownload()
 			return 1;
 		}
 
-		CrySleep(5);
+		CryLowLatencySleep("0.005");
 	}
 
 	fclose(hFile);

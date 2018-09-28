@@ -23,13 +23,13 @@
 #include <CrySystem/IStreamEngine.h>
 #include <CryRenderer/IRenderAuxGeom.h>
 
-const float CVisRegTest::MaxStreamingWait = 30.0f;
+const CTimeValue CVisRegTest::MaxStreamingWait = 30;
 
 CVisRegTest::CVisRegTest()
 	: m_nextCmd(0)
 	, m_cmdFreq(0)
 	, m_waitFrames(0)
-	, m_streamingTimeout(0.0f)
+	, m_streamingTimeout(0)
 	, m_curSample(0)
 	, m_quitAfterTests(false)
 {
@@ -48,7 +48,7 @@ void CVisRegTest::Init(IConsoleCmdArgs* pParams)
 	m_nextCmd = 0;
 	m_cmdFreq = 0;
 	m_waitFrames = 0;
-	m_streamingTimeout = 0.0f;
+	m_streamingTimeout.SetSeconds(0);
 	m_testName = "test";
 	m_quitAfterTests = false;
 
@@ -74,7 +74,7 @@ void CVisRegTest::Init(IConsoleCmdArgs* pParams)
 		return;
 	}
 
-	gEnv->pTimer->SetTimeScale(0);
+	GetGTimer()->SetTimeScale(0);
 	gEnv->pSystem->GetRandomGenerator().Seed(0);
 	srand(0);
 }
@@ -165,7 +165,7 @@ void CVisRegTest::ExecCommands()
 		if (stats.nOpenRequestCount > 0 && m_streamingTimeout > 0)
 		{
 			gEnv->pConsole->ExecuteString("t_FixedStep 0");
-			m_streamingTimeout -= gEnv->pTimer->GetRealFrameTime();
+			m_streamingTimeout -= GetGTimer()->GetRealFrameTime();
 			m_waitFrames = -16;
 		}
 		else if (++m_waitFrames == 0)
@@ -194,8 +194,8 @@ void CVisRegTest::ExecCommands()
 			Finish();
 			break;
 		case eCMDOnMapLoaded:
-			gEnv->pTimer->SetTimer(ITimer::ETIMER_GAME, 0);
-			gEnv->pTimer->SetTimer(ITimer::ETIMER_UI, 0);
+			GetGTimer()->SetTimer(ITimer::ETIMER_GAME, 0);
+			GetGTimer()->SetTimer(ITimer::ETIMER_UI, 0);
 			gEnv->pConsole->ExecuteString("t_FixedStep 0.033333");
 			gEnv->pSystem->GetRandomGenerator().Seed(0);
 			srand(0);
@@ -237,8 +237,8 @@ void CVisRegTest::LoadMap(const char* mapName)
 	mapCmd.append(mapName);
 	gEnv->pConsole->ExecuteString(mapCmd.c_str());
 
-	gEnv->pTimer->SetTimer(ITimer::ETIMER_GAME, 0);
-	gEnv->pTimer->SetTimer(ITimer::ETIMER_UI, 0);
+	GetGTimer()->SetTimer(ITimer::ETIMER_GAME, 0);
+	GetGTimer()->SetTimer(ITimer::ETIMER_UI, 0);
 	gEnv->pConsole->ExecuteString("t_FixedStep 0");
 	gEnv->pSystem->GetRandomGenerator().Seed(0);
 	srand(0);
@@ -261,7 +261,7 @@ void CVisRegTest::CaptureSample(const SCmd& cmd)
 
 	// Collect stats
 	sample.imageName = cmd.args.c_str();
-	sample.frameTime += gEnv->pTimer->GetRealFrameTime() * 1000.f;
+	sample.frameTime += GetGTimer()->GetRealFrameTime();
 	sample.drawCalls += gEnv->pRenderer->GetCurrentNumberOfDrawCalls();
 
 	const RPProfilerStats* pRPPStats = gEnv->pRenderer->GetRPPStatsArray();
@@ -284,10 +284,10 @@ void CVisRegTest::CaptureSample(const SCmd& cmd)
 		gEnv->pRenderer->ScreenShot(filename);
 
 		// Average results
-		sample.frameTime /= (float)SampleCount;
+		sample.frameTime /= SampleCount;
 		sample.drawCalls /= SampleCount;
 		for (uint32 i = 0; i < MaxNumGPUTimes; ++i)
-			sample.gpuTimes[i] /= (float)SampleCount;
+			sample.gpuTimes[i] /= SampleCount;
 
 		gEnv->pConsole->ExecuteString("t_FixedStep 0.033333");
 	}
@@ -302,7 +302,7 @@ void CVisRegTest::Finish()
 	gEnv->pInput->EnableDevice(eIDT_Gamepad, true);
 
 	gEnv->pConsole->ExecuteString("t_FixedStep 0");
-	gEnv->pTimer->SetTimeScale(1);
+	GetGTimer()->SetTimeScale(1);
 
 	CryLog("VisRegTest: Finished tests");
 
@@ -332,7 +332,7 @@ bool CVisRegTest::WriteResults()
 		fprintf(f, "\t\t<phase name=\"%i\" duration=\"1\" image=\"%s\">\n", i, sample.imageName);
 
 		fprintf(f, "\t\t\t<metrics name=\"general\">\n");
-		fprintf(f, "\t\t\t\t<metric name=\"frameTime\" value=\"%f\" />\n", sample.frameTime);
+		fprintf(f, "\t\t\t\t<metric name=\"frameTime\" value=\"%f\" />\n", (float)sample.frameTime.GetMilliSeconds());
 		fprintf(f, "\t\t\t\t<metric name=\"drawCalls\" value=\"%u\" />\n", sample.drawCalls);
 		fprintf(f, "\t\t\t</metrics>\n");
 

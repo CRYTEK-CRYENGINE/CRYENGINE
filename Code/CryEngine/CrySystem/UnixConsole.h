@@ -28,14 +28,14 @@ public:
 	~CSyslogStats();
 
 	void Init();
-	void Update(float srvRate, int numPlayers, INetNub::SStatistics& netNubStats);
+	void Update(const rTime& srvRate, int numPlayers, INetNub::SStatistics& netNubStats);
 
 private:
 	int              m_syslog_stats;
-	int              m_syslog_period;
+	CTimeValue       m_syslog_period;
 	CTimeValue       m_syslogStartTime;
 	CTimeValue       m_syslogCurrTime;
-	static const int SYSLOG_DEFAULT_PERIOD = 3000; // default timeout (sec)
+	static const CTimeValue SYSLOG_DEFAULT_PERIOD; // default timeout
 };
 
 	#if defined(USE_UNIXCONSOLE)

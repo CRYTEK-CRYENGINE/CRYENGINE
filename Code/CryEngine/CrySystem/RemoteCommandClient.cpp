@@ -360,7 +360,7 @@ bool CRemoteCommandClient::Connection::Update()
 		// Calculate the cutoff time for sending (all commands that were not send before this time will be sent again)
 		// This assumes that the last sent time for new commands is 0 (so they will always got sent the first time)
 		// This situation can only happen due to the network failure since RemoteCommand layer does not require the commands to be resent.
-		const uint64 currentTime = gEnv->pTimer->GetAsyncTime().GetMilliSecondsAsInt64();
+		const uint64 currentTime = (uint64)GetGTimer()->GetAsyncTime().GetMilliSeconds();
 		const uint64 cutoffTime = currentTime - kCommandResendTime;
 
 		std::vector<CommandRef*> commandsInPacket;   // temp array
@@ -521,7 +521,7 @@ void CRemoteCommandClient::Connection::Close(bool bFlushQueueBeforeClosing /*= f
 
 			// Send all the messages from the send queue before closing this connection.
 			// This does not block current thread.
-			m_pConnection->FlushAndClose(IServiceNetworkConnection::kDefaultFlushTime);
+			m_pConnection->FlushAndClose();
 		}
 		else
 		{

@@ -45,7 +45,6 @@ public:
 };
 
 //-----------------------------------------------------------------------------
-
 // General network TCP/IP connection
 class CServiceNetworkConnection : public IServiceNetworkConnection
 {
@@ -55,20 +54,20 @@ public:
 	// maximum size of a single message (0.5MB by default)
 	static const uint32 kMaximumMessageSize = 5 << 19;
 
-	// initialization message send period (ms)
-	static const uint64 kInitializationPerior = 1000;
+	// initialization message send period
+	static const CTimeValue kInitializationPeriod;
 
-	// keep alive period (ms), by default every 2s
-	static const uint64 kKeepAlivePeriod = 2000;
+	// keep alive period, by default every 2s
+	static const CTimeValue kKeepAlivePeriod;
 
-	// reconnection retries period (ms)
-	static const uint64 kReconnectTryPerior = 1000;
+	// reconnection retries period
+	static const CTimeValue kReconnectTryPeriod;
 
 	// timeout for assuming server side connection dead (reconnection timeout)
-	static const uint64 hReconnectTimeOut = 30 * 1000;
+	static const CTimeValue hReconnectTimeOut;
 
-	// communication time out (ms)
-	static const uint64 kTimeout = 5000;
+	// communication time out
+	static const CTimeValue kTimeout;
 
 	// Type of endpoint
 	enum EEndpoint
@@ -160,10 +159,10 @@ private:
 	CryGUID m_connectionID;
 
 	// Internal time counters
-	uint64 m_lastReconnectTime;
-	uint64 m_lastKeepAliveSendTime;
-	uint64 m_lastMessageReceivedTime;
-	uint64 m_lastInitializationSendTime;
+	CTimeValue m_lastReconnectTime;
+	CTimeValue m_lastKeepAliveSendTime;
+	CTimeValue m_lastMessageReceivedTime;
+	CTimeValue m_lastInitializationSendTime;
 	uint32 m_reconnectTryCount;
 
 	// Statistics (updated from threads using CryIntelocked* functions)
@@ -234,7 +233,7 @@ public:
 	virtual uint64                       GetMessageReceivedDataSize() const;
 	virtual bool                         SendMsg(IServiceNetworkMessage* message);
 	virtual IServiceNetworkMessage*      ReceiveMsg();
-	virtual void                         FlushAndClose(const uint32 timeout);
+	virtual void                         FlushAndClose(const CTimeValue& timeout);
 	virtual void                         FlushAndWait();
 	virtual void                         Close();
 	virtual void                         AddRef();
@@ -250,8 +249,8 @@ private:
 
 	// Keep alive message handling
 	void ProcessKeepAlive();
-	void SendKeepAlive(const uint64 currentNetworkTime);
-	bool HandleTimeout(const uint64 currentNetworkTime);
+	void SendKeepAlive(const CTimeValue& currentNetworkTime);
+	bool HandleTimeout(const CTimeValue& currentNetworkTime);
 
 	// Handle the reconnection request
 	bool HandleReconnect(CRYSOCKET socket, const uint32 tryCount);
@@ -364,7 +363,7 @@ protected:
 		CServiceNetworkConnection* pConnection;
 
 		// timeout for forded close
-		uint64 maxWaitTime;
+		CTimeValue maxWaitTime;
 	};
 
 protected:
@@ -383,8 +382,8 @@ protected:
 	// We are running on threads, needed to sync the access to arrays
 	CryMutex m_accessMutex;
 
-	// Current network time (ms)
-	uint64 m_networkTime;
+	// Current network time
+	CTimeValue m_networkTime;
 
 	// Exit was requested
 	bool m_bExitRequested;
@@ -403,7 +402,7 @@ protected:
 	ICVar* m_pSendDataQueueLimit;
 
 public:
-	ILINE const uint64 GetNetworkTime() const
+	ILINE const CTimeValue& GetNetworkTime() const
 	{
 		return m_networkTime;
 	}
@@ -444,7 +443,7 @@ public:
 	void RegisterConnection(CServiceNetworkConnection& con);
 
 	// Register connection for closing one all of the outgoing messages are sent
-	void RegisterForDeferredClose(CServiceNetworkConnection& con, const uint32 timeout);
+	void RegisterForDeferredClose(CServiceNetworkConnection& con, const CTimeValue& timeout);
 
 	// Debug print
 #ifdef RELEASE

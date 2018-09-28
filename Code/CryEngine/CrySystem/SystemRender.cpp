@@ -381,8 +381,8 @@ void CSystem::RenderPhysicsStatistics(IPhysicalWorld* pWorld)
 				pInfos[i].nTicksPeak += pInfos[i].nTicksLast - pInfos[i].nTicksPeak & mask;
 				pInfos[i].nCallsPeak += pInfos[i].nCallsLast - pInfos[i].nCallsPeak & mask;
 				cry_sprintf(msgbuf, "%.2fms/%.1f (peak %.2fms/%d) %s (id %d)",
-				  dt = gEnv->pTimer->TicksToSeconds(pInfos[i].nTicksAvg) * 1000.0f, pInfos[i].nCallsAvg,
-				  gEnv->pTimer->TicksToSeconds(pInfos[i].nTicksPeak) * 1000.0f, pInfos[i].nCallsPeak,
+				  dt = (float)GetGTimer()->TicksToTime(pInfos[i].nTicksAvg).GetMilliSeconds(), pInfos[i].nCallsAvg,
+				  (float)GetGTimer()->TicksToTime(pInfos[i].nTicksPeak).GetMilliSeconds(), pInfos[i].nCallsPeak,
 				  pInfos[i].pName ? pInfos[i].pName : "", pInfos[i].id);
 				IRenderAuxText::Draw2dLabel(renderMarginX, renderMarginY + i * lineSize, fontSize, fColor, false, "%s", msgbuf);
 				if (pTMC) pTMC->PutText(0, i, msgbuf);
@@ -421,8 +421,8 @@ void CSystem::RenderPhysicsStatistics(IPhysicalWorld* pWorld)
 				pInfos[j].nTicksPeak += pInfos[j].nTicks - pInfos[j].nTicksPeak & mask;
 				pInfos[j].nCallsPeak += pInfos[j].nCalls - pInfos[j].nCallsPeak & mask;
 				IRenderAuxText::Draw2dLabel(renderMarginX, renderMarginY + i * lineSize, fontSize, fColor, false,
-				  "%s %.2fms/%d (peak %.2fms/%d)", pInfos[j].pName, gEnv->pTimer->TicksToSeconds(pInfos[j].nTicks) * 1000.0f, pInfos[j].nCalls,
-				  gEnv->pTimer->TicksToSeconds(pInfos[j].nTicksPeak) * 1000.0f, pInfos[j].nCallsPeak);
+				  "%s %.2fms/%d (peak %.2fms/%d)", pInfos[j].pName, (float)GetGTimer()->TicksToTime(pInfos[j].nTicks).GetMilliSeconds(), pInfos[j].nCalls,
+				  (float)GetGTimer()->TicksToTime(pInfos[j].nTicksPeak).GetMilliSeconds(), pInfos[j].nCallsPeak);
 				pInfos[j].peakAge = pInfos[j].peakAge + 1 & ~mask;
 				pInfos[j].nCalls  = pInfos[j].nTicks = 0;
 			}
@@ -441,13 +441,15 @@ void CSystem::RenderPhysicsStatistics(IPhysicalWorld* pWorld)
 				mask                 |= (70 - pInfos[j].peakAge) >> 31;
 				pInfos[j].nTicksPeak += pInfos[j].nTicksLast - pInfos[j].nTicksPeak & mask;
 				pInfos[j].nCallsPeak += pInfos[j].nCallsLast - pInfos[j].nCallsPeak & mask;
-				float time     = gEnv->pTimer->TicksToSeconds(pInfos[j].nTicksAvg) * 1000.0f;
-				float timeNorm = time * (1.0f / 32);
+				pInfos[j].peakAge = pInfos[j].peakAge + 1 & ~mask;
+
+				CTimeValue time = GetGTimer()->TicksToTime(pInfos[j].nTicksAvg);
+				float timeNorm  = (float)time.GetMilliSeconds() * (1.0f / 32);
 				fColor[1] = fColor[2] = 1.0f - (max(0.7f, min(1.0f, timeNorm)) - 0.7f) * (1.0f / 0.3f);
 				IRenderAuxText::Draw2dLabel(renderMarginX, renderMarginY + i * lineSize, fontSize, fColor, false,
-				  "%s %.2fms/%d (peak %.2fms/%d)", pInfos[j].pName, time, pInfos[j].nCallsLast,
-				  gEnv->pTimer->TicksToSeconds(pInfos[j].nTicksPeak) * 1000.0f, pInfos[j].nCallsPeak);
-				pInfos[j].peakAge = pInfos[j].peakAge + 1 & ~mask;
+				  "%s %.2fms/%d (peak %.2fms/%d)", pInfos[j].pName, (float)time.GetMilliSeconds(), pInfos[j].nCallsLast,
+				  (float)GetGTimer()->TicksToTime(pInfos[j].nTicksPeak).GetMilliSeconds(), pInfos[j].nCallsPeak);
+
 				if (j == nGroups - 3) ++i;
 			}
 		}
@@ -546,14 +548,13 @@ void CSystem::UpdateLoadingScreen()
 
 	// Take this opportunity to update streaming engine.
 	static CTimeValue t0;
-	CTimeValue t    = gEnv->pTimer->GetAsyncTime();
-	float timeDelta = fabs((t - t0).GetSeconds());
+	CTimeValue t    = GetGTimer()->GetAsyncTime();
 
 #if CRY_PLATFORM_DURANGO
 	//XBOX ONE TCR - XR-004-01: 'The title should return from its suspending handler within one second'
-	static float s_updateFrequencyInSeconds = 0.5f;
+	static CTimeValue s_updateFrequency("0.5");
 #else
-	static float s_updateFrequencyInSeconds = 1.0f;   // Update screen not frequent,not more than once in 1 second
+	static CTimeValue s_updateFrequency(1);   // Update screen not frequent,not more than once in 1 second
 #endif
 
 	if (m_env.pConsole)
@@ -561,19 +562,19 @@ void CSystem::UpdateLoadingScreen()
 		static ICVar* con_showonload = m_env.pConsole->GetCVar("con_showonload");
 		if (con_showonload && con_showonload->GetIVal() != 0)
 		{
-			s_updateFrequencyInSeconds = 0.01f;           // Much more frequent when console is visible on load
+			s_updateFrequency.SetSeconds("0.01");   // Much more frequent when console is visible on load
 		}
 	}
 
-	if (timeDelta < s_updateFrequencyInSeconds)   // Update screen not frequently
+	if (abs((t - t0)) < s_updateFrequency)			// Update screen at s_updateFrequency or slower.
 	{
 		return;
 	}
 #if defined(CHECK_UPDATE_TIMES)
 #if CRY_PLATFORM_DURANGO
-	else if (timeDelta > 1.0f)
+	else if (timeDelta.GetSeconds() > 1)
 	{
-		CryWarning(VALIDATOR_MODULE_SYSTEM, VALIDATOR_WARNING, "CSystem::UpdateLoadingScreen %f seconds since last tick: this is a long delay and a serious risk for failing XBOX ONE TCR - XR-004-01 \n", timeDelta);
+		CryWarning(VALIDATOR_MODULE_SYSTEM, VALIDATOR_WARNING, "CSystem::UpdateLoadingScreen %f seconds since last tick: this is a long delay and a serious risk for failing XBOX ONE TCR - XR-004-01 \n", timeDelta.GetSeconds());
 	}
 #endif
 #endif
@@ -604,7 +605,7 @@ void CSystem::UpdateLoadingScreen()
 //////////////////////////////////////////////////////////////////////////
 
 void CSystem::DisplayErrorMessage(const char* acMessage,
-  float                                       fTime,
+  const CTimeValue&                           fTime,
   const float*                                pfColor,
   bool                                        bHardError)
 {
@@ -787,7 +788,7 @@ void CSystem::RenderStats()
 	float fTextPosY  = -10;
 	float fTextStepY = 13;
 
-	float fFrameTime = gEnv->pTimer->GetRealFrameTime();
+	CTimeValue fFrameTime = GetGTimer()->GetRealFrameTime();
 	TErrorMessages::iterator itnext;
 	for (TErrorMessages::iterator it = m_ErrorMessages.begin(); it != m_ErrorMessages.end(); it = itnext)
 	{
@@ -802,7 +803,7 @@ void CSystem::RenderStats()
 		if (message.m_HardFailure)
 			m_bHasRenderedErrorMessage = true;
 
-		if (message.m_fTimeToShow < 0.0f)
+		if (message.m_fTimeToShow < 0)
 		{
 			m_ErrorMessages.erase(it);
 		}

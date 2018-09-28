@@ -163,7 +163,11 @@ private:
 	void DefaultValue(Ang3& v) const               { v.x = 0; v.y = 0; v.z = 0; }
 	void DefaultValue(Quat& v) const               { v.w = 1.0f; v.v.x = 0; v.v.y = 0; v.v.z = 0; }
 	void DefaultValue(ScriptAnyValue& v) const     {}
-	void DefaultValue(CTimeValue& v) const         { v.SetValue(0); }
+
+	// PERSONAL NOTE: This matches SerializeReaderXMLCPBin.....
+	MPOnly void DefaultValue(T& v) const			  { v = 0; }
+	TVOnly void DefaultValue(T& v) const			  { v.SetSeconds(0); }
+
 	//void DefaultValue( char *str ) const { if (str) str[0] = 0; }
 	void DefaultValue(string& str) const           { str = ""; }
 	void DefaultValue(const string& str) const     {}

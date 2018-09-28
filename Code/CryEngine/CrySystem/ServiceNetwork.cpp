@@ -63,6 +63,11 @@ inline void TranslateAddress(const CRYSOCKADDR_IN& addr, ServiceNetworkAddress& 
 }
 
 //-----------------------------------------------------------------------------
+const CTimeValue CServiceNetworkConnection::kInitializationPeriod = 1;
+const CTimeValue CServiceNetworkConnection::kKeepAlivePeriod = 2;
+const CTimeValue CServiceNetworkConnection::kReconnectTryPeriod = 1;
+const CTimeValue CServiceNetworkConnection::hReconnectTimeOut = 30;
+const CTimeValue CServiceNetworkConnection::kTimeout = 5;
 
 CServiceNetworkMessage::CServiceNetworkMessage(const uint32 id, const uint32 size)
 	: m_refCount(1)
@@ -176,7 +181,7 @@ CServiceNetworkConnection::CServiceNetworkConnection(
 	m_statsNumPacketsReceived = 0;
 
 	// reset timers to values at the creation time
-	const uint64 currentNetworkTime = m_pManager->GetNetworkTime();
+	const CTimeValue currentNetworkTime = m_pManager->GetNetworkTime();
 	m_lastReconnectTime = currentNetworkTime;
 	m_lastMessageReceivedTime = currentNetworkTime;
 	m_lastInitializationSendTime = currentNetworkTime;
@@ -232,7 +237,7 @@ void CServiceNetworkConnection::Close()
 	m_bDisableCommunication = true;
 }
 
-void CServiceNetworkConnection::FlushAndClose(const uint32 timeout)
+void CServiceNetworkConnection::FlushAndClose(const CTimeValue& timeout)
 {
 	if (!m_bDisableCommunication)
 	{
@@ -266,7 +271,7 @@ void CServiceNetworkConnection::FlushAndWait()
 	// Wait for the connection to be empty
 	while (IsAlive() && !m_pSendQueue.empty())
 	{
-		CrySleep(1);
+		CryLowLatencySleep("0.001");
 	}
 
 	// Resume communication layer
@@ -364,7 +369,7 @@ void CServiceNetworkConnection::Shutdown()
 
 void CServiceNetworkConnection::Update()
 {
-	const uint64 currentNetworkTime = m_pManager->GetNetworkTime();
+	const CTimeValue currentNetworkTime = m_pManager->GetNetworkTime();
 
 	// We requested to close the socket
 	if (m_bCloseRequested)
@@ -396,7 +401,7 @@ void CServiceNetworkConnection::Update()
 				if (HandleTimeout(currentNetworkTime))
 				{
 					// do not send to often
-					if ((currentNetworkTime - m_lastInitializationSendTime) > kInitializationPerior)
+					if ((currentNetworkTime - m_lastInitializationSendTime) > kInitializationPeriod)
 					{
 						// send the initialization message
 						if (TryInitialize())
@@ -424,7 +429,7 @@ void CServiceNetworkConnection::Update()
 			if (m_endpointType == eEndpoint_Client)
 			{
 				// do not try to reconnect to often (floods the network)
-				if ((currentNetworkTime - m_lastReconnectTime) > kReconnectTryPerior)
+				if ((currentNetworkTime - m_lastReconnectTime) > kReconnectTryPeriod)
 				{
 					// reset timer
 					m_lastReconnectTime = currentNetworkTime;
@@ -490,7 +495,7 @@ void CServiceNetworkConnection::Update()
 	}
 }
 
-bool CServiceNetworkConnection::HandleTimeout(const uint64 currentNetworkTime)
+bool CServiceNetworkConnection::HandleTimeout(const CTimeValue& currentNetworkTime)
 {
 	// Connections never time out when there is a debugger attached
 #if CRY_PLATFORM_WINDOWS
@@ -502,7 +507,7 @@ bool CServiceNetworkConnection::HandleTimeout(const uint64 currentNetworkTime)
 #endif
 
 	// Connection time out when there is a long time without any activity from server side (no keep alive or other messages)
-	const uint64 timeSinceLastMessage = currentNetworkTime - m_lastMessageReceivedTime;
+	const CTimeValue timeSinceLastMessage = currentNetworkTime - m_lastMessageReceivedTime;
 	if (timeSinceLastMessage > kTimeout)
 	{
 		// Connection has timed out
@@ -633,7 +638,7 @@ bool CServiceNetworkConnection::TryReconnect()
 	return false;
 }
 
-void CServiceNetworkConnection::SendKeepAlive(const uint64 currentNetworkTime)
+void CServiceNetworkConnection::SendKeepAlive(const CTimeValue& currentNetworkTime)
 {
 	// Keep alive message is just ONE byte (makes it easier)
 	uint8 message = eCommand_KeepAlive;
@@ -724,7 +729,7 @@ void CServiceNetworkConnection::ProcessSendingQueue()
 
 void CServiceNetworkConnection::ProcessKeepAlive()
 {
-	const uint64 currentNetworkTime = m_pManager->GetNetworkTime();
+	const CTimeValue currentNetworkTime = m_pManager->GetNetworkTime();
 	if ((currentNetworkTime - m_lastKeepAliveSendTime) > kKeepAlivePeriod)
 	{
 		// Well, if we are in the middle of something make sure we do not interrupt it with KeepAlive
@@ -1553,7 +1558,7 @@ CServiceNetwork::CServiceNetwork()
 	m_pSendDataQueueLimit = REGISTER_INT("net_sendQueueSize", 5 << 20, VF_DEV_ONLY, "");
 
 	// Reinitialize the random number generator with independent seed value
-	m_guidGenerator.Seed((uint32)GetNetworkTime());
+	m_guidGenerator.Seed((uint32)GetNetworkTime().GetMilliSeconds());
 
 	// Start thread
 	if (!gEnv->pThreadManager->SpawnThread(this, "ServiceNetwork"))
@@ -1640,7 +1645,7 @@ void CServiceNetwork::ThreadEntry()
 		}
 
 		// Update network time
-		m_networkTime = gEnv->pTimer->GetAsyncTime().GetMilliSecondsAsInt64();
+		m_networkTime = GetGTimer()->GetAsyncTime();
 
 		// Process the listeners (accepts and pending connections)
 		for (TListenerArray::const_iterator it = updatingListeners.begin();
@@ -1670,7 +1675,7 @@ void CServiceNetwork::ThreadEntry()
 			const ConnectionToClose& info = *it;
 
 			bool bTimeout = false;
-			if (info.maxWaitTime && m_networkTime > info.maxWaitTime)
+			if (info.maxWaitTime != 0 && m_networkTime > info.maxWaitTime)
 			{
 				bTimeout = true;
 			}
@@ -1720,7 +1725,7 @@ void CServiceNetwork::ThreadEntry()
 
 		// Internal delay
 		// TODO: this is guess work right now
-		CrySleep(5);
+		CryLowLatencySleep("0.005", false);
 	}
 }
 
@@ -1951,7 +1956,7 @@ void CServiceNetwork::RegisterConnection(CServiceNetworkConnection& con)
 	}
 }
 
-void CServiceNetwork::RegisterForDeferredClose(CServiceNetworkConnection& con, const uint32 timeout)
+void CServiceNetwork::RegisterForDeferredClose(CServiceNetworkConnection& con, const CTimeValue& timeout)
 {
 	CryAutoLock<CryMutex> lock(m_accessMutex);
 

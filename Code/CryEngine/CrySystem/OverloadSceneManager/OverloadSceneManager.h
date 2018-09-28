@@ -36,12 +36,12 @@ struct SScenePerformanceStats
 
 	void Reset()
 	{
-		frameRate = 0.0f;
-		gpuFrameRate = 0.0f;
+		frameRate = 0;
+		gpuFrameRate = 0;
 	}
 
-	float frameRate;
-	float gpuFrameRate;
+	rTime frameRate;
+	rTime gpuFrameRate;
 };//------------------------------------------------------------------------------------------------
 
 //==================================================================================================
@@ -64,8 +64,8 @@ public:
 
 	virtual void Update();
 
-	virtual void OverrideScale(float frameScale, float dt);
-	virtual void ResetScale(float dt);
+	virtual void OverrideScale(const mpfloat& frameScale, const CTimeValue& dt);
+	virtual void ResetScale(const CTimeValue& dt);
 
 private:
 
@@ -75,7 +75,7 @@ private:
 	void  CalculateSmoothedStats();
 	void  ResizeFB();
 
-	float CalcFBScale();       // performs all lerping and returns final framebuffer scale
+	mpfloat CalcFBScale();       // performs all lerping and returns final framebuffer scale
 
 #if DEBUG_OVERLOAD_SCENE_MANAGER
 	void DebugDrawDisplay();
@@ -89,17 +89,17 @@ private:
 	// cvars
 	int                    osm_enabled;
 	int                    osm_historyLength;
-	float                  osm_targetFPS;
-	float                  osm_targetFPSTolerance;
-	float                  osm_fbScaleDeltaUp, osm_fbScaleDeltaDown;
-	float                  osm_fbMinScale;
+	rTime						  osm_targetFPS;
+	rTime						  osm_targetFPSTolerance;
+	mpfloat                osm_fbScaleDeltaUp, osm_fbScaleDeltaDown;
+	mpfloat                osm_fbMinScale;
 
 	SScenePerformanceStats m_smoothedSceneStats;
 	SScenePerformanceStats m_sceneStats[SCENE_PERFORMANCE_FRAME_HISTORY];
 	int                    m_currentFrameStat;
 
 	// current output scale, set to the renderer
-	float m_fbScale;
+	mpfloat m_fbScale;
 
 	// Lerping behaviour is to lerp from autoscale to (lerp between cur/dest override)
 	//
@@ -112,13 +112,13 @@ private:
 	//                                        m_fbOverrideDestScale
 
 	// framebuffer scales to support lerping & overriding of calculated scale
-	float m_fbAutoScale, m_fbOverrideCurScale, m_fbOverrideDestScale;
+	mpfloat m_fbAutoScale, m_fbOverrideCurScale, m_fbOverrideDestScale;
 
 	struct ScaleLerp
 	{
 		bool  m_reversed;     // Normally lerp is 0 -> 1. If reversed it's 1 -> 0
-		float m_start;        // time in seconds
-		float m_length;       // time in seconds
+		CTimeValue m_start;
+		CTimeValue m_length;
 	};
 
 	// lerpAuto is the lerp between auto scale and whatever override is.

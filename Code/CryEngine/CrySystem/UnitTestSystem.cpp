@@ -30,11 +30,11 @@ jmp_buf* GetAssertJmpBuf()
 
 struct SAutoTestsContext
 {
-	float               fStartTime     = 0;
-	float               fCurrTime      = 0;
+	CTimeValue          fStartTime     = 0;
+	CTimeValue          fCurrTime      = 0;
 	string              sSuiteName;    
 	string              sTestName;     
-	int                 waitAfterMSec  = 0;
+	CTimeValue          waitAfter      = 0;
 	int                 iter           = -1;
 	int                 runCount       = 1;
 	SUnitTestRunContext context;
@@ -104,11 +104,11 @@ void CUnitTestManager::RunAutoTests(const char* szSuiteName, const char* szTestN
 {
 	// prepare auto tests context
 	// tests actually will be called during Update call
-	m_pAutoTestsContext->fStartTime = gEnv->pTimer->GetFrameStartTime().GetMilliSeconds();
-	m_pAutoTestsContext->fCurrTime = m_pAutoTestsContext->fStartTime;
+	m_pAutoTestsContext->fStartTime = GetGTimer()->GetFrameStartTime();
+	m_pAutoTestsContext->fCurrTime  = m_pAutoTestsContext->fStartTime;
 	m_pAutoTestsContext->sSuiteName = szSuiteName;
-	m_pAutoTestsContext->sTestName = szTestName;
-	m_pAutoTestsContext->waitAfterMSec = 0;
+	m_pAutoTestsContext->sTestName  = szTestName;
+	m_pAutoTestsContext->waitAfter.SetSeconds(0);
 	m_pAutoTestsContext->iter = 0;
 
 	// Note this requires cvar "ats_loop" be defined to work.
@@ -121,9 +121,9 @@ void CUnitTestManager::Update()
 {
 	if (m_pAutoTestsContext->iter != -1)
 	{
-		m_pAutoTestsContext->fCurrTime = gEnv->pTimer->GetFrameStartTime().GetMilliSeconds();
+		m_pAutoTestsContext->fCurrTime = GetGTimer()->GetFrameStartTime();
 
-		if ((m_pAutoTestsContext->fCurrTime - m_pAutoTestsContext->fStartTime) > m_pAutoTestsContext->waitAfterMSec)
+		if ((m_pAutoTestsContext->fCurrTime - m_pAutoTestsContext->fStartTime) > m_pAutoTestsContext->waitAfter)
 		{
 			bool wasFound = false;
 
@@ -134,7 +134,7 @@ void CUnitTestManager::Update()
 					RunTest(*m_tests[i], m_pAutoTestsContext->context);
 
 					const SAutoTestInfo& info = m_tests[i]->GetAutoTestInfo();
-					m_pAutoTestsContext->waitAfterMSec = info.waitMSec;
+					m_pAutoTestsContext->waitAfter = info.wait;
 					m_pAutoTestsContext->iter = i;
 
 					if (info.runNextTest)
@@ -159,12 +159,12 @@ void CUnitTestManager::Update()
 				}
 				else
 				{
-					m_pAutoTestsContext->waitAfterMSec = 0;
+					m_pAutoTestsContext->waitAfter.SetSeconds(0);
 					m_pAutoTestsContext->iter = 0;
 				}
 			}
-			m_pAutoTestsContext->fStartTime = gEnv->pTimer->GetFrameStartTime().GetMilliSeconds();
-			m_pAutoTestsContext->fCurrTime = m_pAutoTestsContext->fStartTime;
+			m_pAutoTestsContext->fStartTime = GetGTimer()->GetFrameStartTime();
+			m_pAutoTestsContext->fCurrTime  = m_pAutoTestsContext->fStartTime;
 		}
 	}
 }
@@ -211,7 +211,7 @@ void CUnitTestManager::RunTest(CUnitTest& test, SUnitTestRunContext& context)
 	context.pReporter->OnSingleTestStart(test);
 	context.testCount++;
 
-	CTimeValue t0 = gEnv->pTimer->GetAsyncTime();
+	CTimeValue t0 = GetGTimer()->GetAsyncTime();
 
 #if defined(CRY_UNIT_TESTING)
 	m_bRunningTest = true;
@@ -262,11 +262,11 @@ void CUnitTestManager::RunTest(CUnitTest& test, SUnitTestRunContext& context)
 
 	m_bRunningTest = false;
 #endif
-	CTimeValue t1 = gEnv->pTimer->GetAsyncTime();
+	CTimeValue t1 = GetGTimer()->GetAsyncTime();
 
-	float fRunTimeInMs = (t1 - t0).GetMilliSeconds();
+	CTimeValue fRunTime = t1 - t0;
 
-	context.pReporter->OnSingleTestFinish(test, fRunTimeInMs, !bFail, m_failureMsg.c_str());
+	context.pReporter->OnSingleTestFinish(test, fRunTime, !bFail, m_failureMsg.c_str());
 
 	test.Done();
 }
@@ -353,11 +353,11 @@ void CryUnitTest::CLogUnitTestReporter::OnSingleTestStart(const IUnitTest& test)
 	m_log.Log("UnitTestStart:  [%s]%s:%s", info.GetModule(), info.GetSuite(), info.GetName());
 }
 
-void CryUnitTest::CLogUnitTestReporter::OnSingleTestFinish(const IUnitTest& test, float fRunTimeInMs, bool bSuccess, char const* szFailureDescription)
+void CryUnitTest::CLogUnitTestReporter::OnSingleTestFinish(const IUnitTest& test, const CTimeValue& fRunTime, bool bSuccess, char const* szFailureDescription)
 {
 	auto& info = test.GetInfo();
 	if (bSuccess)
-		m_log.Log("UnitTestFinish: [%s]%s:%s | OK (%3.2fms)", info.GetModule(), info.GetSuite(), info.GetName(), fRunTimeInMs);
+		m_log.Log("UnitTestFinish: [%s]%s:%s | OK (%3.2fms)", info.GetModule(), info.GetSuite(), info.GetName(), (float)fRunTime.GetMilliSeconds());
 	else
 		m_log.Log("UnitTestFinish: [%s]%s:%s | FAIL (%s)", info.GetModule(), info.GetSuite(), info.GetName(), szFailureDescription);
 }
@@ -369,7 +369,7 @@ void CryUnitTest::CMinimalLogUnitTestReporter::OnStartTesting(const SUnitTestRun
 	m_nRunTests = 0;
 	m_nSucceededTests = 0;
 	m_nFailedTests = 0;
-	m_fTimeTaken = 0.f;
+	m_fTimeTaken.SetSeconds(0);
 }
 
 void CryUnitTest::CMinimalLogUnitTestReporter::OnFinishTesting(const SUnitTestRunContext& context)
@@ -377,14 +377,14 @@ void CryUnitTest::CMinimalLogUnitTestReporter::OnFinishTesting(const SUnitTestRu
 	m_log.Log("UnitTesting Finished Tests: %d Succeeded: %d, Failed: %d, Time: %5.2f ms", m_nRunTests, m_nSucceededTests, m_nFailedTests, m_fTimeTaken);
 }
 
-void CryUnitTest::CMinimalLogUnitTestReporter::OnSingleTestFinish(const IUnitTest& test, float fRunTimeInMs, bool bSuccess, char const* szFailureDescription)
+void CryUnitTest::CMinimalLogUnitTestReporter::OnSingleTestFinish(const IUnitTest& test, const CTimeValue& fRunTime, bool bSuccess, char const* szFailureDescription)
 {
 	++m_nRunTests;
 	if (bSuccess)
 		++m_nSucceededTests;
 	else
 		++m_nFailedTests;
-	m_fTimeTaken += fRunTimeInMs;
+	m_fTimeTaken += fRunTime;
 
 	if (!bSuccess)
 	{

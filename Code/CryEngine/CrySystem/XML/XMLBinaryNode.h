@@ -184,6 +184,16 @@ public:
 	bool getAttr(const char* key, Quat& value) const;
 	bool getAttr(const char* key, ColorB& value) const;
 	bool getAttr(const char* key, CryGUID& value) const;
+
+	bool getAttr(const char* key, CTimeValue& value) const;
+	void setAttr(const char* key, const CTimeValue& value) { assert(0); };
+
+	#define MP_FUNCTION(T)\
+	bool getAttr(const char* key, T& value) const;\
+	void setAttr(const char* key, const T& value) { assert(0); };
+	#include <CrySystem\mpfloat.types>
+	#undef MP_FUNCTION
+
 	//	bool getAttr( const char *key,CString &value ) const { XmlString v; if (getAttr(key,v)) { value = (const char*)v; return true; } else return false; }
 
 private:

@@ -20,7 +20,7 @@
 
 /*static*/ void CManualFrameStepController::SCVars::Register()
 {
-	REGISTER_CVAR2("g_manualFrameStepFrequency", &manualFrameStepFrequency, 60.0f, VF_NET_SYNCED, "Manually step through frames with a fixed time step");
+	REGISTER_CVAR2("g_manualFrameStepFrequency", &manualFrameStepFrequency, mpfloat(60), VF_NET_SYNCED, "Manually step through frames with a fixed time step");
 }
 
 /*static*/ void CManualFrameStepController::SCVars::Unregister()
@@ -31,7 +31,7 @@
 	}
 }
 
-float CManualFrameStepController::SCVars::manualFrameStepFrequency = 0.0f;
+mpfloat CManualFrameStepController::SCVars::manualFrameStepFrequency = 0;
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -40,8 +40,8 @@ CManualFrameStepController::CManualFrameStepController()
 	, m_framesGenerated(0)
 	, m_pendingRequest(false)
 	, m_previousStepSmoothing(true)
-	, m_previousFixedStep(0.0f)
-	, m_heldTimer(-1.0f)
+	, m_previousFixedStep(0)
+	, m_heldTimer(-1)
 {
 	if (gEnv->pInput)
 	{
@@ -141,8 +141,8 @@ void CManualFrameStepController::Enable(const bool enable)
 	{
 		if (enable)
 		{
-			m_previousFixedStep = pFixedStep->GetFVal();
-			pFixedStep->Set(1.0f / SCVars::manualFrameStepFrequency);
+			m_previousFixedStep = pFixedStep->GetTime();
+			pFixedStep->Set(CTimeValue(1) / SCVars::manualFrameStepFrequency);
 		}
 		else
 		{
@@ -256,10 +256,10 @@ void CManualFrameStepController::NetRequestStepToServer(const SNetMessage& netMe
 
 bool CManualFrameStepController::OnInputEvent(const SInputEvent& inputEvent)
 {
-	if ((SCVars::manualFrameStepFrequency < FLT_EPSILON) || (eIDT_Keyboard != inputEvent.deviceType))
+	if ((SCVars::manualFrameStepFrequency < MP_EPSILON) || (eIDT_Keyboard != inputEvent.deviceType))
 		return false;
 
-	const float kKeyHeldThreshold = 0.5f;
+	const CTimeValue kKeyHeldThreshold = "0.5";
 
 	switch (inputEvent.keyId)
 	{
@@ -274,12 +274,12 @@ bool CManualFrameStepController::OnInputEvent(const SInputEvent& inputEvent)
 		{
 			if (eIS_Released == inputEvent.state)
 			{
-				m_heldTimer = -1.0f;
+				m_heldTimer.SetSeconds(-1);
 			}
 			else if (eIS_Down == inputEvent.state)
 			{
-				const float currTime = gEnv->pSystem->GetITimer()->GetAsyncTime().GetSeconds();
-				if (m_heldTimer < 0.0f)
+				const CTimeValue currTime = gEnv->pSystem->GetITimer()->GetAsyncTime();
+				if (m_heldTimer < 0)
 				{
 					GenerateRequest(1);
 					m_heldTimer = currTime;

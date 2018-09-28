@@ -123,7 +123,7 @@ static CLog::LogStringType indentString("    ");
 //////////////////////////////////////////////////////////////////////
 CLog::CLog(ISystem* pSystem)
 	: m_pSystem(pSystem)
-	, m_fLastLoadingUpdateTime(-1.0f)
+	, m_fLastLoadingUpdateTime(-1)
 	, m_pLogFile(nullptr)
 	, m_pErrFile(nullptr)
 	, m_nErrCount(0)
@@ -203,7 +203,7 @@ void CLog::RegisterConsoleVariables()
 		                                 "  4=absolute time in seconds since this mode was started\n"
 		                                 "  5=current time+server time");
 
-		m_pLogSpamDelay = REGISTER_FLOAT("log_SpamDelay", 0.0f, 0, "Sets the minimum time interval between messages classified as spam");
+		m_pLogSpamDelay = REGISTER_TIME("log_SpamDelay", CTimeValue(0), 0, "Sets the minimum time interval between messages classified as spam");
 
 		m_pLogModule = REGISTER_STRING("log_Module", "", VF_NULL, "Only show warnings from specified module");
 
@@ -523,13 +523,13 @@ void CLog::LogV(const ELogType type, int flags, const char* szFormat, va_list ar
 		}
 	}
 
-	float dt;
+	CTimeValue dt;
 	const char* szSpamCheck = *szFormat == '%' ? formatted.c_str() : szFormat;
-	if (m_pLogSpamDelay && (dt = m_pLogSpamDelay->GetFVal()) > 0.0f && type != eAlways && type != eInputResponse)
+	if (m_pLogSpamDelay && (dt = m_pLogSpamDelay->GetTime()) > 0 && type != eAlways && type != eInputResponse)
 	{
 		const int sz = CRY_ARRAY_COUNT(m_history);
 		int i, j;
-		float time = m_pSystem->GetITimer()->GetCurrTime();
+		CTimeValue time = m_pSystem->GetITimer()->GetFrameStartTime();
 		for (i = m_iLastHistoryItem, j = 0; m_history[i].time > time - dt && j < sz; j++, i = i - 1 & sz - 1)
 		{
 			if (m_history[i].type != type)
@@ -614,7 +614,7 @@ void CLog::LogPlus(const char* szFormat, ...)
 		return;
 	}
 
-	if (m_pLogSpamDelay && m_pLogSpamDelay->GetFVal())
+	if (m_pLogSpamDelay && m_pLogSpamDelay->GetTime() != 0)
 	{
 		// Vlad: SpamDelay does not work correctly with LogPlus
 		return;
@@ -934,7 +934,7 @@ void CLog::LogStringToFile(const char* szString, bool bAdd, bool bError)
 	tempString = m_indentWithString + tempString;
 	#endif
 
-	if (m_pLogIncludeTime && gEnv->pTimer)
+	if (m_pLogIncludeTime && GetGTimer())
 	{
 		uint32 dwCVarState = m_pLogIncludeTime->GetIVal();
 		char sTime[21];
@@ -942,8 +942,8 @@ void CLog::LogStringToFile(const char* szString, bool bAdd, bool bError)
 		{
 			if (gEnv->pGameFramework)
 			{
-				CTimeValue serverTime = gEnv->pGameFramework->GetServerTime();
-				cry_sprintf(sTime, "<%.2f> ", serverTime.GetSeconds());
+				CTimeValue serverTime = GetGTimer()->GetServerTime();
+				cry_sprintf(sTime, "<%.2f> ", (float)serverTime.GetSeconds());
 				tempString.insert(0, sTime);
 			}
 			dwCVarState = 1; // Afterwards insert time as-if Log_IncludeTime == 1
@@ -962,7 +962,7 @@ void CLog::LogStringToFile(const char* szString, bool bAdd, bool bError)
 			if (dwCVarState & 2) // Log_IncludeTime
 			{
 				static CTimeValue lasttime;
-				const CTimeValue currenttime = gEnv->pTimer->GetAsyncTime();
+				const CTimeValue currenttime = GetGTimer()->GetAsyncTime();
 				if (lasttime != CTimeValue())
 				{
 					const uint32 dwMs = (uint32)((currenttime - lasttime).GetMilliSeconds());
@@ -976,7 +976,7 @@ void CLog::LogStringToFile(const char* szString, bool bAdd, bool bError)
 		{
 			static bool bFirst = true;
 			static CTimeValue lasttime;
-			const CTimeValue currenttime = gEnv->pTimer->GetAsyncTime();
+			const CTimeValue currenttime = GetGTimer()->GetAsyncTime();
 			if (lasttime != CTimeValue())
 			{
 				const uint32 dwMs = (uint32)((currenttime - lasttime).GetMilliSeconds());
@@ -1300,8 +1300,8 @@ void CLog::UpdateLoadingScreen(const char* szFormat, ...)
 		// Take this opportunity to update streaming engine.
 		if (IStreamEngine* pStreamEngine = GetISystem()->GetStreamEngine())
 		{
-			const float curTime = m_pSystem->GetITimer()->GetAsyncCurTime();
-			if (curTime - m_fLastLoadingUpdateTime > .1f)  // not frequent than once in 100ms
+			const CTimeValue curTime = m_pSystem->GetITimer()->GetAsyncCurTime();
+			if ((curTime - m_fLastLoadingUpdateTime).GetMilliSeconds() > 100)  // No more than once / 100ms
 			{
 				m_fLastLoadingUpdateTime = curTime;
 				pStreamEngine->Update();
@@ -1385,7 +1385,7 @@ void CLog::Update()
 		{
 			static CTimeValue t0 = GetISystem()->GetITimer()->GetAsyncTime();
 			CTimeValue t1 = GetISystem()->GetITimer()->GetAsyncTime();
-			if (fabs((t1 - t0).GetSeconds()) > LogCVars::s_log_tick)
+			if (fabs((float)(t1 - t0).GetSeconds()) > LogCVars::s_log_tick)
 			{
 				t0 = t1;
 

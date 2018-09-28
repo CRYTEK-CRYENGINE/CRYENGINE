@@ -22,7 +22,7 @@ struct SRayRec
 {
 	Vec3  origin;
 	Vec3  dir;
-	float time;
+	CTimeValue time;
 	int   idxColor;
 };
 
@@ -34,7 +34,7 @@ struct SGeomRec
 	Matrix33 R;
 	float    scale;
 	Vec3     sweepDir;
-	float    time;
+	CTimeValue time;
 };
 
 class CPhysRenderer : public IPhysicsDebugRenderer, public IPhysRenderer
@@ -77,12 +77,12 @@ public:
 	virtual void DrawAllHelpers(IPhysicalWorld* world);
 	virtual void DrawEntityHelpers(IPhysicalWorld* world, int entityId, int iDrawHelpers);
 	virtual void DrawEntityHelpers(IPhysicalEntity* entity, int iDrawHelpers);
-	virtual void Flush(float dt);
+	virtual void Flush(const CTimeValue& dt);
 	// ^^^
 
 	float m_cullDist, m_wireframeDist;
-	float m_timeRayFadein;
-	float m_rayPeakTime;
+	CTimeValue m_timeRayFadein;
+	CTimeValue m_rayPeakTime;
 	int   m_maxTris, m_maxTrisRange;
 
 protected:

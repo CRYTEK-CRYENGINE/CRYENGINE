@@ -100,13 +100,13 @@ public:
 	//////////////////////////////////////////////////////////////////////////
 	// WARNINGS - Widget Specific Interface
 	//////////////////////////////////////////////////////////////////////////
-	virtual void AddWarning(float duration, const char* fmt, va_list argList) override;
+	virtual void AddWarning(const CTimeValue& duration, const char* fmt, va_list argList) override;
 	virtual bool WarningsWindowEnabled() const override;
 
 	//////////////////////////////////////////////////////////////////////////
 	// FPS - Widget Specific Interface
 	//////////////////////////////////////////////////////////////////////////
-	virtual const std::vector<PerfBucket>* GetFpsBuckets(float& totalTime) const override;
+	virtual const std::vector<PerfBucket>* GetFpsBuckets(CTimeValue& totalTime) const override;
 
 	//////////////////////////////////////////////////////////////////////////
 	// IMiniGUIEventListener implementation
@@ -159,8 +159,8 @@ public:
 	static const float  TEXT_SIZE_WARN;
 	static const float  TEXT_SIZE_ERROR;
 
-	static const float  ACTIVATE_TIME_FROM_GAME;
-	static const float  ACTIVATE_TIME_FROM_HUD;
+	static const CTimeValue  ACTIVATE_TIME_FROM_GAME;
+	static const CTimeValue  ACTIVATE_TIME_FROM_HUD;
 
 protected:
 	void InitUI(minigui::IMiniGUI* pGUI);
@@ -186,7 +186,7 @@ protected:
 	bool      m_changingState;
 	bool      m_hwMouseEnabled;
 
-	float     m_triggersDownStartTime;
+	CTimeValue     m_triggersDownStartTime;
 
 	EHudState m_hudState;
 	EHudState m_hudLastState;
@@ -213,7 +213,7 @@ public:
 
 	void                                        Init();
 
-	const std::vector<ICryPerfHUD::PerfBucket>* GetFpsBuckets(float& totalTime) const;
+	const std::vector<ICryPerfHUD::PerfBucket>* GetFpsBuckets(CTimeValue& totalTime) const;
 
 	static void                                 ResetCallback(void* data, bool status);
 
@@ -224,11 +224,11 @@ protected:
 	struct PerfBucketsStat
 	{
 		std::vector<ICryPerfHUD::PerfBucket> buckets;
-		float                                totalTime;
+		CTimeValue                           totalTime;
 	};
 
 	template<bool LESS_THAN>
-	void UpdateBuckets(PerfBucketsStat& buckets, float frameTime, const char* name, float stat);
+	void UpdateBuckets(PerfBucketsStat& buckets, const CTimeValue& frameTime, const char* name, float stat);
 
 	// Data
 	static int m_cvarPerfHudFpsExclusive;
@@ -268,7 +268,7 @@ public:
 protected:
 
 	//budgets
-	float  m_fpsBudget;
+	rTime  m_fpsBudget;
 	uint32 m_dpBudget;
 	uint32 m_polyBudget;
 	uint32 m_postEffectBudget;
@@ -280,7 +280,7 @@ protected:
 	{
 		Vec3   cameraPos;
 		Ang3   cameraRot;
-		float  fps;
+		rTime  fps;
 		uint32 nDrawPrims;
 		uint32 nPolys;
 		uint32 nPostEffects;
@@ -335,8 +335,8 @@ public:
 	virtual void Enable(int mode)                { m_pInfoBox->Hide(false); }
 	virtual void Disable()                       { m_pInfoBox->Hide(true); }
 
-	void         AddWarningV(float duration, const char* fmt, va_list argList);
-	void         AddWarning(float duration, const char* warning);
+	void         AddWarningV(const CTimeValue& duration, const char* fmt, va_list argList);
+	void         AddWarning(const CTimeValue& duration, const char* warning);
 
 protected:
 
@@ -345,7 +345,7 @@ protected:
 	struct SWarning
 	{
 		char  text[WARNING_LENGTH];
-		float remainingDuration;
+		CTimeValue remainingDuration;
 	};
 
 	minigui::IMiniInfoBox* m_pInfoBox;

@@ -103,7 +103,7 @@ void CUnitTestExcelReporter::OnFinishTesting(const SUnitTestRunContext& context)
 		}
 		AddCell(name);
 		AddCell("FAIL", CELL_CENTERED);
-		AddCell((int)res.fRunTimeInMs);
+		AddCell((int)res.fRunTime.GetSeconds());
 		AddCell(res.failureDescription, CELL_CENTERED);
 		AddCell(res.testInfo.GetFileName());
 		AddCell(res.testInfo.GetLineNumber());
@@ -154,7 +154,7 @@ void CUnitTestExcelReporter::OnFinishTesting(const SUnitTestRunContext& context)
 		{
 			AddCell("FAIL", CELL_CENTERED);
 		}
-		AddCell((int)res.fRunTimeInMs);
+		AddCell((int)res.fRunTime.GetSeconds());
 		AddCell(res.failureDescription, CELL_CENTERED);
 		AddCell(res.testInfo.GetFileName());
 		AddCell(res.testInfo.GetLineNumber());
@@ -175,10 +175,10 @@ bool CUnitTestExcelReporter::SaveJUnitCompatableXml()
 	int errors = 0;
 	int skipped = 0;
 	int failures = 0;
-	float totalTime = 0;
+	CTimeValue totalTime = 0;
 	for (const STestResult& res : m_results)
 	{
-		totalTime += res.fRunTimeInMs;
+		totalTime += res.fRunTime;
 		failures += (res.bSuccess) ? 0 : 1;
 	}
 	XmlNodeRef suiteNode = root;
@@ -192,7 +192,7 @@ bool CUnitTestExcelReporter::SaveJUnitCompatableXml()
 	for (const STestResult& res : m_results)
 	{
 		XmlNodeRef testNode = suiteNode->newChild("testcase");
-		testNode->setAttr("time", res.fRunTimeInMs);
+		testNode->setAttr("time", res.fRunTime);
 		testNode->setAttr("name", res.testInfo.GetName());
 		//<testcase time="0.146" name="TestPropertyValue"	classname="UnitTests.MainClassTest"/>
 
@@ -218,12 +218,12 @@ void CUnitTestExcelReporter::OnSingleTestStart(const IUnitTest& test)
 	m_log.Log(text);
 }
 
-void CUnitTestExcelReporter::OnSingleTestFinish(const IUnitTest& test, float fRunTimeInMs, bool bSuccess, char const* szFailureDescription)
+void CUnitTestExcelReporter::OnSingleTestFinish(const IUnitTest& test, const CTimeValue& fRunTime, bool bSuccess, char const* szFailureDescription)
 {
 	const CUnitTestInfo& info = test.GetInfo();
 	if (bSuccess)
 	{
-		m_log.Log("UnitTestFinish: [%s]%s:%s | OK (%3.2fms)", info.GetModule(), info.GetSuite(), info.GetName(), fRunTimeInMs);
+		m_log.Log("UnitTestFinish: [%s]%s:%s | OK (%3.2fms)", info.GetModule(), info.GetSuite(), info.GetName(), fRunTime);
 	}
 	else
 	{
@@ -234,7 +234,7 @@ void CUnitTestExcelReporter::OnSingleTestFinish(const IUnitTest& test, float fRu
 	{
 		info,
 		test.GetAutoTestInfo(),
-		fRunTimeInMs,
+		fRunTime,
 		bSuccess,
 		szFailureDescription
 	};

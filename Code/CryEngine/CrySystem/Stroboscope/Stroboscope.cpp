@@ -62,11 +62,11 @@ void CStroboscope::RegisterCommands()
 }
 
 ////////////////////////////////////////////////////////////////////////////
-void CStroboscope::StartProfiling(float deltaStart /* = 0*/, float duration /* = -1*/, int throttle /* = 100*/, const SThreadInfo::TThreadIds threadIds /* = SThreadInfo::TThreadIds()*/)
+void CStroboscope::StartProfiling(const CTimeValue& deltaStart /* = 0*/, const CTimeValue& duration /* = -1*/, int throttle /* = 100*/, const SThreadInfo::TThreadIds threadIds /* = SThreadInfo::TThreadIds()*/)
 {
 	if (CryInterlockedCompareExchange(&m_started, 1, 0) == 0)
 	{
-		m_startTime = gEnv->pTimer->GetAsyncCurTime() + deltaStart;
+		m_startTime = GetGTimer()->GetAsyncCurTime() + deltaStart;
 		m_endTime = duration > 0 ? m_startTime + duration : -1;
 		m_throttle = throttle;
 		Limit(m_throttle, 1, 100);
@@ -90,8 +90,8 @@ void CStroboscope::StopProfiling()
 ////////////////////////////////////////////////////////////////////////////
 void CStroboscope::ThreadEntry()
 {
-	while (gEnv->pTimer->GetAsyncCurTime() < m_startTime)
-		CrySleep(10);
+	while (GetGTimer()->GetAsyncCurTime() < m_startTime)
+		CryLowLatencySleep("0.01");
 
 	gEnv->pLog->LogAlways("[Stroboscope] Profiling started!");
 
@@ -130,16 +130,16 @@ void CStroboscope::ProfileThreads()
 	m_sampling.StartFrame = -1;
 	while (m_run)
 	{
-		CrySleep(100 / m_throttle);
+		CryLowLatencySleep(mpfloat("0.1") / m_throttle);
 		frameId = gEnv->pRenderer->GetFrameID();
 		if (m_sampling.StartFrame == -1)
 			m_sampling.StartFrame = frameId;
 		std::random_shuffle(threads.begin(), threads.end());
 		curr = CryGetTicks();
-		if (!SampleThreads(threads, (float)(curr - prev) / (float)freq, frameId) || (m_endTime > 0 && gEnv->pTimer->GetAsyncCurTime() > m_endTime))
+		if (!SampleThreads(threads, (float)(curr - prev) / (float)freq, frameId) || (m_endTime > 0 && GetGTimer()->GetAsyncCurTime() > m_endTime))
 			m_run = false;
 		prev = curr;
-		m_sampling.FrameTime[frameId] = gEnv->pTimer->GetRealFrameTime();
+		m_sampling.FrameTime[frameId] = GetGTimer()->GetRealFrameTime();
 	}
 	m_sampling.EndFrame = frameId;
 	int64 end = CryGetTicks();
@@ -207,9 +207,9 @@ void CStroboscope::UpdateResult()
 		m_result.Date = asctime(localtime(&rawtime));
 		m_result.Date = m_result.Date.replace("\n", "");
 		m_result.Date = m_result.Date.replace("\r", "");
-		m_result.FrameTime = m_sampling.FrameTime;
+		m_result.FrameTime  = m_sampling.FrameTime;
 		m_result.StartFrame = m_sampling.StartFrame;
-		m_result.EndFrame = m_sampling.EndFrame;
+		m_result.EndFrame   = m_sampling.EndFrame;
 
 		int numsymbols = 0;
 		for (SStrobosopeSamplingData::TThreadResult::const_iterator thrd = m_sampling.Threads.begin(); thrd != m_sampling.Threads.end(); ++thrd)
@@ -378,19 +378,19 @@ void CStroboscope::DumpOutputResult()
 void CStroboscope::StartProfilerCmd(IConsoleCmdArgs* pArgs)
 {
 	CStroboscope* pInst = GetInst();
-	float duration = -1;
-	float startDelay = 0;
+	CTimeValue duration = -1;
+	CTimeValue startDelay = 0;
 	int throttle = 100;
 	SThreadInfo::TThreadIds threadIds;
 	if (pArgs->GetArgCount() > 1)
 	{
 		const char* arg = pArgs->GetArg(1);
-		duration = (float)atof(arg);
+		duration.SetSeconds(arg);
 	}
 	if (pArgs->GetArgCount() > 2)
 	{
 		const char* arg = pArgs->GetArg(2);
-		startDelay = (float)atof(arg);
+		startDelay.SetSeconds(arg);
 	}
 
 	if (pArgs->GetArgCount() > 3)

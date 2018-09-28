@@ -26,7 +26,7 @@ public:
 	{
 		fr.AddValue(m_pOSM->osm_enabled);
 		fr.AddValue(m_pOSM->osm_targetFPS);
-		fr.AddValue(m_pOSM->m_fbScale * 100.0f);
+		fr.AddValue(m_pOSM->m_fbScale * 100);
 
 		SScenePerformanceStats& currentStats = m_pOSM->m_sceneStats[m_pOSM->m_currentFrameStat];
 		fr.AddValue(currentStats.frameRate);
@@ -140,11 +140,11 @@ void COverloadSceneManager::InitialiseCVars()
 	// depending on final requirements, these could be made into const cvars
 	REGISTER_CVAR_CB(osm_enabled, 0, VF_NULL, "Enables/disables overload scene manager", &OnChange_osm_enabled);
 	REGISTER_CVAR(osm_historyLength, 5, VF_NULL, "Overload scene manager number of frames to record stats for");
-	REGISTER_CVAR(osm_targetFPS, 28.0f, VF_NULL, "Overload scene manager target frame rate");
-	REGISTER_CVAR(osm_targetFPSTolerance, 1.0f, VF_NULL, "The overload scene manager will make adjustments if fps is outside targetFPS +/- this value");
-	REGISTER_CVAR(osm_fbScaleDeltaDown, 5.0f, VF_NULL, "The speed multiplier for the overload scene manager frame buffer scaling down");
-	REGISTER_CVAR(osm_fbScaleDeltaUp, 1.0f, VF_NULL, "The speed multiplier for the overload scene manager frame buffer scaling up");
-	REGISTER_CVAR(osm_fbMinScale, 0.66f, VF_NULL, "The minimum scale factor the overload scene manager will drop to");
+	REGISTER_CVAR(osm_targetFPS, rTime(28), VF_NULL, "Overload scene manager target frame rate");
+	REGISTER_CVAR(osm_targetFPSTolerance, rTime(1), VF_NULL, "The overload scene manager will make adjustments if fps is outside targetFPS +/- this value");
+	REGISTER_CVAR(osm_fbScaleDeltaDown, mpfloat(5), VF_NULL, "The speed multiplier for the overload scene manager frame buffer scaling down");
+	REGISTER_CVAR(osm_fbScaleDeltaUp, mpfloat(1), VF_NULL, "The speed multiplier for the overload scene manager frame buffer scaling up");
+	REGISTER_CVAR(osm_fbMinScale, mpfloat("0.66"), VF_NULL, "The minimum scale factor the overload scene manager will drop to");
 
 	REGISTER_COMMAND("osm_setFBScale", cmd_setFBScale, VF_NULL, "Sets the framebuffer scale to either a single scale on both X and Y, or independent scales.\n"
 	                                                            "NOTE: Will be overridden immediately if Overload scene manager is still enabled - see osm_enabled");
@@ -160,18 +160,21 @@ void COverloadSceneManager::Reset()
 
 	ResetDefaultValues();
 
-	gEnv->pRenderer->SetViewportDownscale(m_fbScale, m_fbScale);
+	gEnv->pRenderer->SetViewportDownscale(BADF m_fbScale, BADF m_fbScale);
 }
 
 void COverloadSceneManager::ResetDefaultValues()
 {
-	m_fbScale = 1.0f;
+	m_fbScale = 1;
 	m_scaleState = FBSCALE_AUTO;
-	m_lerpOverride.m_start = m_lerpOverride.m_length = 1.0f;
+
+	m_lerpOverride.m_start = m_lerpOverride.m_length.SetSeconds(1);
 	m_lerpOverride.m_reversed = false;
-	m_lerpAuto.m_start = m_lerpAuto.m_length = 1.0f;
+
+	m_lerpAuto.m_start = m_lerpAuto.m_length.SetSeconds(1);
 	m_lerpAuto.m_reversed = true;
-	m_fbAutoScale = m_fbOverrideDestScale = m_fbOverrideCurScale = 1.0f;
+
+	m_fbAutoScale = m_fbOverrideDestScale = m_fbOverrideCurScale = 1;
 
 	// completely reset history
 	for (int i = 0; i < osm_historyLength; i++)
@@ -206,22 +209,25 @@ void COverloadSceneManager::Update()
 // Desc: sets up appropriate members for lerping between automatic framebuffer scale and manual
 //       overrides.
 //--------------------------------------------------------------------------------------------------
-void COverloadSceneManager::OverrideScale(float frameScale, float dt)
+void COverloadSceneManager::OverrideScale(const mpfloat& frameScaleIn, const CTimeValue& dtIn)
 {
+	mpfloat frameScale = frameScaleIn;
+
 	gEnv->pStatoscope->AddUserMarker("Overload", "OverloadSceneManager::OverrideScale()");
 
-	dt = max(dt, 1.0f / 1000.0f);
+	// 1 millisecond minimum
+	CTimeValue dt = max(dtIn, CTimeValue("0.001"));
 
-	float curTime = gEnv->pTimer->GetCurrTime();
+	CTimeValue curTime = GetGTimer()->GetFrameStartTime();
 
-	frameScale = clamp_tpl(frameScale, osm_fbMinScale, 1.0f);
+	frameScale = CLAMP(frameScale, osm_fbMinScale, 1);
 
 	m_fbOverrideDestScale = frameScale;
 
 	if (m_scaleState == FBSCALE_AUTO)
 	{
 		// remove any override lerp - we want to lerp straight from auto to the given value.
-		m_lerpOverride.m_start = m_lerpOverride.m_length = 1.0f;
+		m_lerpOverride.m_start = m_lerpOverride.m_length.SetSeconds(1);
 		m_lerpOverride.m_reversed = false;
 		m_fbOverrideCurScale = frameScale;
 
@@ -241,16 +247,16 @@ void COverloadSceneManager::OverrideScale(float frameScale, float dt)
 	m_scaleState = FBSCALE_OVERRIDE;
 }
 
-void COverloadSceneManager::ResetScale(float dt)
+void COverloadSceneManager::ResetScale(const CTimeValue& dtIn)
 {
 	gEnv->pStatoscope->AddUserMarker("Overload", "OverloadSceneManager::ResetScale()");
 
-	dt = max(dt, 1.0f / 1000.0f);
-
-	float curTime = gEnv->pTimer->GetCurrTime();
+	// 1 millisecond minimum
+	CTimeValue dt = max(dtIn, CTimeValue("0.001"));
+	CTimeValue curTime = GetGTimer()->GetFrameStartTime();
 
 	// remove any override lerp - we want to lerp straight to auto
-	m_lerpOverride.m_start = m_lerpOverride.m_length = 1.0f;
+	m_lerpOverride.m_start = m_lerpOverride.m_length.SetSeconds(1);
 	m_lerpOverride.m_reversed = false;
 	m_fbOverrideCurScale = m_fbOverrideDestScale = m_fbScale;
 
@@ -273,17 +279,17 @@ void COverloadSceneManager::UpdateStats()
 		m_currentFrameStat = 0;
 
 	SScenePerformanceStats& currentStats = m_sceneStats[m_currentFrameStat];
-	const float frameLength = gEnv->pTimer->GetRealFrameTime() * 1000.0f;
-	const float gpuFrameLength = gEnv->pRenderer->GetGPUFrameTime() * 1000.0f;
+	const CTimeValue frameLength = GetGTimer()->GetRealFrameTime();
+	const CTimeValue gpuFrameLength = gEnv->pRenderer->GetGPUFrameTime();
 
-	currentStats.frameRate = frameLength > 0.0f ? 1000.0f / frameLength : 0.0f;
-	currentStats.gpuFrameRate = gpuFrameLength > 0.0f ? 1000.0f / gpuFrameLength : 0.0f;
+	currentStats.frameRate = frameLength > 0 ? 1 / frameLength : 0;
+	currentStats.gpuFrameRate = gpuFrameLength > 0 ? 1 / gpuFrameLength : 0;
 
 #if DEBUG_OVERLOAD_SCENE_MANAGER
 	if (osm_stress)
 	{
-		float curTime = gEnv->pTimer->GetCurrTime();
-		currentStats.gpuFrameRate = 25.0f + sinf(curTime) * cry_random(0.0f, 10.0f);
+		CTimeValue curTime = GetGTimer()->GetFrameStartTime();
+		currentStats.gpuFrameRate = (25 + sin(curTime.GetSeconds()) * cry_random<mpfloat>(0, 10)).conv<rTime>();
 	}
 #endif
 
@@ -305,52 +311,52 @@ void COverloadSceneManager::CalculateSmoothedStats()
 	m_smoothedSceneStats.gpuFrameRate /= osm_historyLength;
 }
 
-float COverloadSceneManager::CalcFBScale()
+mpfloat COverloadSceneManager::CalcFBScale()
 {
-	float curTime = gEnv->pTimer->GetCurrTime();
+	CTimeValue curTime = GetGTimer()->GetFrameStartTime();
 
 	// first calculate delta of the override lerp
-	float delta = clamp_tpl((curTime - m_lerpOverride.m_start) / m_lerpOverride.m_length, 0.0f, 1.0f);
-	if (m_lerpOverride.m_reversed) delta = 1.0f - delta;
+	nTime delta = CLAMP((curTime - m_lerpOverride.m_start) / m_lerpOverride.m_length, 0, 1);
+	if (m_lerpOverride.m_reversed) delta = 1 - delta;
 
 	// get the current target override
-	float curOverrideScale = LERP(m_fbOverrideCurScale, m_fbOverrideDestScale, delta);
+	mpfloat curOverrideScale = LERP(m_fbOverrideCurScale, m_fbOverrideDestScale, delta.conv<mpfloat>());
 
 	// calculate the delta from (or two) automatic scaling
-	delta = clamp_tpl((curTime - m_lerpAuto.m_start) / m_lerpAuto.m_length, 0.0f, 1.0f);
-	if (m_lerpAuto.m_reversed) delta = 1.0f - delta;
+	delta = CLAMP((curTime - m_lerpAuto.m_start) / m_lerpAuto.m_length, 0, 1);
+	if (m_lerpAuto.m_reversed) delta = 1 - delta;
 
 	// final lerp from automatic to current override
-	return LERP(m_fbAutoScale, curOverrideScale, delta);
+	return LERP(m_fbAutoScale, curOverrideScale, delta.conv<mpfloat>());
 }
 
 void COverloadSceneManager::ResizeFB()
 {
 	// don't do anything for invalid framerates
-	if (m_smoothedSceneStats.gpuFrameRate < 5.0f || m_smoothedSceneStats.gpuFrameRate > 100.0f)
+	if (m_smoothedSceneStats.gpuFrameRate < 5 || m_smoothedSceneStats.gpuFrameRate > 100)
 	{
 		return;
 	}
 
-	float fpsDiff = fabsf(m_smoothedSceneStats.gpuFrameRate - osm_targetFPS);
+	mpfloat fpsDiff = abs(m_smoothedSceneStats.gpuFrameRate - osm_targetFPS).conv<mpfloat>();
 
-	if (m_smoothedSceneStats.gpuFrameRate < osm_targetFPS - osm_targetFPSTolerance)
-		m_fbAutoScale -= osm_fbScaleDeltaDown / 1000.0f * fpsDiff;
-	else if (m_smoothedSceneStats.gpuFrameRate > osm_targetFPS + osm_targetFPSTolerance)
-		m_fbAutoScale += osm_fbScaleDeltaUp / 1000.0f * fpsDiff;
+	if (m_smoothedSceneStats.gpuFrameRate < (osm_targetFPS - osm_targetFPSTolerance))
+		m_fbAutoScale -= osm_fbScaleDeltaDown / 1000 * fpsDiff;
+	else if (m_smoothedSceneStats.gpuFrameRate > (osm_targetFPS + osm_targetFPSTolerance))
+		m_fbAutoScale += osm_fbScaleDeltaUp / 1000 * fpsDiff;
 
-	m_fbAutoScale = clamp_tpl(m_fbAutoScale, osm_fbMinScale, 1.0f);
+	m_fbAutoScale = CLAMP(m_fbAutoScale, osm_fbMinScale, 1);
 
 #if DEBUG_OVERLOAD_SCENE_MANAGER
 	if (osm_stress == 2)
 	{
-		m_fbAutoScale = cry_random(osm_fbMinScale, 1.0f);
+		m_fbAutoScale = cry_random(osm_fbMinScale, mpfloat(1));
 	}
 #endif
 
-	m_fbScale = clamp_tpl(CalcFBScale(), osm_fbMinScale, 1.0f);
+	m_fbScale = CLAMP(CalcFBScale(), osm_fbMinScale, 1);
 
-	gEnv->pRenderer->SetViewportDownscale(m_fbScale, m_fbScale);
+	gEnv->pRenderer->SetViewportDownscale(BADF m_fbScale, BADF m_fbScale);
 }
 
 #if DEBUG_OVERLOAD_SCENE_MANAGER

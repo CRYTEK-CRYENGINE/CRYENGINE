@@ -136,7 +136,11 @@ private:
 	bool IsDefaultValue(const Ang3& v) const               { return v.x == 0 && v.y == 0 && v.z == 0; };
 	bool IsDefaultValue(const Quat& v) const               { return v.w == 1.0f && v.v.x == 0 && v.v.y == 0 && v.v.z == 0; };
 	bool IsDefaultValue(const ScriptAnyValue& v) const     { return false; };
-	bool IsDefaultValue(const CTimeValue& v) const         { return v.GetValue() == 0; };
+
+	// PERSONAL NOTE: This matches SerializeWriterXMLCPBin.....
+	MPOnly bool IsDefaultValue(const T& v) const				 { return v == 0; };
+	TVOnly bool IsDefaultValue(const T& v) const				 { return v.GetSeconds() == 0; };
+
 	bool IsDefaultValue(const char* str) const             { return !str || !*str; };
 	bool IsDefaultValue(const string& str) const           { return str.empty(); };
 	bool IsDefaultValue(const SSerializeString& str) const { return str.empty(); };

@@ -10,8 +10,8 @@ struct SLoadingTimeContainer;
 struct SLoadingProfilerInfo
 {
 	string            name;
-	double            selfTime;
-	double            totalTime;
+	CTimeValue        selfTime;
+	CTimeValue        totalTime;
 	uint32            callsTotal;
 	double            memorySize;
 
@@ -31,8 +31,8 @@ public:
 	static const char*            GetLoadingProfilerCallstack();
 	static void                   FillProfilersList(std::vector<SLoadingProfilerInfo>& profilers);
 	static void                   FlushTimeContainers();
-	static void                   SaveTimeContainersToFile(const char*, double fMinTotalTime, bool bClean);
-	static void                   WriteTimeContainerToFile(SLoadingTimeContainer* p, FILE* f, unsigned int depth, double fMinTotalTime);
+	static void                   SaveTimeContainersToFile(const char*, const CTimeValue& fMinTotalTime, bool bClean);
+	static void                   WriteTimeContainerToFile(SLoadingTimeContainer* p, FILE* f, unsigned int depth, const CTimeValue& fMinTotalTime);
 	static void                   UpdateSelfStatistics(SLoadingTimeContainer* p);
 	static void                   Clean();
 protected:

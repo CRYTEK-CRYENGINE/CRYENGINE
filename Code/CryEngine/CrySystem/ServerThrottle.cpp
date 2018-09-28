@@ -19,7 +19,7 @@ static float ftdiff(const FILETIME& b, const FILETIME& a)
 class CCPUMonitor
 {
 public:
-	CCPUMonitor(ISystem* pSystem, int nCPUs) : m_lastUpdate(0.0f), m_pTimer(pSystem->GetITimer()), m_nCPUs(nCPUs)
+	CCPUMonitor(ISystem* pSystem, int nCPUs) : m_lastUpdate(0), m_pTimer(pSystem->GetITimer()), m_nCPUs(nCPUs)
 	{
 		FILETIME notNeeded;
 		GetProcessTimes(GetCurrentProcess(), &notNeeded, &notNeeded, &m_lastKernel, &m_lastUser);
@@ -27,8 +27,8 @@ public:
 
 	float* Update()
 	{
-		CTimeValue frameTime = gEnv->pTimer->GetFrameStartTime();
-		if (frameTime - m_lastUpdate > 5.0f)
+		CTimeValue frameTime = GetGTimer()->GetFrameStartTime();
+		if ((frameTime - m_lastUpdate).GetSeconds() > 5)
 		{
 			m_lastUpdate = frameTime;
 

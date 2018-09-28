@@ -355,7 +355,7 @@ void JobManager::ThreadBackEnd::CThreadBackEndWorkerThread::ThreadEntry()
 			int iter = 0;
 			while (!pJobInfoBlockState->IsReady())
 			{
-				CrySleep(iter++ > 10 ? 1 : 0);
+				CryLowLatencySleep(iter++ > 10 ? "0.001" : "0");
 			}
 			;
 
@@ -392,7 +392,7 @@ void JobManager::ThreadBackEnd::CThreadBackEndWorkerThread::ThreadEntry()
 			// store job start time
 #if defined(JOBMANAGER_SUPPORT_PROFILING)
 			SJobProfilingData* pJobProfilingData = gEnv->GetJobManager()->GetProfilingData(infoBlock.profilerIndex);
-			pJobProfilingData->nStartTime = gEnv->pTimer->GetAsyncTime();
+			pJobProfilingData->nStartTime = GetGTimer()->GetAsyncTime();
 			pJobProfilingData->nWorkerThread = GetWorkerThreadId();
 #endif
 
@@ -441,7 +441,7 @@ void JobManager::ThreadBackEnd::CThreadBackEndWorkerThread::ThreadEntry()
 				pJobState->SetStopped();
 			}
 #if defined(JOBMANAGER_SUPPORT_PROFILING)
-			pJobProfilingData->nEndTime = gEnv->pTimer->GetAsyncTime();
+			pJobProfilingData->nEndTime = GetGTimer()->GetAsyncTime();
 #endif
 		}
 
@@ -498,7 +498,7 @@ void JobManager::ThreadBackEnd::CThreadBackEndWorkerThread::DoWorkProducerConsum
 
 #if defined(JOBMANAGER_SUPPORT_PROFILING)
 		SJobProfilingData* pJobProfilingData = gEnv->GetJobManager()->GetProfilingData(pAddPacketData->profilerIndex);
-		pJobProfilingData->nStartTime = gEnv->pTimer->GetAsyncTime();
+		pJobProfilingData->nStartTime = GetGTimer()->GetAsyncTime();
 		pJobProfilingData->nWorkerThread = GetWorkerThreadId();
 #endif
 
@@ -535,7 +535,7 @@ void JobManager::ThreadBackEnd::CThreadBackEndWorkerThread::DoWorkProducerConsum
 		}
 
 #if defined(JOBMANAGER_SUPPORT_PROFILING)
-		pJobProfilingData->nEndTime = gEnv->pTimer->GetAsyncTime();
+		pJobProfilingData->nEndTime = GetGTimer()->GetAsyncTime();
 #endif
 
 		// == update queue state == //

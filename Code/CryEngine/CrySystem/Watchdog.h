@@ -12,12 +12,12 @@ public:
 
 	//! Creates and starts running watchdog thread.
 	//! \param timeOutSeconds	time out value in seconds, must be positive
-	explicit CWatchdogThread(int timeOutSeconds);
+	explicit CWatchdogThread(const CTimeValue& timeOut);
 	~CWatchdogThread();
 
 	//! Changes time out value.
 	//! \param timeOutSeconds	time out value in seconds, must be positive
-	void SetTimeout(int timeOutSeconds);
+	void SetTimeout(const CTimeValue& timeOut);
 private:
 
 	static uint64 GetSystemUpdateCounter();
@@ -26,5 +26,5 @@ private:
 	virtual void  ThreadEntry() override;
 
 	volatile bool m_bQuit = false;
-	int           m_timeOutSeconds = 0;
+	CTimeValue    m_timeOut = 0;
 };

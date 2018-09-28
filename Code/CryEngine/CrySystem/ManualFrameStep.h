@@ -37,7 +37,7 @@ private:
 		static void Register();
 		static void Unregister();
 
-		static float manualFrameStepFrequency;
+		static mpfloat manualFrameStepFrequency;
 	};
 
 	struct SNetMessage : public ISerializable
@@ -100,8 +100,8 @@ private:
 private:
 	int32  m_framesLeft;
 	uint32 m_framesGenerated;
-	float  m_previousFixedStep;
-	float  m_heldTimer;
+	CTimeValue  m_previousFixedStep;
+	CTimeValue  m_heldTimer;
 	bool   m_pendingRequest;
 	bool   m_previousStepSmoothing;
 };

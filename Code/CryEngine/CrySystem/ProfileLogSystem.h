@@ -26,7 +26,7 @@ public:
 	CLogElement(CLogElement* pParent, const char* name, const char* message);
 
 	virtual ILogElement* Log(const char* name, const char* message);
-	virtual ILogElement* SetTime(float time);
+	virtual ILogElement* SetTime(const CTimeValue& time);
 	virtual void         Flush(stack_string& indent);
 
 	void                 Clear();
@@ -44,7 +44,7 @@ public:
 private:
 	string                 m_strName;
 	string                 m_strMessage;
-	float                  m_time; // milliSeconds
+	CTimeValue             m_time;
 
 	CLogElement*           m_pParent;
 	std::list<CLogElement> m_logElements;
@@ -57,7 +57,7 @@ public:
 	~CProfileLogSystem();
 
 	virtual ILogElement* Log(const char* name, const char* message);
-	virtual void         SetTime(ILogElement* pElement, float time);
+	virtual void         SetTime(ILogElement* pElement, const CTimeValue& time);
 	virtual void         Release();
 
 private:

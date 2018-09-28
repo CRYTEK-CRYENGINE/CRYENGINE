@@ -32,7 +32,6 @@ const char c_sys_budget_streamingthroughput[] = "sys_budget_streamingthroughput"
 CBudgetingSystem::CBudgetingSystem()
 	: m_pRenderer(0)
 	, m_pAuxRenderer(0)
-	, m_pTimer(0)
 	, m_pIAudioSystem(NULL)
 	, m_pStreamEngine(NULL)
 	, m_sysMemLimitInMB(512)
@@ -246,8 +245,8 @@ void CBudgetingSystem::Render(float x, float y)
 	if (0 == m_pAuxRenderer)
 		m_pAuxRenderer = m_pRenderer->GetIRenderAuxGeom();
 
-	if (0 == m_pTimer)
-		m_pTimer = gEnv->pTimer;
+	if (0 == GTimer(budget))
+		SetGTimer(GetGTimer(), GTimers::budget);
 
 	if (0 == m_pIAudioSystem)
 		m_pIAudioSystem = gEnv->pAudioSystem;
@@ -440,7 +439,8 @@ CBudgetingSystem::GetColor(float scale, float* pColor)
 	}
 	else
 	{
-		float time(m_pTimer->GetAsyncCurTime());
+		// Float inaccuracy is fine, coloring etc.
+		float time(GTimer(budget)->GetAsyncCurTime().GetSeconds());
 		float blink(sinf(time * 6.28f) * 0.5f + 0.5f);
 		pColor[0] = 1;
 		pColor[1] = blink;
@@ -515,32 +515,32 @@ CBudgetingSystem::MonitorVideoMemory(float& x, float& y)
 void
 CBudgetingSystem::MonitorFrameTime(float& x, float& y)
 {
-	if (!m_pTimer)
+	if (!GTimer(budget))
 		return;
 
-	static float s_fps(100.0f);
-	static float s_startTime(m_pTimer->GetAsyncCurTime());
-	static float s_fpsAccu(0.0f);
+	static rTime s_fps(100);
+	static CTimeValue s_startTime = GTimer(budget)->GetAsyncCurTime();
+	static rTime s_fpsAccu(0);
 	static int s_numFramesMeasured(0);
 
 	// accumulate all fps over a period of one second
-	s_fpsAccu += m_pTimer->GetFrameRate();
+	s_fpsAccu += GTimer(budget)->GetFrameRate();
 	++s_numFramesMeasured;
 
 	// check if accumulation period ellapsed,
 	// if so calc new average fps and reset accumulators
-	float curTime(m_pTimer->GetAsyncCurTime());
-	if (curTime - s_startTime >= 1.0f)
+	CTimeValue curTime = GTimer(budget)->GetAsyncCurTime();
+	if (curTime - s_startTime >= 1)
 	{
 		s_fps = s_fpsAccu / s_numFramesMeasured;
 
 		s_startTime = curTime;
-		s_fpsAccu = 0.0f;
+		s_fpsAccu = 0;
 		s_numFramesMeasured = 0;
 	}
 
 	// calc scale and update budget info
-	float curFrameTimeInMS(1000.0f / s_fps);
+	float curFrameTimeInMS(1000 / s_fps);
 	float scale(curFrameTimeInMS / m_frameTimeLimitInMS);
 
 	float color[4];
@@ -691,7 +691,7 @@ void CBudgetingSystem::MonitorPolyCount(float& x, float& y)
 
 void CBudgetingSystem::MonitorStreaming(float& x, float& y)
 {
-	if (!m_pStreamEngine || !m_pTimer)
+	if (!m_pStreamEngine || !GTimer(budget))
 		return;
 
 #if defined(STREAMENGINE_ENABLE_STATS)

@@ -37,7 +37,7 @@ IPlatformOS* IPlatformOS::Create(const uint8 createParams)
 CPlatformOS_PC::CPlatformOS_PC(const uint8 createParams)
 	: m_listeners(4)
 	, m_fpsWatcher(15.0f, 3.0f, 7.0f)
-	, m_delayLevelStartIcon(0.0f)
+	, m_delayLevelStartIcon(0)
 	, m_bSignedIn(false)
 	, m_bSaving(false)
 	, m_bLevelLoad(false)
@@ -57,14 +57,14 @@ CPlatformOS_PC::~CPlatformOS_PC()
 	gEnv->pSystem->GetISystemEventDispatcher()->RemoveListener(this);
 }
 
-void CPlatformOS_PC::Tick(float realFrameTime)
+void CPlatformOS_PC::Tick(CTimeValue& realFrameTime)
 {
-	if (m_delayLevelStartIcon)
+	if (m_delayLevelStartIcon.GetSeconds())
 	{
 		m_delayLevelStartIcon -= realFrameTime;
-		if (m_delayLevelStartIcon <= 0.0f)
+		if (m_delayLevelStartIcon.GetSeconds() <= 0)
 		{
-			m_delayLevelStartIcon = 0.0f;
+			m_delayLevelStartIcon.SetSeconds(0);
 
 			IPlatformOS::SPlatformEvent event(0);
 			event.m_eEventType = IPlatformOS::SPlatformEvent::eET_FileWrite;
@@ -88,7 +88,7 @@ void CPlatformOS_PC::OnPlatformEvent(const IPlatformOS::SPlatformEvent& _event)
 		{
 			if (_event.m_uParams.m_fileWrite.m_type == SPlatformEvent::eFWT_CheckpointLevelStart)
 			{
-				m_delayLevelStartIcon = 5.0f;
+				m_delayLevelStartIcon.SetSeconds(5);
 			}
 			break;
 		}
@@ -659,43 +659,49 @@ void CPlatformOS_PC::OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_PTR
 {
 	switch (event)
 	{
-	case ESYSTEM_EVENT_LEVEL_LOAD_START:
-		m_bLevelLoad = true;
-		m_bSaveDuringLevelLoad = false;
-		break;
-	case ESYSTEM_EVENT_LEVEL_LOAD_END:
-		m_bLevelLoad = false;
-		m_bSaveDuringLevelLoad = true;
-		break;
-	case ESYSTEM_EVENT_CHANGE_FOCUS:
-	{
-#if CRY_PLATFORM_WINDOWS
-		// Handle system timer resolution
-		// The smaller the resolution, the more accurate a thread will wake up from a suspension 
-		// Example: 
-		// Timer Resolution(1 ms): Sleep(1) -> max thread suspention time 1.99ms
-		// Timer Resolution(15 ms): Sleep(1) -> max thread suspention time 15.99ms
-		//  
-		// This is due to the scheduler running more frequently.
-		// This is a system wide global though which is set to the smallest value requested by a process.
-		// When the process dies it is set back to its original value.
-		ICVar* pSystemTimerResolution = gEnv->pConsole ? gEnv->pConsole->GetCVar("sys_system_timer_resolution") : NULL;
-		TIMECAPS tc;		
-		if (timeGetDevCaps(&tc, sizeof(TIMECAPS)) == TIMERR_NOERROR)
+		case ESYSTEM_EVENT_LEVEL_LOAD_START:
+			m_bLevelLoad = true;
+			m_bSaveDuringLevelLoad = false;
+			break;
+		case ESYSTEM_EVENT_LEVEL_LOAD_END:
+			m_bLevelLoad = false;
+			m_bSaveDuringLevelLoad = true;
+			break;
+		case ESYSTEM_EVENT_CHANGE_FOCUS:
 		{
-			const UINT minTimerRes =  std::min(std::max((UINT)pSystemTimerResolution->GetIVal(), tc.wPeriodMin), tc.wPeriodMax);
+			// PERSONAL NOTE: 
+			// This changes the timer resolution without any timeEndPeriod's, which basically would preserve timer resolution at its lowest value.
+			// Even if it worked, this might affect accuracy of certain processes when alt-tabbing, until this is tested disabling this section.
+			// (Also changed sys_system_timer_resolution cvar)
+			/*
+			#if CRY_PLATFORM_WINDOWS
+					// Handle system timer resolution
+					// The smaller the resolution, the more accurate a thread will wake up from a suspension 
+					// Example: 
+					// Timer Resolution(1 ms): Sleep(1) -> max thread suspention time 1.99ms
+					// Timer Resolution(15 ms): Sleep(1) -> max thread suspention time 15.99ms
+					//  
+					// This is due to the scheduler running more frequently.
+					// This is a system wide global though which is set to the smallest value requested by a process.
+					// When the process dies it is set back to its original value.
+					ICVar* pSystemTimerResolution = gEnv->pConsole ? gEnv->pConsole->GetCVar("sys_system_timer_resolution") : NULL;
+					TIMECAPS tc;		
+					if (timeGetDevCaps(&tc, sizeof(TIMECAPS)) == TIMERR_NOERROR)
+					{
+						const UINT minTimerRes =  std::min(std::max((UINT)pSystemTimerResolution->GetIVal(), tc.wPeriodMin), tc.wPeriodMax);
 
-			// wparam != 0 is focused, wparam == 0 is not focused
-			timeBeginPeriod(wparam != 0 ? minTimerRes : tc.wPeriodMax);
-		}
-		else
-		{
-			CryWarning(VALIDATOR_MODULE_SYSTEM, VALIDATOR_WARNING, "Warning: System Timer Resolution could not be obtained.");
-		}
+						// wparam != 0 is focused, wparam == 0 is not focused
+						timeBeginPeriod(wparam != 0 ? minTimerRes : tc.wPeriodMax);
+					}
+					else
+					{
+						CryWarning(VALIDATOR_MODULE_SYSTEM, VALIDATOR_WARNING, "Warning: System Timer Resolution could not be obtained.");
+					}
 
-		break;
-#endif
-	}
+					break;
+			#endif
+			*/
+		}
 	}
 }
 
@@ -737,14 +743,14 @@ void CPlatformOS_PC::SaveDirtyFiles()
 
 	if (m_bSaving)
 	{
-		if (!m_delayLevelStartIcon)
+		if (m_delayLevelStartIcon != 0)
 		{
 			IPlatformOS::SPlatformEvent event(0);
 			event.m_eEventType = IPlatformOS::SPlatformEvent::eET_FileWrite;
 			event.m_uParams.m_fileWrite.m_type = SPlatformEvent::eFWT_SaveStart;
 			NotifyListeners(event);
 		}
-		if (m_bSaving && !m_delayLevelStartIcon)
+		if (m_bSaving && m_delayLevelStartIcon != 0)
 		{
 			IPlatformOS::SPlatformEvent event(0);
 			event.m_eEventType = IPlatformOS::SPlatformEvent::eET_FileWrite;

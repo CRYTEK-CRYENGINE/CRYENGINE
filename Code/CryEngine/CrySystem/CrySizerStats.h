@@ -96,7 +96,7 @@ public:
 
 	void  startTimer(unsigned nTimer, ITimer* pTimer);
 	void  stopTimer(unsigned nTimer, ITimer* pTimer);
-	float getTime(unsigned nTimer) const { assert(nTimer < g_numTimers); return m_fTime[nTimer]; }
+	const CTimeValue& getTime(unsigned nTimer) const { assert(nTimer < g_numTimers); return m_fTime[nTimer]; }
 	int   getAgeFrames() const           { return m_nAgeFrames; }
 	void  incAgeFrames()                 { ++m_nAgeFrames; }
 protected:
@@ -111,7 +111,7 @@ protected:
 	size_t m_nMaxNameLength;
 
 	// the timer that counts the time spent on statistics gathering
-	float m_fTime[g_numTimers];
+	CTimeValue m_fTime[g_numTimers];
 
 	// the age of the statistics, in frames
 	int m_nAgeFrames;

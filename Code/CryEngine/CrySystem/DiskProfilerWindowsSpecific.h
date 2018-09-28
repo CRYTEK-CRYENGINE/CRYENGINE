@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "StdAfx.h"
-
 #include "Log.h"
 
 #include <CryCore/Platform/platform.h>
@@ -20,7 +18,7 @@ public:
 
 	~CDiskProfilerWindowsSpecific();
 
-	void Update(float timeNow, bool writeToLog);
+	void Update(const CTimeValue& timeNow, bool writeToLog);
 
 	void DisableDiskProfiling();
 
@@ -59,7 +57,7 @@ private:
 	DISK_PERFORMANCE m_lastDiskPerf = {};
 	DISK_PERFORMANCE m_currDiskPerf = {};
 	bool m_hasLastPerf = false;
-	float m_lastUpdateTime = 0.0f;
+	CTimeValue m_lastUpdateTime = 0;
 
 	string m_engineDriveName;
 	double m_mbRead      = 0.0;

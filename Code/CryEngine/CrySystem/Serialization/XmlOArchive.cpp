@@ -140,6 +140,19 @@ bool Serialization::CXmlOArchiveVer1::operator()(char& value, const char* name, 
 	return XmlUtil::WriteChildNodeAs<int>(m_pRootNode, name, value);
 }
 
+bool Serialization::CXmlOArchiveVer1::operator()(CTimeValue& value, const char* name, const char* label)
+{
+	return (*this)(value.m_lValue, name, label);
+}
+
+#define MP_FUNCTION(T)\
+bool Serialization::CXmlOArchiveVer1::operator()(T& value, const char* name, const char* label)\
+{\
+	return XmlUtil::WriteChildNode(m_pRootNode, name, value);\
+}
+#include <CrySystem\mpfloat.types>
+#undef MP_FUNCTION
+
 bool Serialization::CXmlOArchiveVer1::operator()(const SStruct& ser, const char* name, const char* label)
 {
 	CRY_ASSERT(name);
@@ -326,6 +339,21 @@ bool Serialization::CXmlOutputArchive::operator()(char& value, const char* name,
 	node->setAttr(name, value);
 	return true;
 }
+
+bool Serialization::CXmlOutputArchive::operator()(CTimeValue& value, const char* name, const char* label)
+{
+	return (*this)(value.m_lValue, name, label);
+}
+
+#define MP_FUNCTION(T)\
+bool Serialization::CXmlOutputArchive::operator()(T& value, const char* name, const char* label)\
+{\
+	XmlNodeRef node = (!m_bArray) ? m_pRootNode : XmlUtil::CreateChildNode(m_pRootNode, name);\
+	node->setAttr(name, value);\
+	return true;\
+}
+#include <CrySystem\mpfloat.types>
+#undef MP_FUNCTION
 
 bool Serialization::CXmlOutputArchive::operator()(const SStruct& ser, const char* name, const char* label)
 {

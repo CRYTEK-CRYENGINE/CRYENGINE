@@ -19,8 +19,8 @@ ColorB CPhysRenderer::g_colorTab[9] = {
 CPhysRenderer::CPhysRenderer()
 	: m_cullDist(100.0f)
 	, m_wireframeDist(40.0f)
-	, m_timeRayFadein(0.2f)
-	, m_rayPeakTime(0.0f)
+	, m_timeRayFadein("0.2")
+	, m_rayPeakTime(0)
 	, m_maxTris(200)
 	, m_maxTrisRange(800)
 	, m_pRenderer(nullptr)
@@ -139,12 +139,13 @@ void CPhysRenderer::DrawGeometry(IGeometry* pGeom, geom_world_data* pgwd, int id
 				int i;
 				SRayRec* prevbuf = m_rayBuf;
 				m_rayBuf = new SRayRec[m_szRayBuf += 64];
-				memcpy(m_rayBuf + m_iFirstRay, prevbuf + m_iFirstRay, (m_nRays - m_iFirstRay) * sizeof(SRayRec));
+				std::copy(prevbuf + m_iFirstRay, prevbuf + m_iFirstRay + (m_nRays - m_iFirstRay), m_rayBuf + m_iFirstRay);
 				if (m_iFirstRay > m_iLastRay)
 				{
-					memcpy(m_rayBuf + m_nRays, prevbuf, (i = min(m_szRayBuf - m_nRays, m_iLastRay + 1)) * sizeof(SRayRec));
+					i = min(m_szRayBuf - m_nRays, m_iLastRay + 1);
+					std::copy(prevbuf, prevbuf + i, m_rayBuf + m_nRays);
 					PREFAST_SUPPRESS_WARNING(6386)
-					memcpy(m_rayBuf, prevbuf + i, (m_iLastRay + 1 - i) * sizeof(SRayRec));
+					std::copy(prevbuf + i, prevbuf + i + (m_iLastRay + 1 - i), m_rayBuf);
 					m_iLastRay -= i - (m_nRays + i & (m_iLastRay - i) >> 31);
 				}
 			}
@@ -171,12 +172,13 @@ void CPhysRenderer::DrawGeometry(IGeometry* pGeom, geom_world_data* pgwd, int id
 				int i;
 				SGeomRec* prevbuf = m_geomBuf;
 				m_geomBuf = new SGeomRec[m_szGeomBuf += 64];
-				memcpy(m_geomBuf + m_iFirstGeom, prevbuf + m_iFirstGeom, (m_nGeoms - m_iFirstGeom) * sizeof(SGeomRec));
+				std::copy(prevbuf + m_iFirstGeom, prevbuf + m_iFirstGeom + (m_nGeoms - m_iFirstGeom), m_geomBuf);
 				if (m_iFirstGeom > m_iLastGeom)
 				{
-					memcpy(m_geomBuf + m_nGeoms, prevbuf, (i = min(m_szGeomBuf - m_nGeoms, m_iLastGeom + 1)) * sizeof(SGeomRec));
+					i = min(m_szGeomBuf - m_nGeoms, m_iLastGeom + 1);
+					std::copy(prevbuf, prevbuf + i, m_geomBuf + m_nGeoms);
 					PREFAST_SUPPRESS_WARNING(6386)
-					memcpy(m_geomBuf, prevbuf + i, (m_iLastGeom + 1 - i) * sizeof(SGeomRec));
+					std::copy(prevbuf + i, prevbuf + i + (m_iLastGeom + 1 - i), m_geomBuf);
 					m_iLastGeom -= i - (m_nGeoms + i & (m_iLastGeom - i) >> 31);
 				}
 			}
@@ -248,16 +250,16 @@ void CPhysRenderer::DrawLine(const Vec3& pt0, const Vec3& pt1, int idxColor, int
 {
 	m_pRay->origin = pt0;
 	m_pRay->dir = pt1 - pt0;
-	int bPeaked = isneg(max(1e-6f - m_rayPeakTime, m_rayPeakTime - gEnv->pTimer->TicksToSeconds(bSlowFadein >> 1) * 1000));
+	int bPeaked = isneg(max(CTimeValue("0.000001") - m_rayPeakTime, m_rayPeakTime - GetGTimer()->TicksToTime(bSlowFadein >> 1)));
 	DrawGeometry(m_pRayGeom, 0, idxColor - bPeaked * 2, bSlowFadein & 1);
 }
 
-void CPhysRenderer::Flush(float dt)
+void CPhysRenderer::Flush(const CTimeValue& dt)
 {
 	if (m_nRays > 0)
 	{
 		int i = m_iFirstRay, iprev;
-		float rtime = 1 / m_timeRayFadein;
+		rTime rtime = 1 / m_timeRayFadein;
 		ColorB clr;
 		do
 		{
@@ -277,13 +279,13 @@ void CPhysRenderer::Flush(float dt)
 	if (m_nGeoms > 0)
 	{
 		int i = m_iFirstGeom, iprev;
-		float rtime = 1 / m_timeRayFadein;
+		rTime rtime = 1 / m_timeRayFadein;
 		ColorB clr;
 		geom_world_data gwd;
 		do
 		{
 			clr = g_colorTab[7];
-			clr.a = FtoI(clr.a * m_geomBuf[i].time * rtime * 0.7f);
+			clr.a = FtoI(clr.a * m_geomBuf[i].time * rtime * "0.7");
 			gwd.offset = m_geomBuf[i].offset;
 			gwd.R = m_geomBuf[i].R;
 			gwd.scale = m_geomBuf[i].scale;
@@ -396,7 +398,8 @@ void CPhysRenderer::DrawGeometry(int itype, const void* pGeomData, geom_world_da
 			int matmask = -1;
 			if (!pmats)
 				pmats = &dummyMat, matmask = 0;
-			float curTime = gEnv->pTimer->GetCurrTime();
+
+			float curTime = BADF GetGTimer()->GetFrameStartTime().GetSeconds();
 			int icurTime = (int)curTime;
 			float alpha = sin_tpl(((icurTime & 1) + (curTime - icurTime) * (1 - (icurTime & 1) * 2)) * gf_PI * 0.5f);
 			alpha *= min(m_maxTrisRange, max(0, pmesh->nTris - m_maxTris)) / (float)m_maxTrisRange;

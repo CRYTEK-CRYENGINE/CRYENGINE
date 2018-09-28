@@ -72,7 +72,6 @@ protected:
 protected:
 	IRenderer*              m_pRenderer;
 	IRenderAuxGeom*         m_pAuxRenderer;
-	ITimer*                 m_pTimer;
 	CryAudio::IAudioSystem* m_pIAudioSystem;
 	IStreamEngine*          m_pStreamEngine;
 

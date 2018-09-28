@@ -174,7 +174,7 @@ void CThreadProfiler::Render()
 
 	char str[128];
 
-	float timeNow = gEnv->pTimer->GetAsyncCurTime();
+	float timeNow = GetGTimer()->GetAsyncCurTime();
 
 	int numThreads = m_pSampler->GetNumThreads();
 
@@ -211,7 +211,7 @@ void CThreadProfiler::Render()
 
 		if ((!spans.empty() && totalTime >= 1) && ti < numThreads)
 		{
-			m_lastActive[ti] = gEnv->pTimer->GetAsyncCurTime();
+			m_lastActive[ti] = GetGTimer()->GetAsyncCurTime();
 		}
 
 		if (span_color != 0)

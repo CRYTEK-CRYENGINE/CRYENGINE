@@ -31,7 +31,7 @@ public:
 	virtual void                           Release() override      { delete this; }
 	virtual void                           SetTimeDemoInfo(STimeDemoInfo* pTimeDemoInfo) override;
 	virtual STimeDemoInfo*                 GetTimeDemoInfo() override;
-	virtual void                           QuitInNSeconds(const float fInNSeconds) override;
+	virtual void                           QuitIn(const CTimeValue& quitIn) override;
 	virtual CryUnitTest::IUnitTestManager* GetIUnitTestManager()  override { return &m_unitTestManager; };
 
 private: // --------------------------------------------------------------
@@ -54,7 +54,7 @@ private: // --------------------------------------------------------------
 
 	string                        m_sParameter;            // "" if not in test mode
 	int                           m_iRenderPause = 0;      // counts down every render to delay some processing
-	float                         m_fQuitInNSeconds = 0.f; // <=0 means it's deactivated
+	CTimeValue                    m_fQuitIn = 0;				 // <=0 means it's deactivated
 	bool                          m_bFirstUpdate = true;
 	bool                          m_bApplicationTest = false;
 };

@@ -59,7 +59,7 @@ public:
 	SStreamEngineStatistics& GetStreamingStatistics();
 	void                     ClearStatistics();
 
-	void                     GetBandwidthStats(EStreamTaskType type, float* bandwidth);
+	void                     GetBandwidthStats(EStreamTaskType type, rTime* bandwidth);
 #endif
 
 	void                       GetStreamingOpenStatistics(SStreamEngineOpenStats& openStatsOut);
@@ -171,11 +171,11 @@ private:
 
 	struct SExtensionInfo
 	{
-		SExtensionInfo() : m_fTotalReadTime(0.0f), m_nTotalRequests(0), m_nTotalReadSize(0),
+		SExtensionInfo() : m_fTotalReadTime(0), m_nTotalRequests(0), m_nTotalReadSize(0),
 			m_nTotalRequestSize(0)
 		{
 		}
-		float  m_fTotalReadTime;
+		CTimeValue m_fTotalReadTime;
 		size_t m_nTotalRequests;
 		uint64 m_nTotalReadSize;
 		uint64 m_nTotalRequestSize;

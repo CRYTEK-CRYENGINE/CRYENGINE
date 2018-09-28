@@ -2237,6 +2237,8 @@ void CUNIXConsoleSignalHandler::Handler(int signum)
 
 	#endif // USE_UNIXCONSOLE
 
+const CTimeValue CSyslogStats::SYSLOG_DEFAULT_PERIOD = 3;
+
 ///////////////////////////////////////////////////////////////////////////////////////
 //
 // simple light-weight console implementation
@@ -2280,7 +2282,7 @@ void CNULLConsole::OnInit(ISystem* pSystem)
 void CNULLConsole::OnUpdate()
 {
 	int numPlayers = 0;
-	float srvRate = 0;
+	rTime srvRate = 0;
 	INetNub::SStatistics netNub;
 
 	#if defined(UC_ENABLE_PLAYER_COUNT)
@@ -2348,17 +2350,17 @@ void CSyslogStats::Init()
 	#endif
 }
 
-void CSyslogStats::Update(float srvRate, int numPlayers, INetNub::SStatistics& netNubStats)
+void CSyslogStats::Update(const rTime& srvRate, int numPlayers, INetNub::SStatistics& netNubStats)
 {
 	#if CRY_PLATFORM_LINUX || CRY_PLATFORM_MAC
 	if (m_syslog_stats)
 	{
-		m_syslogCurrTime = gEnv->pTimer->GetAsyncTime();
+		m_syslogCurrTime = GetGTimer()->GetAsyncTime();
 
-		if ((m_syslogCurrTime - m_syslogStartTime).GetMilliSeconds() > m_syslog_period)
+		if ((m_syslogCurrTime - m_syslogStartTime) > m_syslog_period)
 		{
 			syslog(LOG_NOTICE, "rate:%.1f/s, players:%i, up:%.1fk/s, dn:%.1fk/s",
-			       srvRate,
+			       (float)srvRate,
 			       numPlayers,
 			       netNubStats.bandwidthUp / 1000.0f,
 			       netNubStats.bandwidthDown / 1000.0f);

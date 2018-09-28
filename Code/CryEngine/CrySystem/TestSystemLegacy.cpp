@@ -42,12 +42,12 @@ CTestSystemLegacy::CTestSystemLegacy(ISystem* pSystem)
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CTestSystemLegacy::QuitInNSeconds(const float fInNSeconds)
+void CTestSystemLegacy::QuitIn(const CTimeValue& quitIn)
 {
-	if (fInNSeconds > 0)
-		m_log.Log("QuitInNSeconds() requests quit in %f sec", fInNSeconds);
+	if (quitIn > 0)
+		m_log.Log("QuitInNSeconds() requests quit in %f sec", (float)quitIn.GetSeconds());
 
-	m_fQuitInNSeconds = fInNSeconds;
+	m_fQuitIn = quitIn;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -61,7 +61,7 @@ class CLevelListener : public ILevelSystemListener
 public:
 	CLevelListener(CTestSystemLegacy& rTestSystem) : m_rTestSystem(rTestSystem)
 	{
-		m_LevelStartTime = gEnv->pTimer->GetAsyncTime();
+		m_LevelStartTime = GetGTimer()->GetAsyncTime();
 	}
 
 	// interface ILevelSystemListener -------------------------------
@@ -91,7 +91,7 @@ public:
 
 	void Quit()
 	{
-		CTimeValue time = gEnv->pTimer->GetAsyncTime() - m_LevelStartTime;
+		CTimeValue time = GetGTimer()->GetAsyncTime() - m_LevelStartTime;
 
 		m_rTestSystem.GetILog()->Log("   Time since level start: %u min %u sec", ((uint32)time.GetSeconds()) / 60, ((uint32)time.GetSeconds()) % 60);
 
@@ -169,20 +169,19 @@ void CTestSystemLegacy::LogLevelStats()
 
 void CTestSystemLegacy::Update()
 {
-	if (m_fQuitInNSeconds > 0.0f)
+	if (m_fQuitIn > 0)
 	{
-		int iSec = (int)m_fQuitInNSeconds;
+		int iSec = (int)m_fQuitIn.GetSeconds();
+		m_fQuitIn -= GetGTimer()->GetFrameTime();
 
-		m_fQuitInNSeconds -= gEnv->pTimer->GetFrameTime();
-
-		if (m_fQuitInNSeconds <= 0.0f)
+		if (m_fQuitIn<= 0)
 		{
 			gEnv->pConsole->ExecuteString("ExitOnQuit 1");
 			gEnv->pSystem->Quit();
 		}
 		else
 		{
-			if (iSec != (int)m_fQuitInNSeconds)
+			if (iSec != (int)m_fQuitIn.GetSeconds())
 				gEnv->pLog->Log("quit in %d seconds ...", iSec);
 		}
 	}

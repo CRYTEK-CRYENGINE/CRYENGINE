@@ -698,8 +698,8 @@ void CResourceManager::OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_P
 
 			m_bLevelTransitioning = !m_sLevelName.empty();
 
-			m_lastLevelLoadTime.SetValue(0);
-			m_beginLevelLoadTime = gEnv->pTimer->GetAsyncTime();
+			m_lastLevelLoadTime.SetSeconds(0);
+			m_beginLevelLoadTime = GetGTimer()->GetAsyncTime();
 			if (g_cvars.pakVars.nSaveLevelResourceList || g_cvars.pakVars.nSaveTotalResourceList)
 			{
 				if (!g_cvars.pakVars.nSaveTotalResourceList)
@@ -758,7 +758,7 @@ void CResourceManager::OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_P
 
 	case ESYSTEM_EVENT_LEVEL_PRECACHE_END:
 		{
-			CTimeValue t = gEnv->pTimer->GetAsyncTime();
+			CTimeValue t = GetGTimer()->GetAsyncTime();
 			m_lastLevelLoadTime = t - m_beginLevelLoadTime;
 
 			if (g_cvars.pakVars.nSaveLevelResourceList && m_bRegisteredFileOpenSink)

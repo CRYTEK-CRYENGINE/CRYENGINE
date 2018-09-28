@@ -1,5 +1,10 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
+// PERSONAL NOTE: Moved StdAfx.h from header to here to remove this error:
+// Severity	Code	Description	File	Line
+// unexpected end of file while looking for precompiled header.Did you forget to add '#include "StdAfx.h"' to your source ? 
+// F : \GitHub\CRYENGINE - 5.5\Code\CryEngine\CrySystem\DiskProfilerWindowsSpecific.cpp line 119
+#include "StdAfx.h"
 #include "DiskProfilerWindowsSpecific.h"
 
 #if CRY_PLATFORM_WINDOWS
@@ -70,9 +75,9 @@ CDiskProfilerWindowsSpecific::~CDiskProfilerWindowsSpecific()
 	}
 }
 
-void CDiskProfilerWindowsSpecific::Update(float timeNow, bool writeToLog)
+void CDiskProfilerWindowsSpecific::Update(const CTimeValue& timeNow, bool writeToLog)
 {
-	if (m_lastUpdateTime + 1.0f < timeNow || m_lastUpdateTime == 0.0f)
+	if (m_lastUpdateTime + 1 < timeNow || m_lastUpdateTime == 0)
 	{
 		DWORD numBytesReturned = 0;
 		LPOVERLAPPED overlapped = nullptr;

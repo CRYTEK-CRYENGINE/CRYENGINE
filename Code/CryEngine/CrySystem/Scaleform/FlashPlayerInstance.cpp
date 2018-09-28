@@ -703,7 +703,7 @@ public:
 			FormatMsg(curTotalTimeMs, msg, sizeof(msg));
 
 			if (isPeak)
-				s_flashPeakHistory.Add(SFlashPeak(gEnv->pTimer->GetAsyncCurTime(), msg));
+				s_flashPeakHistory.Add(SFlashPeak(GetGTimer()->GetAsyncCurTime(), msg));
 
 			if (reqLog)
 				CFlashFunctionProfilerLog::GetAccess().Log(msg);
@@ -4794,7 +4794,7 @@ void CFlashPlayer::RenderFlashInfo()
 		static PlayerListNodeType* s_pLastSelectedLinkNode = GetListRoot().m_pNext;
 		bool lastSelectedLinkNodeLost(true);
 
-		const float deltaFrameTime(gEnv->pTimer->GetFrameTime());
+		const float deltaFrameTime(GetGTimer()->GetFrameTime());
 		const float blendFactor(expf(-deltaFrameTime / 0.35f));
 		float ypos(238.0f);
 		PlayerListNodeType* pCurNode = GetListRoot().m_pNext;
@@ -5032,7 +5032,7 @@ void CFlashPlayer::RenderFlashInfo()
 		}
 		// display flash peak history
 		ypos += 4.0f;
-		float displayTime(gEnv->pTimer->GetAsyncCurTime());
+		float displayTime(GetGTimer()->GetAsyncCurTime());
 		DrawText(xAdj + 10.0f, yAdj + ypos, color, "Latest flash peaks (tolerance = %.2f ms)...", ms_sys_flash_info_peak_tolerance);
 		ypos += 16.0f;
 

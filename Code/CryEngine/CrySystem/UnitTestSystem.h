@@ -48,7 +48,7 @@ private:
 	virtual void OnStartTesting(const SUnitTestRunContext& context) override;
 	virtual void OnFinishTesting(const SUnitTestRunContext& context) override;
 	virtual void OnSingleTestStart(const IUnitTest& test) override;
-	virtual void OnSingleTestFinish(const IUnitTest& test, float fRunTimeInMs, bool bSuccess, char const* szFailureDescription) override;
+	virtual void OnSingleTestFinish(const IUnitTest& test, const CTimeValue& fRunTime, bool bSuccess, char const* szFailureDescription) override;
 };
 
 class CMinimalLogUnitTestReporter : public IUnitTestReporter
@@ -60,13 +60,13 @@ private:
 	int   m_nRunTests = 0;
 	int   m_nSucceededTests = 0;
 	int   m_nFailedTests = 0;
-	float m_fTimeTaken = 0.f;
+	CTimeValue m_fTimeTaken = 0;
 
 private:
 	virtual void OnStartTesting(const SUnitTestRunContext& context) override;
 	virtual void OnFinishTesting(const SUnitTestRunContext& context) override;
 	virtual void OnSingleTestStart(const IUnitTest& test) override {}
-	virtual void OnSingleTestFinish(const IUnitTest& test, float fRunTimeInMs, bool bSuccess, char const* szFailureDescription) override;
+	virtual void OnSingleTestFinish(const IUnitTest& test, const CTimeValue& fRunTime, bool bSuccess, char const* szFailureDescription) override;
 };
 
 class CUnitTestManager : public IUnitTestManager, IErrorObserver

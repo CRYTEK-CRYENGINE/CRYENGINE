@@ -14,16 +14,16 @@ CWatchdogThread::~CWatchdogThread()
 	SignalStopWork();
 }
 
-void CWatchdogThread::SetTimeout(int timeOutSeconds)
+void CWatchdogThread::SetTimeout(const CTimeValue& timeOut)
 {
-	CRY_ASSERT(timeOutSeconds > 0);
-	m_timeOutSeconds = timeOutSeconds;
+	CRY_ASSERT(timeOut > 0);
+	m_timeOut = timeOut;
 }
 
-CWatchdogThread::CWatchdogThread(int timeOutSeconds)
-	: m_timeOutSeconds(timeOutSeconds)
+CWatchdogThread::CWatchdogThread(const CTimeValue& timeOut)
+	: m_timeOut(timeOut)
 {
-	CRY_ASSERT(timeOutSeconds > 0);
+	CRY_ASSERT(timeOut > 0);
 	if (!gEnv->pThreadManager->SpawnThread(this, "Watch Dog"))
 	{
 		CRY_ASSERT_MESSAGE(false, "Error spawning \"Watch Dog\" thread.");
@@ -57,6 +57,6 @@ void CWatchdogThread::ThreadEntry()
 
 void CWatchdogThread::Sleep() const
 {
-	CRY_ASSERT(m_timeOutSeconds > 0);
-	CrySleep(1000 * m_timeOutSeconds);
+	CRY_ASSERT(m_timeOut > 0);
+	CryLowLatencySleep(m_timeOut);
 }

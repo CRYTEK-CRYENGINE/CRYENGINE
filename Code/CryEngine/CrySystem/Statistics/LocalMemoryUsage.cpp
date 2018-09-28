@@ -696,8 +696,9 @@ void CLocalMemoryUsage::OnRender(IRenderer* pRenderer, const CCamera* camera)
 	m_actDrawedSectors.w = xMax - xMin + 1;
 	m_actDrawedSectors.h = yMax - yMin + 1;
 
-	CTimeValue actTime = gEnv->pTimer->GetAsyncTime();
-	float timeSin = sin_tpl(actTime.GetSeconds() * 10.0f) * 0.5f + 0.5f;
+	// Float inaccuracy is fine, debug/profiling
+	CTimeValue actTime = GetGTimer()->GetAsyncTime();
+	float timeSin = sin_tpl((float)actTime.GetSeconds() * 10.0f) * 0.5f + 0.5f;
 
 	ColorB color;
 	ColorB colorOK(LOCALMEMORY_COLOR_OK, sys_LocalMemoryObjectAlpha);
@@ -852,9 +853,10 @@ void CLocalMemoryUsage::OnUpdate()
 		return;
 
 	//CryLogAlways("OnUpdate start-----------------------------------------");
-	CTimeValue actTime = gEnv->pTimer->GetAsyncTime();
+	CTimeValue actTime = GetGTimer()->GetAsyncTime();
 
-	float callTimeDiff = (actTime - m_LastCallTime).GetSeconds();
+	// Float inaccuracy is fine, debug/profiling
+	float callTimeDiff = (float)(actTime - m_LastCallTime).GetSeconds();
 	float neededCallTimeDiff = m_AverageUpdateTime / (sys_LocalMemoryOptimalMSecPerSec / 1000.f);
 
 	if (callTimeDiff < neededCallTimeDiff && callTimeDiff < sys_LocalMemoryMaxMSecBetweenCalls / 1000.f)
@@ -920,8 +922,9 @@ void CLocalMemoryUsage::OnUpdate()
 		}
 	}
 
-	CTimeValue endTime = gEnv->pTimer->GetAsyncTime();
-	m_AverageUpdateTime = LERP(m_AverageUpdateTime, (endTime - actTime).GetSeconds(), 0.5f);
+	// Float inaccuracy is fine, debug/profiling
+	CTimeValue endTime = GetGTimer()->GetAsyncTime();
+	m_AverageUpdateTime = LERP(m_AverageUpdateTime, (float)(endTime - actTime).GetSeconds(), 0.5f);
 
 	//CryLogAlways("OnUpdate end***");
 }

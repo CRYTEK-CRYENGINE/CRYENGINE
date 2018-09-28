@@ -382,6 +382,26 @@ bool CBinaryXmlNode::getAttr(const char* key, CryGUID& value) const
 	return false;
 }
 
+bool CBinaryXmlNode::getAttr(const char* key, CTimeValue& value) const
+{
+	return getAttr(key, value.m_lValue);
+}
+
+#define MP_FUNCTION(T)\
+bool CBinaryXmlNode::getAttr(const char* key, T& value) const\
+{\
+	const char* svalue = GetValue(key);\
+	if (svalue)\
+	{\
+		value = T(svalue);\
+		return true;\
+	}\
+	return false;\
+}
+#include <CrySystem\mpfloat.types>
+#undef MP_FUNCTION
+
+//////////////////////////////////////////////////////////////////////////
 XmlNodeRef CBinaryXmlNode::findChild(const char* tag) const
 {
 	const XMLBinary::Node* const pNode = _node();

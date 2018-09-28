@@ -368,12 +368,39 @@ bool CXmlNode::getAttr(const char* key, CryGUID& value) const
 	const char* svalue = GetValue(key);
 	if (svalue)
 	{
-		const char* guidStr = getAttr(key);
 		value = CryGUID::FromString(svalue);
 		return true;
 	}
 	return false;
 }
+
+//////////////////////////////////////////////////////////////////////////
+void CXmlNode::setAttr(const char* key, const CTimeValue& value)
+{
+	setAttr(key, value.m_lValue);
+}
+bool CXmlNode::getAttr(const char* key, CTimeValue& value) const
+{
+	return getAttr(key, value.m_lValue);
+}
+
+#define MP_FUNCTION(T)\
+void CXmlNode::setAttr(const char* key, const T& value)\
+{\
+	setAttr(key, value.str());\
+}\
+bool CXmlNode::getAttr(const char* key, T& value) const\
+{\
+	const char* svalue = GetValue(key);\
+	if (svalue)\
+	{\
+		value = T(svalue);\
+		return true;\
+	}\
+	return false;\
+}
+#include "CrySystem/mpfloat.types"
+#undef MP_FUNCTION
 
 //////////////////////////////////////////////////////////////////////////
 bool CXmlNode::getAttr(const char* key, int& value) const

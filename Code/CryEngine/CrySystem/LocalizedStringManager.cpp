@@ -2418,7 +2418,7 @@ void CLocalizedStringsManager::LocalizeTime(time_t t, bool bMakeLocalTime, bool 
 	{
 		struct tm thetime;
 		thetime = *localtime(&t);
-		t = gEnv->pTimer->DateToSecondsUTC(thetime);
+		t = GetGTimer()->DateToSecondsUTC(thetime);
 	}
 	outTimeString.resize(0);
 	LCID lcID = g_currentLanguageID.lcID ? g_currentLanguageID.lcID : LOCALE_USER_DEFAULT;
@@ -2442,7 +2442,7 @@ void CLocalizedStringsManager::LocalizeDate(time_t t, bool bMakeLocalTime, bool 
 	{
 		struct tm thetime;
 		thetime = *localtime(&t);
-		t = gEnv->pTimer->DateToSecondsUTC(thetime);
+		t = GetGTimer()->DateToSecondsUTC(thetime);
 	}
 	outDateString.resize(0);
 	LCID lcID = g_currentLanguageID.lcID ? g_currentLanguageID.lcID : LOCALE_USER_DEFAULT;
