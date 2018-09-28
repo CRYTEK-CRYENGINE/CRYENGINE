@@ -45,13 +45,31 @@ inline uint32 cry_random_uint32()
 	return gEnv->pSystem->GetRandomGenerator().GenerateUint32();
 }
 
+// PERSONAL NOTE: A tad messier due to conflicting templates.
+// Plus header dependencies......simpler to put overloads here.
+
 //! Scalar ranged random function.
 //! Any orderings work correctly: minValue <= maxValue and minValue >= minValue.
 //! \return Random value between minValue and maxValue (inclusive).
-template<class T>
+MPOff
 inline T cry_random(const T minValue, const T maxValue)
 {
 	return gEnv->pSystem->GetRandomGenerator().GetRandom(minValue, maxValue);
+}
+
+// MPFloat setup
+MPOnly 
+inline T cry_random(const T minValue, const T maxValue)
+{
+	// Float inaccuracy is fine, random
+	return T().lossy(gEnv->pSystem->GetRandomGenerator().GetRandom((float)minValue, (float)maxValue));
+}
+
+// CTimeValue
+template<> 
+inline CTimeValue cry_random(const CTimeValue minValue, const CTimeValue maxValue)
+{
+	return CTimeValue(cry_random(minValue.GetSeconds(), maxValue.GetSeconds()));
 }
 
 //! Vector (Vec2, Vec3, Vec4) ranged random function.

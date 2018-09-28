@@ -3,149 +3,150 @@
 #pragma once
 #include <CrySystem/ITimer.h>
 
-// Implements all common timing routines
+/*
+	Implements all common timing routines
+
+	// CRYTEK TODO: Review m_time usage in System.cpp / SystemRender.cpp
+	//					 if it wants Game Time / UI Time or a new Render Time?
+*/
 class CTimer : public ITimer
 {
 public:
-	// constructor
+	// Constructor & Destructor
 	CTimer();
-	// destructor
 	~CTimer() {};
 
 	bool Init();
 
-	// interface ITimer ----------------------------------------------------------
+	// Interface ITimer ----------------------------------------------------------
+		// Lifecycle
+			 ITimer* CreateNewTimer();
+			 void  ResetTimer();
+			 void  Serialize(TSerialize ser);
 
-	// TODO: Review m_time usage in System.cpp / SystemRender.cpp
-	//       if it wants Game Time / UI Time or a new Render Time?
+			 void  UpdateOnFrameStart();
+			 bool	 SetTimer(ETimer which, const CTimeValue& timeInSeconds);
 
-	virtual void       ResetTimer();
-	virtual void       UpdateOnFrameStart();
-	virtual float      GetCurrTime(ETimer which = ETIMER_GAME) const;
-	virtual CTimeValue GetAsyncTime() const;
-	virtual float      GetReplicationTime() const;	
-	virtual float      GetAsyncCurTime();
-	virtual float      GetFrameTime(ETimer which = ETIMER_GAME) const;
-	virtual float      GetRealFrameTime() const;
-	virtual float      GetTimeScale() const;
-	virtual float      GetTimeScale(uint32 channel) const;
-	virtual void       SetTimeScale(float scale, uint32 channel = 0);
-	virtual void       ClearTimeScales();
-	virtual void       EnableTimer(const bool bEnable);
-	virtual float      GetFrameRate();
-	virtual float      GetProfileFrameBlending(float* pfBlendTime = 0, int* piBlendMode = 0);
-	virtual void       Serialize(TSerialize ser);
-	virtual bool       IsTimerEnabled() const;
+			 bool	 PauseSimulation(bool bPause);
+			 bool	 IsTimerPaused(ETimer which);
 
-	//! try to pause/unpause a timer
-	//  returns true if successfully paused/unpaused, false otherwise
-	virtual bool PauseTimer(ETimer which, bool bPause);
+			 void  EnableTimer(const bool bEnable);
+			 bool  IsTimerEnabled() const;
 
-	//! determine if a timer is paused
-	//  returns true if paused, false otherwise
-	virtual bool IsTimerPaused(ETimer which);
+		// Time getters
+			 CTimeValue GetFrameTime(bool ignorePause = false) const;
+			 CTimeValue GetRealFrameTime() const;
 
-	//! try to set a timer
-	//  return true if successful, false otherwise
-	virtual bool SetTimer(ETimer which, float timeInSeconds);
+			 const CTimeValue& GetFrameStartTime(ETimer which = ETIMER_GAME) const { return m_CurrTime[(int)which]; }
+			 const CTimeValue& GetRealStartTime()    const { return m_realStartTime; }
+			 const CTimeValue& GetAverageFrameTime() const { return m_prevAvgFrameTime; }
+			 const CTimeValue& GetReplicationTime()  const { return m_replicationTime; };
+			 const CTimeValue GetServerTime() const;
 
-	//! make a tm struct from a time_t in UTC (like gmtime)
-	virtual void SecondsToDateUTC(time_t time, struct tm& outDateUTC);
+			 CTimeValue	GetAsyncTime() const;
+			 CTimeValue GetAsyncCurTime() const;
 
-	//! make a UTC time from a tm (like timegm, but not available on all platforms)
-	virtual time_t DateToSecondsUTC(struct tm& timePtr);
+		// Timescales
+			 mpfloat     GetTimeScale() const;
+			 mpfloat     GetTimeScale(uint32 channel) const;
+			 void        ClearTimeScales();
+			 void        SetTimeScale(const mpfloat& scale, uint32 channel = 0);
 
-	//! Convert from Tics to Seconds
-	virtual float TicksToSeconds(int64 ticks) const
-	{
-		return float((double)ticks * m_fSecsPerTick);
-	}
+		// Other misc.
+			 CTimeValue  TicksToTime(int64 ticks) const { return CTimeValue(ticks / (mpfloat)m_lTicksPerSec); }
+			 int64		 GetTicksPerSecond()      const { return m_lTicksPerSec; }
 
-	//! Get number of ticks per second
-	virtual int64 GetTicksPerSecond()
-	{
-		return m_lTicksPerSec;
-	}
+			 rTime       GetFrameRate();
+			 mpfloat     GetProfileFrameBlending(CTimeValue* pfBlendTime = 0, int* piBlendMode = 0); // DEBUG ONLY
 
-	virtual void SetFixedFrameTime(float time)
-	{
-		m_fixed_time_step = time;
-	}
+			 void			 SecondsToDateUTC(time_t time, struct tm& outDateUTC);
+			 time_t		 DateToSecondsUTC(struct tm& timePtr);
+	// ~ Interface ITimer---------------------------------------------------------------------
 
-	virtual const CTimeValue& GetFrameStartTime(ETimer which = ETIMER_GAME) const { return m_CurrTime[(int)which]; }
-	virtual ITimer*           CreateNewTimer();
-
-private: // ---------------------------------------------------------------------
-
-	// ---------------------------------------------------------------------------
-
-	// updates m_CurrTime (either pass m_lCurrentTime or custom curTime)
-	void  RefreshGameTime(int64 curTime);
-	void  RefreshUITime(int64 curTime);
+private: 
+	// Update profile-frame-blend time (smooth time). DEBUG ONLY
 	void  UpdateBlending();
-	float GetAverageFrameTime();
+
+	// Updates CTimeValue, param = real delta-time in ticks.
+	void  RefreshGameTime(int64 ticks);
+	void  RefreshUITime(int64 ticks);
+
+	// Update simulation frame-time average
+	void UpdateAverageFrameTime();
 
 	// Updates the game-time offset to match the the specified time.
 	// The argument is the new number of ticks since the last Reset().
 	void SetOffsetToMatchGameTime(int64 ticks);
 
-	// Convert seconds to ticks using the timer frequency.
-	// Note: Loss of precision may occur, especially if magnitude of argument or timer frequency is large.
-	int64 SecondsToTicks(double seconds) const;
+	// Check any frame-limiting sleeps 
+	void CheckSleeps();
+
+private:
 
 	enum
 	{
-		MAX_FRAME_AVERAGE       = 100,
 		NUM_TIME_SCALE_CHANNELS = 8,
 	};
 
 	//////////////////////////////////////////////////////////////////////////
 	// Dynamic state, reset by ResetTimer()
 	//////////////////////////////////////////////////////////////////////////
-	CTimeValue m_CurrTime[ETIMER_LAST]; // Time since last Reset(), cached during Update()
+	CTimeValue m_CurrTime[ETIMER_LAST]; // Real (UI) and Simulation (Game) time since last Reset().
+	CTimeValue m_realStartTime;			// Absolute real-time at last Update()
+	
+	int64      m_lBaseTime;   // Absolute real-time (in ticks) at last Reset().
+	int64      m_lLastTime;   // Absolute real-time (in ticks) since last Reset(). This is the base for UI time.
+	int64      m_lOffsetTime; // Additional ticks for Game time (relative to UI time).
+	
+	CTimeValue m_replicationTime; // Sum of all simulation frame times used in replication.
+	CTimeValue m_fFrameTime;      // Simulation time since the last Update()
+	CTimeValue m_fRealFrameTime;  // Real time since the last Update()
 
-	int64      m_lBaseTime;   // Ticks elapsed since system boot, all other tick-unit variables are relative to this.
-	int64      m_lLastTime;   // Ticks since last Reset(). This is the base for UI time. UI time is monotonic, it always moves forward at a constant rate until the timer is Reset()).
-	int64      m_lOffsetTime; // Additional ticks for Game time (relative to UI time). Game time can be affected by loading, pausing, time smoothing and time clamping, as well as SetTimer().
-	float      m_replicationTime; // In seconds, sum of all frame times used in replication
+	bool       m_bGameTimerPaused;     // Set if the game is paused.
+	int64      m_lGameTimerPausedTime; // The UI time (in ticks) when the game timer was paused. On un-pause, offset time will be adjusted to match.
 
-	float      m_fFrameTime;     // In seconds since the last Update(), clamped/smoothed etc.
-	float      m_fRealFrameTime; // In real seconds since the last Update(), non-clamped/un-smoothed etc.
-
-	bool       m_bGameTimerPaused;     // Set if the game is paused. GetFrameTime() will return 0, GetCurrTime(ETIMER_GAME) will not progress.
-	int64      m_lGameTimerPausedTime; // The UI time when the game timer was paused. On un-pause, offset will be adjusted to match.
 
 	//////////////////////////////////////////////////////////////////////////
 	// Persistant state, kept by ResetTimer()
 	//////////////////////////////////////////////////////////////////////////
-	bool         m_bEnabled;
-	unsigned int m_nFrameCounter;
+	bool         m_bEnabled;		//!< Timer enabled/disabled ATM not used!
+	unsigned int m_nFrameCounter; //!< Frame counter, ATM only used for pre-Vista TicksPerSec updates.
+	int64			 m_lTicksPerSec;  //!< CPU ticks per second. pre-vista updated (approx. every 127 frames) in case of rate changes.
 
-	int64        m_lTicksPerSec; // Ticks per second
-	double       m_fSecsPerTick; // Seconds per tick
+	// Frame averaging
+	CTimeValue m_prevAvgFrameTime;			//!< The simulation frame-time averaged over a time period. (e.g. 0.25 seconds)
+	std::vector<CTimeValue> m_frameTimes;	//!< Unsmoothed simulation frame-time list. [0] = Most recent.
 
-	// smoothing
-	float m_arrFrameTimes[MAX_FRAME_AVERAGE];
-	float m_fAverageFrameTime; // used for smoothing (AverageFrameTime())
+	// Time scales
+	mpfloat m_timeScaleChannels[NUM_TIME_SCALE_CHANNELS];
+	mpfloat m_totalTimeScale;
 
-	float m_fAvgFrameTime;     // used for blend weighting (UpdateBlending())
-	float m_fProfileBlend;     // current blending amount for profile.
-	float m_fSmoothTime;       // smoothing interval (up to m_profile_smooth_time).
-
-	// time scale
-	float m_timeScaleChannels[NUM_TIME_SCALE_CHANNELS];
-	float m_totalTimeScale;
 
 	//////////////////////////////////////////////////////////////////////////
 	// Console vars, always have default value on secondary CTimer instances
 	//////////////////////////////////////////////////////////////////////////
-	float m_fixed_time_step;   // in seconds
-	float m_max_time_step;     // in seconds
-	float m_cvar_time_scale;   // slow down time cvar
-	int   m_TimeSmoothing;     // Console Variable, 0=off, otherwise on
-	int   m_TimeDebug;         // Console Variable, 0=off, 1=events, 2=verbose
+	int   m_TimeSmoothing;			// Console Variable, 0=off, otherwise on
+	mpfloat m_cvar_time_scale;		// Simulation time scale, used for slow-mo time
+
+	CTimeValue m_max_time_step;	// Simulation frame-time cap
+	CTimeValue average_interval;  // Frame-averaging time period.
+
+
+	/*------------== DEBUG ONLY ==------------*/
+	int   m_TimeDebug;			 // Console Variable, 0=off, 1=events, 2=verbose
+
+	// If positive, simulation frame time is overriden by this before smoothing/scaling/etc.
+	// If negative, also has FPS cap'd to this timestep via sleep.
+	CTimeValue m_fixed_time_step;
+
+	// Profile time smoothing (Persistent state)
+	mpfloat m_fProfileBlend;	 // Current blending amount for profile.
+	CTimeValue m_fAvgFrameTime; // Used for blend weighting (UpdateBlending())
+	CTimeValue m_fSmoothTime;   // Smoothing interval (up to m_profile_smooth_time).
 
 	// Profile averaging help.
-	float m_profile_smooth_time;  // seconds to exponentially smooth profile results.
-	int   m_profile_weighting;    // weighting mode (see RegisterVar desc).
+	int   m_profile_weighting;	 // Weighting mode (see RegisterVar desc).
+
+	// Time to exponentially smooth profile results.
+	CTimeValue m_profile_smooth_time;  
 };

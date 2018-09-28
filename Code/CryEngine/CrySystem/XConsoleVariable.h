@@ -150,6 +150,8 @@ public:
 	virtual int64       GetI64Val() const { return _atoi64(m_sValue); }
 	virtual float       GetFVal() const   { return (float)atof(m_sValue); }
 	virtual const char* GetString() const { return m_sValue; }
+
+	using ICVar::Set; // Needed due to inability to inherit overloads......no point re-defining. Can probably be cleaned up.
 	virtual void        Set(const char* s)
 	{
 		if (!s)
@@ -170,7 +172,6 @@ public:
 			m_pConsole->OnAfterVarChange(this);
 		}
 	}
-
 	virtual void Set(const float f)
 	{
 		stack_string s;
@@ -182,7 +183,6 @@ public:
 		m_nFlags |= VF_MODIFIED;
 		Set(s.c_str());
 	}
-
 	virtual void Set(const int i)
 	{
 		stack_string s;
@@ -222,6 +222,8 @@ public:
 		cry_sprintf(szReturnString, "%d", GetIVal());
 		return szReturnString;
 	}
+
+	using ICVar::Set;
 	virtual void Set(const char* s)
 	{
 		int nValue = TextToInt(s, m_iValue, (m_nFlags & VF_BITFIELD) != 0);
@@ -278,6 +280,8 @@ public:
 		cry_sprintf(szReturnString, "%" PRIi64, GetI64Val());
 		return szReturnString;
 	}
+
+	using ICVar::Set;
 	virtual void Set(const char* s)
 	{
 		int64 nValue = TextToInt64(s, m_iValue, (m_nFlags & VF_BITFIELD) != 0);
@@ -340,6 +344,8 @@ public:
 		cry_sprintf(szReturnString, "%g", m_fValue);    // %g -> "2.01",   %f -> "2.01000"
 		return szReturnString;
 	}
+
+	using ICVar::Set;
 	virtual void Set(const char* s)
 	{
 		float fValue = 0;
@@ -435,6 +441,8 @@ public:
 		cry_sprintf(szReturnString, "%d", m_iValue);
 		return szReturnString;
 	}
+
+	using ICVar::Set;
 	virtual void Set(const char* s)
 	{
 		int nValue = TextToInt(s, m_iValue, (m_nFlags & VF_BITFIELD) != 0);
@@ -513,6 +521,8 @@ public:
 		cry_sprintf(szReturnString, "%g", m_fValue);
 		return szReturnString;
 	}
+
+	using ICVar::Set;
 	virtual void Set(const char* s)
 	{
 		float fValue = 0;
@@ -581,6 +591,253 @@ private: // --------------------------------------------------------------------
 	float& m_fValue;                                  //!<
 };
 
+// PERSONAL DEBUG: That for CVar's registration/setting/getting etc. works as expected.
+template<class mpType>
+class CXConsoleVariableMPFloatRef : public CXConsoleVariableBase
+{
+public:
+	//! constructor
+	//!\param pVar must not be 0
+	CXConsoleVariableMPFloatRef(CXConsole* pConsole, const char* sName, mpType* pVar, int nFlags, const char* help)
+		: CXConsoleVariableBase(pConsole, sName, nFlags, help), m_fValue(*pVar)
+	{
+		assert(pVar);
+	}
+
+	// interface ICVar --------------------------------------------------------------------------------------
+	virtual int  GetType() { return CVAR_MPFLOAT; }
+	virtual void GetMemoryUsage(class ICrySizer* pSizer) const { pSizer->AddObject(this, sizeof(*this)); }
+
+	virtual int         GetIVal()   const	{ assert(false && "Invalid get!"); return 0; }
+	virtual int64       GetI64Val() const  { assert(false && "Invalid get!"); return 0; }
+	virtual float       GetFVal()   const	{ assert(false && "Invalid get!"); return 0; }
+	virtual mpfloat     GetMPVal()  const	{ return m_fValue.conv<mpfloat>(); }
+	virtual const char* GetString() const
+	{
+		return m_fValue.str();
+	}
+
+	using ICVar::Set;
+	virtual void Set(const int f)			  { assert(false && "Invalid set!"); }
+	virtual void Set(const float f)		  { assert(false && "Invalid set!"); }
+	virtual void Set(const char* s)
+	{
+		mpType fValue = 0;
+		if (s)
+			fValue = mpType(s);
+		if (fValue == m_fValue && (m_nFlags & VF_ALWAYSONCHANGE) == 0)
+			return;
+
+		if (m_pConsole->OnBeforeVarChange(this, s))
+		{
+			m_nFlags |= VF_MODIFIED;
+			m_fValue = fValue;
+
+			CallOnChangeFunctions();
+			m_pConsole->OnAfterVarChange(this);
+		}
+	}
+	virtual void Set(const mpType& f) {
+		if (f == m_fValue && (m_nFlags & VF_ALWAYSONCHANGE) == 0)
+			return;
+
+		if (m_pConsole->OnBeforeVarChange(this, f.str()))
+		{
+			m_nFlags |= VF_MODIFIED;
+			m_fValue = f;
+			CallOnChangeFunctions();
+			m_pConsole->OnAfterVarChange(this);
+		}
+	}
+
+private: // --------------------------------------------------------------------------------------------
+	mpType& m_fValue;
+};
+
+class CXConsoleVariableTimeValRef : public CXConsoleVariableBase
+{
+public:
+	//! constructor
+	//!\param pVar must not be 0
+	CXConsoleVariableTimeValRef(CXConsole* pConsole, const char* sName, CTimeValue* pVar, int nFlags, const char* help)
+		: CXConsoleVariableBase(pConsole, sName, nFlags, help), m_tValue(*pVar)
+	{
+		assert(pVar);
+	}
+
+	// interface ICVar --------------------------------------------------------------------------------------
+	virtual int  GetType() { return CVAR_TIMEVAL; }
+	virtual void GetMemoryUsage(class ICrySizer* pSizer) const { pSizer->AddObject(this, sizeof(*this)); }
+
+	virtual int         GetIVal()   const	{ assert(false && "Invalid get!"); return 0; }
+	virtual int64       GetI64Val() const  { assert(false && "Invalid get!"); return 0; }
+	virtual float       GetFVal()   const	{ assert(false && "Invalid get!"); return 0; }
+	virtual CTimeValue  GetTime()   const  { return m_tValue; }
+	virtual const char* GetString() const
+	{
+		return m_tValue.GetSeconds().str();
+	}
+	
+	using ICVar::Set;
+	virtual void Set(const int f)				{ assert(false && "Invalid set!"); }
+	virtual void Set(const float f)			{ assert(false && "Invalid set!"); }
+	virtual void Set(const char* s)
+	{
+		CTimeValue tValue;
+		if (s)
+			tValue = CTimeValue(s);
+		if (tValue == m_tValue && (m_nFlags & VF_ALWAYSONCHANGE) == 0)
+			return;
+
+		if (m_pConsole->OnBeforeVarChange(this, s))
+		{
+			m_nFlags |= VF_MODIFIED;
+			m_tValue = tValue;
+
+			CallOnChangeFunctions();
+			m_pConsole->OnAfterVarChange(this);
+		}
+	}
+	virtual void Set(const CTimeValue& f) {
+		CTimeValue t = f;
+		if (t == m_tValue && (m_nFlags & VF_ALWAYSONCHANGE) == 0)
+			return;
+
+		if (m_pConsole->OnBeforeVarChange(this, f.GetSeconds().str()))
+		{
+			m_nFlags |= VF_MODIFIED;
+			m_tValue = t;
+			CallOnChangeFunctions();
+			m_pConsole->OnAfterVarChange(this);
+		}
+	}
+
+private: // --------------------------------------------------------------------------------------------
+	CTimeValue& m_tValue;
+};
+
+template<class mType>
+class CXConsoleVariableMPFloat : public CXConsoleVariableBase
+{
+public:
+	//! constructor
+	//!\param pVar must not be 0
+	CXConsoleVariableMPFloat(CXConsole* pConsole, const char* sName, const mType& defVal, int nFlags, const char* help)
+		: CXConsoleVariableBase(pConsole, sName, nFlags, help), m_fValue(defVal)
+	{
+	}
+
+	// interface ICVar --------------------------------------------------------------------------------------
+	virtual int  GetType() { return CVAR_MPFLOAT; }
+	virtual void GetMemoryUsage(class ICrySizer* pSizer) const { pSizer->AddObject(this, sizeof(*this)); }
+
+	virtual int         GetIVal()   const	{ assert(false && "Invalid get!"); return 0; }
+	virtual int64       GetI64Val() const  { assert(false && "Invalid get!"); return 0; }
+	virtual float       GetFVal()   const	{ assert(false && "Invalid get!"); return 0; }
+	virtual mpfloat     GetMPVal()  const	{ return m_fValue.conv<mpfloat>(); }
+	virtual const char* GetString() const
+	{
+		return m_fValue.str();
+	}
+
+	using ICVar::Set;
+	virtual void Set(const int f)				{ assert(false && "Invalid set!"); }
+	virtual void Set(const float f)			{ assert(false && "Invalid set!"); }
+	virtual void Set(const char* s)
+	{
+		mType fValue = 0;
+		if (s)
+			fValue = mType(s);
+		if (fValue == m_fValue && (m_nFlags & VF_ALWAYSONCHANGE) == 0)
+			return;
+
+		if (m_pConsole->OnBeforeVarChange(this, s))
+		{
+			m_nFlags |= VF_MODIFIED;
+			m_fValue = fValue;
+
+			CallOnChangeFunctions();
+			m_pConsole->OnAfterVarChange(this);
+		}
+	}
+	virtual void Set(const mType& f) {
+		if (f == m_fValue && (m_nFlags & VF_ALWAYSONCHANGE) == 0)
+			return;
+
+		if (m_pConsole->OnBeforeVarChange(this, f.str()))
+		{
+			m_nFlags |= VF_MODIFIED;
+			m_fValue = f;
+			CallOnChangeFunctions();
+			m_pConsole->OnAfterVarChange(this);
+		}
+	}
+
+private: // --------------------------------------------------------------------------------------------
+	mType m_fValue;
+};
+
+class CXConsoleVariableTimeVal : public CXConsoleVariableBase
+{
+public:
+	//! constructor
+	//!\param pVar must not be 0
+	CXConsoleVariableTimeVal(CXConsole* pConsole, const char* sName, const CTimeValue& defVal, int nFlags, const char* help)
+		: CXConsoleVariableBase(pConsole, sName, nFlags, help), m_tValue(defVal)
+	{
+	}
+
+	// interface ICVar --------------------------------------------------------------------------------------
+	virtual int  GetType() { return CVAR_TIMEVAL; }
+	virtual void GetMemoryUsage(class ICrySizer* pSizer) const { pSizer->AddObject(this, sizeof(*this)); }
+
+	virtual int         GetIVal()   const	{ assert(false && "Invalid get!"); return 0; }
+	virtual int64       GetI64Val() const  { assert(false && "Invalid get!"); return 0; }
+	virtual float       GetFVal()   const	{ assert(false && "Invalid get!"); return 0; }
+	virtual CTimeValue  GetTime()   const  { return m_tValue; }
+	virtual const char* GetString() const
+	{
+		return m_tValue.GetSeconds().str();
+	}
+
+	using ICVar::Set;
+	virtual void Set(const int f)			  { assert(false && "Invalid set!"); }
+	virtual void Set(const float f)		  { assert(false && "Invalid set!"); }
+	virtual void Set(const char* s)
+	{
+		CTimeValue tValue;
+		if (s)
+			tValue = CTimeValue(s);
+		if (tValue == m_tValue && (m_nFlags & VF_ALWAYSONCHANGE) == 0)
+			return;
+
+		if (m_pConsole->OnBeforeVarChange(this, s))
+		{
+			m_nFlags |= VF_MODIFIED;
+			m_tValue = tValue;
+
+			CallOnChangeFunctions();
+			m_pConsole->OnAfterVarChange(this);
+		}
+	}
+	virtual void Set(const CTimeValue& f) {
+		CTimeValue t = f;
+		if (t == m_tValue && (m_nFlags & VF_ALWAYSONCHANGE) == 0)
+			return;
+
+		if (m_pConsole->OnBeforeVarChange(this, f.GetSeconds().str()))
+		{
+			m_nFlags |= VF_MODIFIED;
+			m_tValue = t;
+			CallOnChangeFunctions();
+			m_pConsole->OnAfterVarChange(this);
+		}
+	}
+
+private: // --------------------------------------------------------------------------------------------
+	CTimeValue m_tValue;
+};
+
 class CXConsoleVariableStringRef : public CXConsoleVariableBase
 {
 public:
@@ -602,6 +859,8 @@ public:
 	{
 		return m_sValue.c_str();
 	}
+
+	using ICVar::Set;
 	virtual void Set(const char* s)
 	{
 		if ((m_sValue == s) && (m_nFlags & VF_ALWAYSONCHANGE) == 0)
@@ -657,7 +916,7 @@ public:
 	string GetDetailedInfo() const;
 
 	// interface ICVar -----------------------------------------------------------------------------------
-
+	using ICVar::Set;
 	virtual const char* GetHelp();
 
 	virtual int         GetRealIVal() const;

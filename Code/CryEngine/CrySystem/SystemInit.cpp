@@ -378,7 +378,7 @@ public:
 		while (true)
 		{
 			CmdCrashTest(&commandArg);
-			CrySleep(1); // Allow other threads to run
+			CryLowLatencySleep("0.001"); // Allow other threads to run
 		}
 	}
 
@@ -1566,11 +1566,13 @@ bool CSystem::InitPhysics(const SSystemInitParams& startupParams)
 	               "Usage: p_do_step 1\n"
 	               "Default is 0 (off). Each 'p_do_step 1' instruction allows\n"
 	               "the physics system to advance a single step.");
+
+	// PERSONAL NOTE: The description on this cVar was WRONG! This is the forced timestep for physics, it's not 0 or 1!
 	REGISTER_CVAR2("p_fixed_timestep", &pVars->fixedTimestep, pVars->fixedTimestep, VF_CHEAT,
 	               "Toggles fixed time step mode."
-	               "Usage: p_fixed_timestep [0/1]\n"
-	               "Forces fixed time step when set to 1. When set to 0, the\n"
-	               "time step is variable, based on the frame rate.");
+	               "Usage: p_fixed_timestep 0=>Disabled, otherwise enforced\n"
+	               "This is the forced timestep for physics. Capped to maxWorldStep\n"
+						"PhysicsTime will progress normally but StartStep() etc. will assume this much time has passed.\n");
 	REGISTER_CVAR2("p_draw_helpers_num", &pVars->iDrawHelpers, pVars->iDrawHelpers, VF_CHEAT,
 	               "Toggles display of various physical helpers. The value is a bitmask:\n"
 	               "bit 0  - show contact points\n"
@@ -1627,10 +1629,6 @@ bool CSystem::InitPhysics(const SSystemInitParams& startupParams)
 	               "Usage: p_break_on_validation [0/1]\n"
 	               "Default is 0 (off). Issues CryDebugBreak() call in case of\n"
 	               "a physics parameter validation error.");
-	REGISTER_CVAR2("p_time_granularity", &pVars->timeGranularity, pVars->timeGranularity, 0,
-	               "Sets physical time step granularity.\n"
-	               "Usage: p_time_granularity [0..0.1]\n"
-	               "Used for internal tweaking only.");
 	REGISTER_CVAR2("p_list_active_objects", &pVars->bLogActiveObjects, pVars->bLogActiveObjects, VF_NULL, "1 - list normal objects, 2 - list independent objects, 3 - both");
 	REGISTER_CVAR2("p_profile_entities", &pVars->bProfileEntities, pVars->bProfileEntities, 0,
 	               "Enables per-entity time step profiling");
@@ -1783,7 +1781,6 @@ bool CSystem::InitPhysics(const SSystemInitParams& startupParams)
 
 	pVars->flagsColliderDebris = geom_colltype_debris;
 	pVars->flagsANDDebris = ~(geom_colltype_vehicle | geom_colltype6);
-	pVars->ticksPerSecond = gEnv->pTimer->GetTicksPerSecond();
 
 	if (m_bEditor)
 	{
@@ -1840,7 +1837,7 @@ bool CSystem::InitPhysicsRenderer(const SSystemInitParams& startupParams)
 		REGISTER_CVAR2("p_ray_fadeout", &m_pPhysRenderer->m_timeRayFadein, m_pPhysRenderer->m_timeRayFadein, 0,
 		               "Fade-out time for ray physics helpers");
 		REGISTER_CVAR2("p_ray_peak_time", &m_pPhysRenderer->m_rayPeakTime, m_pPhysRenderer->m_rayPeakTime, 0,
-		               "Rays that take longer then this (in ms) will use different color");
+		               "Rays that take longer then this will use different color");
 		REGISTER_CVAR2("p_proxy_highlight_threshold", &m_pPhysRenderer->m_maxTris, m_pPhysRenderer->m_maxTris, 0,
 		               "Physics proxies with triangle counts large than this will be highlighted");
 		REGISTER_CVAR2("p_proxy_highlight_range", &m_pPhysRenderer->m_maxTrisRange, m_pPhysRenderer->m_maxTrisRange, 0,
@@ -2595,24 +2592,25 @@ static bool CheckCPURequirements(CCpuFeatures* pCpu, CSystem* pSystem)
 	return true;
 }
 
+ULONG CSystem::GetTimeResolution() const {
+	HMODULE hModNtDll = GetModuleHandleA("ntdll");
+	
+	typedef LONG (WINAPI * FP_NtQueryTimerResolution)(PULONG, PULONG, PULONG);
+	FP_NtQueryTimerResolution pNtQueryTimerResolution = (FP_NtQueryTimerResolution) GetProcAddress(hModNtDll, "NtQueryTimerResolution");
+
+	// Get the highest/lowest/current precisions.
+	ULONG minRes = -1, maxRes = -1, curRes = -1;
+	assert(!pNtQueryTimerResolution(&minRes, &maxRes, &curRes) && "Failed to query time resolution");
+
+	return curRes;
+}
+
 // System initialization
 /////////////////////////////////////////////////////////////////////////////////
 // INIT
 /////////////////////////////////////////////////////////////////////////////////
 bool CSystem::Initialize(SSystemInitParams& startupParams)
 {
-	// Fix to improve wait() time within third-party APIs
-#if CRY_PLATFORM_WINDOWS
-	TIMECAPS tc;
-	UINT wTimerRes;
-	if (timeGetDevCaps(&tc, sizeof(TIMECAPS)) != TIMERR_NOERROR)
-	{
-		CryFatalError("Error while changing the system timer resolution!");
-	}
-	wTimerRes = std::min(std::max(tc.wPeriodMin, 1u), tc.wPeriodMax);
-	timeBeginPeriod(wTimerRes);
-#endif // CRY_PLATFORM_WINDOWS
-
 	LOADING_TIME_PROFILE_SECTION;
 
 	SetSystemGlobalState(ESYSTEM_GLOBAL_STATE_INIT);
@@ -2959,7 +2957,8 @@ bool CSystem::Initialize(SSystemInitParams& startupParams)
 		gEnv->pThreadManager->RegisterThirdPartyThread(pThreadHandle, "Main");
 
 		// Start watchdog after thread manager initialization
-		if (int val = m_sys_profile_watchdog_timeout->GetIVal())
+		CTimeValue val = m_sys_profile_watchdog_timeout->GetTime();
+		if (val != 0)
 		{
 			m_pWatchdog = new CWatchdogThread(val);
 		}
@@ -3090,6 +3089,59 @@ bool CSystem::Initialize(SSystemInitParams& startupParams)
 
 #if defined(CRY_PLATFORM_DESKTOP) && defined(USE_DEDICATED_SERVER_CONSOLE)
 		m_pTextModeConsole->SetTitle(m_pProjectManager->GetCurrentProjectName());
+#endif
+
+		//////////////////////////////////////////////////////////////////////////
+		// Set timer precision
+		//////////////////////////////////////////////////////////////////////////
+#if CRY_PLATFORM_WINDOWS
+	/* PERSONAL NOTE: 
+			Fix to improve wait() time within third party APIs using sleep()
+			
+			Before, System.cpp forced a timer resolution of 1 millisecond.
+			The below bypasses timerBeginPeriod() abstraction to allow finer resolution (< 1ms) (when possible)
+	*/
+	/* 
+		This code works around a potential perf limit inside the engine (and 3'd party API's) due to excessive use of sleeps, etc. 
+		Increasing the system wide timer resolution will cause the OS scheduler to respond faster etc.
+
+		WARNING: 
+			Excessively low values can increase CPU usage inside the kernel depending on the OS version.
+			e.g. Adverse perf impact on lower end machines with not enough cores, increased power consumption, etc.
+	*/
+	HMODULE hModNtDll = GetModuleHandleA("ntdll");
+	
+	typedef LONG (WINAPI * FP_NtQueryTimerResolution)(PULONG, PULONG, PULONG);
+	FP_NtQueryTimerResolution pNtQueryTimerResolution = (FP_NtQueryTimerResolution) GetProcAddress(hModNtDll, "NtQueryTimerResolution");
+
+	typedef LONG (WINAPI * FP_NtSetTimerResolution)(ULONG, BOOLEAN, PULONG);
+	FP_NtSetTimerResolution pNtSetTimerResolution = (FP_NtSetTimerResolution) GetProcAddress(hModNtDll, "NtSetTimerResolution");
+
+	/* Resolution is defined in 100 ns units, the smaller the value the higher the precision.
+		And the more accurate a thread will wake up from a suspension 
+		Example: 
+			Timer Resolution(1 ms):  Sleep(1) -> max thread suspension time 1.99ms
+			Timer Resolution(15 ms): Sleep(1) -> max thread suspension time 15.99ms
+	*/
+	// Get the highest/lowest/current precisions.
+	ULONG minRes = -1, maxRes = -1, curRes = -1;
+	assert(!pNtQueryTimerResolution(&minRes, &maxRes, &curRes) && "Failed to query time resolution");
+	
+	// Get the target system resolution, clamp between available resolutions.
+	ULONG targetRes = CLAMP(g_cvars.sys_timeres, maxRes, minRes);
+
+	// Don't bother updating if system timer is already configured to run in higher precision.
+	ULONG original = curRes;
+	if (targetRes < curRes)
+	{
+		assert(!pNtSetTimerResolution(targetRes, TRUE, &curRes) && "Failed to adjust timer resolution");
+		gEnv->pLog->LogAlways("System timer resolution configured to %.2f ms (was %.2f ms)", curRes * 1e-4, original * 1e-4);
+
+		// Actual timer resolution can/will differ, e.g. 4959 instead of the 'lowest possible' 5000
+		if(abs(g_cvars.sys_timeres - (long)curRes) >= 50){
+			CryWarning(VALIDATOR_MODULE_SYSTEM, VALIDATOR_WARNING, "Timer resolution %.2f ms not supported on this OS!", g_cvars.sys_timeres * 1e-4);
+		}
+	}
 #endif
 
 		//////////////////////////////////////////////////////////////////////////
@@ -3823,7 +3875,7 @@ bool CSystem::Initialize(SSystemInitParams& startupParams)
 	}
 
 #if defined(ENABLE_LOADING_PROFILER)
-	CLoadingProfilerSystem::SaveTimeContainersToFile("EngineStart.crylp", 0.0, true);
+	CLoadingProfilerSystem::SaveTimeContainersToFile("EngineStart.crylp", 0, true);
 #endif
 
 	InlineInitializationProcessing("CSystem::Init End");
@@ -3865,47 +3917,6 @@ bool CSystem::Initialize(SSystemInitParams& startupParams)
 
 	// All CVars should be registered by this point, we must now flush the cvar groups
 	OnSysSpecChange(m_sys_spec);
-
-#if CRY_PLATFORM_WINDOWS
-	// This code works around a potential perf limit inside the engine due to excessive use of sleeps, etc. Increasing the system wide
-	// timer resolution will cause the OS scheduler to respond more instantly. However, it's not recommended to enable this cvar by
-	// default as it can increase CPU usage inside the kernel depending on the OS version, meaning adverse perf impact on lower end machines
-	// with not enough cores, increased power consumption, etc.
-	if (g_cvars.sys_highrestimer)
-	{
-		HMODULE hModNtDll = GetModuleHandleA("ntdll");
-		if (hModNtDll)
-		{
-			typedef LONG (WINAPI * FP_NtQueryTimerResolution)(PULONG, PULONG, PULONG);
-			FP_NtQueryTimerResolution pNtQueryTimerResolution = (FP_NtQueryTimerResolution) GetProcAddress(hModNtDll, "NtQueryTimerResolution");
-
-			typedef LONG (WINAPI * FP_NtSetTimerResolution)(ULONG, BOOLEAN, PULONG);
-			FP_NtSetTimerResolution pNtSetTimerResolution = (FP_NtSetTimerResolution) GetProcAddress(hModNtDll, "NtSetTimerResolution");
-
-			if (pNtQueryTimerResolution && pNtSetTimerResolution)
-			{
-				// Resolution is defined in 100 ns units, the smaller the value the higher the precision.
-				ULONG minRes = -1, maxRes = -1, curRes = -1;
-				if (0 == pNtQueryTimerResolution(&minRes, &maxRes, &curRes))
-				{
-					ULONG originalRes = curRes;
-					// If system timer isn't already configured to run in higher precision, we want 1 ms resolution or
-					// (if not available on a particular machine) the highest possible resolution.
-					ULONG newRes = maxRes < 10000 ? 10000 : maxRes;
-					if (newRes < curRes)
-					{
-						// System will adjust to next higher supported resolution.
-						if (0 == pNtSetTimerResolution(newRes, TRUE, &newRes))
-						{
-							curRes = newRes;
-						}
-					}
-					gEnv->pLog->LogAlways("System timer configured to %.2f ms (was %.2f ms before)", curRes * 1e-4, originalRes * 1e-4);
-				}
-			}
-		}
-	}
-#endif
 
 	m_pManualFrameStepController = new CManualFrameStepController();
 
@@ -4931,7 +4942,7 @@ static void VisRegTest(IConsoleCmdArgs* pParams)
 void CSystem::WatchDogTimeOutChanged(ICVar* pCVar)
 {
 	CSystem* pCSystem = static_cast<CSystem*>(gEnv->pSystem);
-	int val = pCVar->GetIVal();
+	CTimeValue val = pCVar->GetTime();
 	if (val > 0)
 	{
 		if (pCSystem->m_pWatchdog == nullptr)
@@ -5075,7 +5086,7 @@ void CSystem::CreateSystemVars()
 	                             "Usage: sys_keyboard [0/1]\n"
 	                             "Default is 1 (on).");
 
-	m_svDedicatedMaxRate = REGISTER_FLOAT("sv_DedicatedMaxRate", 30.0f, 0,
+	m_svDedicatedMaxRate = REGISTER_MPFLOAT("sv_DedicatedMaxRate", mpfloat(30), 0,
 	                                      "Sets the maximum update rate when running as a dedicated server.\n"
 	                                      "Usage: sv_DedicatedMaxRate [5..500]\n"
 	                                      "Default is 30.");
@@ -5104,7 +5115,7 @@ void CSystem::CreateSystemVars()
 	                                          "Usage: e_EntitySuppressionLevel [0-infinity]\n"
 	                                          "Default is 0 (off)");
 
-	m_sys_profile_watchdog_timeout = REGISTER_INT_CB("watchdog", 0, VF_NULL,
+	m_sys_profile_watchdog_timeout = REGISTER_TIME_CB("watchdog", CTimeValue(0), VF_NULL,
 	                                                 "Set time out in seconds (positive) to start watching over game freezes", WatchDogTimeOutChanged);
 	m_sys_job_system_filter = REGISTER_STRING("sys_job_system_filter", "", 0,
 	                                          "Filters a Job.\n"
@@ -5194,7 +5205,7 @@ void CSystem::CreateSystemVars()
 	               );
 	g_cvars.sys_streaming_debug_filter_file_name = REGISTER_STRING("sys_streaming_debug_filter_file_name", "", VF_CHEAT,
 	                                                               "Set streaming debug information filter");
-	REGISTER_CVAR2("sys_streaming_debug_filter_min_time", &g_cvars.sys_streaming_debug_filter_min_time, 0.f, VF_NULL, "Show only slow items.");
+	REGISTER_CVAR2("sys_streaming_debug_filter_min_time", &g_cvars.sys_streaming_debug_filter_min_time, CTimeValue(0), VF_NULL, "Show only slow items.");
 	REGISTER_CVAR2("sys_streaming_resetstats", &g_cvars.sys_streaming_resetstats, 0, VF_NULL,
 	               "Reset all the streaming stats");
 
@@ -5223,7 +5234,7 @@ void CSystem::CreateSystemVars()
 	               "  UNDERFLOW: The result would be smaller than the smallest normal number representable in the destination format. E.g (float)DBL_MIN, nextafterf(FLT_MIN, -), expf(-87.4)\n");
 #undef CVAR_FPE_DEFAULT_VALUE
 
-	REGISTER_CVAR2("sys_update_profile_time", &g_cvars.sys_update_profile_time, 1.0f, 0, "Time to keep updates timings history for.");
+	REGISTER_CVAR2("sys_update_profile_time", &g_cvars.sys_update_profile_time, CTimeValue(1), 0, "Time to keep updates timings history for.");
 	REGISTER_CVAR2("sys_no_crash_dialog", &g_cvars.sys_no_crash_dialog, m_bNoCrashDialog, VF_NULL, "");
 #if !defined(DEDICATED_SERVER) && defined(_RELEASE)
 	REGISTER_CVAR2("sys_WER", &g_cvars.sys_WER, 1, 0, "Enables Windows Error Reporting");
@@ -5251,7 +5262,7 @@ void CSystem::CreateSystemVars()
 	                                                                                " 0 = on PC if vsync is off auto throttles fps while in menu or game is paused (default)\n"
 	                                                                                "-1 = off");
 
-	REGISTER_CVAR2("sys_maxTimeStepForMovieSystem", &g_cvars.sys_maxTimeStepForMovieSystem, 0.1f, VF_NULL, "Caps the time step for the movie system so that a cut-scene won't be jumped in the case of an extreme stall.");
+	REGISTER_CVAR2("sys_maxTimeStepForMovieSystem", &g_cvars.sys_maxTimeStepForMovieSystem, CTimeValue("0.1"), VF_NULL, "Caps the time step for the movie system so that a cut-scene won't be jumped in the case of an extreme stall.");
 
 	REGISTER_CVAR2("sys_force_installtohdd_mode", &g_cvars.sys_force_installtohdd_mode, 0, VF_NULL, "Forces install to HDD mode even when doing DVD emulation");
 
@@ -5434,18 +5445,15 @@ void CSystem::CreateSystemVars()
 	                                    "Sets the physics library to be used. Default is 'CryPhysics'"
 	                                    "Specify in system.cfg like this: p_physics_library = \"CryPhysics\"");
 
-	REGISTER_INT("sys_system_timer_resolution", 1, VF_NULL, "(Windows only) Value of the system timer resolution in milliseconds (ms)");
-
 #if defined(MAP_LOADING_SLICING)
 	CreateSystemScheduler(this);
 #endif // defined(MAP_LOADING_SLICING)
 
 #if CRY_PLATFORM_WINDOWS
 	REGISTER_INT("sys_screensaver_allowed", 0, VF_NULL, "Specifies if screen saver is allowed to start up while the game is running.");
-#endif
-
-#if CRY_PLATFORM_WINDOWS
-	REGISTER_CVAR2("sys_highrestimer", &g_cvars.sys_highrestimer, 0, VF_REQUIRE_APP_RESTART, "Enables high resolution system timer.");
+	REGISTER_CVAR2("sys_system_timer_resolution", &g_cvars.sys_timeres, 5000, VF_REQUIRE_APP_RESTART,
+		"(Windows only) Value of the system timer resolution in units of 100 nanoseconds. The default 5,000 = 0.5 milliseconds (ms)"
+	);
 #endif
 
 	g_cvars.sys_intromoviesduringinit = 0;

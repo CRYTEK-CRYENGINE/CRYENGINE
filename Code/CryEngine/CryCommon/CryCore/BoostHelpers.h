@@ -33,10 +33,7 @@ namespace boost
 template<class E> inline void throw_exception(E const& e)
 {
 	CryFatalError("Boost threw an exception: %s", e.what());
-	while (true)
-	{
-	}
-	;
+	throw 11; // PERSONAL NOTE: If system boot, fatal err won't trigger -> just die here like this.
 }
 }
 	#endif //BOOST_NO_EXCEPTIONS

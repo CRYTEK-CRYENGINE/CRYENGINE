@@ -359,9 +359,11 @@ public:
 	unused_marker&                     operator,(int& x) CRY_GCC48_AVOID_OPTIMIZE;
 	unused_marker&                     operator,(unsigned int& x) CRY_GCC48_AVOID_OPTIMIZE;
 	template<class ref> unused_marker& operator,(ref*& x)                        { x = (ref*)-1; return *this; }
-	template<class F> unused_marker&   operator,(Vec3_tpl<F>& x)                 { return *this, x.x; }
-	template<class F> unused_marker&   operator,(Quat_tpl<F>& x)                 { return *this, x.w; }
-	template<class F> unused_marker&   operator,(strided_pointer<F>& x)          { return *this, x.data; }
+	template<class F>   unused_marker& operator,(Vec3_tpl<F>& x)                 { return *this, x.x; }
+	template<class F>   unused_marker& operator,(Quat_tpl<F>& x)                 { return *this, x.w; }
+	template<class F>   unused_marker& operator,(strided_pointer<F>& x)          { return *this, x.data; }
+	MPOnly				  unused_marker& operator,(T& x)								     { x.memHACK(); return *this; }
+	TVOnly				  unused_marker& operator,(T& x)									  { return *this, x.m_lValue; }
 };
 //! \endcond
 
@@ -382,6 +384,12 @@ template<class F> bool   is_unused(const Ang3_tpl<F>& x)   { return is_unused(x.
 template<class F> bool   is_unused(const Vec3_tpl<F>& x)   { return is_unused(x.x); }
 template<class F> bool   is_unused(const Quat_tpl<F>& x)   { return is_unused(x.w); }
 inline bool              is_unused(const double& x)        { unused_marker::d2i u; u.d = x; return (u.i[eLittleEndian ? 1 : 0] & 0xFFF40000) == 0xFFF40000; }
+
+// PERSONAL NOTE: memHack() -> can't compare etc. unused value until assigned something like 0 (until it becomes 'used' heh)
+// Same result if memset(0) is done. Maybe there's a better solution?
+MPOnly bool is_unused(const T& x) { return !x.valid(); }
+TVOnly bool is_unused(const T& x) { return is_unused(x.m_lValue); }
+
 #define MARK_UNUSED unused_marker(),
 
 // validators do nothing in the interface, but inside the physics they are redefined
@@ -536,7 +544,7 @@ struct pe_params_part : pe_params
 	int                   idSkeleton;                  //!< Part with this id becomes this part's deformation skeleton.
 	int*                  pMatMapping;                 //!< Material mapping table for this part.
 	int                   nMats;                       //!< Number of pMatMapping entries.
-	float                 invTimeStep;                 //!< 1.0f/time_step, ragdolls will compute joint's velocity if this and position is set.
+	rTime                 invTimeStep;                 //!< 1.0f/time_step, ragdolls will compute joint's velocity if this and position is set.
 	int                   bAddrefGeoms;                //!< AddRef returned geometries if used in GetParams.
 	int                   idParent;                    //!< Parent for hierarchical breaking; it hides all children until at least one of them breaks off.
 
@@ -572,7 +580,7 @@ struct pe_simulation_params : pe_params
 	}
 
 	int   iSimClass;
-	float maxTimeStep;       //!< Maximum time step that entity can accept (larger steps will be split).
+	CTimeValue maxTimeStep;  //!< Maximum time step that entity can accept (larger steps will be split).
 	float minEnergy;         //!< Minimun of kinetic energy below which entity falls asleep (divided by mass).
 	float damping;           //!< Damped velocity = oridinal velocity * (1 - damping*time interval).
 	Vec3  gravity;           //!< Per-entity gravity (note that if there are any phys areas with gravity, they will override it unless pef_ignore_areas is set.
@@ -774,8 +782,8 @@ struct pe_params_timeout : pe_params
 	//! entities can be forced to go to sleep after some time without external impulses
 	enum entype { type_id = ePE_params_timeout };
 	pe_params_timeout() { type = type_id; MARK_UNUSED timeIdle, maxTimeIdle; }
-	float timeIdle;    //!< current 'idle' time (time without any 'prods' from outside)
-	float maxTimeIdle; //!< sleep when timeIdle>maxTimeIdle; 0 turns this feature off
+	CTimeValue timeIdle;    //!< current 'idle' time (time without any 'prods' from outside)
+	CTimeValue maxTimeIdle; //!< sleep when timeIdle>maxTimeIdle; 0 turns this feature off
 };
 
 struct pe_params_skeleton : pe_params
@@ -790,7 +798,7 @@ struct pe_params_skeleton : pe_params
 	float thickness;      //!< skeleton's thickness for collisions
 	float maxStretch;     //!< skeleton's maximal stretching
 	float maxImpulse;     //!< skeleton impulse cap
-	float timeStep;       //!< time step, used to simulate the skeleton (typically small)
+	CTimeValue timeStep;  //!< time step, used to simulate the skeleton (typically small)
 	int   nSteps;         //!< number of skeleton sub-steps per each structure update
 	float hardness;       //!< skeleton's hardness against stretching
 	float explosionScale; //!< skeleton's explosion impulse scale
@@ -836,8 +844,8 @@ struct pe_params_joint : pe_params
 	int          op[2];                                      //!< body identifiers of parent (optional) and child respectively
 	int          nSelfCollidingParts, * pSelfCollidingParts; //!< part ids of only parts that should be checked for self-collision
 	int          bNoUpdate;                                  //!< omit recalculation of body parameters after changing this joint
-	float        animationTimeStep;                          //!< used to calculate joint velocities of animation
-	float        ranimationTimeStep;                         //!< 1/animation time step, can be not specified (specifying just saves extra division operation)
+	CTimeValue   animationTimeStep;                          //!< used to calculate joint velocities of animation
+	rTime        ranimationTimeStep;                         //!< 1/animation time step, can be not specified (specifying just saves extra division operation)
 
 	VALIDATORS_START
 	  VALIDATOR(pivot)
@@ -949,7 +957,7 @@ struct pe_player_dynamics : pe_params
 	float            maxJumpAngle;                        //!< player is not allowed to jump towards ground if this angle is exceeded
 	float            minFallAngle;                        //!< player starts falling when slope is steeper than this
 	float            maxVelGround;                        //!< player cannot stand of surfaces that are moving faster than this
-	float            timeImpulseRecover;                  //!< forcefully turns on inertia for that duration after receiving an impulse
+	CTimeValue       timeImpulseRecover;                  //!< forcefully turns on inertia for that duration after receiving an impulse
 	int              collTypes;                           //!< entity types to check collisions against
 	IPhysicalEntity* pLivingEntToIgnore;                  //!< ignore collisions with this *living entity* (doesn't work with other entity types)
 	int              bNetwork;                            //!< uses extended history information (obsolete)
@@ -1024,7 +1032,7 @@ struct pe_params_car : pe_params
 	float  engineMaxRPM;       //!< engine torque decreases to 0 after reaching this rotation speed
 	float  brakeTorque;        //!< torque applied when breaking using the engine
 	int    iIntegrationType;   //!< for suspensions; 0-explicit Euler, 1-implicit Euler
-	float  maxTimeStep;        //!< maximum time step when vehicle has only wheel contacts
+	CTimeValue  maxTimeStep;   //!< maximum time step when vehicle has only wheel contacts
 	float  minEnergy;          //!< minimum awake energy when vehicle has only wheel contacts
 	float  damping;            //!< damping when vehicle has only wheel contacts
 	float  minBrakingFriction; //!< limits the the tire friction when handbraked
@@ -1175,7 +1183,7 @@ struct pe_params_softbody : pe_params
 	}
 
 	float thickness;   //!< thickness for collisions
-	float maxSafeStep; //!< time step cap
+	CTimeValue maxSafeStep; //!< time step cap
 	float ks;          //!< stiffness against stretching (for soft bodies, <0 means fraction of maximum stable)
 	float kdRatio;     //!< damping in stretch direction, in fractions of 0-oscillation damping
 	float friction;    //!< overrides material friction
@@ -1205,7 +1213,7 @@ struct pe_params_softbody : pe_params
 struct params_wavesim
 {
 	params_wavesim() { MARK_UNUSED timeStep, waveSpeed, dampingCenter, dampingRim, minhSpread, minVel, simDepth, heightLimit, resistance; }
-	float timeStep;      //!< fixed timestep used for the simulation
+	CTimeValue timeStep; //!< fixed timestep used for the simulation
 	float waveSpeed;     //!< wave propagation speed
 	float simDepth;      //!< assumed height of moving water layer	(relative to cell size)
 	float heightLimit;   //!< hard limit on height changes (relative to cell size)
@@ -1389,7 +1397,7 @@ struct pe_action_awake : pe_action
 	enum entype { type_id = ePE_action_awake };
 	pe_action_awake() { type = type_id; bAwake = 1; MARK_UNUSED minAwakeTime; }
 	int   bAwake;
-	float minAwakeTime; //!< minimum time to stay awake after executing the action; supported only by some entity types
+	CTimeValue minAwakeTime; //!< minimum time to stay awake after executing the action; supported only by some entity types
 };
 
 struct pe_action_remove_all_parts : pe_action
@@ -1492,15 +1500,15 @@ struct pe_action_slice : pe_action
 struct pe_action_move : pe_action
 {
 	enum entype { type_id = ePE_action_move };
-	pe_action_move() { type = type_id; iJump = 0; dt = 0; MARK_UNUSED dir; }
+	pe_action_move() { type = type_id; iJump = 0; dt.SetSeconds(0); MARK_UNUSED dir; }
 
-	Vec3  dir;   //!< requested velocity vector
-	int   iJump; //!< jump mode - 1-instant velocity change, 2-just adds to current velocity
-	float dt;    //!< time interval for this action (doesn't need to be set normally)
+	Vec3  dir;		//!< requested velocity vector
+	int   iJump;	//!< jump mode - 1-instant velocity change, 2-just adds to current velocity
+	CTimeValue dt; //!< time interval for this action (doesn't need to be set normally)
 
 	VALIDATORS_START
 	  VALIDATOR_RANGE2(dir, 0, 1000)
-	VALIDATOR_RANGE(dt, 0, 2)
+	  VALIDATOR_RANGE(dt, 0, 2)
 	VALIDATORS_END
 };
 
@@ -1595,7 +1603,7 @@ struct pe_status_netpos : pe_status
 	quaternionf rot;
 	Vec3        vel;
 	Vec3        angvel;
-	float       timeOffset;
+	CTimeValue  timeOffset;
 };
 
 //! Caches eForm extent of entity in pGeo.
@@ -1640,7 +1648,7 @@ struct pe_status_dynamics : pe_status
 		type = type_id;
 		mass = energy = 0;
 		nContacts = 0;
-		time_interval = 0;
+		time_interval.SetSeconds(0);
 		submergedFraction = 0;
 	}
 
@@ -1655,7 +1663,7 @@ struct pe_status_dynamics : pe_status
 	float mass;              //!< entity's or part's mass
 	float energy;            //!< kinetic energy; only supported by PE_ARTICULATED currently
 	int   nContacts;
-	float time_interval; //!< not used
+	CTimeValue time_interval; //!< not used
 };
 
 struct coll_history_item
@@ -1702,10 +1710,10 @@ struct pe_status_timeslices : pe_status
 	enum entype { type_id = ePE_status_timeslices };
 	pe_status_timeslices() { type = type_id; pTimeSlices = 0; sz = 1; precision = 0.0001f; MARK_UNUSED time_interval; }
 
-	float* pTimeSlices;
+	CTimeValue* pTimeSlices;
 	int    sz;
 	float  precision;     //!< time surplus below this threshhold will be discarded
-	float  time_interval; //!< if unused, time elapsed since the last action will be used
+	CTimeValue time_interval; //!< if unused, time elapsed since the last action will be used
 };
 
 //! GetStuts will return the number of parts.
@@ -1795,7 +1803,7 @@ struct pe_status_living : pe_status
 	pe_status_living() { type = type_id; }
 
 	int              bFlying;          //!< whether entity has no contact with ground
-	float            timeFlying;       //!< for how long the entity was flying
+	CTimeValue       timeFlying;       //!< for how long the entity was flying
 	Vec3             camOffset;        //!< camera offset
 	Vec3             vel;              //!< actual velocity (as rate of position change)
 	Vec3             velUnconstrained; //!< 'physical' movement velocity
@@ -1807,7 +1815,7 @@ struct pe_status_living : pe_status
 	int              groundSurfaceIdxAux; //!< contact with the ground that also has default collision flags
 	IPhysicalEntity* pGroundCollider;     //!< only returns an actual entity if the ground collider is not static
 	int              iGroundColliderPart;
-	float            timeSinceStanceChange;
+	CTimeValue       timeSinceStanceChange;
 	//! int bOnStairs; //! tries to detect repeated abrupt ground height changes
 	int              bStuck;    //!< tries to detect cases when the entity cannot move as before because of collisions
 	volatile int*    pLockStep; //!< internal timestepping lock
@@ -1901,7 +1909,6 @@ struct pe_status_joint : pe_status
 };
 
 ////////// rope entity statuses
-
 struct pe_status_rope : pe_status
 {
 	enum entype { type_id = ePE_status_rope };
@@ -1910,7 +1917,8 @@ struct pe_status_rope : pe_status
 		type = type_id;
 		pPoints = pVelocities = pVtx = pContactNorms = 0;
 		nCollStat = nCollDyn = bTargetPoseActive = bStrained = 0;
-		stiffnessAnim = timeLastActive = 0;
+		stiffnessAnim = 0;
+		timeLastActive.SetSeconds(0);
 		nVtx = 0;
 		lock = 0;
 		MARK_UNUSED pGridRefEnt;
@@ -1927,7 +1935,7 @@ struct pe_status_rope : pe_status
 	int                               nVtx;                //!< current number of vertices, used for ropes with dynamic subdivision
 	Vec3*                             pVtx;                //!< expects the caller to provide the array
 	Vec3*                             pContactNorms;       //!< normals for points (not vertices), expects a pointer from the caller
-	float                             timeLastActive;      //!< physics time when the rope was last active (not asleep)
+	CTimeValue                        timeLastActive;      //!< physics time when the rope was last active (not asleep)
 	Vec3                              posHost;             //!< host (the entity part it's attached to) position that corresponds to the returned state
 	quaternionf                       qHost;               //!< host's orientation
 	int                               lock;                //!< for subdivided ropes: +1 to leave read-locked, -1 to release from a previously read-locked state; 0 - local locking only
@@ -2203,7 +2211,7 @@ struct intersection_params
 	int           iUnprojectionMode;       //!< 0-angular, 1-rotational
 	Vec3          centerOfRotation;        //!< for mode 1 only
 	Vec3          axisOfRotation;          //!< if left 0, will be set based on collision area normal
-	float         time_interval;           //!< used to set unprojection limits
+	float		     time_interval;           //!< used to set unprojection limits PERSONAL NOTE: Rarely used as 'Time'. Typically length etc., so kept as float.
 	float         vrel_min;                //!< if local relative velocity in contact area is above this, unprojects along its derection; otherwise along area normal
 	float         maxSurfaceGapAngle;      //!< theshold for generating area contacts
 	float         minAxisDist;             //!< disables rotational unprojection if contact point is closer than this to the axis
@@ -2743,8 +2751,8 @@ struct IPhysicalEntity
 	virtual void* GetForeignData(int itype = 0) const = 0; //!< returns entity's pForeignData if itype matches iForeignData, 0 otherwise
 	virtual int   GetiForeignData() const = 0;             //!< returns entity's iForegnData
 
-	virtual int          GetStateSnapshot(class CStream& stm, float time_back = 0, int flags = 0) = 0; //!< obsolete, was used in Far Cry
-	virtual int          GetStateSnapshot(TSerialize ser, float time_back = 0, int flags = 0) = 0;
+	virtual int          GetStateSnapshot(class CStream& stm, const CTimeValue& time_back = 0, int flags = 0) = 0; //!< obsolete, was used in Far Cry
+	virtual int          GetStateSnapshot(TSerialize ser, const CTimeValue& time_back = 0, int flags = 0) = 0;
 	virtual int          SetStateFromSnapshot(class CStream& stm, int flags = 0) = 0;    //!< obsolete
 	virtual int          PostSetStateFromSnapshot() = 0;                                 //!< obsolete
 	virtual unsigned int GetStateChecksum() = 0;                                         //!< obsolete
@@ -2752,13 +2760,13 @@ struct IPhysicalEntity
 
 	virtual int          SetStateFromSnapshot(TSerialize ser, int flags = 0) = 0;
 	virtual int          SetStateFromTypedSnapshot(TSerialize ser, int type, int flags = 0) = 0;
-	virtual int          GetStateSnapshotTxt(char* txtbuf, int szbuf, float time_back = 0) = 0; //!< packs state into ASCII text
+	virtual int          GetStateSnapshotTxt(char* txtbuf, int szbuf, const CTimeValue& time_back = 0) = 0; //!< packs state into ASCII text
 	virtual void         SetStateFromSnapshotTxt(const char* txtbuf, int szbuf) = 0;
 
 	//! DoStep: evolves entity in time. Normally this is called from PhysicalWorld::TimeStep
-	virtual int             DoStep(float time_interval, int iCaller = MAX_PHYS_THREADS) = 0;
-	virtual void            StartStep(float time_interval) = 0; //!< must be called before DoStep
-	virtual void            StepBack(float time_interval) = 0;
+	virtual int             DoStep(const CTimeValue& time_interval, int iCaller = MAX_PHYS_THREADS) = 0;
+	virtual void            StartStep(const CTimeValue& time_interval) = 0; //!< must be called before DoStep
+	virtual void            StepBack(const CTimeValue& time_interval) = 0;
 	virtual IPhysicalWorld* GetWorld() const = 0; //!< returns physical world this entity belongs to
 
 	virtual void            GetMemoryStatistics(ICrySizer* pSizer) const = 0;
@@ -2891,9 +2899,9 @@ struct PhysicsVars : SolverSettings
 	int   iCollisionMode;
 	int   bSingleStepMode;
 	int   bDoStep;
-	float fixedTimestep;
-	float timeGranularity;
-	float maxWorldStep;
+	CTimeValue fixedTimestep;
+	//mpfloat timeGranularity; Not needed, instead use precise CTimeValue's!
+	CTimeValue maxWorldStep;
 	int   iDrawHelpers;
 	float drawHelpersOpacity;
 	int   iOutOfBounds;
@@ -2933,14 +2941,14 @@ struct PhysicsVars : SolverSettings
 	int   bLogLatticeTension;
 	int   nMaxLatticeIters;
 	int   bLogStructureChanges;
-	float tickBreakable;
+	CTimeValue tickBreakable;
 	float approxCapsLen;
 	int   nMaxApproxCaps;
 	int   bPlayersCanBreak;
-	float lastTimeStep;
+	CTimeValue lastTimeStep;
 	int   bMultithreaded;
 	float breakImpulseScale;
-	float rtimeGranularity;
+	mpfloat rtimeGranularity;
 	float massLimitDebris;
 	int   flagsColliderDebris;
 	int   flagsANDDebris;
@@ -2949,20 +2957,19 @@ struct PhysicsVars : SolverSettings
 	float splashDist0, minSplashForce0, minSplashVel0;
 	float splashDist1, minSplashForce1, minSplashVel1;
 	int   bDebugExplosions;
-	float jointGravityStep;
+	CTimeValue jointGravityStep;
 	float jointDmgAccum;
 	float jointDmgAccumThresh;
-	float timeScalePlayers;
-	float threadLag;
+	mpfloat timeScalePlayers;
+	CTimeValue threadLag;
 	int   numThreads;
 	int   physCPU;
 	int   physWorkerCPU;
 	Vec3  helperOffset;
-	int64 ticksPerSecond;
 	// net-synchronization related
 #if USE_IMPROVED_RIGID_ENTITY_SYNCHRONISATION
-	float netInterpTime;
-	float netExtrapMaxTime;
+	CTimeValue netInterpTime;
+	CTimeValue netExtrapMaxTime;
 	int   netSequenceFrequency;
 	int   netDebugDraw;
 #else
@@ -3104,7 +3111,7 @@ struct EventPhysStateChange : EventPhysMono
 	enum entype { id = 8, flagsCall = pef_monitor_state_changes, flagsLog = pef_log_state_changes };
 	EventPhysStateChange() { idval = id; }
 	int   iSimClass[2];
-	float timeIdle; //!< how long the entity stayed without external activation (such as impulses)
+	CTimeValue timeIdle; //!< how long the entity stayed without external activation (such as impulses)
 	Vec3  BBoxOld[2];
 	Vec3  BBoxNew[2];
 };
@@ -3125,7 +3132,7 @@ struct EventPhysPostStep : EventPhysMono
 {
 	enum entype { id = 4, flagsCall = pef_monitor_poststep, flagsLog = pef_log_poststep };
 	EventPhysPostStep() { idval = id; pGrid = nullptr; iCaller = 0; }
-	float            dt;
+	CTimeValue       dt;
 	Vec3             pos;
 	quaternionf      q;
 	int              idStep; //!< world's internal step count
@@ -3424,7 +3431,7 @@ struct IPhysicalWorld
 	//! returns a valid entity pointer even if the physics thread is busy during the call
 	virtual IPhysicalEntity* CreatePhysicalEntity(pe_type type, pe_params* params = 0, void* pforeigndata = 0, int iforeigndata = 0, int id = -1, IGeneralMemoryHeap* pHeap = NULL) = 0;
 	//! CreatePhysicalEntity - this version is used when creating an a temporary entity (lifeTime) on demand for a placeholder
-	virtual IPhysicalEntity* CreatePhysicalEntity(pe_type type, float lifeTime, pe_params* params = 0, void* pForeignData = 0, int iForeignData = 0, int id = -1, IPhysicalEntity* pHostPlaceholder = 0, IGeneralMemoryHeap* pHeap = NULL) = 0;
+	virtual IPhysicalEntity* CreatePhysicalEntity(pe_type type, const CTimeValue& lifeTime, pe_params* params = 0, void* pForeignData = 0, int iForeignData = 0, int id = -1, IPhysicalEntity* pHostPlaceholder = 0, IGeneralMemoryHeap* pHeap = NULL) = 0;
 	//! CreatePhysicalPlaceholder - placeholder is a lightweight structure that requests creation of a full entity
 	//! when needed via IPhysicsStreamer->CreatePhysicalEntity
 	virtual IPhysicalEntity* CreatePhysicalPlaceholder(pe_type type, pe_params* params = 0, void* pForeignData = 0, int iForeignData = 0, int id = -1) = 0;
@@ -3450,15 +3457,15 @@ struct IPhysicalWorld
 
 	//! TimeStep - the main world's function
 	//! flags - entity types to update (ent_..; ent_deleted to purge deletion physics-on-demand state monitoring)
-	virtual void  TimeStep(float time_interval, int flags = ent_all | ent_deleted) = 0;
+	virtual void  TimeStep(const CTimeValue& time_interval, int flags = ent_all | ent_deleted) = 0;
 
-	virtual float GetPhysicsTime() = 0;
-	virtual int   GetiPhysicsTime() = 0; //!< physics time, quantized with PhysVars->timeGranularity
-	virtual void  SetPhysicsTime(float time) = 0;
-	virtual void  SetiPhysicsTime(int itime) = 0;
+	virtual const CTimeValue& GetPhysicsTime() = 0;
+	//virtual int   GetiPhysicsTime() = 0; //!< physics time, quantized with PhysVars->timeGranularity
+	virtual void  SetPhysicsTime(const CTimeValue& time) = 0;
+	//virtual void  SetiPhysicsTime(int itime) = 0;
 
-	virtual void  SetSnapshotTime(float time_snapshot, int iType = 0) = 0; //!< time corresponding to the current snapshot
-	virtual void  SetiSnapshotTime(int itime_snapshot, int iType = 0) = 0;
+	virtual void  SetSnapshotTime(const CTimeValue& time_snapshot, int iType = 0) = 0; //!< time corresponding to the current snapshot
+	//virtual void  SetiSnapshotTime(int itime_snapshot, int iType = 0) = 0;
 
 	//! GetEntitiesInBox - uses entity grid to query entites in bbox (objtypes - see enum entity_query_flags)
 	//! unless ent_allocate_list is set, returns pre-alocated internal list for iCaller==MAX_PHYS_THREADS
@@ -3499,7 +3506,7 @@ struct IPhysicalWorld
 	//! r is used to scale the corresponding explosion (boolean) shape
 	virtual int   DeformPhysicalEntity(IPhysicalEntity* pent, const Vec3& ptHit, const Vec3& dirHit, float r, int flags = 0) = 0;
 	//! UpdateDeformingEntities - normally this happens automatically during TimeStep; can be called manually for ex. during loading
-	virtual void  UpdateDeformingEntities(float time_interval = 0.01f) = 0; //!< normally this happens during TimeStep
+	virtual void  UpdateDeformingEntities(const CTimeValue& time_interval = "0.01") = 0; //!< normally this happens during TimeStep
 	//! CalculateExplosionExposure - uses occlusion grid from the last SimulateExplosion to calculate exposure
 	virtual float CalculateExplosionExposure(pe_explosion* pexpl, IPhysicalEntity* pient) = 0;
 
@@ -3528,9 +3535,9 @@ struct IPhysicalWorld
 	virtual float PrimitiveWorldIntersection(const SPWIParams& pp, WriteLockCond* pLockContacts = 0, const char* pNameTag = PWI_NAME_TAG) = 0;
 	virtual void  GetMemoryStatistics(ICrySizer* pSizer) = 0;
 
-	virtual void  SetPhysicsStreamer(IPhysicsStreamer* pStreamer) = 0;          //!< sets the callbacks for on-demand creation
-	virtual void  SetPhysicsEventClient(IPhysicsEventClient* pEventClient) = 0; //!< obsolete
-	virtual float GetLastEntityUpdateTime(IPhysicalEntity* pent) = 0;           //!< simulation class-based, not actually per-entity
+	virtual void  SetPhysicsStreamer(IPhysicsStreamer* pStreamer) = 0;            //!< sets the callbacks for on-demand creation
+	virtual void  SetPhysicsEventClient(IPhysicsEventClient* pEventClient) = 0;   //!< obsolete
+	virtual const CTimeValue& GetLastEntityUpdateTime(IPhysicalEntity* pent) = 0; //!< simulation class-based, not actually per-entity
 	virtual int   GetEntityProfileInfo(phys_profile_info*& pList) = 0;
 	virtual int   GetFuncProfileInfo(phys_profile_info*& pList) = 0;
 	virtual int   GetGroupProfileInfo(phys_profile_info*& pList) = 0;

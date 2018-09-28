@@ -297,10 +297,18 @@ private: // ----------------------------------------------------------
 	virtual ICVar* RegisterInt(const char* sName, int iValue, int nFlags, const char* help = "", ConsoleVarFunc pChangeFunc = 0);
 	virtual ICVar* RegisterInt64(const char* sName, int64 iValue, int nFlags, const char* help = "", ConsoleVarFunc pChangeFunc = 0);
 	virtual ICVar* RegisterFloat(const char* sName, float fValue, int nFlags, const char* help = "", ConsoleVarFunc pChangeFunc = 0);
+	virtual ICVar* RegisterTime(const char* sName, const CTimeValue& fValue, int nFlags, const char* help = "", ConsoleVarFunc pChangeFunc = 0);
+	virtual ICVar* Register(const char* name, CTimeValue* src, const CTimeValue& defaultvalue, int nFlags = 0, const char* help = "", ConsoleVarFunc pChangeFunc = 0, bool allowModify = true);
 	virtual ICVar* Register(const char* name, float* src, float defaultvalue, int flags = 0, const char* help = "", ConsoleVarFunc pChangeFunc = 0, bool allowModify = true);
 	virtual ICVar* Register(const char* name, int* src, int defaultvalue, int flags = 0, const char* help = "", ConsoleVarFunc pChangeFunc = 0, bool allowModify = true);
 	virtual ICVar* Register(const char* name, const char** src, const char* defaultvalue, int flags = 0, const char* help = "", ConsoleVarFunc pChangeFunc = 0, bool allowModify = true);
 	virtual ICVar* Register(ICVar* pVar) { RegisterVar(pVar); return pVar; }
+
+	#define MP_FUNCTION(T)\
+	virtual ICVar* RegisterMPFloat(const char* sName, const T& fValue, int nFlags, const char* help = "", ConsoleVarFunc pChangeFunc = 0);\
+	virtual ICVar* Register(const char* name, T* src, const T& defaultvalue, int nFlags = 0, const char* help = "", ConsoleVarFunc pChangeFunc = 0, bool allowModify = true);
+	#include <CrySystem/mpfloat.types>
+	#undef MP_FUNCTION
 
 	typedef std::map<string, CConsoleCommand, string_nocase_lt>                        ConsoleCommandsMap;
 	typedef ConsoleCommandsMap::iterator                                               ConsoleCommandsMapItor;
@@ -376,10 +384,10 @@ private: // ----------------------------------------------------------
 	size_t                         m_nCursorPos;                // x position in characters
 	ITexture*                      m_pImage;
 
-	float                          m_fRepeatTimer;            // relative, next repeat even in .. decreses over time, repeats when 0, only valid if m_nRepeatEvent.keyId != eKI_Unknown
+	CTimeValue                     m_fRepeatTimer;            // relative, next repeat even in .. decreses over time, repeats when 0, only valid if m_nRepeatEvent.keyId != eKI_Unknown
 	SInputEvent                    m_nRepeatEvent;            // event that will be repeated
 
-	float                          m_fCursorBlinkTimer;       // relative, increases over time,
+	CTimeValue                     m_fCursorBlinkTimer;       // relative, increases over time,
 	bool                           m_bDrawCursor;
 
 	ScrollDir                      m_sdScrollDir;

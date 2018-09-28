@@ -11,6 +11,7 @@
 //--------------------------------------------------------------------------------
 // IsValid() overloads for basic types
 
+// PERSONAL IMPROVE: Honestly IsValid() and IsUnused() should be merged.
 namespace ValidNumber
 {
 template<typename T, bool Converted> struct Float
@@ -26,9 +27,45 @@ template<typename T, bool Converted> struct Float
 	static bool IsEquivalent(T a, T b, T e = std::numeric_limits<T>::epsilon())
 	{
 		float e2 = sqr(e);
-		if (e < 0) // Negative epislon denotes a relative comparison
+		if (e < 0) // Negative epsilon denotes a relative comparison
 			e2 *= max(sqr(a), sqr(b));
 		return sqr(a - b) <= e2;
+	}
+};
+
+template<typename T> struct MPTest
+{
+	static void SetInvalid(T& val)
+	{
+		val.memHack(); // Treating this as a 'Signaling' NAN!
+	}
+	static bool IsValid(const T& val)
+	{
+		static_assert(T::limits::has_quiet_NaN && T::limits::has_infinity, "Type must support quiet NaN & infinity.");
+		return val.valid() && !(val == T(T::limits::infinity().backend()) || val.IsNaN());
+	}
+	static bool IsEquivalent(const T& a, const T& b, const T& e = 0)
+	{
+		T e2 = sqr(e);
+		if (e < 0) // Negative epsilon denotes a relative comparison
+			e2 *= max(sqr(a), sqr(b));
+		return sqr(a - b) <= e2;
+	}
+};
+
+template<typename T> struct TimeTest
+{
+	static void SetInvalid(T& val)
+	{
+		return MPTest<mpfloat>::SetInvalid(val.m_lValue);
+	}
+	static bool IsValid(const T& val)
+	{
+		return MPTest<mpfloat>::IsValid(val.m_lValue);
+	}
+	static bool IsEquivalent(const T& a, const T& b, const T& e = 0)
+	{
+		return MPTest<mpfloat>::IsEquivalent(a.m_lValue, b.m_lValue, e.m_lValue);
 	}
 };
 
@@ -89,14 +126,20 @@ template<typename T> struct Type
 	typedef typename std::conditional<
 		std::is_floating_point<T>::value, ValidNumber::Float<T, 0>,
 		typename std::conditional<
-			std::is_same<T, bool>::value, ValidNumber::Boolean<T>,
+		isMP, ValidNumber::MPTest<T>,
 			typename std::conditional<
-				std::is_integral<T>::value || std::is_enum<T>::value, ValidNumber::Integral<T, 0>,
+			isTV, ValidNumber::TimeTest<T>,
 				typename std::conditional<
-					std::is_convertible<T, float>::value, ValidNumber::Float<T, 1>,
+					std::is_same<T, bool>::value, ValidNumber::Boolean<T>,
 					typename std::conditional<
-						std::is_convertible<T, int>::value, ValidNumber::Integral<T, 1>,
-						ValidNumber::Class<T>
+						std::is_integral<T>::value || std::is_enum<T>::value, ValidNumber::Integral<T, 0>,
+						typename std::conditional<
+							std::is_convertible<T, float>::value, ValidNumber::Float<T, 1>,
+							typename std::conditional<
+								std::is_convertible<T, int>::value, ValidNumber::Integral<T, 1>,
+								ValidNumber::Class<T>
+							>::type
+						>::type
 					>::type
 				>::type
 			>::type
@@ -124,11 +167,13 @@ template<typename T> bool NumberValid(const T& val)
 	return IsValid(val); 
 }
 
-template<typename T, typename U, typename E> bool IsEquivalent(const T& a, const U& b, E e)
+template<typename T, typename U, typename E> 
+bool IsEquivalent(const T& a, const U& b, E e)
 {
 	return ValidNumber::Type<T>::type::IsEquivalent(a, b, e);
 }
-template<typename T, typename U> bool IsEquivalent(const T& a, const U& b)
+template<typename T, typename U> 
+bool IsEquivalent(const T& a, const U& b)
 {
 	return ValidNumber::Type<T>::type::IsEquivalent(a, b);
 }

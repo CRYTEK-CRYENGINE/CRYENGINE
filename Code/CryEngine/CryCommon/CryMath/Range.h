@@ -3,6 +3,7 @@
 //! \cond INTERNAL
 
 #pragma once
+#include <CrySystem\MPFloat.h>
 
 /*!
     Class TRange, can represent anything that is a range between two values.
@@ -108,9 +109,9 @@ public:
 		return TRange(start + r.start, end + r.end);
 	}
 	//! Interpolate range
-	T operator()(float f) const
+	T operator()(const mpfloat& f) const
 	{
-		return start + T(Length() * f);
+		return start + T(Length() * BADF f); 
 	}
 };
 

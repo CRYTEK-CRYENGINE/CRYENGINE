@@ -7,6 +7,12 @@
 #include <CrySystem/IConsole.h>
 #include <CrySystem/ILog.h>
 #include <CryNetwork/ISerialize.h>
+// PERSONAL IMPROVE: the macro def location should be changed to avoid mess.
+// For GAME_CHANNEL_SYNC_CLIENT_SERVER_TIME setup.
+#include "../CryAction/CryAction.h"
+#include <CryNetwork\NetHelpers.h>
+#include "../CryAction/Network/GameClientChannel.h"
+#include "../CryAction/Network/GameClientNub.h"
 /////////////////////////////////////////////////////
 #include <CryCore/Platform/CryWindows.h>
 
@@ -16,265 +22,125 @@
 
 //#define PROFILING 1
 #ifdef PROFILING
-static int64 g_lCurrentTime = 0;
+static int64 g_lCurrentTime = 0; // In ticks
 #endif
-
-//! Profile smoothing time in seconds (original default was .8 / log(10) ~= .35 s)
-static const float fDEFAULT_PROFILE_SMOOTHING = 1.0f;
-
-#define DEFAULT_FRAME_SMOOTHING 1
 
 /////////////////////////////////////////////////////
 CTimer::CTimer()
 {
-	// Default CVar values
-	m_fixed_time_step = 0;
-	m_max_time_step = 0.25f;
-	m_cvar_time_scale = 1.0f;
-	m_TimeSmoothing = DEFAULT_FRAME_SMOOTHING; // note: frame numbers (old version - commented out) are not used but is based on time
-	m_TimeDebug = 0;
-
-	m_profile_smooth_time = fDEFAULT_PROFILE_SMOOTHING;
-	m_profile_weighting = 1;
-
 	// Persistant state
 	m_bEnabled = true;
 	m_nFrameCounter = 0;
 
 	LARGE_INTEGER TTicksPerSec;
-	if (QueryPerformanceFrequency(&TTicksPerSec))
-	{
-		// performance counter is available, use it instead of multimedia timer
+	if (QueryPerformanceFrequency(&TTicksPerSec)) {
+		// Performance counter is available, use it instead of multimedia timer
 		m_lTicksPerSec = TTicksPerSec.QuadPart;
-	}
-	else
-	{
+	} else {
 		assert(false && "QueryPerformanceFrequency failed");
-		m_lTicksPerSec = 1000000;
-	}
-	m_fSecsPerTick = 1.0 / m_lTicksPerSec;
-
-	m_fAverageFrameTime = 1.0f / 30.0f;
-	for (int i = 0; i < MAX_FRAME_AVERAGE; i++)
-	{
-		m_arrFrameTimes[i] = m_fAverageFrameTime;
+		//m_lTicksPerSec = 1000000;
 	}
 
-	m_fAvgFrameTime = 0.0f;
-	m_fProfileBlend = 1.0f;
-	m_fSmoothTime = 0;
+	m_frameTimes.resize(200);
+	for (uint32 i = 0; i < 200; i++)
+		m_frameTimes[i].SetSeconds("0.014");
 
-	m_totalTimeScale = 1.0f;
+	m_fAvgFrameTime.SetSeconds(0);
+	m_fSmoothTime.SetSeconds(0);
+	m_fProfileBlend = 1;
+
+	m_totalTimeScale = 1;
 	ClearTimeScales();
 
 	ResetTimer();
 }
 
-/////////////////////////////////////////////////////
 bool CTimer::Init()
 {
-	// MartinM: renamed cvars for consistency
-	// if game code was accessing them by name there was something wrong anyway
+	REGISTER_CVAR2("t_MaxStep", &m_max_time_step, CTimeValue("0.25"), 0,
+	               "Game systems clamped to this frame time. [default] = 0.25");
 
-	REGISTER_CVAR2("t_Smoothing", &m_TimeSmoothing, DEFAULT_FRAME_SMOOTHING, 0,
-	               "time smoothing\n"
-	               "0=off, 1=on");
+	// TODO: reconsider exposing this as cvar (negative time, same value is used by Trackview, better would be another value multipled with the internal one)
+	REGISTER_CVAR2("t_Scale", &m_cvar_time_scale, 1, VF_NET_SYNCED | VF_DEV_ONLY,
+		"Game (simulation) time scaled by this - for variable slow motion. [default] = 1");
 
-	REGISTER_CVAR2("t_FixedStep", &m_fixed_time_step, 0, VF_NET_SYNCED | VF_DEV_ONLY,
-	               "Game updated with this fixed frame time\n"
-	               "0=off, number specifies the frame time in seconds\n"
-	               "e.g. 0.033333(30 fps), 0.1(10 fps), 0.01(100 fps)");
+	REGISTER_CVAR2("t_Smoothing", &m_TimeSmoothing, 1, 0,
+		"Use averaged simulation frame time?"
+		"0 = off, 1 = on [default]");
 
-	REGISTER_CVAR2("t_MaxStep", &m_max_time_step, 0.25f, 0,
-	               "Game systems clamped to this frame time");
+	REGISTER_CVAR2("average_interval", &average_interval, CTimeValue("0.25"), 0,
+		"Interval over which average-frame-time is calculated. [default] = 0.25 seconds");
 
-	// todo: reconsider exposing that as cvar (negative time, same value is used by Trackview, better would be another value multipled with the internal one)
-	REGISTER_CVAR2("t_Scale", &m_cvar_time_scale, 1.0f, VF_NET_SYNCED | VF_DEV_ONLY,
-	               "Game time scaled by this - for variable slow motion");
 
-	REGISTER_CVAR2("t_Debug", &m_TimeDebug, 0, 0, "Timer debug: 0 = off, 1 = events, 2 = verbose");
+	/*------------== DEBUG ONLY ==------------*/
+	REGISTER_CVAR2("t_Debug", &m_TimeDebug, 0, 0, "Timer debug: 0 = off [default], 1 = events, 2 = verbose");
 
-	// -----------------
-
-	REGISTER_CVAR2("profile_smooth", &m_profile_smooth_time, fDEFAULT_PROFILE_SMOOTHING, 0,
-	               "Profiler exponential smoothing interval (seconds)");
+	// Original default was .8 / log(10) ~= .35 seconds
+	REGISTER_CVAR2("profile_smooth", &m_profile_smooth_time, 1, 0,
+	               "Profiler exponential smoothing interval. [default] = 1 second");
 
 	REGISTER_CVAR2("profile_weighting", &m_profile_weighting, 1, 0,
-	               "Profiler smoothing mode: 0 = legacy, 1 = average, 2 = peak weighted, 3 = peak hold");
+	               "Profiler smoothing mode: 0 = legacy, 1 = average [default], 2 = peak weighted, 3 = peak hold");
 
+	REGISTER_CVAR2("t_FixedStep", &m_fixed_time_step, CTimeValue(0), VF_NET_SYNCED | VF_DEV_ONLY,
+	               "Game simulation time pretends this was real-time, before scaling/smoothing/etc.\n"
+	               "0 = off [default]\n"
+	               "e.g. 0.033333(30 fps), 0.1(10 fps), 0.01(100 fps)");
 	return true;
 }
 
-/////////////////////////////////////////////////////
-float CTimer::GetFrameTime(ETimer which) const
+ITimer* CTimer::CreateNewTimer()
 {
-	return m_bEnabled && (which != ETIMER_GAME || !m_bGameTimerPaused) ? m_fFrameTime : 0.0f;
+	return new CTimer();
 }
 
-float CTimer::GetReplicationTime() const
+void CTimer::ResetTimer()
 {
-	return m_replicationTime;
+	m_lBaseTime = CryGetTicks();
+	m_lLastTime = 0;
+	m_lOffsetTime = 0;
+
+	m_fFrameTime.SetSeconds(0);
+	m_fRealFrameTime.SetSeconds(0);
+	m_realStartTime.SetSeconds(0);
+	m_replicationTime.SetSeconds(0);
+
+	RefreshGameTime(0);
+	RefreshUITime(0);
+
+	m_bGameTimerPaused = false;
+	m_lGameTimerPausedTime = 0;
 }
 
-/////////////////////////////////////////////////////
-float CTimer::GetCurrTime(ETimer which) const
+void CTimer::Serialize(TSerialize ser)
 {
-	assert(which >= 0 && which < ETIMER_LAST && "Bad timer index");
-	return m_CurrTime[which].GetSeconds();
-}
-
-/////////////////////////////////////////////////////
-float CTimer::GetRealFrameTime() const
-{
-	return m_bEnabled ? m_fRealFrameTime : 0.0f;
-}
-
-/////////////////////////////////////////////////////
-float CTimer::GetTimeScale() const
-{
-	return m_cvar_time_scale * m_totalTimeScale;
-}
-
-/////////////////////////////////////////////////////
-float CTimer::GetTimeScale(uint32 channel) const
-{
-	assert(channel < NUM_TIME_SCALE_CHANNELS);
-	if (channel >= NUM_TIME_SCALE_CHANNELS)
+	// Can't change m_lBaseTime, as this is used for async time (which shouldn't be affected by save games)
+	if (ser.IsWriting())
 	{
-		return GetTimeScale();
-	}
-	return m_cvar_time_scale * m_timeScaleChannels[channel];
-}
+		int64 currentGameTime = m_lLastTime + m_lOffsetTime;
 
-/////////////////////////////////////////////////////
-void CTimer::SetTimeScale(float scale, uint32 channel /* = 0 */)
-{
-	assert(channel < NUM_TIME_SCALE_CHANNELS);
-	if (channel >= NUM_TIME_SCALE_CHANNELS)
-	{
-		return;
-	}
-
-	const float currentScale = m_timeScaleChannels[channel];
-
-	if (scale != currentScale)
-	{
-		// Need to adjust previous frame times for time scale to have immediate effect
-		const float adjustFactor = scale / currentScale;
-		for (uint32 i = 0; i < MAX_FRAME_AVERAGE; ++i)
-		{
-			m_arrFrameTimes[i] *= adjustFactor;
-		}
-
-		// Update total time scale immediately
-		m_totalTimeScale *= adjustFactor;
-	}
-
-	m_timeScaleChannels[channel] = scale;
-}
-
-/////////////////////////////////////////////////////
-void CTimer::ClearTimeScales()
-{
-	if (m_totalTimeScale != 1.0f)
-	{
-		// Need to adjust previous frame times for time scale to have immediate effect
-		const float adjustFactor = 1.0f / m_totalTimeScale;
-		for (uint32 i = 0; i < MAX_FRAME_AVERAGE; ++i)
-		{
-			m_arrFrameTimes[i] *= adjustFactor;
-		}
-	}
-
-	for (int i = 0; i < NUM_TIME_SCALE_CHANNELS; ++i)
-	{
-		m_timeScaleChannels[i] = 1.0f;
-	}
-	m_totalTimeScale = 1.0f;
-}
-
-/////////////////////////////////////////////////////
-float CTimer::GetAsyncCurTime()
-{
-	int64 llNow = CryGetTicks() - m_lBaseTime;
-	return TicksToSeconds(llNow);
-}
-
-/////////////////////////////////////////////////////
-float CTimer::GetFrameRate()
-{
-	// Use real frame time.
-	if (m_fRealFrameTime != 0.f)
-		return 1.f / m_fRealFrameTime;
-	return 0.f;
-}
-
-void CTimer::UpdateBlending()
-{
-	// Accumulate smoothing time up to specified max.
-	float fFrameTime = m_fRealFrameTime;
-	m_fSmoothTime = min(m_fSmoothTime + fFrameTime, m_profile_smooth_time);
-
-	if (m_fSmoothTime <= fFrameTime)
-	{
-		m_fAvgFrameTime = fFrameTime;
-		m_fProfileBlend = 1.f;
-		return;
-	}
-
-	if (m_profile_weighting <= 2)
-	{
-		// Update average frame time.
-		if (m_fSmoothTime < m_fAvgFrameTime)
-			m_fAvgFrameTime = m_fSmoothTime;
-		m_fAvgFrameTime *= m_fSmoothTime / (m_fSmoothTime - fFrameTime + m_fAvgFrameTime);
-
-		if (m_profile_weighting == 1)
-		{
-			// Weight all frames equally.
-			m_fProfileBlend = m_fAvgFrameTime / m_fSmoothTime;
-		}
-		else
-		{
-			// Weight frames by time.
-			m_fProfileBlend = fFrameTime / m_fSmoothTime;
-		}
+		ser.Value("curTime", currentGameTime);
+		ser.Value("ticksPerSecond", m_lTicksPerSec);
 	}
 	else
 	{
-		// Decay avg frame time, set as new peak.
-		m_fAvgFrameTime *= 1.f - fFrameTime / m_fSmoothTime;
-		if (fFrameTime > m_fAvgFrameTime)
+		int64 ticksPerSecond = 1, curTime = 1;
+		ser.Value("curTime", curTime);
+		ser.Value("ticksPerSecond", ticksPerSecond);
+
+		// Adjust curTime for ticksPerSecond on this machine.
+		// Some precision will be lost if the frequencies are not identical.
+		const mpfloat multiplier = (mpfloat)m_lTicksPerSec / ticksPerSecond;
+		curTime = (int64)(curTime * multiplier);
+
+		SetOffsetToMatchGameTime(curTime);
+
+		if (m_TimeDebug)
 		{
-			m_fAvgFrameTime = fFrameTime;
-			m_fProfileBlend = 1.f;
+			const int64 now = CryGetTicks();
+			CryLogAlways("[CTimer]: Serialize: Frame=%d Last=%lld Now=%lld Off=%lld Async=%s GameTime=%s UI=%s", gEnv->pRenderer->GetFrameID(false), (long long)m_lLastTime, (long long)now, (long long)m_lOffsetTime, GetAsyncCurTime().str(), GetFrameStartTime(ETIMER_GAME).str(), GetFrameStartTime(ETIMER_UI).str());
 		}
-		else
-			m_fProfileBlend = 0.f;
 	}
-}
-
-float CTimer::GetProfileFrameBlending(float* pfBlendTime, int* piBlendMode)
-{
-	if (piBlendMode)
-		*piBlendMode = m_profile_weighting;
-	if (pfBlendTime)
-		*pfBlendTime = m_fSmoothTime;
-	return m_fProfileBlend;
-}
-
-/////////////////////////////////////////////////////
-void CTimer::RefreshGameTime(int64 curTime)
-{
-	assert(curTime + m_lOffsetTime >= 0);
-	m_CurrTime[ETIMER_GAME].SetSeconds(TicksToSeconds(curTime + m_lOffsetTime));
-}
-
-/////////////////////////////////////////////////////
-void CTimer::RefreshUITime(int64 curTime)
-{
-	assert(curTime >= 0);
-	m_CurrTime[ETIMER_UI].SetSeconds(TicksToSeconds(curTime));
 }
 
 /////////////////////////////////////////////////////
@@ -294,160 +160,174 @@ void CTimer::UpdateOnFrameStart()
 		// every bunch of frames, check frequency to adapt to
 		// CPU power management clock rate changes
 		LARGE_INTEGER TTicksPerSec;
-		if (QueryPerformanceFrequency(&TTicksPerSec))
-		{
-			// if returns false, no performance counter is available
-			m_lTicksPerSec = TTicksPerSec.QuadPart;
-			m_fSecsPerTick = 1.0 / m_lTicksPerSec;
-		}
+		QueryPerformanceFrequency(&TTicksPerSec)
+		m_lTicksPerSec = TTicksPerSec.QuadPart;
 	}
 
 	m_nFrameCounter++;
 #endif
 
 #ifdef PROFILING
-	m_fRealFrameTime = m_fFrameTime = 0.020f; // 20ms = 50fps
-	g_lCurrentTime += (int)(m_fFrameTime * (float)(CTimeValue::TIMEVALUE_PRECISION));
+	m_fRealFrameTime = m_fFrameTime = CTimeValue("0.020"); // 20ms = 50fps
+	g_lCurrentTime += int64(m_fFrameTime.GetSeconds() * m_lTicksPerSec);
 	m_lLastTime = g_lCurrentTime;
 	RefreshGameTime(m_lLastTime);
 	RefreshUITime(m_lLastTime);
 	return;
 #endif
-
-	if (m_fixed_time_step < 0.0f)
-	{
-		// Enforce real framerate by sleeping.
-		const int64 elapsedTicks = CryGetTicks() - m_lBaseTime - m_lLastTime;
-		const int64 minTicks = SecondsToTicks(-m_fixed_time_step);
-		if (elapsedTicks < minTicks)
-		{
-			const int64 ms = (minTicks - elapsedTicks) * 1000 / m_lTicksPerSec;
-			CrySleep((unsigned int)ms);
-		}
-	}
+	
+	// Enforce any frame-rate caps needed before caching times.
+	CheckSleeps();
 
 	const int64 now = CryGetTicks();
 	assert(now + 1 >= m_lBaseTime && "Invalid base time"); //+1 margin because QPC may be one off across cores
 
-	m_fRealFrameTime = TicksToSeconds(now - m_lBaseTime - m_lLastTime);
+	// Get and set real frame time.
+	int64 realTicks = now - m_lBaseTime - m_lLastTime;
+	m_fRealFrameTime = TicksToTime(realTicks);
 
-	if (0.0f != m_fixed_time_step)
-	{
-		// Apply fixed_time_step
-		m_fFrameTime = abs(m_fixed_time_step);
-	}
-	else
-	{
-		// Clamp to max_time_step
-		m_fFrameTime = min(m_fRealFrameTime, m_max_time_step);
-	}
+	// PERSONAL CRYTEK: What is the point of clamping? And why do this BEFORE time scaling in default Timer.cpp ?
+	// Simulation time = clamp'd & scaled real time.
+	// If defined, use fixed-time-step as a base instead of real time.
+	CTimeValue tmp = (m_fixed_time_step != 0 ? m_fixed_time_step : m_fRealFrameTime);
+	m_fFrameTime = min(tmp * GetTimeScale(), m_max_time_step);
 
-	// Dilate time.
-	m_fFrameTime *= GetTimeScale();
+	// Update the running simulation frame-time average
+	UpdateAverageFrameTime();
 
-	if (m_TimeSmoothing > 0)
-	{
+	// Use average'd frame-time, if enabled.
+	if (m_TimeSmoothing > 0) {
 		m_fFrameTime = GetAverageFrameTime();
 	}
 
-	// Time can only go forward.
-	if (m_fFrameTime < 0.0f) m_fFrameTime = 0.0f;
-	if (m_fRealFrameTime < 0.0f) m_fRealFrameTime = 0.0;
+	/* PERSONAL NOTE: m_lBaseTime adjustment is a bad idea.
+		'Rounding' errors and the like, hiding time-smoothing & scaling etc.
+		This 'check' below doesn't make sense using time-scaling etc. unless m_lBaseTime is adjusted weirdly.
+		assert(abs((TicksToTime(currentTime - m_lLastTime) - m_fFrameTime).GetSeconds()) < mpfloat("0.01") && "Bad calculation");
 
-	if (m_bEnabled && !m_bGameTimerPaused)
-		m_replicationTime += m_fFrameTime;
 
-	// Adjust the base time so that time actually seems to have moved forward m_fFrameTime
-	const int64 frameTicks = SecondsToTicks(m_fFrameTime);
-	const int64 realTicks = SecondsToTicks(m_fRealFrameTime);
-	m_lBaseTime += realTicks - frameTicks;
-	if (m_lBaseTime > now)
-	{
-		// Guard against rounding errors due to float <-> int64 precision
-		assert(m_lBaseTime - now <= 10 && "Bad base time or adjustment, too much difference for a rounding error");
-		m_lBaseTime = now;
-	}
+		// Adjust the base time so that time actually seems to have moved forward m_fFrameTime
+		m_lBaseTime += realTicks - simTicks;
+		if (m_lBaseTime > now)
+		{
+			// Guard against rounding errors due to float <-> int64 precision
+			assert(m_lBaseTime - now <= 10 && "Bad base time or adjustment, too much difference for a rounding error");
+			m_lBaseTime = now;
+		}
+	*/
+
+	// In ticks
 	const int64 currentTime = now - m_lBaseTime;
 
-	assert(fabsf(TicksToSeconds(currentTime - m_lLastTime) - m_fFrameTime) < 0.01f && "Bad calculation");
+	assert(m_fRealFrameTime >= 0);
 	assert(currentTime >= m_lLastTime && "Bad adjustment in previous frame");
 	assert(currentTime + m_lOffsetTime >= 0 && "Sum of game time is negative");
 
-	// Update timers
+	// Update all the timers
 	RefreshUITime(currentTime);
 	if (!m_bGameTimerPaused)
 	{
+		// PERSONAL CRYTEK: Running Game simulation time is NOT affected by time-scaling, smoothing, and clamping. Can only be paused/set()
+		// This doesn't sound right, simulation time should follow simulation frame-time. If there are any errors they should be consistent.
+		// Should make more sense once the purpose of smoothing/clamping is known. Time-scaling sounds like it should apply to simulation time for sure though.
 		RefreshGameTime(currentTime);
+
+		// PERSONAL CRYTEK: Why does replication time (used by networking) use simulation time and not real time?
+		// Especially since GameTime() is NOT cumulative 'simulation frame time', e.g. not affected by averaging/smoothing/etc.
+		// But this is!!!!
+		m_replicationTime += m_fFrameTime;
 	}
-
 	m_lLastTime = currentTime;
+	m_realStartTime = TicksToTime(now);
 
+	// DEBUG: Update profile-blending
 	UpdateBlending();
 
 	if (m_TimeDebug > 1)
 	{
-		CryLogAlways("[CTimer]: Frame=%d Cur=%lld Now=%lld Off=%lld Async=%f CurrTime=%f UI=%f", gEnv->pRenderer->GetFrameID(false), (long long)currentTime, (long long)now, (long long)m_lOffsetTime, GetAsyncCurTime(), GetCurrTime(ETIMER_GAME), GetCurrTime(ETIMER_UI));
+		CryLogAlways("[CTimer]: Frame=%d Cur=%lld Now=%lld Off=%lld Async=%s CurrTime=%s UI=%s", gEnv->pRenderer->GetFrameID(false), (long long)currentTime, (long long)now, (long long)m_lOffsetTime, GetAsyncCurTime().str(), GetFrameStartTime(ETIMER_GAME).str(), GetFrameStartTime(ETIMER_UI).str());
 	}
 }
 
-//------------------------------------------------------------------------
-//--  average frame-times to avoid stalls and peaks in framerate
-//--    note that is is time-base averaging and not frame-based
-//------------------------------------------------------------------------
-float CTimer::GetAverageFrameTime()
+/////////////////////////////////////////////////////
+bool CTimer::SetTimer(ETimer which, const CTimeValue& timeInSeconds)
 {
-	f32 LastAverageFrameTime = m_fAverageFrameTime;
-	f32 FrameTime = m_fFrameTime;
+	if (which != ETIMER_GAME)
+		return false;
 
-	uint32 numFT = MAX_FRAME_AVERAGE;
-	for (int32 i = (numFT - 2); i > -1; i--)
-		m_arrFrameTimes[i + 1] = m_arrFrameTimes[i];
+	SetOffsetToMatchGameTime( int64(timeInSeconds.GetSeconds() * m_lTicksPerSec) );
+	return true;
+}
 
-	if (FrameTime > 0.4f) FrameTime = 0.4f;
-	if (FrameTime < 0.0f) FrameTime = 0.0f;
-	m_arrFrameTimes[0] = FrameTime;
+void CTimer::SetOffsetToMatchGameTime(int64 ticks)
+{
+	const int64 previousOffset = m_lOffsetTime;
+	const CTimeValue previousGameTime = GetFrameStartTime(ETIMER_GAME);
 
-	//get smoothed frame
-	uint32 avrg_ftime = 1;
-	if (LastAverageFrameTime)
+	m_lOffsetTime = ticks - m_lLastTime;
+	RefreshGameTime(m_lLastTime);
+
+	if (m_bGameTimerPaused)
 	{
-		avrg_ftime = uint32(0.25f / LastAverageFrameTime + 0.5f); //average the frame-times for a certain time-period (sec)
-		if (avrg_ftime > numFT) avrg_ftime = numFT;
-		if (avrg_ftime < 1) avrg_ftime = 1;
+		// On un-pause, we will restore the specified time.
+		// If we don't do this, the un-pause will over-write the offset again.
+		m_lGameTimerPausedTime = ticks;
 	}
 
-	f32 AverageFrameTime = 0;
-	for (uint32 i = 0; i < avrg_ftime; i++)
-		AverageFrameTime += m_arrFrameTimes[i];
-	AverageFrameTime /= avrg_ftime;
-
-	//don't smooth if we pause the game
-	if (FrameTime < 0.0001f)
-		AverageFrameTime = FrameTime;
-
-	m_fAverageFrameTime = AverageFrameTime;
-	return AverageFrameTime;
+	if (m_TimeDebug)
+	{
+		CryLogAlways("[CTimer] SetOffset: Offset %lld -> %lld, GameTime %s -> %s", (long long)previousOffset, (long long)m_lOffsetTime, previousGameTime.str(), GetFrameStartTime(ETIMER_GAME).str());
+	}
 }
 
-/////////////////////////////////////////////////////
-void CTimer::ResetTimer()
+void CTimer::RefreshGameTime(int64 ticks)
 {
-	m_lBaseTime = CryGetTicks();
-	m_lLastTime = 0;
-	m_lOffsetTime = 0;
+	assert(ticks + m_lOffsetTime >= 0);
+	m_CurrTime[ETIMER_GAME] = TicksToTime(ticks + m_lOffsetTime);
+}
 
-	m_fFrameTime = 0.0f;
-	m_fRealFrameTime = 0.0f;
-	m_replicationTime = 0;
-	
-	RefreshGameTime(0);
-	RefreshUITime(0);
-
-	m_bGameTimerPaused = false;
-	m_lGameTimerPausedTime = 0;
+void CTimer::RefreshUITime(int64 ticks)
+{
+	assert(ticks >= 0);
+	m_CurrTime[ETIMER_UI] = TicksToTime(ticks);
 }
 
 /////////////////////////////////////////////////////
+bool CTimer::IsTimerPaused(ETimer which)
+{
+	if (which != ETIMER_GAME)
+		return false;
+	return m_bGameTimerPaused;
+}
+
+bool CTimer::PauseSimulation(bool bPause)
+{
+	if (m_bGameTimerPaused == bPause)
+		return false;
+
+	m_bGameTimerPaused = bPause;
+
+	if (bPause)
+	{
+		m_lGameTimerPausedTime = m_lLastTime + m_lOffsetTime;
+		if (m_TimeDebug)
+		{
+			CryLogAlways("[CTimer]: Pausing ON: Frame=%d Last=%lld Off=%lld Async=%s CurrTime=%s UI=%s", gEnv->pRenderer->GetFrameID(false), (long long)m_lLastTime, (long long)m_lOffsetTime, GetAsyncCurTime().str(), GetFrameStartTime(ETIMER_GAME).str(), GetFrameStartTime(ETIMER_UI).str());
+		}
+	}
+	else
+	{
+		SetOffsetToMatchGameTime(m_lGameTimerPausedTime);
+		m_lGameTimerPausedTime = 0;
+		if (m_TimeDebug)
+		{
+			CryLogAlways("[CTimer]: Pausing OFF: Frame=%d Last=%lld Off=%lld Async=%s CurrTime=%s UI=%s", gEnv->pRenderer->GetFrameID(false), (long long)m_lLastTime, (long long)m_lOffsetTime, GetAsyncCurTime().str(), GetFrameStartTime(ETIMER_GAME).str(), GetFrameStartTime(ETIMER_UI).str());
+		}
+	}
+
+	return true;
+}
+
 void CTimer::EnableTimer(const bool bEnable)
 {
 	m_bEnabled = bEnable;
@@ -459,103 +339,299 @@ bool CTimer::IsTimerEnabled() const
 }
 
 /////////////////////////////////////////////////////
+CTimeValue CTimer::GetFrameTime(bool ignorePause) const
+{
+	return m_bEnabled && (ignorePause || !m_bGameTimerPaused) ? m_fFrameTime : 0;
+}
+
+CTimeValue CTimer::GetRealFrameTime() const
+{
+	return m_bEnabled ? m_fRealFrameTime : 0;
+}
+
+CTimeValue CTimer::GetAsyncCurTime() const
+{
+	int64 llNow = CryGetTicks() - m_lBaseTime;
+	return CTimeValue(TicksToTime(llNow));
+}
+
 CTimeValue CTimer::GetAsyncTime() const
 {
 	int64 llNow = CryGetTicks();
-	double fConvert = CTimeValue::TIMEVALUE_PRECISION * m_fSecsPerTick;
-	return CTimeValue(int64(llNow * fConvert));
+	return CTimeValue(TicksToTime(llNow));
+}
+
+#if defined(GAME_CHANNEL_SYNC_CLIENT_SERVER_TIME)
+const CTimeValue CTimer::GetServerTime() const
+{
+	if (gEnv->bServer)
+		return GetAsyncTime();
+
+	if (CGameClientNub* pGameClientNub = static_cast<CGameClientNub*>(gEnv->pGameFramework->GetIGameClientNub()))
+	{
+		if (CGameClientChannel* pGameClientChannel = pGameClientNub->GetGameClientChannel())
+		{
+			return (GetAsyncTime() + pGameClientChannel->GetClock().GetServerTimeOffset());
+		}
+	}
+
+	return CTimeValue(0);
+}
+#else
+// PERSONAL CRYTEK: The time's used by the two versions do not match.
+// Default is absolute real time at moment of call, but this one here is in game-simulation start-of-frame time.
+const CTimeValue CTimer::GetServerTime() const
+{
+	if (gEnv->bServer)
+		return GetFrameStartTime();
+
+	const auto* chan = gEnv->pGameFramework->GetClientChannel();
+	return chan ? chan->GetRemoteTime() : CTimeValue(0);
+}
+#endif
+
+/////////////////////////////////////////////////////
+mpfloat CTimer::GetTimeScale() const
+{
+	return m_cvar_time_scale * m_totalTimeScale;
+}
+
+mpfloat CTimer::GetTimeScale(uint32 channel) const
+{
+	assert(channel < NUM_TIME_SCALE_CHANNELS);
+	if (channel >= NUM_TIME_SCALE_CHANNELS)
+	{
+		return GetTimeScale();
+	}
+	return m_cvar_time_scale * m_timeScaleChannels[channel];
+}
+
+void CTimer::SetTimeScale(const mpfloat& scale, uint32 channel /* = 0 */)
+{
+	assert(channel < NUM_TIME_SCALE_CHANNELS);
+	if (channel >= NUM_TIME_SCALE_CHANNELS)
+	{
+		return;
+	}
+
+	const mpfloat currentScale = m_timeScaleChannels[channel];
+
+	if (scale != currentScale)
+	{
+		// Update total time scale immediately
+		m_totalTimeScale *= scale / currentScale;
+	}
+
+	m_timeScaleChannels[channel] = scale;
+}
+
+void CTimer::ClearTimeScales()
+{
+	for (int i = 0; i < NUM_TIME_SCALE_CHANNELS; ++i)
+	{
+		m_timeScaleChannels[i] = 1;
+	}
+	m_totalTimeScale = 1;
 }
 
 /////////////////////////////////////////////////////
-void CTimer::Serialize(TSerialize ser)
+rTime CTimer::GetFrameRate()
 {
-	// cannot change m_lBaseTime, as this is used for async time (which shouldn't be affected by save games)
-	if (ser.IsWriting())
-	{
-		int64 currentGameTime = m_lLastTime + m_lOffsetTime;
+	// Use real frame time.
+	if (m_fRealFrameTime > 0)
+		return (1 / m_fRealFrameTime);
 
-		ser.Value("curTime", currentGameTime);
-		ser.Value("ticksPerSecond", m_lTicksPerSec);
-	}
-	else
-	{
-		int64 ticksPerSecond = 1, curTime = 1;
-		ser.Value("curTime", curTime);
-		ser.Value("ticksPerSecond", ticksPerSecond);
-
-		// Adjust curTime for ticksPerSecond on this machine.
-		// Some precision will be lost if the frequencies are not identical.
-		const double multiplier = (double)m_lTicksPerSec / (double)ticksPerSecond;
-		curTime = (int64)((double)curTime * multiplier);
-
-		SetOffsetToMatchGameTime(curTime);
-
-		if (m_TimeDebug)
-		{
-			const int64 now = CryGetTicks();
-			CryLogAlways("[CTimer]: Serialize: Frame=%d Last=%lld Now=%lld Off=%lld Async=%f CurrTime=%f UI=%f", gEnv->pRenderer->GetFrameID(false), (long long)m_lLastTime, (long long)now, (long long)m_lOffsetTime, GetAsyncCurTime(), GetCurrTime(ETIMER_GAME), GetCurrTime(ETIMER_UI));
-		}
-	}
+	return 0;
 }
 
-//! try to pause/unpause a timer
-//  returns true if successfully paused/unpaused, false otherwise
-bool CTimer::PauseTimer(ETimer which, bool bPause)
+void CTimer::UpdateBlending()
 {
-	if (which != ETIMER_GAME)
-		return false;
+	// Accumulate smoothing time up to specified max.
+	CTimeValue fFrameTime = m_fRealFrameTime;
+	m_fSmoothTime = min(m_fSmoothTime + fFrameTime, m_profile_smooth_time);
 
-	if (m_bGameTimerPaused == bPause)
-		return false;
-
-	m_bGameTimerPaused = bPause;
-
-	if (bPause)
+	if (m_fSmoothTime <= fFrameTime)
 	{
-		m_lGameTimerPausedTime = m_lLastTime + m_lOffsetTime;
-		if (m_TimeDebug)
+		m_fAvgFrameTime = fFrameTime;
+		m_fProfileBlend = 1;
+		return;
+	}
+
+	if (m_profile_weighting <= 2)
+	{
+		// Update average frame time.
+		if (m_fSmoothTime < m_fAvgFrameTime)
+			m_fAvgFrameTime = m_fSmoothTime;
+		m_fAvgFrameTime *= (m_fSmoothTime / (m_fSmoothTime - fFrameTime + m_fAvgFrameTime)).conv<mpfloat>();
+
+		if (m_profile_weighting == 1)
 		{
-			CryLogAlways("[CTimer]: Pausing ON: Frame=%d Last=%lld Off=%lld Async=%f CurrTime=%f UI=%f", gEnv->pRenderer->GetFrameID(false), (long long)m_lLastTime, (long long)m_lOffsetTime, GetAsyncCurTime(), GetCurrTime(ETIMER_GAME), GetCurrTime(ETIMER_UI));
+			// Weight all frames equally.
+			m_fProfileBlend = (m_fAvgFrameTime / m_fSmoothTime).conv<mpfloat>();
+		}
+		else
+		{
+			// Weight frames by time.
+			m_fProfileBlend = (fFrameTime / m_fSmoothTime).conv<mpfloat>();
 		}
 	}
 	else
 	{
-		SetOffsetToMatchGameTime(m_lGameTimerPausedTime);
-		m_lGameTimerPausedTime = 0;
-		if (m_TimeDebug)
+		// Decay avg frame time, set as new peak.
+		m_fAvgFrameTime *= (1 - fFrameTime / m_fSmoothTime).conv<mpfloat>();
+		if (fFrameTime > m_fAvgFrameTime)
 		{
-			CryLogAlways("[CTimer]: Pausing OFF: Frame=%d Last=%lld Off=%lld Async=%f CurrTime=%f UI=%f", gEnv->pRenderer->GetFrameID(false), (long long)m_lLastTime, (long long)m_lOffsetTime, GetAsyncCurTime(), GetCurrTime(ETIMER_GAME), GetCurrTime(ETIMER_UI));
+			m_fAvgFrameTime = fFrameTime;
+			m_fProfileBlend = 1;
+		}
+		else
+			m_fProfileBlend = 0;
+	}
+}
+
+mpfloat CTimer::GetProfileFrameBlending(CTimeValue* pfBlendTime, int* piBlendMode)
+{
+	if (piBlendMode)
+		*piBlendMode = m_profile_weighting;
+	if (pfBlendTime)
+		*pfBlendTime = m_fSmoothTime;
+	return m_fProfileBlend;
+}
+
+//------------------------------------------------------------------------
+//--  Average frame-times to avoid stalls and peaks in framerate
+//--  NOTE: Averaged over a time period in ms, not over frames.
+//------------------------------------------------------------------------
+/*
+	PERSONAL NOTE: Converted over CharManager's GetAverageFrameTime() to here.
+	This was missing timescaling on FrameAmount, different clamp setup etc.......
+*/
+void CTimer::UpdateAverageFrameTime()
+{
+	// Clamped simulation-time (Again).						PERSONAL CRYTEK: More clamping for some reason! Should it be 0.25 or 0.2???
+	CTimeValue cTime = CLAMP(m_fFrameTime, 0, "0.2");
+
+	// Don't smooth if we pause the game.
+	if (m_bGameTimerPaused) {
+		m_prevAvgFrameTime = cTime;
+		return;
+	}
+
+	// Shift and add frameTime
+	uint32 numFT = m_frameTimes.size();
+	for (int32 i = (numFT - 2); i > -1; i--)
+		m_frameTimes[i + 1] = m_frameTimes[i];
+	m_frameTimes[0] = cTime;
+
+	// Setup smooth over a # of frames ~= TimeInterval
+	int FrameAmount = 1;
+	if (m_prevAvgFrameTime != 0)
+	{
+		FrameAmount = int( (average_interval * GetTimeScale()) / m_prevAvgFrameTime  + nTime("0.5") );
+		FrameAmount = CLAMP(FrameAmount, 1, numFT);
+	}
+
+	// Do the smoothing/averaging
+	CTimeValue AverageFrameTime;
+	for (uint32 i = 0; i < FrameAmount; i++)
+		AverageFrameTime += m_frameTimes[i];
+	AverageFrameTime /= FrameAmount;
+
+	m_prevAvgFrameTime = AverageFrameTime;
+}
+/////////////////////////////////////////////////////
+void CTimer::CheckSleeps(){
+//**
+//** Server CPU Throttle, VSync, and system cvar for maximum FPS.
+//** 
+	static ICVar * pSysMaxFPS = NULL;
+	static ICVar* pVSync = NULL;
+
+	if (pSysMaxFPS == NULL && gEnv && gEnv->pConsole)
+		pSysMaxFPS = gEnv->pConsole->GetCVar("sys_MaxFPS");
+	if (pVSync == NULL && gEnv && gEnv->pConsole)
+		pVSync = gEnv->pConsole->GetCVar("r_Vsync");
+
+	mpfloat maxFPS = mpfloat::Max();
+	if (gEnv->IsDedicated())
+	{
+		maxFPS = gEnv->pSystem->GetDedicatedMaxRate()->GetMPVal();
+	}
+	else
+	{
+		if (pSysMaxFPS && pVSync)
+		{
+			uint32 vSync = pVSync->GetIVal();
+			if (vSync == 0)
+			{
+				maxFPS = pSysMaxFPS->GetIVal();
+				if (maxFPS == 0)
+				{
+					const bool bInLoading = (ESYSTEM_GLOBAL_STATE_RUNNING != gEnv->pSystem->GetSystemGlobalState());
+					if (bInLoading || gEnv->pSystem->IsPaused())
+					{
+						maxFPS = 60;
+					}
+				}
+			}
 		}
 	}
 
-	return true;
+//**
+//** Limit FPS when window's inactive
+//**
+#if CRY_PLATFORM_WINDOWS
+	// Disable throttling, when various Profilers are in use
+	bool skip = false;
+	#if !defined(_RELEASE) || defined(PERFORMANCE_BUILD)
+		#if defined(CRY_PROFILE_MARKERS_USE_GPA)
+		skip = true;
+		#endif
+		#if ALLOW_BROFILER
+		if (::Profiler::IsActive()) { skip = true; }
+		#endif
+		if (gEnv->pConsole->GetCVar("e_StatoscopeEnabled")->GetIVal()) { skip = true; }
+	#endif
+
+	// ProcessSleep()
+	if (gEnv->IsDedicated() || gEnv->IsEditor() || gEnv->bMultiplayer || (gEnv->pGameFramework && gEnv->pGameFramework->IsInTimeDemo()))
+		skip = true;
+
+	if (!skip && gEnv->pSystem->GetIRenderer())
+	{
+		WIN_HWND hRendWnd = gEnv->pSystem->GetIRenderer()->GetHWND();
+		if (hRendWnd && ::GetActiveWindow() != hRendWnd)
+			maxFPS = min(mpfloat(15), maxFPS);	// Limiting to 15fps atm, perhaps convert to CVar.
+	}
+#endif
+
+//**
+//** Actually enforce the frame cap
+//**
+	CTimeValue target = 0;
+
+	// If fixed CVar is negative, cap frames to timestep.
+	if (m_fixed_time_step < 0) { target = abs(m_fixed_time_step); }
+
+	if(maxFPS != mpfloat::Max()) {
+		target = max(CTimeValue(1/maxFPS), target);
+	}
+
+	if(target > 0){
+		// Time left = Target timestep - (CurTime - StartTime)
+		CTimeValue tLeft = target - (GetAsyncTime() - GetRealStartTime());
+		if(tLeft > 0){
+			CryLowLatencySleep(tLeft);
+		}else{
+			CryWarning(VALIDATOR_MODULE_SYSTEM, VALIDATOR_WARNING, 
+					"CTimer: Took longer than frame cap [%.2fms] %.2fms %.2fms", 
+					(float)target.GetMilliSeconds(), (float)(target - tLeft).GetMilliSeconds(), (float)abs(tLeft.GetMilliSeconds())
+			);
+		};
+	}
 }
 
-//! determine if a timer is paused
-//  returns true if paused, false otherwise
-bool CTimer::IsTimerPaused(ETimer which)
-{
-	if (which != ETIMER_GAME)
-		return false;
-	return m_bGameTimerPaused;
-}
-
-//! try to set a timer
-//  return true if successful, false otherwise
-bool CTimer::SetTimer(ETimer which, float timeInSeconds)
-{
-	if (which != ETIMER_GAME)
-		return false;
-
-	SetOffsetToMatchGameTime(SecondsToTicks(timeInSeconds));
-	return true;
-}
-
-ITimer* CTimer::CreateNewTimer()
-{
-	return new CTimer();
-}
-
+/////////////////////////////////////////////////////
 void CTimer::SecondsToDateUTC(time_t inTime, struct tm& outDateUTC)
 {
 	outDateUTC = *gmtime(&inTime);
@@ -598,30 +674,4 @@ time_t CTimer::DateToSecondsUTC(struct tm& inDate)
 #else
 	return mktime(&inDate);
 #endif
-}
-
-void CTimer::SetOffsetToMatchGameTime(int64 ticks)
-{
-	const int64 previousOffset = m_lOffsetTime;
-	const float previousGameTime = GetCurrTime(ETIMER_GAME);
-
-	m_lOffsetTime = ticks - m_lLastTime;
-	RefreshGameTime(m_lLastTime);
-
-	if (m_bGameTimerPaused)
-	{
-		// On un-pause, we will restore the specified time.
-		// If we don't do this, the un-pause will over-write the offset again.
-		m_lGameTimerPausedTime = ticks;
-	}
-
-	if (m_TimeDebug)
-	{
-		CryLogAlways("[CTimer] SetOffset: Offset %lld -> %lld, GameTime %f -> %f", (long long)previousOffset, (long long)m_lOffsetTime, GetCurrTime(ETIMER_GAME), previousGameTime);
-	}
-}
-
-int64 CTimer::SecondsToTicks(double seconds) const
-{
-	return (int64)(seconds * (double)m_lTicksPerSec);
 }

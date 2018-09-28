@@ -230,7 +230,6 @@ CSystem::CSystem(const SSystemInitParams& startupParams)
 	//////////////////////////////////////////////////////////////////////////
 	// Initialize global environment interface pointers.
 	m_env.pSystem = this;
-	m_env.pTimer = &m_Time;
 	m_env.pNameTable = &m_nameTable;
 	m_env.pFrameProfileSystem = &m_FrameProfileSystem;
 	m_env.bServer = false;
@@ -259,9 +258,14 @@ CSystem::CSystem(const SSystemInitParams& startupParams)
 #if !defined(SYS_ENV_AS_STRUCT)
 	gEnv = &m_env;
 #endif
+
+	// Set system timer
+	SetGTimer(&m_Time, GTimers::system);
+
 	//////////////////////////////////////////////////////////////////////////
 
-	m_randomGenerator.SetState(m_Time.GetAsyncTime().GetMicroSecondsAsInt64());
+	// Float inaccuracy is fine, generating random seed.
+	m_randomGenerator.SetState((uint64)m_Time.GetAsyncTime().GetMicroSeconds());
 
 	m_pStreamEngine = nullptr;
 	m_PhysThread = nullptr;
@@ -839,16 +843,15 @@ void CSystem::ShutDown()
 	CryGetIMemReplay()->Stop();
 #endif
 
-	// Fix to improve wait() time within third party APIs using sleep()
+// Revert timer resolution
 #if CRY_PLATFORM_WINDOWS
-	TIMECAPS tc;
-	UINT wTimerRes;
-	if (timeGetDevCaps(&tc, sizeof(TIMECAPS)) != TIMERR_NOERROR)
-	{
-		CryFatalError("Error while changing the system timer resolution!");
-	}
-	wTimerRes = std::min(std::max(tc.wPeriodMin, 1u), tc.wPeriodMax);
-	timeEndPeriod(wTimerRes);
+	HMODULE hModNtDll = GetModuleHandleA("ntdll");
+
+	typedef LONG(WINAPI * FP_NtSetTimerResolution)(ULONG, BOOLEAN, PULONG);
+	FP_NtSetTimerResolution pNtSetTimerResolution = (FP_NtSetTimerResolution)GetProcAddress(hModNtDll, "NtSetTimerResolution");
+
+	ULONG blah;
+	assert(!pNtSetTimerResolution(g_cvars.sys_timeres, FALSE, &blah) && "Failed to unset timer resolution");
 #endif // CRY_PLATFORM_WINDOWS
 }
 
@@ -1021,7 +1024,8 @@ public:
 		m_bStopRequested = 0;
 		m_bIsActive = 1;
 
-		float step, timeTaken, kSlowdown = 1.0f;
+		CTimeValue step, timeTaken = 1;
+		mpfloat kSlowdown = 1;
 		int nSlowFrames = 0;
 		int64 timeStart;
 #ifdef ENABLE_LW_PROFILERS
@@ -1054,7 +1058,7 @@ public:
 				QueryPerformanceCounter(&stepStart);
 #endif
 				IGameFramework* pIGameFramework = gEnv->pGameFramework;
-				while ((step = m_stepRequested) > 0 || m_doZeroStep)
+				while ((step = BADTIME(m_stepRequested)) > 0 || m_doZeroStep)
 				{
 					stepped = true;
 					m_stepRequested = 0;
@@ -1064,28 +1068,29 @@ public:
 					PhysicsVars* pVars = gEnv->pPhysicalWorld->GetPhysVars();
 					pVars->bMultithreaded = 1;
 					gEnv->pPhysicalWorld->TracePendingRays();
-					if (kSlowdown != 1.0f)
+					if (kSlowdown != 1)
 					{
-						step = max(1, FtoI(step * kSlowdown * 50 - 0.5f)) * 0.02f;
-						pVars->timeScalePlayers = 1.0f / max(kSlowdown, 0.2f);
+						//step = max(1, FtoI(step * kSlowdown * 50 - " 0.5")) * 0.02f; PERSONAL CRYTEK: This is just for approximation?
+						step = step * kSlowdown;
+						pVars->timeScalePlayers = 1 / max(kSlowdown, mpfloat("0.2"));
 					}
 					else
-						pVars->timeScalePlayers = 1.0f;
+						pVars->timeScalePlayers = 1;
 					step = min(step, pVars->maxWorldStep);
 					timeStart = CryGetTicks();
 					pIGameFramework->PrePhysicsTimeStep(step);
 					gEnv->pPhysicalWorld->TimeStep(step);
-					timeTaken = gEnv->pTimer->TicksToSeconds(CryGetTicks() - timeStart);
-					if (timeTaken > step * 0.9f)
+					timeTaken = GetGTimer()->TicksToTime(CryGetTicks() - timeStart);
+					if (timeTaken > step * "0.9")
 					{
 						if (++nSlowFrames > 5)
-							kSlowdown = step * 0.9f / timeTaken;
+							kSlowdown = (step * "0.9" / timeTaken).conv<mpfloat>();
 					}
 					else
-						kSlowdown = 1.0f, nSlowFrames = 0;
+						kSlowdown = 1, nSlowFrames = 0;
 					gEnv->pPhysicalWorld->TracePendingRays(2);
 					m_bProcessing = 0;
-					//int timeSleep = (int)((m_timeTarget-gEnv->pTimer->GetAsyncTime()).GetMilliSeconds()*0.9f);
+					//int timeSleep = (int)((m_timeTarget-GetGTimer()->GetAsyncTime()).GetMilliSeconds()*0.9f);
 					//Sleep(max(0,timeSleep));
 				}
 				if (!stepped) CrySleep(0);
@@ -1112,13 +1117,13 @@ public:
 		if (m_bIsActive)
 		{
 			PhysicsVars* vars = gEnv->pPhysicalWorld->GetPhysVars();
-			vars->lastTimeStep = 0;
+			vars->lastTimeStep.SetSeconds(0);
 			m_bIsActive = 0;
-			m_stepRequested = min((float)m_stepRequested, 2.f * vars->maxWorldStep);
+			m_stepRequested = min(m_stepRequested, (2 * vars->maxWorldStep).BADGetSeconds());
 			while (m_bProcessing);
 			return 1;
 		}
-		gEnv->pPhysicalWorld->GetPhysVars()->lastTimeStep = 0;
+		gEnv->pPhysicalWorld->GetPhysVars()->lastTimeStep.SetSeconds(0);
 		return 0;
 	}
 	int Resume()
@@ -1131,20 +1136,20 @@ public:
 		return 0;
 	}
 	int IsActive() { return m_bIsActive; }
-	int RequestStep(float dt)
+	int RequestStep(const CTimeValue& dt)
 	{
-		if (m_bIsActive && dt > FLT_EPSILON)
+		if (m_bIsActive && dt > TV_EPSILON)
 		{
-			m_stepRequested += dt;
-			m_stepRequested = min((float)m_stepRequested, 10.f * gEnv->pPhysicalWorld->GetPhysVars()->maxWorldStep);
-			if (dt <= 0.0f)
+			m_stepRequested += dt.BADGetSeconds();
+			m_stepRequested = min(m_stepRequested, (10 * gEnv->pPhysicalWorld->GetPhysVars()->maxWorldStep).BADGetSeconds());
+			if (dt <= 0)
 				m_doZeroStep = 1;
 			m_FrameEvent.Set();
 		}
 
 		return m_bProcessing;
 	}
-	float  GetRequestedStep() { return m_stepRequested; }
+	const float GetRequestedStep() { return m_stepRequested; }
 
 	uint64 LastStepTaken() const
 	{
@@ -1163,7 +1168,7 @@ public:
 
 		if (m_bIsActive)
 		{
-			while (m_stepRequested > 0.0f || m_bProcessing)
+			while (m_stepRequested > 0 || m_bProcessing)
 			{
 				m_FrameDone.Wait();
 			}
@@ -1174,7 +1179,7 @@ protected:
 
 	volatile int    m_bStopRequested;
 	volatile int    m_bIsActive;
-	volatile float  m_stepRequested;
+	volatile float  m_stepRequested; // PERSONAL IMPROVE: More volatile mpfloat/ctimevalue issues! Preferably don't even use threaded physics for now until this is fixed!!!
 	volatile int    m_bProcessing;
 	volatile int    m_doZeroStep;
 	volatile uint64 m_lastStepTimeTaken;
@@ -1228,130 +1233,6 @@ int CSystem::SetThreadState(ESubsystem subsys, bool bActive)
 		break;
 	}
 	return 0;
-}
-
-//////////////////////////////////////////////////////////////////////////
-void CSystem::SleepIfInactive()
-{
-	LOADING_TIME_PROFILE_SECTION;
-#if !defined(_RELEASE) || defined(PERFORMANCE_BUILD)
-	// Disable throttling, when various Profilers are in use
-
-	#if defined(CRY_PROFILE_MARKERS_USE_GPA)
-	return;
-	#endif
-
-	#if ALLOW_BROFILER
-	if (::Profiler::IsActive())
-	{
-		return;
-	}
-	#endif
-
-	if (gEnv->pConsole->GetCVar("e_StatoscopeEnabled")->GetIVal())
-	{
-		return;
-	}
-#endif
-
-	// ProcessSleep()
-	if (m_env.IsDedicated() || m_bEditor || gEnv->bMultiplayer)
-		return;
-
-#if CRY_PLATFORM_WINDOWS
-	if (GetIRenderer())
-	{
-		WIN_HWND hRendWnd = GetIRenderer()->GetHWND();
-		if (!hRendWnd)
-			return;
-
-		// Loop here waiting for window to be activated.
-		for (int nLoops = 0; nLoops < 5; nLoops++)
-		{
-			WIN_HWND hActiveWnd = ::GetActiveWindow();
-			if (hActiveWnd == hRendWnd)
-				break;
-
-			if (m_hWnd)
-			{
-				PumpWindowMessage(true, m_hWnd);
-			}
-			if (gEnv->pGameFramework)
-			{
-				// During the time demo, do not sleep even in inactive window.
-				if (gEnv->pGameFramework->IsInTimeDemo())
-					break;
-			}
-			CrySleep(5);
-		}
-	}
-#endif
-}
-
-//////////////////////////////////////////////////////////////////////////
-void CSystem::SleepIfNeeded()
-{
-	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM)
-
-	static ICVar * pSysMaxFPS = NULL;
-	static ICVar* pVSync = NULL;
-
-	if (pSysMaxFPS == NULL && gEnv && gEnv->pConsole)
-		pSysMaxFPS = gEnv->pConsole->GetCVar("sys_MaxFPS");
-	if (pVSync == NULL && gEnv && gEnv->pConsole)
-		pVSync = gEnv->pConsole->GetCVar("r_Vsync");
-
-	int32 maxFPS = 0;
-
-	if (m_env.IsDedicated())
-	{
-		const float maxRate = m_svDedicatedMaxRate->GetFVal();
-		maxFPS = int32(maxRate);
-	}
-	else
-	{
-		if (pSysMaxFPS && pVSync)
-		{
-			uint32 vSync = pVSync->GetIVal();
-			if (vSync == 0)
-			{
-				maxFPS = pSysMaxFPS->GetIVal();
-				if (maxFPS == 0)
-				{
-					const bool bInLoading = (ESYSTEM_GLOBAL_STATE_RUNNING != m_systemGlobalState);
-					if (bInLoading || IsPaused())
-					{
-						maxFPS = 60;
-					}
-				}
-			}
-		}
-	}
-
-	if (maxFPS > 0)
-	{
-		const int64 safeMarginMS = 5; // microseconds
-		const int64 thresholdMs = (1000 * 1000) / (maxFPS);
-
-		ITimer* pTimer = gEnv->pTimer;
-		static int64 sTimeLast = pTimer->GetAsyncTime().GetMicroSecondsAsInt64();
-		int64 currentTime = pTimer->GetAsyncTime().GetMicroSecondsAsInt64();
-		for (;; )
-		{
-			const int64 frameTime = currentTime - sTimeLast;
-			if (frameTime >= thresholdMs)
-				break;
-			if (thresholdMs - frameTime > 10 * 1000)
-				CrySleep(1);
-			else
-				CrySleep(0);
-
-			currentTime = pTimer->GetAsyncTime().GetMicroSecondsAsInt64();
-		}
-
-		m_lastTickTime = pTimer->GetAsyncTime();
-		sTimeLast = m_lastTickTime.GetMicroSecondsAsInt64() + safeMarginMS;
-	}
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -1534,7 +1415,7 @@ bool CSystem::DoFrame(const SDisplayContextKey& displayContextKey, CEnumFlags<ES
 	}
 
 #if defined(JOBMANAGER_SUPPORT_PROFILING)
-	m_env.GetJobManager()->SetFrameStartTime(m_env.pTimer->GetAsyncTime());
+	m_env.GetJobManager()->SetFrameStartTime(GetGTimer()->GetAsyncTime());
 #endif
 
 	if (!updateFlags.Check(ESYSUPDATE_EDITOR))
@@ -1697,8 +1578,6 @@ bool CSystem::DoFrame(const SDisplayContextKey& displayContextKey, CEnumFlags<ES
 		m_env.pFrameProfileSystem->EndFrame();
 	}
 
-	SleepIfNeeded();
-
 	return continueRunning;
 }
 
@@ -1732,6 +1611,7 @@ bool CSystem::Update(CEnumFlags<ESystemUpdateFlags> updateFlags, int nPauseMode)
 
 	gEnv->pOverloadSceneManager->Update();
 
+	// PERSONAL NOTE: Uses out of date frame-time but it doesn't matter, just uses it for m_delayLevelStartIcon which is ~5 secs anyway.
 	m_pPlatformOS->Tick(m_Time.GetRealFrameTime());
 
 #ifndef EXCLUDE_UPDATE_ON_CONSOLE
@@ -1779,9 +1659,6 @@ bool CSystem::Update(CEnumFlags<ESystemUpdateFlags> updateFlags, int nPauseMode)
 		m_sDelayedScreeenshot.clear();
 	}
 
-	// Check if game needs to be sleeping when not active.
-	SleepIfInactive();
-
 	if (m_pUserCallback)
 		m_pUserCallback->OnUpdate();
 
@@ -1798,7 +1675,7 @@ bool CSystem::Update(CEnumFlags<ESystemUpdateFlags> updateFlags, int nPauseMode)
 #endif //EXCLUDE_UPDATE_ON_CONSOLE
 	//////////////////////////////////////////////////////////////////////////
 
-	CTimeValue updateStart = gEnv->pTimer->GetAsyncTime();
+	CTimeValue updateStart = GetGTimer()->GetAsyncTime();
 
 	if (m_env.pLog)
 		m_env.pLog->Update();
@@ -1881,6 +1758,13 @@ bool CSystem::Update(CEnumFlags<ESystemUpdateFlags> updateFlags, int nPauseMode)
 		return true;
 #endif //EXCLUDE_UPDATE_ON_CONSOLE
 
+	/*
+		PERSONAL NOTE: Moved here since char manager depends on frame time.
+		Now handles ALL main-thread frame-capping/etc. sleeps.
+	*/
+	// Update time subsystem 
+	m_Time.UpdateOnFrameStart();
+
 	const bool bNotLoading = !IsLoading();
 
 	if (m_env.pCharacterManager)
@@ -1901,8 +1785,10 @@ bool CSystem::Update(CEnumFlags<ESystemUpdateFlags> updateFlags, int nPauseMode)
 #ifndef EXCLUDE_UPDATE_ON_CONSOLE
 	//check what is the current process
 	IProcess* pProcess = GetIProcess();
-	if (!pProcess)
-		return (true); //should never happen
+	if (!pProcess){
+		assert(0 && "Should never happen");
+		return (true);
+	}
 
 	if (m_sysNoUpdate && m_sysNoUpdate->GetIVal())
 	{
@@ -1931,9 +1817,6 @@ bool CSystem::Update(CEnumFlags<ESystemUpdateFlags> updateFlags, int nPauseMode)
 #endif
 
 	//////////////////////////////////////////////////////////////////////
-	//update time subsystem
-	m_Time.UpdateOnFrameStart();
-
 	// Don't do a thing if we're not in a level
 	if (m_env.p3DEngine && bNotLoading)
 		m_env.p3DEngine->OnFrameStart();
@@ -2049,7 +1932,7 @@ bool CSystem::Update(CEnumFlags<ESystemUpdateFlags> updateFlags, int nPauseMode)
 
 		static int g_iPausedPhys = 0;
 		PhysicsVars* pVars = m_env.pPhysicalWorld->GetPhysVars();
-		pVars->threadLag = 0;
+		pVars->threadLag.SetSeconds(0);
 
 		CPhysicsThreadTask* pPhysicsThreadTask = ((CPhysicsThreadTask*)m_PhysThread);
 		if (!pPhysicsThreadTask)
@@ -2066,32 +1949,32 @@ bool CSystem::Update(CEnumFlags<ESystemUpdateFlags> updateFlags, int nPauseMode)
 
 			// intermingle physics/AI updates so that if we get a big timestep (frame rate glitch etc) the
 			// AI gets to steer entities before they travel over cliffs etc.
-			float maxTimeStep = 0.0f;
+			CTimeValue maxTimeStep;
 			if (m_env.pAISystem)
 				maxTimeStep = m_env.pAISystem->GetUpdateInterval();
 			else
-				maxTimeStep = 0.25f;
+				maxTimeStep.SetSeconds("0.25");
 			int maxSteps = 1;
-			float fCurTime = m_Time.GetCurrTime();
-			float fPrevTime = m_env.pPhysicalWorld->GetPhysicsTime();
-			float timeToDo = m_Time.GetFrameTime();//fCurTime - fPrevTime;
+			CTimeValue fCurTime = m_Time.GetFrameStartTime();
+			CTimeValue fPrevTime = m_env.pPhysicalWorld->GetPhysicsTime();
+			CTimeValue timeToDo = m_Time.GetFrameTime();//fCurTime - fPrevTime;
 			if (m_env.bMultiplayer)
 				timeToDo = m_Time.GetRealFrameTime();
 			m_env.pPhysicalWorld->TracePendingRays();
 
-			while (timeToDo > 0.0001f && maxSteps-- > 0)
+			while (timeToDo > "0.0001" && maxSteps-- > 0)
 			{
-				float thisStep = min(maxTimeStep, timeToDo);
+				CTimeValue thisStep = min(maxTimeStep, timeToDo);
 				timeToDo -= thisStep;
 
 				if ((nPauseMode != 1) && !(updateFlags & ESYSUPDATE_IGNORE_PHYSICS) && g_cvars.sys_physics && !bNoUpdate)
 				{
 					CRY_PROFILE_REGION(PROFILE_SYSTEM, "SysUpdate:Physics");
 
-					int iPrevTime = m_env.pPhysicalWorld->GetiPhysicsTime();
+					CTimeValue iPrevTime = m_env.pPhysicalWorld->GetPhysicsTime();
 					//float fPrevTime=m_env.pPhysicalWorld->GetPhysicsTime();
 					pVars->bMultithreaded = 0;
-					pVars->timeScalePlayers = 1.0f;
+					pVars->timeScalePlayers = 1;
 					if (!(updateFlags & ESYSUPDATE_MULTIPLAYER))
 						m_env.pPhysicalWorld->TimeStep(thisStep);
 					else
@@ -2143,14 +2026,14 @@ bool CSystem::Update(CEnumFlags<ESystemUpdateFlags> updateFlags, int nPauseMode)
 					//////////////////////////////////////////////////////////////////////
 					//update AI system - match physics
 					if (m_env.pAISystem && !m_cvAIUpdate->GetIVal() && g_cvars.sys_ai)
-						m_env.pAISystem->Update(gEnv->pTimer->GetFrameStartTime(), gEnv->pTimer->GetFrameTime());
+						m_env.pAISystem->Update(GetGTimer()->GetFrameStartTime(), GetGTimer()->GetFrameTime());
 				}
 			}
 
 			// Make sure we don't lag too far behind
 			if ((nPauseMode != 1) && !(updateFlags & ESYSUPDATE_IGNORE_PHYSICS))
 			{
-				if (fabsf(m_env.pPhysicalWorld->GetPhysicsTime() - fCurTime) > 0.01f)
+				if (abs(m_env.pPhysicalWorld->GetPhysicsTime() - fCurTime) > "0.01")
 				{
 					//GetILog()->LogToConsole("Adjusting physical world clock by %.5f", fCurTime-m_env.pPhysicalWorld->GetPhysicsTime());
 					m_env.pPhysicalWorld->SetPhysicsTime(fCurTime);
@@ -2176,7 +2059,7 @@ bool CSystem::Update(CEnumFlags<ESystemUpdateFlags> updateFlags, int nPauseMode)
 			if ((nPauseMode != 1) && !(updateFlags & ESYSUPDATE_IGNORE_PHYSICS))
 			{
 				pPhysicsThreadTask->Resume();
-				float lag = pPhysicsThreadTask->GetRequestedStep();
+				CTimeValue lag = BADTIME(pPhysicsThreadTask->GetRequestedStep());
 
 				if (pPhysicsThreadTask->RequestStep(m_Time.GetFrameTime()))
 				{
@@ -2198,7 +2081,7 @@ bool CSystem::Update(CEnumFlags<ESystemUpdateFlags> updateFlags, int nPauseMode)
 				//////////////////////////////////////////////////////////////////////
 				//update AI system
 				if (m_env.pAISystem && !m_cvAIUpdate->GetIVal())
-					m_env.pAISystem->Update(gEnv->pTimer->GetFrameStartTime(), gEnv->pTimer->GetFrameTime());
+					m_env.pAISystem->Update(GetGTimer()->GetFrameStartTime(), GetGTimer()->GetFrameTime());
 			}
 		}
 		pe_params_waterman pwm;
@@ -2206,8 +2089,8 @@ bool CSystem::Update(CEnumFlags<ESystemUpdateFlags> updateFlags, int nPauseMode)
 		m_env.pPhysicalWorld->SetWaterManagerParams(&pwm);
 	}
 
-	// Use UI timer for CryMovie, because it should not be affected by pausing game time
-	const float fMovieFrameTime = m_Time.GetFrameTime(ITimer::ETIMER_UI);
+	// CryMovie shouldn't be affected by pausing game-time.
+	const CTimeValue fMovieFrameTime = m_Time.GetFrameTime(true);
 
 	// Run movie system pre-update
 	if (!bNoUpdate)
@@ -2356,18 +2239,18 @@ bool CSystem::Update(CEnumFlags<ESystemUpdateFlags> updateFlags, int nPauseMode)
 	}
 
 	//Now update frame statistics
-	CTimeValue cur_time = gEnv->pTimer->GetAsyncTime();
+	CTimeValue cur_time = GetGTimer()->GetAsyncTime();
 
 	CTimeValue a_second(g_cvars.sys_update_profile_time);
-	std::vector<std::pair<CTimeValue, float>>::iterator it = m_updateTimes.begin();
-	for (std::vector<std::pair<CTimeValue, float>>::iterator eit = m_updateTimes.end(); it != eit; ++it)
+	std::vector<std::pair<CTimeValue, CTimeValue>>::iterator it = m_updateTimes.begin();
+	for (std::vector<std::pair<CTimeValue, CTimeValue>>::iterator eit = m_updateTimes.end(); it != eit; ++it)
 		if ((cur_time - it->first) < a_second)
 			break;
 
 	if (it != m_updateTimes.begin())
 		m_updateTimes.erase(m_updateTimes.begin(), it);
 
-	float updateTime = (cur_time - updateStart).GetMilliSeconds();
+	CTimeValue updateTime = cur_time - updateStart;
 	m_updateTimes.push_back(std::make_pair(cur_time, updateTime));
 
 	UpdateUpdateTimes();
@@ -2437,12 +2320,12 @@ void CSystem::GetUpdateStats(SSystemUpdateStats& stats)
 	}
 	else
 	{
-		stats.avgUpdateTime = 0;
-		stats.maxUpdateTime = -FLT_MAX;
-		stats.minUpdateTime = +FLT_MAX;
-		for (std::vector<std::pair<CTimeValue, float>>::const_iterator it = m_updateTimes.begin(), eit = m_updateTimes.end(); it != eit; ++it)
+		stats.avgUpdateTime.SetSeconds(0);
+		stats.maxUpdateTime = CTimeValue::Min();
+		stats.minUpdateTime = CTimeValue::Max();
+		for (std::vector<std::pair<CTimeValue, CTimeValue>>::const_iterator it = m_updateTimes.begin(), eit = m_updateTimes.end(); it != eit; ++it)
 		{
-			const float t = it->second;
+			const CTimeValue t = it->second;
 			stats.avgUpdateTime += t;
 			stats.maxUpdateTime = max(stats.maxUpdateTime, t);
 			stats.minUpdateTime = min(stats.minUpdateTime, t);
@@ -2452,14 +2335,11 @@ void CSystem::GetUpdateStats(SSystemUpdateStats& stats)
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CSystem::UpdateMovieSystem(const int updateFlags, const float fFrameTime, const bool bPreUpdate)
+void CSystem::UpdateMovieSystem(const int updateFlags, const CTimeValue& fFrameTime, const bool bPreUpdate)
 {
 	if (m_env.pMovieSystem && !(updateFlags & ESYSUPDATE_EDITOR) && g_cvars.sys_trackview)
 	{
-		float fMovieFrameTime = fFrameTime;
-
-		if (fMovieFrameTime > g_cvars.sys_maxTimeStepForMovieSystem)
-			fMovieFrameTime = g_cvars.sys_maxTimeStepForMovieSystem;
+		CTimeValue fMovieFrameTime = min(fFrameTime, g_cvars.sys_maxTimeStepForMovieSystem);
 
 		if (bPreUpdate)
 		{
@@ -3332,15 +3212,16 @@ void CSystem::SetSystemGlobalState(const ESystemGlobalState systemGlobalState)
 	static CTimeValue s_startTime = CTimeValue();
 	if (systemGlobalState != m_systemGlobalState)
 	{
-		if (gEnv && gEnv->pTimer)
+		if (gEnv && GetGTimer())
 		{
-			const CTimeValue endTime = gEnv->pTimer->GetAsyncTime();
-			const float numSeconds = endTime.GetDifferenceInSeconds(s_startTime);
+			const CTimeValue endTime = GetGTimer()->GetAsyncTime();
+			// Float inaccuracy is fine, debug/profiling
+			const float numSeconds = (float)(endTime - s_startTime).GetSeconds();
 			CryLog("SetGlobalState %d->%d '%s'->'%s' %3.1f seconds",
 			       m_systemGlobalState, systemGlobalState,
 			       CSystem::GetSystemGlobalStateName(m_systemGlobalState), CSystem::GetSystemGlobalStateName(systemGlobalState),
 			       numSeconds);
-			s_startTime = gEnv->pTimer->GetAsyncTime();
+			s_startTime = GetGTimer()->GetAsyncTime();
 		}
 	}
 	m_systemGlobalState = systemGlobalState;

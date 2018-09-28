@@ -4,6 +4,7 @@
 #define _ICONSOLE_H_
 
 #include <CryCore/SFunctor.h>
+#include "TimeValue.h"
 
 struct ConsoleBind;
 
@@ -15,6 +16,8 @@ enum ELoadConfigurationType;
 #define     CVAR_INT    1
 #define     CVAR_FLOAT  2
 #define     CVAR_STRING 3
+#define     CVAR_MPFLOAT 4
+#define     CVAR_TIMEVAL 5
 
 #if defined(_RELEASE)
 	#define ALLOW_AUDIT_CVARS    0
@@ -458,6 +461,23 @@ protected:
 	//! \include CrySystem/Examples/ConsoleVariable.cpp
 	virtual ICVar* RegisterFloat(const char* sName, float fValue, int nFlags, const char* help = "", ConsoleVarFunc pChangeFunc = 0) = 0;
 
+	// Same as CTimeValue setup here.
+	#define MP_FUNCTION(T)\
+	virtual ICVar* RegisterMPFloat(const char* sName, const T& fValue, int nFlags, const char* help = "", ConsoleVarFunc pChangeFunc = 0) = 0;\
+	virtual ICVar* Register(const char* name, T* src, const T& defaultvalue, int nFlags = 0, const char* help = "", ConsoleVarFunc pChangeFunc = 0, bool allowModify = true) = 0;
+	#include "mpfloat.types"
+	#undef MP_FUNCTION
+
+	//! Create a new console variable that store the value in a CTimeValue.
+	//! \param sName Console variable name.
+	//! \param fValue Default value.
+	//! \param nFlags User defined flag, this parameter is used by other subsystems and doesn't affect the console variable (basically of user data).
+	//! \param help help text that is shown when you use "<sName> ?" in the console.
+	//! \return Pointer to the interface ICVar.
+	//! \par Example
+	//! \include CrySystem/Examples/ConsoleVariable.cpp
+	virtual ICVar* RegisterTime(const char* sName, const CTimeValue& fValue, int nFlags, const char* help = "", ConsoleVarFunc pChangeFunc = 0) = 0;
+
 	//! Create a new console variable that will update the user defined float.
 	//! \param sName Console variable name.
 	//! \param src Pointer to the memory that will be updated.
@@ -468,6 +488,15 @@ protected:
 	//! \par Example
 	//! \include CrySystem/Examples/ConsoleVariable.cpp
 	virtual ICVar* Register(const char* name, float* src, float defaultvalue, int nFlags = 0, const char* help = "", ConsoleVarFunc pChangeFunc = 0, bool allowModify = true) = 0;
+
+	//! Create a new console variable that will update the user defined CTimeValue.
+	//! \param sName Console variable name.
+	//! \param src Pointer to the memory that will be updated.
+	//! \param nFlags User defined flag, this parameter is used by other subsystems and doesn't affect the console variable (basically of user data).
+	//! \param help Help text that is shown when you use "<sName> ?" in the console.
+	//! \param allowModify Allow modification through config vars, prevents missing modifications in release mode.
+	//! \return pointer to the interface ICVar.
+	virtual ICVar* Register(const char* name, CTimeValue* src, const CTimeValue& defaultvalue, int nFlags = 0, const char* help = "", ConsoleVarFunc pChangeFunc = 0, bool allowModify = true) = 0;
 
 	//! Create a new console variable that will update the user defined float.
 	//! \param sName Console variable name.
@@ -561,6 +590,21 @@ struct ICVar
 	//! \return The float value of the variable.
 	virtual float GetFVal() const = 0;
 
+	/*
+		PERSONAL NOTE: CVar's are some of the messiest implementations regarding multi-strongtype setups.
+		Honestly all the multi-data type serialization/etc. systems should be cleaned up/standerdized.
+
+		Due to CVar setups e.g. GetMP()....those won't work!
+		Can't overload by return-type only, and can't use templates.....
+		So preferably just Register() (e.g. with a &rtime) and have a mpfloat/rTime/etc. value update automatically via console -> string -> variable.
+		Most of CE does this already.
+	*/
+	//! \return The MPFloat value of the variable.
+	virtual mpfloat GetMPVal()   const { assert(false && "Invalid get!"); return 0;} 
+
+	//! \return The CTimeValue value of the variable.  [For Readability]
+	virtual CTimeValue GetTime() const { assert(false && "Invalid get!"); return 0; }
+
 	//! \note Don't store pointer as multiple calls to this function might return same memory ptr.
 	//! \return The string value of the variable.
 	virtual const char* GetString() const = 0;
@@ -581,7 +625,18 @@ struct ICVar
 	//! \param s Float representation the value.
 	virtual void Set(const float f) = 0;
 
-	//! Set the float value of the variable.
+	//! Set the MPFloat-type value of the variable.
+	//! \param s MPFloat representation the value.
+	#define MP_FUNCTION(T)\
+	virtual void Set(const T& mpvalue)	  { assert(false && "Invalid set!"); }
+	#include "mpfloat.types"
+	#undef MP_FUNCTION
+
+	//! Set the time-value of the variable. [For Readability]
+	//! \param s CTimeValue representation the value.
+	virtual void Set(const CTimeValue& f) { assert(false && "Invalid set!"); }
+
+	//! Set the integer value of the variable.
 	//! \param s integer representation the value.
 	virtual void Set(const int i) = 0;
 

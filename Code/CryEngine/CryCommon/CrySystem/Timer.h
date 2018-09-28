@@ -5,21 +5,21 @@
 struct Timer
 {
 	Timer()
-		: endTime(-1.0f)
+		: endTime(-1)
 	{
 	}
 
-	void Reset(float duration, float variation = 0.0f)
+	void Reset(const CTimeValue& duration, const CTimeValue& variation = CTimeValue(0))
 	{
-		endTime = gEnv->pSystem->GetITimer()->GetFrameStartTime() + CTimeValue(duration) + CTimeValue(cry_random(0.0f, variation));
+		endTime = gEnv->pSystem->GetITimer()->GetFrameStartTime() + duration + cry_random(CTimeValue(0), variation);
 	}
 
 	bool Elapsed() const
 	{
-		return endTime >= 0.0f && gEnv->pSystem->GetITimer()->GetFrameStartTime() >= endTime;
+		return endTime >= 0 && gEnv->pSystem->GetITimer()->GetFrameStartTime() >= endTime;
 	}
 
-	float GetSecondsLeft() const
+	mpfloat GetSecondsLeft() const
 	{
 		return (endTime - gEnv->pSystem->GetITimer()->GetFrameStartTime()).GetSeconds();
 	}

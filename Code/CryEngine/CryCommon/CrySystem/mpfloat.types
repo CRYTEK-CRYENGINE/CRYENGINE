@@ -1,0 +1,11 @@
+/*
+	List of MPFloat types that can be serialized, CVar'd, is decl_mp_type(T) globally, etc.
+	If that's not needed just use decl_mp_type(T) (such as with kTime in CryAnimation/Controller.h)
+*/
+
+// Originally in MPFloat.h
+MP_FUNCTION(mpfloat) //!< Standard multi-precision float value.
+
+// Originally in TimeValue.h
+MP_FUNCTION(rTime)	 //!< 1/CTimeValue, expressed in X/Second
+MP_FUNCTION(nTime)	 //!< Normalized time is in mpfloat because it's typically 0->1 and units e.g. GetSeconds() doesn't make sense.

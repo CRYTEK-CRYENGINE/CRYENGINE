@@ -87,8 +87,8 @@ void Command_SetWaitSeconds(IConsoleCmdArgs* pCmd)
 
 	if (pCmd->GetArgCount() > 1)
 	{
-		pConsole->m_waitSeconds.SetSeconds(atof(pCmd->GetArg(1)));
-		pConsole->m_waitSeconds += gEnv->pTimer->GetFrameStartTime();
+		pConsole->m_waitSeconds.SetSeconds(pCmd->GetArg(1));
+		pConsole->m_waitSeconds += GetGTimer()->GetFrameStartTime();
 	}
 }
 
@@ -259,7 +259,7 @@ int CXConsole::con_restricted = 0;
 CXConsole::CXConsole()
 	: m_managedConsoleCommandListeners(1)
 {
-	m_fRepeatTimer = 0;
+	m_fRepeatTimer.SetSeconds(0);
 	m_pSysDeactivateConsole = 0;
 	m_pFont = NULL;
 	m_pRenderer = NULL;
@@ -279,7 +279,7 @@ CXConsole::CXConsole()
 	m_sdScrollDir = sdNONE;
 	m_pSystem = NULL;
 	m_bDrawCursor = true;
-	m_fCursorBlinkTimer = 0;
+	m_fCursorBlinkTimer.SetSeconds(0);
 
 	m_nCheatHashRangeFirst = 0;
 	m_nCheatHashRangeLast = 0;
@@ -294,7 +294,7 @@ CXConsole::CXConsole()
 
 	m_deferredExecution = false;
 	m_waitFrames = 0;
-	m_waitSeconds = 0.0f;
+	m_waitSeconds.SetSeconds(0);
 	m_blockCounter = 0;
 
 	m_currentLoadConfigType = eLoadConfigInit;
@@ -806,6 +806,18 @@ void CXConsole::SaveInternalState(struct IDataWriteStream& writer) const
 					writer.WriteString(pCVar->GetString());
 					break;
 				}
+
+			case CVAR_MPFLOAT:
+				{
+					writer.WriteFloatMP(pCVar->GetMPVal());
+					break;
+				}
+
+			case CVAR_TIMEVAL:
+				{
+					writer.WriteTime(pCVar->GetTime());
+					break;
+				}
 			}
 		}
 	}
@@ -867,6 +879,35 @@ void CXConsole::LoadInternalState(struct IDataReadStream& reader)
 				}
 				break;
 			}
+
+		case CVAR_MPFLOAT:
+			{
+				const mpfloat mpValue = reader.ReadFloatMP();
+				if ((NULL != pVar) && (pVar->GetType() == CVAR_MPFLOAT))
+				{
+					pVar->Set(mpValue);
+				}
+				else
+				{
+					gEnv->pLog->LogError("Unable to restore CVar '%s'", varName.c_str());
+				}
+				break;
+			}
+
+		case CVAR_TIMEVAL:
+			{
+				const CTimeValue tValue = reader.ReadTime();
+				if ((NULL != pVar) && (pVar->GetType() == CVAR_TIMEVAL))
+				{
+					pVar->Set(tValue);
+				}
+				else
+				{
+					gEnv->pLog->LogError("Unable to restore CVar '%s'", varName.c_str());
+				}
+				break;
+			}
+
 		}
 	}
 }
@@ -953,6 +994,50 @@ ICVar* CXConsole::Register(const char* sName, float* src, float fValue, int nFla
 }
 
 //////////////////////////////////////////////////////////////////////////
+#define MP_FUNCTION(T)\
+ICVar* CXConsole::Register(const char* sName, T* src, const T& fValue, int nFlags, const char* help, ConsoleVarFunc pChangeFunc, bool allowModify)\
+{\
+	AssertName(sName);\
+	\
+	ICVar* pCVar = stl::find_in_map(m_mapVariables, sName, NULL);\
+	if (pCVar)\
+	{\
+		gEnv->pLog->LogError("[CVARS]: [DUPLICATE] CXConsole::Register(mpfloat): variable [%s] is already registered", pCVar->GetName());\
+		/* No log-stack here. Shouldn't be an issue?*/\
+		return pCVar;\
+	}\
+	if (!allowModify)\
+		nFlags |= VF_CONST_CVAR;\
+	pCVar = new CXConsoleVariableMPFloatRef<T>(this, sName, src, nFlags, help);\
+	*src = fValue;\
+	RegisterVar(pCVar, pChangeFunc);\
+	return pCVar;\
+}
+#include <CrySystem/mpfloat.types>
+#undef MP_FUNCTION
+//////////////////////////////////////////////////////////////////////////
+ICVar* CXConsole::Register(const char* sName, CTimeValue* src, const CTimeValue& fValue, int nFlags, const char* help, ConsoleVarFunc pChangeFunc, bool allowModify)
+{
+	AssertName(sName);
+
+	ICVar* pCVar = stl::find_in_map(m_mapVariables, sName, NULL);
+	if (pCVar)
+	{
+		gEnv->pLog->LogError("[CVARS]: [DUPLICATE] CXConsole::Register(CTimeValue): variable [%s] is already registered", pCVar->GetName());
+#if LOG_CVAR_INFRACTIONS_CALLSTACK
+		gEnv->pSystem->debug_LogCallStack();
+#endif // LOG_CVAR_INFRACTIONS_CALLSTACK
+		return pCVar;
+	}
+	if (!allowModify)
+		nFlags |= VF_CONST_CVAR;
+	pCVar = new CXConsoleVariableTimeValRef(this, sName, src, nFlags, help);
+	*src = fValue;
+	RegisterVar(pCVar, pChangeFunc);
+	return pCVar;
+}
+
+//////////////////////////////////////////////////////////////////////////
 ICVar* CXConsole::Register(const char* sName, const char** src, const char* defaultValue, int nFlags, const char* help, ConsoleVarFunc pChangeFunc, bool allowModify)
 {
 	AssertName(sName);
@@ -1009,6 +1094,46 @@ ICVar* CXConsole::RegisterFloat(const char* sName, float fValue, int nFlags, con
 	}
 
 	pCVar = new CXConsoleVariableFloat(this, sName, fValue, nFlags, help);
+	RegisterVar(pCVar, pChangeFunc);
+	return pCVar;
+}
+
+//////////////////////////////////////////////////////////////////////////
+#define MP_FUNCTION(T)\
+ICVar* CXConsole::RegisterMPFloat(const char* sName, const T& fValue, int nFlags, const char* help, ConsoleVarFunc pChangeFunc)\
+{\
+	AssertName(sName);\
+	\
+	ICVar* pCVar = stl::find_in_map(m_mapVariables, sName, NULL);\
+	if (pCVar)\
+	{\
+		gEnv->pLog->LogError("[CVARS]: [DUPLICATE] CXConsole::RegisterMPFloat(): variable [%s] is already registered", pCVar->GetName());\
+		/* No log-stack here. Shouldn't be an issue?*/\
+		return pCVar;\
+	}\
+	\
+	pCVar = new CXConsoleVariableMPFloat<T>(this, sName, fValue, nFlags, help);\
+	RegisterVar(pCVar, pChangeFunc);\
+	return pCVar;\
+}
+#include <CrySystem/mpfloat.types>
+#undef MP_FUNCTION
+//////////////////////////////////////////////////////////////////////////
+ICVar* CXConsole::RegisterTime(const char* sName, const CTimeValue& fValue, int nFlags, const char* help, ConsoleVarFunc pChangeFunc)
+{
+	AssertName(sName);
+
+	ICVar* pCVar = stl::find_in_map(m_mapVariables, sName, NULL);
+	if (pCVar)
+	{
+		gEnv->pLog->LogError("[CVARS]: [DUPLICATE] CXConsole::RegisterTime(): variable [%s] is already registered", pCVar->GetName());
+#if LOG_CVAR_INFRACTIONS_CALLSTACK
+		gEnv->pSystem->debug_LogCallStack();
+#endif // LOG_CVAR_INFRACTIONS_CALLSTACK
+		return pCVar;
+	}
+
+	pCVar = new CXConsoleVariableTimeVal(this, sName, fValue, nFlags, help);
 	RegisterVar(pCVar, pChangeFunc);
 	return pCVar;
 }
@@ -1274,13 +1399,13 @@ void CXConsole::Update()
 	// Process Key press repeat (backspace and cursor on PC)
 	if (m_nRepeatEvent.keyId != eKI_Unknown)
 	{
-		const float fRepeatDelay = 1.0f / 40.0f;      // in sec (similar to Windows default but might differ from actual setting)
-		const float fHitchDelay = 1.0f / 10.0f;       // in sec. Very low, but still reasonable frame-rate (debug builds)
+		const CTimeValue fRepeatDelay = CTimeValue(1) / 40; // (similar to Windows default but might differ from actual setting)
+		const CTimeValue fHitchDelay  = CTimeValue(1) / 10; // Very low, but still reasonable frame-rate (debug builds)
 
-		m_fRepeatTimer -= gEnv->pTimer->GetRealFrameTime();                     // works even when time is manipulated
-		//		m_fRepeatTimer -= gEnv->pTimer->GetFrameTime(ITimer::ETIMER_UI);			// can be used once ETIMER_UI works even with t_FixedTime
+		m_fRepeatTimer -= GetGTimer()->GetRealFrameTime();                     // works even when time is manipulated
+		//		m_fRepeatTimer -= GetGTimer()->GetFrameTime(ITimer::ETIMER_UI);  // can be used once ETIMER_UI works even with t_FixedTime
 
-		if (m_fRepeatTimer <= 0.0f)
+		if (m_fRepeatTimer <= 0)
 		{
 			if (m_fRepeatTimer < -fHitchDelay)
 			{
@@ -1317,11 +1442,11 @@ bool CXConsole::OnInputEvent(const SInputEvent& event)
 		return false;
 
 	// restart cursor blinking
-	m_fCursorBlinkTimer = 0.0f;
+	m_fCursorBlinkTimer.SetSeconds(0);
 	m_bDrawCursor = true;
 
 	// key repeat
-	const float fStartRepeatDelay = 0.5f;           // in sec (similar to Windows default but might differ from actual setting)
+	const CTimeValue fStartRepeatDelay = "0.5";           // in sec (similar to Windows default but might differ from actual setting)
 	m_nRepeatEvent = event;
 	m_fRepeatTimer = fStartRepeatDelay;
 
@@ -1674,15 +1799,15 @@ void CXConsole::Draw()
 	{
 		// cursor blinking
 		{
-			m_fCursorBlinkTimer += gEnv->pTimer->GetRealFrameTime();                      // works even when time is manipulated
-			//	m_fCursorBlinkTimer += gEnv->pTimer->GetFrameTime(ITimer::ETIMER_UI);					// can be used once ETIMER_UI works even with t_FixedTime
+			m_fCursorBlinkTimer += GetGTimer()->GetRealFrameTime();                      // works even when time is manipulated
+			//	m_fCursorBlinkTimer += GetGTimer()->GetFrameTime(ITimer::ETIMER_UI);		// can be used once ETIMER_UI works even with t_FixedTime
 
-			const float fCursorBlinkDelay = 0.5f;           // in sec (similar to Windows default but might differ from actual setting)
+			const CTimeValue fCursorBlinkDelay = "0.5";           // in sec (similar to Windows default but might differ from actual setting)
 
 			if (m_fCursorBlinkTimer > fCursorBlinkDelay)
 			{
 				m_bDrawCursor = !m_bDrawCursor;
-				m_fCursorBlinkTimer = 0.0f;
+				m_fCursorBlinkTimer.SetSeconds(0);
 			}
 		}
 
@@ -2451,19 +2576,19 @@ void CXConsole::ExecuteDeferredCommands()
 		return;
 	}
 
-	if (m_waitSeconds.GetValue())
+	if (m_waitSeconds != 0)
 	{
-		if (m_waitSeconds > gEnv->pTimer->GetFrameStartTime())
+		if (m_waitSeconds > GetGTimer()->GetFrameStartTime())
 		{
 			//      pRenderer->Draw2dLabel( curX, curY += fontHeight, 1.2f, &col.r, false
 			//        , "Waiting seconds = %f"
-			//        , m_waitSeconds.GetSeconds() - gEnv->pTimer->GetFrameStartTime().GetSeconds() );
+			//        , m_waitSeconds.GetSeconds() - GetGTimer()->GetFrameStartTime().GetSeconds() );
 
 			return;
 		}
 
 		// Help to avoid overflow problems
-		m_waitSeconds.SetValue(0);
+		m_waitSeconds.SetSeconds(0);
 	}
 
 	const int blockCounter = m_blockCounter;

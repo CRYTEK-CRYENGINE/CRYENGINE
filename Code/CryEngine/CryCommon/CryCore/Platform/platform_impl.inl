@@ -233,43 +233,100 @@ bool CryInitializeEngine(SSystemInitParams& startupParams, bool bManualEngineLoo
 void CrySleep(unsigned int dwMilliseconds)
 {
 	::Sleep(dwMilliseconds);
+	// CryLowLatencySleep(CTimeValue().SetMilliSeconds(dwMilliseconds));
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CryLowLatencySleep(unsigned int dwMilliseconds)
+void CryLowLatencySleep(const CTimeValue& sleepTime, bool check)
 {
+	assert(sleepTime >= 0);
+
+	// PERSONAL IMPROVE: Sleeps, high resolution timers/etc. have only been reworked for Windows. 
+	// Linux/etc. should be done later.......
 	#if CRY_PLATFORM_DURANGO
-	if (dwMilliseconds > 32) // just do an OS sleep for long periods, because we just assume that if we sleep for this long, we don't need a accurate latency (max diff is likly 15ms)
-		CrySleep(dwMilliseconds);
-	else // do a more accurate "sleep" by yielding this CPU to other threads
-	{
-		LARGE_INTEGER frequency;
-		LARGE_INTEGER currentTime;
-		LARGE_INTEGER endTime;
-
-		QueryPerformanceCounter(&endTime);
-
-		// Ticks in microseconds (1/1000 ms)
-		QueryPerformanceFrequency(&frequency);
-		endTime.QuadPart += (dwMilliseconds * frequency.QuadPart) / (1000ULL);
-
-		do
+		if (dwMilliseconds > 32) // just do an OS sleep for long periods, because we just assume that if we sleep for this long, we don't need a accurate latency (max diff is likly 15ms)
+			CrySleep(dwMilliseconds);
+		else // do a more accurate "sleep" by yielding this CPU to other threads
 		{
-			SwitchToThread();
-			SwitchToThread();
-			SwitchToThread();
-			SwitchToThread();
-			SwitchToThread();
-			SwitchToThread();
-			SwitchToThread();
-			SwitchToThread();
+			LARGE_INTEGER frequency;
+			LARGE_INTEGER currentTime;
+			LARGE_INTEGER endTime;
 
-			QueryPerformanceCounter(&currentTime);
+			QueryPerformanceCounter(&endTime);
+
+			// Ticks in microseconds (1/1000 ms)
+			QueryPerformanceFrequency(&frequency);
+			endTime.QuadPart += (dwMilliseconds * frequency.QuadPart) / (1000ULL);
+
+			do
+			{
+				SwitchToThread();
+				SwitchToThread();
+				SwitchToThread();
+				SwitchToThread();
+				SwitchToThread();
+				SwitchToThread();
+				SwitchToThread();
+				SwitchToThread();
+
+				QueryPerformanceCounter(&currentTime);
+			}
+			while (currentTime.QuadPart < endTime.QuadPart);
 		}
-		while (currentTime.QuadPart < endTime.QuadPart);
-	}
 	#else
-	CrySleep(dwMilliseconds);
+		/*
+			WARNING:
+				An accurate sleep/Framerate limitation is not possible on most OS's. 
+				Even though a thread becomes active, scheduling and enabling it takes a bit and depends on the priority/setup of other threads.
+				This can lead to delays of 1ms or more depending on system usage! Alt-tabbing easily reproduces this.
+
+			PERSONAL IMPROVE:
+				There's a ton more issues. Recommendation would be to use the windows timestamp project.
+				Would significantly alleviate QueryPerformanceCounter() etc. inaccuraccies.
+				http://www.windowstimestamp.com/
+		*/
+
+		/*	
+			Sleep(1) sleeps ~1ms with an error of up to TimePrecision.
+				TimePrecision(1) = > Sleep(1) sleeps up to 1.99ms 
+		*/
+		// Sleep as much as possible until at risk of err
+		const int safe = (int)(sleepTime.GetMilliSeconds() - (mpfloat)gEnv->pSystem->GetTimeResolution() / 10'000);
+		if (safe > 0)
+			Sleep(safe);
+
+		// Get ticks per sec
+		LARGE_INTEGER TTicksPerSec;
+		QueryPerformanceFrequency(&TTicksPerSec);
+		const int64 lTicksPerSec = TTicksPerSec.QuadPart;
+
+		// Approximate minimum end time, in ticks.
+		LARGE_INTEGER t;
+		QueryPerformanceCounter(&t);
+		const mpfloat minTicks = (sleepTime.GetSeconds() * lTicksPerSec) + t.QuadPart;
+
+		// Sleep remainder away
+		for (;;)
+		{
+			QueryPerformanceCounter(&t);
+
+			if (t.QuadPart >= minTicks)
+				break;
+			else
+				for(int i=0; i<8; i++){ YieldProcessor(); } // Simply yield processor (good for hyper threaded systems. Allows the logical core to run).  Based on CryAtomics_win32.h
+		}
+
+		// HACK! Trace/Fix issues.
+		if(!check){ return; }
+
+		// If diverging more than 5 milliseconds throw warning. Not CryWarning() since it doesn't run sometimes.
+		double err = (double)((t.QuadPart - minTicks) / lTicksPerSec) * 1000;
+		if (sleepTime != 0 && abs(err) > 5) {
+			CryLog(
+				"[WARNING] CryLowLatencySleep: Overshot target sleep! [%lf] %lf -> %lfms err",
+				(double)minTicks / lTicksPerSec, (double)t.QuadPart / lTicksPerSec, err
+			);
+		}
 	#endif
 }
 

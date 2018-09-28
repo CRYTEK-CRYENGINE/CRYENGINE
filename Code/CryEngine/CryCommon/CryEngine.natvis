@@ -558,5 +558,17 @@
   <Type Name="CryGUID">
     <DisplayString>{*(GUID*)this}</DisplayString>
   </Type>
-  
+
+	<!-- Multiprecision float types: MPFR version -->
+	<Type Name="boost::multiprecision::newNum&lt;*&gt;">
+		<DisplayString Condition="m_backend.m_data[0]._mpfr_prec == 0">Invalid data, zeroed out.</DisplayString>
+		<DisplayString>{debugStr()}</DisplayString>
+		<Expand>
+			<Item Name="_mpfr_prec">m_backend.m_data[0]._mpfr_prec</Item>
+			<Item Name="_mpfr_sign">m_backend.m_data[0]._mpfr_sign</Item>
+			<Item Name="_mpfr_exp">m_backend.m_data[0]._mpfr_exp</Item>
+			<Item Name="_mpfr_d">m_backend.m_data[0]._mpfr_d</Item>
+		</Expand>
+	</Type>
+
 </AutoVisualizer>

@@ -161,6 +161,7 @@ class CFrameProfilerSection;
 struct INotificationNetwork;
 struct IPlatformOS;
 struct ICryPerfHUD;
+struct ICVar;
 
 namespace JobManager {
 struct IJobManager;
@@ -785,14 +786,16 @@ struct SPlatformInfo
 #define CPUF_AVX2         0x200
 #define CPUF_FMA          0x400
 
+#include "TimeValue.h"
+
 //! \cond INTERNAL
 //! Holds info about system update stats over perior of time (cvar-tweakable)
 struct SSystemUpdateStats
 {
-	SSystemUpdateStats() : avgUpdateTime(0.0f), minUpdateTime(0.0f), maxUpdateTime(0.0f){}
-	float avgUpdateTime;
-	float minUpdateTime;
-	float maxUpdateTime;
+	SSystemUpdateStats() : avgUpdateTime(0), minUpdateTime(0), maxUpdateTime(0){}
+	CTimeValue avgUpdateTime;
+	CTimeValue minUpdateTime;
+	CTimeValue maxUpdateTime;
 };
 
 //! Union to handle communication between the AsycDIP jobs and the general job system.
@@ -808,6 +811,30 @@ union UAsyncDipState
 	uint32 nValue;
 };
 //! \endcond
+
+// PERSONAL IMPROVE: Could get better syntax here, hard to come up with an ideal method. This is 'simplest' though.
+// Definitely keep all timers listed here for debug/tracing purposes!
+// Perhaps add CServerTimer() here as well.
+namespace GTimers {
+	enum {
+		system = 0,
+		action,
+		render,
+		d3d,
+		particle,
+		animation,
+		peffects,
+		TOD,
+		ocean,
+		pak,
+		budget,
+		sbind,
+		lanListener,
+		interactor,
+
+		size
+	};
+};
 
 //!	Global environment. Contains pointers to all global often needed interfaces.
 //!	This is a faster way to get interface pointer then calling ISystem interface to retrieve one.
@@ -831,7 +858,6 @@ struct SSystemGlobalEnvironment
 	IParticleManager*            pParticleManager;
 	IOpticsManager*              pOpticsManager;
 	IFrameProfileSystem*         pFrameProfileSystem;
-	ITimer*                      pTimer;
 	ICryFont*                    pCryFont;
 	IGameFramework*              pGameFramework;
 	ILocalMemoryUsage*           pLocalMemoryUsage;
@@ -920,6 +946,9 @@ struct SSystemGlobalEnvironment
 
 	// Protected functions.
 	SSystemInitParams::ProtectedFunction pProtectedFunctions[eProtectedFuncsLast];
+
+	// A collection of all the core CryEngine timers.
+	ITimer* g_timers[GTimers::size];
 
 	//////////////////////////////////////////////////////////////////////////
 	//! Flag to able to print out of memory condition
@@ -1227,7 +1256,7 @@ struct ISystem
 	//! Displays an error message to display info for certain time
 	//! \param acMessage Message to show.
 	//! \param fTime Amount of seconds to show onscreen.
-	virtual void DisplayErrorMessage(const char* acMessage, float fTime, const float* pfColor = 0, bool bHardError = true) = 0;
+	virtual void DisplayErrorMessage(const char* acMessage, const CTimeValue& fTime, const float* pfColor = 0, bool bHardError = true) = 0;
 
 	//! Displays error message.
 	//! Logs it to console and file and error message box then terminates execution.
@@ -1331,6 +1360,13 @@ struct ISystem
 	virtual void DebugStats(bool checkpoint, bool leaks) = 0;
 	virtual void DumpWinHeaps() = 0;
 	virtual int  DumpMMStats(bool log) = 0;
+
+	// PERSONAL IMPROVE: Convert to global static function perhaps?
+	//! \return Current system timer resolution, in units of 100nanoseconds. 5,000 = 0.5 milliseconds (ms)
+	virtual ULONG GetTimeResolution() const = 0;
+
+	//! \return Dedicated server maximum FPS cvar
+	virtual const ICVar* GetDedicatedMaxRate() const = 0;
 
 	//! \param bValue Set to true when running on a cheat protected server or a client that is connected to it (not used in singleplayer).
 	virtual void SetForceNonDevMode(const bool bValue) = 0;
@@ -1685,6 +1721,23 @@ inline ISystemScheduler* GetISystemScheduler(void)
 #endif // defined(SYS_ENV_AS_STRUCT)
 }
 #endif // defined(MAP_LOADING_SLICING)
+
+//////////////////////////////////////////////////////////////////////////
+// Global timer setup and handling.
+// Returns a global timer, defaults to system. e.g. what was GetGTimer()
+ILINE ITimer* const GetGTimer(int i = GTimers::system)			{ return gEnv->g_timers[i]; }
+ILINE void SetGTimer(ITimer* pTimer, int i = GTimers::system)  { 
+		assert(pTimer); 
+		gEnv->g_timers[i] = pTimer;
+
+		// If Time-of-Day timer, also update timer for ocean. - Craig
+		if(i == GTimers::TOD){
+			gEnv->g_timers[GTimers::ocean] = pTimer;
+		}
+}
+#define GTimer(x) GetGTimer(GTimers::##x)
+//////////////////////////////////////////////////////////////////////////
+
 //! This function must be called once by each module at the beginning, to setup global pointers.
 extern "C" DLL_EXPORT void ModuleInitISystem(ISystem* pSystem, const char* moduleName);
 extern int g_iTraceAllocations;
@@ -1818,6 +1871,34 @@ struct ConsoleRegistrationHelper
 		}
 	}
 
+	MPOnly static CRY_FORCE_INLINE ICVar* RegisterMPFloat(const char* szName, const T& value, int flags, const char* szHelp = "", ConsoleVarFunc pChangeFunc = nullptr)
+	{
+		CRY_ASSERT(gEnv && gEnv->pConsole);
+		if (gEnv && gEnv->pConsole)
+		{
+			MODULE_REGISTER_CVAR(szName);
+			return gEnv->pConsole->RegisterMPFloat(szName, value, flags, szHelp, pChangeFunc);
+		}
+		else
+		{
+			return nullptr;
+		}
+	}
+
+	TVOnly static CRY_FORCE_INLINE ICVar* RegisterTime(const char* szName, const T& value, int flags, const char* szHelp = "", ConsoleVarFunc pChangeFunc = nullptr)
+	{
+		CRY_ASSERT(gEnv && gEnv->pConsole);
+		if (gEnv && gEnv->pConsole)
+		{
+			MODULE_REGISTER_CVAR(szName);
+			return gEnv->pConsole->RegisterTime(szName, value, flags, szHelp, pChangeFunc);
+		}
+		else
+		{
+			return nullptr;
+		}
+	}
+
 	template<class T, class U>
 	static CRY_FORCE_INLINE ICVar* Register(const char* szName, T* pSrc, U defaultValue, int flags = 0, const char* szHelp = "", ConsoleVarFunc pChangeFunc = nullptr, bool bAllowModify = true)
 	{
@@ -1857,7 +1938,15 @@ private:
 	template<class T, class U>
 	static CRY_FORCE_INLINE ICVar* RegisterImpl(non_enum_tag, const char* szName, T* pSrc, U defaultValue, int flags = 0, const char* szHelp = "", ConsoleVarFunc pChangeFunc = nullptr, bool bAllowModify = true)
 	{
-		static_assert(std::is_same<T, int>::value || std::is_same<T, float>::value || std::is_same<T, const char*>::value, "Invalid template type!");
+		#define MP_FUNCTION(X) std::is_same<T, X>::value ||
+		static_assert(	std::is_same<T, int>::value || 
+							std::is_same<T, float>::value || 
+							#include "mpfloat.types"
+							std::is_same<T, CTimeValue>::value || 
+							std::is_same<T, const char*>::value, 
+							"Invalid template type!"
+		);
+		#undef MP_FUNCTION
 		static_assert(std::is_convertible<U, T>::value, "Invalid default value type!");
 		CRY_ASSERT(gEnv && gEnv->pConsole);
 		if (gEnv && gEnv->pConsole)
@@ -2031,6 +2120,15 @@ struct SDummyCVar : ICVar
 
 //! Preferred way to register a float CVar
 #define REGISTER_FLOAT(_name, _def_val, _flags, _comment) ConsoleRegistrationHelper::RegisterFloat(_name, (_def_val), (_flags), CVARHELP(_comment))
+
+//! Preferred way to register a mpfloat CVar
+#define REGISTER_MPFLOAT(_name, _def_val, _flags, _comment) ConsoleRegistrationHelper::RegisterMPFloat(_name, (_def_val), (_flags), CVARHELP(_comment))
+
+//! Preferred way to register a time CVar
+#define REGISTER_TIME(_name, _def_val, _flags, _comment) ConsoleRegistrationHelper::RegisterTime(_name, (_def_val), (_flags), CVARHELP(_comment))
+
+//! Preferred way to register an time CVar with a callback
+#define REGISTER_TIME_CB(_name, _def_val, _flags, _comment, _onchangefunction) ConsoleRegistrationHelper::RegisterTime(_name, (_def_val), (_flags), CVARHELP(_comment), _onchangefunction)
 
 //! Offers more flexibility but more code is required
 #define REGISTER_CVAR2(_name, _var, _def_val, _flags, _comment) ConsoleRegistrationHelper::Register(_name, _var, (_def_val), (_flags), CVARHELP(_comment))

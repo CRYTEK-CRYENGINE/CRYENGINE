@@ -86,6 +86,38 @@ inline void ReflectType(CTypeDesc<float>& desc)
 	desc.SetToStringOperator<&FloatToString>();
 }
 
+// Reflect 'CTimeValue' type.
+// #SchematycTODO : Move to STDEnv/MathTypes.h?
+inline void TimeValueToString(IString& output, const CTimeValue& input)
+{
+	output.Format("%s", input.GetSeconds().str());
+}
+
+inline void ReflectType(CTypeDesc<CTimeValue>& desc)
+{
+	desc.SetGUID("8d519477-f7ec-4e9e-a80f-8bcf9788c712"_cry_guid);
+	desc.SetLabel("TimeValue");
+	desc.SetDescription("TimeValue, standerdized time value");
+	desc.SetDefaultValue(CTimeValue(0));
+	desc.SetToStringOperator<&TimeValueToString>();
+}
+
+// Reflect 'MPFloat' type.
+// #SchematycTODO : Move to STDEnv/MathTypes.h?
+inline void MPToString(IString& output, const mpfloat& input)
+{
+	output.Format("%s", input.str());
+}
+
+inline void ReflectType(CTypeDesc<mpfloat>& desc)
+{
+	desc.SetGUID("85bfb9b5-4075-439f-8b50-dd317aa39adc"_cry_guid);
+	desc.SetLabel("MPFloat");
+	desc.SetDescription("Multi-precision strong-type");
+	desc.SetDefaultValue(mpfloat(0));
+	desc.SetToStringOperator<&MPToString>();
+}
+
 // Reflect 'Vec2' type.
 // #SchematycTODO : Move to STDEnv/MathTypes.h?
 

@@ -42,7 +42,7 @@ inline bool operator==(const SFlowSystemVoid& a, const SFlowSystemVoid& b)
 //! By adding types to this list, we can extend the flow system to handle new data types.
 //! Important: If types need to be added, add them at the end, otherwise it breaks serialization.
 //! \note CFlowData::ConfigureInputPort must be updated simultaneously.
-//! \see CFlowData::ConfigureInputPort.
+//! \see CFlowData::ConfigureInputPort. PERSONAL CRYTEK: Of COURSE.......said function doesn't exist :D
 typedef CryVariant<
 	SFlowSystemVoid,
 	int,
@@ -50,19 +50,23 @@ typedef CryVariant<
 	EntityId,
 	Vec3,
 	string,
-	bool
+	bool,
+	CTimeValue,
+	mpfloat
 	> TFlowInputDataVariant;
 
 enum EFlowDataTypes
 {
-	eFDT_Any = -1,
-	eFDT_Void = cry_variant::get_index<SFlowSystemVoid, TFlowInputDataVariant>::value,
-	eFDT_Int = cry_variant::get_index<int, TFlowInputDataVariant>::value,
-	eFDT_Float = cry_variant::get_index<float, TFlowInputDataVariant>::value,
-	eFDT_EntityId = cry_variant::get_index<EntityId, TFlowInputDataVariant>::value,
-	eFDT_Vec3 = cry_variant::get_index<Vec3, TFlowInputDataVariant>::value,
-	eFDT_String = cry_variant::get_index<string, TFlowInputDataVariant>::value,
-	eFDT_Bool = cry_variant::get_index<bool, TFlowInputDataVariant>::value,
+	eFDT_Any			= -1,
+	eFDT_Void		= cry_variant::get_index<SFlowSystemVoid, TFlowInputDataVariant>::value,
+	eFDT_Int			= cry_variant::get_index<int, TFlowInputDataVariant>::value,
+	eFDT_Float		= cry_variant::get_index<float, TFlowInputDataVariant>::value,
+	eFDT_EntityId	= cry_variant::get_index<EntityId, TFlowInputDataVariant>::value,
+	eFDT_Vec3		= cry_variant::get_index<Vec3, TFlowInputDataVariant>::value,
+	eFDT_String		= cry_variant::get_index<string, TFlowInputDataVariant>::value,
+	eFDT_Bool		= cry_variant::get_index<bool, TFlowInputDataVariant>::value,
+	eFDT_Time		= cry_variant::get_index<CTimeValue, TFlowInputDataVariant>::value,
+	eFDT_MP			= cry_variant::get_index<mpfloat, TFlowInputDataVariant>::value,
 };
 
 inline EFlowDataTypes FlowNameToType(const char *typeName)
@@ -82,6 +86,10 @@ inline EFlowDataTypes FlowNameToType(const char *typeName)
 		flowDataType = eFDT_String;
 	else if (0 == strcmp(typeName, "Bool"))
 		flowDataType = eFDT_Bool;
+	else if (0 == strcmp(typeName, "Time"))
+		flowDataType = eFDT_Time;
+	else if (0 == strcmp(typeName, "MP"))
+		flowDataType = eFDT_MP;
 
 	return flowDataType;
 }
@@ -106,6 +114,10 @@ inline const char* FlowTypeToName(EFlowDataTypes flowDataType)
 		return "String";
 	case eFDT_Bool:
 		return "Bool";
+	case eFDT_Time:
+		return "Time";
+	case eFDT_MP:
+		return "MP";
 	}
 	return "";
 }
@@ -130,6 +142,34 @@ struct SFlowSystemConversion
 		return true;
 	}
 };
+
+// PERSONAL NOTE: A bunch of nonsense, preventing conversion from various values. Ugh.
+#define NoConv(T, X)\
+	template<>\
+	struct SFlowSystemConversion<T, X>\
+	{\
+		static ILINE bool ConvertValue(const T& from, X& to)\
+		{\
+			CRY_ASSERT_MESSAGE(false, "Invalid CTimeValue/mpfloat conversion!");\
+			return false;\
+		}\
+	};\
+	template<>\
+	struct SFlowSystemConversion<X, T>\
+	{\
+		static ILINE bool ConvertValue(const X& from, T& to)\
+		{\
+			CRY_ASSERT_MESSAGE(false, "Invalid CTimeValue/mpfloat conversion!");\
+			return false;\
+		}\
+	};\
+
+	NoConv(mpfloat, float);
+	NoConv(CTimeValue, int);
+	NoConv(CTimeValue, float);
+	NoConv(CTimeValue, EntityId);
+	NoConv(CTimeValue, mpfloat);
+#undef NoConv
 
 namespace cry_variant
 {
@@ -201,6 +241,8 @@ ILINE bool ConvertVariant<T, stl::variant_size<TFlowInputDataVariant>::value>(co
 	FLOWSYSTEM_CONVERTVARIANT_SPECIALIZATION(Vec3);
 	FLOWSYSTEM_CONVERTVARIANT_SPECIALIZATION(string);
 	FLOWSYSTEM_CONVERTVARIANT_SPECIALIZATION(bool);
+	FLOWSYSTEM_CONVERTVARIANT_SPECIALIZATION(CTimeValue);
+	FLOWSYSTEM_CONVERTVARIANT_SPECIALIZATION(mpfloat);
 	FLOWSYSTEM_CONVERTVARIANT_SPECIALIZATION(TFlowInputDataVariant);
 #undef FLOWSYSTEM_CONVERTVARIANT_SPECIALIZATION
 
@@ -242,6 +284,8 @@ ILINE bool ConvertToVariant<T, stl::variant_size<TFlowInputDataVariant>::value>(
 	FLOWSYSTEM_CONVERTTOVARIANT_SPECIALIZATION(Vec3);
 	FLOWSYSTEM_CONVERTTOVARIANT_SPECIALIZATION(string);
 	FLOWSYSTEM_CONVERTTOVARIANT_SPECIALIZATION(bool);
+	FLOWSYSTEM_CONVERTTOVARIANT_SPECIALIZATION(CTimeValue);
+	FLOWSYSTEM_CONVERTTOVARIANT_SPECIALIZATION(mpfloat);
 	FLOWSYSTEM_CONVERTTOVARIANT_SPECIALIZATION(TFlowInputDataVariant);
 #undef FLOWSYSTEM_CONVERTTOVARIANT_SPECIALIZATION
 }
@@ -291,6 +335,8 @@ FLOWSYSTEM_NO_CONVERSION(EntityId);
 FLOWSYSTEM_NO_CONVERSION(Vec3);
 FLOWSYSTEM_NO_CONVERSION(string);
 FLOWSYSTEM_NO_CONVERSION(bool);
+FLOWSYSTEM_NO_CONVERSION(CTimeValue);
+FLOWSYSTEM_NO_CONVERSION(mpfloat);
 #undef FLOWSYSTEM_NO_CONVERSION
 
 //! Specialization for converting to bool to avoid compiler warnings.
@@ -373,8 +419,44 @@ struct SFlowSystemConversion<From, SFlowSystemVoid>
 FLOWSYSTEM_STRING_CONVERSION(int, "%d");
 FLOWSYSTEM_STRING_CONVERSION(float, "%g");
 FLOWSYSTEM_STRING_CONVERSION(EntityId, "%u");
-
 #undef FLOWSYSTEM_STRING_CONVERSION
+
+template<>
+struct SFlowSystemConversion<mpfloat, string>
+{
+	static ILINE bool ConvertValue(const mpfloat&from, string & to)
+	{
+		to = from.str();
+		return true;
+	}
+};
+template<>
+struct SFlowSystemConversion<string, mpfloat>
+{
+	static ILINE bool ConvertValue(const string &from, mpfloat& to)
+	{
+		return 1 == (to = from.c_str());
+	}
+};
+
+template<>                                                      
+struct SFlowSystemConversion<CTimeValue, string>                      
+{                                                               
+  static ILINE bool ConvertValue(const CTimeValue &from, string& to)
+  {                                                             
+    to = from.GetSeconds().str();
+    return true;                                                
+  }                                                             
+};                                                              
+template<>                                                      
+struct SFlowSystemConversion<string, CTimeValue>
+{                                                               
+  static ILINE bool ConvertValue(const string &from, CTimeValue& to)
+  {            
+    to.SetSeconds(from.c_str());
+	 return true;
+  }                                                             
+};
 
 template<>
 struct SFlowSystemConversion<bool, string>
@@ -1198,9 +1280,14 @@ struct SFlowNodeConfig
 		pInputPorts = new SInputPortConfig[size + 1];
 		memset((void*)pInputPorts, 0, sizeof(SInputPortConfig) * (size + 1));
 	}
-	void AddInputPort(int slot, const SInputPortConfig& cfg)
+	void AddInputPort(int slot, const SInputPortConfig& cfgIn)
 	{
-		memcpy((void*)(&pInputPorts[slot]), (void*)&cfg, sizeof(SInputPortConfig));
+		// PERSONAL NOTE: Changed to "Copying a pointer to a new() value"
+		// Messier allocation/de-allocation BUT preserves const * + allows for non-POD type like CTimeValue/mpfloat etc.....
+		const SInputPortConfig* cfg = new SInputPortConfig(cfgIn);
+		const SInputPortConfig* spot = &pInputPorts[slot];
+		delete spot;
+		memcpy((void*)(&spot), (void*)&cfg, sizeof(SInputPortConfig*));
 	}
 	void AddStringInputPort(int slot, const char* name, const char* description)
 	{
@@ -1225,9 +1312,12 @@ struct SFlowNodeConfig
 		pOutputPorts = new SOutputPortConfig[size + 1];
 		memset((void*)pOutputPorts, 0, sizeof(SOutputPortConfig) * (size + 1));
 	}
-	void AddOutputPort(int slot, const SOutputPortConfig& cfg)
+	void AddOutputPort(int slot, const SOutputPortConfig& cfgIn)
 	{
-		memcpy((void*)(&pOutputPorts[slot]), (void*)&cfg, sizeof(SOutputPortConfig));
+		const SOutputPortConfig* cfg  = new SOutputPortConfig(cfgIn);
+		const SOutputPortConfig* spot = &pOutputPorts[slot];
+		delete spot;
+		memcpy((void*)(&spot), (void*)&cfg, sizeof(SOutputPortConfig*));
 	}
 	void AddStringOutputPort(int slot, const char* name, const char* description)
 	{
@@ -1528,6 +1618,18 @@ struct Wrapper<EntityId>
 	const EntityId& value;
 };
 template<>
+struct Wrapper<CTimeValue>
+{
+	explicit Wrapper(const CTimeValue& v) : value(v) {}
+	const CTimeValue& value;
+};
+template<>
+struct Wrapper<mpfloat>
+{
+	explicit Wrapper(const mpfloat& v) : value(v) {}
+	const mpfloat& value;
+};
+template<>
 struct Wrapper<Vec3>
 {
 	explicit Wrapper(const Vec3& v) : value(v) {}
@@ -1558,6 +1660,8 @@ struct IFlowSystemTyped
 	virtual void DoActivatePort(const SFlowAddress, const Wrapper<Vec3>& value) = 0;
 	virtual void DoActivatePort(const SFlowAddress, const Wrapper<string>& value) = 0;
 	virtual void DoActivatePort(const SFlowAddress, const Wrapper<bool>& value) = 0;
+	virtual void DoActivatePort(const SFlowAddress, const Wrapper<CTimeValue>& value) = 0;
+	virtual void DoActivatePort(const SFlowAddress, const Wrapper<mpfloat>& value) = 0;
 };
 }
 
@@ -2004,6 +2108,18 @@ ILINE float GetPortFloat(IFlowNode::SActivationInfo* pActInfo, int nPort)
 {
 	float result;
 	return pActInfo->pInputPorts[nPort].GetValueWithConversion(result) ? result : 0.0f;
+}
+
+ILINE CTimeValue GetPortTime(IFlowNode::SActivationInfo* pActInfo, int nPort)
+{
+	CTimeValue result;
+	return pActInfo->pInputPorts[nPort].GetValueWithConversion(result) ? result : 0;
+}
+
+ILINE mpfloat GetPortMP(IFlowNode::SActivationInfo* pActInfo, int nPort)
+{
+	mpfloat result;
+	return pActInfo->pInputPorts[nPort].GetValueWithConversion(result) ? result : 0;
 }
 
 ILINE Vec3 GetPortVec3(IFlowNode::SActivationInfo* pActInfo, int nPort)
