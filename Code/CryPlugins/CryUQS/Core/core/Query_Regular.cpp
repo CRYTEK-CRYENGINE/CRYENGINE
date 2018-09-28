@@ -160,14 +160,14 @@ namespace UQS
 
 			while(1)
 			{
-				const CTimeValue phaseStartTime = gEnv->pTimer->GetAsyncTime();
+				const CTimeValue phaseStartTime = GetGTimer()->GetAsyncTime();
 
 				// update the current phase (this might switch to the next phase)
 				EPhaseStatus (CQuery_Regular::*oldPhaseFn)(const SPhaseUpdateContext&) = m_currentPhaseFn;
 				const EPhaseStatus phaseStatus = (this->*m_currentPhaseFn)(phaseUpdateContext);
 
 				// keep track of the elapsed time in the current phase
-				const CTimeValue phaseEndTime = gEnv->pTimer->GetAsyncTime();
+				const CTimeValue phaseEndTime = GetGTimer()->GetAsyncTime();
 				const CTimeValue elapsedTimeInPhaseUpdate = (phaseEndTime - phaseStartTime);
 				m_elapsedTimePerPhase.back() += elapsedTimeInPhaseUpdate;
 				m_peakElapsedTimePerPhaseUpdate.back() = std::max(m_peakElapsedTimePerPhaseUpdate.back(), elapsedTimeInPhaseUpdate);

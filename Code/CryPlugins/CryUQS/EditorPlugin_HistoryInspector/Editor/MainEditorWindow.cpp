@@ -105,16 +105,16 @@ struct SQuery
 		stack_string timestampQueryCreatedAsString;
 		stack_string timestampQueryDestroyedAsString;
 
-		int hours, minutes, seconds, milliseconds;
+		mpfloat hours, minutes, seconds, milliseconds;
 
 		overview.queryID.ToString(queryIdAsString);
 		queryIdAndQuerierName.Format("#%s: %s", queryIdAsString.c_str(), overview.szQuerierName);
 		itemCountsAsString.Format("%i / %i", (int)overview.numResultingItems, (int)overview.numGeneratedItems);
-		elapsedTimeAsString.Format("%.2f ms", overview.timeElapsedUntilResult.GetMilliSeconds());
+		elapsedTimeAsString.Format("%.2f ms", (float)overview.timeElapsedUntilResult.GetMilliSeconds());
 		UQS::Shared::CTimeValueUtil::Split(overview.timestampQueryCreated, &hours, &minutes, &seconds, &milliseconds);
-		timestampQueryCreatedAsString.Format  ("%i:%02i:%02i:%03i", hours, minutes, seconds, milliseconds);
+		timestampQueryCreatedAsString.Format  ("%i:%02i:%02i:%03i", (int)hours, (int)minutes, (int)seconds, (int)milliseconds);
 		UQS::Shared::CTimeValueUtil::Split(overview.timestampQueryDestroyed, &hours, &minutes, &seconds, &milliseconds);
-		timestampQueryDestroyedAsString.Format("%i:%02i:%02i:%03i", hours, minutes, seconds, milliseconds);
+		timestampQueryDestroyedAsString.Format("%i:%02i:%02i:%03i", (int)hours, (int)minutes, (int)seconds, (int)milliseconds);
 
 		this->dataPerColumn[Column_QueryIdAndQuerierName] = QtUtil::ToQString(queryIdAndQuerierName.c_str());
 		this->dataPerColumn[Column_QueryBlueprintName] = QtUtil::ToQString(overview.szQueryBlueprintName);

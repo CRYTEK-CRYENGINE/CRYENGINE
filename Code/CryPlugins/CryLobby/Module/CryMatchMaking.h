@@ -31,8 +31,8 @@ const ECrySessionUserDataType eCSUDT_Int64NoEndianSwap = eCLUDT_Int64NoEndianSwa
 class CCryLobbyPacket;
 class CCrySharedLobbyPacket;
 
-const uint32 CryMatchMakingConnectionTimeOut = 10000;
-const uint32 CryMatchMakingHostMigratedConnectionConfirmationWindow = 3000; // 3 second window to receive client confirmations before pruning
+const CTimeValue CryMatchMakingConnectionTimeOut = 10;
+const CTimeValue CryMatchMakingHostMigratedConnectionConfirmationWindow = 3; // 3 second window to receive client confirmations before pruning
 
 	#define MAX_MATCHMAKING_SESSION_USER_DATA 64
 	#define MAX_MATCHMAKING_TASKS             8
@@ -250,11 +250,11 @@ public:
 
 	virtual void                         TerminateHostMigration(CrySessionHandle gh);
 	virtual eHostMigrationState          GetSessionHostMigrationState(CrySessionHandle gh);
-	virtual ECryLobbyError               GetSessionPlayerPing(SCryMatchMakingConnectionUID uid, CryPing* const pPing);
+	virtual ECryLobbyError               GetSessionPlayerPing(SCryMatchMakingConnectionUID uid, CTimeValue* const pPing);
 	virtual ECryLobbyError               GetSessionIDFromSessionURL(const char* const pSessionURL, CrySessionID* const pSessionID) { return eCLE_ServiceNotSupported; };
 	virtual ECryLobbyError               GetSessionIDFromIP(const char* const pAddr, CrySessionID* const pSessionID)               { return eCLE_ServiceNotSupported; };
 
-	virtual uint32                       GetTimeSincePacketFromServerMS(CrySessionHandle gh);
+	virtual CTimeValue                   GetTimeSincePacketFromServer(CrySessionHandle gh);
 	virtual void                         DisconnectFromServer(CrySessionHandle gh);
 	virtual void                         StatusCmd(eStatusCmdMode mode);
 	virtual void                         KickCmd(uint32 cxID, uint64 userID, const char* pName, EDisconnectionCause cause);
@@ -372,7 +372,7 @@ protected:
 			THostMigrationStateCheckDatas hostMigrationStateCheckDatas;
 	#endif
 			SCryMatchMakingConnectionUID  uid;
-			CryPing                       pingToServer;
+			CTimeValue                    pingToServer;
 			uint8                         numUsers;
 			bool                          used;
 			// CCryDedicatedServer::SSession uses the same member names for the non-pointer versions of localConnection and remoteConnection. See CCryDedicatedServer::CCryDedicatedServer()
@@ -386,7 +386,7 @@ protected:
 			bool  TimerStarted() { return timerStarted; }
 			void  StartTimer()   { timerStarted = true; timer = g_time; }
 			void  StopTimer()    { timerStarted = false; }
-			int64 GetTimer()     { return g_time.GetMilliSecondsAsInt64() - timer.GetMilliSecondsAsInt64(); }
+			CTimeValue GetTimer(){ return g_time - timer; }
 
 			CTimeValue                    timer;
 			CryLobbyConnectionID          connectionID;
@@ -406,7 +406,7 @@ protected:
 
 			MiniQueue<SData, GAME_RECV_QUEUE_SIZE> gameRecvQueue;
 
-			CryPing                                pingToServer;
+			CTimeValue                             pingToServer;
 			uint32 flags;
 			uint8  numUsers;
 			bool   used;
@@ -436,7 +436,7 @@ protected:
 	{
 		bool  TimerStarted() { return timerStarted; }
 		void  StartTimer()   { timerStarted = true; timer = g_time; }
-		int64 GetTimer()     { return g_time.GetMilliSecondsAsInt64() - timer.GetMilliSecondsAsInt64(); }
+		CTimeValue GetTimer(){ return g_time - timer; }
 
 		CTimeValue            timer;
 		CryLobbyTaskID        lTaskID;

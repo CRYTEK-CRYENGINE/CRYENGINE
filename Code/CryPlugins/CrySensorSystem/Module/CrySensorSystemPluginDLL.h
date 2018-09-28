@@ -23,7 +23,7 @@ namespace Cry
 
 			// Cry::IEnginePlugin
 			virtual bool Initialize(SSystemGlobalEnvironment& env, const SSystemInitParams& initParams) override;
-			virtual void MainUpdate(float frameTime) override;
+			virtual void MainUpdate(const CTimeValue& frameTime) override;
 			// ~Cry::IEnginePlugin
 
 		public:

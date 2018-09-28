@@ -37,7 +37,7 @@ namespace UQS
 
 			const CQueryHistory& history = m_queryHistories[m_historyToManage];
 			const CQueryID& queryIdOfSelectedHistoricQuery = m_queryIDOfCurrentHistoricQuery[m_historyToManage];
-			const CTimeValue now = gEnv->pTimer->GetAsyncTime();
+			const CTimeValue now = GetGTimer()->GetAsyncTime();
 
 			//
 			// if debug-drawing is enabled, then draw all ongoing queries in the 3D world while they haven't been finished (destroyed) yet
@@ -54,7 +54,7 @@ namespace UQS
 						continue;
 
 					// skip this query if it's finished and too old (we'll draw finished queries for just a short moment beyond their lifetime)
-					if (query.IsQueryDestroyed() && (now - query.GetQueryDestroyedTimestamp() > 2.0f))
+					if (query.IsQueryDestroyed() && (now - query.GetQueryDestroyedTimestamp() > 2))
 						continue;
 
 					query.DrawDebugPrimitivesInWorld(CDebugRenderWorldPersistent::kIndexWithoutAssociation, SEvaluatorDrawMasks::CreateAllBitsSet());

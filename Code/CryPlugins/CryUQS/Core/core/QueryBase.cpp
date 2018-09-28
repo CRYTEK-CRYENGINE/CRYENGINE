@@ -251,7 +251,7 @@ namespace UQS
 
 			m_timeBudgetForCurrentUpdate.Restart(amountOfGrantedTime);
 
-			const CTimeValue startTime = gEnv->pTimer->GetAsyncTime();
+			const CTimeValue startTime = GetGTimer()->GetAsyncTime();
 
 			++m_totalElapsedFrames;
 
@@ -297,7 +297,7 @@ namespace UQS
 			// finish timings
 			//
 
-			const CTimeValue timeSpent = gEnv->pTimer->GetAsyncTime() - startTime;
+			const CTimeValue timeSpent = GetGTimer()->GetAsyncTime() - startTime;
 			m_totalConsumedTime += timeSpent;
 			m_grantedAndUsedTimePerFrame.emplace_back(amountOfGrantedTime, timeSpent);
 

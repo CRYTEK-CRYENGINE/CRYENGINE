@@ -141,7 +141,7 @@ namespace Cry
 					fogProperties.m_windInfluence = m_options.m_windInfluence;
 					fogProperties.m_densityNoiseScale = m_options.m_densityNoiseScale;
 					fogProperties.m_densityNoiseOffset = m_options.m_densityNoiseOffset;
-					fogProperties.m_densityNoiseTimeFrequency = m_options.m_densityNoiseTimeFrequency;
+					fogProperties.m_densityNoiseTimeFrequency = BADMP(m_options.m_densityNoiseTimeFrequency);
 					fogProperties.m_densityNoiseFrequency = m_options.m_densityNoiseFrequency;
 
 					const float kiloScale = 1000.0f;

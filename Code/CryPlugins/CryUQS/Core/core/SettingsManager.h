@@ -20,8 +20,8 @@ namespace UQS
 		public:
 
 			// ISettingsManager
-			virtual float   GetTimeBudgetInSeconds() const override;
-			virtual void    SetTimeBudgetInSeconds(float timeBudgetInSeconds) override;
+			virtual const CTimeValue& GetTimeBudgetInSeconds() const override;
+			virtual void    SetTimeBudgetInSeconds(const CTimeValue& timeBudgetInSeconds) override;
 			// ~ISettingsManager
 		};
 

@@ -47,8 +47,8 @@ namespace Cry
 			virtual void SetLooping(bool bLooping);
 			virtual bool IsLooping() const;
 
-			virtual void SetPlaybackTime(float time);
-			virtual float GetPlaybackTime() const;
+			virtual void SetPlaybackTime(const CTimeValue& time);
+			virtual const CTimeValue GetPlaybackTime() const;
 
 			virtual void SetFilePath(const char* szFilePath);
 			const char* GetFilePath() const { return m_filePath.value.c_str(); }

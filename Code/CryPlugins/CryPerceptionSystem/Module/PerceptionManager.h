@@ -24,7 +24,7 @@ public:
 
 	// IPerceptionManager
 	virtual void RegisterStimulus(const SAIStimulus& stim) override;
-	virtual void IgnoreStimulusFrom(EntityId sourceId, EAIStimulusType type, float time) override;
+	virtual void IgnoreStimulusFrom(EntityId sourceId, EAIStimulusType type, const CTimeValue& time) override;
 	virtual bool IsPointInRadiusOfStimulus(EAIStimulusType type, const Vec3& pos) const override;
 
 	virtual bool RegisterStimulusDesc(EAIStimulusType type, const SAIStimulusTypeDesc& desc) override;
@@ -45,9 +45,9 @@ private:
 
 	// IAISystemComponent
 	virtual void Reset(IAISystem::EResetReason reason) override;
-	virtual void Update(float deltaTime) override;
+	virtual void Update(const CTimeValue& deltaTime) override;
 	virtual void Serialize(TSerialize ser) override;
-	virtual void ActorUpdate(IAIObject* pAIObject, IAIObject::EUpdateType type, float deltaTime) override;
+	virtual void ActorUpdate(IAIObject* pAIObject, IAIObject::EUpdateType type, const CTimeValue& deltaTime) override;
 	virtual bool WantActorUpdates(IAIObject::EUpdateType type) override { return type == IAIObject::Full; }
 	virtual void DebugDraw(IAIDebugRenderer* pDebugRenderer) override;
 	// !IAISystemComponent
@@ -59,7 +59,7 @@ private:
 	//! The type is sometimes converted to a mask and stored in an dword (32bits), no more than 32 subtypes.
 	static const uint32 AI_MAX_STIMULI = 32;
 
-	typedef std::map<EntityId, float>                         StimulusIgnoreMap;
+	typedef std::map<EntityId, CTimeValue>                    StimulusIgnoreMap;
 	typedef std::unordered_map<tAIObjectID, CPerceptionActor> PerceptionActorsMap;
 
 	struct SStimulusRecord
@@ -69,7 +69,7 @@ private:
 		Vec3          pos;
 		Vec3          dir;
 		float         radius;
-		float         t;
+		CTimeValue    t;
 		unsigned char type;
 		unsigned char subType;
 		unsigned char flags;
@@ -96,7 +96,7 @@ private:
 	void              GatherProbableTargetsForActor(IAIActor* pAIActor);
 
 	void              UpdateIncomingStimuli();
-	void              UpdateStimuli(float deltaTime);
+	void              UpdateStimuli(const CTimeValue& deltaTime);
 	void              UpdatePriorityTargets();
 
 	void              HandleSound(const SStimulusRecord& stim);
@@ -105,7 +105,7 @@ private:
 	void              HandleBulletHit(const SStimulusRecord& stim);
 	void              HandleBulletWhizz(const SStimulusRecord& stim);
 	void              HandleGrenade(const SStimulusRecord& stim);
-	void              VisCheckBroadPhase(float dt);
+	void              VisCheckBroadPhase(const CTimeValue& dt);
 	/// Checks if the sound is occluded.
 	bool              IsSoundOccluded(IAIActor* pAIActor, const Vec3& vSoundPos);
 	/// Suppresses the sound radius based on sound suppressors.
@@ -134,7 +134,7 @@ private:
 	std::vector<SStimulusRecord>   m_stimuli[AI_MAX_STIMULI];
 	std::vector<SAIStimulus>       m_incomingStimuli;
 
-	float                          m_visBroadPhaseDt;
+	CTimeValue                     m_visBroadPhaseDt;
 
 	std::vector<uint16>            m_priorityObjectTypes;
 	std::vector<IAIObject*>        m_priorityTargets;

@@ -75,7 +75,7 @@ namespace Cry
 			bool m_bSpawnOnMovement = true;
 			Vec2 m_randomOffset = Vec2(0.0f);
 
-			float m_lastSpawnTime;
+			CTimeValue m_lastSpawnTime;
 			bool m_currentLocationOk;
 		};
 	}

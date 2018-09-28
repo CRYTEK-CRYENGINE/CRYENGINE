@@ -3,6 +3,7 @@
 #pragma once
 
 #include <CryNetwork/SerializeFwd.h>
+#include <CrySystem/TimeValue.h>
 
 struct IAIObject;
 struct IAIActor;
@@ -13,7 +14,7 @@ public:
 	CPerceptionActor();
 	CPerceptionActor(IAIActor* pAIActor);
 
-	void Update(float frameDelta);
+	void Update(const CTimeValue& frameDelta);
 	void Reset();
 
 	void Serialize(TSerialize ser);
@@ -22,7 +23,7 @@ public:
 	bool IsEnabled() const;
 
 	void CheckCloseContact(IAIObject* pTarget);
-	bool CloseContactEnabled() { return m_closeContactTimeOut == 0.0f; }
+	bool CloseContactEnabled() { return m_closeContactTimeOut == 0; }
 
 	void SetMeleeRange(float meleeRange) { m_meleeRange = meleeRange; }
 
@@ -32,5 +33,5 @@ private:
 	int m_perceptionDisabled;
 
 	float m_meleeRange;
-	float m_closeContactTimeOut; // used to prevent the signal OnCloseContact being sent repeatedly to same object
+	CTimeValue m_closeContactTimeOut; // used to prevent the signal OnCloseContact being sent repeatedly to same object
 };

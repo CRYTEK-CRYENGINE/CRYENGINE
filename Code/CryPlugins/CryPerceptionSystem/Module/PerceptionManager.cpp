@@ -114,14 +114,14 @@ void CPerceptionManager::InitCommonTypeDescs()
 	// Sound
 	desc.Reset();
 	desc.SetName("Sound");
-	desc.processDelay = 0.15f;
-	desc.duration[AISOUND_GENERIC] = 2.0f;
-	desc.duration[AISOUND_COLLISION] = 4.0f;
-	desc.duration[AISOUND_COLLISION_LOUD] = 4.0f;
-	desc.duration[AISOUND_MOVEMENT] = 2.0f;
-	desc.duration[AISOUND_MOVEMENT_LOUD] = 4.0f;
-	desc.duration[AISOUND_WEAPON] = 4.0f;
-	desc.duration[AISOUND_EXPLOSION] = 6.0f;
+	desc.processDelay.SetSeconds("0.15");
+	desc.duration[AISOUND_GENERIC].SetSeconds(2);
+	desc.duration[AISOUND_COLLISION].SetSeconds(4);
+	desc.duration[AISOUND_COLLISION_LOUD].SetSeconds(4);
+	desc.duration[AISOUND_MOVEMENT].SetSeconds(2);
+	desc.duration[AISOUND_MOVEMENT_LOUD].SetSeconds(4);
+	desc.duration[AISOUND_WEAPON].SetSeconds(4);
+	desc.duration[AISOUND_EXPLOSION].SetSeconds(6);
 	desc.filterTypes = 0;
 	desc.nFilters = 0;
 	RegisterStimulusDesc(AISTIM_SOUND, desc);
@@ -129,10 +129,10 @@ void CPerceptionManager::InitCommonTypeDescs()
 	// Collision
 	desc.Reset();
 	desc.SetName("Collision");
-	desc.processDelay = 0.15f;
-	desc.duration[AICOL_SMALL] = 7.0f;
-	desc.duration[AICOL_MEDIUM] = 7.0f;
-	desc.duration[AICOL_LARGE] = 7.0f;
+	desc.processDelay.SetSeconds("0.15");
+	desc.duration[AICOL_SMALL].SetSeconds(7);
+	desc.duration[AICOL_MEDIUM].SetSeconds(7);
+	desc.duration[AICOL_LARGE].SetSeconds(7);
 	desc.filterTypes = (1 << AISTIM_COLLISION) | (1 << AISTIM_EXPLOSION);
 	desc.nFilters = 2;
 	desc.filters[0].Set(AISTIM_COLLISION, 0, AISTIMFILTER_MERGE_AND_DISCARD, 0.9f); // Merge nearby collisions
@@ -142,8 +142,8 @@ void CPerceptionManager::InitCommonTypeDescs()
 	// Explosion
 	desc.Reset();
 	desc.SetName("Explosion");
-	desc.processDelay = 0.15f;
-	desc.duration[0] = 7.0f;
+	desc.processDelay.SetSeconds("0.15");
+	desc.duration[0].SetSeconds(7);
 	desc.filterTypes = (1 << AISTIM_EXPLOSION);
 	desc.nFilters = 1;
 	desc.filters[0].Set(AISTIM_EXPLOSION, 0, AISTIMFILTER_MERGE_AND_DISCARD, 0.5f); // Merge nearby explosions
@@ -152,8 +152,8 @@ void CPerceptionManager::InitCommonTypeDescs()
 	// Bullet Whizz
 	desc.Reset();
 	desc.SetName("BulletWhizz");
-	desc.processDelay = 0.01f;
-	desc.duration[0] = 0.5f;
+	desc.processDelay.SetSeconds("0.01");
+	desc.duration[0].SetSeconds("0.5");
 	desc.filterTypes = 0;
 	desc.nFilters = 0;
 	RegisterStimulusDesc(AISTIM_BULLET_WHIZZ, desc);
@@ -161,8 +161,8 @@ void CPerceptionManager::InitCommonTypeDescs()
 	// Bullet Hit
 	desc.Reset();
 	desc.SetName("BulletHit");
-	desc.processDelay = 0.15f;
-	desc.duration[0] = 0.5f;
+	desc.processDelay.SetSeconds("0.15");
+	desc.duration[0].SetSeconds("0.5");
 	desc.filterTypes = (1 << AISTIM_BULLET_HIT);
 	desc.nFilters = 1;
 	desc.filters[0].Set(AISTIM_BULLET_HIT, 0, AISTIMFILTER_MERGE_AND_DISCARD, 0.5f); // Merge nearby hits
@@ -171,11 +171,11 @@ void CPerceptionManager::InitCommonTypeDescs()
 	// Grenade
 	desc.Reset();
 	desc.SetName("Grenade");
-	desc.processDelay = 0.15f;
-	desc.duration[AIGRENADE_THROWN] = 6.0f;
-	desc.duration[AIGRENADE_COLLISION] = 6.0f;
-	desc.duration[AIGRENADE_FLASH_BANG] = 6.0f;
-	desc.duration[AIGRENADE_SMOKE] = 6.0f;
+	desc.processDelay.SetSeconds("0.15");
+	desc.duration[AIGRENADE_THROWN].SetSeconds(6);
+	desc.duration[AIGRENADE_COLLISION].SetSeconds(6);
+	desc.duration[AIGRENADE_FLASH_BANG].SetSeconds(6);
+	desc.duration[AIGRENADE_SMOKE].SetSeconds(6);
 	desc.filterTypes = (1 << AISTIM_GRENADE);
 	desc.nFilters = 1;
 	desc.filters[0].Set(AISTIM_GRENADE, AIGRENADE_COLLISION, AISTIMFILTER_MERGE_AND_DISCARD, 1.0f); // Merge nearby collisions
@@ -193,7 +193,7 @@ bool CPerceptionManager::RegisterStimulusDesc(EAIStimulusType type, const SAISti
 //-----------------------------------------------------------------------------------------------------------
 void CPerceptionManager::Reset(IAISystem::EResetReason reason)
 {
-	m_visBroadPhaseDt = 0;
+	m_visBroadPhaseDt.SetSeconds(0);
 
 	if (reason == IAISystem::RESET_UNLOAD_LEVEL)
 	{
@@ -312,7 +312,7 @@ void CPerceptionManager::ResetActor(IAIObject* pAIObject)
 }
 
 //-----------------------------------------------------------------------------------------------------------
-void CPerceptionManager::ActorUpdate(IAIObject* pAIObject, IAIObject::EUpdateType type, float frameDelta)
+void CPerceptionManager::ActorUpdate(IAIObject* pAIObject, IAIObject::EUpdateType type, const CTimeValue& frameDelta)
 {
 	if (type != IAIObject::Full)
 		return;
@@ -514,7 +514,7 @@ bool CPerceptionManager::FilterStimulus(SAIStimulus* stim)
 				{
 					// Merge stimuli
 					// Allow to merge stimuli before they are processed.
-					const float duration = desc->duration[stim->subType];
+					const CTimeValue duration = desc->duration[stim->subType];
 					if (distSq < sqr(s.radius * filter->scale))
 					{
 						if ((duration - s.t) < desc->processDelay)
@@ -555,7 +555,7 @@ bool CPerceptionManager::FilterStimulus(SAIStimulus* stim)
 }
 
 //-----------------------------------------------------------------------------------------------------------
-void CPerceptionManager::Update(float deltaTime)
+void CPerceptionManager::Update(const CTimeValue& deltaTime)
 {
 	UpdateIncomingStimuli();
 	UpdateStimuli(deltaTime);
@@ -611,7 +611,7 @@ void CPerceptionManager::UpdateIncomingStimuli()
 }
 
 //-----------------------------------------------------------------------------------------------------------
-void CPerceptionManager::UpdateStimuli(float deltaTime)
+void CPerceptionManager::UpdateStimuli(const CTimeValue& deltaTime)
 {
 	// Update stimuli
 	// Merge and filter with current active stimuli.
@@ -689,7 +689,7 @@ void CPerceptionManager::UpdateStimuli(float deltaTime)
 
 			// Update stimulus time.
 			stim.t -= deltaTime;
-			if (stim.t < 0.0f)
+			if (stim.t < 0)
 			{
 				// The stimuli has timed out, delete it.
 				if (&stims[j] != &stims.back())
@@ -713,7 +713,7 @@ void CPerceptionManager::UpdateStimuli(float deltaTime)
 			while (it != m_ignoreStimuliFrom[i].end())
 			{
 				it->second -= deltaTime;
-				if (it->second <= 0.0f)
+				if (it->second <= 0)
 				{
 					StimulusIgnoreMap::iterator del = it;
 					++it;
@@ -727,7 +727,7 @@ void CPerceptionManager::UpdateStimuli(float deltaTime)
 }
 
 //-----------------------------------------------------------------------------------------------------------
-void CPerceptionManager::VisCheckBroadPhase(float deltaTime)
+void CPerceptionManager::VisCheckBroadPhase(const CTimeValue& deltaTime)
 {
 	CRY_PROFILE_FUNCTION( PROFILE_AI);
 
@@ -735,13 +735,13 @@ void CPerceptionManager::VisCheckBroadPhase(float deltaTime)
 	IActorLookUp& lookUp = *gEnv->pAISystem->GetActorLookup();
 	lookUp.Prepare(IActorLookUp::Position | IActorLookUp::EntityID);
 
-	const float UPDATE_DELTA_TIME = 0.2f;
+	const CTimeValue UPDATE_DELTA_TIME = "0.2";
 
 	m_visBroadPhaseDt += deltaTime;
 	if (m_visBroadPhaseDt < UPDATE_DELTA_TIME)
 		return;
 	m_visBroadPhaseDt -= UPDATE_DELTA_TIME;
-	if (m_visBroadPhaseDt > UPDATE_DELTA_TIME) m_visBroadPhaseDt = 0.0f;
+	if (m_visBroadPhaseDt > UPDATE_DELTA_TIME) m_visBroadPhaseDt.SetSeconds(0);
 
 	size_t activeActorCount = lookUp.GetActiveCount();
 
@@ -815,7 +815,7 @@ void CPerceptionManager::RegisterStimulus(const SAIStimulus& stim)
 }
 
 //-----------------------------------------------------------------------------------------------------------
-void CPerceptionManager::IgnoreStimulusFrom(EntityId sourceId, EAIStimulusType type, float time)
+void CPerceptionManager::IgnoreStimulusFrom(EntityId sourceId, EAIStimulusType type, const CTimeValue& time)
 {
 	// Do not handle events while serializing.
 	if (gEnv->pSystem->IsSerializingFile())
@@ -1220,7 +1220,7 @@ void CPerceptionManager::HandleGrenade(const SStimulusRecord& stim)
 					if (result)
 						throwPos = result[0].pt;
 
-					gEnv->pAISystem->AddDebugLine(vAIActorPos, throwPos, 255, 0, 0, 15.0f);
+					gEnv->pAISystem->AddDebugLine(vAIActorPos, throwPos, 255, 0, 0, 15);
 
 					if (!result || result[0].dist > dist * 0.9f)
 					{
@@ -1545,7 +1545,7 @@ bool CPerceptionManager::IsStimulusVisible(const SStimulusRecord& stim, const IA
 		static const unsigned int flags = rwi_stop_at_pierceable | rwi_colltype_any;
 		const RayCastResult& result = gEnv->pAISystem->GetGlobalRaycaster()->Cast(RayCastRequest(vAIActorPos, delta * dist, objTypes, flags));
 
-		gEnv->pAISystem->AddDebugLine(vAIActorPos, result ? result[0].pt : stimPos, 255, 0, 0, 15.0f);
+		gEnv->pAISystem->AddDebugLine(vAIActorPos, result ? result[0].pt : stimPos, 255, 0, 0, 15);
 
 		if (!result || result[0].dist > dist * 0.9f)
 		{
@@ -1686,8 +1686,8 @@ void CPerceptionManager::DebugDrawPerception(IAIDebugRenderer* pDebugRenderer, i
 			SStimulusRecord& s = stimuli[j];
 
 			CRY_ASSERT(s.subType < SAIStimulusTypeDesc::AI_MAX_SUBTYPES);
-			float tmax = desc->duration[s.subType];
-			float a = clamp_tpl((s.t - tmax / 2) / (tmax / 2), 0.0f, 1.0f);
+			CTimeValue tmax = desc->duration[s.subType];
+			float a = BADF CLAMP((s.t - tmax / 2) / (tmax / 2), 0, 1);
 
 			int row = 0;
 			unsigned hash = HashFromVec3(s.pos, 0.1f, 1.0f / 0.1f);

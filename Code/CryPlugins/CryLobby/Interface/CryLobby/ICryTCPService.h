@@ -49,7 +49,7 @@ struct STCPServiceData : public CMultiThreadRefCount
 	STCPServiceData()
 		: tcpServCb(NULL),
 		tcpServReplyCb(NULL),
-		m_quietTimer(0.0f),
+		m_quietTimer(0),
 		m_socketIdx(-1),
 		pUserArg(NULL),
 		pData(NULL),
@@ -68,7 +68,7 @@ struct STCPServiceData : public CMultiThreadRefCount
 
 	CryTCPServiceCallback      tcpServCb;      //!< Callback function to indicate success/failure of posting.
 	CryTCPServiceReplyCallback tcpServReplyCb; //!< Callback function to receive reply.
-	float                      m_quietTimer;   //!< Time in seconds since data was last sent or received for this data packet. timer is only incremented once a socket is allocated and the transaction begins.
+	CTimeValue                 m_quietTimer;   //!< Time in seconds since data was last sent or received for this data packet. timer is only incremented once a socket is allocated and the transaction begins.
 	int32                      m_socketIdx;
 	void*                      pUserArg;       //!< Application specific callback data.
 	char*                      pData;          //!< Pointer to data to upload.

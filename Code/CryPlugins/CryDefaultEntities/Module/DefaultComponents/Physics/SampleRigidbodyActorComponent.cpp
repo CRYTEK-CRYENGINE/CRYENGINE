@@ -88,14 +88,14 @@ int CSampleActorComponent::OnPostStep(const EventPhysPostStep *epps)
 	{
 		Vec3 velReq = m_velMove - sl.groundSlope*(sl.groundSlope*m_velMove); // project velMove to the ground
 		velReq += sl.velGround;	// if we stand on something, inherit its velocity
-		Vec3 dv = (velReq-sl.vel)*(epps->dt*10.0f);	// default inertial movement: exponentially approach velReq with strength 10
-		m_timeFly = 0;
+		Vec3 dv = (velReq-sl.vel)*(epps->dt.BADGetSeconds()*10);	// default inertial movement: exponentially approach velReq with strength 10
+		m_timeFly.SetSeconds(0);
 		pwr.velLegStick = 0.5f;
 		if (m_velJump.len2())
 		{
 			// if jump is requested, immediately set velocity to velJump + velMove
 			dv = m_velMove + m_velJump - sl.vel;
-			m_timeFly = 0.1f;
+			m_timeFly.SetSeconds("0.1");
 			pwr.velLegStick = -1e6f; // make sure we don't stick to the ground until m_timeFly expires
 			SetupLegs(true);
 			m_velJump.zero();

@@ -180,7 +180,7 @@ CCryTCPServiceFactory::Tick(
 	ICryTCPServicePtr pCurr = 0;
 	CTimeValue delta;
 
-	if (m_lastTickTimer.GetValue() != 0)
+	if (m_lastTickTimer != 0)
 	{
 		delta = tv - m_lastTickTimer;
 	}

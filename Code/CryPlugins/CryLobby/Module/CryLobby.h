@@ -154,11 +154,9 @@ enum CryLobbyPacketType
 #define CRYLANLOBBY_PACKET_START         (CRYONLINELOBBY_PACKET_MAX + 1)
 #define CRYLANLOBBY_PACKET_MAX           127
 
-const uint32 CryLobbyTimeOut            = 2000;
-const uint32 CryLobbySendInterval       = 300;
-const uint32 CryLobbyInGameSendInterval = 2000; //-- update ping every 2 seconds in-game.
-
-typedef uint32 CryPingAccumulator;
+const CTimeValue CryLobbyTimeOut            = 2;
+const CTimeValue CryLobbySendInterval       = "0.3";
+const CTimeValue CryLobbyInGameSendInterval = 2; //-- update ping every 2 seconds in-game.
 
 #define MAX_LOBBY_PACKET_SIZE       1200 // Same as fragment size so lobby packets never fragment.
 #define MAX_LOBBY_CONNECTIONS       64
@@ -572,7 +570,7 @@ public:
 	bool                     ConnectionFromAddress(CryLobbyConnectionID* connection, const TNetAddress& address);
 	bool                     AddressFromConnection(TNetAddress& address, CryLobbyConnectionID connection);
 	bool                     SetConnectionAddress(CryLobbyConnectionID connection, TNetAddress& address);
-	virtual CryPing          GetConnectionPing(CryLobbyConnectionID connectionID);
+	virtual CTimeValue       GetConnectionPing(CryLobbyConnectionID connectionID);
 	void                     FlushMessageQueue(void);
 	void                     SetNATType(ENatType natType) { m_natType = natType;  }
 	ENatType                 GetNATType(void) const       { return m_natType;     }
@@ -597,7 +595,7 @@ public:
 	void                        LockToGameMutex()      { m_safetyToGameMutex.Lock(); }
 	void                        UnlockToGameMutex()    { m_safetyToGameMutex.Unlock(); }
 
-	uint32                      TimeSincePacketInMS(CryLobbyConnectionID c) const;
+	CTimeValue                  TimeSincePacket(CryLobbyConnectionID c) const;
 	void                        ForceTimeoutConnection(CryLobbyConnectionID c);
 	void                        SetServicePacketEnd(ECryLobbyService service, uint32 end) { m_servicePacketEnd[service] = end; CalculatePacketTypeEncoding(); }
 	const TNetAddress*          GetNetAddress(CryLobbyConnectionID c) const;
@@ -644,8 +642,8 @@ private:
 	void           InternalSocketDie(ECryLobbyService service);
 	ECryLobbyError CheckAllocGlobalResources();
 	void           CheckFreeGlobalResources();
-	uint32         GetDisconnectTimeOut();
-	void           UpdateConnectionPing(CryLobbyConnectionID connectionID, CryPing ping);
+	CTimeValue     GetDisconnectTimeOut();
+	void           UpdateConnectionPing(CryLobbyConnectionID connectionID, const CTimeValue& ping);
 	bool           AddPacketToReliableBuildPacket(CryLobbyConnectionID connectionID, CCryLobbyPacket* pPacket);
 	bool           AddReliablePacketToSendQueue(CryLobbyConnectionID connectionID, CCryLobbyPacket* pPacket);
 	void           LogPacketsInBuffer(const uint8* pBuffer, uint32 size);
@@ -694,9 +692,9 @@ private:
 		uint64          sendCookie;
 		uint64          recvCookie;
 	#endif
-		uint32          timeSinceSend;
-		uint32          timeSinceRecv;
-		uint32          disconnectTimer;
+		CTimeValue      timeSinceSend;
+		CTimeValue      timeSinceRecv;
+		CTimeValue      disconnectTimer;
 		TNetAddress     addr;
 
 		uint8           reliableBuildPacketBuffer[MAX_LOBBY_PACKET_SIZE];
@@ -714,10 +712,10 @@ private:
 
 		struct SPing
 		{
-			CryPing aveTime;
-			CryPing times[NUM_LOBBY_PINGS];
-			CryPing currentTime;
-		}     ping;
+			CTimeValue aveTime;
+			CTimeValue times[NUM_LOBBY_PINGS];
+			CTimeValue currentTime;
+		}  ping;
 
 		uint8 refCount;
 		uint8 counterIn;

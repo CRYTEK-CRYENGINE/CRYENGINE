@@ -254,6 +254,29 @@ public:
 		}
 	}
 
+	void WriteMP(const mpfloat& data)
+	{
+		string str = data.str();
+		WriteString(str, MP_SIZE);
+	}
+
+	void WriteTime(const CTimeValue& data)
+	{
+		WriteMP(data.GetSeconds());
+	}
+	
+	mpfloat ReadMP()
+	{
+		char tmp[MP_SIZE];
+		ReadString(tmp, MP_SIZE);
+		return mpfloat(tmp);
+	}
+
+	CTimeValue ReadTime()
+	{
+		return CTimeValue(ReadMP());
+	}
+
 	uint64 ReadUINT64()
 	{
 		CRY_ASSERT_MESSAGE(m_pReadBuffer, "CCryLobbyPacket: Buffer not set");

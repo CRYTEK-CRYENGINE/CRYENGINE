@@ -42,11 +42,11 @@ namespace UQS
 
 		float CDebugRenderPrimitiveBase::Pulsate()
 		{
-			static const float periodLengthInSeconds = 0.5f;
+			static const CTimeValue periodLengthInSeconds = "0.5";
 
-			const float currentSeconds = gEnv->pTimer->GetAsyncCurTime();
-			const float remainder = fmodf(currentSeconds, periodLengthInSeconds);
-			return 1.0f + sinf(remainder * gf_PI2);
+			const CTimeValue currentSeconds = GetGTimer()->GetAsyncCurTime();
+			const CTimeValue remainder = currentSeconds % periodLengthInSeconds;
+			return 1.0f + sinf(remainder.BADGetSeconds() * gf_PI2);
 		}
 
 		void CDebugRenderPrimitiveBase::HelpDrawAABB(const AABB& localAABB, const Vec3& pos, const Matrix33* pOrientation, const ColorF& color, bool bHighlight)

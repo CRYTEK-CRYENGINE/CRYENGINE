@@ -16,8 +16,8 @@
 CLobbyCVars* CLobbyCVars::m_pThis = NULL;
 
 CLobbyCVars::CLobbyCVars()
-	: minMicrophonNotificationInterval(0.f)
-	, serverPingNotificationInterval(0.f)
+	: minMicrophonNotificationInterval(0)
+	, serverPingNotificationInterval(0)
 #if CRY_PLATFORM_ORBIS
 	, psnBestWorldNumRoomsPivot(0.f)
 	, psnBestWorldPlayersPerRoomPivot(0.f)
@@ -28,8 +28,8 @@ CLobbyCVars::CLobbyCVars()
 
 	m_pThis = this;
 
-	REGISTER_CVAR2_DEV_ONLY("net_minMicrophoneNotificationInterval", &minMicrophonNotificationInterval, 1.f, 0, "minimum interval between microphone status notification send/requests");
-	REGISTER_CVAR2_DEV_ONLY("net_serverpingnotificationinterval", &serverPingNotificationInterval, 10.0f, 0, "minimum interval between server ping notification sends");
+	REGISTER_CVAR2_DEV_ONLY("net_minMicrophoneNotificationInterval", &minMicrophonNotificationInterval, CTimeValue(1), 0, "minimum interval between microphone status notification send/requests");
+	REGISTER_CVAR2_DEV_ONLY("net_serverpingnotificationinterval", &serverPingNotificationInterval, CTimeValue(10), 0, "minimum interval between server ping notification sends");
 	REGISTER_CVAR2_DEV_ONLY("net_show_matchmaking_tasks", &showMatchMakingTasks, 0, VF_DUMPTODISK, "Toggles whether active matchmaking tasks are displayed on screen");
 	REGISTER_CVAR2_DEV_ONLY("net_fullStatusOnClient", &fullStatusOnClient, 0, VF_NULL, "if set, allows clients to view all connected users with status command");
 	REGISTER_CVAR2("net_lobby_default_port", &lobbyDefaultPort, LOBBY_DEFAULT_PORT, VF_DUMPTODISK, "Modify the default port for lobbies (effects LAN Lobby currently)");

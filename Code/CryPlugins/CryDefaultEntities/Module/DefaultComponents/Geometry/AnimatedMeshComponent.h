@@ -64,7 +64,7 @@ namespace Cry
 				}
 			}
 
-			virtual void SetPlaybackSpeed(float multiplier) { m_animationParams.m_fPlaybackSpeed = multiplier; }
+			virtual void SetPlaybackSpeed(const mpfloat& multiplier) { m_animationParams.m_fPlaybackSpeed = multiplier; }
 			virtual void SetPlaybackWeight(float weight) { m_animationParams.m_fPlaybackWeight = weight; }
 			virtual void SetLayer(int layer) { m_animationParams.m_nLayerID = layer; }
 

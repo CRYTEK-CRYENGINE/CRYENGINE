@@ -709,7 +709,7 @@ public:
 	//! \param uid				 Session and player id.
 	//! \param pPing			 Ping.
 	//! \return			 eCLE_Success of successful, otherwise an error.
-	virtual ECryLobbyError GetSessionPlayerPing(SCryMatchMakingConnectionUID uid, CryPing* const pPing) = 0;
+	virtual ECryLobbyError GetSessionPlayerPing(SCryMatchMakingConnectionUID uid, CTimeValue* const pPing) = 0;
 
 	//! Get a CrySessionID from a session URL.
 	//! \param pSessionURL Session URL.
@@ -723,10 +723,10 @@ public:
 	//! \return			 eCLE_Success if successful, otherwise an error.
 	virtual ECryLobbyError GetSessionIDFromIP(const char* const pAddr, CrySessionID* const pSessionID) = 0;
 
-	//! Returns the time since we last received a packet in milliseconds from the server for the given session handle.
-	//! \param gh				   Game session handle.
-	//! \return		   Time since packet received in milliseconds.
-	virtual uint32 GetTimeSincePacketFromServerMS(CrySessionHandle gh) = 0;
+	//! Returns the time since we last received a packet from the server for the given session handle.
+	//! \param gh		Game session handle.
+	//! \return		   Time since packet received
+	virtual CTimeValue GetTimeSincePacketFromServer(CrySessionHandle gh) = 0;
 
 	//! Forces the server connection to disconnect.
 	//! \param gh				   Game session handle.
@@ -737,7 +737,7 @@ public:
 	virtual void Kick(const CryUserID* pUserID, EDisconnectionCause cause) = 0;
 
 	//! \param pUserID Pointer to the CryUserID of the user to ban.
-	//! \param timeout Ban timeout in minutes.
+	//! \param timeout Ban timeout in minutes. PERSONAL NOTE: Since in minutes...kept as float for now.
 	virtual void Ban(const CryUserID* pUserID, float timeout) = 0;
 
 	//! Retrieve the user name from a matchmaking connection.

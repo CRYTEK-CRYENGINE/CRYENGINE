@@ -31,7 +31,7 @@ CCryVoice::CCryVoice(CCryLobby* pLobby, CCryLobbyService* pService)
 
 ECryLobbyError CCryVoice::Initialise()
 {
-	m_notificationTimer = CTimeValue(0.0f);
+	m_notificationTimer = CTimeValue(0);
 
 	for (uint32 i = 0; i < m_numRemoteTalkers; i++)
 	{
@@ -207,7 +207,7 @@ bool CCryVoice::IsMicrophoneConnected(CryUserID userID)
 
 void CCryVoice::Tick(CTimeValue tv)
 {
-	if (tv.GetSeconds() - m_notificationTimer.GetSeconds() > CLobbyCVars::Get().minMicrophonNotificationInterval)
+	if (tv - m_notificationTimer > CLobbyCVars::Get().minMicrophonNotificationInterval)
 	{
 		for (uint32 i = 0; i < m_numRemoteTalkers; i++)
 		{

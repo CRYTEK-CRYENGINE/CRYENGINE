@@ -13,32 +13,30 @@ namespace UQS
 		{
 		public:
 
-			static void Split(const CTimeValue& time, int* pHours, int* pMinutes, int* pSeconds, int* pMilliseconds);
+			static void Split(const CTimeValue& time, mpfloat* pHours, mpfloat* pMinutes, mpfloat* pSeconds, mpfloat* pMilliseconds);
 
 		};
 
-		inline void CTimeValueUtil::Split(const CTimeValue& time, int* pHours, int* pMinutes, int* pSeconds, int* pMilliseconds)
+		inline void CTimeValueUtil::Split(const CTimeValue& time, mpfloat* pHours, mpfloat* pMinutes, mpfloat* pSeconds, mpfloat* pMilliseconds)
 		{
-			const int64 totalMilliseconds = time.GetMilliSecondsAsInt64();
-
 			if (pMilliseconds)
 			{
-				*pMilliseconds = totalMilliseconds % 1000;
+				*pMilliseconds = time.GetMilliSeconds();
 			}
 
 			if (pSeconds)
 			{
-				*pSeconds = (totalMilliseconds / 1000) % 60;
+				*pSeconds = time.GetSeconds();
 			}
 
 			if (pMinutes)
 			{
-				*pMinutes = (totalMilliseconds / (1000 * 60)) % 60;
+				*pMinutes = time.GetSeconds() / 60;
 			}
 
 			if (pHours)
 			{
-				*pHours = (int)(totalMilliseconds / (1000 * 60 * 60));
+				*pHours = time.GetSeconds() / (60 * 60);
 			}
 		}
 

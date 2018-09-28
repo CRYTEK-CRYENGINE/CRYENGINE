@@ -45,16 +45,16 @@ namespace Cry
 				desc.AddMember(&CDebugDrawComponent::m_persistentFontSize, 'font', "PersistentSize", "Persistent Font Size", "Size of the persistent font", 1.2f);
 			}
 
-			virtual void DrawSphere(const Vec3& pos, float radius, const ColorF& color, float duration);
-			virtual void DrawDirection(const Vec3& pos, float radius, const Vec3& dir, const ColorF& color, float duration);
-			virtual void DrawLine(const Vec3& posStart, const Vec3& posEnd, const ColorF& color, float duration);
-			virtual void DrawPlanarDisc(const Vec3& pos, float innerRadius, float outerRadius, const ColorF& color, float duration);
-			virtual void DrawCone(const Vec3& pos, const Vec3& dir, float baseRadius, float height, const ColorF& color, float duration);
-			virtual void DrawCylinder(const Vec3& pos, const Vec3& dir, float radius, float height, const ColorF& color, float duration);
-			virtual void Draw2DText(Schematyc::CSharedString text, float size, const ColorF& color, float duration);
-			virtual void DrawText(Schematyc::CSharedString text, float x, float y, float size, const ColorF& color, float duration);
-			virtual void DrawText3D(Schematyc::CSharedString text, const Vec3& pos, float size, const ColorF& color, float duration);
-			virtual void Draw2DLine(float x1, float y1, float x2, float y2, const ColorF& color, float duration);
+			virtual void DrawSphere(const Vec3& pos, float radius, const ColorF& color, const CTimeValue& duration);
+			virtual void DrawDirection(const Vec3& pos, float radius, const Vec3& dir, const ColorF& color, const CTimeValue& duration);
+			virtual void DrawLine(const Vec3& posStart, const Vec3& posEnd, const ColorF& color, const CTimeValue& duration);
+			virtual void DrawPlanarDisc(const Vec3& pos, float innerRadius, float outerRadius, const ColorF& color, const CTimeValue& duration);
+			virtual void DrawCone(const Vec3& pos, const Vec3& dir, float baseRadius, float height, const ColorF& color, const CTimeValue& duration);
+			virtual void DrawCylinder(const Vec3& pos, const Vec3& dir, float radius, float height, const ColorF& color, const CTimeValue& duration);
+			virtual void Draw2DText(Schematyc::CSharedString text, float size, const ColorF& color, const CTimeValue& duration);
+			virtual void DrawText(Schematyc::CSharedString text, float x, float y, float size, const ColorF& color, const CTimeValue& duration);
+			virtual void DrawText3D(Schematyc::CSharedString text, const Vec3& pos, float size, const ColorF& color, const CTimeValue& duration);
+			virtual void Draw2DLine(float x1, float y1, float x2, float y2, const ColorF& color, const CTimeValue& duration);
 
 			bool IsPersistentTextEnabled() const { return m_drawPersistent; }
 			virtual void EnablePersistentText(bool bEnable) { m_drawPersistent = bEnable; }

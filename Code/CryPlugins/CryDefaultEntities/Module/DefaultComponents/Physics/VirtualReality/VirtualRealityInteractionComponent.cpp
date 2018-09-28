@@ -175,8 +175,8 @@ namespace Cry
 								pp.pos = m_pEntity->GetSlotWorldTM(hand.slotId).GetTranslation();
 								pp.q = IDENTITY;
 								hand.pAttachedEntity->SetParams(&pp);
-								/*float t = gEnv->pTimer->GetCurrTime();
-								if (t > m_timeMove + gEnv->pTimer->GetFrameTime() * 0.5f)
+								/*float t = GetGTimer()->GetCurrTime();
+								if (t > m_timeMove + GetGTimer()->GetFrameTime() * 0.5f)
 								{
 									pe_action_set_velocity asv;
 									asv.v = (pp.pos - m_lastAttachPos) / (t - m_timeMove);

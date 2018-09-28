@@ -53,7 +53,7 @@ namespace Cry
 				SUpdateStats();
 
 				uint32 queryCount;
-				float  time;
+				CTimeValue  time;
 			};
 
 		public:

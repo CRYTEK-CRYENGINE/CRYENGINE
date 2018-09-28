@@ -65,7 +65,7 @@ namespace Cry
 		protected:
 			Vec3  m_velMove = Vec3(ZERO);
 			Vec3  m_velJump = Vec3(ZERO);
-			float m_timeFly = 0.0f;
+			CTimeValue m_timeFly = 0;
 
 			static int g_numActors;
 		};

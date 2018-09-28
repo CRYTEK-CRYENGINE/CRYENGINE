@@ -103,7 +103,7 @@ namespace Cry
 				Matrix34 characterTransform = GetWorldTransformMatrix();
 
 				// Set turn rate as the difference between previous and new entity rotation
-				m_turnAngle = Ang3::CreateRadZ(characterTransform.GetColumn1(), m_prevForwardDir) / pCtx->fFrameTime;
+				m_turnAngle = Ang3::CreateRadZ(characterTransform.GetColumn1(), m_prevForwardDir) / pCtx->fFrameTime.BADGetSeconds();
 				m_prevForwardDir = characterTransform.GetColumn1();
 
 				if (m_pCachedCharacter != nullptr)
@@ -121,18 +121,18 @@ namespace Cry
 							// If your velocity can reach a magnitude higher than this, divide by the maximum theoretical account and work with a 0 - 1 ratio.
 							if (!m_overriddenMotionParams.test(eMotionParamID_TravelSpeed))
 							{
-								m_pCachedCharacter->GetISkeletonAnim()->SetDesiredMotionParam(eMotionParamID_TravelSpeed, travelSpeed, 0.f);
+								m_pCachedCharacter->GetISkeletonAnim()->SetDesiredMotionParam(eMotionParamID_TravelSpeed, travelSpeed, 0);
 							}
 
 							// Update the turn speed in CryAnimation, note that the maximum motion parameter (10) applies here too.
 							if (!m_overriddenMotionParams.test(eMotionParamID_TurnAngle))
 							{
-								m_pCachedCharacter->GetISkeletonAnim()->SetDesiredMotionParam(eMotionParamID_TurnAngle, m_turnAngle, 0.f);
+								m_pCachedCharacter->GetISkeletonAnim()->SetDesiredMotionParam(eMotionParamID_TurnAngle, m_turnAngle, 0);
 							}
 
 							if (!m_overriddenMotionParams.test(eMotionParamID_TravelAngle))
 							{
-								m_pCachedCharacter->GetISkeletonAnim()->SetDesiredMotionParam(eMotionParamID_TravelAngle, travelAngle, 0.f);
+								m_pCachedCharacter->GetISkeletonAnim()->SetDesiredMotionParam(eMotionParamID_TravelAngle, travelAngle, 0);
 							}
 						}
 					}

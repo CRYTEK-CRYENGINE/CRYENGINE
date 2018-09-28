@@ -129,7 +129,7 @@ namespace Cry
 				{
 					if (m_npNotifyPlusFeatureTimer > 0.f)
 					{
-						m_npNotifyPlusFeatureTimer -= gEnv->pTimer->GetFrameTime();
+						m_npNotifyPlusFeatureTimer -= GetGTimer()->GetFrameTime();
 					}
 					else
 					{

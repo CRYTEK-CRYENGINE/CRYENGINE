@@ -67,7 +67,7 @@ namespace Cry
 			case ENTITY_EVENT_UPDATE:
 			{
 				float fFrequency = m_frequency + cry_random(-1.0f, 1.0f)*m_randFrequency;
-				bool allowHit = (gEnv->pTimer->GetCurrTime() - m_lastSpawnTime) > fFrequency;
+				bool allowHit = (GetGTimer()->GetFrameStartTime() - m_lastSpawnTime).BADGetSeconds() > fFrequency;
 				if (m_bAutoSpawn && allowHit)
 					ProcessHit(false);
 			}
@@ -129,7 +129,7 @@ namespace Cry
 					gEnv->p3DEngine->AddWaterRipple(vWorldPos, fScale, fStrength);
 				}
 
-				float fTime = gEnv->pTimer->GetCurrTime();
+				CTimeValue fTime = GetGTimer()->GetFrameStartTime();
 				m_lastSpawnTime = fTime;
 			}
 		}

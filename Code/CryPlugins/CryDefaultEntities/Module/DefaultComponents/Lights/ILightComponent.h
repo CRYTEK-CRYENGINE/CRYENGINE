@@ -84,7 +84,7 @@ namespace DefaultComponents
 			inline bool operator==(const SAnimations &rhs) const { return 0 == memcmp(this, &rhs, sizeof(rhs)); }
 
 			uint32 m_style = 0;
-			float m_speed = 1.f;
+			mpfloat m_speed = 1;
 		};
 
 	public:
@@ -169,7 +169,7 @@ namespace DefaultComponents
 	{
 		desc.SetGUID("{95F6EF06-2101-427C-9E55-481042117504}"_cry_guid);
 		desc.AddMember(&ILightComponent::SAnimations::m_style, 'styl', "Style", "Style", "Determines the light style to load, see Shaders/HWScripts/CryFX/Light.cfx for the full list", 0u);
-		desc.AddMember(&ILightComponent::SAnimations::m_speed, 'sped', "Speed", "Speed", "Speed at which we animate", 1.f);
+		desc.AddMember(&ILightComponent::SAnimations::m_speed, 'sped', "Speed", "Speed", "Speed at which we animate", mpfloat(1));
 	}
 }
 }

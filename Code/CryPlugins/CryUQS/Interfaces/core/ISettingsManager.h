@@ -24,8 +24,8 @@ namespace UQS
 			// Simply controls the "uqs_timeBudgetInSeconds" cvar.
 			//
 
-			virtual float   GetTimeBudgetInSeconds() const = 0;
-			virtual void    SetTimeBudgetInSeconds(float timeBudgetInSeconds) = 0;
+			virtual const CTimeValue& GetTimeBudgetInSeconds() const = 0;
+			virtual void    SetTimeBudgetInSeconds(const CTimeValue& timeBudgetInSeconds) = 0;
 		};
 
 	}

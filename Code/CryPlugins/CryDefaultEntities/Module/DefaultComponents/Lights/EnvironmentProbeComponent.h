@@ -426,7 +426,7 @@ namespace Cry
 
 				light.m_fFogRadialLobe = 0.f;
 
-				light.SetAnimSpeed(0.f);
+				light.SetAnimSpeed(0);
 				light.m_fProjectorNearPlane = 0.f;
 
 				light.SetSpecularCubemap(pSpecular);

@@ -7,8 +7,8 @@
 
 #if USE_CRY_DEDICATED_SERVER_ARBITRATOR
 
-	#define DEDICATED_SERVER_ALLOCATE_RESPONSE_TIMEOUT 5000
-	#define FREE_DEDICATED_SERVER_SEND_INTERVAL        1000
+	#define DEDICATED_SERVER_ALLOCATE_RESPONSE_TIMEOUT CTimeValue(5)
+	#define FREE_DEDICATED_SERVER_SEND_INTERVAL        CTimeValue(1)
 	#define FREE_DEDICATED_SERVER_MAX_SENDS            10
 
 CCryDedicatedServerArbitrator::CCryDedicatedServerArbitrator(CCryLobby* pLobby, CCryLobbyService* pService)
@@ -38,7 +38,7 @@ void CCryDedicatedServerArbitrator::Tick(CTimeValue tv)
 
 		++nextFreeing;
 
-		if ((tv - iterFreeing->second.lastSendTime).GetMilliSecondsAsInt64() > FREE_DEDICATED_SERVER_SEND_INTERVAL)
+		if (tv - iterFreeing->second.lastSendTime > FREE_DEDICATED_SERVER_SEND_INTERVAL)
 		{
 			if (iterFreeing->second.sendCount < FREE_DEDICATED_SERVER_MAX_SENDS)
 			{
@@ -255,7 +255,7 @@ void CCryDedicatedServerArbitrator::ProcessRequestSetupDedicatedServer(const TNe
 		// We have a server allocated to this client but it was for a different request.
 		if ((iterAllocated->second.clientCookie != clientCookie) ||
 		    // We have a server allocated to this client but it hasn't responded to the request.
-		    ((g_time - iterAllocated->second.allocTime).GetMilliSecondsAsInt64() > DEDICATED_SERVER_ALLOCATE_RESPONSE_TIMEOUT))
+		    (g_time - iterAllocated->second.allocTime > DEDICATED_SERVER_ALLOCATE_RESPONSE_TIMEOUT))
 		{
 			AddToFreeingServers(iterAllocated->second.serverPrivateAddr);
 			iterAllocated = m_allocatedServers.end();
@@ -271,7 +271,7 @@ void CCryDedicatedServerArbitrator::ProcessRequestSetupDedicatedServer(const TNe
 
 			if (iterFree != m_freeServers.end())
 			{
-				if ((g_time - iterFree->second.lastRecvTime).GetMilliSecondsAsInt64() < DEDICATED_SERVER_IS_FREE_SEND_INTERVAL)
+				if (g_time - iterFree->second.lastRecvTime < DEDICATED_SERVER_IS_FREE_SEND_INTERVAL)
 				{
 					// Lets try this server
 					iterAllocated = AddToAllocatedServers(uid.m_sid, iterFree->first, iterFree->second.serverPublicAddr, clientCookie, clientTaskID);
@@ -442,7 +442,7 @@ void CCryDedicatedServerArbitrator::ListFreeServers()
 {
 	for (TFreeServersMap::const_iterator iter = m_freeServers.begin(); iter != m_freeServers.end(); ++iter)
 	{
-		NetLog(PRFORMAT_ADDR " TimeSinceRecv %" PRId64, PRARG_ADDR(iter->first), (g_time - iter->second.lastRecvTime).GetMilliSecondsAsInt64());
+		NetLog(PRFORMAT_ADDR " TimeSinceRecv %" PRId64, PRARG_ADDR(iter->first), g_time - iter->second.lastRecvTime);
 	}
 }
 

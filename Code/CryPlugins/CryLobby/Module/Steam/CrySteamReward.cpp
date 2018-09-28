@@ -400,7 +400,7 @@ ECryLobbyError CCrySteamReward::StartTask(ETask task, CryLobbyTaskID id, CryStea
 		{
 			m_tasks[i].lTaskID = id;
 			m_tasks[i].m_bUsed = true;
-			m_tasks[i].m_StartTime = gEnv->pTimer->GetAsyncTime();
+			m_tasks[i].m_StartTime = GetGTimer()->GetAsyncTime();
 			m_tasks[i].m_eStartedTask = task;
 			rewardTaskID = i;
 

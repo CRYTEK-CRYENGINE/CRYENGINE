@@ -16,8 +16,8 @@ public:
 
 	static CLobbyCVars& Get() { return *m_pThis; }
 
-	float minMicrophonNotificationInterval;
-	float serverPingNotificationInterval;
+	CTimeValue minMicrophonNotificationInterval;
+	CTimeValue serverPingNotificationInterval;
 	int   showMatchMakingTasks;
 	int   fullStatusOnClient;
 	int   lobbyDefaultPort;

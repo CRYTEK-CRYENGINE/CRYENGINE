@@ -37,7 +37,7 @@ namespace UQS
 			virtual const char*                  GetName() const override;
 			virtual const char*                  GetCategory() const override;
 			virtual bool                         Initialize(SSystemGlobalEnvironment& env, const SSystemInitParams& initParams) override;
-			virtual void                         MainUpdate(float frameTime) override;
+			virtual void                         MainUpdate(const CTimeValue& frameTime) override;
 			// ~Cry::IEnginePlugin
 
 			// IHubPlugin
@@ -79,7 +79,7 @@ namespace UQS
 			return true;
 		}
 
-		void CHubPlugin::MainUpdate(float frameTime)
+		void CHubPlugin::MainUpdate(const CTimeValue& frameTime)
 		{
 			if (gEnv->IsEditing())
 				return;	// leave it to the UQS editor-plugins to update the IHub

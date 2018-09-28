@@ -6,8 +6,8 @@
 
 #if USE_CRY_DEDICATED_SERVER
 
-	#define FREE_SELF_TIME                        30000
-	#define DEDICATED_SERVER_FIRST_FREE_SEND_TIME 5000
+	#define FREE_SELF_TIME                        CTimeValue(30)
+	#define DEDICATED_SERVER_FIRST_FREE_SEND_TIME CTimeValue(5)
 
 CCryDedicatedServer::CCryDedicatedServer(CCryLobby* pLobby, CCryLobbyService* pService, ECryLobbyService serviceType) : CCryMatchMaking(pLobby, pService, serviceType)
 {
@@ -119,7 +119,7 @@ void CCryDedicatedServer::TickArbitratorNameLookup(CTimeValue tv)
 		NetLog("Name resolution for dedicated server arbitrator '%s:%d' succeeded", cvars.pDedicatedServerArbitratorIP->GetString(), cvars.dedicatedServerArbitratorPort);
 		m_arbitratorAddr = m_pNameReq->GetAddrs()[0];
 		m_pNameReq = NULL;
-		m_arbitratorNextSendTime.SetMilliSeconds(g_time.GetMilliSecondsAsInt64() + DEDICATED_SERVER_FIRST_FREE_SEND_TIME);
+		m_arbitratorNextSendTime = g_time + DEDICATED_SERVER_FIRST_FREE_SEND_TIME;
 		break;
 
 	case eNRR_Failed:
@@ -142,7 +142,7 @@ void CCryDedicatedServer::TickFree(CTimeValue tv)
 
 		m_pLobby->Send(&packet, m_arbitratorAddr, CryLobbyInvalidConnectionID, NULL);
 
-		m_arbitratorNextSendTime.SetMilliSeconds(tv.GetMilliSecondsAsInt64() + DEDICATED_SERVER_IS_FREE_SEND_INTERVAL);
+		m_arbitratorNextSendTime = tv + DEDICATED_SERVER_IS_FREE_SEND_INTERVAL;
 	}
 }
 
@@ -171,7 +171,7 @@ void CCryDedicatedServer::TickAllocated(CTimeValue tv)
 		}
 	}
 
-	if (!haveConnections && ((tv - pSession->checkFreeStartTime).GetMilliSecondsAsInt64() > FREE_SELF_TIME))
+	if (!haveConnections && (tv - pSession->checkFreeStartTime > FREE_SELF_TIME))
 	{
 		FreeDedicatedServer();
 	}
@@ -320,7 +320,7 @@ void CCryDedicatedServer::FreeDedicatedServer()
 
 	FreeSessionHandle(m_allocatedSession);
 	m_allocatedSession = CryLobbyInvalidSessionHandle;
-	m_arbitratorNextSendTime.SetMilliSeconds(g_time.GetMilliSecondsAsInt64() + DEDICATED_SERVER_FIRST_FREE_SEND_TIME);
+	m_arbitratorNextSendTime = g_time + DEDICATED_SERVER_FIRST_FREE_SEND_TIME;
 	TO_GAME_FROM_LOBBY(&CCryDedicatedServer::DispatchFreeDedicatedServer, this);
 }
 

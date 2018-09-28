@@ -25,7 +25,7 @@ namespace Cry
 			return *m_pSensorSystem.get();
 		}
 
-		void CCrySensorSystemPlugin::MainUpdate(float frameTime)
+		void CCrySensorSystemPlugin::MainUpdate(const CTimeValue& frameTime)
 		{
 			m_pSensorSystem->Update();
 		}

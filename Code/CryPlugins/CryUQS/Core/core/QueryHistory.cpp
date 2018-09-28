@@ -165,7 +165,7 @@ namespace UQS
 
 		void CHistoricQuery::OnQueryCreated()
 		{
-			m_queryCreatedTimestamp = gEnv->pTimer->GetAsyncTime();
+			m_queryCreatedTimestamp = GetGTimer()->GetAsyncTime();
 			m_queryLifetimeStatus = EQueryLifetimeStatus::QueryIsAlive;
 
 			// notify the top-level query-history-manager that the underlying query has just been created/started
@@ -190,7 +190,7 @@ namespace UQS
 
 		void CHistoricQuery::OnQueryDestroyed()
 		{
-			m_queryDestroyedTimestamp = gEnv->pTimer->GetAsyncTime();
+			m_queryDestroyedTimestamp = GetGTimer()->GetAsyncTime();
 			m_queryLifetimeStatus = EQueryLifetimeStatus::QueryIsDestroyed;
 
 			// notify the top-level query-history-manager that the underlying query has now been finished
@@ -506,7 +506,7 @@ namespace UQS
 				return CTimeValue();
 
 			case EQueryLifetimeStatus::QueryIsAlive:
-				return (gEnv->pTimer->GetAsyncTime() - m_queryCreatedTimestamp);
+				return (GetGTimer()->GetAsyncTime() - m_queryCreatedTimestamp);
 
 			case EQueryLifetimeStatus::QueryIsDestroyed:
 				return (m_queryDestroyedTimestamp - m_queryCreatedTimestamp);
@@ -818,17 +818,16 @@ namespace UQS
 				consumer.AddTextLineToCurrentHistoricQuery(color, "elapsed frames until result:  %i", (int)m_finalStatistics.totalElapsedFrames);
 
 				// elapsed time (this is NOT the same as the *consumed* time)
-				const float elapsedTimeInMS = ComputeElapsedTimeFromQueryCreationToDestruction().GetMilliSeconds();
-				consumer.AddTextLineToCurrentHistoricQuery(color, "elapsed seconds until result: %f (%.2f milliseconds)", elapsedTimeInMS / 1024.0f, elapsedTimeInMS);
+				const CTimeValue elapsedTime = ComputeElapsedTimeFromQueryCreationToDestruction();
+				consumer.AddTextLineToCurrentHistoricQuery(color, "elapsed seconds until result: %f (%.2f milliseconds)", (float)elapsedTime.GetSeconds(), (float)elapsedTime.GetMilliSeconds());
 
 				// consumed time (this is the accumulation of the granted and consumed amounts of time per update call while the query was running)
-				consumer.AddTextLineToCurrentHistoricQuery(color, "consumed seconds:             %f (%.2f milliseconds)", m_finalStatistics.totalConsumedTime.GetSeconds(), m_finalStatistics.totalConsumedTime.GetMilliSeconds());
+				consumer.AddTextLineToCurrentHistoricQuery(color, "consumed seconds:             %f (%.2f milliseconds)", (float)m_finalStatistics.totalConsumedTime.GetSeconds(), (float)m_finalStatistics.totalConsumedTime.GetMilliSeconds());
 
 				// timestamps of when the query was created and destroyed (notice: if the query was canceled prematurely it will miss the timestamp of query destruction)
 				// -> "h:mm:ss:mmm"
 
-				int hours, minutes, seconds, milliseconds;
-
+				mpfloat hours, minutes, seconds, milliseconds;
 				UQS::Shared::CTimeValueUtil::Split(m_queryCreatedTimestamp, &hours, &minutes, &seconds, &milliseconds);
 				consumer.AddTextLineToCurrentHistoricQuery(color, "timestamp query created:      %i:%02i:%02i:%03i", hours, minutes, seconds, milliseconds);
 
@@ -902,9 +901,9 @@ namespace UQS
 						(int)i + 1,
 						(int)m_finalStatistics.elapsedFramesPerPhase[i],
 						m_finalStatistics.elapsedTimePerPhase[i].GetSeconds(),
-						m_finalStatistics.elapsedTimePerPhase[i].GetSeconds() * 1000.0f,
+						m_finalStatistics.elapsedTimePerPhase[i].GetMilliSeconds(),
 						m_finalStatistics.peakElapsedTimePerPhaseUpdate[i].GetSeconds(),
-						m_finalStatistics.peakElapsedTimePerPhaseUpdate[i].GetSeconds() * 1000.0f);
+						m_finalStatistics.peakElapsedTimePerPhaseUpdate[i].GetMilliSeconds());
 				}
 			}
 		}

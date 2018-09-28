@@ -2123,6 +2123,9 @@ void CCrySteamMatchMaking::OnLobbyDataUpdated(LobbyDataUpdate_t* pParam)
 							case eCLUDT_Float32:
 								sscanf(value.c_str(), "%x:%x:%f", &(pUserData[index].m_type), &id, &(pUserData[index].m_f32));
 								break;
+							default:
+								assert(0);
+								break;
 							}
 							pUserData[index].m_id = id;
 						}

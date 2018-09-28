@@ -31,7 +31,7 @@ namespace Cry
 				return true;
 			}
 
-			void CPlugin::MainUpdate(float frameTime)
+			void CPlugin::MainUpdate(const CTimeValue& frameTime)
 			{
 				ProcessRequests();
 				EUpdateResult result;
@@ -40,7 +40,7 @@ namespace Cry
 				do
 				{
 					result = ProcessRequests();
-				} while (result == EUpdateResult::ProcessingRequests && curl_multi_timeout(m_pMultiHandle, &maximumWaitInMs) == CURLM_OK && maximumWaitInMs < gEnv->pTimer->GetFrameTime() * 1000.f);
+				} while (result == EUpdateResult::ProcessingRequests && curl_multi_timeout(m_pMultiHandle, &maximumWaitInMs) == CURLM_OK && maximumWaitInMs < GetGTimer()->GetFrameTime().GetMilliSeconds());
 			}
 
 			bool CPlugin::Send(ERequestType requestType, const char* szURL, const char* szBody, TResponseCallback resultCallback, const THeaders& headers)
@@ -141,7 +141,7 @@ namespace Cry
 				for (auto it = m_requestMap.begin(), end = m_requestMap.end(); it != end;)
 				{
 					// Check for timeout
-					if (gEnv->pTimer->GetAsyncCurTime() - it->second.lastTimeHandledData > m_requestTimeOutInSeconds)
+					if (GetGTimer()->GetAsyncCurTime() - it->second.lastTimeHandledData > m_requestTimeOutInSeconds)
 					{
 						SRequest request = std::move(it->second);
 						it = m_requestMap.erase(it);
@@ -191,7 +191,7 @@ namespace Cry
 				auto requestIt = pHttpImplementation->m_requestMap.find(static_cast<CURL*>(userData));
 				if (requestIt != pHttpImplementation->m_requestMap.end())
 				{
-					requestIt->second.lastTimeHandledData = gEnv->pTimer->GetAsyncCurTime();
+					requestIt->second.lastTimeHandledData = GetGTimer()->GetAsyncCurTime();
 				}
 
 

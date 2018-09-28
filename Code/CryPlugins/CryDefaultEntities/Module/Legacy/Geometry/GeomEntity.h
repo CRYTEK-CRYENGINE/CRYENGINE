@@ -85,6 +85,6 @@ protected:
 	SPhysicsProperties m_physicsProperties;
 
 	string m_animation;
-	float m_animationSpeed = 1.f;
+	mpfloat m_animationSpeed = 1;
 	bool m_bLoopAnimation = true;
 };

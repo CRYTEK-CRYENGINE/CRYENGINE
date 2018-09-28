@@ -8,7 +8,7 @@
 #include "CryLobby.h"
 #include "CryMatchMaking.h"
 
-#define DEDICATED_SERVER_IS_FREE_SEND_INTERVAL 30000
+#define DEDICATED_SERVER_IS_FREE_SEND_INTERVAL CTimeValue(30)
 
 #if USE_CRY_DEDICATED_SERVER
 

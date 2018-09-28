@@ -200,7 +200,7 @@ CCryTCPService::Send(
 		pData->sent += sent;
 		if (sent > 0)
 		{
-			pData->m_quietTimer = 0.0f;
+			pData->m_quietTimer.SetSeconds(0);
 		}
 
 		break;
@@ -240,7 +240,7 @@ CCryTCPService::Recv(
 			tcpServErr = eCTCPSR_Ok;
 			if (bufLen > 0)
 			{
-				pData->m_quietTimer = 0.0f;
+				pData->m_quietTimer.SetSeconds(0);
 			}
 			else
 			{
@@ -371,7 +371,7 @@ CCryTCPService::Tick(
 				if (m_pOwner->NumFreeSockets() ||                 // Can we create a socket?
 				    (pCurr->m_socketIdx != INVALID_SOCKET_INDEX)) // Does this element already have a socket?
 				{
-					pCurr->m_quietTimer += delta.GetSeconds();
+					pCurr->m_quietTimer += delta;
 					pKeep = ProcessTransaction(pCurr);
 				}
 				else
@@ -698,7 +698,7 @@ void CCryTCPService::RetryResolve()
 		m_resolveLastFailed = g_time;
 		m_resolveState = eRS_WaitRetry;
 	}
-	else if ((g_time - m_resolveLastFailed).GetMilliSecondsAsInt64() > (SECONDS_BETWEEN_DNS_RETRIES * 1000))
+	else if (g_time - m_resolveLastFailed > SECONDS_BETWEEN_DNS_RETRIES)
 	{
 		m_resolveState = eRS_NotStarted;
 	}

@@ -123,43 +123,43 @@ void CDebugDrawComponent::Register(Schematyc::CEnvRegistrationScope& componentSc
 	}
 }
 
-void CDebugDrawComponent::DrawSphere(const Vec3& pos, float radius, const ColorF& color, float duration)
+void CDebugDrawComponent::DrawSphere(const Vec3& pos, float radius, const ColorF& color, const CTimeValue& duration)
 {
 	gEnv->pGameFramework->GetIPersistantDebug()->Begin(__FUNCTION__, false);
 	gEnv->pGameFramework->GetIPersistantDebug()->AddSphere(pos, radius, color, duration);
 }
 
-void CDebugDrawComponent::DrawDirection(const Vec3& pos, float radius, const Vec3& dir, const ColorF& color, float duration)
+void CDebugDrawComponent::DrawDirection(const Vec3& pos, float radius, const Vec3& dir, const ColorF& color, const CTimeValue& duration)
 {
 	gEnv->pGameFramework->GetIPersistantDebug()->Begin(__FUNCTION__, false);
 	gEnv->pGameFramework->GetIPersistantDebug()->AddDirection(pos, radius, dir, color, duration);
 }
 
-void CDebugDrawComponent::DrawLine(const Vec3& posStart, const Vec3& posEnd, const ColorF& color, float duration)
+void CDebugDrawComponent::DrawLine(const Vec3& posStart, const Vec3& posEnd, const ColorF& color, const CTimeValue& duration)
 {
 	gEnv->pGameFramework->GetIPersistantDebug()->Begin(__FUNCTION__, false);
 	gEnv->pGameFramework->GetIPersistantDebug()->AddLine(posStart, posEnd, color, duration);
 }
 
-void CDebugDrawComponent::DrawPlanarDisc(const Vec3& pos, float innerRadius, float outerRadius, const ColorF& color, float duration)
+void CDebugDrawComponent::DrawPlanarDisc(const Vec3& pos, float innerRadius, float outerRadius, const ColorF& color, const CTimeValue& duration)
 {
 	gEnv->pGameFramework->GetIPersistantDebug()->Begin(__FUNCTION__, false);
 	gEnv->pGameFramework->GetIPersistantDebug()->AddPlanarDisc(pos, innerRadius, outerRadius, color, duration);
 }
 
-void CDebugDrawComponent::DrawCone(const Vec3& pos, const Vec3& dir, float baseRadius, float height, const ColorF& color, float duration)
+void CDebugDrawComponent::DrawCone(const Vec3& pos, const Vec3& dir, float baseRadius, float height, const ColorF& color, const CTimeValue& duration)
 {
 	gEnv->pGameFramework->GetIPersistantDebug()->Begin(__FUNCTION__, false);
 	gEnv->pGameFramework->GetIPersistantDebug()->AddCone(pos, dir, baseRadius, height, color, duration);
 }
 
-void CDebugDrawComponent::DrawCylinder(const Vec3& pos, const Vec3& dir, float radius, float height, const ColorF& color, float duration)
+void CDebugDrawComponent::DrawCylinder(const Vec3& pos, const Vec3& dir, float radius, float height, const ColorF& color, const CTimeValue& duration)
 {
 	gEnv->pGameFramework->GetIPersistantDebug()->Begin(__FUNCTION__, false);
 	gEnv->pGameFramework->GetIPersistantDebug()->AddCylinder(pos, dir, radius, height, color, duration);
 }
 
-void CDebugDrawComponent::Draw2DText(Schematyc::CSharedString text, float size, const ColorF& color, float duration)
+void CDebugDrawComponent::Draw2DText(Schematyc::CSharedString text, float size, const ColorF& color, const CTimeValue& duration)
 {
 	gEnv->pGameFramework->GetIPersistantDebug()->Begin(__FUNCTION__, false);
 	gEnv->pGameFramework->GetIPersistantDebug()->Add2DText(text.c_str(), size, color, duration);
@@ -208,19 +208,19 @@ void CDebugDrawComponent::SetPersistentText(const char* szText)
 	m_persistentText = szText;
 }
 
-void CDebugDrawComponent::DrawText(Schematyc::CSharedString text, float x, float y, float size, const ColorF& color, float duration)
+void CDebugDrawComponent::DrawText(Schematyc::CSharedString text, float x, float y, float size, const ColorF& color, const CTimeValue& duration)
 {
 	gEnv->pGameFramework->GetIPersistantDebug()->Begin(__FUNCTION__, false);
 	gEnv->pGameFramework->GetIPersistantDebug()->AddText(x, y, size, color, duration, text.c_str());
 }
 
-void CDebugDrawComponent::DrawText3D(Schematyc::CSharedString text, const Vec3& pos, float size, const ColorF& color, float duration)
+void CDebugDrawComponent::DrawText3D(Schematyc::CSharedString text, const Vec3& pos, float size, const ColorF& color, const CTimeValue& duration)
 {
 	gEnv->pGameFramework->GetIPersistantDebug()->Begin(__FUNCTION__, false);
 	gEnv->pGameFramework->GetIPersistantDebug()->AddText3D(pos, size, color, duration, text.c_str());
 }
 
-void CDebugDrawComponent::Draw2DLine(float x1, float y1, float x2, float y2, const ColorF& color, float duration)
+void CDebugDrawComponent::Draw2DLine(float x1, float y1, float x2, float y2, const ColorF& color, const CTimeValue& duration)
 {
 	gEnv->pGameFramework->GetIPersistantDebug()->Begin(__FUNCTION__, false);
 	gEnv->pGameFramework->GetIPersistantDebug()->Add2DLine(x1, y1, x2, y2, color, duration);

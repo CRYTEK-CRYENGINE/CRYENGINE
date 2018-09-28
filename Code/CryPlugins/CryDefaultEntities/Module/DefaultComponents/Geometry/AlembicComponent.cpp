@@ -94,7 +94,7 @@ namespace Cry
 			return false;
 		}
 
-		void CAlembicComponent::SetPlaybackTime(float time)
+		void CAlembicComponent::SetPlaybackTime(const CTimeValue& time)
 		{
 			if (IGeomCacheRenderNode* pRenderNode = m_pEntity->GetGeomCacheRenderNode(GetEntitySlotId()))
 			{
@@ -102,14 +102,14 @@ namespace Cry
 			}
 		}
 
-		float CAlembicComponent::GetPlaybackTime() const
+		const CTimeValue CAlembicComponent::GetPlaybackTime() const
 		{
 			if (IGeomCacheRenderNode* pRenderNode = m_pEntity->GetGeomCacheRenderNode(GetEntitySlotId()))
 			{
 				return pRenderNode->GetPlaybackTime();
 			}
 
-			return 0.f;
+			return 0;
 		}
 
 		void CAlembicComponent::SetFilePath(const char* szFilePath)

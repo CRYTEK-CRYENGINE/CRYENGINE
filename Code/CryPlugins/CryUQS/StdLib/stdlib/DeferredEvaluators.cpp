@@ -42,10 +42,10 @@ namespace UQS
 
 		bool CDeferredEvaluator_TestRaycast::CRaycastRegulator::RequestRaycast()
 		{
-			const float currentTime = gEnv->pTimer->GetAsyncCurTime();
+			const CTimeValue currentTime = GetGTimer()->GetAsyncCurTime();
 			bool bRaycastAllowed = false;
 
-			if (!m_timeLastFiredRaycast || (currentTime - m_timeLastFiredRaycast) >= 1.0f / (float) m_maxRequestsPerSecond)
+			if (m_timeLastFiredRaycast == 0 || (currentTime - m_timeLastFiredRaycast) >= 1 / (mpfloat)m_maxRequestsPerSecond)
 			{
 				bRaycastAllowed = true;
 				m_timeLastFiredRaycast = currentTime;

@@ -164,7 +164,7 @@ public:
 		CRY_ASSERT(m_pCachedCharacter != nullptr);
 		if (m_pCachedCharacter != nullptr)
 		{
-			m_pCachedCharacter->GetISkeletonAnim()->SetDesiredMotionParam(motionParam, value, 0.f);
+			m_pCachedCharacter->GetISkeletonAnim()->SetDesiredMotionParam(motionParam, value, 0);
 			m_overriddenMotionParams.set(motionParam);
 		}
 	}

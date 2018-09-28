@@ -74,7 +74,7 @@ void CEnvironmentProbeEntity::OnResetState()
 
 	m_light.m_fFogRadialLobe = 0.f;
 
-	m_light.SetAnimSpeed(0.f);
+	m_light.SetAnimSpeed(0);
 	m_light.m_fProjectorNearPlane = 0.f;
 
 	if (m_cubemapPath.IsEmpty())

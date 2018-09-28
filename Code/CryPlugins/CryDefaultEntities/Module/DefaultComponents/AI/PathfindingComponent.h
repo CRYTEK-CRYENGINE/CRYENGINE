@@ -145,8 +145,8 @@ namespace Cry
 			virtual void                  SetStance(const MovementStyle::Stance stance) final {}
 
 			virtual std::shared_ptr<Vec3> CreateLookTarget() final { return nullptr; }
-			virtual void                  SetLookTimeOffset(float lookTimeOffset) final {}
-			virtual void UpdateLooking(float updateTime, std::shared_ptr<Vec3> lookTarget, const bool targetReachable, const float pathDistanceToEnd, const Vec3& followTargetPosition, const MovementStyle& style) final {}
+			virtual void                  SetLookTimeOffset(const CTimeValue& lookTimeOffset) final {}
+			virtual void UpdateLooking(const CTimeValue& updateTime, std::shared_ptr<Vec3> lookTarget, const bool targetReachable, const float pathDistanceToEnd, const Vec3& followTargetPosition, const MovementStyle& style) final {}
 			// ~IMovementActorAdapter
 
 			// IAIPathAgent

@@ -28,8 +28,8 @@
 #include <CryMath/Random.h>
 #include <CryCore/Platform/platform_impl.inl>
 
-const int LOBBY_KEEP_ALIVE_INTERVAL = (CryLobbySendInterval + 100);
-const int LOBBY_FORCE_DISCONNECT_TIMER = 99999999;
+const CTimeValue LOBBY_KEEP_ALIVE_INTERVAL = (CryLobbySendInterval + "0.1");
+const CTimeValue LOBBY_FORCE_DISCONNECT_TIMER = 99999999;
 
 static const uint8 CONNECTION_COUNTER_MAX = 255;
 
@@ -99,7 +99,7 @@ bool CCryLobby::Initialize(SSystemGlobalEnvironment& env, const SSystemInitParam
 	}
 
 	m_pLobby = this;
-	g_time = gEnv->pTimer->GetAsyncTime();
+	g_time = GetGTimer()->GetAsyncTime();
 
 	for (uint32 i = 0; i < eCLS_NumServices; i++)
 	{
@@ -314,7 +314,7 @@ void CCryLobby::InviteAccepted(ECryLobbyService service, uint32 user, CryUserID 
 	DispatchEvent(eCLSE_UserInviteAccepted, eventData);
 }
 
-uint32 CCryLobby::GetDisconnectTimeOut()
+CTimeValue CCryLobby::GetDisconnectTimeOut()
 {
 	const CNetCVars* pNetCVars = GetNetCVars();
 
@@ -322,16 +322,16 @@ uint32 CCryLobby::GetDisconnectTimeOut()
 	{
 		if (gEnv->pSystem->IsDevMode())
 		{
-			if (pNetCVars->InactivityTimeoutDevmode > 0.0f)
+			if (pNetCVars->InactivityTimeoutDevmode > 0)
 			{
-				return (uint32)(1000.0f * pNetCVars->InactivityTimeoutDevmode);
+				return pNetCVars->InactivityTimeoutDevmode;
 			}
 		}
 		else
 		{
-			if (pNetCVars->InactivityTimeout > 0.0f)
+			if (pNetCVars->InactivityTimeout > 0)
 			{
-				return (uint32)(1000.0f * pNetCVars->InactivityTimeout);
+				return pNetCVars->InactivityTimeout;
 			}
 		}
 	}
@@ -370,18 +370,18 @@ void CCryLobby::Tick(bool flush)
 
 	ProcessCachedPacketBuffer();
 
-	uint32 lastFrameTime = 0;
-	uint32 disconnectTimeOut = GetDisconnectTimeOut();
-	uint32 CryLobbyKeepAliveInterval = LOBBY_KEEP_ALIVE_INTERVAL;
+	CTimeValue lastFrameTime = 0;
+	CTimeValue disconnectTimeOut = GetDisconnectTimeOut();
+	CTimeValue CryLobbyKeepAliveInterval = LOBBY_KEEP_ALIVE_INTERVAL;
 
-	g_time = gEnv->pTimer->GetAsyncTime();
+	g_time = GetGTimer()->GetAsyncTime();
 
 	if (!flush)
 	{
-		lastFrameTime = (uint32)(g_time.GetMilliSecondsAsInt64() - m_lastTickTime.GetMilliSecondsAsInt64());
+		lastFrameTime = g_time - m_lastTickTime;
 		if (lastFrameTime > CryLobbySendInterval)
 		{
-			NetLog("CCryLobby::TimerCallback() long frame detected, lastFrameTime=%u", lastFrameTime);
+			NetLog("CCryLobby::TimerCallback() long frame detected, lastFrameTime=%u", lastFrameTime.GetMilliSeconds());
 			// Guard against very long frames that can cause sends to time out even before they have started.
 			lastFrameTime = CryLobbySendInterval;
 		}
@@ -454,7 +454,7 @@ void CCryLobby::Tick(bool flush)
 					packet.SetWriteBuffer(buffer, MaxBufferSize);
 					doneSend = true;
 					packet.StartWrite(eLobbyPT_Ping, false);
-					packet.WriteUINT64(gEnv->pTimer->GetAsyncTime().GetMilliSecondsAsInt64());
+					packet.WriteTime(GetGTimer()->GetAsyncTime());
 
 					if (Send(&packet, pConnection->addr, i, NULL) != eSE_Ok)
 					{
@@ -480,12 +480,12 @@ void CCryLobby::Tick(bool flush)
 					else
 					{
 						// It's still in use so reset counter.
-						pConnection->disconnectTimer = 0;
+						pConnection->disconnectTimer.SetSeconds(0);
 					}
 				}
 				else
 				{
-					pConnection->disconnectTimer = 0;
+					pConnection->disconnectTimer.SetSeconds(0);
 				}
 
 				break;
@@ -557,7 +557,7 @@ void CCryLobby::Tick(bool flush)
 
 			if (doneSend)
 			{
-				pConnection->timeSinceSend = 0;
+				pConnection->timeSinceSend.SetSeconds(0);
 			}
 		}
 	}
@@ -816,8 +816,8 @@ CryLobbyTaskID CCryLobby::CreateTask()
 		{
 			m_serviceTask[i].used = true;
 #if ENABLE_CRYLOBBY_DEBUG_TESTS
-			m_serviceTask[i].startTaskTime = 0LL;
-			m_serviceTask[i].tickTaskTime = 0LL;
+			m_serviceTask[i].startTaskTime.SetSeconds(0);
+			m_serviceTask[i].tickTaskTime.SetSeconds(0);
 			m_serviceTask[i].generateErrorDone = false;
 			m_serviceTask[i].startTaskTimerStarted = false;
 			m_serviceTask[i].startTaskDone = false;
@@ -1134,13 +1134,13 @@ CryLobbyConnectionID CCryLobby::CreateConnection(const TNetAddress& address)
 			SConnection* pConnection = &m_connection[i];
 
 	#if RESET_CONNECTED_CONNECTION
-			pConnection->sendCookie = gEnv->pTimer->GetAsyncTime().GetValue();
+			pConnection->sendCookie = GetGTimer()->GetAsyncTime().GetValue();
 			pConnection->recvCookie = INVALID_CONNECTION_COOKIE;
 	#endif
 
-			pConnection->timeSinceSend = 0;
-			pConnection->timeSinceRecv = 0;
-			pConnection->disconnectTimer = 0;
+			pConnection->timeSinceSend.SetSeconds(0);
+			pConnection->timeSinceRecv.SetSeconds(0);
+			pConnection->disconnectTimer.SetSeconds(0);
 			pConnection->addr = address;
 			pConnection->state = eCLCS_Pending;
 			pConnection->refCount = 0;
@@ -1150,7 +1150,7 @@ CryLobbyConnectionID CCryLobby::CreateConnection(const TNetAddress& address)
 			pConnection->reliableBuildPacket.SetWriteBuffer(pConnection->reliableBuildPacketBuffer, MAX_LOBBY_PACKET_SIZE);
 
 			pConnection->ping.aveTime = CRYLOBBY_INVALID_PING;
-			pConnection->ping.currentTime = 0;
+			pConnection->ping.currentTime.SetSeconds(0);
 
 			for (uint32 j = 0; j < NUM_LOBBY_PINGS; j++)
 			{
@@ -1741,16 +1741,18 @@ ESocketError CCryLobby::SendVoice(CCryLobbyPacket* pPacket, const TNetAddress& t
 	return eSE_MiscFatalError;
 }
 
-void CCryLobby::UpdateConnectionPing(CryLobbyConnectionID connectionID, CryPing ping)
+void CCryLobby::UpdateConnectionPing(CryLobbyConnectionID connectionID, const CTimeValue& ping)
 {
 #if USE_LOBBY_REMOTE_CONNECTIONS
 	SConnection* pConnection = &m_connection[connectionID];
 
-	pConnection->ping.times[pConnection->ping.currentTime] = ping;
+	// PERSONAL DEBUG: Why use time as an index here??
+	//pConnection->ping.times[pConnection->ping.currentTime] = ping;
+	pConnection->ping.times[(uint16)pConnection->ping.currentTime.GetMilliSeconds()] = ping;
 	pConnection->ping.currentTime = (pConnection->ping.currentTime + 1) % NUM_LOBBY_PINGS;
 
 	uint32 numValidPings = 0;
-	CryPingAccumulator totalTime = 0;
+	CTimeValue totalTime = 0;
 
 	for (uint32 i = 0; i < NUM_LOBBY_PINGS; ++i)
 	{
@@ -1763,7 +1765,7 @@ void CCryLobby::UpdateConnectionPing(CryLobbyConnectionID connectionID, CryPing 
 
 	if (numValidPings)
 	{
-		pConnection->ping.aveTime = (CryPing)(totalTime / numValidPings);
+		pConnection->ping.aveTime = totalTime / numValidPings;
 	}
 	else
 	{
@@ -1772,7 +1774,7 @@ void CCryLobby::UpdateConnectionPing(CryLobbyConnectionID connectionID, CryPing 
 #endif // USE_LOBBY_REMOTE_CONNECTIONS
 }
 
-CryPing CCryLobby::GetConnectionPing(CryLobbyConnectionID connectionID)
+CTimeValue CCryLobby::GetConnectionPing(CryLobbyConnectionID connectionID)
 {
 #if USE_LOBBY_REMOTE_CONNECTIONS
 	if ((connectionID != CryLobbyInvalidConnectionID) && (connectionID < MAX_LOBBY_CONNECTIONS))
@@ -1943,18 +1945,18 @@ void CCryLobby::ProcessPacket(const TNetAddress& addr, CryLobbyConnectionID conn
 	case eLobbyPT_Ping:
 		if (pConnection)
 		{
-			CTimeValue currentTime = gEnv->pTimer->GetAsyncTime();
+			CTimeValue currentTime = GetGTimer()->GetAsyncTime();
 			CTimeValue recvTime = pPacket->GetRecvTime();
-			uint64 timeDelayed = (currentTime - recvTime).GetMilliSecondsAsInt64();
+			CTimeValue timeDelayed = currentTime - recvTime;
 			const uint32 MaxBufferSize = CryLobbyPacketHeaderSize + CryLobbyPacketUINT64Size;
 			uint8 buffer[MaxBufferSize];
 			CCrySharedLobbyPacket pongPacket;
 
 			pongPacket.SetWriteBuffer(buffer, MaxBufferSize);
-			uint64 time = pPacket->ReadUINT64() + timeDelayed;
+			CTimeValue time = pPacket->ReadTime() + timeDelayed;
 
 			pongPacket.StartWrite(eLobbyPT_Pong, false);
-			pongPacket.WriteUINT64(time);
+			pongPacket.WriteTime(time);
 
 			if (Send(&pongPacket, pConnection->addr, connectionID, NULL) != eSE_Ok)
 			{
@@ -1969,14 +1971,14 @@ void CCryLobby::ProcessPacket(const TNetAddress& addr, CryLobbyConnectionID conn
 		if (pConnection)
 		{
 			CTimeValue recvTime = pPacket->GetRecvTime();
-			uint64 sendTime = pPacket->ReadUINT64();
-			uint64 pingTime = recvTime.GetMilliSecondsAsInt64() - sendTime;
+			CTimeValue sendTime = pPacket->ReadTime();
+			CTimeValue pingTime = recvTime - sendTime;
 			if (pingTime > CRYLOBBY_INVALID_PING)
 			{
 				pingTime = CRYLOBBY_INVALID_PING;
 			}
 
-			UpdateConnectionPing(connectionID, (CryPing)pingTime);
+			UpdateConnectionPing(connectionID, pingTime);
 		}
 
 		break;
@@ -2014,7 +2016,7 @@ void CCryLobby::OnPacket(const TNetAddress& addr, const uint8* pData, uint32 len
 
 	if (pConnection)
 	{
-		pConnection->timeSinceRecv = 0;
+		pConnection->timeSinceRecv.SetSeconds(0);
 	}
 #endif // USE_LOBBY_REMOTE_CONNECTIONS
 }
@@ -2637,7 +2639,7 @@ const SCryLobbyParameters& CCryLobby::GetLobbyParameters() const
 	return m_serviceParams[m_service];
 }
 
-uint32 CCryLobby::TimeSincePacketInMS(CryLobbyConnectionID c) const
+CTimeValue CCryLobby::TimeSincePacket(CryLobbyConnectionID c) const
 {
 #if USE_LOBBY_REMOTE_CONNECTIONS
 	if (c != CryLobbyInvalidConnectionID)

@@ -586,7 +586,7 @@ void CCryLANMatchMaking::SSession::Reset()
 {
 	PARENT::Reset();
 
-	sid = gEnv->pTimer->GetAsyncTime().GetValue();
+	sid = (uint64)GetGTimer()->GetAsyncTime().GetMicroSeconds();
 	hostConnectionID = CryMatchMakingInvalidConnectionID;
 	memset(localConnection.userData, 0, sizeof(localConnection.userData));
 }

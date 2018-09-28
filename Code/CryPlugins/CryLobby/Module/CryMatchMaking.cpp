@@ -79,7 +79,7 @@ static bool VerifyPacketBeforeSend(const CCryLobbyPacket* pPacket, const char* c
 
 void CCryMatchMaking::SSession::Reset()
 {
-	pingToServerTimer.SetValue(0);
+	pingToServerTimer.SetSeconds(0);
 	hostConnectionID = CryMatchMakingInvalidConnectionID;
 	serverConnectionID = CryMatchMakingInvalidConnectionID;
 	createFlags = 0;
@@ -278,7 +278,7 @@ void CCryMatchMaking::Tick(CTimeValue tv)
 					}
 				}
 
-				if ((pSession->localFlags & CRYSESSION_LOCAL_FLAG_HOST) && (pSession->createFlags & CRYSESSION_CREATE_FLAG_CAN_SEND_SERVER_PING) && (tv.GetDifferenceInSeconds(pSession->pingToServerTimer) >= CLobbyCVars::Get().serverPingNotificationInterval))
+				if ((pSession->localFlags & CRYSESSION_LOCAL_FLAG_HOST) && (pSession->createFlags & CRYSESSION_CREATE_FLAG_CAN_SEND_SERVER_PING) && (tv - pSession->pingToServerTimer >= CLobbyCVars::Get().serverPingNotificationInterval))
 				{
 					pSession->pingToServerTimer = tv;
 					SendServerPing(i);
@@ -394,7 +394,7 @@ void CCryMatchMaking::Tick(CTimeValue tv)
 							ping += 1000;
 						}
 					}
-					pSession->outboundHostHintInfo.ping = (ping > CRYLOBBY_INVALID_PING) ? CRYLOBBY_INVALID_PING : (CryPing)ping;
+					pSession->outboundHostHintInfo.ping = (ping > CRYLOBBY_INVALID_PING) ? CRYLOBBY_INVALID_PING : ping;
 
 					// Upstream bits per second
 					pSession->outboundHostHintInfo.upstreamBPS = CLobbyCVars::Get().netHostHintingUpstreamBPSOverride;
@@ -842,7 +842,7 @@ ECryLobbyError CCryMatchMaking::StartTask(uint32 etask, bool startRunning, CryMa
 
 			if (!task->used)
 			{
-				task->timer.SetValue(0);
+				task->timer.SetSeconds(0);
 				task->lTaskID = lobbyTaskID;
 				task->error = eCLE_Success;
 				task->startedTask = etask;
@@ -3267,7 +3267,7 @@ void CCryMatchMaking::SendServerPing(CryLobbySessionHandle h)
 			{
 				pConnection->pingToServer = m_lobby->GetConnectionPing(pConnection->connectionID);
 				packet.WriteUINT32(pConnection->uid.m_uid);
-				packet.WriteUINT16(pConnection->pingToServer);
+				packet.WriteTime(pConnection->pingToServer);
 	#if defined(LOG_SERVER_PING_INFO)
 				NetLog("[Server Ping]: SENDING " PRFORMAT_SHMMCINFO ", ping %ims", PRARG_SHMMCINFO(h, CryMatchMakingConnectionID(connectionIndex), pConnection->connectionID, pConnection->uid), pConnection->pingToServer);
 	#endif
@@ -3297,15 +3297,15 @@ void CCryMatchMaking::ProcessServerPing(const TNetAddress& addr, CCrySharedLobby
 
 		if (pSession->hostConnectionID == id)
 		{
-			pConnection->pingToServer = 0; // Server's ping to himself
+			pConnection->pingToServer.SetSeconds(0); // Server's ping to himself
 
 			const uint32 itemCount = (pPacket->GetReadBufferSize() - CryLobbyPacketUnReliableHeaderSize) / (CryLobbyPacketUINT32Size + CryLobbyPacketUINT16Size);
 			for (uint32 itemIndex = 0; itemIndex < itemCount; ++itemIndex)
 			{
 				uid.m_uid = pPacket->ReadUINT32();
-				uint16 pingToServer = pPacket->ReadUINT16();
+				CTimeValue pingToServer = pPacket->ReadTime();
 	#if defined(LOG_SERVER_PING_INFO)
-				NetLog("[Server Ping]: RECEIVED " PRFORMAT_SH ", " PRFORMAT_UID ", ping %ims", PRARG_SH(handle), PRARG_UID(uid), pingToServer);
+				NetLog("[Server Ping]: RECEIVED " PRFORMAT_SH ", " PRFORMAT_UID ", ping %ims", PRARG_SH(handle), PRARG_UID(uid), (int)pingToServer.GetMilliSeconds());
 	#endif
 
 				if (FindConnectionFromSessionUID(handle, uid, &id))
@@ -3426,7 +3426,7 @@ eHostMigrationState CCryMatchMaking::GetSessionHostMigrationState(CrySessionHand
 	return state;
 }
 
-ECryLobbyError CCryMatchMaking::GetSessionPlayerPing(SCryMatchMakingConnectionUID uid, CryPing* const pPing)
+ECryLobbyError CCryMatchMaking::GetSessionPlayerPing(SCryMatchMakingConnectionUID uid, CTimeValue* const pPing)
 {
 	LOBBY_AUTO_LOCK;
 
@@ -3436,7 +3436,7 @@ ECryLobbyError CCryMatchMaking::GetSessionPlayerPing(SCryMatchMakingConnectionUI
 
 	if (pPing)
 	{
-		CryPing ping = CRYLOBBY_INVALID_PING;
+		CTimeValue ping = CRYLOBBY_INVALID_PING;
 		uint32 localSessionIndex;
 		uint32 remoteConnectionIndex = 0;
 
@@ -3452,7 +3452,7 @@ ECryLobbyError CCryMatchMaking::GetSessionPlayerPing(SCryMatchMakingConnectionUI
 				{
 					if (pSession->localFlags & CRYSESSION_LOCAL_FLAG_HOST)
 					{
-						ping = 0;
+						ping.SetSeconds(0);
 					}
 					else
 					{
@@ -3636,11 +3636,11 @@ bool CCryMatchMaking::IsHostMigrationFinished(CryLobbySessionHandle h)
 }
 	#endif
 
-uint32 CCryMatchMaking::GetTimeSincePacketFromServerMS(CrySessionHandle gh)
+CTimeValue CCryMatchMaking::GetTimeSincePacketFromServer(CrySessionHandle gh)
 {
 	LOBBY_AUTO_LOCK;
 
-	uint32 timeSincePacketMS = 0;
+	CTimeValue timeSincePacket = 0;
 
 	if (m_lobby)
 	{
@@ -3655,12 +3655,12 @@ uint32 CCryMatchMaking::GetTimeSincePacketFromServerMS(CrySessionHandle gh)
 				if (pSession->hostConnectionID != CryMatchMakingInvalidConnectionID)
 				{
 					SSession::SRConnection* pConnection = pSession->remoteConnection[pSession->hostConnectionID];
-					timeSincePacketMS = m_lobby->TimeSincePacketInMS(pConnection->connectionID);
+					timeSincePacket = m_lobby->TimeSincePacket(pConnection->connectionID);
 				}
 			}
 		}
 	}
-	return timeSincePacketMS;
+	return timeSincePacket;
 }
 
 void CCryMatchMaking::DisconnectFromServer(CrySessionHandle gh)
@@ -3972,7 +3972,7 @@ ECryLobbyError CCryMatchMaking::SessionSetupDedicatedServer(CrySessionHandle gh,
 			uid.m_sid = GetSIDFromSessionHandle(h);
 			uid.m_uid = DEDICATED_SERVER_CONNECTION_UID;
 
-			pTask->numParams[TDN_SETUP_DEDICATED_SERVER_COOKIE] = uint32(gEnv->pTimer->GetAsyncTime().GetValue());
+			pTask->numParams[TDN_SETUP_DEDICATED_SERVER_COOKIE] = uint32(GetGTimer()->GetAsyncTime().GetMicroSeconds());
 
 			packet.StartWrite(eLobbyPT_C2A_RequestSetupDedicatedServer, false);
 			packet.WriteConnectionUID(uid);
@@ -4449,7 +4449,7 @@ ECryLobbyError CCryMatchMaking::SessionReleaseDedicatedServer(CrySessionHandle g
 
 		if (error == eCLE_Success)
 		{
-			pTask->numParams[TDN_RELEASE_DEDICATED_SERVER_COOKIE] = uint32(gEnv->pTimer->GetAsyncTime().GetValue());
+			pTask->numParams[TDN_RELEASE_DEDICATED_SERVER_COOKIE] = uint32(GetGTimer()->GetAsyncTime().GetMicroSeconds());
 			FROM_GAME_TO_LOBBY(&CCryMatchMaking::StartTaskRunning, this, mmTaskID);
 		}
 		else

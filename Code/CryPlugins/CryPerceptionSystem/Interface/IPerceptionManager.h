@@ -139,19 +139,19 @@ struct SAIStimulusTypeDesc
 
 	inline void Reset()
 	{
-		processDelay = 0.0f;
+		processDelay.SetSeconds(0);
 		filterTypes = 0;
 		for (int i = 0; i < AI_MAX_SUBTYPES; i++)
-			duration[i] = 0.0f;
+			duration[i].SetSeconds(0);
 		for (int i = 0; i < AI_MAX_FILTERS; i++)
 			filters[i].Reset();
 		name[0] = '\0';
 		nFilters = 0;
 	}
 
-	float             processDelay;              // Delay before the stimulus is actually sent.
+	CTimeValue        processDelay;              // Delay before the stimulus is actually sent.
 	unsigned int      filterTypes;               // Mask of all types of filters contained in the filter list.
-	float             duration[AI_MAX_SUBTYPES]; // Duration of the stimulus, accessed by the subType of SAIStimulus.
+	CTimeValue        duration[AI_MAX_SUBTYPES]; // Duration of the stimulus, accessed by the subType of SAIStimulus.
 	SAIStimulusFilter filters[AI_MAX_FILTERS];   // The filter list.
 	char              name[32];                  // Name of the stimulus.
 	unsigned char     nFilters;                  // Number of filters in the filter list.
@@ -171,7 +171,7 @@ struct IPerceptionManager
 	virtual ~IPerceptionManager() {}
 
 	virtual void               RegisterStimulus(const SAIStimulus& stim) = 0;
-	virtual void               IgnoreStimulusFrom(EntityId sourceId, EAIStimulusType type, float time) = 0;
+	virtual void               IgnoreStimulusFrom(EntityId sourceId, EAIStimulusType type, const CTimeValue& time) = 0;
 	virtual bool               IsPointInRadiusOfStimulus(EAIStimulusType type, const Vec3& pos) const = 0;
 
 	virtual bool               RegisterStimulusDesc(EAIStimulusType type, const SAIStimulusTypeDesc& desc) = 0;

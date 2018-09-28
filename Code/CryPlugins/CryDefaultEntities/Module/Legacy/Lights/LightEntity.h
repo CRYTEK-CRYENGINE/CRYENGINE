@@ -154,7 +154,7 @@ protected:
 
 	ECastShadowsSpec m_castShadowSpec = eCastShadowsSpec_No;
 
-	float m_animSpeed = 1.f;
+	mpfloat m_animSpeed = 1;
 
 	ColorF m_diffuseColor = ColorF(1, 1, 1, 1);
 	float m_diffuseMultiplier = 1.f;

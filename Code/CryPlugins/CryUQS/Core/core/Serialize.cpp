@@ -12,22 +12,11 @@ namespace UQS
 
 		bool Serialize(Serialization::IArchive& ar, CTimeValue& timeValue, const char* szName, const char* szLabel)
 		{
-			int64 value = 0;
-
-			if (ar.isOutput())
+			if (ar.isOutput() || ar.isInput())
 			{
-				// serialize
-				value = timeValue.GetValue();
-				return ar(value, szName);
+				// serialize or deserialize.
+				return ar(timeValue, szName);
 			}
-			else if (ar.isInput())
-			{
-				// de-serialize
-				const bool result = ar(value, szName);
-				timeValue.SetValue(value);
-				return result;
-			}
-
 			return false;
 		}
 

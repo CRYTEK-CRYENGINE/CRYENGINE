@@ -15,12 +15,12 @@ namespace UQS
 		//
 		//===================================================================================
 
-		float CSettingsManager::GetTimeBudgetInSeconds() const
+		const CTimeValue& CSettingsManager::GetTimeBudgetInSeconds() const
 		{
 			return SCvars::timeBudgetInSeconds;
 		}
 
-		void CSettingsManager::SetTimeBudgetInSeconds(float timeBudgetInSeconds)
+		void CSettingsManager::SetTimeBudgetInSeconds(const CTimeValue& timeBudgetInSeconds)
 		{
 			SCvars::timeBudgetInSeconds = timeBudgetInSeconds;
 		}

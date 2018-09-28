@@ -45,7 +45,7 @@ namespace UQS
 
 			private:
 				const int              m_maxRequestsPerSecond;
-				float                  m_timeLastFiredRaycast;
+				CTimeValue             m_timeLastFiredRaycast;
 			};
 
 		private:

@@ -11,12 +11,12 @@ namespace UQS
 
 		void CTimeBudget::Restart(const CTimeValue& amountOfTimeFromNowOn)
 		{
-			m_futureTimestampOfExhaustion = gEnv->pTimer->GetAsyncTime() + amountOfTimeFromNowOn;
+			m_futureTimestampOfExhaustion = GetGTimer()->GetAsyncTime() + amountOfTimeFromNowOn;
 		}
 
 		bool CTimeBudget::IsExhausted() const
 		{
-			return (gEnv->pTimer->GetAsyncTime() >= m_futureTimestampOfExhaustion);
+			return (GetGTimer()->GetAsyncTime() >= m_futureTimestampOfExhaustion);
 		}
 
 	}

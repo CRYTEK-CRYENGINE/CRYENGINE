@@ -37,7 +37,7 @@ namespace Cry
 			public:
 				// ICryPlugin
 				virtual bool Initialize(SSystemGlobalEnvironment& env, const SSystemInitParams& initParams) override;
-				virtual void MainUpdate(float frameTime) override;
+				virtual void MainUpdate(const CTimeValue& frameTime) override;
 				// ~ICryPlugin
 
 				// IPlugin_HTTP
@@ -56,7 +56,7 @@ namespace Cry
 						: pHandle(pRequestHandle)
 						, resultCallback(callback)
 						, pHeaderList(nullptr)
-						, lastTimeHandledData(gEnv->pTimer->GetAsyncCurTime())
+						, lastTimeHandledData(GetGTimer()->GetAsyncCurTime())
 					{
 					}
 
@@ -91,13 +91,13 @@ namespace Cry
 					TResponseCallback resultCallback;
 					string result;
 					// Time at which we last handled data, used for timeouts
-					float lastTimeHandledData;
+					CTimeValue lastTimeHandledData;
 				};
 
 				CURLM* m_pMultiHandle = nullptr;
 				std::unordered_map<CURL*, SRequest> m_requestMap;
 
-				float m_requestTimeOutInSeconds = 20.f;
+				CTimeValue m_requestTimeOutInSeconds = 20;
 			};
 		}
 	}

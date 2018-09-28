@@ -80,7 +80,7 @@ void CAnimatedMeshComponent::ResetObject()
 
 	if (m_defaultAnimation.value.size() > 0)
 	{
-		m_animationParams.m_fPlaybackSpeed = m_defaultAnimationSpeed;
+		m_animationParams.m_fPlaybackSpeed = BADMP(m_defaultAnimationSpeed);
 		PlayAnimation(m_defaultAnimation, m_bLoopDefaultAnimation);
 	}
 }

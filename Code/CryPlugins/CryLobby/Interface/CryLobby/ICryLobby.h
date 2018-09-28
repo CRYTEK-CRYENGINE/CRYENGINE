@@ -7,8 +7,7 @@
 #define CRYLOBBY_USER_PACKET_START 128
 #define CRYLOBBY_USER_PACKET_MAX   255
 
-typedef uint16 CryPing;
-#define CRYLOBBY_INVALID_PING  (CryPing(~0))
+#define CRYLOBBY_INVALID_PING  (CTimeValue(~0))
 
 #define CRYSESSIONID_STRINGLEN 48
 
