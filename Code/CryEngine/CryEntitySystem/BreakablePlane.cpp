@@ -27,7 +27,7 @@ template<class T> struct triplet
 };
 
 int CBreakablePlane::g_nPieces = 0;
-float CBreakablePlane::g_maxPieceLifetime = 0;
+CTimeValue CBreakablePlane::g_maxPieceLifetime = 0;
 
 int UpdateBrokenMat(IMaterial* pRenderMat, int idx, const char* substName)
 {
@@ -861,7 +861,7 @@ int CBreakablePlane::ProcessImpact(const SProcessImpactIn& in, SProcessImpactOut
 	SScopedRandomSeedChange seedChange(gEnv->bNoRandomSeed ? 0 : out.eventSeed);
 
 	static ICVar* particle_limit = gEnv->pConsole->GetCVar("g_breakage_particles_limit");
-	float curTime = gEnv->pTimer->GetCurrTime();
+	CTimeValue curTime = GetGTimer()->GetFrameStartTime();
 	int nMaxParticles = particle_limit ? particle_limit->GetIVal() : 200;
 	if (curTime > g_maxPieceLifetime)
 		g_nPieces = 0;
@@ -956,7 +956,7 @@ int CBreakablePlane::ProcessImpact(const SProcessImpactIn& in, SProcessImpactOut
 		float r = pPlane || pStatObj->GetFlags() & STATIC_OBJECT_GENERATED ? pBreak2DParams->blast_radius : pBreak2DParams->blast_radius_first;
 		if (r <= 0)
 			bAutoSmash = 0;
-		float lifetime = pBreak2DParams->life_time;
+		CTimeValue lifetime = pBreak2DParams->life_time;
 		const char* strEffectName = pBreak2DParams->particle_effect;
 		IParticleEffect* pEffect = 0;
 		if (bFractureEffect && strEffectName[0])
@@ -1117,7 +1117,7 @@ int CBreakablePlane::ProcessImpact(const SProcessImpactIn& in, SProcessImpactOut
 							}
 							ParticleParams pp;
 							pp.fCount = 0;
-							pp.fParticleLifeTime.Set(lifetime, 0.25f);
+							pp.fParticleLifeTime.Set(lifetime.BADGetSeconds(), 0.25f);
 							pp.bRemainWhileVisible = false;
 							pp.fSize = params.vScale.x;
 							pp.ePhysicsType = pp.ePhysicsType.SimplePhysics;

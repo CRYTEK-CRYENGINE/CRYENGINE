@@ -111,7 +111,7 @@ void CEntityLayer::Enable(bool bEnable, bool bSerialize /*=true*/, bool bAllowRe
 
 #ifdef ENABLE_PROFILING_CODE
 	bool bChanged = (m_isEnabledBrush != bEnable) || (m_isEnabled != bEnable);
-	float fStartTime = gEnv->pTimer->GetAsyncCurTime();
+	CTimeValue fStartTime = GetGTimer()->GetAsyncCurTime();
 #endif //ENABLE_PROFILING_CODE
 
 	if (bEnable && IsSkippedBySpec())
@@ -151,12 +151,12 @@ void CEntityLayer::Enable(bool bEnable, bool bSerialize /*=true*/, bool bAllowRe
 #ifdef ENABLE_PROFILING_CODE
 	if (CVar::es_LayerDebugInfo == 5 && bChanged)
 	{
-		float fTimeMS = (gEnv->pTimer->GetAsyncCurTime() - fStartTime) * 1000.0f;
+		CTimeValue fTime = GetGTimer()->GetAsyncCurTime() - fStartTime;
 		CEntitySystem::SLayerProfile layerProfile;
 		layerProfile.pLayer = this;
-		layerProfile.fTimeOn = gEnv->pTimer->GetCurrTime();
+		layerProfile.fTimeOn = GetGTimer()->GetFrameStartTime();
 		layerProfile.isEnable = bEnable;
-		layerProfile.fTimeMS = fTimeMS;
+		layerProfile.fTime = fTime;
 		g_pIEntitySystem->m_layerProfiles.insert(g_pIEntitySystem->m_layerProfiles.begin(), layerProfile);
 	}
 #endif //ENABLE_PROFILING_CODE

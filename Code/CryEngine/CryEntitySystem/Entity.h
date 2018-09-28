@@ -191,7 +191,7 @@ public:
 
 	//////////////////////////////////////////////////////////////////////////
 
-	virtual int   SetTimer(int nTimerId, int nMilliSeconds) final;
+	virtual int   SetTimer(int nTimerId, const CTimeValue& nTime) final;
 	virtual void  KillTimer(int nTimerId) final;
 
 	virtual void  Hide(bool bHide, EEntityHideFlags hideFlags = ENTITY_HIDE_NO_FLAG) final;
@@ -320,7 +320,7 @@ public:
 	int                                LoadCloudBlocker(int nSlot, const SCloudBlockerProperties& properties);
 	virtual int                        LoadFogVolume(int nSlot, const SFogVolumeProperties& properties) override;
 
-	int                                FadeGlobalDensity(int nSlot, float fadeTime, float newGlobalDensity);
+	int                                FadeGlobalDensity(int nSlot, const CTimeValue& fadeTime, float newGlobalDensity);
 
 	virtual void                       SetSubObjHideMask(int nSlot, hidemask nSubObjHideMask) final        { GetEntityRender()->SetSubObjHideMask(nSlot, nSubObjHideMask); };
 	virtual hidemask                   GetSubObjHideMask(int nSlot) const final                            { return GetEntityRender()->GetSubObjHideMask(nSlot); };
@@ -383,7 +383,7 @@ public:
 	virtual bool                  HandleVariableChange(const char* szVarName, const void* pVarData) final;
 
 	virtual void                  OnRenderNodeVisibilityChange(bool bBecomeVisible) final;
-	virtual float                 GetLastSeenTime() const final;
+	virtual const CTimeValue&     GetLastSeenTime() const final;
 
 	virtual INetEntity*           AssignNetEntityLegacy(INetEntity* ptr) final;
 	virtual INetEntity*           GetNetEntity() final;

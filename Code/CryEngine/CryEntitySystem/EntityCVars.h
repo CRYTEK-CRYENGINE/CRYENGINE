@@ -24,7 +24,7 @@ struct CVar
 	static int         es_DebugFindEntity;
 	static int         es_DebugEvents;
 	static int         es_debugEntityLifetime;
-	static int         es_DebugEntityUsage;
+	static CTimeValue  es_DebugEntityUsage;
 	static const char* es_DebugEntityUsageFilter;
 	static int         es_DebugEntityUsageSortMode;
 	static int         es_debugDrawEntityIDs;
@@ -39,7 +39,7 @@ struct CVar
 	static ICVar* pMinImpulseVel;
 	static ICVar* pImpulseScale;
 	static ICVar* pMaxImpulseAdjMass;
-	static ICVar* pDebrisLifetimeScale;
+	static ICVar* debrisLifetimeScale;
 	static ICVar* pHitCharacters;
 	static ICVar* pHitDeadBodies;
 	static ICVar* pLogCollisions;
@@ -49,7 +49,7 @@ struct CVar
 	static float  es_MaxPhysDist;
 	static float  es_MaxPhysDistInvisible;
 	static float  es_MaxPhysDistCloth;
-	static float  es_FarPhysTimeout;
+	static CTimeValue  es_FarPhysTimeout;
 
 	static int    es_MaxJointFx;
 

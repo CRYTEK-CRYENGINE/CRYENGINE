@@ -78,5 +78,5 @@ public:
 	int               m_bOneSided;
 	IGeometry*        m_pGeom, * m_pSampleRay;
 	static int        g_nPieces;
-	static float      g_maxPieceLifetime;
+	static CTimeValue g_maxPieceLifetime;
 };

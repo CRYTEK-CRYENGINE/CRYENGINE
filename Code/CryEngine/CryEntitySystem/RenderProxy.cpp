@@ -28,7 +28,7 @@ inline void CheckIfBBoxValid(const AABB& box, CEntity* pEntity)
 //////////////////////////////////////////////////////////////////////////
 CEntityRender::CEntityRender()
 {
-	m_fLastSeenTime = gEnv->pTimer->GetCurrTime();
+	m_fLastSeenTime = GetGTimer()->GetFrameStartTime();
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -615,7 +615,7 @@ IRenderNode* CEntityRender::GetRenderNode(int nSlot) const
    SEntityEvent event(ENTITY_EVENT_RENDER);
    event.nParam[0] = (INT_PTR)&inRenderParams;
    GetEntity()->SendEvent(event);
-   m_fLastSeenTime=gEnv->pTimer->GetCurrTime();
+   m_fLastSeenTime=GetGTimer()->GetFrameStartTime();
    }
    if (s_pTimeoutList && (m_nEntityFlags & ENTITY_FLAG_SEND_NOT_SEEN_TIMEOUT))
    s_pTimeoutList->ResetTimeout(m_entityId);
@@ -1039,7 +1039,7 @@ int CEntityRender::LoadFogVolume(int nSlot, const SFogVolumeProperties& properti
 }
 
 //////////////////////////////////////////////////////////////////////////
-int CEntityRender::FadeGlobalDensity(int nSlot, float fadeTime, float newGlobalDensity)
+int CEntityRender::FadeGlobalDensity(int nSlot, const CTimeValue& fadeTime, float newGlobalDensity)
 {
 	CEntitySlot* pSlot = GetOrMakeSlot(nSlot);
 	IRenderNode* pRenderNode(pSlot->GetRenderNode());

@@ -45,7 +45,7 @@ struct SEntityTimerEvent
 {
 	EntityId entityId;
 	int      nTimerId;
-	int      nMilliSeconds;
+	CTimeValue nTime;
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -192,7 +192,7 @@ public:
 	void                                      OnEntityReused(IEntity* pEntity, SEntitySpawnParams& params);
 
 	// Sets new entity timer event.
-	void AddTimerEvent(SEntityTimerEvent& event, CTimeValue startTime = gEnv->pTimer->GetFrameStartTime());
+	void AddTimerEvent(SEntityTimerEvent& event, CTimeValue startTime = GetGTimer()->GetFrameStartTime());
 
 	//////////////////////////////////////////////////////////////////////////
 	// Load entities from XML.
@@ -260,7 +260,7 @@ public:
 private:
 	bool ValidateSpawnParameters(SEntitySpawnParams& params);
 
-	void UpdateEntityComponents(float fFrameTime);
+	void UpdateEntityComponents(const CTimeValue& fFrameTime);
 
 	void DeleteEntity(CEntity* pEntity);
 	void UpdateTimers();
@@ -365,8 +365,8 @@ public:
 public:
 	struct SLayerProfile
 	{
-		float         fTimeMS;
-		float         fTimeOn;
+		CTimeValue    fTime;
+		CTimeValue    fTimeOn;
 		bool          isEnable;
 		CEntityLayer* pLayer;
 	};

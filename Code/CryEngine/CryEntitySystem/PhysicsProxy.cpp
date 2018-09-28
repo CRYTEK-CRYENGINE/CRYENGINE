@@ -509,7 +509,7 @@ void CEntityPhysics::OnTimer(int id)
 			GetEntity()->RemoveSimpleEventListener(ENTITY_EVENT_TIMER, this);
 			return;
 		}
-		m_timerId = GetEntity()->SetTimer(IEntity::CREATE_NEW_UNIQUE_TIMER_ID, 50);
+		m_timerId = GetEntity()->SetTimer(IEntity::CREATE_NEW_UNIQUE_TIMER_ID, "0.05");
 	}
 }
 
@@ -966,7 +966,7 @@ bool CEntityPhysics::TriggerEventIfStateChanged(IPhysicalEntity* pPhysEntity, co
 		event.pEntity = pPhysEntity;
 		event.iForeignData = pPhysEntity->GetiForeignData();
 		event.pForeignData = pPhysEntity->GetForeignData(event.iForeignData);
-		event.timeIdle = 0.0f;
+		event.timeIdle.SetSeconds(0);
 		event.iSimClass[0] = prevSimClass;
 		event.iSimClass[1] = currSimClass;
 		event.BBoxOld[0] = prevBBox.min;
@@ -1462,7 +1462,7 @@ void CEntityPhysics::PhysicalizeSoft(SEntityPhysicalizeParams& params)
 		m_pPhysicalEntity->SetParams(&pfd);
 		GetEntity()->SetInternalFlag(CEntity::EInternalFlag::PhysicsAttachClothOnRender, true);
 		GetEntity()->AddSimpleEventListener(ENTITY_EVENT_TIMER, this, 0);
-		GetEntity()->SetTimer(IEntity::CREATE_NEW_UNIQUE_TIMER_ID, 50);
+		GetEntity()->SetTimer(IEntity::CREATE_NEW_UNIQUE_TIMER_ID, "0.05");
 	}
 }
 

@@ -2909,7 +2909,7 @@ void CArea::EnterNearArea(
 			CryLog("<AreaManager> Area %u Direct Event: %s", m_entityId, "ENTERNEAR");
 		}
 
-		SEntityEvent event(entityId, m_areaId, m_entityId, 0, distance, 0.0f, 0.0f, closestPointToArea);
+		SEntityEvent event(entityId, m_areaId, m_entityId, 0, distance, 0.0f, 0.0f, closestPointToArea, 0);
 		event.event = ENTITY_EVENT_ENTERNEARAREA;
 		SendEvent(event);
 	}

@@ -46,7 +46,7 @@ public:
 	//////////////////////////////////////////////////////////////////////////
 	// IEntityScriptComponent implementation.
 	//////////////////////////////////////////////////////////////////////////
-	virtual void          SetScriptUpdateRate(float fUpdateEveryNSeconds) final { m_fScriptUpdateRate = fUpdateEveryNSeconds; };
+	virtual void          SetScriptUpdateRate(const CTimeValue& fUpdateEveryNSeconds) final { m_fScriptUpdateRate = fUpdateEveryNSeconds; };
 	virtual IScriptTable* GetScriptTable() final                                { return m_pThis; };
 
 	virtual void          CallEvent(const char* sEvent) final;
@@ -104,8 +104,8 @@ private:
 	CEntityScript* m_pScript;
 	_smart_ptr<IScriptTable> m_pThis;
 
-	float          m_fScriptUpdateTimer;
-	float          m_fScriptUpdateRate;
+	CTimeValue     m_fScriptUpdateTimer;
+	CTimeValue     m_fScriptUpdateRate;
 
 	// Cache Tables.
 	SmartScriptTable m_hitTable;

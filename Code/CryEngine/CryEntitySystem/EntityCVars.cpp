@@ -15,7 +15,7 @@ ICVar* CVar::pEntityBBoxes = NULL;
 ICVar* CVar::pMinImpulseVel = NULL;
 ICVar* CVar::pImpulseScale = NULL;
 ICVar* CVar::pMaxImpulseAdjMass = NULL;
-ICVar* CVar::pDebrisLifetimeScale = NULL;
+ICVar* CVar::debrisLifetimeScale = NULL;
 ICVar* CVar::pHitCharacters = NULL;
 ICVar* CVar::pHitDeadBodies = NULL;
 ICVar* CVar::pEnableFullScriptSave = NULL;
@@ -33,10 +33,10 @@ int CVar::es_UsePhysVisibilityChecks = 1;
 float CVar::es_MaxPhysDist;
 float CVar::es_MaxPhysDistInvisible;
 float CVar::es_MaxPhysDistCloth;
-float CVar::es_FarPhysTimeout;
+CTimeValue CVar::es_FarPhysTimeout;
 int CVar::es_DebugEvents = 0;
 int CVar::es_debugEntityLifetime = 0;
-int CVar::es_DebugEntityUsage = 0;
+CTimeValue CVar::es_DebugEntityUsage = 0;
 const char* CVar::es_DebugEntityUsageFilter = "";
 int CVar::es_DebugEntityUsageSortMode = 0;
 int CVar::es_LayerSaveLoadSerialization = 0;
@@ -150,7 +150,7 @@ void CVar::Init()
 	                               "Usage: es_ImpulseScale 0.0");
 	pMaxImpulseAdjMass = REGISTER_FLOAT("es_MaxImpulseAdjMass", 2000.0f, VF_CHEAT,
 	                                    "Usage: es_MaxImpulseAdjMass 2000.0");
-	pDebrisLifetimeScale = REGISTER_FLOAT("es_DebrisLifetimeScale", 1.0f, 0,
+	debrisLifetimeScale = REGISTER_MPFLOAT("es_DebrisLifetimeScale", mpfloat(1), 0,
 	                                      "Usage: es_DebrisLifetimeScale 1.0");
 	pHitCharacters = REGISTER_INT("es_HitCharacters", 1, 0,
 	                              "specifies whether alive characters are affected by bullet hits (0 or 1)");
@@ -170,10 +170,10 @@ void CVar::Init()
 	REGISTER_CVAR(es_DebugFindEntity, 0, VF_CHEAT, "");
 	REGISTER_CVAR(es_DebugEvents, 0, VF_CHEAT, "Enables logging of entity events");
 
-	REGISTER_CVAR(es_DebugEntityUsage, 0, 0,
+	REGISTER_CVAR(es_DebugEntityUsage, CTimeValue(0), 0,
 	              "Draws information to the screen to show how entities are being used, per class, including total, active and hidden counts and memory usage"
 	              "\nUsage: es_DebugEntityUsage update_rate"
-	              "\nupdate_rate - Time in ms to refresh memory usage calculation or 0 to disable");
+	              "\nupdate_rate - Time in seconds to refresh memory usage calculation or 0 to disable");
 	REGISTER_CVAR(es_DebugEntityUsageFilter, "", 0, "Filter entity usage debugging to classes which have this string in their name");
 	REGISTER_CVAR(es_DebugEntityUsageSortMode, 0, 0, "Determines how es_DebugEntityUsage sorts the visual output\n0 = unsorted\n1 = sort by number of active instances\n2 = sort by memory usage");
 
@@ -203,7 +203,7 @@ void CVar::Init()
 	              "Cloth entities farther from the camera than this are forcefully deactivated");
 	REGISTER_CVAR(es_MaxPhysDistInvisible, 40.0f, 0,
 	              "Invisible physical entities farther from the camera than this are forcefully deactivated");
-	REGISTER_CVAR(es_FarPhysTimeout, 4.0f, 0,
+	REGISTER_CVAR(es_FarPhysTimeout, CTimeValue(4), 0,
 	              "Timeout for faraway physics forceful deactivation");
 
 	pSysSpecLight = gEnv->pConsole->GetCVar("sys_spec_light");

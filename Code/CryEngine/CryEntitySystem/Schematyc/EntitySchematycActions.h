@@ -27,7 +27,7 @@ bool Serialize(Serialization::IArchive& archive, STimerDuration& value, const ch
 		{
 			if (value.units != prevUnits)
 			{
-				value = STimerDuration(uint32(1));
+				value = STimerDuration().Frames(1);
 			}
 			archive(value.frames, "frames", "Duration");
 			break;
@@ -36,7 +36,7 @@ bool Serialize(Serialization::IArchive& archive, STimerDuration& value, const ch
 		{
 			if (value.units != prevUnits)
 			{
-				value = STimerDuration(1.0f);
+				value = STimerDuration(1);
 			}
 			archive(value.seconds, "seconds", "Duration");
 			break;
@@ -45,7 +45,7 @@ bool Serialize(Serialization::IArchive& archive, STimerDuration& value, const ch
 		{
 			if (value.units != prevUnits)
 			{
-				value = STimerDuration(1.0f, 1.0f);
+				value = STimerDuration(1, 1);
 			}
 			archive(value.range.min, "min", "Minimum");
 			archive(value.range.max, "max", "Maximum");
@@ -109,7 +109,7 @@ public:
 	{
 		desc.SetGUID("6937eddc-f25c-44dc-a759-501d2e5da0df"_cry_guid);
 		desc.SetIcon("icons:schematyc/entity_timer_action.png");
-		desc.AddMember(&CEntityTimerAction::m_duration, 'dur', "duration", "Duration", "Timer duration", STimerDuration(0.0f));
+		desc.AddMember(&CEntityTimerAction::m_duration, 'dur', "duration", "Duration", "Timer duration", STimerDuration(0));
 		desc.AddMember(&CEntityTimerAction::m_bAutoStart, 'auto', "bAutoStart", "AutoStart", "Start timer automatically", true);
 		desc.AddMember(&CEntityTimerAction::m_bRepeat, 'rep', "bRepeat", "Repeat", "Repeat timer", false);
 	}
@@ -138,7 +138,7 @@ private:
 
 private:
 
-	STimerDuration m_duration = STimerDuration(0.0f);
+	STimerDuration m_duration = STimerDuration(0);
 	bool           m_bAutoStart = true;
 	bool           m_bRepeat = false;
 

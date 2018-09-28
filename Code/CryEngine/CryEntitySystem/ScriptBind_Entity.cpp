@@ -287,7 +287,7 @@ CScriptBind_Entity::CScriptBind_Entity(IScriptSystem* pSS, ISystem* pSystem)
 	SCRIPT_REG_FUNC(GetCurAnimation);
 	SCRIPT_REG_FUNC(SetTimer);
 	SCRIPT_REG_FUNC(KillTimer);
-	SCRIPT_REG_TEMPLFUNC(SetScriptUpdateRate, "nMilliseconds");
+	SCRIPT_REG_TEMPLFUNC(SetScriptUpdateRate, "updateRate");
 	SCRIPT_REG_TEMPLFUNC(GetAnimationLength, "characterSlot, animation");
 	SCRIPT_REG_TEMPLFUNC(SetAnimationFlip, "characterSlot, flip");
 
@@ -1322,7 +1322,7 @@ int CScriptBind_Entity::LoadFogVolume(IFunctionHandler* pH, int nSlot, SmartScri
 }
 
 //////////////////////////////////////////////////////////////////////////
-int CScriptBind_Entity::FadeGlobalDensity(IFunctionHandler* pH, int nSlot, float fadeTime, float newGlobalDensity)
+int CScriptBind_Entity::FadeGlobalDensity(IFunctionHandler* pH, int nSlot, const CTimeValue fadeTime, float newGlobalDensity)
 {
 	GET_ENTITY;
 	nSlot = pEntity->FadeGlobalDensity(nSlot, fadeTime, newGlobalDensity);
@@ -2569,7 +2569,7 @@ int CScriptBind_Entity::SetStateClientside(IFunctionHandler* pH)
 
 /*! Sets the playback time of a geometry cache
  */
-int CScriptBind_Entity::SetGeomCachePlaybackTime(IFunctionHandler* pH, float time)
+int CScriptBind_Entity::SetGeomCachePlaybackTime(IFunctionHandler* pH, const CTimeValue time)
 {
 #if defined(USE_GEOM_CACHES)
 	GET_ENTITY;
@@ -2623,7 +2623,7 @@ int CScriptBind_Entity::SetGeomCacheParams(IFunctionHandler* pH, bool looping, c
 
 /*! Activates/deactivates geom cache streaming
  */
-int CScriptBind_Entity::SetGeomCacheStreaming(IFunctionHandler* pH, bool active, float time)
+int CScriptBind_Entity::SetGeomCacheStreaming(IFunctionHandler* pH, bool active, const CTimeValue time)
 {
 #if defined(USE_GEOM_CACHES)
 	GET_ENTITY;
@@ -2690,7 +2690,7 @@ int CScriptBind_Entity::GetGeomCachePrecachedTime(IFunctionHandler* pH)
 #if defined(USE_GEOM_CACHES)
 	GET_ENTITY;
 
-	float precachedTime = 0.0f;
+	CTimeValue precachedTime = 0;
 
 	IGeomCacheRenderNode* pGeomCacheRenderNode = pEntity->GetGeomCacheRenderNode(0);
 	if (pGeomCacheRenderNode)
@@ -2701,7 +2701,7 @@ int CScriptBind_Entity::GetGeomCachePrecachedTime(IFunctionHandler* pH)
 	return pH->EndFunction(precachedTime);
 #endif
 
-	return pH->EndFunction(0.0f);
+	return pH->EndFunction(CTimeValue(0));
 }
 
 /*! Starts an animation of a character
@@ -2729,8 +2729,8 @@ int CScriptBind_Entity::StartAnimation(IFunctionHandler* pH)
 	bool bLooping = false;
 	bool bForceSingleFrame(false);
 
-	float fBlendTime = 0.15f;
-	float fAniSpeed = 1.0f;
+	CTimeValue fBlendTime = "0.15";
+	mpfloat fAniSpeed = 1;
 
 	if (pH->GetParamCount() > 2)
 	{
@@ -2771,7 +2771,7 @@ int CScriptBind_Entity::StartAnimation(IFunctionHandler* pH)
 
 	if (stricmp(animname, "nullptr") == 0)
 	{
-		bool result = pCharacter->GetISkeletonAnim()->StopAnimationInLayer(layer, 0.0f);
+		bool result = pCharacter->GetISkeletonAnim()->StopAnimationInLayer(layer, 0);
 		return pH->EndFunction(result);
 	}
 
@@ -2804,7 +2804,7 @@ int CScriptBind_Entity::StartAnimation(IFunctionHandler* pH)
 		return pH->EndFunction(result);
 	}
 
-	float duration = pCharacter->GetIAnimationSet()->GetDuration_sec(animID);
+	CTimeValue duration = pCharacter->GetIAnimationSet()->GetDuration(animID);
 
 	//pISkeleton->SetRedirectToLayer0(1);
 	result = pISkeletonAnim->StartAnimationById(animID, params);
@@ -2819,7 +2819,7 @@ int CScriptBind_Entity::StartAnimation(IFunctionHandler* pH)
 		app.locationAnimation = QuatTS(pEntity->GetRotation(), pEntity->GetPos(), pEntity->GetScale().x);
 		app.bOnRender = 0;
 		app.zoomAdjustedDistanceFromCamera = 0.1f;
-		app.overrideDeltaTime = 0.001f;
+		app.overrideDeltaTime.SetSeconds("0.001");
 		pCharacter->StartAnimationProcessing(app);
 		pCharacter->FinishAnimationComputations();
 		pISkeletonAnim->StopAnimationsAllLayers();
@@ -2844,7 +2844,7 @@ int CScriptBind_Entity::StopAnimation(IFunctionHandler* pH, int characterSlot, i
 		if (layer < 0)
 			pCharacter->GetISkeletonAnim()->StopAnimationsAllLayers();
 		else
-			pCharacter->GetISkeletonAnim()->StopAnimationInLayer(layer, 0.0f);
+			pCharacter->GetISkeletonAnim()->StopAnimationInLayer(layer, 0);
 	}
 
 	return pH->EndFunction();
@@ -4912,7 +4912,7 @@ int CScriptBind_Entity::DisableAnimationEvent(IFunctionHandler* pH, int nSlot, c
 }
 
 //////////////////////////////////////////////////////////////////////////
-int CScriptBind_Entity::SetAnimationSpeed(IFunctionHandler* pH, int characterSlot, int layer, float speed)
+int CScriptBind_Entity::SetAnimationSpeed(IFunctionHandler* pH, int characterSlot, int layer, const mpfloat speed)
 {
 	GET_ENTITY;
 
@@ -4934,10 +4934,10 @@ int CScriptBind_Entity::SetAnimationSpeed(IFunctionHandler* pH, int characterSlo
 }
 
 //////////////////////////////////////////////////////////////////////////
-int CScriptBind_Entity::SetAnimationTime(IFunctionHandler* pH, int nSlot, int nLayer, float fNormalizedTime)
+int CScriptBind_Entity::SetAnimationTime(IFunctionHandler* pH, int nSlot, int nLayer, const nTime fNormalizedTime)
 {
 	GET_ENTITY;
-	CRY_ASSERT(fNormalizedTime >= 0.0f && fNormalizedTime <= 1.0f);
+	CRY_ASSERT(fNormalizedTime >= 0 && fNormalizedTime <= 1);
 	ICharacterInstance* pCharacter = pEntity->GetCharacter(nSlot);
 	if (pCharacter)
 	{
@@ -4951,7 +4951,7 @@ int CScriptBind_Entity::GetAnimationTime(IFunctionHandler* pH, int nSlot, int nL
 {
 	GET_ENTITY;
 
-	float fTime = 0;
+	nTime fTime = 0;
 	ICharacterInstance* pCharacter = pEntity->GetCharacter(nSlot);
 	if (pCharacter)
 	{
@@ -5411,9 +5411,9 @@ int CScriptBind_Entity::SetTimer(IFunctionHandler* pH)
 {
 	GET_ENTITY;
 	int timerId = 0;
-	int msec = 0;
-	pH->GetParams(timerId, msec);
-	pEntity->SetTimer(timerId, msec);
+	CTimeValue time = 0;
+	pH->GetParams(timerId, time);
+	pEntity->SetTimer(timerId, time);
 	return pH->EndFunction();
 }
 
@@ -5427,14 +5427,14 @@ int CScriptBind_Entity::KillTimer(IFunctionHandler* pH)
 	return pH->EndFunction();
 }
 
-int CScriptBind_Entity::SetScriptUpdateRate(IFunctionHandler* pH, int nMillis)
+int CScriptBind_Entity::SetScriptUpdateRate(IFunctionHandler* pH, const CTimeValue updateRate)
 {
 	GET_ENTITY;
 
 	IEntityScriptComponent* pScriptProxy = (IEntityScriptComponent*)pEntity->GetProxy(ENTITY_PROXY_SCRIPT);
 	if (pScriptProxy)
 	{
-		pScriptProxy->SetScriptUpdateRate(((float)nMillis) / 1000.0f);
+		pScriptProxy->SetScriptUpdateRate(updateRate);
 	}
 
 	return pH->EndFunction();
@@ -5763,7 +5763,7 @@ int CScriptBind_Entity::GetAnimationLength(IFunctionHandler* pH, int characterSl
 
 	ICharacterInstance* pCharacter = pEntity->GetCharacter(characterSlot);
 
-	float length = 0.0f;
+	CTimeValue length;
 
 	if (pCharacter)
 	{
@@ -5774,7 +5774,7 @@ int CScriptBind_Entity::GetAnimationLength(IFunctionHandler* pH, int characterSl
 		}
 		else
 		{
-			length = pCharacter->GetIAnimationSet()->GetDuration_sec(id);
+			length = pCharacter->GetIAnimationSet()->GetDuration(id);
 		}
 		/*
 		   int AnimID = pCharacter->GetIAnimationSet()->GetIDByName(animation);
@@ -6737,7 +6737,7 @@ int CScriptBind_Entity::GetTimeSinceLastSeen(IFunctionHandler* pH)
 
 	IEntityRender* pIEntityRender = pEntity->GetRenderInterface();
 
-	return pH->EndFunction(pIEntityRender ? gEnv->pTimer->GetCurrTime() - pIEntityRender->GetLastSeenTime() : gEnv->pTimer->GetCurrTime());
+	return pH->EndFunction(pIEntityRender ? GetGTimer()->GetFrameStartTime() - pIEntityRender->GetLastSeenTime() : GetGTimer()->GetFrameStartTime());
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -7297,7 +7297,7 @@ bool CScriptBind_Entity::ParseLightParams(IScriptTable* pLightTable, SRenderLigh
 	if (chain.GetValue("style", nLightStyle))
 		light.m_nLightStyle = (uint8) nLightStyle;
 
-	float fAnimSpeed = 0.0f;
+	mpfloat fAnimSpeed = 0;
 	chain.GetValue("anim_speed", fAnimSpeed);
 	light.SetAnimSpeed(fAnimSpeed);
 
@@ -7706,10 +7706,10 @@ bool CScriptBind_Entity::ParseFogVolumesParams(IScriptTable* pTable, CEntity* pE
 	if (false != chain.GetValue("DensityNoiseOffset", densityNoiseOffset))
 		properties.m_densityNoiseOffset = clamp_tpl(densityNoiseOffset, -20.0f, 20.0f);
 
-	float densityNoiseTimeFrequency;
-	properties.m_densityNoiseTimeFrequency = 0.0f;
+	mpfloat densityNoiseTimeFrequency;
+	properties.m_densityNoiseTimeFrequency = 0;
 	if (false != chain.GetValue("DensityNoiseTimeFrequency", densityNoiseTimeFrequency))
-		properties.m_densityNoiseTimeFrequency = clamp_tpl(densityNoiseTimeFrequency, 0.0f, 10.0f);
+		properties.m_densityNoiseTimeFrequency = CLAMP(densityNoiseTimeFrequency, 0, 10);
 
 	Vec3 densityNoiseFrequency;
 	properties.m_densityNoiseFrequency = Vec3(1.0f, 1.0f, 1.0f);
@@ -8393,7 +8393,7 @@ int CScriptBind_Entity::CreateCameraProxy(IFunctionHandler* pH)
 }
 
 //////////////////////////////////////////////////////////////////////////
-int CScriptBind_Entity::BreakToPieces(IFunctionHandler* pH, int nSlot, int nPiecesSlot, float fExplodeImp, Vec3 vHitPt, Vec3 vHitImp, float fLifeTime, bool bMaterialEffects)
+int CScriptBind_Entity::BreakToPieces(IFunctionHandler* pH, int nSlot, int nPiecesSlot, float fExplodeImp, Vec3 vHitPt, Vec3 vHitImp, const CTimeValue fLifeTime, bool bMaterialEffects)
 {
 	GET_ENTITY;
 
@@ -8597,7 +8597,7 @@ int CScriptBind_Entity::RenderAlways(IFunctionHandler* pH, int enable)
 //////////////////////////////////////////////////////////////////////////
 int CScriptBind_Entity::GetTimeOfDayHour(IFunctionHandler* pH)
 {
-	float curTime = gEnv->p3DEngine->GetTimeOfDay()->GetTime();
+	CTimeValue curTime = gEnv->p3DEngine->GetTimeOfDay()->GetTime();
 	return pH->EndFunction(curTime);
 }
 

@@ -532,7 +532,7 @@ void CAreaManager::ProcessArea(
 				{
 					RetrieveEnvironmentAmount(pArea, 1.0f, 0.0f, INVALID_ENTITYID, areaEnvironments);
 
-					SEntityEvent event(entityId, 0, 0, 0, 1.0f, 0.0f, 0.0f, pos);
+					SEntityEvent event(entityId, 0, 0, 0, 1.0f, 0.0f, 0.0f, pos, 0);
 					event.event = ENTITY_EVENT_MOVEINSIDEAREA;
 					pArea->AddCachedEvent(event);
 				}
@@ -575,7 +575,7 @@ void CAreaManager::ProcessArea(
 				RetrieveEnvironmentAmount(pArea, 0.0f, distance, INVALID_ENTITYID, areaEnvironments);
 
 				CRY_ASSERT(areaCacheEntry.bNear && !areaCacheEntry.bInside); // We must be near but not inside yet!
-				SEntityEvent event(entityId, 0, 0, 0, distance, 0.0f, 0.0f, Closest3d);
+				SEntityEvent event(entityId, 0, 0, 0, distance, 0.0f, 0.0f, Closest3d, 0);
 				event.event = ENTITY_EVENT_MOVENEARAREA;
 				pArea->AddCachedEvent(event);
 			}

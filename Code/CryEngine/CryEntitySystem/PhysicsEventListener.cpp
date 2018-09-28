@@ -113,7 +113,7 @@ int CPhysicsEventListener::OnPostStep(const EventPhys* pEvent)
 		if ((-bFaraway & IRenderNode::WAS_FARAWAY) != (pRndNode->m_nInternalFlags & IRenderNode::WAS_FARAWAY))
 		{
 			pe_params_timeout pto;
-			pto.timeIdle = 0;
+			pto.timeIdle.SetSeconds(0);
 			pto.maxTimeIdle = bFaraway * CVar::es_FarPhysTimeout;
 			pPostStep->pEntity->SetParams(&pto);
 			(pRndNode->m_nInternalFlags &= ~IRenderNode::WAS_FARAWAY) |= -bFaraway & IRenderNode::WAS_FARAWAY;
@@ -130,7 +130,7 @@ int CPhysicsEventListener::OnPostStepImmediate(const EventPhys* pEvent)
 	if (CEntity* pEntity = GetEntity(pPostStep->pForeignData, pPostStep->iForeignData))
 	{
 		SEntityEvent event(ENTITY_EVENT_PHYS_POSTSTEP);
-		event.fParam[0] = pPostStep->dt;
+		event.tVal = pPostStep->dt;
 		pEntity->SendEvent(event);
 	}
 

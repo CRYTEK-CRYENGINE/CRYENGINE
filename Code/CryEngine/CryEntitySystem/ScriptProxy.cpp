@@ -20,8 +20,8 @@ CRYREGISTER_CLASS(CEntityComponentLuaScript);
 //////////////////////////////////////////////////////////////////////////
 CEntityComponentLuaScript::CEntityComponentLuaScript()
 	: m_pScript(nullptr)
-	, m_fScriptUpdateRate(0.0f)
-	, m_fScriptUpdateTimer(0.0f)
+	, m_fScriptUpdateRate(0)
+	, m_fScriptUpdateTimer(0)
 	, m_currentStateId(0)
 	, m_implementedUpdateFunction(false)
 	, m_isUpdateEnabled(false)
@@ -41,8 +41,8 @@ void CEntityComponentLuaScript::ChangeScript(IEntityScript* pScript, SEntitySpaw
 
 		m_pScript = static_cast<CEntityScript*>(pScript);
 		m_currentStateId = 0;
-		m_fScriptUpdateRate = 0;
-		m_fScriptUpdateTimer = 0;
+		m_fScriptUpdateRate.SetSeconds(0);
+		m_fScriptUpdateTimer.SetSeconds(0);
 		m_enableSoundAreaEvents = false;
 
 		// New object must be created here.
@@ -122,7 +122,7 @@ void CEntityComponentLuaScript::CreateScriptTable(SEntitySpawnParams* pSpawnPara
 void CEntityComponentLuaScript::Update(SEntityUpdateContext& ctx)
 {
 	// Shouldn't be the case, but we must not call Lua with a 0 frametime to avoid potential FPE
-	assert(ctx.fFrameTime > FLT_EPSILON);
+	assert(ctx.fFrameTime > TV_EPSILON);
 
 	if (CVar::pUpdateScript->GetIVal())
 	{
@@ -179,8 +179,8 @@ void CEntityComponentLuaScript::ProcessEvent(const SEntityEvent& event)
 		}
 		break;
 	case ENTITY_EVENT_TIMER:
-		// OnTimer( nTimerId,nMilliseconds )
-		m_pScript->CallStateFunction(CurrentState(), m_pThis.get(), ScriptState_OnTimer, (int)event.nParam[0], (int)event.nParam[1]);
+		// OnTimer(nTimerId, nTime)
+		m_pScript->CallStateFunction(CurrentState(), m_pThis.get(), ScriptState_OnTimer, (int)event.nParam[0], event.tVal);
 		break;
 	case ENTITY_EVENT_XFORM:
 		// OnMove()

@@ -128,7 +128,7 @@ void CEntityComponentArea::OnEnable(bool bIsEnable, bool bIsCallScript)
 			physparams.type = PE_AREA;
 			m_areaDefinition.pGravityParams = &m_gravityParams;
 
-			m_pEntity->SetTimer(0, 11000);
+			m_pEntity->SetTimer(0, 11);
 		}
 		m_pEntity->Physicalize(physparams);
 
@@ -713,7 +713,7 @@ void CEntityComponentArea::SetGravityVolume(const Vec3* pPoints, int nNumPoints,
 		memcpy(&m_bezierPoints[0], pPoints, nNumPoints * sizeof(Vec3));
 
 	if (!bDontDisableInvisible)
-		m_pEntity->SetTimer(0, 11000);
+		m_pEntity->SetTimer(0, 11);
 
 	m_pArea->SetAreaType(ENTITY_AREA_TYPE_GRAVITYVOLUME);
 }
