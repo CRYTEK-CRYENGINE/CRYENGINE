@@ -1201,7 +1201,7 @@ void CPreviewModelCtrl::ProcessKeys()
 
 	Vec3 pos = m.GetTranslation();
 
-	float speedScale = 60.0f * GetIEditor()->GetSystem()->GetITimer()->GetFrameTime();
+	float speedScale = 60.0f * GetIEditor()->GetSystem()->GetITimer()->GetFrameTime().BADGetSeconds();
 	if (speedScale > 20) speedScale = 20;
 
 	speedScale *= 0.04f;

@@ -26,8 +26,8 @@ private:
 
 	virtual bool                        KeysHaveDuration() const override { return true; }
 
-	virtual SAnimTime                   GetKeyDuration(const uint index) const override;
-	virtual SAnimTime                   GetKeyAnimDuration(const uint index) const override;
-	virtual SAnimTime                   GetKeyAnimStart(const uint index) const override;
+	virtual CTimeValue                   GetKeyDuration(const uint index) const override;
+	virtual CTimeValue                   GetKeyAnimDuration(const uint index) const override;
+	virtual CTimeValue                   GetKeyAnimStart(const uint index) const override;
 };
 

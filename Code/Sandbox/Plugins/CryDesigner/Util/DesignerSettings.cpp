@@ -292,12 +292,12 @@ void DesignerExclusiveMode::SetObjectsFlagForExclusiveMode()
 	}
 }
 
-void DesignerExclusiveMode::SetTime(ITimeOfDay* pTOD, float fTime)
+void DesignerExclusiveMode::SetTime(ITimeOfDay* pTOD, const CTimeValue& fTime)
 {
 	if (pTOD == NULL)
 		return;
 	pTOD->SetTime(fTime, true);
-	GetIEditor()->SetConsoleVar("e_TimeOfDay", fTime);
+	GetIEditor()->SetConsoleTime("e_TimeOfDay", fTime);
 
 	pTOD->Update(false, true);
 	GetIEditor()->Notify(eNotify_OnTimeOfDayChange);
@@ -315,7 +315,7 @@ void DesignerExclusiveMode::SetTimeOfDayForExclusiveMode()
 		ITimeOfDay* pTimeOfDay = GetIEditor()->Get3DEngine()->GetTimeOfDay();
 
 		m_OldTimeOfDay = GetIEditor()->GetSystem()->CreateXmlNode();
-		m_OldTimeOfTOD = GetIEditor()->GetConsoleVar("e_TimeOfDay");
+		m_OldTimeOfTOD = GetIEditor()->GetConsoleTime("e_TimeOfDay");
 		pTimeOfDay->Serialize(m_OldTimeOfDay, false);
 
 		pTimeOfDay->Serialize(root, true);

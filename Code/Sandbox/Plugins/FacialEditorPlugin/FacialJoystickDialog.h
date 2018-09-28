@@ -36,8 +36,8 @@ protected:
 	virtual void              OnAction(JoystickAction action);
 	virtual void              OnFreezeLayoutChanged();
 	virtual IJoystickChannel* GetPotentialJoystickChannel();
-	virtual float             GetCurrentEvaluationTime();
-	virtual float             GetMaxEvaluationTime();
+	virtual CTimeValue        GetCurrentEvaluationTime();
+	virtual CTimeValue        GetMaxEvaluationTime();
 	virtual void              OnSplineChanged();
 	virtual void              OnJoysticksChanged();
 	virtual void              OnBeginDraggingJoystickKnob(IJoystick* pJoystick);

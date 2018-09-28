@@ -23,8 +23,8 @@ public:
 			eKeyLoop,
 			eKeyEnd
 		};
-		SelectedKey() : pNode(NULL), pTrack(NULL), nKey(-1), fTime(0.0f), eTimeType(eKeyBegin) {}
-		SelectedKey(CSequencerNode* node, CSequencerTrack* track, int key, float time, EKeyTimeType timeType) :
+		SelectedKey() : pNode(NULL), pTrack(NULL), nKey(-1), fTime(0), eTimeType(eKeyBegin) {}
+		SelectedKey(CSequencerNode* node, CSequencerTrack* track, int key, const CTimeValue& time, EKeyTimeType timeType) :
 			pNode(node),
 			pTrack(track),
 			nKey(key),
@@ -36,7 +36,7 @@ public:
 		_smart_ptr<CSequencerNode>  pNode;
 		_smart_ptr<CSequencerTrack> pTrack;
 		int                         nKey;
-		float                       fTime;
+		CTimeValue                  fTime;
 		EKeyTimeType                eTimeType;
 	};
 	struct SelectedKeys
@@ -61,7 +61,7 @@ public:
 	static int  GetSelectedTracks(CSequencerSequence* pSequence, SelectedTracks& selectedTracks);
 	// Check whether only one track or subtracks belong to one same track is/are selected.
 	static bool IsOneTrackSelected(const SelectedTracks& selectedTracks);
-	static int  GetKeysInTimeRange(const CSequencerSequence* pSequence, SelectedKeys& selectedKeys, const float t0, const float t1);
+	static int  GetKeysInTimeRange(const CSequencerSequence* pSequence, SelectedKeys& selectedKeys, const CTimeValue& t0, const CTimeValue& t1);
 	static bool CanAnyKeyBeMoved(const SelectedKeys& selectedKeys);
 };
 

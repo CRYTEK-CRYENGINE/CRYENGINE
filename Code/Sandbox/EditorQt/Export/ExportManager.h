@@ -62,7 +62,7 @@ private:
 	void SolveHierarchy();
 
 	void AddPosRotScale(SExportObject* pObj, const CBaseObject* pBaseObj);
-	void AddEntityData(SExportObject* pObj, EAnimParamType dataType, const float fValue, const float fTime);
+	void AddEntityData(SExportObject* pObj, EAnimParamType dataType, const float fValue, const CTimeValue& fTime);
 
 	bool IsDuplicateObjectBeingAdded(const string& newObject);
 

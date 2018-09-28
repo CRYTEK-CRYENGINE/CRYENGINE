@@ -51,8 +51,8 @@ public:
 	void            GetUsedWeapons(std::vector<CString>& weapons);
 	void            SetUsedWeapons(const std::vector<CString>& weapons);
 
-	void            SetTime(float time)                           { m_time = time; };
-	float           GetTime() const                               { return m_time; };
+	void            SetTime(const CTimeValue& time)               { m_time = time; };
+	const CTimeValue& GetTime() const                             { return m_time; };
 
 	void            SetPlayerEquipPack(const CString& sEquipPack) { m_sPlayerEquipPack = sEquipPack; }
 	const CString&  GetPlayerEquipPack()                          { return m_sPlayerEquipPack; }
@@ -115,7 +115,7 @@ private:
 	CString      m_sPlayerEquipPack;
 
 	//! Mission time;
-	float m_time;
+	CTimeValue m_time;
 
 	//! Root node of objects defined only in this mission.
 	XmlNodeRef m_objects;

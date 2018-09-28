@@ -767,17 +767,17 @@ void CFacialEditorDialog::LoadC3DFile(const char* filename)
 	//////////////////////////////////////////////////////////////////////////
 	// process all frames
 
-	float fInvFPS = 1.0f / fFreq;
-	float fTotalTime = (float)(nFrames) * fInvFPS;
+	mpfloat fInvFPS = 1 / BADMP(fFreq);
+	CTimeValue fTotalTime = (mpfloat)(nFrames) * fInvFPS;
 
-	float fStartTime = m_pContext->GetSequenceTime();
+	CTimeValue fStartTime = m_pContext->GetSequenceTime();
 
-	m_pContext->GetSequence()->SetTimeRange(Range(0, fStartTime + fTotalTime));
+	m_pContext->GetSequence()->SetTimeRange(TRange<CTimeValue>(0, fStartTime + fTotalTime));
 	m_pContext->SendEvent(EFD_EVENT_SEQUENCE_CHANGE);
 
 	for (int j = 0; j < nFrames; j++)
 	{
-		float fCurrentTime = (float)(j) * fInvFPS;
+		CTimeValue fCurrentTime = j * fInvFPS;
 
 		for (int k = 0; k < FA_NUM_MARKERS; k++)
 		{

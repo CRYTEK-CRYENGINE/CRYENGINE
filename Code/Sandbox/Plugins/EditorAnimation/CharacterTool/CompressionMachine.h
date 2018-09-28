@@ -74,9 +74,9 @@ public:
 
 	void        SetCharacters(ICharacterInstance* uncompressedCharacter, ICharacterInstance* compressedCharacter);
 	void        SetLoop(bool loop);
-	void        SetPlaybackSpeed(float speed);
-	void        PreviewAnimation(const PlaybackLayers& layers, const vector<bool>& isModified, bool showOriginalAnimation, const vector<SAnimSettings>& animSettings, float normalizedTime, bool forceRecompile, bool expectToReloadChrparams);
-	void        Play(float normalizedTime);
+	void        SetPlaybackSpeed(const mpfloat& speed);
+	void        PreviewAnimation(const PlaybackLayers& layers, const vector<bool>& isModified, bool showOriginalAnimation, const vector<SAnimSettings>& animSettings, const nTime& normalizedTime, bool forceRecompile, bool expectToReloadChrparams);
+	void        Play(const nTime& normalizedTime);
 	const char* AnimationPathConsideringPreview(const char* inputCaf) const;
 
 	void        Reset();
@@ -168,10 +168,10 @@ private:
 	vector<bool>                          m_layerAnimationsModified;
 	vector<SAnimSettings>                 m_animSettings;
 
-	float                                 m_normalizedStartTime;
+	nTime                                 m_normalizedStartTime;
 	bool                                  m_showOriginalAnimation;
 	bool                                  m_loop;
-	float                                 m_playbackSpeed;
+	mpfloat                               m_playbackSpeed;
 
 	ICharacterInstance*                   m_uncompressedCharacter;
 	ICharacterInstance*                   m_compressedCharacter;

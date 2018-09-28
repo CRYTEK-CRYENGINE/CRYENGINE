@@ -64,7 +64,7 @@ enum EEntityObjectType
 struct EntityAnimData
 {
 	EAnimParamType dataType;
-	float          keyTime;
+	CTimeValue     keyTime;
 	float          keyValue;
 	float          leftTangent;
 	float          rightTangent;

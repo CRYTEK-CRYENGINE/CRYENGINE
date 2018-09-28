@@ -792,9 +792,9 @@ void CModelViewport::Update()
 			{
 				const float x = float(IRenderAuxGeom::GetAux()->GetCamera().GetViewSurfaceX() - 5);
 				const float y = float(IRenderAuxGeom::GetAux()->GetCamera().GetViewSurfaceZ());
-				const float fps = gEnv->pTimer->GetFrameRate();
+				const rTime fps = GetGTimer()->GetFrameRate();
 
-				gEnv->p3DEngine->DrawTextRightAligned(x, 1, "FPS: %.2f", fps);
+				gEnv->p3DEngine->DrawTextRightAligned(x, 1, "FPS: %.2f", (float)fps);
 
 				int nPolygons, nShadowVolPolys;
 				gEnv->pRenderer->GetPolyCount(nPolygons, nShadowVolPolys);
@@ -985,7 +985,7 @@ void CModelViewport::SetPaused(bool bPaused)
 		{
 			if (GetCharacterBase())
 			{
-				GetCharacterBase()->SetPlaybackScale(0.0f);
+				GetCharacterBase()->SetPlaybackScale(0);
 				AllowAnimEventsToTriggerAgain(*GetCharacterBase());
 			}
 		}

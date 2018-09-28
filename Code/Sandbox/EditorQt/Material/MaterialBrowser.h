@@ -171,7 +171,7 @@ private:
 	CXTPControlEdit* m_pEdit;
 
 	CString          m_filterText;
-	float            m_fIdleFilterTextTime;
+	CTimeValue       m_fIdleFilterTextTime;
 	EFilter          m_curFilter;
 };
 
@@ -329,7 +329,7 @@ private:
 
 	CMaterial*              m_pLastActiveMultiMaterial;
 
-	float                   m_fIdleSaveMaterialTime;
+	CTimeValue              m_fIdleSaveMaterialTime;
 	bool                    m_bShowOnlyCheckedOut;
 
 	HCURSOR                 m_hCursorDefault;

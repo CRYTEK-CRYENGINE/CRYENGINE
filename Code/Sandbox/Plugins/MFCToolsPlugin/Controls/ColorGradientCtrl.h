@@ -38,7 +38,7 @@ public:
 	// Turns on/off zooming and scroll support.
 	void                 SetNoZoom(bool bNoZoom)                { m_bNoZoom = false; };
 
-	void                 SetTimeRange(float tmin, float tmax)   { m_fMinTime = tmin; m_fMaxTime = tmax; }
+	void                 SetTimeRange(const CTimeValue& tmin, const CTimeValue& tmax)   { m_fMinTime = tmin; m_fMaxTime = tmax; }
 	void                 SetValueRange(float tmin, float tmax)  { m_fMinValue = tmin; m_fMaxValue = tmax; }
 	void                 SetTooltipValueScale(float x, float y) { m_fTooltipScaleX = x; m_fTooltipScaleY = y; };
 	// Lock value of first and last key to be the same.
@@ -47,7 +47,7 @@ public:
 	void                 SetSpline(ISplineInterpolator* pSpline, BOOL bRedraw = FALSE);
 	ISplineInterpolator* GetSpline();
 
-	void                 SetTimeMarker(float fTime);
+	void                 SetTimeMarker(const CTimeValue& fTime);
 
 	// Zoom in pixels per time unit.
 	void SetZoom(float fZoom);
@@ -95,13 +95,13 @@ protected:
 	void     EditKey(int nKey);
 
 	CPoint   KeyToPoint(int nKey);
-	CPoint   TimeToPoint(float time);
-	void     PointToTimeValue(CPoint point, float& time, ISplineInterpolator::ValueType& val);
-	float    XOfsToTime(int x);
+	CPoint   TimeToPoint(const CTimeValue& time);
+	void     PointToTimeValue(CPoint point, CTimeValue& time, ISplineInterpolator::ValueType& val);
+	CTimeValue XOfsToTime(int x);
 	CPoint   XOfsToPoint(int x);
 
 	COLORREF XOfsToColor(int x);
-	COLORREF TimeToColor(float time);
+	COLORREF TimeToColor(const CTimeValue& time);
 
 	void     ClearSelection();
 
@@ -129,14 +129,14 @@ private:
 	int                  m_nHitKeyDist;
 	CPoint               m_curvePoint;
 
-	float                m_fTimeMarker;
+	CTimeValue           m_fTimeMarker;
 
 	int                  m_nActiveKey;
 	int                  m_nKeyDrawRadius;
 
 	bool                 m_bTracking;
 
-	float                m_fMinTime, m_fMaxTime;
+	CTimeValue           m_fMinTime, m_fMaxTime;
 	float                m_fMinValue, m_fMaxValue;
 	float                m_fTooltipScaleX, m_fTooltipScaleY;
 

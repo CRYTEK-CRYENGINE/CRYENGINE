@@ -33,7 +33,7 @@ struct DesignerExclusiveMode
 	DesignerExclusiveMode()
 	{
 		m_OldTimeOfDay = NULL;
-		m_OldTimeOfTOD = 0;
+		m_OldTimeOfTOD.SetSeconds(0);
 		m_OldCameraTM = Matrix34::CreateIdentity();
 		m_OldObjectHideMask = 0;
 		m_bOldLockCameraMovement = false;
@@ -52,12 +52,12 @@ struct DesignerExclusiveMode
 
 	void CenterCameraForExclusiveMode();
 
-	void SetTime(ITimeOfDay* pTOD, float fTime);
+	void SetTime(ITimeOfDay* pTOD, const CTimeValue& fTime);
 
 	ConsoleVarsForExcluisveMode  m_OldConsoleVars;
 	std::map<CBaseObject*, bool> m_ObjectHiddenFlagMap;
 	XmlNodeRef                   m_OldTimeOfDay;
-	float                        m_OldTimeOfTOD;
+	CTimeValue                   m_OldTimeOfTOD;
 	Matrix34                     m_OldCameraTM;
 	int                          m_OldObjectHideMask;
 	bool                         m_bOldLockCameraMovement;

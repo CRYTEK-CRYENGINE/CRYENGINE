@@ -58,7 +58,7 @@ public:
 	CSequencerTrack*           GetTrackForParameter(ESequencerParamType nParamId) const;
 	CSequencerTrack*           GetTrackForParameter(ESequencerParamType nParamId, uint32 index) const;
 
-	void                       SetTimeRange(Range timeRange);
+	void                       SetTimeRange(TRange<CTimeValue> timeRange);
 
 	bool                       GetStartExpanded() const
 	{

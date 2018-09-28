@@ -250,8 +250,8 @@ void CWindAreaEntity::Display(CObjectRenderHelper& objRenderHelper)
 	Vec3 samples[8][8][8];
 	QuatT transform(pos.pos, pos.q);
 	AABB bbox = AABB(pos.BBox[0], pos.BBox[1]);
-	float frameTime = gEnv->pTimer->GetCurrTime();
-	float theta = frameTime - floor(frameTime);
+	CTimeValue frameTime = GetGTimer()->GetFrameStartTime();
+	float theta = BADF (frameTime.GetSeconds() - floor(frameTime.GetSeconds()));
 
 	float len[3] =
 	{

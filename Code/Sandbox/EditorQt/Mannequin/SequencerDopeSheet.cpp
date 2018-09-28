@@ -88,7 +88,7 @@ void CSequencerDopeSheet::DrawTrack(int item, CDC* dc, CRect& rcItem)
 	XTPPaintManager()->GradientFill(dc, rcOutside, RGB(210, 210, 210), RGB(180, 180, 180), FALSE);
 
 	// Get time range of update rectangle.
-	Range timeRange = GetTimeRange(rcItem);
+	TRange<CTimeValue> timeRange = GetTimeRange(rcItem);
 
 	// Draw keys in time range.
 	DrawKeys(track, dc, rcInner, timeRange, DRAW_BACKGROUND);
@@ -99,7 +99,7 @@ void CSequencerDopeSheet::DrawTrack(int item, CDC* dc, CRect& rcItem)
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CSequencerDopeSheet::DrawKeys(CSequencerTrack* track, CDC* dc, CRect& rc, Range& timeRange, EDSRenderFlags renderFlags)
+void CSequencerDopeSheet::DrawKeys(CSequencerTrack* track, CDC* dc, CRect& rc, TRange<CTimeValue>& timeRange, EDSRenderFlags renderFlags)
 {
 	enum EBlendType
 	{
@@ -120,11 +120,11 @@ void CSequencerDopeSheet::DrawKeys(CSequencerTrack* track, CDC* dc, CRect& rc, R
 	const int numKeys = track->GetNumKeys();
 	for (int i = 0; i < numKeys; i++)
 	{
-		const float keyTime = track->GetKeyTime(i);
+		const CTimeValue keyTime = track->GetKeyTime(i);
 		const int xKeyTime = TimeToClient(keyTime);
 		if (xKeyTime - 10 > rc.right)
 			continue;
-		const float nextKeyTime = i + 1 < numKeys ? track->GetKeyTime(i + 1) : FLT_MAX;
+		const CTimeValue nextKeyTime = i + 1 < numKeys ? track->GetKeyTime(i + 1) : CTimeValue::Max();
 
 		int xClipStart = xKeyTime;
 		int xClipCurrent = xKeyTime;
@@ -134,16 +134,16 @@ void CSequencerDopeSheet::DrawKeys(CSequencerTrack* track, CDC* dc, CRect& rc, R
 
 		// Get info about this key.
 		const char* description = NULL;
-		float tempDuration = 0;
+		CTimeValue tempDuration = 0;
 		track->GetKeyInfo(i, description, tempDuration);
-		const float duration = tempDuration;  // so that I can avoid using a non-const version, helpful for learning the code
-		const bool hasDuration = (duration > 0.0f);
-		const float keyTimeEnd = MIN(keyTime + duration, nextKeyTime);
+		const CTimeValue duration = tempDuration;  // so that I can avoid using a non-const version, helpful for learning the code
+		const bool hasDuration = (duration > 0);
+		const CTimeValue keyTimeEnd = MIN(keyTime + duration, nextKeyTime);
 		const int xKeyTimeEnd = TimeToClient(keyTimeEnd);
 
 		bool showBlend = false;
 		bool isLooping = false;
-		float startTime = 0.0;
+		CTimeValue startTime = 0;
 		EBlendType blendType = B_Entry;
 		bool limitTextToDuration = false;
 		bool hasValidAnim = true;
@@ -160,9 +160,9 @@ void CSequencerDopeSheet::DrawKeys(CSequencerTrack* track, CDC* dc, CRect& rc, R
 				tempDuration = clipKey.GetDuration();
 			}
 
-			if (clipKey.blendDuration > 0.0f)
+			if (clipKey.blendDuration > 0)
 			{
-				const float endt = min(keyTime + clipKey.blendDuration, m_timeRange.end);
+				const CTimeValue endt = min(keyTime + clipKey.blendDuration, m_timeRange.end);
 				xClipCurrent = TimeToClient(endt);
 				showBlend = true;
 				if (clipKey.animRef.IsEmpty())
@@ -175,9 +175,9 @@ void CSequencerDopeSheet::DrawKeys(CSequencerTrack* track, CDC* dc, CRect& rc, R
 			CProcClipKey procKey;
 			track->GetKey(i, &procKey);
 
-			if (procKey.blendDuration > 0.0f)
+			if (procKey.blendDuration > 0)
 			{
-				const float endt = min(keyTime + procKey.blendDuration, m_timeRange.end);
+				const CTimeValue endt = min(keyTime + procKey.blendDuration, m_timeRange.end);
 				xClipCurrent = TimeToClient(endt);
 				showBlend = true;
 				if (procKey.typeNameHash.IsEmpty())
@@ -189,7 +189,7 @@ void CSequencerDopeSheet::DrawKeys(CSequencerTrack* track, CDC* dc, CRect& rc, R
 			CFragmentKey fragKey;
 			track->GetKey(i, &fragKey);
 
-			const float keyStartTime = (fragKey.transition) ? (max(keyTime, fragKey.tranStartTime) + fragKey.transitionTime) : keyTime;
+			const CTimeValue keyStartTime = (fragKey.transition) ? (max(keyTime, fragKey.tranStartTime) + fragKey.transitionTime) : keyTime;
 			xClipCurrent = xClipStart = TimeToClient(keyStartTime);
 			limitTextToDuration = fragKey.transition;
 		}
@@ -206,11 +206,11 @@ void CSequencerDopeSheet::DrawKeys(CSequencerTrack* track, CDC* dc, CRect& rc, R
 			{
 				const CTransitionPropertyTrack* pPropTrack = (CTransitionPropertyTrack*)track;
 
-				float cycleTime = 0.0f;
+				CTimeValue cycleTime = 0;
 				if (propsKey.tranFlags & SFragmentBlend::Cyclic)
 				{
-					float cycle = (propsKey.m_time - propsKey.prevClipStart) / max(propsKey.prevClipDuration, 0.1f);
-					cycle = (float)(int)cycle;                                                // 0-based index of the cycle the propsKey is set in
+					nTime cycle = (propsKey.m_time - propsKey.prevClipStart) / max(propsKey.prevClipDuration, CTimeValue("0.1"));
+					cycle = (int)cycle;																		  // 0-based index of the cycle the propsKey is set in
 					cycleTime = (cycle * propsKey.prevClipDuration) + propsKey.prevClipStart; // time of the start of the cycle this propsKey is set in
 				}
 
@@ -223,7 +223,7 @@ void CSequencerDopeSheet::DrawKeys(CSequencerTrack* track, CDC* dc, CRect& rc, R
 					const SFragmentBlend* pFragmentBlend = pPropTrack->GetAlternateBlendForKey(i, b);
 					if (pFragmentBlend)
 					{
-						const float blendSelectTime = (pFragmentBlend->flags & SFragmentBlend::Cyclic) ?
+						const CTimeValue blendSelectTime = (pFragmentBlend->flags & SFragmentBlend::Cyclic) ?
 						                              cycleTime + (pFragmentBlend->selectTime * propsKey.prevClipDuration) :
 						                              propsKey.prevClipStart + pFragmentBlend->selectTime;
 
@@ -257,14 +257,14 @@ void CSequencerDopeSheet::DrawKeys(CSequencerTrack* track, CDC* dc, CRect& rc, R
 		}
 
 		// this value might differ from "duration" if "isLooping" is true
-		const float nonLoopedDuration = tempDuration;
+		const CTimeValue nonLoopedDuration = tempDuration;
 
 		if (renderFlags & DRAW_BACKGROUND)
 		{
 			// draw the key body based on it's type and it's place in the sequence along the track
 			if (hasDuration)
 			{
-				const float endt = min(keyTimeEnd, m_timeRange.end);
+				const CTimeValue endt = min(keyTimeEnd, m_timeRange.end);
 				int x1 = TimeToClient(endt);
 				if (x1 < 0)
 				{
@@ -329,26 +329,26 @@ void CSequencerDopeSheet::DrawKeys(CSequencerTrack* track, CDC* dc, CRect& rc, R
 				// find where the next key begins
 				const int nexti = (i + 1);
 				const bool hasNextKey = (nexti < track->GetNumKeys());
-				const float nextKeyTime = hasNextKey ? track->GetKeyTime(nexti) : keyTimeEnd;
-				const float blendOutStartTime = hasNextKey ? nextKeyTime : keyTimeEnd;
+				const CTimeValue nextKeyTime = hasNextKey ? track->GetKeyTime(nexti) : keyTimeEnd;
+				const CTimeValue blendOutStartTime = hasNextKey ? nextKeyTime : keyTimeEnd;
 
-				float timeNext2ndKey = keyTimeEnd;
+				CTimeValue timeNext2ndKey = keyTimeEnd;
 				if (hasNextKey && track->GetNumSecondarySelPts(nexti) > 0)
 				{
 					timeNext2ndKey = max(track->GetSecondaryTime(nexti, CClipTrack::eCKSS_BlendIn), nextKeyTime);
 				}
-				const float blendOutEndTime = timeNext2ndKey;
+				const CTimeValue blendOutEndTime = timeNext2ndKey;
 				const int xBlendOutStart = TimeToClient(blendOutStartTime);
 				const int xBlendOutEnd = TimeToClient(blendOutEndTime);
 
 				// when & where is our blend marker
-				float time2ndKey = keyTime;
+				CTimeValue time2ndKey = keyTime;
 				if (numSecondarySelPts > 0)
 				{
 					const int id2ndPt = track->GetSecondarySelectionPt(i, keyTime, keyTimeEnd);
 					time2ndKey = id2ndPt ? track->GetSecondaryTime(i, id2ndPt) : keyTime;
 				}
-				const float blendInEndTime = max(time2ndKey, keyTime);
+				const CTimeValue blendInEndTime = max(time2ndKey, keyTime);
 				const int xBlendInEnd = TimeToClient(blendInEndTime);
 
 				CRect lrc = rc;
@@ -393,8 +393,8 @@ void CSequencerDopeSheet::DrawKeys(CSequencerTrack* track, CDC* dc, CRect& rc, R
 			// -- draw the vertical blend time seperator lines
 			for (int s = 0; s < numSecondarySelPts; s++)
 			{
-				const float secondaryTime = track->GetSecondaryTime(i, s + 1);
-				if (secondaryTime > 0.0f)
+				const CTimeValue secondaryTime = track->GetSecondaryTime(i, s + 1);
+				if (secondaryTime > 0)
 				{
 					const int x2 = TimeToClient(secondaryTime);
 
@@ -429,7 +429,7 @@ void CSequencerDopeSheet::DrawKeys(CSequencerTrack* track, CDC* dc, CRect& rc, R
 			int nextKey = track->NextKeyByTime(i);
 			if (nextKey > 0)
 			{
-				float nextKeyTime = track->GetKeyTime(nextKey);
+				CTimeValue nextKeyTime = track->GetKeyTime(nextKey);
 				if (paramType == SEQUENCER_PARAM_FRAGMENTID)
 				{
 					CFragmentKey nextFragKey;
@@ -447,7 +447,7 @@ void CSequencerDopeSheet::DrawKeys(CSequencerTrack* track, CDC* dc, CRect& rc, R
 					}
 					else
 					{
-						nextKeyTime = rc.right;
+						nextKeyTime.SetSeconds(rc.right);
 					}
 				}
 				x1 = TimeToClient(nextKeyTime) - 10;
@@ -502,8 +502,8 @@ int CSequencerDopeSheet::FirstKeyFromPoint(CPoint point, bool exact) const
 	if (item < 0)
 		return -1;
 
-	const float t1 = TimeFromPointUnsnapped(CPoint(point.x - 4, point.y));
-	const float t2 = TimeFromPointUnsnapped(CPoint(point.x + 4, point.y));
+	const CTimeValue t1 = TimeFromPointUnsnapped(CPoint(point.x - 4, point.y));
+	const CTimeValue t2 = TimeFromPointUnsnapped(CPoint(point.x + 4, point.y));
 
 	CSequencerTrack* track = GetTrack(item);
 	if (!track)
@@ -513,7 +513,7 @@ int CSequencerDopeSheet::FirstKeyFromPoint(CPoint point, bool exact) const
 
 	for (int i = numKeys - 1; i >= 0; i--)
 	{
-		const float time = track->GetKeyTime(i);
+		const CTimeValue time = track->GetKeyTime(i);
 		if (time >= t1 && time <= t2)
 		{
 			return i;
@@ -522,16 +522,16 @@ int CSequencerDopeSheet::FirstKeyFromPoint(CPoint point, bool exact) const
 
 	if (!exact)
 	{
-		typedef std::vector<std::pair<int, float>> TGoodKeys;
+		typedef std::vector<std::pair<int, CTimeValue>> TGoodKeys;
 		TGoodKeys goodKeys;
 		for (int i = numKeys - 1; i >= 0; i--)
 		{
-			const float time = track->GetKeyTime(i);
-			const float duration = track->GetKeyDuration(i);
+			const CTimeValue time = track->GetKeyTime(i);
+			const CTimeValue duration = track->GetKeyDuration(i);
 			if (time + duration >= t1 && time <= t2)
 			{
 				//return i;
-				goodKeys.push_back(std::pair<int, float>(i, time));
+				goodKeys.push_back(std::pair<int, CTimeValue>(i, time));
 			}
 		}
 
@@ -539,14 +539,14 @@ int CSequencerDopeSheet::FirstKeyFromPoint(CPoint point, bool exact) const
 		if (!goodKeys.empty())
 		{
 			int bestKey = goodKeys.front().first;
-			float prevStart = -10000.0f;
-			float prevEnd = 10000.0f;
+			CTimeValue prevStart = -10000;
+			CTimeValue prevEnd = 10000;
 			for (TGoodKeys::const_iterator itey = goodKeys.begin(); itey != goodKeys.end(); ++itey)
 			{
 				const int currKey = (*itey).first;
-				const float duration = track->GetKeyDuration(currKey);
-				const float start = (*itey).second;
-				const float end = start + duration;
+				const CTimeValue duration = track->GetKeyDuration(currKey);
+				const CTimeValue start = (*itey).second;
+				const CTimeValue end = start + duration;
 				// is this key covered by the previous best key?
 				if ((prevStart <= start) && (prevEnd >= end))
 				{
@@ -570,8 +570,8 @@ int CSequencerDopeSheet::LastKeyFromPoint(CPoint point, bool exact) const
 	if (item < 0)
 		return -1;
 
-	const float t1 = TimeFromPointUnsnapped(CPoint(point.x - 4, point.y));
-	const float t2 = TimeFromPointUnsnapped(CPoint(point.x + 4, point.y));
+	const CTimeValue t1 = TimeFromPointUnsnapped(CPoint(point.x - 4, point.y));
+	const CTimeValue t2 = TimeFromPointUnsnapped(CPoint(point.x + 4, point.y));
 
 	CSequencerTrack* track = GetTrack(item);
 	if (!track)
@@ -581,7 +581,7 @@ int CSequencerDopeSheet::LastKeyFromPoint(CPoint point, bool exact) const
 
 	for (int i = numKeys - 1; i >= 0; i--)
 	{
-		const float time = track->GetKeyTime(i);
+		const CTimeValue time = track->GetKeyTime(i);
 		if (time >= t1 && time <= t2)
 		{
 			return i;
@@ -590,16 +590,16 @@ int CSequencerDopeSheet::LastKeyFromPoint(CPoint point, bool exact) const
 
 	if (!exact)
 	{
-		typedef std::vector<std::pair<int, float>> TGoodKeys;
+		typedef std::vector<std::pair<int, CTimeValue>> TGoodKeys;
 		TGoodKeys goodKeys;
 		for (int i = 0; i < numKeys; ++i)
 		{
-			const float time = track->GetKeyTime(i);
-			const float duration = track->GetKeyDuration(i);
+			const CTimeValue time = track->GetKeyTime(i);
+			const CTimeValue duration = track->GetKeyDuration(i);
 			if (time + duration >= t1 && time <= t2)
 			{
 				//return i;
-				goodKeys.push_back(std::pair<int, float>(i, time));
+				goodKeys.push_back(std::pair<int, CTimeValue>(i, time));
 			}
 		}
 
@@ -607,14 +607,14 @@ int CSequencerDopeSheet::LastKeyFromPoint(CPoint point, bool exact) const
 		if (!goodKeys.empty())
 		{
 			int bestKey = (goodKeys.end() - 1)->first;
-			float prevStart = -10000.0f;
-			float prevEnd = 10000.0f;
+			CTimeValue prevStart = -10000;
+			CTimeValue prevEnd = 10000;
 			for (TGoodKeys::const_reverse_iterator itey = goodKeys.rbegin(); itey != goodKeys.rend(); ++itey)
 			{
 				const int currKey = (*itey).first;
-				const float duration = track->GetKeyDuration(currKey);
-				const float start = (*itey).second;
-				const float end = start + duration;
+				const CTimeValue duration = track->GetKeyDuration(currKey);
+				const CTimeValue start = (*itey).second;
+				const CTimeValue end = start + duration;
 				// is this key covered by the previous best key?
 				if ((prevStart <= start) && (prevEnd >= end))
 				{
@@ -638,8 +638,8 @@ int CSequencerDopeSheet::NumKeysFromPoint(CPoint point) const
 	if (item < 0)
 		return -1;
 
-	float t1 = TimeFromPointUnsnapped(CPoint(point.x - 4, point.y));
-	float t2 = TimeFromPointUnsnapped(CPoint(point.x + 4, point.y));
+	CTimeValue t1 = TimeFromPointUnsnapped(CPoint(point.x - 4, point.y));
+	CTimeValue t2 = TimeFromPointUnsnapped(CPoint(point.x + 4, point.y));
 
 	CSequencerTrack* track = GetTrack(item);
 	if (!track)
@@ -649,7 +649,7 @@ int CSequencerDopeSheet::NumKeysFromPoint(CPoint point) const
 	int numKeys = track->GetNumKeys();
 	for (int i = 0; i < numKeys; i++)
 	{
-		float time = track->GetKeyTime(i);
+		CTimeValue time = track->GetKeyTime(i);
 		if (time >= t1 && time <= t2)
 		{
 			++count;
@@ -665,7 +665,7 @@ void CSequencerDopeSheet::SelectKeys(const CRect& rc)
 	CRect rci = rc;
 	rci.OffsetRect(m_scrollOffset);
 
-	Range selTime = GetTimeRange(rci);
+	TRange<CTimeValue> selTime = GetTimeRange(rci);
 
 	CRect rcItem;
 	for (int i = 0; i < GetCount(); i++)
@@ -686,7 +686,7 @@ void CSequencerDopeSheet::SelectKeys(const CRect& rc)
 			// Check which keys we intersect.
 			for (int j = 0; j < track->GetNumKeys(); j++)
 			{
-				float time = track->GetKeyTime(j);
+				CTimeValue time = track->GetKeyTime(j);
 				if (selTime.IsInside(time))
 				{
 					track->SelectKey(j, true);

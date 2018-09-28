@@ -30,12 +30,12 @@ struct STimelineElement
 
 	EType          type;
 	int            caps;
-	SAnimTime      start;
-	SAnimTime      end;
-	SAnimTime      blendInDuration;
-	SAnimTime      clipAnimDuration;
-	SAnimTime      clipAnimStart;
-	SAnimTime      clipAnimEnd;
+	CTimeValue     start;
+	CTimeValue     end;
+	CTimeValue     blendInDuration;
+	CTimeValue     clipAnimDuration;
+	CTimeValue     clipAnimStart;
+	CTimeValue     clipAnimEnd;
 	ColorB         color;
 	float          baseWeight;
 	uint64         userId;
@@ -48,9 +48,9 @@ struct STimelineElement
 	bool           sideLoadChanged : 1;
 	bool           clipLoopable    : 1;
 	bool           highlighted     : 1;
-	SAnimTime      truncatedDuration;
-	SAnimTime      nextKeyTime;
-	SAnimTime      nextBlendInTime;
+	CTimeValue     truncatedDuration;
+	CTimeValue     nextKeyTime;
+	CTimeValue     nextBlendInTime;
 
 	STimelineElement()
 		: type(KEY)
@@ -110,8 +110,8 @@ struct STimelineTrack : public _i_reference_target_t
 	bool              disabled            : 1;
 	int               height;
 	int               caps;
-	SAnimTime         startTime;
-	SAnimTime         endTime;
+	CTimeValue        startTime;
+	CTimeValue        endTime;
 	string            type;
 	string            name;
 	string            icon;
@@ -129,8 +129,8 @@ struct STimelineTrack : public _i_reference_target_t
 		, toggleDefaultState(false)
 		, disabled(false)
 		, height(64)
-		, startTime(0.0f)
-		, endTime(1.0f)
+		, startTime(0)
+		, endTime(1)
 		, caps(CAP_ADD_ELEMENTS)
 	{}
 
@@ -166,7 +166,7 @@ struct STimelineContent
 struct SHeaderElement
 {
 	string        description;
-	SAnimTime     time;
+	CTimeValue    time;
 	Qt::Alignment alignment;
 	string        pixmap;
 	bool          visible;

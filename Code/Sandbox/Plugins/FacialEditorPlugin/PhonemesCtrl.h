@@ -29,15 +29,15 @@ public:
 		char sPhoneme[4]; // Phoneme name.
 
 		// Start time and the length of the phoneme.
-		int   time0;
-		int   time1;
+		CTimeValue  time0;
+		CTimeValue  time1;
 		float intensity;
 
 		//////////////////////////////////////////////////////////////////////////
 		bool bSelected;
 		bool bActive;
 
-		Phoneme() { bSelected = false; bActive = false; * sPhoneme = 0; time0 = time1 = 0; intensity = 1.0f; }
+		Phoneme() { bSelected = false; bActive = false; * sPhoneme = 0; time0 = time1 = CTimeValue(0); intensity = 1.0f; }
 	};
 	//////////////////////////////////////////////////////////////////////////
 
@@ -59,14 +59,14 @@ public:
 	{
 		CString text; // word itself.
 		// Start time and the length of the word.
-		int     time0;
-		int     time1;
+		CTimeValue  time0;
+		CTimeValue  time1;
 
 		//////////////////////////////////////////////////////////////////////////
 		bool bSelected;
 		bool bActive;
 
-		Word() { bSelected = false; bActive = false; time0 = time1 = 0; }
+		Word() { bSelected = false; bActive = false; time0 = time1 = CTimeValue(0); }
 	};
 	//////////////////////////////////////////////////////////////////////////
 
@@ -85,15 +85,15 @@ public:
 	void        StartTracking();
 	void        StopTracking();
 
-	void        SetTimeMarker(float fTime);
+	void        SetTimeMarker(const CTimeValue& fTime);
 
 	const char* GetMouseOverPhoneme();
 
 	int         AddSentence();
 	void        DeleteSentence(int sentenceIndex);
 	int         GetSentenceCount();
-	void        SetSentenceStartTime(int sentenceIndex, float startTime);
-	void        SetSentenceEndTime(int sentenceIndex, float endTime);
+	void        SetSentenceStartTime(int sentenceIndex, const CTimeValue& startTime);
+	void        SetSentenceEndTime(int sentenceIndex, const CTimeValue& endTime);
 
 	int         GetPhonemeCount(int sentenceIndex)   { return (int)m_sentences[sentenceIndex].phonemes.size(); }
 	Phoneme&    GetPhoneme(int sentenceIndex, int i) { return m_sentences[sentenceIndex].phonemes[i]; }
@@ -109,10 +109,10 @@ public:
 
 	void        UpdateCurrentActivePhoneme();
 
-	void        SetZoom(float fZoom);
-	void        SetScrollOffset(float fOrigin);
-	float       GetZoom() const         { return m_fZoom; }
-	float       GetScrollOffset() const { return m_fOrigin; }
+	void        SetZoom(const mpfloat& fZoom);
+	void        SetScrollOffset(const CTimeValue& fOrigin);
+	const mpfloat&     GetZoom() const         { return m_fZoom; }
+	const CTimeValue&  GetScrollOffset() const { return m_fOrigin; }
 
 	// IPhonemeUndoContext
 	virtual void SetPhonemes(const std::vector<std::vector<Phoneme>>& phonemes);
@@ -157,8 +157,8 @@ protected:
 
 	EHitCode            HitTest(CPoint point);
 
-	int                 TimeToClient(int time);
-	int                 ClientToTime(int x);
+	int                 TimeToClient(const CTimeValue& time);
+	CTimeValue          ClientToTime(int x);
 
 	void                ClearSelection();
 
@@ -167,18 +167,18 @@ protected:
 	void                AddPhonemes(CMenu& menu, int nBaseId);
 	IPhonemeLibrary*    GetPhonemeLib();
 
-	void                SetPhonemeTime(int sentenceIndex, int index, int t0, int t1);
-	std::pair<int, int> PhonemeFromTime(int time);
-	std::pair<int, int> WordFromTime(int time);
+	void                SetPhonemeTime(int sentenceIndex, int index, const CTimeValue& t0, const CTimeValue& t1);
+	std::pair<int, int> PhonemeFromTime(const CTimeValue& time);
+	std::pair<int, int> WordFromTime(const CTimeValue& time);
 
 	void                StoreUndo();
 
 private:
 	struct Sentence
 	{
-		Sentence() : startTime(0.0f), endTime(0.0f) {}
-		float                startTime;
-		float                endTime;
+		Sentence() : startTime(0), endTime(0) {}
+		CTimeValue           startTime;
+		CTimeValue           endTime;
 		std::vector<Phoneme> phonemes;
 		std::vector<Word>    words;
 	};
@@ -199,12 +199,12 @@ private:
 
 	string                m_mouseOverPhoneme;
 
-	float                 m_fTimeMarker;
+	CTimeValue            m_fTimeMarker;
 
 	EditMode              m_editMode;
 
-	float                 m_fZoom;
-	float                 m_fOrigin;
+	mpfloat               m_fZoom;
+	CTimeValue            m_fOrigin;
 
 	CToolTipCtrl          m_tooltip;
 	CBitmap               m_offscreenBitmap;

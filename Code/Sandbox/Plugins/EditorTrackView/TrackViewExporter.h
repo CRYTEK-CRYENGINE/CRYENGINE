@@ -34,7 +34,7 @@ private:
 	void             ProcessEntityAnimationTrack(const CBaseObject* pBaseObj, SExportObject* pObj, EAnimParamType entityTrackParamType);
 
 	void             AddPosRotScale(SExportObject* pObj, const CBaseObject* pBaseObj);
-	void             AddEntityData(SExportObject* pObj, EAnimParamType dataType, const float fValue, const float fTime);
+	void             AddEntityData(SExportObject* pObj, EAnimParamType dataType, const float fValue, const CTimeValue& fTime);
 
 	bool             AddObjectsFromSequence(CTrackViewSequence* pSequence, XmlNodeRef seqNode = 0);
 	void             FillAnimTimeNode(XmlNodeRef writeNode, CTrackViewAnimNode* pObjectNode, CTrackViewSequence* currentSequence);
@@ -56,8 +56,8 @@ private:
 	int            m_numberOfExportFrames;
 	CEntityObject* m_pivotEntityObject;
 
-	string        m_animTimeExportMasterSequenceName;
-	SAnimTime      m_animTimeExportMasterSequenceCurrentTime;
+	string         m_animTimeExportMasterSequenceName;
+	CTimeValue     m_animTimeExportMasterSequenceCurrentTime;
 	XmlNodeRef     m_animTimeNode;
 
 	bool           m_bAnimKeyTimeExport;

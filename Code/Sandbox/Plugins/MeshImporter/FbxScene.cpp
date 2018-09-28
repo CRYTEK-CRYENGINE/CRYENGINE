@@ -1137,7 +1137,7 @@ SNode* CScene::Initialize(const SFileImportDescriptor& desc)
 	SCreateMeshStats stats;
 
 	ITimer* const pTimer = gEnv->pSystem->GetITimer();
-	const float startTime = pTimer->GetAsyncCurTime();
+	const CTimeValue startTime = pTimer->GetAsyncCurTime();
 
 	for (auto& pNodeIt : m_nodes)
 	{
@@ -1338,8 +1338,8 @@ AABB SMesh::ComputeAabb(const Matrix34& transform) const
 bool CScene::InitializeMesh(ICallbacks* pCallbacks, SMesh* pMesh, FbxNode* pFbxNode, SNode* pNode, FbxMesh* pFbxMesh, SCreateMeshStats* pStats)
 {
 	ITimer* const pTimer = gEnv->pSystem->GetITimer();
-	const float totalStartTime = pTimer->GetAsyncCurTime();
-	float startTime, endTime;
+	const CTimeValue totalStartTime = pTimer->GetAsyncCurTime();
+	CTimeValue startTime, endTime;
 
 	assert(pMesh && pFbxNode && pNode && pFbxMesh);
 	pMesh->szName = pFbxMesh->GetName();
@@ -1417,7 +1417,7 @@ bool CScene::InitializeMesh(ICallbacks* pCallbacks, SMesh* pMesh, FbxNode* pFbxN
 
 	StoreTransform(pMesh, pNode->geometryTransform);
 
-	const float totalEndTime = pTimer->GetAsyncCurTime();
+	const CTimeValue totalEndTime = pTimer->GetAsyncCurTime();
 	if (pStats)
 	{
 		pStats->elapsedTotal += totalEndTime - totalStartTime;

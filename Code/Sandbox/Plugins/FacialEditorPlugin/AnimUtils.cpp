@@ -24,11 +24,11 @@ void AnimUtils::StartAnimation(ICharacterInstance* pCharacter, const char* pAnim
 	}
 }
 
-void AnimUtils::SetAnimationTime(ICharacterInstance* pCharacter, float fNormalizedTime)
+void AnimUtils::SetAnimationTime(ICharacterInstance* pCharacter, const nTime& fNormalizedTime)
 {
-	assert(fNormalizedTime >= 0.0f && fNormalizedTime <= 1.0f);
+	assert(fNormalizedTime >= 0 && fNormalizedTime <= 1);
 	ISkeletonAnim* pISkeletonAnim = (pCharacter ? pCharacter->GetISkeletonAnim() : 0);
-	float timeToSet = max(0.0f, fNormalizedTime);
+	nTime timeToSet = max(nTime(0), fNormalizedTime);
 
 	if (pISkeletonAnim)
 	{

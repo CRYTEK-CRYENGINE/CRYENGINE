@@ -277,8 +277,8 @@ void CVehicleComponent::SetVariable(IVariable* pVar)
 	}
 	assert(m_pSize != NULL);
 
-	m_pPosition->SetLimits(-100, 100);
-	m_pSize->SetLimits(-10, 10);
+	m_pPosition->SetLimitsG(-100, 100);
+	m_pSize->SetLimitsG(-10, 10);
 
 	// Extract position and scale from bounds if necessary and remove the vars.
 	IVariable* pMaxBound = GetChildVar(m_pVar, "maxBound");

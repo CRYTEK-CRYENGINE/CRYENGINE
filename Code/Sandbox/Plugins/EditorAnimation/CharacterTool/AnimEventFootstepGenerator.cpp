@@ -13,12 +13,12 @@ enum { ANIMATION_FRAMERATE = 30 };
 
 typedef std::map<uint32, std::vector<QuatT>> BoneSampleMap;
 
-static bool SampleAnimation(BoneSampleMap* framesPerChannel, float* animationLength, string* errorMessage, const std::vector<unsigned int>& bonesToTrack, const char* characterPath, const char* animationName)
+static bool SampleAnimation(BoneSampleMap* framesPerChannel, CTimeValue* animationLength, string* errorMessage, const std::vector<unsigned int>& bonesToTrack, const char* characterPath, const char* animationName)
 {
 	for (size_t i = 0; i < bonesToTrack.size(); ++i)
 		(*framesPerChannel)[bonesToTrack[i]].clear();
 
-	*animationLength = -1.0f;
+	animationLength->SetSeconds(-1);
 
 	// Create a character instance for the frame
 	ICharacterInstance* character = gEnv->pCharacterManager->CreateInstance(characterPath);
@@ -51,23 +51,23 @@ static bool SampleAnimation(BoneSampleMap* framesPerChannel, float* animationLen
 	// Play the animation
 	CryCharAnimationParams params(0);
 	params.m_nFlags = CA_REPEAT_LAST_KEY | CA_MANUAL_UPDATE | CA_ALLOW_ANIM_RESTART;
-	params.m_fTransTime = 0.0f;
-	params.m_fKeyTime = 0.0f;
+	params.m_fTransTime.SetSeconds(0);
+	params.m_fKeyTime = 0;
 	skeletonAnimation.StartAnimationById(animationId, params);
 
-	*animationLength = skeletonAnimation.GetAnimFromFIFO(0, 0).GetExpectedTotalDurationSeconds();
+	*animationLength = skeletonAnimation.GetAnimFromFIFO(0, 0).GetExpectedTotalDuration();
 
-	const uint32 frameCount = uint32((*animationLength * ANIMATION_FRAMERATE) + 0.5f);
+	const uint32 frameCount = uint32((animationLength->GetSeconds() * (int)ANIMATION_FRAMERATE) + "0.5");
 
 	// Prepare sample vectors
 	for (BoneSampleMap::iterator itS = framesPerChannel->begin(); itS != framesPerChannel->end(); ++itS)
 		itS->second.resize(frameCount);
 
 	// For each frame, compute pose.
-	const float fInvNbFrames = 1.0f / float(frameCount);
+	const mpfloat fInvNbFrames = mpfloat(1) / frameCount;
 	for (uint32 frame = 0; frame < frameCount; ++frame)
 	{
-		const float fNormalizedTime = float(frame) * fInvNbFrames;
+		const nTime fNormalizedTime = (frame * fInvNbFrames).conv<nTime>();
 
 		character->SetCharEditMode(CA_CharacterTool);
 		skeletonPose.SetForceSkeletonUpdate(1);
@@ -110,7 +110,7 @@ public:
 	FootstepGenerator(float fFootDownHeight, float fFootUpperLimit, uint32 nFootBoneID, const AnimEvent& event, bool bShuffle)
 		: m_footDownHeight(fFootDownHeight)
 		, m_footUpperLimit(fFootUpperLimit)
-		, m_foleyDelay(0.0f)
+		, m_foleyDelay(0)
 		, m_footBoneId(nFootBoneID)
 		, m_shuffle(bShuffle)
 		, m_event(event)
@@ -118,7 +118,7 @@ public:
 	{
 	}
 
-	void Populate(AnimEvents* events, float fAnimLen, const BoneSampleMap& mSamples)
+	void Populate(AnimEvents* events, const CTimeValue& fAnimLen, const BoneSampleMap& mSamples)
 	{
 		BoneSampleMap::const_iterator itS = mSamples.find(m_footBoneId);
 		if (mSamples.end() == itS)
@@ -128,7 +128,7 @@ public:
 
 		bool bFootWasUp = samples.front().t.z > m_footUpperLimit;
 		bool bFootDown = samples.front().t.z < m_footDownHeight;
-		const float fInvNbFrames = 1.0f / float(samples.size());
+		const mpfloat fInvNbFrames = mpfloat(1) / samples.size();
 		for (size_t frame = 1; frame < samples.size(); ++frame)
 		{
 			const QuatT& sample = samples[frame];
@@ -136,7 +136,7 @@ public:
 			bool bCanPostEvent = !m_shuffle && bFootWasUp || m_shuffle && !bFootWasUp;
 			if (!bFootDown && bCurrDown && bCanPostEvent)
 			{
-				const float fTime = float(frame) * fInvNbFrames;
+				const nTime fTime = (frame * fInvNbFrames).conv<nTime>();
 				AnimEvent event = m_event;
 				event.startTime = fTime;
 				event.endTime = fTime;
@@ -144,7 +144,7 @@ public:
 
 				if (m_generateFoley)
 				{
-					const float fFoleyTime = clamp_tpl(fTime + (m_foleyDelay / fAnimLen), 0.0f, 1.0f);
+					const nTime fFoleyTime = CLAMP(fTime + (m_foleyDelay / fAnimLen), 0, 1);
 					AnimEvent event = m_foleyEvent;
 					event.startTime = fFoleyTime;
 					event.endTime = fFoleyTime;
@@ -163,7 +163,7 @@ public:
 
 	unsigned int FootBoneID() const { return m_footBoneId; }
 
-	void         SetFoleyEvent(const AnimEvent& event, float foleyDelay)
+	void         SetFoleyEvent(const AnimEvent& event, const CTimeValue& foleyDelay)
 	{
 		m_generateFoley = true;
 		m_foleyDelay = foleyDelay;
@@ -172,7 +172,7 @@ public:
 private:
 	float        m_footDownHeight;
 	float        m_footUpperLimit;
-	float        m_foleyDelay;
+	CTimeValue   m_foleyDelay;
 	bool         m_shuffle;
 	unsigned int m_footBoneId;
 	AnimEvent    m_event;
@@ -262,17 +262,17 @@ bool GenerateFootsteps(AnimationContent* content, string* errorMessage, ICharact
 	bones.erase(std::unique(bones.begin(), bones.end()), bones.end());
 
 	BoneSampleMap animation;
-	float animationLength = 0.0f;
+	CTimeValue animationLength = 0;
 	if (!SampleAnimation(&animation, &animationLength, errorMessage, bones, character->GetFilePath(), animationName))
 		return false;
 
 	// Analysis. Compute left and right foot step events and foleys if needed
 	if (params.generateFoleys)
 	{
-		leftFoot.SetFoleyEvent(params.leftFoleyEvent, float(params.foleyDelayFrames) / ANIMATION_FRAMERATE);
-		rightFoot.SetFoleyEvent(params.rightFoleyEvent, float(params.foleyDelayFrames) / ANIMATION_FRAMERATE);
-		leftShuffle.SetFoleyEvent(params.leftShuffleFoleyEvent, float(params.shuffleFoleyDelayFrames) / ANIMATION_FRAMERATE);
-		rightShuffle.SetFoleyEvent(params.rightShuffleFoleyEvent, float(params.shuffleFoleyDelayFrames) / ANIMATION_FRAMERATE);
+		leftFoot.SetFoleyEvent(params.leftFoleyEvent, mpfloat(params.foleyDelayFrames) / (int)ANIMATION_FRAMERATE);
+		rightFoot.SetFoleyEvent(params.rightFoleyEvent, mpfloat(params.foleyDelayFrames) / (int)ANIMATION_FRAMERATE);
+		leftShuffle.SetFoleyEvent(params.leftShuffleFoleyEvent, mpfloat(params.shuffleFoleyDelayFrames) / (int)ANIMATION_FRAMERATE);
+		rightShuffle.SetFoleyEvent(params.rightShuffleFoleyEvent, mpfloat(params.shuffleFoleyDelayFrames) / (int)ANIMATION_FRAMERATE);
 	}
 
 	AnimEvents events;

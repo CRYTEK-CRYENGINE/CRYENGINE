@@ -1239,7 +1239,7 @@ void CharacterAttachment::Serialize(Serialization::IArchive& ar)
 				ar(m_vclothParams.hide, "hide", "Hide");
 				ar(m_vclothParams.forceSkinning, "forceSkinning", "Force Skinning");
 				ar.doc("If enabled, simulation is skipped and skinning is always enforced.");
-				ar(Serialization::Range(m_vclothParams.forceSkinningFpsThreshold, 5.0f, std::numeric_limits<float>::max()), "forceSkinningFpsThreshold", "Force Skinning FPS Thresh");
+				ar(Serialization::Range(m_vclothParams.forceSkinningFpsThreshold, rTime(5), rTime::Max()), "forceSkinningFpsThreshold", "Force Skinning FPS Thresh");
 				ar.doc("If the framerate drops under the provided FPS, simulation is skipped and skinning is enforced.");
 				ar(Serialization::Range(m_vclothParams.forceSkinningTranslateThreshold, 0.0f, std::numeric_limits<float>::max()), "forceSkinningTranslateThreshold", "Force Skinning Translate Thresh");
 				ar.doc("If the translation exceeds the provided threshold, simulation is skipped and skinning is enforced.");
@@ -1247,7 +1247,7 @@ void CharacterAttachment::Serialize(Serialization::IArchive& ar)
 				ar.doc("Reset particle positions to skinned positions, if a time-jump occurs in the animation (e.g., in case of animation rewind).");
 				ar(Serialization::Range(m_vclothParams.disableSimulationAtDistance, 0.0f, std::numeric_limits<float>::max()), "disableSimulationAtDistance", "Disable Simulation At Distance");
 				ar.doc("Disable simulation/enable skinning in dependance of camera distance.");
-				ar(Serialization::Range(m_vclothParams.disableSimulationTimeRange, 0.0f, 1.0f), "disableSimulationTimeRange", "Disable Simulation Time Range");
+				ar(Serialization::Range(m_vclothParams.disableSimulationTimeRange, CTimeValue(0), CTimeValue(1)), "disableSimulationTimeRange", "Disable Simulation Time Range");
 				ar.doc("Defines the physical time [in seconds] which is used for fading between simulation and skinning, e.g., 0.5 implies half a second for fading.");
 				ar(Serialization::Range(m_vclothParams.enableSimulationSSaxisSizePerc, 0.0f, 1.0f), "enableSimulationSSaxisSizePerc", "Enable Simulation SS Size");
 				ar.doc("If the size of characters bounding box in screen space exceeds provided percentage of viewport size, simulation is enabled.\nThus, simulation can be controlled according to the characters actual size on screen. This value is used for x- and y-direction, separately.");
@@ -1256,7 +1256,7 @@ void CharacterAttachment::Serialize(Serialization::IArchive& ar)
 
 			if (ar.openBlock("simulation", "+Simulation and Collision"))
 			{
-				ar(Serialization::Range(m_vclothParams.timeStep, 0.001f, 0.05f), "timeStep", "Time Step");
+				ar(Serialization::Range(m_vclothParams.timeStep, CTimeValue("0.001"), CTimeValue("0.05")), "timeStep", "Time Step");
 				ar.doc("Simulation timestep.");
 				ar(Serialization::Range(m_vclothParams.timeStepsMax, 3, 999), "timeStepsMax", "Time Step Max Iterations");
 				ar.doc("Maximum number of iterations for the time discretization between two frames.");

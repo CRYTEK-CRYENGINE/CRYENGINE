@@ -122,7 +122,7 @@ int CFragmentTrack::GetNumSecondarySelPts(int key) const
 	}
 }
 
-int CFragmentTrack::GetSecondarySelectionPt(int key, float timeMin, float timeMax) const
+int CFragmentTrack::GetSecondarySelectionPt(int key, const CTimeValue& timeMin, const CTimeValue& timeMax) const
 {
 	const CFragmentKey& fragKey = m_keys[key];
 
@@ -137,7 +137,7 @@ int CFragmentTrack::GetSecondarySelectionPt(int key, float timeMin, float timeMa
 	return 0;
 }
 
-int CFragmentTrack::FindSecondarySelectionPt(int& key, float timeMin, float timeMax) const
+int CFragmentTrack::FindSecondarySelectionPt(int& key, const CTimeValue& timeMin, const CTimeValue& timeMax) const
 {
 	const int numKeys = GetNumKeys();
 	for (uint32 i = 0; i < numKeys; i++)
@@ -156,7 +156,7 @@ int CFragmentTrack::FindSecondarySelectionPt(int& key, float timeMin, float time
 	return 0;
 }
 
-void CFragmentTrack::SetSecondaryTime(int key, int idx, float time)
+void CFragmentTrack::SetSecondaryTime(int key, int idx, const CTimeValue& time)
 {
 	CFragmentKey& fragKey = m_keys[key];
 
@@ -175,7 +175,7 @@ void CFragmentTrack::SetSecondaryTime(int key, int idx, float time)
 	}
 }
 
-float CFragmentTrack::GetSecondaryTime(int key, int idx) const
+CTimeValue CFragmentTrack::GetSecondaryTime(int key, int idx) const
 {
 	const CFragmentKey& fragKey = m_keys[key];
 
@@ -187,7 +187,7 @@ float CFragmentTrack::GetSecondaryTime(int key, int idx) const
 		}
 	}
 
-	return 0.0f;
+	return 0;
 }
 
 int CFragmentTrack::GetNextFragmentKey(int key) const
@@ -377,16 +377,16 @@ void CFragmentTrack::OnKeyMenuOption(int menuOption, int keyID)
 
 							animClipNew.animation.animRef.SetByString(NULL);
 							animClipNew.animation.flags = 0;
-							animClipNew.animation.playbackSpeed = 1.0f;
+							animClipNew.animation.playbackSpeed = 1;
 							animClipNew.animation.playbackWeight = 1.0f;
 						}
 					}
 				}
 
 				SFragmentBlend fragBlend;
-				fragBlend.selectTime = 0.0f;
-				fragBlend.startTime = 0.0f;
-				fragBlend.enterTime = 0.0f;
+				fragBlend.selectTime.SetSeconds(0);
+				fragBlend.startTime.SetSeconds(0);
+				fragBlend.enterTime.SetSeconds(0);
 				fragBlend.pFragment = &fragmentNew;
 				key.tranBlendUid = MannUtils::GetMannequinEditorManager().AddBlend(key.context->database, key.tranFragFrom, key.tranFragTo, key.tranTagFrom, key.tranTagTo, fragBlend);
 				key.context->changeCount++;
@@ -401,7 +401,7 @@ void CFragmentTrack::OnKeyMenuOption(int menuOption, int keyID)
 	case FIND_FRAGMENT_REFERENCES:
 		{
 			const char* description = NULL;
-			float duration;
+			CTimeValue duration;
 			GetKeyInfo(keyID, description, duration);
 			CString fragmentName = description;
 
@@ -413,7 +413,7 @@ void CFragmentTrack::OnKeyMenuOption(int menuOption, int keyID)
 	case FIND_TAG_REFERENCES:
 		{
 			const char* description = NULL;
-			float duration;
+			CTimeValue duration;
 			GetKeyInfo(keyID, description, duration);
 			CString tagName = description;
 
@@ -427,7 +427,7 @@ void CFragmentTrack::OnKeyMenuOption(int menuOption, int keyID)
 	}
 }
 
-void CFragmentTrack::GetKeyInfo(int key, const char*& description, float& duration)
+void CFragmentTrack::GetKeyInfo(int key, const char*& description, CTimeValue& duration)
 {
 	CFragmentKey keyFrag;
 	GetKey(key, &keyFrag);
@@ -493,20 +493,20 @@ void CFragmentTrack::GetKeyInfo(int key, const char*& description, float& durati
 		}
 
 		int nextKey = GetNextFragmentKey(key);
-		const float nextKeyTime = (nextKey >= 0) ? GetKeyTime(nextKey) : GetTimeRange().end;
+		const CTimeValue nextKeyTime = (nextKey >= 0) ? GetKeyTime(nextKey) : GetTimeRange().end;
 
 		duration = nextKeyTime - keyFrag.m_time;
 		if (!keyFrag.isLooping)
 		{
-			float transitionTime = max(0.0f, keyFrag.tranStartTime - keyFrag.m_time);
+			CTimeValue transitionTime = max(CTimeValue(0), keyFrag.tranStartTime - keyFrag.m_time);
 			duration = min(duration, keyFrag.clipDuration + transitionTime);
 		}
 	}
 }
 
-float CFragmentTrack::GetKeyDuration(const int key) const
+CTimeValue CFragmentTrack::GetKeyDuration(const int key) const
 {
-	float duration = 0.0f;
+	CTimeValue duration = 0;
 	CFragmentKey keyFrag;
 	GetKey(key, &keyFrag);
 
@@ -519,12 +519,12 @@ float CFragmentTrack::GetKeyDuration(const int key) const
 	else
 	{
 		const int nextKey = GetNextFragmentKey(key);
-		const float nextKeyTime = (nextKey >= 0) ? GetKeyTime(nextKey) : GetTimeRange().end;
+		const CTimeValue nextKeyTime = (nextKey >= 0) ? GetKeyTime(nextKey) : GetTimeRange().end;
 
 		duration = nextKeyTime - keyFrag.m_time;
 		if (!keyFrag.isLooping)
 		{
-			const float transitionTime = max(0.0f, keyFrag.tranStartTime - keyFrag.m_time);
+			const CTimeValue transitionTime = max(CTimeValue(0), keyFrag.tranStartTime - keyFrag.m_time);
 			duration = min(duration, keyFrag.clipDuration + transitionTime);
 		}
 	}
@@ -753,7 +753,7 @@ void CFragmentTrack::SetKey(int index, CSequencerKey* _key)
 
 //! Set time of specified key.
 
-void CFragmentTrack::SetKeyTime(int index, float time)
+void CFragmentTrack::SetKeyTime(int index, const CTimeValue& time)
 {
 	__super::SetKeyTime(index, time);
 
@@ -789,7 +789,7 @@ bool CFragmentTrack::CanMoveKey(int key) const
 		return !fragmentKey.transition;
 }
 
-bool CFragmentTrack::CanAddKey(float time) const
+bool CFragmentTrack::CanAddKey(const CTimeValue& time) const
 {
 	return (m_editorMode == eMEM_Previewer);
 }
@@ -803,12 +803,12 @@ bool CFragmentTrack::CanRemoveKey(int key) const
 CClipKey::CClipKey()
 	: CSequencerKey(),
 	historyItem(HISTORY_ITEM_INVALID),
-	startTime(0.0f),
-	playbackSpeed(1.0f),
+	startTime(0),
+	playbackSpeed(1),
 	playbackWeight(1.0f),
-	duration(0.0f),
-	blendDuration(0.2f),
-	blendOutDuration(0.2f),
+	duration(0),
+	blendDuration("0.2"),
+	blendOutDuration("0.2"),
 	animFlags(0),
 	alignToPrevious(false),
 	clipType(eCT_Normal),
@@ -816,7 +816,7 @@ CClipKey::CClipKey()
 	fragIndexMain(0),
 	fragIndexBlend(0),
 	jointMask(0),
-	referenceLength(-1.0f),
+	referenceLength(-1),
 	animIsAdditive(FALSE),
 	m_animSet(NULL)
 {
@@ -851,7 +851,7 @@ void CClipKey::Set(const SAnimClip& animClip, IAnimationSet* pAnimSet, const ECl
 	}
 }
 
-void CClipKey::SetupAnimClip(SAnimClip& animClip, float lastTime, int fragPart)
+void CClipKey::SetupAnimClip(SAnimClip& animClip, const CTimeValue& lastTime, int fragPart)
 {
 	const uint32 TRANSITION_ANIM_FLAGS = CA_TRANSITION_TIMEWARPING | CA_IDLE2MOVE | CA_MOVE2IDLE;
 
@@ -867,7 +867,7 @@ void CClipKey::SetupAnimClip(SAnimClip& animClip, float lastTime, int fragPart)
 	animClip.animation.animRef = animRef;
 	animClip.animation.weightList = jointMask;
 	animClip.blend.duration = blendDuration;
-	animClip.blend.exitTime = alignToPrevious ? -1.0f : m_time - lastTime;
+	animClip.blend.exitTime = alignToPrevious ? -1 : m_time - lastTime;
 	animClip.part = fragIndexMain;
 	animClip.blendPart = fragIndexBlend;
 	animClip.blend.terminal = (fragIndexMain != fragPart);
@@ -894,7 +894,7 @@ void CClipKey::SetAnimation(const char* szAnimName, IAnimationSet* pAnimSet)
 	m_animSet = pAnimSet;
 	if (id >= 0)
 	{
-		duration = pAnimSet->GetDuration_sec(id);
+		duration = pAnimSet->GetDuration(id);
 		string animPath = pAnimSet->GetFilePathByID(id);
 		m_fileName = animPath.substr(animPath.find_last_of('/') + 1);
 		m_filePath = animPath.substr(0, animPath.find_last_of('/') + 1);
@@ -905,7 +905,7 @@ void CClipKey::SetAnimation(const char* szAnimName, IAnimationSet* pAnimSet)
 	}
 	else
 	{
-		duration = 0.0f;
+		duration.SetSeconds(0);
 		m_animCache.Set(-1, NULL);
 	}
 
@@ -1020,7 +1020,7 @@ inline static int32 IsInRange(const F x, const F end1, const F end2) // this is 
 	return (x >= end1) && (x <= end2);
 }
 
-int CClipTrack::GetSecondarySelectionPt(int key, float timeMin, float timeMax) const
+int CClipTrack::GetSecondarySelectionPt(int key, const CTimeValue& timeMin, const CTimeValue& timeMax) const
 {
 	const CClipKey& clipKey = m_keys[key];
 
@@ -1034,7 +1034,7 @@ int CClipTrack::GetSecondarySelectionPt(int key, float timeMin, float timeMax) c
 	}
 }
 
-int CClipTrack::FindSecondarySelectionPt(int& key, float timeMin, float timeMax) const
+int CClipTrack::FindSecondarySelectionPt(int& key, const CTimeValue& timeMin, const CTimeValue& timeMax) const
 {
 	const int numKeys = GetNumKeys();
 	for (uint32 i = 0; i < numKeys; i++)
@@ -1050,16 +1050,16 @@ int CClipTrack::FindSecondarySelectionPt(int& key, float timeMin, float timeMax)
 	return 0;
 }
 
-void CClipTrack::SetSecondaryTime(int key, int idx, float time)
+void CClipTrack::SetSecondaryTime(int key, int idx, const CTimeValue& time)
 {
 	if (idx == eCKSS_BlendIn)
 	{
 		CClipKey& clipKey = m_keys[key];
-		clipKey.blendDuration = max(time - clipKey.m_time, 0.0f);
+		clipKey.blendDuration = max(time - clipKey.m_time, CTimeValue(0));
 	}
 }
 
-float CClipTrack::GetSecondaryTime(int key, int id) const
+CTimeValue CClipTrack::GetSecondaryTime(int key, int id) const
 {
 	CRY_ASSERT(id == eCKSS_BlendIn);
 	const CClipKey& clipKey = m_keys[key];
@@ -1092,7 +1092,7 @@ void CClipTrack::OnKeyMenuOption(int menuOption, int keyID)
 	}
 }
 
-bool CClipTrack::CanAddKey(float time) const
+bool CClipTrack::CanAddKey(const CTimeValue& time) const
 {
 	switch (m_editorMode)
 	{
@@ -1183,7 +1183,7 @@ bool CClipTrack::CanMoveKey(int key) const
 	}
 }
 
-int CClipTrack::CreateKey(float time)
+int CClipTrack::CreateKey(const CTimeValue& time)
 {
 	int keyID = __super::CreateKey(time);
 
@@ -1221,9 +1221,9 @@ void CClipTrack::CheckKeyForSnappingToPrevious(int index)
 		CClipKey& clipKey = m_keys[index];
 		CClipKey& clipKeyLast = m_keys[index - 1];
 
-		float lastEndTime = clipKeyLast.m_time + clipKeyLast.GetDuration();
-		float timeDiff = fabs_tpl(clipKey.m_time - lastEndTime);
-		clipKey.alignToPrevious = (timeDiff <= LOCK_TIME_DIFF) && ((clipKeyLast.animFlags & CA_LOOP_ANIMATION) == 0) && (clipKeyLast.playbackSpeed > 0.0f);
+		CTimeValue lastEndTime = clipKeyLast.m_time + clipKeyLast.GetDuration();
+		CTimeValue timeDiff = abs(clipKey.m_time - lastEndTime);
+		clipKey.alignToPrevious = (timeDiff <= LOCK_TIME_DIFF) && ((clipKeyLast.animFlags & CA_LOOP_ANIMATION) == 0) && (clipKeyLast.playbackSpeed > 0);
 	}
 }
 
@@ -1234,14 +1234,14 @@ void CClipTrack::SetKey(int index, CSequencerKey* _key)
 	CheckKeyForSnappingToPrevious(index);
 }
 
-void CClipTrack::SetKeyTime(int index, float time)
+void CClipTrack::SetKeyTime(int index, const CTimeValue& time)
 {
 	__super::SetKeyTime(index, time);
 
 	CheckKeyForSnappingToPrevious(index);
 }
 
-void CClipTrack::GetKeyInfo(int key, const char*& description, float& duration)
+void CClipTrack::GetKeyInfo(int key, const char*& description, CTimeValue& duration)
 {
 	static string desc;
 	desc.clear();
@@ -1259,15 +1259,15 @@ void CClipTrack::GetKeyInfo(int key, const char*& description, float& duration)
 	}
 	description = desc.c_str();
 
-	const float nextKeyTime = (key + 1 < m_keys.size()) ? GetKeyTime(key + 1) : GetTimeRange().end;
-	const float durationToNextKey = nextKeyTime - clipKey.m_time;
+	const CTimeValue nextKeyTime = (key + 1 < m_keys.size()) ? GetKeyTime(key + 1) : GetTimeRange().end;
+	const CTimeValue durationToNextKey = nextKeyTime - clipKey.m_time;
 	if (!clipKey.animRef.IsEmpty() && (clipKey.animFlags & CA_LOOP_ANIMATION))
 	{
 		duration = durationToNextKey;
 	}
 }
 
-void CClipTrack::GetTooltip(int key, const char*& description, float& duration)
+void CClipTrack::GetTooltip(int key, const char*& description, CTimeValue& duration)
 {
 	static string desc;
 	desc.clear();
@@ -1311,13 +1311,13 @@ void CClipTrack::GetTooltip(int key, const char*& description, float& duration)
 	description = desc.c_str();
 }
 
-float CClipTrack::GetKeyDuration(const int key) const
+CTimeValue CClipTrack::GetKeyDuration(const int key) const
 {
 	const CClipKey& clipKey = m_keys[key];
 
-	float duration = max(clipKey.GetDuration(), clipKey.blendDuration);
-	const float nextKeyTime = (key + 1 < m_keys.size()) ? GetKeyTime(key + 1) : GetTimeRange().end;
-	const float durationToNextKey = nextKeyTime - clipKey.m_time;
+	CTimeValue duration = max(clipKey.GetDuration(), clipKey.blendDuration);
+	const CTimeValue nextKeyTime = (key + 1 < m_keys.size()) ? GetKeyTime(key + 1) : GetTimeRange().end;
+	const CTimeValue durationToNextKey = nextKeyTime - clipKey.m_time;
 	if (!clipKey.animRef.IsEmpty() && (clipKey.animFlags & CA_LOOP_ANIMATION))
 	{
 		duration = durationToNextKey;
@@ -1415,8 +1415,8 @@ void CClipTrack::SerializeKey(CClipKey& key, XmlNodeRef& keyNode, bool bLoading)
 //////////////////////////////////////////////////////////////////////////
 CProcClipKey::CProcClipKey()
 	:
-	duration(0.0f),
-	blendDuration(0.2f),
+	duration(0),
+	blendDuration("0.2"),
 	historyItem(HISTORY_ITEM_INVALID),
 	clipType(eCT_Normal),
 	blendType(eCT_Normal),
@@ -1510,7 +1510,7 @@ void CProcClipKey::FromProceduralEntry(const SProceduralEntry& procClip, const E
 	UpdateDurationBasedOnParams();
 }
 
-void CProcClipKey::ToProceduralEntry(SProceduralEntry& procClip, const float lastTime, const int fragPart)
+void CProcClipKey::ToProceduralEntry(SProceduralEntry& procClip, const CTimeValue& lastTime, const int fragPart)
 {
 	procClip.typeNameHash = typeNameHash;
 
@@ -1564,11 +1564,11 @@ int CProcClipTrack::GetNumSecondarySelPts(int key) const
 	return 1;
 }
 
-int CProcClipTrack::GetSecondarySelectionPt(int key, float timeMin, float timeMax) const
+int CProcClipTrack::GetSecondarySelectionPt(int key, const CTimeValue& timeMin, const CTimeValue& timeMax) const
 {
 	const CProcClipKey& clipKey = m_keys[key];
 
-	const float blendTime = clipKey.m_time + clipKey.blendDuration;
+	const CTimeValue blendTime = clipKey.m_time + clipKey.blendDuration;
 	if ((blendTime >= timeMin) && (blendTime <= timeMax))
 	{
 		return 1;
@@ -1579,7 +1579,7 @@ int CProcClipTrack::GetSecondarySelectionPt(int key, float timeMin, float timeMa
 	}
 }
 
-int CProcClipTrack::FindSecondarySelectionPt(int& key, float timeMin, float timeMax) const
+int CProcClipTrack::FindSecondarySelectionPt(int& key, const CTimeValue& timeMin, const CTimeValue& timeMax) const
 {
 	const int numKeys = GetNumKeys();
 	for (uint32 i = 0; i < numKeys; i++)
@@ -1595,14 +1595,14 @@ int CProcClipTrack::FindSecondarySelectionPt(int& key, float timeMin, float time
 	return 0;
 }
 
-void CProcClipTrack::SetSecondaryTime(int key, int idx, float time)
+void CProcClipTrack::SetSecondaryTime(int key, int idx, const CTimeValue& time)
 {
 	CProcClipKey& clipKey = m_keys[key];
 
-	clipKey.blendDuration = max(time - clipKey.m_time, 0.0f);
+	clipKey.blendDuration = max(time - clipKey.m_time, CTimeValue(0));
 }
 
-float CProcClipTrack::GetSecondaryTime(int key, int id) const
+CTimeValue CProcClipTrack::GetSecondaryTime(int key, int id) const
 {
 	const CProcClipKey& clipKey = m_keys[key];
 	return clipKey.m_time + clipKey.blendDuration;
@@ -1624,7 +1624,7 @@ void CProcClipTrack::OnKeyMenuOption(int menuOption, int keyID)
 {
 }
 
-bool CProcClipTrack::CanAddKey(float time) const
+bool CProcClipTrack::CanAddKey(const CTimeValue& time) const
 {
 	switch (m_editorMode)
 	{
@@ -1700,7 +1700,7 @@ bool CProcClipTrack::CanMoveKey(int key) const
 	return true;
 }
 
-int CProcClipTrack::CreateKey(float time)
+int CProcClipTrack::CreateKey(const CTimeValue& time)
 {
 	int keyID = __super::CreateKey(time);
 
@@ -1731,7 +1731,7 @@ int CProcClipTrack::CreateKey(float time)
 	return keyID;
 }
 
-void CProcClipTrack::GetKeyInfo(int key, const char*& description, float& duration)
+void CProcClipTrack::GetKeyInfo(int key, const char*& description, CTimeValue& duration)
 {
 	static char desc[128];
 	CProcClipKey& clipKey = m_keys[key];
@@ -1767,31 +1767,31 @@ void CProcClipTrack::GetKeyInfo(int key, const char*& description, float& durati
 	duration = GetKeyDuration(key);
 }
 
-float CProcClipTrack::GetKeyDuration(const int key) const
+CTimeValue CProcClipTrack::GetKeyDuration(const int key) const
 {
 	const CProcClipKey& clipKey = m_keys[key];
 
-	const float nextKeyTime = (key + 1 < m_keys.size()) ? GetKeyTime(key + 1) : GetTimeRange().end;
-	const float durationToNextKey = nextKeyTime - clipKey.m_time;
+	const CTimeValue nextKeyTime = (key + 1 < m_keys.size()) ? GetKeyTime(key + 1) : GetTimeRange().end;
+	const CTimeValue durationToNextKey = nextKeyTime - clipKey.m_time;
 
 	const bool isNoneProcClip = clipKey.typeNameHash.IsEmpty();
 	if (isNoneProcClip)
 	{
-		const float duration = min(clipKey.blendDuration, durationToNextKey);
+		const CTimeValue duration = min(clipKey.blendDuration, durationToNextKey);
 		return duration;
 	}
 	else
 	{
-		const bool clipHasValidDuration = (0.f < clipKey.duration);
+		const bool clipHasValidDuration = (0 < clipKey.duration.GetSeconds());
 		if (clipHasValidDuration)
 		{
-			const float clipDuration = max(clipKey.blendDuration, clipKey.duration);
-			const float duration = min(clipDuration, durationToNextKey);
+			const CTimeValue clipDuration = max(clipKey.blendDuration, clipKey.duration);
+			const CTimeValue duration = min(clipDuration, durationToNextKey);
 			return duration;
 		}
 		else
 		{
-			const float duration = durationToNextKey;
+			const CTimeValue duration = durationToNextKey;
 			return duration;
 		}
 	}
@@ -1851,16 +1851,16 @@ void CTagTrack::SetKey(int index, CSequencerKey* _key)
 	m_tagDefinition.FlagsToTagList(tagKey.tagState, tagKey.desc);
 }
 
-void CTagTrack::GetKeyInfo(int key, const char*& description, float& duration)
+void CTagTrack::GetKeyInfo(int key, const char*& description, CTimeValue& duration)
 {
 	CTagKey& tagKey = m_keys[key];
-	duration = 0.0f;
+	duration.SetSeconds(0);
 	description = tagKey.desc.c_str();
 }
 
-float CTagTrack::GetKeyDuration(const int key) const
+CTimeValue CTagTrack::GetKeyDuration(const int key) const
 {
-	return 0.0f;
+	return 0;
 }
 
 void CTagTrack::InsertKeyMenuOptions(CMenu& menu, int keyID)
@@ -1916,7 +1916,7 @@ void CTransitionPropertyTrack::SetKey(int index, CSequencerKey* _key)
 	CTransitionPropertyKey& tagKey = m_keys[index];
 }
 
-void CTransitionPropertyTrack::GetKeyInfo(int key, const char*& description, float& duration)
+void CTransitionPropertyTrack::GetKeyInfo(int key, const char*& description, CTimeValue& duration)
 {
 	CTransitionPropertyKey& propKey = m_keys[key];
 	duration = propKey.duration;
@@ -1955,7 +1955,7 @@ void CTransitionPropertyTrack::GetKeyInfo(int key, const char*& description, flo
 	description = desc;
 }
 
-float CTransitionPropertyTrack::GetKeyDuration(const int key) const
+CTimeValue CTransitionPropertyTrack::GetKeyDuration(const int key) const
 {
 	const CTransitionPropertyKey& propKey = m_keys[key];
 	return propKey.duration;
@@ -2046,18 +2046,18 @@ CParamTrack::CParamTrack()
 {
 }
 
-void CParamTrack::GetKeyInfo(int key, const char*& description, float& duration)
+void CParamTrack::GetKeyInfo(int key, const char*& description, CTimeValue& duration)
 {
 	static char desc[128];
 
 	CParamKey& paramKey = m_keys[key];
-	duration = 0.0f;
+	duration.SetSeconds(0);
 	description = paramKey.name;
 }
 
-float CParamTrack::GetKeyDuration(const int key) const
+CTimeValue CParamTrack::GetKeyDuration(const int key) const
 {
-	return 0.0f;
+	return 0;
 }
 
 void CParamTrack::InsertKeyMenuOptions(CMenu& menu, int keyID)

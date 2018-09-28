@@ -22,7 +22,7 @@ struct WaveGraphCtrlWaveformChangeNotification
 {
 	NMHDR hdr;
 	int   waveformIndex;
-	float deltaTime;
+	CTimeValue deltaTime;
 };
 
 #define WAVECTRLN_BEGIN_MOVE_WAVEFORM (0x0005)
@@ -55,17 +55,17 @@ public:
 	int   AddWaveform();
 	void  DeleteWaveform(int index);
 	int   GetWaveformCount();
-	void  SetWaveformTime(int index, float time);
+	void  SetWaveformTime(int index, const CTimeValue& time);
 	void  LoadWaveformSound(int index, const CString& soundFile);
 	void  DeleteUnusedSounds();
-	float GetWaveformLength(int waveformIndex);
+	CTimeValue GetWaveformLength(int waveformIndex);
 	void  SetWaveformTextString(int waveformIndex, const CString& text);
 
-	void  SetTimeRange(const Range& r) { m_timeRange = r; if (m_hWnd) Invalidate(); }
-	void  SetTimeMarker(float fTime);
-	float GetTimeMarker();
+	void  SetTimeRange(const TRange<CTimeValue>& r) { m_timeRange = r; if (m_hWnd) Invalidate(); }
+	void  SetTimeMarker(const CTimeValue& fTime);
+	const CTimeValue& GetTimeMarker();
 
-	float CalculateTimeRange();
+	CTimeValue CalculateTimeRange();
 
 	void  StartPlayback(); // starts the sound to play from current marker position
 	void  StopPlayback();  // stops the sounds
@@ -74,8 +74,8 @@ public:
 	void  BeginScrubbing();
 	void  EndScrubbing();
 
-	void  SetPlaybackSpeed(float fSpeed);
-	float GetPlaybackSpeed();
+	void  SetPlaybackSpeed(const mpfloat& fSpeed);
+	const mpfloat& GetPlaybackSpeed();
 
 	//////////////////////////////////////////////////////////////////////////
 	// Scrolling/Zooming.
@@ -87,7 +87,7 @@ public:
 	Vec2   GetZoom() const         { return m_grid.zoom; };
 	void   SetScrollOffset(Vec2 ofs);
 	Vec2   GetScrollOffset() const { return m_grid.origin; };
-	float  SnapTime(float time);
+	float  SnapTime(const CTimeValue& time);
 	float  SnapValue(float val);
 	void   SetLeftOffset(int nLeft);
 	//////////////////////////////////////////////////////////////////////////
@@ -95,7 +95,7 @@ public:
 
 	void  SetBottomWnd(CWnd* pWnd, int nHeight);
 
-	float FindEndOfWaveforms();
+	CTimeValue FindEndOfWaveforms();
 
 	void  UpdatePlayback();
 
@@ -114,7 +114,7 @@ public:
 	struct Waveform
 	{
 		Waveform() : time(0) {}
-		float                time;
+		CTimeValue           time;
 		CString              text;
 		SoundCache::iterator itSound;
 	};
@@ -144,8 +144,8 @@ protected:
 	void         SendNotifyMessage(int code);
 	void         SendNotifyMessageStructure(NMHDR* hdr);
 
-	void         StartSoundsAtTime(float fTime, bool bForceStart);
-	void         SetTimeMarkerInternal(float fTime);
+	void         StartSoundsAtTime(const CTimeValue& fTime, bool bForceStart);
+	void         SetTimeMarkerInternal(const CTimeValue& fTime);
 
 private:
 	enum EditMode
@@ -170,8 +170,8 @@ private:
 	CFacialEdContext*     m_pContext;
 
 	CRect                 m_TimeUpdateRect;
-	Range                 m_timeRange;
-	float                 m_fTimeMarker;
+	TRange<CTimeValue>    m_timeRange;
+	CTimeValue            m_fTimeMarker;
 	//CTimeValue m_fLastTimeCheck;
 	DWORD                 m_lastTimeCheck;
 	CWndGridHelper        m_grid;
@@ -188,7 +188,7 @@ private:
 	CWnd*                 m_pBottomWnd;
 	int                   m_bottomWndHeight;
 	bool                  m_bPlaying;
-	float                 m_fPlaybackSpeed;
+	mpfloat               m_fPlaybackSpeed;
 };
 
 #endif // __SplineCtrl_h__

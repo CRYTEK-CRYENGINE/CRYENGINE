@@ -145,6 +145,16 @@ bool CVariableIArchive::operator()(char& value, const char* name, const char* la
 	return VarUtil::ReadChildVariableAs<int>(m_pVariable, m_childIndexOverride, name, value);
 }
 
+bool CVariableIArchive::operator()(CTimeValue& value, const char* name, const char* label)
+{
+	return (*this)(value.m_lValue, name, label);
+}
+
+bool CVariableIArchive::operator()(mpfloat& value, const char* name, const char* label)
+{
+	return VarUtil::ReadChildVariableAs<mpfloat>(m_pVariable, m_childIndexOverride, name, value);
+}
+
 bool CVariableIArchive::operator()(const Serialization::SStruct& ser, const char* name, const char* label)
 {
 	const char* const typeName = ser.type().name();

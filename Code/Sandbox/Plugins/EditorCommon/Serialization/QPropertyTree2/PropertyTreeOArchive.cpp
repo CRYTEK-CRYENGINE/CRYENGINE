@@ -116,6 +116,20 @@ namespace PropertyTree2
 		return true;
 	}
 
+	bool PropertyTreeOArchive::operator()(CTimeValue& value, const char* name, const char* label)
+	{
+		return (*this)(value.m_lValue, name, label);
+	}
+
+	#define MP_FUNCTION(T)\
+	bool PropertyTreeOArchive::operator()(T& value, const char* name, const char* label)\
+	{\
+		ProcessSimpleRow(value, name, label);\
+		return true;\
+	}
+	#include <CrySystem\mpfloat.types>
+	#undef MP_FUNCTION
+
 	bool PropertyTreeOArchive::operator()(const yasli::Serializer& ser, const char* name, const char* label)
 	{
 		CRowModel* row = FindOrCreateRowInScope(name, label, ser.type());

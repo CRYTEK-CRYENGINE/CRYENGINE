@@ -8,13 +8,13 @@ class IJoystickChannel;
 
 namespace JoystickUtils
 {
-float Evaluate(IJoystickChannel* pChannel, float time);
-void  SetKey(IJoystickChannel* pChannel, float time, float value, bool createIfMissing = true);
+float Evaluate(IJoystickChannel* pChannel, const CTimeValue&  time);
+void  SetKey(IJoystickChannel* pChannel, const CTimeValue& time, float value, bool createIfMissing = true);
 void  Serialize(IJoystickChannel* pChannel, XmlNodeRef node, bool bLoading);
-bool  HasKey(IJoystickChannel* pChannel, float time);
-void  RemoveKey(IJoystickChannel* pChannel, float time);
-void  RemoveKeysInRange(IJoystickChannel* pChannel, float startTime, float endTime);
-void  PlaceKey(IJoystickChannel* pChannel, float time);
+bool  HasKey(IJoystickChannel* pChannel, const CTimeValue& time);
+void  RemoveKey(IJoystickChannel* pChannel, const CTimeValue& time);
+void  RemoveKeysInRange(IJoystickChannel* pChannel, const CTimeValue& startTime, const CTimeValue& endTime);
+void  PlaceKey(IJoystickChannel* pChannel, const CTimeValue& time);
 }
 
 #endif //__JOYSTICKUTILS_H__

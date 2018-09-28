@@ -191,9 +191,14 @@ public:
 	void                         WriteToConsole(const char* pszString);
 
 	void                         SetConsoleVar(const char* var, float value);
+	void                         SetConsoleMP(const char* var, const mpfloat& value);
+	void                         SetConsoleTime(const char* var, const CTimeValue& value);
 	void                         SetConsoleStringVar(const char* var, const char* value);
 
+	CTimeValue                   GetConsoleTime(const char* var);
+	mpfloat                      GetConsoleMP(const char* var);
 	float                        GetConsoleVar(const char* var);
+
 	//! Query main window of the editor
 	HWND                         GetEditorMainWnd()
 	{
@@ -386,8 +391,8 @@ public:
 
 	virtual void                     RegisterObjectContextMenuExtension(TContextMenuExtensionFunc func);
 
-	virtual void                     SetCurrentMissionTime(float time);
-	virtual float                    GetCurrentMissionTime();
+	virtual void                     SetCurrentMissionTime(const CTimeValue& time);
+	virtual CTimeValue               GetCurrentMissionTime();
 
 	//ISystemEventListener interface
 	virtual void OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_PTR lparam);

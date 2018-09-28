@@ -43,16 +43,16 @@ public:
 	void                             Update();
 	void                             UpdateSelectedFragment();
 	void                             CreateLocators();
-	void                             CheckForLocatorChanges(const float lastTime, const float newTime);
-	void                             OnSequenceRestart(float timePassed);
+	void                             CheckForLocatorChanges(const CTimeValue& lastTime, const CTimeValue& newTime);
+	void                             OnSequenceRestart(const CTimeValue& timePassed);
 	void                             InitialiseToPreviewFile(const XmlNodeRef& xmlSequenceRoot);
 	void                             Reset();
 
 	void                             SetTimeToSelectedKey();
-	void                             SetTime(float fTime);
+	void                             SetTime(const CTimeValue& fTime);
 
-	float                            GetMarkerTimeStart() const;
-	float                            GetMarkerTimeEnd() const;
+	CTimeValue                       GetMarkerTimeStart() const;
+	CTimeValue                       GetMarkerTimeEnd() const;
 
 	void                             SetTagState(const FragmentID fragID, const SFragTagState& tagState);
 	TagState                         GetGlobalTags() const { return m_globalTags; }
@@ -93,7 +93,7 @@ protected:
 
 private:
 	void          InitToolbar();
-	void          InstallAction(float time);
+	void          InstallAction(const CTimeValue& time);
 	void          PopulateTagList();
 	void          SetTagStateOnCtrl(const SFragTagState& tagState);
 	SFragTagState GetTagStateFromCtrl() const;
@@ -107,15 +107,15 @@ private:
 	CMannNodesCtrl                           m_wndNodes;
 	CMannKeyPropertiesDlgFE                  m_wndKeyProperties;
 	CSequencerDopeSheetToolbar               m_cDlgToolBar;
-    CMannequinModelViewport*                 m_modelViewport;
+   CMannequinModelViewport*                 m_modelViewport;
 
 	QMfcContainer                            m_viewportHost;
 	QMfcViewportHost*                        m_pViewportWidget;
 
 	SMannequinContexts*                      m_contexts;
 
-	float                      m_fTime;
-	float                      m_playSpeed;
+	CTimeValue                 m_fTime;
+	mpfloat                    m_playSpeed;
 	bool                       m_bPlay;
 	bool                       m_bLoop;
 	bool                       m_draggingTime;

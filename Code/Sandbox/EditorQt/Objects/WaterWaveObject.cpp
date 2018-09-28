@@ -189,8 +189,8 @@ void CWaterWaveObject::UpdateSectors()
 
 		pParams.m_fSpeed = mv_speed;
 		pParams.m_fSpeedVar = mv_speedVar;
-		pParams.m_fLifetime = mv_lifetime;
-		pParams.m_fLifetimeVar = mv_lifetimeVar;
+		pParams.m_fLifetime = BADTIME(mv_lifetime);
+		pParams.m_fLifetimeVar = BADTIME(mv_lifetimeVar);
 		pParams.m_fHeight = mv_height;
 		pParams.m_fHeightVar = mv_heightVar;
 		pParams.m_fPosVar = mv_posVar;

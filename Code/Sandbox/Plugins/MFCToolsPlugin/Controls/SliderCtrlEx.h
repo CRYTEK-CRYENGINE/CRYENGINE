@@ -19,9 +19,9 @@ public:
 	virtual void    EnableUndo(const CString& undoText);
 	virtual void    SetUpdateCallback(const UpdateCallback& cb) { m_updateCallback = cb; };
 
-	virtual void    SetRangeFloat(float min, float max, float step = 0.f);
-	virtual void    SetValue(float val);
-	virtual float   GetValue() const;
+	virtual void    SetRangeInternal(const mpfloat& min, const mpfloat& max, const mpfloat& step = 0);
+	virtual void    SetValue(const mpfloat& val);
+	virtual const mpfloat& GetValue() const;
 	virtual CString GetValueAsString() const;
 
 protected:
@@ -39,9 +39,9 @@ protected:
 	bool           m_bDragging;
 	bool           m_bDragChanged;
 
-	float          m_min, m_max;
-	mutable float  m_value;
-	float          m_lastUpdateValue;
+	mpfloat        m_min, m_max;
+	mutable mpfloat m_value;
+	mpfloat        m_lastUpdateValue;
 	CPoint         m_mousePos;
 
 	bool           m_noNotify;

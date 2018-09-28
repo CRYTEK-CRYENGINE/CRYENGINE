@@ -110,11 +110,11 @@ void CTrackViewCore::Init()
 {
 	m_pTrackViewComponentsManager->Init(this);
 
-	SetFramerate(SAnimTime::eFrameRate_30fps);
-	SetDisplayMode(SAnimTime::EDisplayMode::Time);
+	SetFramerate(SAnimData::eFrameRate_30fps);
+	SetDisplayMode(SAnimData::EDisplayMode::Time);
 	SetSnapMode(eSnapMode_NoSnapping);
 	SetKeysMoveMode(eKeyMoveMode_Slide);
-	SetPlaybackSpeed(1.0f);
+	SetPlaybackSpeed(1);
 }
 
 CTrackViewSequence* CTrackViewCore::GetSequenceByGUID(CryGUID sequenceGUID) const
@@ -214,12 +214,12 @@ void CTrackViewCore::ResetPlaybackRange()
 {
 	if (CTrackViewSequence* pSequence = GetComponentsManager()->GetTrackViewSequenceTabWidget()->GetActiveSequence())
 	{
-		TRange<SAnimTime> defaultRange(-1, -1);
+		TRange<CTimeValue> defaultRange(-1, -1);
 		pSequence->SetPlaybackRange(defaultRange);
 	}
 }
 
-void CTrackViewCore::SetPlaybackRange(TRange<SAnimTime> markers)
+void CTrackViewCore::SetPlaybackRange(TRange<CTimeValue> markers)
 {
 	if (CTrackViewSequence* pSequence = GetComponentsManager()->GetTrackViewSequenceTabWidget()->GetActiveSequence())
 	{
@@ -227,14 +227,14 @@ void CTrackViewCore::SetPlaybackRange(TRange<SAnimTime> markers)
 	}
 }
 
-TRange<SAnimTime> CTrackViewCore::GetPlaybackRange() const
+TRange<CTimeValue> CTrackViewCore::GetPlaybackRange() const
 {
 	if (CTrackViewSequence* pSequence = GetComponentsManager()->GetTrackViewSequenceTabWidget()->GetActiveSequence())
 	{
 		return pSequence->GetPlaybackRange();
 	}
 
-	return TRange<SAnimTime>(0, 0);
+	return TRange<CTimeValue>(0, 0);
 }
 
 void CTrackViewCore::OnRecord(bool bState)
@@ -245,14 +245,14 @@ void CTrackViewCore::OnRecord(bool bState)
 void CTrackViewCore::OnGoToStart()
 {
 	CAnimationContext* pAnimationContext = CTrackViewPlugin::GetAnimationContext();
-	const TRange<SAnimTime> sequenceTime = pAnimationContext->GetTimeRange();
+	const TRange<CTimeValue> sequenceTime = pAnimationContext->GetTimeRange();
 	pAnimationContext->SetTime(sequenceTime.start);
 }
 
 void CTrackViewCore::OnGoToEnd()
 {
 	CAnimationContext* pAnimationContext = CTrackViewPlugin::GetAnimationContext();
-	const TRange<SAnimTime> sequenceTime = pAnimationContext->GetTimeRange();
+	const TRange<CTimeValue> sequenceTime = pAnimationContext->GetTimeRange();
 	pAnimationContext->SetTime(sequenceTime.end);
 }
 
@@ -260,7 +260,7 @@ void CTrackViewCore::OnStop()
 {
 	CAnimationContext* pAnimationContext = CTrackViewPlugin::GetAnimationContext();
 	pAnimationContext->Stop();
-	pAnimationContext->SetTime(SAnimTime(0));
+	pAnimationContext->SetTime(0);
 }
 
 void CTrackViewCore::OnLoop(bool bState)
@@ -311,7 +311,7 @@ void CTrackViewCore::OnGoToPreviousKey()
 
 	if (pSequence)
 	{
-		SAnimTime time = pAnimationContext->GetTime();
+		CTimeValue time = pAnimationContext->GetTime();
 		CTrackViewNode* pNode = pSequence->GetFirstSelectedNode();
 		pNode = pNode ? pNode : pSequence;
 
@@ -329,7 +329,7 @@ void CTrackViewCore::OnGoToNextKey()
 
 	if (pSequence)
 	{
-		SAnimTime time = pAnimationContext->GetTime();
+		CTimeValue time = pAnimationContext->GetTime();
 		CTrackViewNode* pNode = pSequence->GetFirstSelectedNode();
 		pNode = pNode ? pNode : pSequence;
 
@@ -356,7 +356,7 @@ void CTrackViewCore::SetKeysMoveMode(ETrackViewKeyMoveMode mode)
 	GetComponentsManager()->BroadcastTrackViewEditorEvent(eTrackViewEditorEvent_OnKeyMoveModeChanged);
 }
 
-void CTrackViewCore::SetPlaybackSpeed(float newPlaybackSpeed)
+void CTrackViewCore::SetPlaybackSpeed(const mpfloat& newPlaybackSpeed)
 {
 	m_playbackSpeed = newPlaybackSpeed;
 	CAnimationContext* pAnimationContext = CTrackViewPlugin::GetAnimationContext();
@@ -371,13 +371,13 @@ void CTrackViewCore::SetSnapMode(ETrackViewSnapMode newSnapMode)
 	GetComponentsManager()->BroadcastTrackViewEditorEvent(eTrackViewEditorEvent_OnSnapModeChanged);
 }
 
-void CTrackViewCore::SetFramerate(SAnimTime::EFrameRate newFramerate)
+void CTrackViewCore::SetFramerate(SAnimData::EFrameRate newFramerate)
 {
 	m_animTimeSettings.fps = newFramerate;
 	GetComponentsManager()->BroadcastTrackViewEditorEvent(eTrackViewEditorEvent_OnFramerateChanged);
 }
 
-void CTrackViewCore::SetDisplayMode(SAnimTime::EDisplayMode newDisplayMode)
+void CTrackViewCore::SetDisplayMode(SAnimData::EDisplayMode newDisplayMode)
 {
 	m_animTimeSettings.displayMode = newDisplayMode;
 	GetComponentsManager()->BroadcastTrackViewEditorEvent(eTrackViewEditorEvent_OnDisplayModeChanged);

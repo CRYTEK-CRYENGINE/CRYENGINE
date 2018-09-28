@@ -18,7 +18,7 @@
 #include "Util/MFCUtil.h"
 #include "../MannequinUtil.h"
 
-#define FILTER_DELAY_SECONDS (0.5f)
+#define FILTER_DELAY_SECONDS (CTimeValue("0.5"))
 
 IMPLEMENT_DYNAMIC(CFragmentBrowser, CXTResizeFormView)
 
@@ -179,7 +179,7 @@ CFragmentBrowser::CFragmentBrowser(CMannFragmentEditor& fragEditor, CWnd* pParen
 	, m_option(0)
 	, m_showSubFolders(true)
 	, m_showEmptyFolders(true)
-	, m_filterDelay(0.0f)
+	, m_filterDelay(0)
 {
 	KeepCorrectData();
 	Create("ClassName", "FragmentBrowser", 0, CRect(0, 0, 100, 100), pParent, nId, NULL);
@@ -215,19 +215,19 @@ void CFragmentBrowser::LoadLayout(const XmlNodeRef& xmlLayout)
 
 void CFragmentBrowser::Update(void)
 {
-	static CTimeValue timeLast = gEnv->pTimer->GetAsyncTime();
+	static CTimeValue timeLast = GetGTimer()->GetAsyncTime();
 
-	CTimeValue timeNow = gEnv->pTimer->GetAsyncTime();
+	CTimeValue timeNow = GetGTimer()->GetAsyncTime();
 	CTimeValue deltaTime = timeNow - timeLast;
 	timeLast = timeNow;
 
-	if (m_filterDelay > 0.0f)
+	if (m_filterDelay > 0)
 	{
-		m_filterDelay -= deltaTime.GetSeconds();
+		m_filterDelay -= deltaTime;
 
-		if (m_filterDelay <= 0.0f)
+		if (m_filterDelay <= 0)
 		{
-			m_filterDelay = 0.0f;
+			m_filterDelay.SetSeconds(0);
 			RebuildAll();
 		}
 	}

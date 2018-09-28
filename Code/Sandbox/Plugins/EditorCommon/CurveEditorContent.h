@@ -61,13 +61,13 @@ struct SCurveEditorCurve : ISplineEvaluator
 	virtual void GetKey(int i, KeyType& keyOut) const override
 	{
 		const auto thisKey = ApplyTangents(m_keys[i], true);
-		keyOut.time = thisKey.m_time;
+		keyOut.time = thisKey.m_time.GetSeconds();
 		keyOut.flags.inTangentType = thisKey.m_controlPoint.m_inTangentType;
 		keyOut.flags.outTangentType = thisKey.m_controlPoint.m_outTangentType;
 
 		if (m_bBezier2D)
 		{
-			keyOut.value[0] = keyOut.time;
+			keyOut.value[0] = BADF keyOut.time;
 			keyOut.value[1] = thisKey.m_controlPoint.m_value;
 			*(Vec2*)keyOut.ds = -3.0f * thisKey.m_controlPoint.m_inTangent;
 			*(Vec2*)keyOut.dd = 3.0f * thisKey.m_controlPoint.m_outTangent;
@@ -77,13 +77,13 @@ struct SCurveEditorCurve : ISplineEvaluator
 			const int numKeys = m_keys.size();
 			const auto& prevKey = m_keys[max(0, i - 1)];
 			const auto& nextKey = m_keys[min(i + 1, numKeys - 1)];
-			const float inSegmentLength = thisKey.m_time - prevKey.m_time;
-			const float outSegmentLength = nextKey.m_time - thisKey.m_time;
+			const CTimeValue inSegmentLength = thisKey.m_time - prevKey.m_time;
+			const CTimeValue outSegmentLength = nextKey.m_time - thisKey.m_time;
 
 			const Vec2 inTangent = thisKey.m_controlPoint.m_inTangent;
 			const Vec2 outTangent = thisKey.m_controlPoint.m_outTangent;
-			const float inSlope = (inTangent.y / min(-FLT_EPSILON, inTangent.x)) * inSegmentLength;
-			const float outSlope = (outTangent.y / max(FLT_EPSILON, outTangent.x)) * outSegmentLength;
+			const float inSlope = (inTangent.y / min(-FLT_EPSILON, inTangent.x)) * inSegmentLength.BADGetSeconds();
+			const float outSlope = (outTangent.y / max(FLT_EPSILON, outTangent.x)) * outSegmentLength.BADGetSeconds();
 
 			keyOut.value[0] = thisKey.m_controlPoint.m_value;
 			keyOut.ds[0] = inSlope;
@@ -120,7 +120,7 @@ struct SCurveEditorCurve : ISplineEvaluator
 
 			if (m_bBezier2D)
 			{
-				key.m_time = thisKey.value[0];
+				key.m_time = BADTIME(thisKey.value[0]);
 				key.m_controlPoint.m_value = thisKey.value[1];
 				key.m_controlPoint.m_inTangent = -oneThird * *(Vec2*)thisKey.ds;
 				key.m_controlPoint.m_outTangent = oneThird * *(Vec2*)thisKey.dd;
@@ -132,20 +132,20 @@ struct SCurveEditorCurve : ISplineEvaluator
 				spline.GetKey(max(0, i - 1), prevKey);
 				spline.GetKey(min(i + 1, numKeys - 1), nextKey);
 
-				const float inSegmentLength = thisKey.time - prevKey.time;
-				const float outSegmentLength = nextKey.time - thisKey.time;
+				const mpfloat inSegmentLength = thisKey.time - prevKey.time;
+				const mpfloat outSegmentLength = nextKey.time - thisKey.time;
 				const float inSlope = -thisKey.ds[0] * oneThird;
 				const float outSlope = thisKey.dd[0] * oneThird;
 
-				key.m_time = thisKey.time;
+				key.m_time.SetSeconds(thisKey.time);
 				key.m_controlPoint.m_value = thisKey.value[0];
-				key.m_controlPoint.m_inTangent = Vec2(-oneThird * inSegmentLength, inSlope);
-				key.m_controlPoint.m_outTangent = Vec2(oneThird * outSegmentLength, outSlope);
+				key.m_controlPoint.m_inTangent = Vec2(-oneThird * BADF inSegmentLength, inSlope);
+				key.m_controlPoint.m_outTangent = Vec2(oneThird * BADF outSegmentLength, outSlope);
 			}
 		}
 	}
 
-	virtual void Interpolate(float time, ValueType& value) override
+	virtual void Interpolate(const mpfloat& time, ValueType& value) override
 	{
 		assert(!"SCurveEditorCurve::Interpolate not implemented");
 	}
@@ -163,9 +163,9 @@ struct SCurveEditorCurve : ISplineEvaluator
 		if (strict && !m_bBezier2D)
 		{
 			const Vec2 outTangent = ret.m_controlPoint.m_outTangent;
-			const float outSegmentLength = pos[1].m_time - pos->m_time;
-			const float outSlope = (outTangent.y / max(FLT_EPSILON, outTangent.x)) * outSegmentLength;
-			ret.m_controlPoint.m_outTangent.x = outSegmentLength / 3.0f;
+			const CTimeValue outSegmentLength = pos[1].m_time - pos->m_time;
+			const float outSlope = (outTangent.y / max(FLT_EPSILON, outTangent.x)) * outSegmentLength.BADGetSeconds();
+			ret.m_controlPoint.m_outTangent.x = outSegmentLength.BADGetSeconds() / 3.0f;
 			ret.m_controlPoint.m_outTangent.y = outSlope / 3.0f;
 		}
 
@@ -181,9 +181,9 @@ struct SCurveEditorCurve : ISplineEvaluator
 		if (strict && !m_bBezier2D)
 		{
 			const Vec2 inTangent = ret.m_controlPoint.m_inTangent;
-			const float inSegmentLength = pos->m_time - pos[-1].m_time;
-			const float inSlope = (inTangent.y / min(-FLT_EPSILON, inTangent.x)) * inSegmentLength;
-			ret.m_controlPoint.m_inTangent.x = -inSegmentLength / 3.0f;
+			const CTimeValue inSegmentLength = pos->m_time - pos[-1].m_time;
+			const float inSlope = (inTangent.y / min(-FLT_EPSILON, inTangent.x)) * inSegmentLength.BADGetSeconds();
+			ret.m_controlPoint.m_inTangent.x = -inSegmentLength.BADGetSeconds() / 3.0f;
 			ret.m_controlPoint.m_inTangent.y = -inSlope / 3.0f;
 		}
 

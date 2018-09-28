@@ -89,10 +89,10 @@ private:
 	void      ReadTimeline();
 
 	void      UpdateTimeUnitsUI(bool timeChanged, bool durationChanged);
-	float     FrameRate() const;
+	int       FrameRate() const;
 
-	SAnimTime AnimEventTimeToTimelineTime(float animEventTime) const;
-	float     TimelineTimeToAnimEventTime(SAnimTime timelineTime) const;
+	CTimeValue AnimEventTimeToTimelineTime(const nTime& animEventTime) const;
+	nTime      TimelineTimeToAnimEventTime(const CTimeValue& timelineTime) const;
 
 	CTimeline*                   m_timeline;
 	AnimEventPresetPanel*        m_presetPanel;
@@ -122,8 +122,8 @@ private:
 	CryIcon                      m_playIcon;
 	CryIcon                      m_pauseIcon;
 
-	float                        m_normalizedTime;
-	float                        m_duration;
+	nTime                        m_normalizedTime;
+	CTimeValue                   m_duration;
 };
 
 }

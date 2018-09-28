@@ -15,7 +15,7 @@
 #include "Dialogs/StringInputDialog.h"
 #include "Preferences/ViewportPreferences.h"
 
-const float CMannequinModelViewport::s_maxTweenTime = 0.5f;
+const CTimeValue CMannequinModelViewport::s_maxTweenTime = "0.5";
 
 /*
    The following code was in OnRender, commented out:
@@ -60,10 +60,10 @@ CMannequinModelViewport::CMannequinModelViewport(EMannequinEditorMode editorMode
 	m_lookAtCamera(false),
 	m_showSceneRoots(false),
 	m_cameraKeyDown(false),
-	m_playbackMultiplier(1.0f),
+	m_playbackMultiplier(1),
 	m_tweenToFocusStart(ZERO),
 	m_tweenToFocusDelta(ZERO),
-	m_tweenToFocusTime(0.0f),
+	m_tweenToFocusTime(0),
 	m_editorMode(editorMode),
 	m_pActionController(NULL),
 	m_piGroundPlanePhysicalEntity(NULL),
@@ -177,11 +177,11 @@ void CMannequinModelViewport::Update()
 		DetachFromEntity();
 	}
 
-	if (m_tweenToFocusTime > 0.0f)
+	if (m_tweenToFocusTime > 0)
 	{
-		m_tweenToFocusTime = MAX(0.0f, m_tweenToFocusTime - gEnv->pTimer->GetFrameTime());
-		float fProgress = (s_maxTweenTime - m_tweenToFocusTime) / s_maxTweenTime;
-		m_Camera.SetPosition((m_tweenToFocusDelta * fProgress) + m_tweenToFocusStart);
+		m_tweenToFocusTime = max(CTimeValue(0), m_tweenToFocusTime - GetGTimer()->GetFrameTime());
+		nTime fProgress = (s_maxTweenTime - m_tweenToFocusTime) / s_maxTweenTime;
+		m_Camera.SetPosition((m_tweenToFocusDelta * BADF fProgress) + m_tweenToFocusStart);
 	}
 }
 
@@ -242,7 +242,7 @@ void CMannequinModelViewport::OnMouseMove(UINT nFlags, CPoint point)
 	if (m_bInMoveMode)
 	{
 		// End the focus tween if in progress and the middle mouse button has been pressed
-		m_tweenToFocusTime = 0.0f;
+		m_tweenToFocusTime.SetSeconds(0);
 	}
 
 	if (m_locMode == LM_Rotate)
@@ -612,7 +612,7 @@ void CMannequinModelViewport::OnRender()
 		IRenderAuxText::DrawLabelExF(pos, 1.5f, colour, true, true, "%s\n%s", m_pHoverBaseObject->GetName(), currentPropName);
 	}
 
-	UpdateAnimation(m_playbackMultiplier * gEnv->pTimer->GetFrameTime());
+	UpdateAnimation(m_playbackMultiplier * GetGTimer()->GetFrameTime());
 
 	__super::OnRender();
 }
@@ -659,7 +659,7 @@ void CMannequinModelViewport::SetPlayerPos()
 	m.SetTranslation(m.GetTranslation() - m_PhysicalLocation.t);
 	SetViewTM(m);
 
-	m_AverageFrameTime = 0.14f;
+	m_AverageFrameTime.SetSeconds("0.14");
 
 	m_PhysicalLocation.SetIdentity();
 
@@ -845,7 +845,7 @@ Matrix34 CMannequinModelViewport::GetLocatorWorldMatrix(const SLocator& locator)
 	return GetLocatorReferenceMatrix(locator) * Matrix34(Matrix33(locator.m_ArcBall.DragRotation * locator.m_ArcBall.ObjectRotation), locator.m_ArcBall.sphere.center);
 }
 
-void CMannequinModelViewport::UpdateCharacter(IEntity* pEntity, ICharacterInstance* pInstance, float deltaTime)
+void CMannequinModelViewport::UpdateCharacter(IEntity* pEntity, ICharacterInstance* pInstance, const CTimeValue& deltaTime)
 {
 	ISkeletonAnim& skeletonAnimation = *pInstance->GetISkeletonAnim();
 	ISkeletonPose& skeletonPose = *pInstance->GetISkeletonPose();
@@ -890,7 +890,7 @@ void CMannequinModelViewport::UpdateCharacter(IEntity* pEntity, ICharacterInstan
 	}
 }
 
-void CMannequinModelViewport::UpdateAnimation(float timePassed)
+void CMannequinModelViewport::UpdateAnimation(const CTimeValue& timePassed)
 {
 	gEnv->pGameFramework->GetMannequinInterface().SetSilentPlaybackMode(m_bPaused);
 	if (m_pActionController)
@@ -1067,7 +1067,7 @@ void CMannequinModelViewport::DrawEntityAndChildren(CEntityObject* pEntityObject
 
 void CMannequinModelViewport::DrawCharacter(ICharacterInstance* pInstance, const SRendParams& rRP, const SRenderingPassInfo& passInfo)
 {
-	f32 FrameTime = GetIEditorImpl()->GetSystem()->GetITimer()->GetFrameTime();
+	CTimeValue FrameTime = GetIEditorImpl()->GetSystem()->GetITimer()->GetFrameTime();
 	m_AverageFrameTime = pInstance->GetAverageFrameTime();
 
 	GetIEditorImpl()->GetSystem()->GetIConsole()->GetCVar("ca_DrawLocator")->Set(mv_showLocator);
@@ -1256,11 +1256,11 @@ void CMannequinModelViewport::DrawCharacter(IEntity* pEntity, ICharacterInstance
 	}
 }
 
-void CMannequinModelViewport::OnScrubTime(float timePassed)
+void CMannequinModelViewport::OnScrubTime(const CTimeValue& timePassed)
 {
 }
 
-void CMannequinModelViewport::OnSequenceRestart(float timePassed)
+void CMannequinModelViewport::OnSequenceRestart(const CTimeValue& timePassed)
 {
 	OnScrubTime(timePassed);
 	m_GridOrigin = Vec3(ZERO);

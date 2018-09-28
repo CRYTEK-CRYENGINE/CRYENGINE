@@ -271,8 +271,8 @@ CompressionMachine::CompressionMachine()
 	, m_showOriginalAnimation(false)
 	, m_previewReloadListener(new AnimationSetExtender(this))
 	, m_referenceReloadListener(new AnimationSetExtender(this))
-	, m_normalizedStartTime(0.0f)
-	, m_playbackSpeed(1.0f)
+	, m_normalizedStartTime(0)
+	, m_playbackSpeed(1)
 	, m_compressionSessionIndex(0)
 	, m_compressedCharacter(0)
 	, m_uncompressedCharacter(0)
@@ -300,7 +300,7 @@ static bool EquivalentAnimSettings(const vector<SAnimSettings>& a, const vector<
 	return true;
 }
 
-void CompressionMachine::PreviewAnimation(const PlaybackLayers& layers, const vector<bool>& isModified, bool showOriginalAnimation, const vector<SAnimSettings>& animSettings, float normalizedTime, bool forceRecompile, bool expectToReloadChrparams)
+void CompressionMachine::PreviewAnimation(const PlaybackLayers& layers, const vector<bool>& isModified, bool showOriginalAnimation, const vector<SAnimSettings>& animSettings, const nTime& normalizedTime, bool forceRecompile, bool expectToReloadChrparams)
 {
 	if (m_compressedCharacter == 0)
 		return;
@@ -655,7 +655,7 @@ void CompressionMachine::SetState(State state)
 }
 
 static void PlayLayer(ICharacterInstance* character, const PlaybackLayer& layer, const char* animationName,
-                      float normalizedTime, float playbackSpeed, bool loop)
+                      const nTime& normalizedTime, const mpfloat& playbackSpeed, bool loop)
 {
 	ISkeletonAnim& skeletonAnim = *character->GetISkeletonAnim();
 	int localAnimID = character->GetIAnimationSet()->GetAnimIDByName(animationName);
@@ -664,8 +664,8 @@ static void PlayLayer(ICharacterInstance* character, const PlaybackLayer& layer,
 	character->SetPlaybackScale(playbackSpeed);
 
 	CryCharAnimationParams params;
-	params.m_fPlaybackSpeed = 1.0f;
-	params.m_fTransTime = 0;
+	params.m_fPlaybackSpeed = 1;
+	params.m_fTransTime.SetSeconds(0);
 	params.m_fPlaybackWeight = layer.weight;
 	params.m_nLayerID = layer.layerId;
 	params.m_fKeyTime = normalizedTime;
@@ -677,7 +677,7 @@ static void PlayLayer(ICharacterInstance* character, const PlaybackLayer& layer,
 	skeletonAnim.StartAnimationById(localAnimID, params);
 }
 
-void CompressionMachine::Play(float normalizedTime)
+void CompressionMachine::Play(const nTime& normalizedTime)
 {
 	if (m_state != eState_PreviewAnimation && m_state != eState_PreviewCompressedOnly)
 		return;
@@ -688,9 +688,9 @@ void CompressionMachine::Play(float normalizedTime)
 		Animation& animation = m_animations[i];
 		if (!animation.enabled)
 		{
-			m_compressedCharacter->GetISkeletonAnim()->StopAnimationInLayer(layer.layerId, 0.0f);
+			m_compressedCharacter->GetISkeletonAnim()->StopAnimationInLayer(layer.layerId, 0);
 			if (m_uncompressedCharacter)
-				m_uncompressedCharacter->GetISkeletonAnim()->StopAnimationInLayer(layer.layerId, 0.0f);
+				m_uncompressedCharacter->GetISkeletonAnim()->StopAnimationInLayer(layer.layerId, 0);
 		}
 		else
 		{
@@ -712,13 +712,13 @@ void CompressionMachine::SetLoop(bool loop)
 		{
 			int layer = 0; // TODO add layers supports
 			ISkeletonAnim& skeletonAnim = *m_compressedCharacter->GetISkeletonAnim();
-			float normalizedTime = skeletonAnim.GetAnimationNormalizedTime(&skeletonAnim.GetAnimFromFIFO(layer, 0));
+			nTime normalizedTime = skeletonAnim.GetAnimationNormalizedTime(&skeletonAnim.GetAnimFromFIFO(layer, 0));
 			Play(normalizedTime);
 		}
 	}
 }
 
-void CompressionMachine::SetPlaybackSpeed(float playbackSpeed)
+void CompressionMachine::SetPlaybackSpeed(const mpfloat& playbackSpeed)
 {
 	if (m_playbackSpeed != playbackSpeed)
 	{
@@ -727,7 +727,7 @@ void CompressionMachine::SetPlaybackSpeed(float playbackSpeed)
 		{
 			int layer = 0; // TODO add layers supports
 			ISkeletonAnim& skeletonAnim = *m_compressedCharacter->GetISkeletonAnim();
-			float normalizedTime = skeletonAnim.GetAnimationNormalizedTime(&skeletonAnim.GetAnimFromFIFO(layer, 0));
+			nTime normalizedTime = skeletonAnim.GetAnimationNormalizedTime(&skeletonAnim.GetAnimFromFIFO(layer, 0));
 			Play(normalizedTime);
 		}
 	}

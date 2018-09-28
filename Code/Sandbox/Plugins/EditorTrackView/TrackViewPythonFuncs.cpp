@@ -91,7 +91,7 @@ boost::python::tuple PyTrackViewGetSequenceTimeRange(const char* name)
 		throw std::exception("A sequence with this name doesn't exists");
 	}
 
-	const Range timeRange = Range(pSequence->GetTimeRange().start.ToFloat(), pSequence->GetTimeRange().end.ToFloat());
+	const Range timeRange = Range(pSequence->GetTimeRange().start.BADGetSeconds(), pSequence->GetTimeRange().end.BADGetSeconds());
 	return boost::python::make_tuple(timeRange.start, timeRange.end);
 }
 
@@ -105,7 +105,7 @@ void PyTrackViewSetSequenceTimeRange(const char* name, float start, float end)
 	}
 
 	CUndo undo("Set sequence time range");
-	pSequence->SetTimeRange(TRange<SAnimTime>(SAnimTime(start), SAnimTime(end)));
+	pSequence->SetTimeRange(TRange<CTimeValue>(BADTIME(start), BADTIME(end)));
 }
 
 void PyTrackViewPlaySequence()
@@ -133,7 +133,7 @@ void PyTrackViewStopSequence()
 void PyTrackViewSetSequenceTime(float time)
 {
 	CAnimationContext* pAnimationContext = CTrackViewPlugin::GetAnimationContext();
-	pAnimationContext->SetTime(SAnimTime(time));
+	pAnimationContext->SetTime(BADTIME(time));
 }
 
 // Nodes
@@ -363,7 +363,7 @@ std::set<float> GetKeyTimeSet(CTrackViewTrack* pTrack)
 	for (uint i = 0; i < pTrack->GetKeyCount(); ++i)
 	{
 		CTrackViewKeyHandle keyHandle = pTrack->GetKey(i);
-		keyTimeSet.insert(keyHandle.GetTime().ToFloat());
+		keyTimeSet.insert(keyHandle.GetTime().BADGetSeconds());
 	}
 
 	return keyTimeSet;
@@ -385,21 +385,21 @@ pSPyWrappedProperty PyTrackViewGetInterpolatedValue(const char* paramName, int t
 	case eAnimValue_Float:
 	case eAnimValue_DiscreteFloat:
 		{
-			float value = stl::get<float>(pTrack->GetValue(SAnimTime(time)));
+			float value = stl::get<float>(pTrack->GetValue(BADTIME(time)));
 			prop->type = SPyWrappedProperty::eType_Float;
 			prop->property.floatValue = value;
 		}
 		break;
 	case eAnimValue_Bool:
 		{
-			bool value = stl::get<bool>(pTrack->GetValue(SAnimTime(time)));
+			bool value = stl::get<bool>(pTrack->GetValue(BADTIME(time)));
 			prop->type = SPyWrappedProperty::eType_Bool;
 			prop->property.boolValue = value;
 		}
 		break;
 	case eAnimValue_Quat:
 		{
-			Quat value = stl::get<Quat>(pTrack->GetValue(SAnimTime(time)));
+			Quat value = stl::get<Quat>(pTrack->GetValue(BADTIME(time)));
 			prop->type = SPyWrappedProperty::eType_Vec3;
 			Ang3 rotation(value);
 			prop->property.vecValue.x = rotation.x;
@@ -408,7 +408,7 @@ pSPyWrappedProperty PyTrackViewGetInterpolatedValue(const char* paramName, int t
 		}
 	case eAnimValue_Vector:
 		{
-			Vec3 value = stl::get<Vec3>(pTrack->GetValue(SAnimTime(time)));
+			Vec3 value = stl::get<Vec3>(pTrack->GetValue(BADTIME(time)));
 			prop->type = SPyWrappedProperty::eType_Vec3;
 			prop->property.vecValue.x = value.x;
 			prop->property.vecValue.y = value.y;
@@ -417,7 +417,7 @@ pSPyWrappedProperty PyTrackViewGetInterpolatedValue(const char* paramName, int t
 		break;
 	case eAnimValue_Vector4:
 		{
-			Vec4 value = stl::get<Vec4>(pTrack->GetValue(SAnimTime(time)));
+			Vec4 value = stl::get<Vec4>(pTrack->GetValue(BADTIME(time)));
 			prop->type = SPyWrappedProperty::eType_Vec4;
 			prop->property.vecValue.x = value.x;
 			prop->property.vecValue.y = value.y;
@@ -427,7 +427,7 @@ pSPyWrappedProperty PyTrackViewGetInterpolatedValue(const char* paramName, int t
 		break;
 	case eAnimValue_RGB:
 		{
-			Vec3 value = stl::get<Vec3>(pTrack->GetValue(SAnimTime(time)));
+			Vec3 value = stl::get<Vec3>(pTrack->GetValue(BADTIME(time)));
 			prop->type = SPyWrappedProperty::eType_Color;
 			prop->property.colorValue.r = static_cast<int>(clamp_tpl(value.x, 0.0f, 1.0f) * 255.0f);
 			prop->property.colorValue.g = static_cast<int>(clamp_tpl(value.y, 0.0f, 1.0f) * 255.0f);

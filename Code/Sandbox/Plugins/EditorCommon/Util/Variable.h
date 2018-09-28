@@ -62,6 +62,7 @@ struct EDITOR_COMMON_API IVariableContainer : public _i_reference_target_t
 //////////////////////////////////////////////////////////////////////////
 /** IVariable is the variant variable interface.
  */
+template<class B> class CVariable;
 struct EDITOR_COMMON_API IVariable : public IVariableContainer
 {
 	/** Type of data stored in variable.
@@ -77,7 +78,9 @@ struct EDITOR_COMMON_API IVariable : public IVariableContainer
 		VECTOR4,  //!< Vector property.
 		QUAT,     //!< Quaternion property.
 		STRING,   //!< String property.
-		ARRAY     //!< Array of parameters.
+		ARRAY,    //!< Array of parameters.
+		TV,		 //!< Time value
+		MP			 //!< Multi-precision float value
 	};
 
 	//! Type of data hold by variable.
@@ -228,8 +231,12 @@ struct EDITOR_COMMON_API IVariable : public IVariableContainer
 	virtual void Set(const Vec4& value) = 0;
 	virtual void Set(const Ang3& value) = 0;
 	virtual void Set(const Quat& value) = 0;
+	virtual void Set(const CTimeValue& value) = 0;
+	virtual void Set(const mpfloat& value) = 0;
+
 	virtual void Set(const string& value) = 0;
 	virtual void Set(const char* value) = 0;
+
 	virtual void SetDisplayValue(const string& value) = 0;
 	inline void  SetDisplayValue(const char* value) { SetDisplayValue(string(value)); }
 
@@ -247,15 +254,17 @@ struct EDITOR_COMMON_API IVariable : public IVariableContainer
 	virtual void    Get(Vec4& value) const = 0;
 	virtual void    Get(Ang3& value) const = 0;
 	virtual void    Get(Quat& value) const = 0;
+	virtual void    Get(CTimeValue& value) const = 0;
+	virtual void    Get(mpfloat& value) const = 0;
+
 	virtual void    Get(string& value) const = 0;
-	inline void     Get(CString& value) const // for CString conversion
+	inline  void    Get(CString& value) const // for CString conversion
 	{
 		string str;
 		Get(str);
 		value = str.GetString();
 	}
-
-	virtual string GetDisplayValue() const = 0;
+	virtual string  GetDisplayValue() const = 0;
 	virtual bool    HasDefaultValue() const = 0;
 
 	//! Return cloned value of variable.
@@ -270,16 +279,48 @@ struct EDITOR_COMMON_API IVariable : public IVariableContainer
 	//////////////////////////////////////////////////////////////////////////
 	// Value Limits.
 	//////////////////////////////////////////////////////////////////////////
-	//! Set value limits.
-	virtual void SetLimits(float fMin, float fMax, float fStep = 0.f, bool bHardMin = true, bool bHardMax = true) {}
-	//! Get value limits.
-	virtual void GetLimits(float& fMin, float& fMax, float& fStep, bool& bHardMin, bool& bHardMax)                {}
-	void         GetLimits(float& fMin, float& fMax)
-	{
-		float f;
-		bool b;
-		GetLimits(fMin, fMax, f, b, b);
+	/*
+	bool IsPercise() const {
+		int type = GetType();
+		if(type == MP || type == TV){ return true; }
+		return false;
 	}
+
+	template<class T> 
+	void SetLimits(const T& vMin, const T& vMax, const T& vStep = 0, bool bHardMin = true, bool bHardMax = true) { 
+		assert(!(IsPercise() && !boost::is_convertible<T, mpfloat>::value) && "Anti-lossy Precaution: Can't set multi-precision type with non-multi-precision values!");
+		return SetLimitsG(mpfloat().lossy(vMin), mpfloat().lossy(vMax), mpfloat().lossy(vStep), bHardMin, bHardMax);
+	}
+
+	template<class T>
+	void GetLimits(T& vMin, T& vMax) const
+	{
+		T f;
+		bool b;
+		GetLimits(vMin, vMax, f, b, b);
+	}
+	template<class T> 
+	void GetLimits(T& vMin, T& vMax, T& vStep, bool& bHardMin, bool& bHardMax) const { 
+		assert(!(IsPercise() && !boost::is_convertible<T, mpfloat>::value) && "Anti-lossy Precaution: Can't get multi-precision type with non-multi-precision values!");
+		
+		mpfloat min, max, step;
+		GetLimitsG(min, max, step, bHardMin, bHardMax);
+
+		vMin  = (T)min;
+		vMax  = (T)max;
+		vStep = (T)step;
+	}
+*/
+
+	// Converts mpfloat to/from type automatically, for "I dont know the var" sets.
+	virtual void SetLimitsG(const mpfloat& vMin, const mpfloat& vMax, const mpfloat& vStep = 0, bool bHardMin = true, bool bHardMax = true) { assert(0); }
+	void GetLimitsG(mpfloat& vMin, mpfloat& vMax) const
+	{
+		mpfloat f;
+		bool b;
+		GetLimitsG(vMin, vMax, f, b, b);
+	}
+	virtual void GetLimitsG(mpfloat& vMin, mpfloat& vMax, mpfloat& vStep, bool& bHardMin, bool& bHardMax) const { assert(0); }
 
 	virtual void EnableNotifyWithoutValueChange(bool bFlag) {}
 
@@ -336,8 +377,8 @@ class EDITOR_COMMON_API CVariableBase : public IVariable
 public:
 	virtual ~CVariableBase() {}
 
-	void        SetName(const string& name) { m_name = name; };
-	//! Get name of parameter.
+	//! Get/Set name of parameter.
+	void        SetName(const string& name)  { m_name = name; };
 	const char* GetName() const              { return to_c_str(m_name); };
 
 	void        SetLegacyName(const string& name) { m_legacyName = name; }
@@ -369,38 +410,45 @@ public:
 	//////////////////////////////////////////////////////////////////////////
 	// Set methods.
 	//////////////////////////////////////////////////////////////////////////
-	void Set(int value)                        { assert(0); }
-	void Set(bool value)                       { assert(0); }
-	void Set(float value)                      { assert(0); }
-	void Set(const Vec2& value)                { assert(0); }
-	void Set(const Vec3& value)                { assert(0); }
-	void Set(const Vec4& value)                { assert(0); }
-	void Set(const Ang3& value)                { assert(0); }
-	void Set(const Quat& value)                { assert(0); }
+	void Set(int value)                       { assert(0); }
+	void Set(bool value)                      { assert(0); }
+
+	void Set(float value)							{ assert(0); }
+	void Set(const Vec2& value)					{ assert(0); }
+	void Set(const Vec3& value)					{ assert(0); }
+	void Set(const Vec4& value)					{ assert(0); }
+	void Set(const Ang3& value)					{ assert(0); }
+	void Set(const Quat& value)					{ assert(0); }
+	void Set(const CTimeValue& value)			{ assert(0); }
+	void Set(const mpfloat& value)				{ assert(0); }
+
+	void Set(const char* value)					{ assert(0); }
 	void Set(const string& value)             { assert(0); }
-	void Set(const char* value)                { assert(0); }
 	void SetDisplayValue(const string& value) { Set(value); }
-	void SetDisplayValue(const char* value) { SetDisplayValue(string(value)); } // for CString conversion
 
 	//////////////////////////////////////////////////////////////////////////
 	// Get methods.
 	//////////////////////////////////////////////////////////////////////////
-	void    Get(int& value) const     { assert(0); }
-	void    Get(bool& value) const    { assert(0); }
-	void    Get(float& value) const   { assert(0); }
-	void    Get(Vec2& value) const    { assert(0); }
-	void    Get(Vec3& value) const    { assert(0); }
-	void    Get(Vec4& value) const    { assert(0); }
-	void    Get(Ang3& value) const    { assert(0); }
-	void    Get(Quat& value) const    { assert(0); }
-	void    Get(string& value) const { assert(0); }
-	void	Get(CString& value) const // for CString conversion
+	void    Get(int& value)  const			{ assert(0); }
+	void    Get(bool& value) const			{ assert(0); }
+
+	void    Get(float& value) const			{ assert(0); }
+	void    Get(Vec2& value) const			{ assert(0); }
+	void    Get(Vec3& value) const			{ assert(0); }
+	void    Get(Vec4& value) const			{ assert(0); }
+	void    Get(Ang3& value) const			{ assert(0); }
+	void    Get(Quat& value) const			{ assert(0); }
+	void    Get(CTimeValue& value) const	{ assert(0); }
+	void    Get(mpfloat& value) const		{ assert(0); }
+
+	void    Get(string& value)  const		{ assert(0); }
+	void	  Get(CString& value) const // for CString conversion
 	{
 		string str;
 		Get(str);
 		value = str.GetString();
 	}
-	string GetDisplayValue() const   { string val; Get(val); return val; }
+	string  GetDisplayValue()   const		{ string val; Get(val); return val; }
 
 	//////////////////////////////////////////////////////////////////////////
 	// IVariableContainer functions
@@ -607,7 +655,7 @@ public:
 	//////////////////////////////////////////////////////////////////////////
 	// Get methods.
 	//////////////////////////////////////////////////////////////////////////
-	virtual void Get(string& value) const { value = m_strValue; }
+	virtual void Get(string& value)  const { value = m_strValue; }
 	virtual void Get(CString& value) const { value = m_strValue.GetString(); }
 
 	virtual bool HasDefaultValue() const
@@ -781,15 +829,18 @@ template<class Type>
 struct type_traits : public type_traits_base<IVariable::UNKNOWN, false, false, false> {};
 
 // Types specialization.
-template<> struct type_traits<int> : public type_traits_base<IVariable::INT, true, true, true> {};
-template<> struct type_traits<bool> : public type_traits_base<IVariable::BOOL, true, true, false> {};
-template<> struct type_traits<float> : public type_traits_base<IVariable::FLOAT, true, false, false> {};
-template<> struct type_traits<Vec2> : public type_traits_base<IVariable::VECTOR2, false, false, false> {};
-template<> struct type_traits<Vec3> : public type_traits_base<IVariable::VECTOR, false, false, false> {};
-template<> struct type_traits<Vec4> : public type_traits_base<IVariable::VECTOR4, false, false, false> {};
-template<> struct type_traits<Quat> : public type_traits_base<IVariable::QUAT, false, false, false> {};
+template<> struct type_traits<int>		: public type_traits_base<IVariable::INT,		true,  true,  true>	{};
+template<> struct type_traits<bool>		: public type_traits_base<IVariable::BOOL,	true,  true,  false>	{};
+template<> struct type_traits<float>	: public type_traits_base<IVariable::FLOAT,	true,  false, false>	{};
+template<> struct type_traits<Vec2>		: public type_traits_base<IVariable::VECTOR2,false, false, false> {};
+template<> struct type_traits<Vec3>		: public type_traits_base<IVariable::VECTOR, false, false, false> {};
+template<> struct type_traits<Vec4>		: public type_traits_base<IVariable::VECTOR4,false, false, false> {};
+template<> struct type_traits<Quat>		: public type_traits_base<IVariable::QUAT,	false, false, false> {};
 template<> struct type_traits<CString> : public type_traits_base<IVariable::STRING, false, false, false> {};
-template<> struct type_traits<string> : public type_traits_base<IVariable::STRING, false, false, false> {};
+template<> struct type_traits<string>	: public type_traits_base<IVariable::STRING, false, false, false> {};
+
+template<> struct type_traits<mpfloat> : public type_traits_base<IVariable::MP,		false, false, false>	{};
+template<> struct type_traits<CTimeValue> : public type_traits_base<IVariable::TV,	false, false, false>	{};
 //////////////////////////////////////////////////////////////////////////
 
 //////////////////////////////////////////////////////////////////////////
@@ -801,7 +852,7 @@ struct type_convertor
 	typename std::enable_if<(!std::is_same<From, CString>::value && !std::is_same<To, CString>::value), void>::type operator() (const From& from, To& to) const { assert(0); }
 
 	template<class From, class To>
-	typename std::enable_if<(std::is_same<From, CString>::value && std::is_same<To, CString>::value), void>::type operator() (const From& from, To& to) const { to = from; }
+	typename std::enable_if<(std::is_same<From, CString>::value && std::is_same<To, CString>::value), void>::type operator() (const From& from, To& to)   const { to = from; }
 
 	template<class From>
 	typename std::enable_if<(!std::is_same<From, CString>::value), void>::type operator()(const From& from, CString& to) const
@@ -817,6 +868,12 @@ struct type_convertor
 		string str = from.GetString();
 		operator()(str, to);
 	}
+
+	/*template<class To>
+	void operator()(const mpfloat& from, To& to) const
+	{
+		to = (To)from;
+	}*/
 
 	void operator()(const int& from, int& to) const          { to = from; }
 	void operator()(const int& from, bool& to) const         { to = from != 0; }
@@ -834,7 +891,9 @@ struct type_convertor
 	void operator()(const Vec3& from, Vec3& to) const        { to = from; }
 	void operator()(const Vec4& from, Vec4& to) const        { to = from; }
 	void operator()(const Quat& from, Quat& to) const        { to = from; }
-	void operator()(const string& from, string& to) const  { to = from; }
+	void operator()(const string& from, string& to)			  const { to = from; }
+	void operator()(const CTimeValue& from, CTimeValue& to) const { to = from; }
+	void operator()(const mpfloat& from, mpfloat& to)		  const { to = from; }
 
 	void operator()(int value, string& to) const            { to.Format("%d", value); };
 	void operator()(bool value, string& to) const           { to.Format("%d", (value) ? (int)1 : (int)0); };
@@ -844,6 +903,9 @@ struct type_convertor
 	void operator()(const Vec4& value, string& to) const    { to.Format("%g,%g,%g,%g", value.x, value.y, value.z, value.w); };
 	void operator()(const Ang3& value, string& to) const    { to.Format("%g,%g,%g", value.x, value.y, value.z); };
 	void operator()(const Quat& value, string& to) const    { to.Format("%g,%g,%g,%g", value.w, value.v.x, value.v.y, value.v.z); };
+
+	void operator()(const CTimeValue& from, string& to) const { to = from.GetSeconds().str(); }
+	void operator()(const mpfloat& from, string& to)	 const { to = from.str(); }
 
 	void operator()(const string& from, int& value) const   { value = atoi((const char*)from); };
 	void operator()(const string& from, bool& value) const  { value = atoi((const char*)from) != 0; };
@@ -877,6 +939,8 @@ struct type_convertor
 		value.SetIdentity();
 		sscanf((const char*)from, "%f,%f,%f,%f", &value.w, &value.v.x, &value.v.y, &value.v.z);
 	};
+	void operator()(const string& from, CTimeValue& to) const { to.SetSeconds(mpfloat(from.c_str())); }
+	void operator()(const string& from, mpfloat& to)	 const { to = from.c_str(); }
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -944,6 +1008,9 @@ inline void init(CString& val)
 {
 	// self initializing.
 };
+inline void init(CTimeValue& val) { 
+	// self initializing.
+};
 //////////////////////////////////////////////////////////////////////////
 };
 
@@ -963,29 +1030,52 @@ protected:
 };
 
 //////////////////////////////////////////////////////////////////////////
-template<class T>
+template<class B>
 class CVariable : public CVariableBase
 {
-	typedef CVariable<T> Self;
+	typedef CVariable<B> Self;
+
+	// Is a vector-type
+	template <class U>
+	struct isVecType
+		: public boost::mpl::bool_<
+		boost::is_same<U, Vec2>::value ||
+		boost::is_same<U, Vec3>::value || 
+		boost::is_same<U, Vec4>::value
+	> {};
+	#define isVec isVecType<T>::value
+
+	// Supported types that have acceptable 'limits'. Ofc doesn't work with bool/string/etc. cvars.
+	template <class U>
+	struct hasLimitsT
+		: public boost::mpl::bool_<
+		boost::is_same<U, int>::value ||
+		boost::is_same<U, float>::value || 
+		boost::is_same<U, mpfloat>::value || 
+		boost::is_same<U, CTimeValue>::value || 
+		isVecType<U>::value
+	>{};
+	#define hasLimits hasLimitsT<T>::value
+
 public:
-	// Constructor.
+	// Constructor
 	CVariable()
 	{
 		// Initialize value to zero or empty string.
 		var_type::init(m_valueDef);
-		SetLimits(0.0f, 100.0f, 0.0f, false, false);
+		if(hasLimitsT<B>::value){ SetLimitsG(0, 100, 0, false, false); }
 	}
 
-	explicit CVariable(const T& set)
+	explicit CVariable(const B& set)
 	{
 		var_type::init(m_valueDef);   // Update F32NAN values in Debud mode
 		SetValue(set);
-		SetLimits(0.0f, 100.0f, 0.0f, false, false);
+		if (hasLimitsT<B>::value) { SetLimitsG(0, 100, 0, false, false); }
 	}
 
 	//! Get name of parameter.
-	virtual EType GetType() const { return (EType)var_type::type_traits<T>::type(); };
-	virtual int   GetSize() const { return sizeof(T); };
+	virtual EType GetType() const { return (EType)var_type::type_traits<B>::type(); };
+	virtual int   GetSize() const { return sizeof(B); };
 
 	//////////////////////////////////////////////////////////////////////////
 	// Set methods.
@@ -998,8 +1088,11 @@ public:
 	virtual void Set(const Vec4& value)    { SetValue(value); }
 	virtual void Set(const Ang3& value)    { SetValue(value); }
 	virtual void Set(const Quat& value)    { SetValue(value); }
-	virtual void Set(const string& value) { SetValue(value); }
+	virtual void Set(const string& value)  { SetValue(value); }
 	virtual void Set(const char* value)    { SetValue(string(value)); }
+
+	virtual void Set(const CTimeValue& value) { SetValue(value); }
+	virtual void Set(const mpfloat& value)    { SetValue(value); }
 
 	//////////////////////////////////////////////////////////////////////////
 	// Get methods.
@@ -1018,10 +1111,12 @@ public:
 		Get(str);
 		value = str.GetString();
 	}
+	virtual void Get(CTimeValue& value) const { GetValue(value); }
+	virtual void Get(mpfloat& value)    const { GetValue(value); }
 
 	virtual bool HasDefaultValue() const
 	{
-		T defval;
+		B defval;
 		var_type::init(defval);
 		return m_valueDef == defval;
 	}
@@ -1029,38 +1124,117 @@ public:
 	//////////////////////////////////////////////////////////////////////////
 	// Limits.
 	//////////////////////////////////////////////////////////////////////////
-	virtual void SetLimits(float fMin, float fMax, float fStep = 0.f, bool bHardMin = true, bool bHardMax = true)
-	{
-		CRY_ASSERT_MESSAGE(fMin <= fMax, "maximum value has to be bigger than minimum value!");
+	template <class T = B, typename boost::disable_if_c<hasLimits>::type* = 0>
+	void SetLimits(const B& vMin, const B& vMax, const B& vStep = 0, bool bHardMin = true, bool bHardMax = true) { assert(false && "This type is has no limits."); }
+	template <class T = B, typename boost::disable_if_c<hasLimits>::type* = 0>
+	void GetLimits(B& vMin, B& vMax, B& vStep, bool& bHardMin, bool& bHardMax)										 const { assert(false && "This type is has no limits."); }
+	template <class T = B, typename boost::disable_if_c<hasLimits>::type* = 0>
+	void SetLimitsG_IMP(const mpfloat& vMin, const mpfloat& vMax, const mpfloat& vStep, bool bHardMin = true, bool bHardMax = true) { assert(false && "This type is has no limits."); }
+	template <class T = B, typename boost::disable_if_c<hasLimits>::type* = 0>
+	void GetLimitsG_IMP(mpfloat& vMin, mpfloat& vMax, mpfloat& vStep, bool& bHardMin, bool& bHardMax)								  const { assert(false && "This type is has no limits."); }
 
-		m_valueMin = fMin;
-		m_valueMax = fMax;
-		m_valueStep = fStep;
+
+	template <class T = B, typename boost::enable_if_c< hasLimits && !isVec >::type* = 0>
+	void SetLimits(const B& vMin, const B& vMax, const B& vStep = 0, bool bHardMin = true, bool bHardMax = true)
+	{
+		CRY_ASSERT_MESSAGE(vMin <= vMax, "Maximum value has to be bigger than minimum value!");
+		m_valueMin = vMin;
+		m_valueMax = vMax;
+		m_valueStep = vStep;
 		m_bHardMin = bHardMin;
 		m_bHardMax = bHardMax;
 	}
-	virtual void GetLimits(float& fMin, float& fMax, float& fStep, bool& bHardMin, bool& bHardMax)
+	template <class T = B, typename boost::enable_if_c<isVec>::type* = 0>
+	void SetLimits(const B& vMin, const B& vMax, const B& vStep = B(0), bool bHardMin = true, bool bHardMax = true) // PERSONAL IMPROVE: Vec2 etc. can take Vec3/Vec4 as input and auto-convert. Allow? Use/ignore?
 	{
-		fMin = m_valueMin;
-		fMax = m_valueMax;
-		fStep = m_valueStep;
+		//CRY_ASSERT_MESSAGE(vMin <= vMax, "Maximum value has to be bigger than minimum value!"); // PERSONAL CRYTEK: Ask CryTek on best way to compare X values between vectors!
+		m_valueMin = vMin;
+		m_valueMax = vMax;
+		m_valueStep = vStep;
+		m_bHardMin = bHardMin;
+		m_bHardMax = bHardMax;
+	}
+
+	// Helper if they don't care about the step/bools.
+	void GetLimits(B& vMin, B& vMax) const
+	{
+		B f;
+		bool b;
+		GetLimits(vMin, vMax, f, b, b);
+	}
+	template <class T = B, typename boost::enable_if_c<hasLimits>::type* = 0>
+	void GetLimits(B& vMin, B& vMax, B& vStep, bool& bHardMin, bool& bHardMax) const 
+	{
+		vMin = m_valueMin;
+		vMax = m_valueMax;
+		vStep = m_valueStep;
 		bHardMin = m_bHardMin;
 		bHardMax = m_bHardMax;
 	}
+
+	template <class T = B, typename boost::enable_if_c< hasLimits && !isVec >::type* = 0>
 	void ClearLimits()
 	{
-		SetLimits(std::numeric_limits<T>::min(), std::numeric_limits<T>::max(), 0.f, false, false);
+		SetLimits(std::numeric_limits<B>::min(), std::numeric_limits<B>::max(), 0, false, false);
 	}
+	template <class T = B, typename boost::enable_if_c<isVec>::type* = 0>
+	void ClearLimits()
+	{
+		SetLimits(B(std::numeric_limits<f32>::min()), B(std::numeric_limits<f32>::max()), 0, false, false);
+	}
+
+	// Generic get/set with intermediary mpfloat.....
+	void SetLimitsG(const mpfloat& vMin, const mpfloat& vMax, const mpfloat& vStep = 0, bool bHardMin = true, bool bHardMax = true) override { SetLimitsG_IMP(vMin, vMax, vStep, bHardMin, bHardMax); }
+	void GetLimitsG(mpfloat& vMin, mpfloat& vMax, mpfloat& vStep, bool& bHardMin, bool& bHardMax) const override { GetLimitsG_IMP(vMin, vMax, vStep, bHardMin, bHardMax); }
+
+	template <class T = B, typename boost::enable_if_c< hasLimits && !isVec >::type* = 0>
+	void SetLimitsG_IMP(const mpfloat& vMin, const mpfloat& vMax, const mpfloat& vStep, bool bHardMin = true, bool bHardMax = true){
+		SetLimits((T)vMin, (T)vMax, (T)vStep, bHardMin, bHardMax);
+	}
+	template <class T = B, typename boost::enable_if_c<isVec>::type* = 0>
+	void SetLimitsG_IMP(const mpfloat& vMin, const mpfloat& vMax, const mpfloat& vStep, bool bHardMin = true, bool bHardMax = true) {
+		SetLimits(T((f32)vMin), T((f32)vMax), T((f32)vStep), bHardMin, bHardMax);
+	}
+
+	template <class T = B, typename boost::enable_if_c< hasLimits && !(isTV || isVec) >::type* = 0>
+	void GetLimitsG_IMP(mpfloat& vMin, mpfloat& vMax, mpfloat& vStep, bool& bHardMin, bool& bHardMax)	const {
+		T min, max, step;
+		GetLimits(min, max, step, bHardMin, bHardMax);
+
+		vMin.lossy(min);
+		vMax.lossy(max);
+		vStep.lossy(step);
+	}
+	template <class T = B, typename boost::enable_if_c<isTV>::type* = 0>
+	void GetLimitsG_IMP(mpfloat& vMin, mpfloat& vMax, mpfloat& vStep, bool& bHardMin, bool& bHardMax)	const {
+		T min, max, step;
+		GetLimits(min, max, step, bHardMin, bHardMax);
+
+		vMin = min.GetSeconds();
+		vMax = max.GetSeconds();
+		vStep = step.GetSeconds();
+	}
+	template <class T = B, typename boost::enable_if_c<isVec>::type* = 0>
+	void GetLimitsG_IMP(mpfloat& vMin, mpfloat& vMax, mpfloat& vStep, bool& bHardMin, bool& bHardMax)	const {
+		T min, max, step;
+		GetLimits(min, max, step, bHardMin, bHardMax);
+
+		vMin.lossy(min.x);		// PERSONAL IMPROVE: Maintaining the whole "Same 2-4 values for Vec" setup. Can be improved with some more fixes/rewrites on how vec's are handled.
+		vMax.lossy(max.x);
+		vStep.lossy(step.x);
+	}
+#undef hasLimits
+#undef isVec
 
 	//////////////////////////////////////////////////////////////////////////
 	// Access operators.
 	//////////////////////////////////////////////////////////////////////////
 
 	//! Cast to held type.
-	operator T const&() const { return m_valueDef; }
+	operator B const&() const { return m_valueDef; }
 
 	//! Assign operator for variable.
-	void operator=(const T& value) { SetValue(value); }
+	void operator=(const B& value) { SetValue(value); }
 
 	//////////////////////////////////////////////////////////////////////////
 	IVariable* Clone(bool bRecursive) const
@@ -1073,7 +1247,7 @@ public:
 	void CopyValue(IVariable* fromVar)
 	{
 		assert(fromVar);
-		T val;
+		B val;
 		fromVar->Get(val);
 		SetValue(val);
 	}
@@ -1084,8 +1258,8 @@ protected:
 	template<class P>
 	void SetValue(const P& value)
 	{
-		T newValue = T();
-		//var_type::type_convertor<P,T> convertor;
+		B newValue = B();
+		//var_type::type_convertor<P,B> convertor;
 		var_type::type_convertor convertor;
 		convertor(value, newValue);
 
@@ -1106,10 +1280,10 @@ protected:
 	}
 
 protected:
-	T m_valueDef;
+	B m_valueDef;
 
-	// Min/Max value.
-	float         m_valueMin, m_valueMax, m_valueStep;
+	// Min/Max value's & increment step.
+	B		        m_valueMin, m_valueMax, m_valueStep;
 	unsigned char m_bHardMin : 1;
 	unsigned char m_bHardMax : 1;
 	bool          m_bResolving;

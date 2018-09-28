@@ -42,6 +42,19 @@ static const int MARGIN_FOR_MAGNET_SNAPPING = 10;
 // CSequencerKeys
 IMPLEMENT_DYNAMIC(CSequencerDopeSheetBase, CWnd)
 
+/*
+PERSONAL DEBUG: This looks like it has some bugs on pasting keys, drag&drop, etc.
+
+PERSONAL NOTE:
+	Time in seconds * Tickstep = Number Ticks!!!
+	Seconds = 1/TickStep  ==> 1 tick's worth of time
+
+	Therfore tickstep = # of ticks per second! -.-
+
+	m_snapFrameTime == Time for 1 frame
+	m_fFrameTickStep == Time ???
+	time offset == ???
+*/
 class CSequencerDopeSheetBaseDropTarget : public COleDropTarget
 {
 public:
@@ -109,7 +122,7 @@ CSequencerDopeSheetBase::CSequencerDopeSheetBase()
 	m_visibilityBrush.CreateSolidBrush(RGB(120, 120, 255));
 	m_selectTrackBrush.CreateSolidBrush(RGB(100, 190, 255));
 
-	m_mouseMoveStartTimeOffset = 0.0f;
+	m_mouseMoveStartTimeOffset.SetSeconds(0);
 	m_mouseMoveStartTrackOffset = 0;
 	m_timeScale = 1;
 	m_ticksStep = 10;
@@ -123,10 +136,10 @@ CSequencerDopeSheetBase::CSequencerDopeSheetBase()
 	m_scrollOffset = CPoint(0, 0);
 	m_bAnySelected = 0;
 	m_mouseMode = MOUSE_MODE_NONE;
-	m_currentTime = 40;
+	m_currentTime.SetSeconds(40);
 	m_storedTime = m_currentTime;
 	m_rcSelect = CRect(0, 0, 0, 0);
-	m_keyTimeOffset = 0;
+	m_keyTimeOffset.SetSeconds(0);
 	m_currCursor = NULL;
 	m_mouseActionMode = SEQMODE_MOVEKEY;
 
@@ -139,9 +152,9 @@ CSequencerDopeSheetBase::CSequencerDopeSheetBase()
 	                              DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH, "Verdana");
 
 	m_bCursorWasInKey = false;
-	m_fJustSelected = 0.f;
+	m_fJustSelected.SetSeconds(0);
 	m_snappingMode = SEQKEY_SNAP_NONE;
-	m_snapFrameTime = 1.0 / 30.0;
+	m_snapFrameTime = CTimeValue(1) / 30;
 	m_bMouseMovedAfterRButtonDown = false;
 
 	m_pLastTrackSelectedOnSpot = NULL;
@@ -257,12 +270,12 @@ void CSequencerDopeSheetBase::DrawSelectedKeyIndicators(CDC* dc)
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CSequencerDopeSheetBase::ComputeFrameSteps(const Range& VisRange)
+void CSequencerDopeSheetBase::ComputeFrameSteps(const TRange<CTimeValue>& VisRange)
 {
-	float fNbFrames = fabsf((VisRange.end - VisRange.start) / m_snapFrameTime);
-	float afStepTable[4] = { 1.0f, 0.5f, 0.2f, 0.1f };
+	nTime fNbFrames = abs((VisRange.end - VisRange.start) / m_snapFrameTime);
+	CTimeValue afStepTable[4] = { 1, "0.5", "0.2", "0.1" };
 	bool bNotDone = true;
-	float fFact = 1.0f;
+	mpfloat fFact = 1;
 	int nAttempts = 10;
 	int i;
 	while (bNotDone && --nAttempts > 0)
@@ -270,7 +283,7 @@ void CSequencerDopeSheetBase::ComputeFrameSteps(const Range& VisRange)
 		bool bLess = true;
 		for (i = 0; i < 4; ++i)
 		{
-			float fFactNbFrames = fNbFrames / (afStepTable[i] * fFact);
+			rTime fFactNbFrames = fNbFrames.conv<mpfloat>() / (afStepTable[i] * fFact);
 			if (fFactNbFrames >= 3 && fFactNbFrames <= 9)
 			{
 				bNotDone = false;
@@ -287,15 +300,21 @@ void CSequencerDopeSheetBase::ComputeFrameSteps(const Range& VisRange)
 		}
 		if (bNotDone)
 		{
-			fFact *= (bLess) ? 0.1 : 10.0f;
+			fFact *= (bLess) ? mpfloat("0.1") : 10;
 		}
 	}
 
 	int nBIntermediateTicks = 5;
-	m_fFrameLabelStep = fFact * afStepTable[i];
-	if (m_fFrameLabelStep <= 1.0f)
-	{
-		m_fFrameLabelStep = 1.0f;
+
+	// PERSONAL NOTE: In the case that fNbFrames == 0 then i == 4.....which is undefined. Would be negative, hence <=1....Why would CryTek do this workaround? >.>
+	if(fNbFrames == 0 && i == 4){
+		m_fFrameLabelStep.SetSeconds(1);
+	}else{
+		m_fFrameLabelStep = fFact * afStepTable[i];
+		if (m_fFrameLabelStep <= 1)
+		{
+			m_fFrameLabelStep.SetSeconds(1);
+		}
 	}
 
 	if (TimeToClient(m_fFrameLabelStep) - TimeToClient(0) > 1300)
@@ -303,28 +322,28 @@ void CSequencerDopeSheetBase::ComputeFrameSteps(const Range& VisRange)
 		nBIntermediateTicks = 10;
 	}
 
-	while (m_fFrameLabelStep / double(nBIntermediateTicks) < 1.0f && nBIntermediateTicks != 1)
+	while (m_fFrameLabelStep / nBIntermediateTicks < 1 && nBIntermediateTicks != 1)
 	{
 		nBIntermediateTicks = int (nBIntermediateTicks / 2.0f);
 	}
 
-	m_fFrameTickStep = m_fFrameLabelStep * double (m_snapFrameTime) / double(nBIntermediateTicks);
+	m_fFrameTickStep = CTimeValue(m_fFrameLabelStep * m_snapFrameTime / nBIntermediateTicks);
 }
 
-void CSequencerDopeSheetBase::DrawTimeLineInFrames(CDC* dc, CRect& rc, COLORREF& lineCol, COLORREF& textCol, double step)
+void CSequencerDopeSheetBase::DrawTimeLineInFrames(CDC* dc, CRect& rc, COLORREF& lineCol, COLORREF& textCol, const CTimeValue& step)
 {
-	float fFramesPerSec = 1.0f / m_snapFrameTime;
-	float fInvFrameLabelStep = 1.0f / m_fFrameLabelStep;
-	Range VisRange = GetVisibleRange();
+	rTime fFramesPerSec = 1 / m_snapFrameTime;
+	rTime fInvFrameLabelStep = 1/ m_fFrameLabelStep;
+	TRange<CTimeValue> VisRange = GetVisibleRange();
 
-	const Range& timeRange = m_timeRange;
+	const TRange<CTimeValue>& timeRange = m_timeRange;
 
 	CPen ltgray(PS_SOLID, 1, RGB(90, 90, 90));
 	CPen black(PS_SOLID, 1, textCol);
 
-	for (double t = TickSnap(timeRange.start); t <= timeRange.end + m_fFrameTickStep; t += m_fFrameTickStep)
+	for (CTimeValue t = TickSnap(timeRange.start); t <= timeRange.end + m_fFrameTickStep; t += m_fFrameTickStep)
 	{
-		double st = t;
+		CTimeValue st = t;
 		if (st > timeRange.end)
 			st = timeRange.end;
 		if (st < VisRange.start)
@@ -336,18 +355,18 @@ void CSequencerDopeSheetBase::DrawTimeLineInFrames(CDC* dc, CRect& rc, COLORREF&
 		int x = TimeToClient(st);
 		dc->MoveTo(x, rc.bottom - 2);
 
-		float fFrame = st * fFramesPerSec;
+		mpfloat fFrame = st * fFramesPerSec;
 		/*float fPowerOfN = float(pow (double(fN), double(nFramePowerOfN)));
 		   float fFramePow = fFrame * fPowerOfN;
 		   float nFramePow = float(pos_directed_rounding(fFramePow));*/
 
-		float fFrameScaled = fFrame * fInvFrameLabelStep;
-		if (fabsf(fFrameScaled - pos_directed_rounding(fFrameScaled)) < 0.001f)
+		rTime fFrameScaled = fFrame * fInvFrameLabelStep;
+		if (abs(fFrameScaled - uint64(fFrameScaled + "0.5")) < "0.001")
 		{
 			dc->SelectObject(black);
 			dc->LineTo(x, rc.bottom - 14);
 			char str[32];
-			cry_sprintf(str, "%g", fFrame);
+			cry_sprintf(str, "%g", BADF fFrame);
 			dc->TextOut(x + 2, rc.top, str);
 			dc->SelectObject(ltgray);
 		}
@@ -356,18 +375,18 @@ void CSequencerDopeSheetBase::DrawTimeLineInFrames(CDC* dc, CRect& rc, COLORREF&
 	}
 }
 
-void CSequencerDopeSheetBase::DrawTimeLineInSeconds(CDC* dc, CRect& rc, COLORREF& lineCol, COLORREF& textCol, double step)
+void CSequencerDopeSheetBase::DrawTimeLineInSeconds(CDC* dc, CRect& rc, COLORREF& lineCol, COLORREF& textCol, const CTimeValue& step)
 {
-	Range VisRange = GetVisibleRange();
-	const Range& timeRange = m_timeRange;
+	TRange<CTimeValue> VisRange = GetVisibleRange();
+	const TRange<CTimeValue>& timeRange = m_timeRange;
 	int nNumberTicks = 10;
 
 	CPen ltgray(PS_SOLID, 1, RGB(90, 90, 90));
 	CPen black(PS_SOLID, 1, textCol);
 
-	for (double t = TickSnap(timeRange.start); t <= timeRange.end + step; t += step)
+	for (CTimeValue t = TickSnap(timeRange.start); t <= timeRange.end + step; t += step)
 	{
-		double st = TickSnap(t);
+		CTimeValue st = TickSnap(t);
 		if (st > timeRange.end)
 			st = timeRange.end;
 		if (st < VisRange.start)
@@ -379,13 +398,13 @@ void CSequencerDopeSheetBase::DrawTimeLineInSeconds(CDC* dc, CRect& rc, COLORREF
 		int x = TimeToClient(st);
 		dc->MoveTo(x, rc.bottom - 2);
 
-		int k = pos_directed_rounding(st * m_ticksStep);
+		int k = uint64(st * m_ticksStep + "0.5");
 		if (k % nNumberTicks == 0)
 		{
 			dc->SelectObject(black);
 			dc->LineTo(x, rc.bottom - 14);
 			char str[32];
-			cry_sprintf(str, "%g", st);
+			cry_sprintf(str, "%g", st.BADGetSeconds());
 			dc->TextOut(x + 2, rc.top, str);
 			dc->SelectObject(ltgray);
 		}
@@ -424,7 +443,7 @@ void CSequencerDopeSheetBase::DrawTimeline(CDC* dc, const CRect& rcUpdate)
 	CPen* prevPen;
 
 	// Draw time ticks every tick step seconds.
-	const Range& timeRange = m_timeRange;
+	const TRange<CTimeValue>& timeRange = m_timeRange;
 	CString str;
 
 	dc->SetTextColor(textCol);
@@ -434,7 +453,7 @@ void CSequencerDopeSheetBase::DrawTimeline(CDC* dc, const CRect& rcUpdate)
 	CPen ltgray(PS_SOLID, 1, RGB(90, 90, 90));
 	dc->SelectObject(ltgray);
 
-	double step = 1.0 / double(m_ticksStep);
+	CTimeValue step = mpfloat(1) / m_ticksStep;
 	if (GetTickDisplayMode() == SEQTICK_INFRAMES)
 		DrawTimeLineInFrames(dc, rc, lineCol, textCol, step);
 	else if (GetTickDisplayMode() == SEQTICK_INSECONDS)
@@ -483,7 +502,7 @@ void CSequencerDopeSheetBase::DrawSummary(CDC* dc, CRect rcUpdate)
 
 	CPen* prevPen;
 	CPen blackPen(PS_SOLID, 3, lineCol);
-	Range timeRange = m_timeRange;
+	TRange<CTimeValue> timeRange = m_timeRange;
 
 	prevPen = dc->SelectObject(&blackPen);
 
@@ -503,29 +522,29 @@ void CSequencerDopeSheetBase::DrawSummary(CDC* dc, CRect rcUpdate)
 }
 
 //////////////////////////////////////////////////////////////////////////
-int CSequencerDopeSheetBase::TimeToClient(float time) const
+int CSequencerDopeSheetBase::TimeToClient(const CTimeValue& time) const
 {
-	int x = m_leftOffset - m_scrollOffset.x + time * m_timeScale;
+	int x = m_leftOffset - m_scrollOffset.x + BADF(time * m_timeScale);
 	return x;
 }
 
 //////////////////////////////////////////////////////////////////////////
-Range CSequencerDopeSheetBase::GetVisibleRange()
+TRange<CTimeValue> CSequencerDopeSheetBase::GetVisibleRange()
 {
-	Range r;
-	r.start = (m_scrollOffset.x - m_leftOffset) / m_timeScale;
-	r.end = r.start + (m_rcClient.Width()) / m_timeScale;
+	TRange<CTimeValue> r;
+	r.start = mpfloat(m_scrollOffset.x - m_leftOffset) / m_timeScale;
+	r.end = r.start + mpfloat(m_rcClient.Width()) / m_timeScale;
 	// Intersect range with global time range.
 	r = m_timeRange & r;
 	return r;
 }
 
 //////////////////////////////////////////////////////////////////////////
-Range CSequencerDopeSheetBase::GetTimeRange(CRect& rc)
+TRange<CTimeValue> CSequencerDopeSheetBase::GetTimeRange(CRect& rc)
 {
-	Range r;
-	r.start = (rc.left - m_leftOffset + m_scrollOffset.x) / m_timeScale;
-	r.end = r.start + (rc.Width()) / m_timeScale;
+	TRange<CTimeValue> r;
+	r.start = mpfloat(rc.left - m_leftOffset + m_scrollOffset.x) / m_timeScale;
+	r.end = r.start + mpfloat(rc.Width()) / m_timeScale;
 
 	r.start = TickSnap(r.start);
 	r.end = TickSnap(r.end);
@@ -535,19 +554,19 @@ Range CSequencerDopeSheetBase::GetTimeRange(CRect& rc)
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CSequencerDopeSheetBase::DrawTicks(CDC* dc, CRect& rc, Range& timeRange)
+void CSequencerDopeSheetBase::DrawTicks(CDC* dc, CRect& rc, TRange<CTimeValue>& timeRange)
 {
 	// Draw time ticks every tick step seconds.
 	CPen ltgray(PS_SOLID, 1, RGB(90, 90, 90));
 	CPen* prevPen = dc->SelectObject(&ltgray);
-	Range VisRange = GetVisibleRange();
+	TRange<CTimeValue> VisRange = GetVisibleRange();
 	int nNumberTicks = 10;
 	if (GetTickDisplayMode() == SEQTICK_INFRAMES)
-		nNumberTicks = pos_directed_rounding(1.0f / m_snapFrameTime);
-	double step = 1.0 / m_ticksStep;
-	for (double t = TickSnap(timeRange.start); t <= timeRange.end + step; t += step)
+		nNumberTicks = uint64(1 / m_snapFrameTime + "0.5");
+	CTimeValue step = mpfloat(1) / m_ticksStep;
+	for (CTimeValue t = TickSnap(timeRange.start); t <= timeRange.end + step; t += step)
 	{
-		double st = TickSnap(t);
+		CTimeValue st = TickSnap(t);
 		if (st > timeRange.end)
 			st = timeRange.end;
 		if (st < VisRange.start)
@@ -559,7 +578,7 @@ void CSequencerDopeSheetBase::DrawTicks(CDC* dc, CRect& rc, Range& timeRange)
 			continue;
 		dc->MoveTo(x, rc.bottom - 1);
 
-		int k = pos_directed_rounding(st * m_ticksStep);
+		int k = uint64(st * m_ticksStep + "0.5");
 		if (k % nNumberTicks == 0)
 		{
 			dc->SelectObject(GetStockObject(BLACK_PEN));
@@ -573,7 +592,7 @@ void CSequencerDopeSheetBase::DrawTicks(CDC* dc, CRect& rc, Range& timeRange)
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CSequencerDopeSheetBase::DrawKeys(CSequencerTrack* track, CDC* dc, CRect& rc, Range& timeRange, EDSRenderFlags renderFlags)
+void CSequencerDopeSheetBase::DrawKeys(CSequencerTrack* track, CDC* dc, CRect& rc, TRange<CTimeValue>& timeRange, EDSRenderFlags renderFlags)
 {
 }
 
@@ -604,7 +623,7 @@ HBRUSH CSequencerDopeSheetBase::CtlColor(CDC* pDC, UINT nCtlColor)
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CSequencerDopeSheetBase::SetTimeRange(float start, float end)
+void CSequencerDopeSheetBase::SetTimeRange(const CTimeValue& start, const CTimeValue& end)
 {
 	/*
 	   if (m_timeMarked.start==m_timeRange.start)
@@ -623,74 +642,75 @@ void CSequencerDopeSheetBase::SetTimeRange(float start, float end)
 	m_timeRange.Set(start, end);
 	//SetHorizontalExtent( m_timeRange.Length() *m_timeScale + 2*m_leftOffset );
 
-	SetHorizontalExtent(m_timeRange.start * m_timeScale - m_leftOffset, m_timeRange.end * m_timeScale - m_leftOffset);
+	SetHorizontalExtent((int)(m_timeRange.start * m_timeScale - m_leftOffset), (int)(m_timeRange.end * m_timeScale - m_leftOffset));
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CSequencerDopeSheetBase::SetTimeScale(float timeScale, float fAnchorTime)
+void CSequencerDopeSheetBase::SetTimeScale(const rTime& scaleIn, const CTimeValue& fAnchorTime)
 {
 	//m_leftOffset - m_scrollOffset.x + time*m_timeScale
-	double fOldOffset = -fAnchorTime * m_timeScale;
+	mpfloat fOldOffset = -fAnchorTime * m_timeScale;
 
-	double fOldScale = m_timeScale;
-	if (timeScale < 0.001f)
-		timeScale = 0.001f;
-	if (timeScale > 100000.0f)
-		timeScale = 100000.0f;
+	rTime fOldScale = m_timeScale;
+	rTime timeScale = scaleIn;
+	if (timeScale < "0.001")
+		timeScale = "0.001";
+	if (timeScale > 100000)
+		timeScale = 100000;
 	m_timeScale = timeScale;
-	double fPixelsPerTick;
+	mpfloat fPixelsPerTick;
 
 	int steps = 0;
 	if (GetTickDisplayMode() == SEQTICK_INSECONDS)
-		m_ticksStep = 10.0;
+		m_ticksStep = 10;
 	else if (GetTickDisplayMode() == SEQTICK_INFRAMES)
-		m_ticksStep = 1.0 / m_snapFrameTime;
+		m_ticksStep = mpfloat(1) / m_snapFrameTime;
 	else
 		assert(0);
 	do
 	{
-		fPixelsPerTick = (1.0 / m_ticksStep) * (double)m_timeScale;
-		if (fPixelsPerTick < 6.0)
+		fPixelsPerTick = (mpfloat(1) / m_ticksStep)* m_timeScale;
+		if (fPixelsPerTick < 6)
 		{
 			//if (m_ticksStep>=10)
-			m_ticksStep *= 0.5;
+			m_ticksStep *= "0.5";
 		}
-		if (m_ticksStep <= 0.0)
+		if (m_ticksStep <= 0)
 		{
-			m_ticksStep = 1.0;
+			m_ticksStep = 1;
 			break;
 		}
 		steps++;
 	}
-	while (fPixelsPerTick < 6.0 && steps < 100);
+	while (fPixelsPerTick < 6 && steps < 100);
 
 	steps = 0;
 	do
 	{
-		fPixelsPerTick = (1.0 / m_ticksStep) * (double)m_timeScale;
-		if (fPixelsPerTick >= 12.0)
+		fPixelsPerTick = (mpfloat(1) / m_ticksStep) * m_timeScale;
+		if (fPixelsPerTick >= 12)
 		{
-			m_ticksStep *= 2.0;
+			m_ticksStep *= 2;
 		}
-		if (m_ticksStep <= 0.0)
+		if (m_ticksStep <= 0)
 		{
-			m_ticksStep = 1.0;
+			m_ticksStep = 1;
 			break;
 		}
 		steps++;
 	}
-	while (fPixelsPerTick >= 12.0 && steps < 100);
+	while (fPixelsPerTick >= 12 && steps < 100);
 
 	//float
 	//m_scrollOffset.x*=timeScale/fOldScale;
 
-	float fCurrentOffset = -fAnchorTime * m_timeScale;
-	m_scrollOffset.x += fOldOffset - fCurrentOffset;
+	mpfloat fCurrentOffset = -fAnchorTime * m_timeScale;
+	m_scrollOffset.x += (int)(fOldOffset - fCurrentOffset);
 
 	Invalidate();
 
 	//SetHorizontalExtent( m_timeRange.Length()*m_timeScale + 2*m_leftOffset );
-	SetHorizontalExtent(m_timeRange.start * m_timeScale - m_leftOffset, m_timeRange.end * m_timeScale);
+	SetHorizontalExtent((int)(m_timeRange.start * m_timeScale - m_leftOffset), (int)(m_timeRange.end * m_timeScale));
 
 	ComputeFrameSteps(GetVisibleRange());
 }
@@ -733,8 +753,8 @@ BOOL CSequencerDopeSheetBase::PreTranslateMessage(MSG* pMsg)
 		{
 			const bool bLeft = pMsg->wParam == VK_LEFT;
 			const bool bUseFrames = GetTickDisplayMode() == SEQTICK_INFRAMES;
-			const float fOffset = (bLeft ? -1.0f : 1.0f) * (bUseFrames ? m_snapFrameTime * (0.5f + 0.01f) : GetTickTime());
-			const float fTime = max(0.0f, TickSnap(GetCurrTime() + fOffset));
+			const CTimeValue fOffset = (bLeft ? -1 : 1) * (bUseFrames ? m_snapFrameTime * (mpfloat("0.5") + "0.01") : GetTickTime());
+			const CTimeValue fTime = max(CTimeValue(0), TickSnap(GetCurrTime() + fOffset));
 			if (CMannequinDialog::GetCurrentInstance()->GetDockingPaneManager()->IsPaneSelected(CMannequinDialog::IDW_FRAGMENT_EDITOR_PANE))
 				CMannequinDialog::GetCurrentInstance()->FragmentEditor()->SetTime(fTime);
 			else if (CMannequinDialog::GetCurrentInstance()->GetDockingPaneManager()->IsPaneSelected(CMannequinDialog::IDW_PREVIEWER_PANE))
@@ -764,10 +784,10 @@ BOOL CSequencerDopeSheetBase::PreTranslateMessage(MSG* pMsg)
 }
 
 //////////////////////////////////////////////////////////////////////////
-static float GetTimelineWheelScaleFactor()
+static rTime GetTimelineWheelScaleFactor()
 {
-	const float defaultScaleFactor = 1.25f;
-	return pow(defaultScaleFactor, clamp_tpl(gMannequinPreferences.timelineWheelZoomSpeed, 0.1f, 5.0f));
+	const rTime defaultScaleFactor = "1.25";
+	return pow(defaultScaleFactor, CLAMP(gMannequinPreferences.timelineWheelZoomSpeed, "0.1", 5).conv<rTime>());
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -776,8 +796,8 @@ BOOL CSequencerDopeSheetBase::OnMouseWheel(UINT nFlags, short zDelta, CPoint pt)
 	GetCursorPos(&pt);
 	ScreenToClient(&pt);
 
-	const float fAnchorTime = TimeFromPointUnsnapped(pt);
-	const float newTimeScale = m_timeScale * pow(GetTimelineWheelScaleFactor(), float(zDelta) / WHEEL_DELTA);
+	const CTimeValue fAnchorTime = TimeFromPointUnsnapped(pt);
+	const rTime newTimeScale = m_timeScale * pow(GetTimelineWheelScaleFactor(), rTime(zDelta) / WHEEL_DELTA);
 
 	SetTimeScale(newTimeScale, fAnchorTime);
 	return 1;
@@ -850,38 +870,38 @@ void CSequencerDopeSheetBase::OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pSc
 }
 
 //////////////////////////////////////////////////////////////////////////
-double CSequencerDopeSheetBase::GetTickTime() const
+CTimeValue CSequencerDopeSheetBase::GetTickTime() const
 {
 	if (GetTickDisplayMode() == SEQTICK_INFRAMES)
 		return m_fFrameTickStep;
 	else
-		return 1.0f / m_ticksStep;
+		return mpfloat(1) / m_ticksStep;
 }
 
 //////////////////////////////////////////////////////////////////////////
-float CSequencerDopeSheetBase::TickSnap(float time) const
+CTimeValue CSequencerDopeSheetBase::TickSnap(const CTimeValue& time) const
 {
 	// const Range & timeRange = m_timeRange;
 	const bool bUseFrames = GetTickDisplayMode() == SEQTICK_INFRAMES;
-	const double tickTime = bUseFrames ? m_snapFrameTime : GetTickTime();
-	double t = floor((double)time / tickTime + 0.5);
-	t *= tickTime;
-	return t;
+	CTimeValue tickTime = bUseFrames ? m_snapFrameTime : GetTickTime();
+	nTime t = floor(time / tickTime + "0.5");
+	tickTime *= t.conv<mpfloat>();
+	return tickTime;
 }
 
 //////////////////////////////////////////////////////////////////////////
-float CSequencerDopeSheetBase::TimeFromPoint(CPoint point) const
+CTimeValue CSequencerDopeSheetBase::TimeFromPoint(CPoint point) const
 {
 	int x = point.x - m_leftOffset + m_scrollOffset.x;
-	double t = (double)x / m_timeScale;
-	return (float)TickSnap(t);
+	CTimeValue t = mpfloat(x) / m_timeScale;
+	return TickSnap(t);
 }
 
 //////////////////////////////////////////////////////////////////////////
-float CSequencerDopeSheetBase::TimeFromPointUnsnapped(CPoint point) const
+CTimeValue CSequencerDopeSheetBase::TimeFromPointUnsnapped(CPoint point) const
 {
 	int x = point.x - m_leftOffset + m_scrollOffset.x;
-	double t = (double)x / m_timeScale;
+	CTimeValue t = mpfloat(x) / m_timeScale;
 	return t;
 }
 
@@ -980,7 +1000,7 @@ void CSequencerDopeSheetBase::OnLButtonDown(UINT nFlags, CPoint point)
 			}
 		}
 
-		m_keyTimeOffset = 0;
+		m_keyTimeOffset.SetSeconds(0);
 		m_mouseMode = MOUSE_MODE_MOVE;
 		bool canAnyKeyBeMoved = CSequencerUtils::CanAnyKeyBeMoved(selectedKeys);
 		if (canAnyKeyBeMoved)
@@ -996,8 +1016,8 @@ void CSequencerDopeSheetBase::OnLButtonDown(UINT nFlags, CPoint point)
 		const int item = ItemFromPoint(point);
 		CSequencerTrack* track = GetTrack(item);
 
-		const float t1 = TimeFromPointUnsnapped(CPoint(point.x - 4, point.y));
-		const float t2 = TimeFromPointUnsnapped(CPoint(point.x + 4, point.y));
+		const CTimeValue t1 = TimeFromPointUnsnapped(CPoint(point.x - 4, point.y));
+		const CTimeValue t2 = TimeFromPointUnsnapped(CPoint(point.x + 4, point.y));
 
 		int secondarySelKey;
 		int secondarySelection = track->FindSecondarySelectionPt(secondarySelKey, t1, t2);
@@ -1021,8 +1041,8 @@ void CSequencerDopeSheetBase::OnLButtonDown(UINT nFlags, CPoint point)
 			UnselectAllKeys(false);
 		}
 		m_bAnySelected = true;
-		m_fJustSelected = gEnv->pTimer->GetCurrTime();
-		m_keyTimeOffset = 0;
+		m_fJustSelected = GetGTimer()->GetFrameStartTime();
+		m_keyTimeOffset.SetSeconds(0);
 		if (secondarySelection)
 		{
 			// snap the mouse cursor to the key
@@ -1095,7 +1115,7 @@ void CSequencerDopeSheetBase::OnLButtonDown(UINT nFlags, CPoint point)
 		CSequencerTrack* track = GetTrack(item);
 		if (track)
 		{
-			float keyTime = TimeFromPoint(point);
+			CTimeValue keyTime = TimeFromPoint(point);
 			if (IsOkToAddKeyHere(track, keyTime))
 			{
 				RecordTrackUndo(GetItem(item));
@@ -1188,7 +1208,7 @@ void CSequencerDopeSheetBase::OnLButtonUp(UINT nFlags, CPoint point)
 			SetKeyInfo(track, key);
 		}
 	}
-	m_keyTimeOffset = 0;
+	m_keyTimeOffset.SetSeconds(0);
 	m_secondarySelection = 0;
 
 	//if (GetIEditorImpl()->GetIUndoManager()->IsUndoRecording())
@@ -1252,7 +1272,7 @@ bool CSequencerDopeSheetBase::IsPointValidForFragmentInPreviewDrop(const CPoint&
 		return false;
 	}
 
-	float keyTime = TimeFromPoint(point);
+	CTimeValue keyTime = TimeFromPoint(point);
 	if (!IsOkToAddKeyHere(pTrack, keyTime))
 	{
 		return false;
@@ -1291,8 +1311,8 @@ bool CSequencerDopeSheetBase::CreatePointForFragmentInPreviewDrop(const CPoint& 
 	if (nullptr != pTrack)
 	{
 		bool keyCreated = false;
-		float keyTime = TimeFromPoint(point);
-		keyTime = max(keyTime, 0.0f);
+		CTimeValue keyTime = TimeFromPoint(point);
+		keyTime = max(keyTime, CTimeValue(0));
 
 		if (IsOkToAddKeyHere(pTrack, keyTime))
 		{
@@ -1309,7 +1329,7 @@ bool CSequencerDopeSheetBase::CreatePointForFragmentInPreviewDrop(const CPoint& 
 			UnselectAllKeys(false);
 
 			m_bAnySelected = true;
-			m_fJustSelected = gEnv->pTimer->GetCurrTime();
+			m_fJustSelected = GetGTimer()->GetFrameStartTime();
 			pTrack->SelectKey(keyID, true);
 
 			keyCreated = true;
@@ -1396,7 +1416,7 @@ bool CSequencerDopeSheetBase::IsPointValidForAnimationInLayerDrop(const CPoint& 
 		return false;
 	}
 
-	float keyTime = TimeFromPoint(point);
+	CTimeValue keyTime = TimeFromPoint(point);
 	if (!IsOkToAddKeyHere(pTrack, keyTime))
 	{
 		return false;
@@ -1428,7 +1448,7 @@ bool CSequencerDopeSheetBase::CreatePointForAnimationInLayerDrop(const CPoint& p
 	CSequencerTrack* pTrack = GetTrack(item);
 	if (nullptr != pTrack)
 	{
-		float keyTime = TimeFromPoint(point);
+		CTimeValue keyTime = TimeFromPoint(point);
 
 		if (IsOkToAddKeyHere(pTrack, keyTime))
 		{
@@ -1447,7 +1467,7 @@ bool CSequencerDopeSheetBase::CreatePointForAnimationInLayerDrop(const CPoint& p
 			UnselectAllKeys(false);
 
 			m_bAnySelected = true;
-			m_fJustSelected = gEnv->pTimer->GetCurrTime();
+			m_fJustSelected = GetGTimer()->GetFrameStartTime();
 			pTrack->SelectKey(keyID, true);
 			UpdateAnimation(pTrack);
 			Invalidate();
@@ -1473,7 +1493,7 @@ void CSequencerDopeSheetBase::OnLButtonDblClk(UINT nFlags, CPoint point)
 		UnselectAllKeys(false);
 		track->SelectKey(key, true);
 		m_bAnySelected = true;
-		m_keyTimeOffset = 0;
+		m_keyTimeOffset.SetSeconds(0);
 		Invalidate();
 
 		SetKeyInfo(track, key, true);
@@ -1497,7 +1517,7 @@ void CSequencerDopeSheetBase::OnLButtonDblClk(UINT nFlags, CPoint point)
 	if (track)
 	{
 		bool keyCreated = false;
-		float keyTime = TimeFromPoint(point);
+		CTimeValue keyTime = TimeFromPoint(point);
 
 		if (IsOkToAddKeyHere(track, keyTime))
 		{
@@ -1507,7 +1527,7 @@ void CSequencerDopeSheetBase::OnLButtonDblClk(UINT nFlags, CPoint point)
 			UnselectAllKeys(false);
 
 			m_bAnySelected = true;
-			m_fJustSelected = gEnv->pTimer->GetCurrTime();
+			m_fJustSelected = GetGTimer()->GetFrameStartTime();
 			track->SelectKey(keyID, true);
 
 			keyCreated = true;
@@ -1597,7 +1617,7 @@ void CSequencerDopeSheetBase::OnRButtonDown(UINT nFlags, CPoint point)
 		track->SelectKey(key, true);
 		CSequencerKey* sequencerKey = track->GetKey(key);
 		m_bAnySelected = true;
-		m_keyTimeOffset = 0;
+		m_keyTimeOffset.SetSeconds(0);
 		Invalidate();
 
 		// Show a little pop-up menu for copy & delete.
@@ -2057,8 +2077,8 @@ void CSequencerDopeSheetBase::OnMouseMove(UINT nFlags, CPoint point)
 {
 	// To prevent the key moving while selecting
 
-	float fCurrentTime = gEnv->pTimer->GetCurrTime();
-	float fSelectionThreshold = 0.1f;
+	CTimeValue fCurrentTime = GetGTimer()->GetFrameStartTime();
+	const CTimeValue fSelectionThreshold = "0.1";
 
 	if (fCurrentTime - m_fJustSelected < fSelectionThreshold)
 	{
@@ -2071,8 +2091,8 @@ void CSequencerDopeSheetBase::OnMouseMove(UINT nFlags, CPoint point)
 	m_bMouseOverKey = false;
 	if (m_bZoomDrag && (nFlags & MK_SHIFT))
 	{
-		float fAnchorTime = TimeFromPointUnsnapped(m_mouseDownPos);
-		SetTimeScale(m_timeScale * (1.0f + (point.x - m_mouseDownPos.x) * 0.0025f), fAnchorTime);
+		CTimeValue fAnchorTime = TimeFromPointUnsnapped(m_mouseDownPos);
+		SetTimeScale(m_timeScale * BADrT(1.0f + (point.x - m_mouseDownPos.x) * 0.0025f), fAnchorTime);
 		m_mouseDownPos = point;
 		return;
 	}
@@ -2215,7 +2235,7 @@ void CSequencerDopeSheetBase::SelectAllKeysWithinTimeFrame(const CRect& rc)
 	CRect rci = rc;
 	rci.OffsetRect(m_scrollOffset);
 
-	Range selTime = GetTimeRange(rci);
+	TRange<CTimeValue> selTime = GetTimeRange(rci);
 
 	for (int k = 0; k < m_pSequence->GetNodeCount(); ++k)
 	{
@@ -2228,7 +2248,7 @@ void CSequencerDopeSheetBase::SelectAllKeysWithinTimeFrame(const CRect& rc)
 			// Check which keys we intersect.
 			for (int j = 0; j < track->GetNumKeys(); j++)
 			{
-				float time = track->GetKeyTime(j);
+				CTimeValue time = track->GetKeyTime(j);
 				if (selTime.IsInside(time))
 				{
 					track->SelectKey(j, true);
@@ -2327,7 +2347,7 @@ void CSequencerDopeSheetBase::DelSelectedKeys(bool bPrompt, bool bAllowUndo, boo
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CSequencerDopeSheetBase::OffsetSelectedKeys(const float timeOffset, const bool bSnap)
+void CSequencerDopeSheetBase::OffsetSelectedKeys(const CTimeValue& timeOffset, const bool bSnap)
 {
 	CSequencerUtils::SelectedKeys selectedKeys;
 	CSequencerUtils::GetSelectedKeys(m_pSequence, selectedKeys);
@@ -2342,7 +2362,7 @@ void CSequencerDopeSheetBase::OffsetSelectedKeys(const float timeOffset, const b
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CSequencerDopeSheetBase::ScaleSelectedKeys(float timeOffset, bool bSnapKeys)
+void CSequencerDopeSheetBase::ScaleSelectedKeys(const mpfloat& timeOffset, bool bSnapKeys)
 {
 	if (timeOffset <= 0)
 		return;
@@ -2351,7 +2371,7 @@ void CSequencerDopeSheetBase::ScaleSelectedKeys(float timeOffset, bool bSnapKeys
 	for (int k = 0; k < (int)selectedKeys.keys.size(); ++k)
 	{
 		CSequencerUtils::SelectedKey skey = selectedKeys.keys[k];
-		float keyt = skey.pTrack->GetKeyTime(skey.nKey) * timeOffset;
+		CTimeValue keyt = skey.pTrack->GetKeyTime(skey.nKey) * timeOffset;
 		if (bSnapKeys)
 			keyt = TickSnap(keyt);
 		skey.pTrack->SetKeyTime(skey.nKey, keyt);
@@ -2367,7 +2387,7 @@ void CSequencerDopeSheetBase::CloneSelectedKeys()
 	CSequencerTrack* pTrack = 0;
 	// In case of multiple cloning, indices cannot be used as a solid pointer to the original.
 	// So use the time of keys as an identifier, instead.
-	std::vector<float> selectedKeyTimes;
+	std::vector<CTimeValue> selectedKeyTimes;
 	for (size_t k = 0; k < selectedKeys.keys.size(); ++k)
 	{
 		CSequencerUtils::SelectedKey skey = selectedKeys.keys[k];
@@ -2429,21 +2449,18 @@ BOOL CSequencerDopeSheetBase::OnEraseBkgnd(CDC* pDC)
 }
 
 //////////////////////////////////////////////////////////////////////////
-float CSequencerDopeSheetBase::GetCurrTime() const
+const CTimeValue& CSequencerDopeSheetBase::GetCurrTime() const
 {
 	return m_currentTime;
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CSequencerDopeSheetBase::SetCurrTime(float time, bool bForce)
+void CSequencerDopeSheetBase::SetCurrTime(const CTimeValue& tIn, bool bForce)
 {
-	if (time < m_timeRange.start)
-		time = m_timeRange.start;
-	if (time > m_timeRange.end)
-		time = m_timeRange.end;
+	CTimeValue time = CLAMP(tIn, m_timeRange.start, m_timeRange.end);
 
 	//bool bChange = fabs(time-m_currentTime) >= (1.0f/m_ticksStep);
-	bool bChange = fabs(time - m_currentTime) >= 0.001f;
+	bool bChange = abs(time - m_currentTime) >= "0.001";
 
 	if (bChange || bForce)
 	{
@@ -2458,7 +2475,7 @@ void CSequencerDopeSheetBase::SetCurrTime(float time, bool bForce)
 	}
 }
 
-void CSequencerDopeSheetBase::SetStartMarker(float fTime)
+void CSequencerDopeSheetBase::SetStartMarker(const CTimeValue& fTime)
 {
 	m_timeMarked.start = fTime;
 	if (m_timeMarked.start < m_timeRange.start)
@@ -2470,7 +2487,7 @@ void CSequencerDopeSheetBase::SetStartMarker(float fTime)
 	Invalidate();
 }
 
-void CSequencerDopeSheetBase::SetEndMarker(float fTime)
+void CSequencerDopeSheetBase::SetEndMarker(const CTimeValue& fTime)
 {
 	m_timeMarked.end = fTime;
 	if (m_timeMarked.end < m_timeRange.start)
@@ -2709,7 +2726,7 @@ bool CSequencerDopeSheetBase::CopyKeys(bool bPromptAllowed, bool bUseClipboard, 
 
 		// Find the earliest point of all tracks (to allow us to copy relative time)
 		bool bFoundStart = false;
-		float fAbsoluteStartTime = 0;
+		CTimeValue fAbsoluteStartTime = 0;
 		for (int i = 0; i < iSelKeyCount; ++i)
 		{
 			CSequencerUtils::SelectedKey sKey = selectedKeys.keys[i];
@@ -2764,11 +2781,11 @@ bool CSequencerDopeSheetBase::CopyKeys(bool bPromptAllowed, bool bUseClipboard, 
 	{
 		// Find the earliest point of all tracks (to allow us to copy relative time)
 		bool bFoundStart = false;
-		float fAbsoluteStartTime = 0;
+		CTimeValue fAbsoluteStartTime = 0;
 		for (int i = 0; i < iSelTrackCount; ++i)
 		{
 			CSequencerUtils::SelectedTrack sTrack = selectedTracks.tracks[i];
-			Range trackTimeRange = sTrack.pTrack->GetTimeRange();
+			TRange<CTimeValue> trackTimeRange = sTrack.pTrack->GetTimeRange();
 
 			if (!bFoundStart || trackTimeRange.start < fAbsoluteStartTime)
 			{
@@ -2823,7 +2840,7 @@ void CSequencerDopeSheetBase::CopyTrack()
 	childNode->setAttr("paramId", pCurrTrack->GetParameterType());
 	if (pCurrTrack->GetNumKeys() > 0)
 	{
-		pCurrTrack->SerializeSelection(childNode, false, false, 0.0f);
+		pCurrTrack->SerializeSelection(childNode, false, false, 0);
 	}
 
 	CClipboard clip;
@@ -2903,7 +2920,7 @@ void CSequencerDopeSheetBase::StartDraggingKeys(CPoint point)
 	}
 
 	// We want to know where the cursor is compared to the earliest key
-	float earliestKeyTime = 9999.9f;
+	CTimeValue earliestKeyTime = "9999.9";
 	for (std::vector<CSequencerUtils::SelectedKey>::iterator iter = selectedKeys.keys.begin(), iterEnd = selectedKeys.keys.end(); iter != iterEnd; ++iter)
 	{
 		if (earliestKeyTime > (*iter).fTime)
@@ -2944,7 +2961,7 @@ void CSequencerDopeSheetBase::StartPasteKeys()
 	m_mouseDownPos = m_mouseOverPos;
 
 	// Paste at mouse cursor
-	float time = TimeFromPointUnsnapped(m_mouseDownPos);
+	CTimeValue time = TimeFromPointUnsnapped(m_mouseDownPos);
 	PasteKeys(NULL, NULL, time - m_mouseMoveStartTimeOffset);
 }
 
@@ -3038,7 +3055,7 @@ void CSequencerDopeSheetBase::DeserializeTracks(const XmlNodeRef& source)
 }
 
 //////////////////////////////////////////////////////////////////////////
-bool CSequencerDopeSheetBase::PasteKeys(CSequencerNode* pAnimNode, CSequencerTrack* pAnimTrack, float fTimeOffset)
+bool CSequencerDopeSheetBase::PasteKeys(CSequencerNode* pAnimNode, CSequencerTrack* pAnimTrack, const CTimeValue& fTimeOffset)
 {
 	int nPasteToItem = -1;
 	if (!pAnimNode)
@@ -3050,9 +3067,16 @@ bool CSequencerDopeSheetBase::PasteKeys(CSequencerNode* pAnimNode, CSequencerTra
 
 		if (nPasteToItem >= 0)
 		{
+			// PERSONAL DEBUG:  How do you copy from a fragment track to other tracks? Won't let me copy to preview, or transition! Both 'fail' weirdly/silently. Something wrong with serialization?
+			// PERSONAL CRYTEK: m_startDragMouseOverItemID may be invalid. E.g. go in, copy-paste from fragment to a new empty sequence track. Would die here but I added a messy-ish check! :\
+
 			// If actual valid item cannot be used for dropping, use default item where dragging has been started
 			Item const* itemTemp = &GetItem(nPasteToItem);
-			const Item& item = (!itemTemp || !(itemTemp->node) || !(itemTemp->track)) ? GetItem(m_startDragMouseOverItemID) : *itemTemp;
+			const Item& item = (!itemTemp || !(itemTemp->node) || !(itemTemp->track))
+									? (m_startDragMouseOverItemID < 0)
+										? Item()
+										: GetItem(m_startDragMouseOverItemID)
+									: *itemTemp;
 
 			// If cursor is dragged over something which isn't a valid track
 			if (item.node == NULL || item.track == NULL)
@@ -3235,7 +3259,7 @@ void CSequencerDopeSheetBase::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
 			if (GetKeyState((VK_CONTROL)))
 			{
 				// Copying via keyboard shouldn't use mouse offset
-				m_mouseMoveStartTimeOffset = 0.0f;
+				m_mouseMoveStartTimeOffset.SetSeconds(0);
 				if (CopyKeys())
 				{
 					DelSelectedKeys(false);
@@ -3288,10 +3312,10 @@ void CSequencerDopeSheetBase::ShowKeyTooltip(CSequencerTrack* pTrack, int nKey, 
 	m_lastTooltipPos = point;
 
 	assert(pTrack);
-	float time = pTrack->GetKeyTime(nKey);
+	CTimeValue time = pTrack->GetKeyTime(nKey);
 	const char* desc = "";
 	CString additionalDesc = "";
-	float duration = 0;
+	CTimeValue duration = 0;
 	pTrack->GetTooltip(nKey, desc, duration);
 
 	if (secondarySelection)
@@ -3302,9 +3326,9 @@ void CSequencerDopeSheetBase::ShowKeyTooltip(CSequencerTrack* pTrack, int nKey, 
 
 	CString tipText;
 	if (GetTickDisplayMode() == SEQTICK_INSECONDS)
-		tipText.Format("%.3f, %s", time, desc);
+		tipText.Format("%.3f, %s", (float)time.GetSeconds(), desc);
 	else if (GetTickDisplayMode() == SEQTICK_INFRAMES)
-		tipText.Format("%d, %s", pos_directed_rounding(time / m_snapFrameTime), desc);
+		tipText.Format("%d, %s", uint64(time / m_snapFrameTime + "0.5"), desc);
 	else assert(0);
 	if (!additionalDesc.IsEmpty())
 	{
@@ -3429,17 +3453,17 @@ bool CSequencerDopeSheetBase::IsSelectedItem(int item)
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CSequencerDopeSheetBase::OffsetKey(CSequencerTrack* track, const int keyIndex, const float timeOffset) const
+void CSequencerDopeSheetBase::OffsetKey(CSequencerTrack* track, const int keyIndex, const CTimeValue& timeOffset) const
 {
 	if (m_secondarySelection)
 	{
-		const float time = track->GetSecondaryTime(keyIndex, m_secondarySelection) + timeOffset;
+		const CTimeValue time = track->GetSecondaryTime(keyIndex, m_secondarySelection) + timeOffset;
 		track->SetSecondaryTime(keyIndex, m_secondarySelection, time);
 	}
 	else
 	{
 		// do the actual setting of the key time
-		const float keyt = track->GetKeyTime(keyIndex) + timeOffset;
+		const CTimeValue keyt = track->GetKeyTime(keyIndex) + timeOffset;
 		track->SetKeyTime(keyIndex, keyt);
 	}
 }
@@ -3454,9 +3478,9 @@ void CSequencerDopeSheetBase::NotifyKeySelectionUpdate()
 }
 
 //////////////////////////////////////////////////////////////////////////
-bool CSequencerDopeSheetBase::IsOkToAddKeyHere(const CSequencerTrack* pTrack, float time) const
+bool CSequencerDopeSheetBase::IsOkToAddKeyHere(const CSequencerTrack* pTrack, const CTimeValue& time) const
 {
-	const float timeEpsilon = 0.05f;
+	const CTimeValue timeEpsilon = "0.05";
 
 	if (!pTrack->CanAddKey(time))
 	{
@@ -3465,7 +3489,7 @@ bool CSequencerDopeSheetBase::IsOkToAddKeyHere(const CSequencerTrack* pTrack, fl
 
 	for (int i = 0; i < pTrack->GetNumKeys(); ++i)
 	{
-		if (fabs(pTrack->GetKeyTime(i) - time) < timeEpsilon)
+		if (abs(pTrack->GetKeyTime(i) - time) < timeEpsilon)
 		{
 			return false;
 		}
@@ -3526,7 +3550,7 @@ void CSequencerDopeSheetBase::MouseMoveMove(CPoint point, UINT nFlags)
 	{
 		// Offset all selected keys back by previous offset.
 		if (m_keyTimeOffset != 0)
-			ScaleSelectedKeys(1.0f / (1.0f + m_keyTimeOffset), bTickSnap);
+			ScaleSelectedKeys(1 / (1 + m_keyTimeOffset.GetSeconds()), bTickSnap);
 	}
 	else
 	{
@@ -3540,8 +3564,8 @@ void CSequencerDopeSheetBase::MouseMoveMove(CPoint point, UINT nFlags)
 	{
 		keyStartPt.x -= m_grabOffset;
 	}
-	float newTime;
-	float oldTime;
+	CTimeValue newTime;
+	CTimeValue oldTime;
 	newTime = TimeFromPointUnsnapped(keyStartPt);
 
 	CSequencerNode* node = 0;
@@ -3571,14 +3595,14 @@ void CSequencerDopeSheetBase::MouseMoveMove(CPoint point, UINT nFlags)
 
 	m_realTimeRange.ClipValue(newTime);
 
-	const float timeOffset = newTime - oldTime;
+	const CTimeValue timeOffset = newTime - oldTime;
 
 	if (m_mouseActionMode == SEQMODE_SCALEKEY)
 	{
-		const float tscale = 0.005f;
-		const float tofs = ofs.x * tscale;
+		const mpfloat tscale = "0.005";
+		const CTimeValue tofs = ofs.x * tscale;
 		// Offset all selected keys by this offset.
-		ScaleSelectedKeys(1.0f + tofs, bTickSnap);
+		ScaleSelectedKeys(1 + tofs.GetSeconds(), bTickSnap);		// PERSONAL DEBUG: If the scale is proper units.....
 		m_keyTimeOffset = tofs;
 	}
 	else
@@ -3618,7 +3642,7 @@ void CSequencerDopeSheetBase::MouseMoveDragTime(CPoint point, UINT nFlags)
 	bool bCtrlForSnap = gMannequinPreferences.bCtrlForScrubSnapping;
 	bool bSnap = !(bCtrlHeld ^ bCtrlForSnap);
 
-	float time = TimeFromPointUnsnapped(p);
+	CTimeValue time = TimeFromPointUnsnapped(p);
 	m_realTimeRange.ClipValue(time);
 	if (bSnap)
 		time = TickSnap(time);
@@ -3641,7 +3665,7 @@ void CSequencerDopeSheetBase::MouseMoveDragStartMarker(CPoint point, UINT nFlags
 	bool bCtrlForSnap = gMannequinPreferences.bCtrlForScrubSnapping;
 	bool bSnap = !(bCtrlHeld ^ bCtrlForSnap);
 
-	float time = TimeFromPointUnsnapped(p);
+	CTimeValue time = TimeFromPointUnsnapped(p);
 	m_realTimeRange.ClipValue(time);
 	if (bSnap)
 		time = TickSnap(time);
@@ -3664,7 +3688,7 @@ void CSequencerDopeSheetBase::MouseMoveDragEndMarker(CPoint point, UINT nFlags)
 	bool bCtrlForSnap = gMannequinPreferences.bCtrlForScrubSnapping;
 	bool bSnap = !(bCtrlHeld ^ bCtrlForSnap);
 
-	float time = TimeFromPointUnsnapped(p);
+	CTimeValue time = TimeFromPointUnsnapped(p);
 	m_realTimeRange.ClipValue(time);
 	if (bSnap)
 		time = TickSnap(time);
@@ -3690,7 +3714,7 @@ void CSequencerDopeSheetBase::MouseMovePaste(CPoint point, UINT nFlags)
 	bool bSnap = !(bCtrlHeld ^ bCtrlForSnap);
 
 	// Tick snapping
-	float time = TimeFromPointUnsnapped(p) - m_mouseMoveStartTimeOffset;
+	CTimeValue time = TimeFromPointUnsnapped(p) - m_mouseMoveStartTimeOffset;
 	m_realTimeRange.ClipValue(time);
 	if (bSnap)
 	{
@@ -3717,8 +3741,8 @@ void CSequencerDopeSheetBase::MouseMoveOver(CPoint point)
 		int item = ItemFromPoint(point);
 		CSequencerTrack* track = GetTrack(item);
 
-		float t1 = TimeFromPointUnsnapped(CPoint(point.x - 4, point.y));
-		float t2 = TimeFromPointUnsnapped(CPoint(point.x + 4, point.y));
+		CTimeValue t1 = TimeFromPointUnsnapped(CPoint(point.x - 4, point.y));
+		CTimeValue t2 = TimeFromPointUnsnapped(CPoint(point.x + 4, point.y));
 
 		int secondarySelKey;
 		int secondarySelection = track->FindSecondarySelectionPt(secondarySelKey, t1, t2);
@@ -3782,7 +3806,7 @@ int CSequencerDopeSheetBase::GetAboveKey(CSequencerTrack*& aboveTrack)
 
 	// A track found. Now gets a proper key index there.
 	int k;
-	float selectedKeyTime = track->GetKeyTime(keyIndex);
+	CTimeValue selectedKeyTime = track->GetKeyTime(keyIndex);
 	for (k = 0; k < aboveTrack->GetNumKeys(); ++k)
 	{
 		if (aboveTrack->GetKeyTime(k) >= selectedKeyTime)
@@ -3818,7 +3842,7 @@ int CSequencerDopeSheetBase::GetBelowKey(CSequencerTrack*& belowTrack)
 
 	// A track found. Now gets a proper key index there.
 	int k;
-	float selectedKeyTime = track->GetKeyTime(keyIndex);
+	CTimeValue selectedKeyTime = track->GetKeyTime(keyIndex);
 	for (k = 0; k < belowTrack->GetNumKeys(); ++k)
 	{
 		if (belowTrack->GetKeyTime(k) >= selectedKeyTime)
@@ -3846,25 +3870,25 @@ int CSequencerDopeSheetBase::GetLeftKey(CSequencerTrack*& track)
 	return (keyIndex + track->GetNumKeys() - 1) % track->GetNumKeys();
 }
 
-float CSequencerDopeSheetBase::MagnetSnap(const float origTime, const CSequencerNode* node) const
+CTimeValue CSequencerDopeSheetBase::MagnetSnap(const CTimeValue& origTime, const CSequencerNode* node) const
 {
 	CSequencerUtils::SelectedKeys selectedKeys;
 	CSequencerUtils::GetKeysInTimeRange(m_pSequence, selectedKeys,
-	                                    origTime - MARGIN_FOR_MAGNET_SNAPPING / m_timeScale,
-	                                    origTime + MARGIN_FOR_MAGNET_SNAPPING / m_timeScale);
+	                                    origTime - (mpfloat)MARGIN_FOR_MAGNET_SNAPPING / m_timeScale,
+	                                    origTime + (mpfloat)MARGIN_FOR_MAGNET_SNAPPING / m_timeScale);
 
-	float newTime = origTime;
+	CTimeValue newTime = origTime;
 	if (selectedKeys.keys.size() > 0)
 	{
 		// By default, just use the first key that belongs to the time range as a magnet.
 		newTime = selectedKeys.keys[0].fTime;
 		// But if there is an in-range key in a sibling track, use it instead.
 		// Here a 'sibling' means a track that belongs to a same node.
-		float bestDiff = fabsf(origTime - newTime);
+		CTimeValue bestDiff = abs(origTime - newTime);
 		for (int i = 0; i < selectedKeys.keys.size(); ++i)
 		{
-			const float fTime = selectedKeys.keys[i].fTime;
-			const float newDiff = fabsf(origTime - fTime);
+			const CTimeValue fTime = selectedKeys.keys[i].fTime;
+			const CTimeValue newDiff = abs(origTime - fTime);
 			if (newDiff <= bestDiff)
 			{
 				bestDiff = newDiff;
@@ -3876,11 +3900,10 @@ float CSequencerDopeSheetBase::MagnetSnap(const float origTime, const CSequencer
 }
 
 //////////////////////////////////////////////////////////////////////////
-float CSequencerDopeSheetBase::FrameSnap(float time) const
+CTimeValue CSequencerDopeSheetBase::FrameSnap(const CTimeValue& time) const
 {
-	double t = double(time / m_snapFrameTime + 0.5);
-	t = t * m_snapFrameTime;
-	return t;
+	nTime t = time / m_snapFrameTime + "0.5";
+	return (t * m_snapFrameTime);
 }
 
 //////////////////////////////////////////////////////////////////////////

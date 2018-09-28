@@ -33,9 +33,9 @@ public:
 
 	BOOL  Create(DWORD dwStyle, const CRect& rc, CWnd* pParentWnd, UINT nID);
 
-	void  SetTimeRange(const Range& r) { m_timeRange = r; }
-	void  SetTimeMarker(float fTime);
-	float GetTimeMarker() const        { return m_fTimeMarker; }
+	void  SetTimeRange(const TRange<CTimeValue>& r) { m_timeRange = r; }
+	void  SetTimeMarker(const CTimeValue& fTime);
+	const CTimeValue& GetTimeMarker() const         { return m_fTimeMarker; }
 
 	void  SetZoom(float fZoom);
 	void  SetOrigin(float fOffset);
@@ -69,8 +69,8 @@ protected:
 	};
 
 	int  HitKeyTimes(CPoint point);
-	void MoveSelectedKeyTimes(float scale, float offset);
-	void SelectKeysInRange(float start, float end, bool select);
+	void MoveSelectedKeyTimes(const mpfloat& scale, const CTimeValue& offset);
+	void SelectKeysInRange(const CTimeValue& start, const CTimeValue& end, bool select);
 
 	DECLARE_MESSAGE_MAP()
 
@@ -88,23 +88,20 @@ protected:
 	afx_msg void OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags);
 
 	// Drawing functions
-	float   ClientToTime(int x);
-	int     TimeToClient(float fTime);
+	CTimeValue ClientToTime(int x);
+	int     TimeToClient(const CTimeValue& fTime);
 
 	void    DrawTicks(CDC& dc);
 
-	Range   GetVisibleRange() const;
+	TRange<CTimeValue> GetVisibleRange() const;
 
 	void    SendNotifyEvent(int nEvent);
 
 	void    StartTracking(TrackingMode trackingMode);
 	void    StopTracking();
 
-	CString TimeToString(float time);
-	// Convert time in seconds into the milliseconds.
-	int     ToMillis(float time)      { return pos_directed_rounding(time * 1000.0f); };
-	float   MillisToTime(int nMillis) { return nMillis / 1000.0f; }
-	float   SnapTime(float time);
+	CString TimeToString(const CTimeValue& time);
+	CTimeValue SnapTime(const CTimeValue& time);
 
 	void    DrawSecondTicks(CDC& dc);
 	void    DrawFrameTicks(CDC& dc);
@@ -113,22 +110,21 @@ private:
 	bool         m_bAutoDelete;
 	CRect        m_rcClient;
 	CRect        m_rcTimeline;
-	float        m_fTimeMarker;
+	CTimeValue   m_fTimeMarker;
 	float        m_fTicksTextScale;
 	TrackingMode m_trackingMode;
 	CPoint       m_lastPoint;
 
-	Range        m_timeRange;
+	TRange<CTimeValue> m_timeRange;
 
-	float        m_timeScale;
+	mpfloat        m_timeScale;
 
 	int          m_scrollOffset;
 	int          m_leftOffset;
 
 	// Tick every Nth millisecond.
 	int                   m_nTicksStep;
-
-	double                m_ticksStep;
+	int                   m_ticksStep;
 
 	CToolTipCtrl          m_tooltip;
 	CBitmap               m_offscreenBitmap;

@@ -465,13 +465,13 @@ void CModelViewportCE::AnimPreview_UnitTest(ICharacterInstance* pInstanceBase, c
 
 		if (0)
 		{
-			CTimeValue tv = gEnv->pTimer->GetAsyncTime();
+			CTimeValue tv = GetGTimer()->GetAsyncTime();
 			static f64 fMilliseconds = 0;
 
 			SkelExtensionsTest(pInstanceBase);
 
 			float colorR[4] = { 1.0f, 0.8f, 0.4f, 1 };
-			f64 dif = (gEnv->pTimer->GetAsyncTime() - tv).GetMilliSeconds();
+			f64 dif = (GetGTimer()->GetAsyncTime() - tv).GetMilliSeconds();
 			if (dif > 0.1f)
 				fMilliseconds = dif;
 			m_renderer->Draw2dLabel(12, g_ypos, 2.5f, colorR, false, "dif: %f  fMilliseconds: %f", dif, fMilliseconds), g_ypos += 24;

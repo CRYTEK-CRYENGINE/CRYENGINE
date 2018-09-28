@@ -457,7 +457,7 @@ FbxNode* CFBXExporter::CreateFBXAnimNode(FbxScene* pScene, FbxAnimLayer* pAnimBa
 			const Export::EntityAnimData* pAnimData = pObj->GetEntityAnimationData(animDataIndex);
 
 			FbxTime time = 0;
-			time.SetSecondDouble(pAnimData->keyTime);
+			time.SetSecondDouble(pAnimData->keyTime.BADGetSeconds());
 
 			FbxAnimCurve* pCurve = NULL;
 
@@ -634,7 +634,7 @@ void       CFBXExporter::FillAnimationData(SExportObject* pObject, FbxAnimLayer*
 			entityData.keyValue = key.GetValue();
 
 			FbxTime time = key.GetTime();
-			entityData.keyTime = (float)time.GetSecondDouble();
+			entityData.keyTime = BADTIME(time.GetSecondDouble());
 
 			entityData.leftTangent = pCurve->KeyGetLeftDerivative(keyID);
 			entityData.rightTangent = pCurve->KeyGetRightDerivative(keyID);

@@ -371,15 +371,15 @@ IJoystickChannel* CFacialJoystickDialog::GetPotentialJoystickChannel()
 	return pJoystickChannel;
 }
 
-float CFacialJoystickDialog::GetCurrentEvaluationTime()
+CTimeValue CFacialJoystickDialog::GetCurrentEvaluationTime()
 {
 	return m_pContext ? m_pContext->GetSequenceTime() : 0;
 }
 
-float CFacialJoystickDialog::GetMaxEvaluationTime()
+CTimeValue CFacialJoystickDialog::GetMaxEvaluationTime()
 {
 	IFacialAnimSequence* pSequence = (m_pContext ? m_pContext->GetSequence() : 0);
-	float maxTime = (pSequence ? pSequence->GetTimeRange().end : 0.0f);
+	CTimeValue maxTime = (pSequence ? pSequence->GetTimeRange().end : 0);
 	return maxTime;
 }
 

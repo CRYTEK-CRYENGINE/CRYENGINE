@@ -14,7 +14,7 @@ struct STimeSliderOptions
 	QRect m_rect;
 	int   m_precision;
 	int   m_position;
-	float m_time;
+	CTimeValue m_time;
 	bool  m_bHasFocus;
 };
 

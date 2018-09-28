@@ -14,25 +14,25 @@ void CTrackViewKeyConstHandle::GetKey(STrackKey* pKey) const
 	m_pTrack->GetKey(m_keyIndex, pKey);
 }
 
-SAnimTime CTrackViewKeyConstHandle::GetTime() const
+CTimeValue CTrackViewKeyConstHandle::GetTime() const
 {
 	assert(m_bIsValid);
 	return m_pTrack->GetKeyTime(m_keyIndex);
 }
 
-SAnimTime CTrackViewKeyConstHandle::GetDuration() const
+CTimeValue CTrackViewKeyConstHandle::GetDuration() const
 {
 	assert(m_bIsValid);
 	return m_pTrack->GetKeyDuration(m_keyIndex);
 }
 
-SAnimTime CTrackViewKeyConstHandle::GetAnimDuration() const
+CTimeValue CTrackViewKeyConstHandle::GetAnimDuration() const
 {
 	assert(m_bIsValid);
 	return m_pTrack->GetKeyAnimDuration(m_keyIndex);
 }
 
-SAnimTime CTrackViewKeyConstHandle::GetAnimStart() const
+CTimeValue CTrackViewKeyConstHandle::GetAnimStart() const
 {
 	assert(m_bIsValid);
 	return m_pTrack->GetKeyAnimStart(m_keyIndex);
@@ -68,37 +68,37 @@ bool CTrackViewKeyHandle::IsSelected() const
 	return m_pTrack->IsKeySelected(m_keyIndex);
 }
 
-SAnimTime CTrackViewKeyHandle::GetTime() const
+CTimeValue CTrackViewKeyHandle::GetTime() const
 {
 	assert(m_bIsValid);
 	return m_pTrack->GetKeyTime(m_keyIndex);
 }
 
-void CTrackViewKeyHandle::SetDuration(SAnimTime duration)
+void CTrackViewKeyHandle::SetDuration(const CTimeValue& duration)
 {
 	assert(m_bIsValid);
 	m_pTrack->SetKeyDuration(m_keyIndex, duration);
 }
 
-SAnimTime CTrackViewKeyHandle::GetDuration() const
+CTimeValue CTrackViewKeyHandle::GetDuration() const
 {
 	assert(m_bIsValid);
 	return m_pTrack->GetKeyDuration(m_keyIndex);
 }
 
-SAnimTime CTrackViewKeyHandle::GetCycleDuration() const
+CTimeValue CTrackViewKeyHandle::GetCycleDuration() const
 {
 	assert(m_bIsValid);
 	return m_pTrack->GetKeyAnimDuration(m_keyIndex);
 }
 
-SAnimTime CTrackViewKeyHandle::GetAnimStart() const
+CTimeValue CTrackViewKeyHandle::GetAnimStart() const
 {
 	assert(m_bIsValid);
 	return m_pTrack->GetKeyAnimStart(m_keyIndex);
 }
 
-SAnimTime CTrackViewKeyHandle::GetAnimEnd() const
+CTimeValue CTrackViewKeyHandle::GetAnimEnd() const
 {
 	assert(m_bIsValid);
 	return m_pTrack->GetKeyAnimEnd(m_keyIndex);
@@ -201,7 +201,7 @@ CTrackViewKeyHandle CTrackViewKeyBundle::GetSingleSelectedKey()
 	{
 		// All keys must have same time & same parent track
 		CTrackViewNode* pFirstParent = m_keys[0].GetTrack()->GetParentNode();
-		const SAnimTime firstTime = m_keys[0].GetTime();
+		const CTimeValue firstTime = m_keys[0].GetTime();
 
 		// Parent must be a track
 		if (pFirstParent->GetNodeType() != eTVNT_Track)

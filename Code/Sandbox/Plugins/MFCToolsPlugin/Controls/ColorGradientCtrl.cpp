@@ -9,7 +9,7 @@
 
 IMPLEMENT_DYNAMIC(CColorGradientCtrl, CWnd)
 
-#define MIN_TIME_EPSILON 0.01f
+#define MIN_TIME_EPSILON CTimeValue("0.01")
 
 //////////////////////////////////////////////////////////////////////////
 CColorGradientCtrl::CColorGradientCtrl()
@@ -20,8 +20,8 @@ CColorGradientCtrl::CColorGradientCtrl()
 	m_nKeyDrawRadius = 3;
 	m_bTracking = false;
 	m_pSpline = 0;
-	m_fMinTime = -1;
-	m_fMaxTime = 1;
+	m_fMinTime.SetSeconds(-1);
+	m_fMaxTime.SetSeconds(1);
 	m_fMinValue = -1;
 	m_fMaxValue = 1;
 	m_fTooltipScaleX = 1;
@@ -33,7 +33,7 @@ CColorGradientCtrl::CColorGradientCtrl()
 
 	m_bSelectedKeys.reserve(0);
 
-	m_fTimeMarker = -10;
+	m_fTimeMarker.SetSeconds(-10);
 
 	m_grid.zoom.x = 100;
 }
@@ -159,39 +159,39 @@ CPoint CColorGradientCtrl::KeyToPoint(int nKey)
 }
 
 //////////////////////////////////////////////////////////////////////////
-CPoint CColorGradientCtrl::TimeToPoint(float time)
+CPoint CColorGradientCtrl::TimeToPoint(const CTimeValue& time)
 {
-	return CPoint(m_grid.WorldToClient(Vec2(time, 0)).x, m_rcGradient.Height() / 2);
+	return CPoint(m_grid.WorldToClient(Vec2(time.BADGetSeconds(), 0)).x, m_rcGradient.Height() / 2);
 
 	CPoint point;
-	point.x = (time - m_fMinTime) * (m_rcGradient.Width() / (m_fMaxTime - m_fMinTime)) + m_rcGradient.left;
+	point.x = BADF ((time - m_fMinTime) * (m_rcGradient.Width() / (m_fMaxTime - m_fMinTime)) + m_rcGradient.left);
 	point.y = m_rcGradient.Height() / 2;
 	return point;
 }
 
 //////////////////////////////////////////////////////////////////////////
-COLORREF CColorGradientCtrl::TimeToColor(float time)
+COLORREF CColorGradientCtrl::TimeToColor(const CTimeValue& time)
 {
 	ISplineInterpolator::ValueType val;
-	m_pSpline->Interpolate(time, val);
+	m_pSpline->Interpolate(time.GetSeconds(), val);
 	COLORREF col = ValueToColor(val);
 	return col;
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CColorGradientCtrl::PointToTimeValue(CPoint point, float& time, ISplineInterpolator::ValueType& val)
+void CColorGradientCtrl::PointToTimeValue(CPoint point, CTimeValue& time, ISplineInterpolator::ValueType& val)
 {
 	time = XOfsToTime(point.x);
 	ColorToValue(TimeToColor(time), val);
 }
 
 //////////////////////////////////////////////////////////////////////////
-float CColorGradientCtrl::XOfsToTime(int x)
+CTimeValue CColorGradientCtrl::XOfsToTime(int x)
 {
-	return m_grid.ClientToWorld(CPoint(x, 0)).x;
+	return BADTIME(m_grid.ClientToWorld(CPoint(x, 0)).x);
 
 	// m_fMinTime to m_fMaxTime time range.
-	float time = m_fMinTime + (float)((m_fMaxTime - m_fMinTime) * (x - m_rcGradient.left)) / m_rcGradient.Width();
+	CTimeValue time = m_fMinTime + ((m_fMaxTime - m_fMinTime) * (x - m_rcGradient.left)) / m_rcGradient.Width();
 	return time;
 }
 
@@ -301,7 +301,7 @@ void CColorGradientCtrl::DrawKeys(CDC* pDC)
 
 	for (int i = 0; i < m_pSpline->GetKeyCount(); i++)
 	{
-		float time = m_pSpline->GetKeyTime(i);
+		CTimeValue time = m_pSpline->GetKeyTime(i);
 		CPoint pt = TimeToPoint(time);
 
 		if (pt.x < rcClip.left - 8 || pt.x > rcClip.right + 8)
@@ -351,7 +351,7 @@ void CColorGradientCtrl::UpdateTooltip()
 {
 	if (m_nHitKeyIndex >= 0)
 	{
-		float time = m_pSpline->GetKeyTime(m_nHitKeyIndex);
+		CTimeValue time = m_pSpline->GetKeyTime(m_nHitKeyIndex);
 		ISplineInterpolator::ValueType val;
 		m_pSpline->GetKeyValue(m_nHitKeyIndex, val);
 
@@ -361,7 +361,7 @@ void CColorGradientCtrl::UpdateTooltip()
 
 		CString tipText;
 		tipText.Format("%.2f : %d,%d,%d [%d,%d]",
-		               time * m_fTooltipScaleX, GetRValue(col), GetGValue(col), GetBValue(col), cont_s, cont_d);
+		               (float)time.GetSeconds() * m_fTooltipScaleX, GetRValue(col), GetGValue(col), GetBValue(col), cont_s, cont_d);
 		m_tooltip.UpdateTipText(tipText, this, 1);
 		m_tooltip.Activate(TRUE);
 	}
@@ -650,7 +650,7 @@ CColorGradientCtrl::EHitCode CColorGradientCtrl::HitTest(CPoint point)
 		return HIT_NOTHING;
 
 	ISplineInterpolator::ValueType val;
-	float time;
+	CTimeValue time;
 	PointToTimeValue(point, time, val);
 
 	CPoint splinePt = TimeToPoint(time);
@@ -711,7 +711,7 @@ void CColorGradientCtrl::TrackKey(CPoint point)
 	if (nKey >= 0)
 	{
 		ISplineInterpolator::ValueType val;
-		float time;
+		CTimeValue time;
 		PointToTimeValue(point, time, val);
 
 		// Clamp to min/max time.
@@ -722,7 +722,7 @@ void CColorGradientCtrl::TrackKey(CPoint point)
 		for (i = 0; i < m_pSpline->GetKeyCount(); i++)
 		{
 			// Switch to next key.
-			if (fabs(m_pSpline->GetKeyTime(i) - time) < MIN_TIME_EPSILON)
+			if (abs(CTimeValue(m_pSpline->GetKeyTime(i)) - time) < MIN_TIME_EPSILON)
 			{
 				if (i != nKey)
 					return;
@@ -731,7 +731,7 @@ void CColorGradientCtrl::TrackKey(CPoint point)
 
 		if (!m_bLockFirstLastKey || (nKey != 0 && nKey != m_pSpline->GetKeyCount() - 1))
 		{
-			m_pSpline->SetKeyTime(nKey, time);
+			m_pSpline->SetKeyTime(nKey, time.GetSeconds());
 			m_pSpline->Update();
 		}
 
@@ -863,7 +863,7 @@ int CColorGradientCtrl::InsertKey(CPoint point)
 
 	ISplineInterpolator::ValueType val;
 
-	float time;
+	CTimeValue time;
 	PointToTimeValue(point, time, val);
 
 	if (time < m_fMinTime || time > m_fMaxTime)
@@ -873,14 +873,14 @@ int CColorGradientCtrl::InsertKey(CPoint point)
 	for (i = 0; i < m_pSpline->GetKeyCount(); i++)
 	{
 		// Skip if any key already have time that is very close.
-		if (fabs(m_pSpline->GetKeyTime(i) - time) < MIN_TIME_EPSILON)
+		if (abs(CTimeValue(m_pSpline->GetKeyTime(i)) - time) < MIN_TIME_EPSILON)
 			return i;
 	}
 
 	SendNotifyEvent(CLRGRDN_BEFORE_CHANGE);
 
-	m_pSpline->InsertKey(time, val);
-	m_pSpline->Interpolate(time, val);
+	m_pSpline->InsertKey(time.GetSeconds(), val);
+	m_pSpline->Interpolate(time.GetSeconds(), val);
 	ClearSelection();
 	Invalidate();
 
@@ -891,7 +891,7 @@ int CColorGradientCtrl::InsertKey(CPoint point)
 	for (i = 0; i < m_pSpline->GetKeyCount(); i++)
 	{
 		// Find key with added time.
-		if (m_pSpline->GetKeyTime(i) == time)
+		if (m_pSpline->GetKeyTime(i) == time.GetSeconds())
 			return i;
 	}
 
@@ -909,7 +909,7 @@ void CColorGradientCtrl::ClearSelection()
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CColorGradientCtrl::SetTimeMarker(float fTime)
+void CColorGradientCtrl::SetTimeMarker(const CTimeValue& fTime)
 {
 	if (!m_pSpline)
 		return;

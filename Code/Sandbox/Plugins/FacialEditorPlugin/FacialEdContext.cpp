@@ -206,7 +206,7 @@ CFacialEdContext::CFacialEdContext()
 	m_bPlaying = false;
 	m_bSupressEvents = false;
 
-	m_fSequenceTime = 0;
+	m_fSequenceTime.SetSeconds(0);
 
 	m_pCurrentSequence = GetISystem()->GetIAnimationSystem()->GetIFacialAnimation()->CreateSequence();
 	m_pJoysticks = GetISystem()->GetIAnimationSystem()->GetIFacialAnimation()->GetJoystickContext()->CreateJoystickSet();
@@ -217,7 +217,7 @@ CFacialEdContext::CFacialEdContext()
 	m_bAnimateSkeleton = false;
 	m_bAnimateCamera = true;
 	m_bOverlapSounds = false;
-	m_fPreviewWeight = 1.0f;
+	m_fPreviewWeight = 1;
 
 	REGISTER_CVAR(m_fC3DScale, 100.0f, VF_NULL, "Scale from C3D to our Joystick system");
 }
@@ -774,7 +774,7 @@ public:
 	IFacialEffector* pEffector;
 	float            fPoseValue;
 };
-void CFacialEdContext::SetPoseFromExpression(IFacialEffector* pEffector, float weight, float time)
+void CFacialEdContext::SetPoseFromExpression(IFacialEffector* pEffector, const mpfloat& weight, const CTimeValue& time)
 {
 	CUndo undo("Set Pose From Expression");
 	StoreSequenceUndo();
@@ -803,7 +803,7 @@ void CFacialEdContext::SetPoseFromExpression(IFacialEffector* pEffector, float w
 		poseExpressionMap.SwapElementsWithVector(poseExpressionEntries);
 	}
 
-	float timeThreshold = max(0.001f, (m_pCurrentSequence ? (m_pCurrentSequence->GetTimeRange().end - m_pCurrentSequence->GetTimeRange().start) / 1000.0f : 0.1f));
+	CTimeValue timeThreshold = max(CTimeValue("0.001"), (m_pCurrentSequence ? (m_pCurrentSequence->GetTimeRange().end - m_pCurrentSequence->GetTimeRange().start): "0.1"));
 
 	// Loop through all the channels in the sequence.
 	int channelCount = (m_pCurrentSequence ? m_pCurrentSequence->GetChannelCount() : 0);
@@ -827,7 +827,7 @@ void CFacialEdContext::SetPoseFromExpression(IFacialEffector* pEffector, float w
 			ISplineInterpolator* pSpline = (pChannel ? pChannel->GetInterpolator(0) : 0);
 			if (pSpline && itPoseExpression != poseExpressionMap.end())
 			{
-				pSpline->RemoveKeysInRange(time - timeThreshold, time + timeThreshold);
+				pSpline->RemoveKeysInRange((time - timeThreshold).GetSeconds(), (time + timeThreshold).GetSeconds());
 				pSpline->InsertKeyFloat(FacialEditorSnapTimeToFrame(time), (*itPoseExpression).second.fPoseValue);
 			}
 		}
@@ -835,10 +835,10 @@ void CFacialEdContext::SetPoseFromExpression(IFacialEffector* pEffector, float w
 }
 
 //////////////////////////////////////////////////////////////////////////
-float CFacialEdContext::GetTimelineLength()
+CTimeValue CFacialEdContext::GetTimelineLength()
 {
 	IFacialAnimSequence* pSequence = GetSequence();
-	float fSequenceLength = (pSequence ? pSequence->GetTimeRange().end : 0.0f);
+	CTimeValue fSequenceLength = (pSequence ? pSequence->GetTimeRange().end : 0);
 	return fSequenceLength;
 }
 
@@ -922,7 +922,7 @@ void CFacialEdContext::UpdateSelectedFromSequenceTime(float minimumWeight)
 
 				const char* channelName = pChannel->GetName();
 				float channelWeight = 0.0f;
-				pChannel->GetInterpolator(0)->InterpolateFloat(m_fSequenceTime, channelWeight);
+				pChannel->GetInterpolator(0)->InterpolateFloat(m_fSequenceTime.GetSeconds(), channelWeight);
 
 				if (fabs(channelWeight) > minimumWeight)
 				{
@@ -1403,7 +1403,7 @@ void CFacialEdContext::PlaySequence(bool bPlay)
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CFacialEdContext::SetSequenceTime(float fTime)
+void CFacialEdContext::SetSequenceTime(const CTimeValue& fTime)
 {
 	if (!pInstance)
 		return;
@@ -1425,7 +1425,7 @@ void CFacialEdContext::SetSequenceTime(float fTime)
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CFacialEdContext::SetSkeletonAnimation(const CString& filename, float startTime)
+void CFacialEdContext::SetSkeletonAnimation(const CString& filename, const CTimeValue& startTime)
 {
 	if (m_pCurrentSequence)
 	{
@@ -1445,8 +1445,7 @@ void CFacialEdContext::SetSkeletonAnimation(const CString& filename, float start
 
 			IAnimationSet* pAnimSet = pCharacter->GetIAnimationSet();
 			uint32 animID = pAnimSet->GetAnimIDByName(filename.GetString());
-			float endTime =
-			  startTime + pAnimSet->GetDuration_sec(animID);
+			CTimeValue endTime = startTime + pAnimSet->GetDuration(animID);
 			pEntry->SetEndTime(endTime);
 		}
 
@@ -1577,10 +1576,10 @@ template<typename H> void CFacialEdContext::ForEachEffector(H& handler)
 //////////////////////////////////////////////////////////////////////////
 void CFacialEdContext::MoveToKey(MoveToKeyDirection direction)
 {
-	float currentTime = m_fSequenceTime;
+	CTimeValue currentTime = m_fSequenceTime;
 
-	float previousKeyTime = 0.0f;
-	float nextKeyTime = (m_pCurrentSequence ? m_pCurrentSequence->GetTimeRange().end : 0.0f);
+	CTimeValue previousKeyTime = 0;
+	CTimeValue nextKeyTime = (m_pCurrentSequence ? m_pCurrentSequence->GetTimeRange().end : 0);
 	for (int channelIndex = 0, end = (m_pCurrentSequence ? m_pCurrentSequence->GetChannelCount() : 0); channelIndex < end; ++channelIndex)
 	{
 		IFacialAnimChannel* pChannel = (m_pCurrentSequence ? m_pCurrentSequence->GetChannel(channelIndex) : 0);
@@ -1589,16 +1588,16 @@ void CFacialEdContext::MoveToKey(MoveToKeyDirection direction)
 			ISplineInterpolator* pSpline = (pChannel ? pChannel->GetLastInterpolator() : 0);
 			for (int key = 0; pSpline && key < pSpline->GetKeyCount(); ++key)
 			{
-				float time = (pSpline ? pSpline->GetKeyTime(key) : 0);
-				if (time > previousKeyTime && time < currentTime - 0.02f)
+				CTimeValue time = (pSpline ? pSpline->GetKeyTime(key) : 0);
+				if (time > previousKeyTime && time < currentTime - "0.02")
 					previousKeyTime = time;
-				if (time < nextKeyTime && time > currentTime + 0.02f)
+				if (time < nextKeyTime && time > currentTime + "0.02")
 					nextKeyTime = time;
 			}
 		}
 	}
 
-	float newTime = currentTime;
+	CTimeValue newTime = currentTime;
 	switch (direction)
 	{
 	case MoveToKeyDirectionForward:
@@ -1609,7 +1608,7 @@ void CFacialEdContext::MoveToKey(MoveToKeyDirection direction)
 		break;
 	}
 
-	newTime = FacialEditorSnapTimeToFrame(newTime);
+	newTime = CTimeValue(FacialEditorSnapTimeToFrame(newTime));
 	if (newTime <= GetTimelineLength())
 		SetSequenceTime(newTime);
 }
@@ -1617,17 +1616,17 @@ void CFacialEdContext::MoveToKey(MoveToKeyDirection direction)
 //////////////////////////////////////////////////////////////////////////
 void CFacialEdContext::MoveToFrame(MoveToKeyDirection direction)
 {
-	float diff = 0.0f;
+	mpfloat diff = 0;
 	switch (direction)
 	{
 	case MoveToKeyDirectionForward:
-		diff = 1.0f;
+		diff = 1;
 		break;
 	case MoveToKeyDirectionBackward:
-		diff = -1.0f;
+		diff = -1;
 		break;
 	}
-	float newTime = FacialEditorSnapTimeToFrame(m_fSequenceTime + diff / FACIAL_EDITOR_FPS);
+	CTimeValue newTime = FacialEditorSnapTimeToFrame(m_fSequenceTime + diff / FACIAL_EDITOR_FPS);
 	if (newTime <= GetTimelineLength())
 		SetSequenceTime(newTime);
 }
@@ -1673,13 +1672,13 @@ bool CFacialEdContext::GetOverlapSounds() const
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CFacialEdContext::SetPreviewWeight(float fPreviewWeight)
+void CFacialEdContext::SetPreviewWeight(const mpfloat& fPreviewWeight)
 {
 	m_fPreviewWeight = fPreviewWeight;
 }
 
 //////////////////////////////////////////////////////////////////////////
-float CFacialEdContext::GetPreviewWeight() const
+const mpfloat& CFacialEdContext::GetPreviewWeight() const
 {
 	return m_fPreviewWeight;
 }
@@ -1695,21 +1694,21 @@ void CFacialEdContext::ConvertSequenceToCorrectFrameRate(IFacialAnimSequence* pS
 		bool requiresConversion = false;
 		for (int keyIndex = 0, keyCount = (pSpline ? pSpline->GetKeyCount() : 0); keyIndex < keyCount; ++keyIndex)
 		{
-			float time = (pSpline ? pSpline->GetKeyTime(keyIndex) : 0);
-			float frame = time * FACIAL_EDITOR_FPS;
-			if (fabs(frame - floor(frame + 0.5f)) > 0.015f)
+			CTimeValue time = (pSpline ? pSpline->GetKeyTime(keyIndex) : 0);
+			mpfloat frame = time.GetSeconds() * FACIAL_EDITOR_FPS;
+			if (abs(frame - floor(frame + "0.5")) > "0.015")
 				requiresConversion = true;
 		}
 
 		if (requiresConversion)
 		{
 			int oldKeyCount = (pSpline ? pSpline->GetKeyCount() : 0);
-			float length = (oldKeyCount && pSpline ? pSpline->GetKeyTime(pSpline->GetKeyCount() - 1) : 0.0f);
+			float length = BADF (oldKeyCount && pSpline ? pSpline->GetKeyTime(pSpline->GetKeyCount() - 1) : 0);
 			std::vector<float> keys(length * FACIAL_EDITOR_FPS);
 			for (int frameIndex = 0, frameCount = keys.size(); frameIndex < frameCount; ++frameIndex)
 			{
 				if (pSpline)
-					pSpline->InterpolateFloat(float(frameIndex) / FACIAL_EDITOR_FPS, keys[frameIndex]);
+					pSpline->InterpolateFloat(mpfloat(frameIndex) / FACIAL_EDITOR_FPS, keys[frameIndex]);
 			}
 
 			for (int keyIndex = 0, keyCount = (pSpline ? pSpline->GetKeyCount() : 0); keyIndex < keyCount; ++keyIndex)
@@ -1718,7 +1717,7 @@ void CFacialEdContext::ConvertSequenceToCorrectFrameRate(IFacialAnimSequence* pS
 			for (int frameIndex = 0, frameCount = keys.size(); frameIndex < frameCount; ++frameIndex)
 			{
 				if (pSpline)
-					pSpline->InsertKeyFloat(float(frameIndex) / FACIAL_EDITOR_FPS, keys[frameIndex]);
+					pSpline->InsertKeyFloat(mpfloat(frameIndex) / FACIAL_EDITOR_FPS, keys[frameIndex]);
 				pSpline->InterpolateFloat(frameIndex / FACIAL_EDITOR_FPS, keys[frameIndex]);
 			}
 		}
@@ -1737,7 +1736,7 @@ void CFacialEdContext::UpdateSkeletonAnimationStatus()
 		for (int skeletonAnimationIndex = 0, skeletonAnimationCount = (m_pCurrentSequence ? m_pCurrentSequence->GetSkeletonAnimationEntryCount() : 0); skeletonAnimationIndex < skeletonAnimationCount; ++skeletonAnimationIndex)
 		{
 			IFacialAnimSkeletonAnimationEntry* pEntry = (m_pCurrentSequence ? m_pCurrentSequence->GetSkeletonAnimationEntry(skeletonAnimationIndex) : 0);
-			float animationStartTime = (pEntry ? pEntry->GetStartTime() : 0.0f);
+			CTimeValue animationStartTime = (pEntry ? pEntry->GetStartTime() : 0);
 			if (animationStartTime <= m_fSequenceTime)
 				skeletonAnimationToPlayIndex = skeletonAnimationIndex;
 		}
@@ -1748,14 +1747,14 @@ void CFacialEdContext::UpdateSkeletonAnimationStatus()
 			animationFile = (pEntry ? pEntry->GetName() : 0);
 		if (!animationFile || !*animationFile)
 			animationFile = "null";
-		float fSequenceStartTime = pEntry ? pEntry->GetStartTime() : 0;
-		float fSequenceEndTime = pEntry ? pEntry->GetEndTime() : 0;
-		float fDuration = fSequenceEndTime - fSequenceStartTime;
+		CTimeValue fSequenceStartTime = pEntry ? pEntry->GetStartTime() : 0;
+		CTimeValue fSequenceEndTime = pEntry ? pEntry->GetEndTime() : 0;
+		CTimeValue fDuration = fSequenceEndTime - fSequenceStartTime;
 
-		if (animationFile && *animationFile && pCharacter && (fDuration > 0.f))
+		if (animationFile && *animationFile && pCharacter && (fDuration > 0))
 		{
 			AnimUtils::StartAnimation(pCharacter, animationFile);
-			AnimUtils::SetAnimationTime(pCharacter, max(0.0f, m_fSequenceTime - fSequenceStartTime) / fDuration);
+			AnimUtils::SetAnimationTime(pCharacter, max(CTimeValue(0), m_fSequenceTime - fSequenceStartTime) / fDuration);
 		}
 	}
 }
@@ -1773,7 +1772,7 @@ CFacialVideoFrameReader::~CFacialVideoFrameReader()
 	assert(m_avis.empty());
 }
 
-int CFacialVideoFrameReader::AddAVI(const char* filename, float time)
+int CFacialVideoFrameReader::AddAVI(const char* filename, const CTimeValue& time)
 {
 	// Check whether the avi is already loaded.
 	AVIMap::iterator itAVI = m_avis.find(filename);
@@ -1841,7 +1840,7 @@ void CFacialVideoFrameReader::DeleteUnusedAVIs()
 	}
 }
 
-int CFacialVideoFrameReader::GetLastLoadedAVIFrameFromTime(float time)
+int CFacialVideoFrameReader::GetLastLoadedAVIFrameFromTime(const CTimeValue& time)
 {
 	if (m_lastLoadedIndex == -1)
 		return -1;
@@ -1849,7 +1848,7 @@ int CFacialVideoFrameReader::GetLastLoadedAVIFrameFromTime(float time)
 	IAVI_Reader* pCurrentAVI = (*m_aviEntities[m_lastLoadedIndex].itAVI).second.pAVI;
 	int fps = (pCurrentAVI ? pCurrentAVI->GetFPS() : 1);
 	int frameCount = (pCurrentAVI ? pCurrentAVI->GetFrameCount() : 0);
-	int frameIndex = int(floor((time - m_aviEntities[m_lastLoadedIndex].time) * fps));
+	int frameIndex = int(floor((time - m_aviEntities[m_lastLoadedIndex].time).GetSeconds() * fps));
 	if (pCurrentAVI && frameIndex >= 0 && frameIndex < frameCount)
 		return frameIndex;
 	return -1;
@@ -1860,7 +1859,7 @@ int CFacialVideoFrameReader::GetAVICount() const
 	return int(m_aviEntities.size());
 }
 
-int CFacialVideoFrameReader::GetWidth(float time)
+int CFacialVideoFrameReader::GetWidth(const CTimeValue& time)
 {
 	IAVI_Reader* pAVI = 0;
 	int frame = -1;
@@ -1870,7 +1869,7 @@ int CFacialVideoFrameReader::GetWidth(float time)
 	return -1;
 }
 
-int CFacialVideoFrameReader::GetHeight(float time)
+int CFacialVideoFrameReader::GetHeight(const CTimeValue& time)
 {
 	IAVI_Reader* pAVI = 0;
 	int frame = -1;
@@ -1880,7 +1879,7 @@ int CFacialVideoFrameReader::GetHeight(float time)
 	return -1;
 }
 
-const unsigned char* CFacialVideoFrameReader::GetFrame(float time)
+const unsigned char* CFacialVideoFrameReader::GetFrame(const CTimeValue& time)
 {
 	IAVI_Reader* pAVI = 0;
 	int frame = -1;
@@ -1890,7 +1889,7 @@ const unsigned char* CFacialVideoFrameReader::GetFrame(float time)
 	return 0;
 }
 
-void CFacialVideoFrameReader::FindAVIFrame(float time, IAVI_Reader*& pAVI, int& frame)
+void CFacialVideoFrameReader::FindAVIFrame(const CTimeValue& time, IAVI_Reader*& pAVI, int& frame)
 {
 	pAVI = 0;
 	frame = -1;
@@ -1899,7 +1898,7 @@ void CFacialVideoFrameReader::FindAVIFrame(float time, IAVI_Reader*& pAVI, int& 
 		IAVI_Reader* pCurrentAVI = (*m_aviEntities[entityIndex].itAVI).second.pAVI;
 		int fps = (pCurrentAVI ? pCurrentAVI->GetFPS() : 1);
 		int frameCount = (pCurrentAVI ? pCurrentAVI->GetFrameCount() : 0);
-		int frameIndex = int(floor((time - m_aviEntities[entityIndex].time) * fps));
+		int frameIndex = int(floor((time - m_aviEntities[entityIndex].time).GetSeconds() * fps));
 		if (pCurrentAVI && frameIndex >= 0 && frameIndex < frameCount)
 		{
 			pAVI = pCurrentAVI;

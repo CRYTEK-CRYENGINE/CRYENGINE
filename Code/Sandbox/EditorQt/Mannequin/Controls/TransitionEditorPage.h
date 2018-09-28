@@ -46,18 +46,18 @@ public:
 	virtual void                     ValidateToolbarButtonsState();
 	void                             Update();
 	void                             PopulateAllClipTracks();
-	void                             InsertContextHistoryItems(const SScopeData& scopeData, const float keyTime);
+	void                             InsertContextHistoryItems(const SScopeData& scopeData, const CTimeValue& keyTime);
 	void                             SetUIFromHistory();
 	void                             SetHistoryFromUI();
 	void                             OnUpdateTV(bool forceUpdate = false);
-	void                             OnSequenceRestart(float newTime);
+	void                             OnSequenceRestart(const CTimeValue& newTime);
 	void                             InitialiseToPreviewFile(const XmlNodeRef& xmlSequenceRoot);
 	void                             SetTagState(const TagState& tagState);
 
-	void                             SetTime(float fTime);
+	void                             SetTime(const CTimeValue& fTime);
 
-	float                            GetMarkerTimeStart() const;
-	float                            GetMarkerTimeEnd() const;
+	const CTimeValue&                GetMarkerTimeStart() const;
+	const CTimeValue&                GetMarkerTimeEnd() const;
 
 	void                             LoadSequence(const int scopeContextIdx, const FragmentID fromID, const FragmentID toID, const SFragTagState fromFragTag, const SFragTagState toFragTag, const SFragmentBlendUid blendUid);
 	void                             ClearSequence();
@@ -91,7 +91,7 @@ protected:
 	DECLARE_MESSAGE_MAP()
 
 	void         OnPlayMenu(CPoint pos);
-	float        PopulateClipTracks(CSequencerNode* node, const int scopeID);
+	CTimeValue   PopulateClipTracks(CSequencerNode* node, const int scopeID);
 	virtual BOOL PreTranslateMessage(MSG* pMsg);
 
 private:
@@ -122,9 +122,9 @@ private:
 	std::auto_ptr<SFragmentHistoryContext> m_fragmentHistory;
 	_smart_ptr<CSequencerSequence>         m_sequence;
 
-	float                m_fTime;
-	float                m_fMaxTime;
-	float                m_playSpeed;
+	CTimeValue           m_fTime;
+	CTimeValue           m_fMaxTime;
+	mpfloat              m_playSpeed;
 	uint32               m_seed;
 	bool                 m_bPlay;
 	bool                 m_bLoop;

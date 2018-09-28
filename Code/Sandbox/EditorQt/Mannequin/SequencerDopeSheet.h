@@ -24,7 +24,7 @@ protected:
 	DECLARE_MESSAGE_MAP()
 
 	void DrawTrack(int item, CDC* dc, CRect& rcItem);
-	void DrawKeys(CSequencerTrack* track, CDC* dc, CRect& rc, Range& timeRange, EDSRenderFlags renderFlags);
+	void DrawKeys(CSequencerTrack* track, CDC* dc, CRect& rc, TRange<CTimeValue>& timeRange, EDSRenderFlags renderFlags);
 	void DrawNodeItem(CSequencerNode* pAnimNode, CDC* dc, CRect& rcItem);
 
 	// Overrides from CSequencerKeys.

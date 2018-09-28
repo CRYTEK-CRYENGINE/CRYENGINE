@@ -127,7 +127,7 @@ void CSequencerSequence::UpdateKeys()
 	}
 }
 
-void CSequencerSequence::SetTimeRange(Range timeRange)
+void CSequencerSequence::SetTimeRange(TRange<CTimeValue> timeRange)
 {
 	m_timeRange = timeRange;
 	for (SequencerNodes::iterator it = m_nodes.begin(); it != m_nodes.end(); ++it)

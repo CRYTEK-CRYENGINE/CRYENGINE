@@ -22,9 +22,9 @@ typedef std::function<void ()> TDrawCallback;
 struct SRulerOptions
 {
 	QRect         m_rect;
-	Range         m_visibleRange;
-	Range         m_rulerRange;
-	const Range*  m_pInnerRange;
+	TRange<CTimeValue> m_visibleRange;
+	TRange<CTimeValue> m_rulerRange;
+	const TRange<CTimeValue>* m_pInnerRange;
 	int           m_markHeight;
 	int           m_shadowSize;
 	int           m_ticksYOffset;
@@ -41,14 +41,14 @@ struct SRulerOptions
 
 struct STick
 {
-	int   m_position;
-	float m_value;
+	CTimeValue m_value;
+	int   m_position;		// In pixels
 	bool  m_bTenth;
 	bool  m_bIsOuterTick;
 
 	STick()
 		: m_position(0)
-		, m_value(.0f)
+		, m_value(0)
 		, m_bTenth(false)
 		, m_bIsOuterTick(false)
 	{}
@@ -58,7 +58,7 @@ typedef SRulerOptions      STickOptions;
 
 typedef std::vector<STick> Ticks;
 
-void CalculateTicks(uint size, Range visibleRange, Range rulerRange, int* pRulerPrecision, Range* pScreenRulerRange, Ticks& ticksOut, const Range* innerRange = nullptr);
+void CalculateTicks(uint size, TRange<CTimeValue> visibleRange, TRange<CTimeValue> rulerRange, int* pRulerPrecision, TRange<int32>* pScreenRulerRange, Ticks& ticksOut, const TRange<CTimeValue>* innerRange = nullptr);
 void DrawTicks(const std::vector<STick>& ticks, QPainter& painter, const QPalette& palette, const STickOptions& options);
 void DrawTicks(QPainter& painter, const QPalette& palette, const STickOptions& options);
 void DrawRuler(QPainter& painter, const SRulerOptions& options, int* pRulerPrecision);
@@ -68,28 +68,29 @@ class CRuler
 public:
 	struct SOptions
 	{
-		TRange<SAnimTime>       innerRange;
-		TRange<SAnimTime>       visibleRange;
-		TRange<SAnimTime>       rulerRange;
+		// NOTE: Range here was in 'Ticks'
+		TRange<CTimeValue>      innerRange;
+		TRange<CTimeValue>      visibleRange;
+		TRange<CTimeValue>      rulerRange;
 
 		QRect                   rect;
 		int32                   markHeight;
 		int32                   ticksYOffset;
-		int32                   ticksPerFrame;
-		SAnimTime::EDisplayMode timeUnit;
+		CTimeValue              secPerFrame; // Seconds/frame
+		SAnimData::EDisplayMode timeUnit;
 
 		SOptions()
 			: markHeight(0)
 			, ticksYOffset(0)
-			, ticksPerFrame(0)
-			, timeUnit(SAnimTime::EDisplayMode::Time)
+			, secPerFrame(0)
+			, timeUnit(SAnimData::EDisplayMode::Time)
 		{}
 	};
 
 	struct STick
 	{
-		SAnimTime value;
-		int32     position;
+		CTimeValue value;
+		int32     position; // In pixels
 		bool      bTenth;
 		bool      bIsOuterTick;
 

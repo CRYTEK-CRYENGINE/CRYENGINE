@@ -30,7 +30,7 @@ protected:
 	virtual void OnRecordingStateChanged(bool bRecording) override;
 	virtual void OnLoopingStateChanged(bool bLooping) override;
 
-	virtual void OnTimeChanged(SAnimTime newTime) override;
+	virtual void OnTimeChanged(const CTimeValue& newTime) override;
 
 	// CTrackViewCoreComponent
 	virtual void        OnTrackViewEditorEvent(ETrackViewEditorEvent event) override;
@@ -53,7 +53,7 @@ private:
 	void OnPlayContextMenu(const QPoint& pos) const;
 	void OnDisplayLabelContextMenu(const QPoint& pos) const;
 
-	void UpdateTime(SAnimTime newTime, bool bForce = false);
+	void UpdateTime(const CTimeValue& newTime, bool bForce = false);
 	void UpdateText();
 
 	QAction*                m_pActionPlay;
@@ -64,7 +64,7 @@ private:
 	QTimer*                 m_refreshTimer;
 
 	uint                    m_framerate;
-	SAnimTime               m_lastTime;
-	SAnimTime::EDisplayMode m_displayMode;
+	CTimeValue              m_lastTime;
+	SAnimData::EDisplayMode m_displayMode;
 };
 

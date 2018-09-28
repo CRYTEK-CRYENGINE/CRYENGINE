@@ -79,8 +79,8 @@ void CTrackGizmo::Display(DisplayContext& dc)
 		return;
 	}
 
-	TRange<SAnimTime> range = ac->GetTimeRange();
-	SAnimTime step(0.1f);
+	TRange<CTimeValue> range = ac->GetTimeRange();
+	CTimeValue step("0.1");
 
 	bool bTicks = (dc.flags & DISPLAY_TRACKTICKS) == DISPLAY_TRACKTICKS;
 
@@ -100,7 +100,7 @@ void CTrackGizmo::Display(DisplayContext& dc)
 	// Update bounding box.
 	m_worldBbox.Add(p0);
 
-	for (SAnimTime t = range.start + step; t < range.end; t += step)
+	for (CTimeValue t = range.start + step; t < range.end; t += step)
 	{
 		p1 = stl::get<Vec3>(pTrack->GetValue(t));
 		p1 = m_matrix * p1;
@@ -222,7 +222,7 @@ void CTrackGizmo::DrawKeys(DisplayContext& dc, CTrackViewTrack* pTrack, CTrackVi
 	{
 		CTrackViewKeyHandle& keyHandle = pKeysTrack->GetKey(i);
 
-		const SAnimTime t = keyHandle.GetTime();
+		const CTimeValue t = keyHandle.GetTime();
 		Vec3 p0 = stl::get<Vec3>(pTrack->GetValue(t));
 		p0 = m_matrix * p0;
 		p0.z += zOffset;

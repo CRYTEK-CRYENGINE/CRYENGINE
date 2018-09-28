@@ -18,8 +18,8 @@ public:
 	virtual void              OnAction(JoystickAction action) = 0;
 	virtual void              OnFreezeLayoutChanged() = 0;
 	virtual IJoystickChannel* GetPotentialJoystickChannel() = 0;
-	virtual float             GetCurrentEvaluationTime() = 0;
-	virtual float             GetMaxEvaluationTime() = 0;
+	virtual CTimeValue        GetCurrentEvaluationTime() = 0;
+	virtual CTimeValue        GetMaxEvaluationTime() = 0;
 	virtual void              OnSplineChanged() = 0;
 	virtual void              OnJoysticksChanged() = 0;
 	virtual void              OnBeginDraggingJoystickKnob(IJoystick* pJoystick) = 0;

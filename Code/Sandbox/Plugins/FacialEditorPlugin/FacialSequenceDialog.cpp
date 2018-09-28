@@ -264,7 +264,7 @@ public:
 
 public:
 	bool  bRangeFromSound;
-	Range timeRange;
+	TRange<CTimeValue> timeRange;
 
 protected:
 	DECLARE_MESSAGE_MAP();
@@ -281,13 +281,13 @@ protected:
 		m_startTimeCtrl.Create(this, IDC_START_TIME);
 		m_endTimeCtrl.Create(this, IDC_END_TIME);
 
-		m_startTimeCtrl.SetRange(-(1e+10), (1e+10));
+		m_startTimeCtrl.SetRange(-BADMP(1e+10), BADMP(1e+10));
 		m_startTimeCtrl.SetInteger(true);
-		m_endTimeCtrl.SetRange(-(1e+10), (1e+10));
+		m_endTimeCtrl.SetRange(-BADMP(1e+10), BADMP(1e+10));
 		m_endTimeCtrl.SetInteger(true);
 
-		m_startTimeCtrl.SetValue(timeRange.start * FACIAL_EDITOR_FPS);
-		m_endTimeCtrl.SetValue(timeRange.end * FACIAL_EDITOR_FPS);
+		m_startTimeCtrl.SetValue(timeRange.start.GetSeconds() * FACIAL_EDITOR_FPS);
+		m_endTimeCtrl.SetValue(timeRange.end.GetSeconds() * FACIAL_EDITOR_FPS);
 
 		m_fromSoundBtn.SetCheck((bRangeFromSound) ? BST_CHECKED : BST_UNCHECKED);
 		if (bRangeFromSound)
@@ -302,8 +302,8 @@ protected:
 	virtual void OnOK()
 	{
 		bRangeFromSound = m_fromSoundBtn.GetCheck() == BST_CHECKED;
-		timeRange.start = m_startTimeCtrl.GetValue() / FACIAL_EDITOR_FPS;
-		timeRange.end = m_endTimeCtrl.GetValue() / FACIAL_EDITOR_FPS;
+		timeRange.start = CTimeValue(m_startTimeCtrl.GetValue() / FACIAL_EDITOR_FPS);
+		timeRange.end   = CTimeValue(m_endTimeCtrl.GetValue() / FACIAL_EDITOR_FPS);
 		CDialog::OnOK();
 	}
 
@@ -440,10 +440,10 @@ void CFacialSequenceDialog::DoDataExchange(CDataExchange* pDX)
 void CFacialSequenceDialog::Update()
 {
 	IFacialAnimSequence* pSequence = (m_pContext ? m_pContext->GetSequence() : 0);
-	float fTimelineLength = (m_pContext ? m_pContext->GetTimelineLength() : 0);
-	float fCurrentTime = (m_pContext ? m_pContext->GetSequenceTime() : 0.0f);
+	CTimeValue fTimelineLength = (m_pContext ? m_pContext->GetTimelineLength() : 0);
+	CTimeValue fCurrentTime = (m_pContext ? m_pContext->GetSequenceTime() : 0);
 	m_waveCtrl.UpdatePlayback();
-	float fSoundTime = (m_waveCtrl ? m_waveCtrl.GetTimeMarker() : fCurrentTime);
+	CTimeValue fSoundTime = (m_waveCtrl ? m_waveCtrl.GetTimeMarker() : fCurrentTime);
 
 	//{
 	//	char buffer[1024];
@@ -454,7 +454,7 @@ void CFacialSequenceDialog::Update()
 	{
 		m_waveCtrl.StopPlayback();
 		m_waveCtrl.StartPlayback();
-		fSoundTime = 0.0f;
+		fSoundTime.SetSeconds(0);
 	}
 
 	if (m_pContext && fCurrentTime != fSoundTime)
@@ -487,7 +487,7 @@ void CFacialSequenceDialog::LoadSequenceSound(const string& filename)
 		bool bRangeFromSound = pSequence->GetFlags() & IFacialAnimSequence::FLAG_RANGE_FROM_SOUND;
 		if (bRangeFromSound)
 		{
-			m_pContext->GetSequence()->SetTimeRange(Range(0, m_waveCtrl.CalculateTimeRange()));
+			m_pContext->GetSequence()->SetTimeRange(TRange<CTimeValue>(0, m_waveCtrl.CalculateTimeRange()));
 			m_pContext->SendEvent(EFD_EVENT_SEQUENCE_CHANGE);
 		}
 	}
@@ -985,9 +985,9 @@ void CFacialSequenceDialog::OnMoveWaveforms(NMHDR* pNMHDR, LRESULT* pResult)
 	int soundEntryCount = (pSequence ? pSequence->GetSoundEntryCount() : 0);
 
 	// Keep a list of places where we have placed a sound entry.
-	std::vector<float> invalidRegionCentres;
+	std::vector<CTimeValue> invalidRegionCentres;
 	invalidRegionCentres.reserve(soundEntryCount);
-	std::vector<float> invalidRegionExtents;
+	std::vector<CTimeValue> invalidRegionExtents;
 	invalidRegionExtents.reserve(soundEntryCount);
 
 	// Keep a list of the waveforms that have not been definitely placed.
@@ -997,7 +997,7 @@ void CFacialSequenceDialog::OnMoveWaveforms(NMHDR* pNMHDR, LRESULT* pResult)
 
 	// Continue moving waveforms until there are no overlaps.
 	int waveformToMovePositionInUnresolvedWaveforms = pNotification->waveformIndex;
-	float deltaTime = pNotification->deltaTime;
+	CTimeValue deltaTime = pNotification->deltaTime;
 	while (waveformToMovePositionInUnresolvedWaveforms >= 0)
 	{
 		int waveformToMoveIndex = unresolvedWaveforms[waveformToMovePositionInUnresolvedWaveforms];
@@ -1012,10 +1012,10 @@ void CFacialSequenceDialog::OnMoveWaveforms(NMHDR* pNMHDR, LRESULT* pResult)
 		unresolvedWaveforms.pop_back();
 
 		// Mark the area as invalid.
-		float soundEntryStart = (pSoundEntry ? pSoundEntry->GetStartTime() : 0.0f);
-		float soundEntryEnd = soundEntryStart + m_waveCtrl.GetWaveformLength(waveformToMoveIndex);
-		invalidRegionCentres.push_back((soundEntryStart + soundEntryEnd) * 0.5f);
-		invalidRegionExtents.push_back(fabs(soundEntryStart - soundEntryEnd) * 0.5f);
+		CTimeValue soundEntryStart = (pSoundEntry ? pSoundEntry->GetStartTime() : 0);
+		CTimeValue soundEntryEnd = soundEntryStart + m_waveCtrl.GetWaveformLength(waveformToMoveIndex);
+		invalidRegionCentres.push_back((soundEntryStart + soundEntryEnd) * "0.5");
+		invalidRegionExtents.push_back(abs(soundEntryStart - soundEntryEnd) * "0.5");
 
 		// Loop through the unresolved waveforms looking for any that are in an invalid region.
 		waveformToMovePositionInUnresolvedWaveforms = -1;
@@ -1023,18 +1023,18 @@ void CFacialSequenceDialog::OnMoveWaveforms(NMHDR* pNMHDR, LRESULT* pResult)
 		{
 			int unresolvedWaveformIndex = unresolvedWaveforms[unresolvedIndex];
 			IFacialAnimSoundEntry* pUnresolvedSoundEntry = (pSequence ? pSequence->GetSoundEntry(unresolvedWaveformIndex) : 0);
-			float unresolvedStart = (pUnresolvedSoundEntry ? pUnresolvedSoundEntry->GetStartTime() : 0);
-			float unresolvedEnd = unresolvedStart + m_waveCtrl.GetWaveformLength(unresolvedWaveformIndex);
-			float unresolvedCentre = (unresolvedStart + unresolvedEnd) * 0.5f, unresolvedExtent = fabs(unresolvedStart - unresolvedEnd) * 0.5f;
+			CTimeValue unresolvedStart = (pUnresolvedSoundEntry ? pUnresolvedSoundEntry->GetStartTime() : 0);
+			CTimeValue unresolvedEnd = unresolvedStart + m_waveCtrl.GetWaveformLength(unresolvedWaveformIndex);
+			CTimeValue unresolvedCentre = (unresolvedStart + unresolvedEnd) * "0.5", unresolvedExtent = abs(unresolvedStart - unresolvedEnd) * "0.5";
 
 			int direction = 0; // The first time we are stopped we are free to choose a direction in which to move.
-			const float borderEpsilon = 0.001f;
+			const CTimeValue borderEpsilon = "0.001";
 			for (bool foundPlace = false; !foundPlace; )
 			{
 				foundPlace = true;
 				for (int invalidRegionIndex = 0, invalidRegionCount = invalidRegionCentres.size(); invalidRegionIndex < invalidRegionCount; ++invalidRegionIndex)
 				{
-					if (fabs(unresolvedCentre - invalidRegionCentres[invalidRegionIndex]) < (unresolvedExtent + invalidRegionExtents[invalidRegionIndex]))
+					if (abs(unresolvedCentre - invalidRegionCentres[invalidRegionIndex]) < (unresolvedExtent + invalidRegionExtents[invalidRegionIndex]))
 					{
 						direction = (direction != 0 ? direction : (unresolvedCentre > invalidRegionCentres[invalidRegionIndex] ? 1 : -1)); // Pick a direction if we haven't already.
 						unresolvedCentre = invalidRegionCentres[invalidRegionIndex] + (unresolvedExtent + invalidRegionExtents[invalidRegionIndex] + borderEpsilon) * direction;
@@ -1066,7 +1066,7 @@ void CFacialSequenceDialog::OnEndWaveformChanges(NMHDR* pNMHDR, LRESULT* pResult
 	{
 		if (m_pContext)
 			m_pContext->StoreSequenceUndo();
-		m_pContext->GetSequence()->SetTimeRange(Range(0, m_waveCtrl.CalculateTimeRange()));
+		m_pContext->GetSequence()->SetTimeRange(TRange<CTimeValue>(0, m_waveCtrl.CalculateTimeRange()));
 		m_pContext->SendEvent(EFD_EVENT_SEQUENCE_CHANGE);
 	}
 
@@ -1380,7 +1380,7 @@ void CFacialSequenceDialog::CollapseLayersForChannel()
 				for (int keyIndex = 0, keyCount = pLayerSpline->GetKeyCount(); keyIndex < keyCount; ++keyIndex)
 				{
 					float v;
-					float time = pLayerSpline->GetKeyTime(keyIndex);
+					mpfloat time = pLayerSpline->GetKeyTime(keyIndex);
 					pSpline->InterpolateFloat(time, v);
 					pSpline->InsertKeyFloat(time, v);
 				}
@@ -1412,8 +1412,8 @@ void CFacialSequenceDialog::InsertShapeIntoChannel()
 	static const int firstShapeKeyFrameOffset = -((shapeRange - 1) >> 1);
 	static const int lastShapeKeyFrameOffset = (shapeRange >> 1);
 
-	float currentTime = (m_pContext ? m_pContext->GetSequenceTime() : 0.0f);
-	int currentFrame = int(FacialEditorSnapTimeToFrame(currentTime) * FACIAL_EDITOR_FPS + 0.5f);
+	CTimeValue currentTime = (m_pContext ? m_pContext->GetSequenceTime() : 0);
+	int currentFrame = int(FacialEditorSnapTimeToFrame(currentTime) * FACIAL_EDITOR_FPS + "0.5");
 	int rangeStart = currentFrame + firstShapeKeyFrameOffset;
 	int rangeEnd = currentFrame + lastShapeKeyFrameOffset;
 
@@ -1421,7 +1421,7 @@ void CFacialSequenceDialog::InsertShapeIntoChannel()
 	ISplineInterpolator* pSpline = (m_pCurrent ? m_pCurrent->GetLastInterpolator() : 0);
 	int firstExistingKey = -1, numExistingKeys = 0;
 	if (pSpline)
-		pSpline->FindKeysInRange(float(rangeStart) / FACIAL_EDITOR_FPS, float(rangeEnd) / FACIAL_EDITOR_FPS, firstExistingKey, numExistingKeys);
+		pSpline->FindKeysInRange(mpfloat(rangeStart) / FACIAL_EDITOR_FPS, mpfloat(rangeEnd) / FACIAL_EDITOR_FPS, firstExistingKey, numExistingKeys);
 
 	if (numExistingKeys > 0)
 	{
@@ -1441,13 +1441,13 @@ void CFacialSequenceDialog::InsertShapeIntoChannel()
 		int keyFrames[] = { rangeStart, currentFrame, rangeEnd };
 		float keyValues[] = { 0.0f, 1.0f, 0.0f };
 		IFacialAnimSequence* pSequence = (m_pContext ? m_pContext->GetSequence() : 0);
-		float sequenceStart = (pSequence ? pSequence->GetTimeRange().start : 0.0f);
-		float sequenceEnd = (pSequence ? pSequence->GetTimeRange().end : 0.0f);
+		CTimeValue sequenceStart = (pSequence ? pSequence->GetTimeRange().start : 0);
+		CTimeValue sequenceEnd = (pSequence ? pSequence->GetTimeRange().end : 0);
 		for (int key = 0; key < 3; ++key)
 		{
-			float frameTime = float(keyFrames[key]) / FACIAL_EDITOR_FPS;
+			CTimeValue frameTime = mpfloat(keyFrames[key]) / FACIAL_EDITOR_FPS;
 			if (pSpline && frameTime >= sequenceStart && frameTime <= sequenceEnd)
-				pSpline->InsertKeyFloat(frameTime, keyValues[key]);
+				pSpline->InsertKeyFloat(frameTime.GetSeconds(), keyValues[key]);
 		}
 
 		m_pContext->SendEvent(EFD_EVENT_SPLINE_CHANGE, 0);
@@ -1526,8 +1526,8 @@ void CFacialSequenceDialog::InsertVisimeSeriesIntoChannel()
 	}
 
 	// Create a list of shapes to add.
-	float currentTime = (m_pContext ? m_pContext->GetSequenceTime() : 0.0f);
-	int currentFrame = int(FacialEditorSnapTimeToFrame(currentTime) * FACIAL_EDITOR_FPS + 0.5f);
+	CTimeValue currentTime = (m_pContext ? m_pContext->GetSequenceTime() : 0);
+	int currentFrame = int(FacialEditorSnapTimeToFrame(currentTime) * FACIAL_EDITOR_FPS + "0.5");
 	std::vector<ShapeToAddEntry> shapesToAdd;
 	for (int shapeIndex = 0, shapeCount = int(visimeChannels.size()); shapeIndex < shapeCount; ++shapeIndex)
 	{
@@ -1546,7 +1546,7 @@ void CFacialSequenceDialog::InsertVisimeSeriesIntoChannel()
 		int rangeStart = shapesToAdd[shapeIndex].mainFrame + firstShapeKeyFrameOffset;
 		int rangeEnd = shapesToAdd[shapeIndex].mainFrame + lastShapeKeyFrameOffset;
 		if (pSpline)
-			pSpline->FindKeysInRange(float(rangeStart) / FACIAL_EDITOR_FPS, float(rangeEnd) / FACIAL_EDITOR_FPS, firstExistingKey, numExistingKeys);
+			pSpline->FindKeysInRange(mpfloat(rangeStart) / FACIAL_EDITOR_FPS, mpfloat(rangeEnd) / FACIAL_EDITOR_FPS, firstExistingKey, numExistingKeys);
 
 		if (numExistingKeys > 0)
 			keysWillBeOverwritten = true;
@@ -1574,17 +1574,17 @@ void CFacialSequenceDialog::InsertVisimeSeriesIntoChannel()
 		if (m_pContext)
 			m_pContext->StoreSequenceUndo();
 
-		float sequenceStart = (pSequence ? pSequence->GetTimeRange().start : 0.0f);
-		float sequenceEnd = (pSequence ? pSequence->GetTimeRange().end : 0.0f);
+		CTimeValue sequenceStart = (pSequence ? pSequence->GetTimeRange().start : 0);
+		CTimeValue sequenceEnd = (pSequence ? pSequence->GetTimeRange().end : 0);
 		for (int keyIndex = 0, keyCount = int(keysToAdd.size()); keyIndex < keyCount; ++keyIndex)
 		{
-			float frameTime = float(keysToAdd[keyIndex].frame) / FACIAL_EDITOR_FPS;
+			CTimeValue frameTime = mpfloat(keysToAdd[keyIndex].frame) / FACIAL_EDITOR_FPS;
 			IFacialAnimChannel* pChannel = keysToAdd[keyIndex].pChannel;
 			if (pChannel && frameTime >= sequenceStart && frameTime <= sequenceEnd)
 			{
 				ISplineInterpolator* pSpline = (pChannel ? pChannel->GetLastInterpolator() : 0);
 				if (pSpline)
-					pSpline->InsertKeyFloat(frameTime, keysToAdd[keyIndex].value);
+					pSpline->InsertKeyFloat(frameTime.GetSeconds(), keysToAdd[keyIndex].value);
 			}
 		}
 
@@ -1684,15 +1684,15 @@ IFacialAnimChannel* CFacialSequenceDialog::GetChannelFromSpline(ISplineInterpola
 void CFacialSequenceDialog::DisplayPlaybackSpeedInToolbar()
 {
 	string text;
-	text.Format("%d%%", int((100 * m_waveCtrl.GetPlaybackSpeed()) + 0.5f));
+	text.Format("%d%%", int((100 * m_waveCtrl.GetPlaybackSpeed()) + "0.5"));
 	if (m_pSpeedEdit)
 		m_pSpeedEdit->SetEditText(text.c_str());
 }
 
 //////////////////////////////////////////////////////////////////////////
-float CFacialSequenceDialog::ReadPlaybackSpeedFromToolbar()
+mpfloat CFacialSequenceDialog::ReadPlaybackSpeedFromToolbar()
 {
-	float value = m_waveCtrl.GetPlaybackSpeed();
+	mpfloat value = m_waveCtrl.GetPlaybackSpeed();
 	if (m_pSpeedEdit)
 	{
 		CString text = m_pSpeedEdit->GetEditText();
@@ -1700,15 +1700,15 @@ float CFacialSequenceDialog::ReadPlaybackSpeedFromToolbar()
 		char* end;
 		int percentage = strtol(buf, &end, 10);
 		if (buf != end)
-			value = float(percentage) / 100.0f;
+			value = mpfloat(percentage) / 100;
 	}
 	return value;
 }
 
 //////////////////////////////////////////////////////////////////////////
-float CFacialSequenceDialog::ReadFrameFromToolbar()
+mpfloat CFacialSequenceDialog::ReadFrameFromToolbar()
 {
-	float value = (m_pContext ? m_pContext->GetSequenceTime() * FACIAL_EDITOR_FPS : 0.0f);
+	mpfloat value = (m_pContext ? m_pContext->GetSequenceTime().GetSeconds() * FACIAL_EDITOR_FPS : 0);
 	if (m_pFrameEdit)
 	{
 		CString text = m_pFrameEdit->GetEditText();
@@ -1948,7 +1948,7 @@ int CFacialSequenceDialog::GetSplineCount() const
 }
 
 //////////////////////////////////////////////////////////////////////////
-int CFacialSequenceDialog::GetKeyCountAtTime(float time, float threshold) const
+int CFacialSequenceDialog::GetKeyCountAtTime(const CTimeValue& time, float threshold) const
 {
 	//IFacialAnimSequence* pSequence = (m_pContext ? m_pContext->GetSequence() : 0);
 
@@ -2179,7 +2179,7 @@ void CFacialSequenceDialog::OnTimelineChangeEnd(NMHDR* pNMHDR, LRESULT* pResult)
 //////////////////////////////////////////////////////////////////////////
 void CFacialSequenceDialog::OnTimelineChange(NMHDR* pNMHDR, LRESULT* pResult)
 {
-	float fTime = m_timelineCtrl.GetTimeMarker();
+	CTimeValue fTime = m_timelineCtrl.GetTimeMarker();
 	if (m_waveCtrl)
 		m_waveCtrl.SetTimeMarker(fTime);
 	if (m_pContext)
@@ -2210,7 +2210,7 @@ void CFacialSequenceDialog::OnTimelineDeletePressed(NMHDR* pNMHDR, LRESULT* pRes
 //////////////////////////////////////////////////////////////////////////
 void CFacialSequenceDialog::OnWaveCtrlTimeChange(NMHDR* pNMHDR, LRESULT* pResult)
 {
-	float fTime = m_waveCtrl.GetTimeMarker();
+	CTimeValue fTime = m_waveCtrl.GetTimeMarker();
 	if (m_pContext)
 		m_pContext->SetSequenceTime(fTime);
 
@@ -2237,8 +2237,8 @@ void CFacialSequenceDialog::SyncZoom()
 	Vec2 waveOrigin = m_waveCtrl.GetScrollOffset();
 	m_waveCtrl.SetZoom(Vec2(m_splineCtrl.GetZoom().x, waveZoom.y));
 	m_waveCtrl.SetScrollOffset(Vec2(m_splineCtrl.GetScrollOffset().x, waveOrigin.y));
-	m_phonemesCtrl.SetZoom(m_splineCtrl.GetZoom().x / 1000.0f);
-	m_phonemesCtrl.SetScrollOffset(m_splineCtrl.GetScrollOffset().x * 1000.0f);
+	m_phonemesCtrl.SetZoom(BADMP(m_splineCtrl.GetZoom().x) / 1000);
+	m_phonemesCtrl.SetScrollOffset(BADTIME(m_splineCtrl.GetScrollOffset().x));
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -2251,7 +2251,7 @@ void CFacialSequenceDialog::OnSplineScrollZoom(NMHDR* pNMHDR, LRESULT* pResult)
 //////////////////////////////////////////////////////////////////////////
 void CFacialSequenceDialog::OnSplineTimeChange(NMHDR* pNMHDR, LRESULT* pResult)
 {
-	float fTime = m_splineCtrl.GetTimeMarker();
+	CTimeValue fTime = m_splineCtrl.GetTimeMarker();
 	if (m_pContext)
 		m_pContext->SetSequenceTime(fTime);
 
@@ -2372,7 +2372,7 @@ void CFacialSequenceDialog::OnFacialEdEvent(EFacialEdEvent event, IFacialEffecto
 			m_channelsCtrl.Reload();
 			OnSelectionChange();
 
-			Range r = pSequence->GetTimeRange();
+			TRange<CTimeValue> r = pSequence->GetTimeRange();
 			if (m_timelineCtrl)
 				m_timelineCtrl.SetTimeRange(r);
 			if (m_splineCtrl)
@@ -2389,7 +2389,7 @@ void CFacialSequenceDialog::OnFacialEdEvent(EFacialEdEvent event, IFacialEffecto
 		}
 	case EFD_EVENT_SEQUENCE_TIME_RANGE_CHANGE:
 		{
-			Range r = pSequence->GetTimeRange();
+		TRange<CTimeValue> r = pSequence->GetTimeRange();
 			if (m_timelineCtrl)
 				m_timelineCtrl.SetTimeRange(r);
 			if (m_splineCtrl)
@@ -2446,7 +2446,7 @@ void CFacialSequenceDialog::OnTimeChanged()
 	if (!pSequence)
 		return;
 
-	float fCurrentTime = (m_pContext ? m_pContext->GetSequenceTime() : 0.0f);
+	CTimeValue fCurrentTime = (m_pContext ? m_pContext->GetSequenceTime() : 0);
 
 	if (m_timelineCtrl)
 		m_timelineCtrl.SetTimeMarker(fCurrentTime);
@@ -2460,7 +2460,7 @@ void CFacialSequenceDialog::OnTimeChanged()
 	if (m_pTimeEdit)
 	{
 		CString timestr;
-		int nmsec = fCurrentTime * 1000.0f;
+		int nmsec = (int)fCurrentTime.GetMilliSeconds();
 		int nsec = nmsec / 1000;
 		int mins = nsec / 60;
 		int sec = nsec % 60;
@@ -2471,7 +2471,7 @@ void CFacialSequenceDialog::OnTimeChanged()
 	if (m_pFrameEdit)
 	{
 		CString frameString;
-		frameString.Format("%03d", int(fCurrentTime * FACIAL_EDITOR_FPS));
+		frameString.Format("%03d", int(fCurrentTime.GetSeconds() * FACIAL_EDITOR_FPS));
 		m_pFrameEdit->SetEditText(frameString);
 	}
 }
@@ -2491,7 +2491,7 @@ void CFacialSequenceDialog::OnSoundChanged()
 
 		if (pSequence->GetFlags() & IFacialAnimSequence::FLAG_RANGE_FROM_SOUND)
 		{
-			Range r;
+			TRange<CTimeValue> r;
 			r.Set(0, m_waveCtrl.CalculateTimeRange());
 			pSequence->SetTimeRange(r);
 		}
@@ -2504,7 +2504,7 @@ void CFacialSequenceDialog::OnSequenceProperties()
 	if (!m_pContext || !m_pContext->GetSequence())
 		return;
 	CFacialSequencePropertiesDialog dlg;
-	Range timeRange = m_pContext->GetSequence()->GetTimeRange();
+	TRange<CTimeValue> timeRange = m_pContext->GetSequence()->GetTimeRange();
 	dlg.timeRange = timeRange;
 	dlg.bRangeFromSound = m_pContext->GetSequence()->GetFlags() & IFacialAnimSequence::FLAG_RANGE_FROM_SOUND;
 	if (dlg.DoModal() == IDOK)
@@ -2532,7 +2532,7 @@ void CFacialSequenceDialog::OnSequenceProperties()
 //////////////////////////////////////////////////////////////////////////
 void CFacialSequenceDialog::OnSpeedChange()
 {
-	m_waveCtrl.SetPlaybackSpeed(min(1.0f, max(0.0f, ReadPlaybackSpeedFromToolbar())));
+	m_waveCtrl.SetPlaybackSpeed(min(mpfloat(1), max(mpfloat(0), ReadPlaybackSpeedFromToolbar())));
 	DisplayPlaybackSpeedInToolbar();
 }
 
@@ -2779,10 +2779,10 @@ void CFacialSequenceDialog::OnPhonemesBake(NMHDR* pNMHDR, LRESULT* pResult)
 			pPhonemeStrengthChannel = pChannel;
 	}
 
-	int frameCount = (m_pContext ? int(m_pContext->GetTimelineLength() * FACIAL_EDITOR_FPS) : 0);
+	int frameCount = (m_pContext ? int(m_pContext->GetTimelineLength().GetSeconds() * FACIAL_EDITOR_FPS) : 0);
 	for (int frameIndex = 0; frameIndex < frameCount; ++frameIndex)
 	{
-		float time = float(frameIndex) / FACIAL_EDITOR_FPS;
+		CTimeValue time = mpfloat(frameIndex) / FACIAL_EDITOR_FPS;
 
 		float phonemeStrength = 0.0f;
 		for (int splineIndex = 0, splineCount = (pPhonemeStrengthChannel ? pPhonemeStrengthChannel->GetInterpolatorCount() : 0); splineIndex < splineCount; ++splineIndex)
@@ -2790,7 +2790,7 @@ void CFacialSequenceDialog::OnPhonemesBake(NMHDR* pNMHDR, LRESULT* pResult)
 			ISplineInterpolator* pSpline = (pPhonemeStrengthChannel ? pPhonemeStrengthChannel->GetInterpolator(splineIndex) : 0);
 			float val = 0.0f;
 			if (pSpline)
-				pSpline->InterpolateFloat(time, val);
+				pSpline->InterpolateFloat(time.GetSeconds(), val);
 			phonemeStrength += val;
 		}
 		phonemeStrength = min(1.0f, max(-1.0f, phonemeStrength));
@@ -2803,8 +2803,8 @@ void CFacialSequenceDialog::OnPhonemesBake(NMHDR* pNMHDR, LRESULT* pResult)
 		{
 			IFacialAnimSoundEntry* pSoundEntry = (pSequence ? pSequence->GetSoundEntry(soundEntryIndex) : 0);
 			IFacialSentence* pSentence = (pSoundEntry ? pSoundEntry->GetSentence() : 0);
-			float sentenceStart = (pSoundEntry ? pSoundEntry->GetStartTime() : -1.0f);
-			float sentenceEnd = sentenceStart + m_waveCtrl.GetWaveformLength(soundEntryIndex);
+			CTimeValue sentenceStart = (pSoundEntry ? pSoundEntry->GetStartTime() : -1);
+			CTimeValue sentenceEnd = sentenceStart + m_waveCtrl.GetWaveformLength(soundEntryIndex);
 			if (time >= sentenceStart && time < sentenceEnd)
 			{
 				IFacialSentence::ChannelSample samples[1000];
@@ -2820,7 +2820,7 @@ void CFacialSequenceDialog::OnPhonemesBake(NMHDR* pNMHDR, LRESULT* pResult)
 					ISplineInterpolator* pSpline = (pChannel ? pChannel->GetLastInterpolator() : 0);
 					if (pSpline)
 					{
-						pSpline->InsertKeyFloat(time, samples[sampleIndex].strength);
+						pSpline->InsertKeyFloat(time.GetSeconds(), samples[sampleIndex].strength);
 						lastKeyedFrames[channelIndex] = frameIndex;
 					}
 				}
@@ -2834,7 +2834,7 @@ void CFacialSequenceDialog::OnPhonemesBake(NMHDR* pNMHDR, LRESULT* pResult)
 				IFacialAnimChannel* pChannel = phonemes[phonemeIndex];
 				ISplineInterpolator* pSpline = (pChannel ? pChannel->GetLastInterpolator() : 0);
 				if (pSpline)
-					pSpline->InsertKeyFloat(time, 0.0f);
+					pSpline->InsertKeyFloat(time.GetSeconds(), 0.0f);
 				lastKeyedFrames[phonemeIndex] = frameIndex;
 			}
 		}
@@ -2888,8 +2888,8 @@ void CFacialSequenceDialog::ReloadPhonemeCtrl()
 			continue;
 
 		int sentenceIndex = m_phonemesCtrl.AddSentence();
-		float startTime = (pSoundEntry ? pSoundEntry->GetStartTime() : 0.0f);
-		float endTime = startTime + m_waveCtrl.GetWaveformLength(soundEntryIndex);
+		CTimeValue startTime = (pSoundEntry ? pSoundEntry->GetStartTime() : 0);
+		CTimeValue endTime = startTime + m_waveCtrl.GetWaveformLength(soundEntryIndex);
 		m_phonemesCtrl.SetSentenceStartTime(sentenceIndex, startTime);
 		m_phonemesCtrl.SetSentenceEndTime(sentenceIndex, endTime);
 

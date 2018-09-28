@@ -60,7 +60,7 @@ void AimParameters::Serialize(IArchive& ar)
 	ar(direction, "direction", "Direction");
 	SerializeSphericalAngle(ar, offsetX, 180.0f, "offsetX", "X Offset");
 	SerializeSphericalAngle(ar, offsetY, 90.0f, "offsetY", "Y Offset");
-	ar(Serialization::Range(smoothTime, 0.0f, 1.0f), "smoothTime", "Smooth Time");
+	ar(Serialization::Range(smoothTime, nTime(0), nTime(1)), "smoothTime", "Smooth Time");
 	ar(Serialization::LocalToEntity(targetPosition), "target", direction == AIM_TARGET ? "Target Position" : 0);
 }
 

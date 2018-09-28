@@ -1062,7 +1062,7 @@ float CRenderViewport::GetCameraSpeedScale() const
 				h = hit.dist;
 		}
 		const float maxAcceleration = 30.0f;
-		h = clamp_tpl(h, 1.0f, m_lastCameraSpeedScale + maxAcceleration * gEnv->pTimer->GetRealFrameTime());
+		h = clamp_tpl(h, 1.0f, m_lastCameraSpeedScale + maxAcceleration * GetGTimer()->GetRealFrameTime().BADGetSeconds());
 		return m_lastCameraSpeedScale = h;
 	}
 	return 1.0f;
@@ -1335,7 +1335,7 @@ void CRenderViewport::ProcessKeys()
 
 	IConsole* console = GetIEditor()->GetSystem()->GetIConsole();
 
-	float speedScale = 60.0f * GetIEditor()->GetSystem()->GetITimer()->GetFrameTime();
+	float speedScale = 60.0f * GetIEditor()->GetSystem()->GetITimer()->GetFrameTime().BADGetSeconds();
 	if (speedScale > 20) speedScale = 20;
 
 	speedScale *= gViewportMovementPreferences.camMoveSpeed * m_moveSpeed;

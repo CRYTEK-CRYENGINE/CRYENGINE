@@ -78,8 +78,8 @@ public:
 	uint GetSubTrackIndex() const { return m_subTrackIndex; }
 
 	// Snap time value to prev/next key in track
-	virtual bool SnapTimeToPrevKey(SAnimTime& time) const override;
-	virtual bool SnapTimeToNextKey(SAnimTime& time) const override;
+	virtual bool SnapTimeToPrevKey(CTimeValue& time) const override;
+	virtual bool SnapTimeToNextKey(CTimeValue& time) const override;
 
 	// Key getters
 	virtual const char*              GetKeyType() const           { return m_pAnimTrack->GetKeyType(); }
@@ -87,20 +87,20 @@ public:
 	virtual CTrackViewKeyHandle      GetKey(uint index) override;
 	virtual CTrackViewKeyConstHandle GetKey(uint index) const;
 
-	virtual CTrackViewKeyHandle      GetKeyByTime(const SAnimTime time);
+	virtual CTrackViewKeyHandle      GetKeyByTime(const CTimeValue& time);
 
 	virtual CTrackViewKeyBundle      GetSelectedKeys() override;
 	virtual CTrackViewKeyBundle      GetAllKeys() override;
-	virtual CTrackViewKeyBundle      GetKeysInTimeRange(const SAnimTime t0, const SAnimTime t1) override;
+	virtual CTrackViewKeyBundle      GetKeysInTimeRange(const CTimeValue& t0, const CTimeValue& t1) override;
 
 	// Key modifications
 	void                        ClearKeys();
-	virtual CTrackViewKeyHandle CreateKey(const SAnimTime time);
+	virtual CTrackViewKeyHandle CreateKey(const CTimeValue& time);
 
 	// Value getters
-	TMovieSystemValue GetValue(const SAnimTime time) const            { return m_pAnimTrack->GetValue(time); }
+	TMovieSystemValue GetValue(const CTimeValue& time) const            { return m_pAnimTrack->GetValue(time); }
 	TMovieSystemValue GetDefaultValue() const                         { return m_pAnimTrack->GetDefaultValue(); }
-	virtual void      SetValue(const SAnimTime time, const TMovieSystemValue& value);
+	virtual void      SetValue(const CTimeValue& time, const TMovieSystemValue& value);
 	void              SetDefaultValue(const TMovieSystemValue& value) { return m_pAnimTrack->SetDefaultValue(value); }
 
 	void              GetKeyValueRange(float& min, float& max) const;
@@ -140,7 +140,7 @@ public:
 	void CopyKeysToClipboard(XmlNodeRef& xmlNode, const bool bOnlySelectedKeys, const bool bOnlyFromSelectedTracks);
 
 	// Paste from XML representation with time offset
-	void PasteKeys(XmlNodeRef xmlNode, const SAnimTime time);
+	void PasteKeys(XmlNodeRef xmlNode, const CTimeValue& time);
 
 	// Key types
 	virtual bool AreAllKeysOfSameType() const override { return true; }
@@ -168,33 +168,33 @@ protected:
 	virtual void GetKey(uint keyIndex, STrackKey* pKey) const;
 
 private:
-	using SAnimTimeVector       = std::vector<SAnimTime>;
+	using SAnimTimeVector       = std::vector<CTimeValue>;
 	using SerializationCallback = std::function<void(SAnimTimeVector&)>;
 
 	CTrackViewTrack*    GetSubTrack(uint index);
 
-	CTrackViewKeyHandle GetPrevKey(const SAnimTime time);
-	CTrackViewKeyHandle GetNextKey(const SAnimTime time);
+	CTrackViewKeyHandle GetPrevKey(const CTimeValue& time);
+	CTrackViewKeyHandle GetNextKey(const CTimeValue& time);
 
 	void                SelectKey(uint keyIndex, bool bSelect);
 	bool                IsKeySelected(uint keyIndex) const;
 
-	SAnimTime           GetKeyTime(const uint index) const;
+	CTimeValue          GetKeyTime(const uint index) const;
 	virtual string      GetKeyDescription(const uint index) const;
 
-	virtual void        SetKeyDuration(const uint index, SAnimTime duration) {}
-	virtual SAnimTime   GetKeyDuration(const uint index) const;
-	virtual SAnimTime   GetKeyAnimDuration(const uint index) const           { return SAnimTime(0); }
-	virtual SAnimTime   GetKeyAnimStart(const uint index) const              { return SAnimTime(0); }
-	virtual SAnimTime   GetKeyAnimEnd(const uint index) const                { return SAnimTime(0); }
+	virtual void        SetKeyDuration(const uint index, const CTimeValue& duration) {}
+	virtual CTimeValue  GetKeyDuration(const uint index) const;
+	virtual CTimeValue  GetKeyAnimDuration(const uint index) const           { return 0; }
+	virtual CTimeValue  GetKeyAnimStart(const uint index) const              { return 0; }
+	virtual CTimeValue  GetKeyAnimEnd(const uint index) const                { return 0; }
 	virtual bool        IsKeyAnimLoopable(const uint index) const            { return false; }
 
 	void                RemoveKey(const int index);
-	void                GetSelectedKeysTimes(std::vector<SAnimTime>& selectedKeysTimes);
-	void                SelectKeysByAnimTimes(const std::vector<SAnimTime>& selectedKeys);
-	void                SerializeSelectedKeys(XmlNodeRef& xmlNode, bool bLoading, SerializationCallback callback = [](SAnimTimeVector&) {}, const SAnimTime time = SAnimTime(0), size_t index = 0,	SAnimTimeVector keysTimes = SAnimTimeVector());
+	void                GetSelectedKeysTimes(std::vector<CTimeValue>& selectedKeysTimes);
+	void                SelectKeysByAnimTimes(const std::vector<CTimeValue>& selectedKeys);
+	void                SerializeSelectedKeys(XmlNodeRef& xmlNode, bool bLoading, SerializationCallback callback = [](SAnimTimeVector&) {}, const CTimeValue& time = 0, size_t index = 0,	SAnimTimeVector keysTimes = SAnimTimeVector());
 	
-	CTrackViewKeyBundle GetKeys(bool bOnlySelected, SAnimTime t0, SAnimTime t1);
+	CTrackViewKeyBundle GetKeys(bool bOnlySelected, const CTimeValue& t0, const CTimeValue& t1);
 	CTrackViewKeyHandle GetSubTrackKeyHandle(uint index) const;
 
 	bool                   m_bIsCompoundTrack;

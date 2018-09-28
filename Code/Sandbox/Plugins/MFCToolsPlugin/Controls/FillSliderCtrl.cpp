@@ -96,14 +96,14 @@ void CFillSliderCtrl::OnPaint()
 
 	CPaintDC dc(this); // device context for painting
 
-	float val = m_value;
+	mpfloat val = m_value;
 
 	CRect rc;
 	GetClientRect(rc);
 	rc.top += 1;
 	rc.bottom -= 1;
-	float pos = (val - m_min) / fabs(m_max - m_min);
-	int splitPos = pos * rc.Width();
+	mpfloat pos = (val - m_min) / abs(m_max - m_min);
+	int splitPos = (int)(pos * rc.Width());
 
 	if (splitPos < rc.left)
 		splitPos = rc.left;
@@ -268,15 +268,15 @@ void CFillSliderCtrl::ChangeValue(int sliderPos, bool bTracking)
 	if (sliderPos > rc.right)
 		sliderPos = rc.right;
 
-	float pos = (float)sliderPos / rc.Width();
-	m_value = m_min + pos * fabs(m_max - m_min);
+	mpfloat pos = (mpfloat)sliderPos / rc.Width();
+	m_value = m_min + pos * abs(m_max - m_min);
 
 	NotifyUpdate(bTracking);
 	RedrawWindow();
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CFillSliderCtrl::SetValue(float val)
+void CFillSliderCtrl::SetValue(const mpfloat& val)
 {
 	__super::SetValue(val);
 	if (m_hWnd && m_bFilled)

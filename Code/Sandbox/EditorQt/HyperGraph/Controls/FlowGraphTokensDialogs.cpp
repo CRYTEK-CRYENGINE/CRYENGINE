@@ -21,6 +21,8 @@ CString typeNames[] =
 	"Vec3",       //  eFDT_Vec3
 	"String",     //  eFDT_String
 	"Bool",       //  eFDT_Bool
+	"Time",		  //  eFDT_Time
+	"MP"			  // eFDT_MP
 };
 };
 

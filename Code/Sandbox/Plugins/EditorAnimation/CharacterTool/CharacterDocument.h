@@ -66,7 +66,7 @@ struct PlaybackOptions
 	bool  firstFrameAtEndOfTimeline;
 	bool  wrapTimelineSlider;
 	bool  smoothTimelineSlider;
-	float playbackSpeed;
+	mpfloat playbackSpeed;
 
 	PlaybackOptions();
 	void Serialize(IArchive& ar);
@@ -106,18 +106,18 @@ struct AnimationDrivenSamples
 	std::vector<Vec3> samples;
 	int               count;
 	int               nextIndex;
-	float             time;
-	float             updateTime;
+	CTimeValue        time;
+	CTimeValue        updateTime;
 
 	void Reset();
-	void Add(const float fTime, const Vec3& pos);
+	void Add(const CTimeValue& fTime, const Vec3& pos);
 	void Draw(IRenderAuxGeom* aux);
 
 	AnimationDrivenSamples()
 		: count(0)
 		, nextIndex(0)
 		, time(0)
-		, updateTime(0.016666f)
+		, updateTime("0.016666")
 	{
 		samples.resize(maxCount);
 	}
@@ -193,10 +193,10 @@ public:
 	};
 	void          TriggerAnimationPreview(int previewFlags);
 
-	void          ScrubTime(float time, bool scrubThrough);
+	void          ScrubTime(const CTimeValue& time, bool scrubThrough);
 
-	float         PlaybackTime() const        { return m_playbackTime; }
-	float         PlaybackDuration() const    { return m_playbackDuration; }
+	const CTimeValue& PlaybackTime() const        { return m_playbackTime; }
+	const CTimeValue& PlaybackDuration() const    { return m_playbackDuration; }
 	PlaybackState GetPlaybackState() const;
 	const char*   PlaybackBlockReason() const { return m_playbackBlockReason; }
 	void          Play();
@@ -241,7 +241,7 @@ private:
 	static int AnimationEventCallback(ICharacterInstance* instance, void* userData);
 	void       OnAnimEvent(ICharacterInstance* character);
 	void       PlayAnimEvent(ICharacterInstance* character, const AnimEventInstance& event);
-	void       TriggerAnimEventsInRange(float timeFrom, float timeTo);
+	void       TriggerAnimEventsInRange(const CTimeValue& timeFrom, const CTimeValue& timeTo);
 
 	string     GetDefaultSkeletonAlias();
 	void       ReloadCHRPARAMS();
@@ -269,9 +269,9 @@ private:
 	TCallbackVector                            m_pShaderParamCallbackArray;
 
 	QuatT                                      m_lastCalculateRelativeMovement;
-	float                                      m_NormalizedTime;
-	float                                      m_NormalizedTimeSmooth;
-	float                                      m_NormalizedTimeRate;
+	nTime                                      m_NormalizedTime;
+	nTime                                      m_NormalizedTimeSmooth;
+	rTime                                      m_NormalizedTimeRate;
 
 	CCamera                                    m_Camera;
 	AABB                                       m_AABB;
@@ -292,7 +292,7 @@ private:
 	vector<StateText>                          m_uncompressedStateTextCache;
 
 	std::shared_ptr<IAnimationGroundAlignment> m_groundAlignment;
-	float                                      m_AverageFrameTime;
+	CTimeValue                                 m_AverageFrameTime;
 
 	ViewportOptions                            m_viewportOptions;
 	bool                                       m_showOriginalAnimation;
@@ -307,8 +307,8 @@ private:
 
 	bool                                       m_bPaused;
 	bool                                       m_bindPoseEnabled;
-	float                                      m_playbackTime;
-	float                                      m_playbackDuration;
+	CTimeValue                                 m_playbackTime;
+	CTimeValue                                 m_playbackDuration;
 	PlaybackOptions                            m_lastScrubPlaybackOptions;
 	PlaybackOptions                            m_playbackOptions;
 	PlaybackState                              m_playbackState;

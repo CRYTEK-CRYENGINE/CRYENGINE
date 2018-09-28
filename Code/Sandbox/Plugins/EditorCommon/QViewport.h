@@ -129,9 +129,9 @@ private:
 	int                                m_height;
 	int                                m_supersamplingFactor;
 	QPoint                             m_mousePressPos;
-	int64                              m_lastTime;
-	float                              m_lastFrameTime;
-	float                              m_averageFrameTime;
+	CTimeValue                         m_lastTime;
+	CTimeValue                         m_lastFrameTime;
+	CTimeValue                         m_averageFrameTime;
 	bool                               m_renderContextCreated;
 	bool                               m_creatingRenderContext;
 	bool                               m_updating;

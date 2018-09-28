@@ -34,7 +34,7 @@ CTrackViewExporter::CTrackViewExporter()
 	, m_bAnimKeyTimeExport(false)
 	, m_bSoundKeyTimeExport(false)
 	, m_FBXBakedExportFramerate(30)
-	, m_animTimeExportMasterSequenceCurrentTime(0.0f)
+	, m_animTimeExportMasterSequenceCurrentTime(0)
 	, m_pBaseObj(nullptr)
 	, m_fScale(1.0f)
 {
@@ -271,7 +271,7 @@ bool CTrackViewExporter::ImportFBXFile()
 					CTrackViewTrack* pTrack = GetTrackViewTrack(pAnimData, trackBundle, (string)szUpdatedNodeName);
 					if (pTrack)
 					{
-						SAnimTime keyTime(pAnimData->keyTime);
+						CTimeValue keyTime(pAnimData->keyTime);
 						CTrackViewKeyHandle key = pTrack->CreateKey(keyTime);
 
 						S2DBezierKey bezierKey;
@@ -331,7 +331,7 @@ bool CTrackViewExporter::ExportToFile(bool bCompleteSequence)
 					if (ShowFBXExportDialog())
 					{
 						CTrackViewSequence* pSequence = CTrackViewPlugin::GetAnimationContext()->GetSequence();
-						m_numberOfExportFrames = (pSequence->GetTimeRange().end.GetTicks() / SAnimTime::numTicksPerSecond) * m_FBXBakedExportFramerate;
+						m_numberOfExportFrames = (int)(pSequence->GetTimeRange().end.GetSeconds() * m_FBXBakedExportFramerate);
 
 						if (!m_bExportOnlyMasterCamera)
 						{
@@ -576,7 +576,7 @@ void CTrackViewExporter::AddEntityAnimationData(const CTrackViewTrack* pTrack, S
 	for (int keyNumber = 0; keyNumber < keyCount; keyNumber++)
 	{
 		const CTrackViewKeyConstHandle currentKeyHandle = pTrack->GetKey(keyNumber);
-		const SAnimTime currentKeyTime = currentKeyHandle.GetTime();
+		const CTimeValue currentKeyTime = currentKeyHandle.GetTime();
 
 		float trackValue = stl::get<float>(pTrack->GetValue(currentKeyTime));
 		if (currentCurve.GetKeyCount() > 0)
@@ -584,7 +584,7 @@ void CTrackViewExporter::AddEntityAnimationData(const CTrackViewTrack* pTrack, S
 			Export::EntityAnimData entityData;
 			entityData.dataType = (EAnimParamType)pTrack->GetParameterType().GetType();
 			entityData.keyValue = trackValue;
-			entityData.keyTime = currentKeyTime.ToFloat();
+			entityData.keyTime = currentKeyTime;
 
 			if (entityTrackParamType == eAnimParamType_Position)
 			{
@@ -622,8 +622,8 @@ void CTrackViewExporter::AddEntityAnimationData(const CTrackViewTrack* pTrack, S
 				entityData.rightTangent *= 100.0f;
 			}
 
-			SAnimTime prevKeyTime(0);
-			SAnimTime nextKeyTime(0);
+			CTimeValue prevKeyTime(0);
+			CTimeValue nextKeyTime(0);
 
 			bool bIsFirstKey = false;
 			bool bIsMiddleKey = false;
@@ -634,7 +634,7 @@ void CTrackViewExporter::AddEntityAnimationData(const CTrackViewTrack* pTrack, S
 				const CTrackViewKeyConstHandle nextKeyHandle = pTrack->GetKey(keyNumber + 1);
 				nextKeyTime = nextKeyHandle.GetTime();
 
-				if (nextKeyTime != SAnimTime(0))
+				if (nextKeyTime != 0)
 				{
 					bIsFirstKey = true;
 				}
@@ -649,7 +649,7 @@ void CTrackViewExporter::AddEntityAnimationData(const CTrackViewTrack* pTrack, S
 					const CTrackViewKeyConstHandle nextKeyHandle = pTrack->GetKey(keyNumber + 1);
 					nextKeyTime = nextKeyHandle.GetTime();
 
-					if (nextKeyTime != SAnimTime(0))
+					if (nextKeyTime != 0)
 					{
 						bIsMiddleKey = true;
 					}
@@ -665,16 +665,16 @@ void CTrackViewExporter::AddEntityAnimationData(const CTrackViewTrack* pTrack, S
 
 			if (bIsFirstKey)
 			{
-				fRightTangentWeightValue = fOutTantentX / nextKeyTime;
+				fRightTangentWeightValue = fOutTantentX / nextKeyTime.BADGetSeconds();
 			}
 			else if (bIsMiddleKey)
 			{
-				fLeftTangentWeightValue = fInTantentX / (currentKeyTime - prevKeyTime);
-				fRightTangentWeightValue = fOutTantentX / (nextKeyTime - currentKeyTime);
+				fLeftTangentWeightValue = fInTantentX / (currentKeyTime - prevKeyTime).BADGetSeconds();
+				fRightTangentWeightValue = fOutTantentX / (nextKeyTime - currentKeyTime).BADGetSeconds();
 			}
 			else if (bIsLastKey)
 			{
-				fLeftTangentWeightValue = fInTantentX / (currentKeyTime - prevKeyTime);
+				fLeftTangentWeightValue = fInTantentX / (currentKeyTime - prevKeyTime).BADGetSeconds();
 			}
 
 			entityData.leftTangentWeight = fLeftTangentWeightValue;
@@ -754,9 +754,9 @@ void CTrackViewExporter::ProcessEntityAnimationTrack(const CBaseObject* pBaseObj
 				pCameraNode = CTrackViewPlugin::GetSequenceManager()->GetActiveAnimNode(static_cast<const CEntityObject*>(pBaseObj));
 			}
 
-			SAnimTime ticks(0);
+			CTimeValue ticks(0);
 			const size_t sizeInfo = pObj->GetEntityAnimationDataCount();
-			const int32 fpsTimeInterval = SAnimTime::numTicksPerSecond / m_FBXBakedExportFramerate;
+			const CTimeValue fpsTimeInterval = CTimeValue(1) / m_FBXBakedExportFramerate;
 
 			pObj->m_entityAnimData.reserve(m_numberOfExportFrames * Export::kReserveCount);
 
@@ -767,7 +767,7 @@ void CTrackViewExporter::ProcessEntityAnimationTrack(const CBaseObject* pBaseObj
 				Ang3 worldAngles = RAD2DEG(Ang3::GetAnglesXYZ(Matrix33(rotation)));
 
 				Export::EntityAnimData entityData;
-				entityData.keyTime = ticks.ToFloat();
+				entityData.keyTime = ticks;
 				entityData.leftTangentWeight = 0.0f;
 				entityData.rightTangentWeight = 0.0f;
 				entityData.leftTangent = 0.0f;
@@ -785,7 +785,7 @@ void CTrackViewExporter::ProcessEntityAnimationTrack(const CBaseObject* pBaseObj
 				entityData.dataType = (EAnimParamType)eAnimParamType_RotationZ;
 				pObj->AddEntityAnimationData(entityData);
 
-				ticks += SAnimTime(fpsTimeInterval);
+				ticks += fpsTimeInterval;
 			}
 
 			return;
@@ -823,16 +823,16 @@ void CTrackViewExporter::AddPosRotScale(SExportObject* pObj, const CBaseObject* 
 
 	if (pBaseObj->IsKindOf(RUNTIME_CLASS(CCameraObjectTarget)))
 	{
-		AddEntityData(pObj, eAnimParamType_PositionX, pBaseObj->GetPos().x, 0.0f);
-		AddEntityData(pObj, eAnimParamType_PositionY, pBaseObj->GetPos().y, 0.0f);
-		AddEntityData(pObj, eAnimParamType_PositionZ, pBaseObj->GetPos().z, 0.0f);
-		AddEntityData(pObj, eAnimParamType_RotationX, pBaseObj->GetRotation().v.x, 0.0f);
-		AddEntityData(pObj, eAnimParamType_RotationY, pBaseObj->GetRotation().v.y, 0.0f);
-		AddEntityData(pObj, eAnimParamType_RotationZ, pBaseObj->GetRotation().v.z, 0.0f);
+		AddEntityData(pObj, eAnimParamType_PositionX, pBaseObj->GetPos().x, 0);
+		AddEntityData(pObj, eAnimParamType_PositionY, pBaseObj->GetPos().y, 0);
+		AddEntityData(pObj, eAnimParamType_PositionZ, pBaseObj->GetPos().z, 0);
+		AddEntityData(pObj, eAnimParamType_RotationX, pBaseObj->GetRotation().v.x, 0);
+		AddEntityData(pObj, eAnimParamType_RotationY, pBaseObj->GetRotation().v.y, 0);
+		AddEntityData(pObj, eAnimParamType_RotationZ, pBaseObj->GetRotation().v.z, 0);
 	}
 }
 
-void CTrackViewExporter::AddEntityData(SExportObject* pObj, EAnimParamType dataType, const float fValue, const float fTime)
+void CTrackViewExporter::AddEntityData(SExportObject* pObj, EAnimParamType dataType, const float fValue, const CTimeValue& fTime)
 {
 	Export::EntityAnimData entityData;
 	entityData.dataType = dataType;
@@ -970,7 +970,7 @@ void CTrackViewExporter::FillAnimTimeNode(XmlNodeRef writeNode, CTrackViewAnimNo
 	if (numAllTracks > 0)
 	{
 		XmlNodeRef objNode = writeNode->createNode(CleanXMLText(pObjectNode->GetName()));
-		writeNode->setAttr("time", m_animTimeExportMasterSequenceCurrentTime.ToFloat());
+		writeNode->setAttr("time", m_animTimeExportMasterSequenceCurrentTime);
 
 		for (unsigned int trackID = 0; trackID < numAllTracks; ++trackID)
 		{
@@ -996,10 +996,10 @@ void CTrackViewExporter::FillAnimTimeNode(XmlNodeRef writeNode, CTrackViewAnimNo
 					CTrackViewKeyHandle& keyHandle = keyBundle.GetKey(keyID);
 
 					string keyContentName;
-					SAnimTime keyTime(0);
-					float keyStartTime = 0.0f;
-					float keyEndTime = 0.0f;
-					float keyDuration = 0.0f;
+					CTimeValue keyTime(0);
+					CTimeValue keyStartTime = 0;
+					CTimeValue keyEndTime = 0;
+					CTimeValue keyDuration = 0;
 
 					if (trackType == eAnimParamType_Animation)
 					{
@@ -1027,7 +1027,7 @@ void CTrackViewExporter::FillAnimTimeNode(XmlNodeRef writeNode, CTrackViewAnimNo
 						keyHandle.GetKey(&audioTriggerKey);
 						keyTime = audioTriggerKey.m_time;
 						keyContentName = CleanXMLText(audioTriggerKey.m_startTriggerName.c_str());
-						keyDuration = audioTriggerKey.m_duration.ToFloat();
+						keyDuration = audioTriggerKey.m_duration;
 					}
 
 					if (keyContentName.IsEmpty())
@@ -1037,8 +1037,8 @@ void CTrackViewExporter::FillAnimTimeNode(XmlNodeRef writeNode, CTrackViewAnimNo
 
 					XmlNodeRef keyNode = subNode->createNode(keyContentName);
 
-					SAnimTime keyGlobalTime = m_animTimeExportMasterSequenceCurrentTime + keyTime;
-					keyNode->setAttr("keyTime", keyGlobalTime.ToFloat());
+					CTimeValue keyGlobalTime = m_animTimeExportMasterSequenceCurrentTime + keyTime;
+					keyNode->setAttr("keyTime", keyGlobalTime);
 
 					if (keyStartTime > 0)
 					{
@@ -1122,7 +1122,7 @@ bool CTrackViewExporter::ProcessObjectsForExport()
 	pObj->SetObjectEntityType(Export::eCamera);
 	m_data.AddObject(pObj);
 
-	const int32 fpsTimeInterval = SAnimTime::numTicksPerSecond / m_FBXBakedExportFramerate;
+	const CTimeValue fpsTimeInterval = CTimeValue(1) / m_FBXBakedExportFramerate;
 	IObjectManager* pObjMgr = GetIEditor()->GetObjectManager();
 
 	CTrackViewPlugin::GetAnimationContext()->SetRecording(false);
@@ -1134,7 +1134,7 @@ bool CTrackViewExporter::ProcessObjectsForExport()
 	    ((CRenderViewport*)vp)->SetSequenceCamera();
 	 */
 	const int32 startFrame = 0;
-	SAnimTime ticks(startFrame * fpsTimeInterval);
+	CTimeValue ticks(startFrame * fpsTimeInterval);
 
 	for (int32 frameID = startFrame; frameID <= m_numberOfExportFrames; ++frameID)
 	{
@@ -1212,7 +1212,7 @@ bool CTrackViewExporter::ProcessObjectsForExport()
 			Ang3 worldAngles = RAD2DEG(Ang3::GetAnglesXYZ(Matrix33(rotation)));
 
 			Export::EntityAnimData entityData;
-			entityData.keyTime = ticks.ToFloat();
+			entityData.keyTime = ticks;
 			entityData.leftTangentWeight = 0.0f;
 			entityData.rightTangentWeight = 0.0f;
 			entityData.leftTangent = 0.0f;
@@ -1261,7 +1261,7 @@ bool CTrackViewExporter::ProcessObjectsForExport()
 			}
 		}
 
-		ticks += SAnimTime(fpsTimeInterval);
+		ticks += fpsTimeInterval;
 	}
 
 	return true;

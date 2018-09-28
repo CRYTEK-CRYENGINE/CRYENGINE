@@ -305,7 +305,7 @@ void CFacialSlidersCtrl::OnSliderChanged(int nSlider)
 		SSliderInfo& si = m_sliders[nSlider];
 		float fWeight = (float)si.pSlider->GetPos() / SLIDER_SCALE;
 
-		if ((fabs(fWeight) > 0.00001f || fabs(si.pBalance->GetValue()) > 0.00001f) && !si.bEnabled)
+		if ((fabs(fWeight) > 0.00001f || abs(si.pBalance->GetValue()) > "0.00001") && !si.bEnabled)
 			si.bEnabled = true;
 		UpdateSliderUI(nSlider);
 
@@ -330,7 +330,7 @@ void CFacialSlidersCtrl::OnSliderChanged(int nSlider)
 				float fWeight = (float)si.pSlider->GetPos() / SLIDER_SCALE;
 				weights[i] = fWeight;
 			}
-			balances[i] = si.pBalance->GetValue();
+			balances[i] = BADF si.pBalance->GetValue();
 		}
 	}
 	if (!m_bShowExpressions)

@@ -29,11 +29,11 @@ public:
 			{
 				if (rect.top() - pt.y() > rect.height() / 2)
 				{
-					row_->addValue(tree_, -row_->singlestep());
+					row_->sub(tree_);
 				}
 				else
 				{
-					row_->addValue(tree_, row_->singlestep());
+					row_->add(tree_);
 				}
 			}
 		}

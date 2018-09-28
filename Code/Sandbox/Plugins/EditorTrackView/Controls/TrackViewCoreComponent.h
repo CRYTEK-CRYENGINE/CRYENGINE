@@ -36,7 +36,7 @@ public:
 protected:
 	// IAnimationContextListener
 	virtual void OnSequenceChanged(CTrackViewSequence* pSequence) override    {}
-	virtual void OnTimeChanged(SAnimTime newTime) override                    {}
+	virtual void OnTimeChanged(const CTimeValue& newTime) override            {}
 	virtual void OnPlaybackStateChanged(bool bPlaying, bool bPaused) override {}
 	virtual void OnRecordingStateChanged(bool bRecording) override            {}
 	// ~IAnimationContextListener

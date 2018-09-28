@@ -103,9 +103,9 @@ void CTrackViewSequenceTrack::SetKey(uint keyIndex, const STrackKey* pKey)
 	const SSequenceKeyFacade* pKeyFacade = static_cast<const SSequenceKeyFacade*>(pKey);
 	SSequenceKey sequenceKey = *pKeyFacade;
 
-	if (sequenceKey.m_speed <= 0.0f)
+	if (sequenceKey.m_speed <= 0)
 	{
-		sequenceKey.m_speed = 1.0f;
+		sequenceKey.m_speed = 1;
 	}
 
 	CTrackViewTrack::SetKey(keyIndex, &sequenceKey);
@@ -127,12 +127,12 @@ const char* CTrackViewSequenceTrack::GetKeyType() const
 	return SSequenceKeyFacade::GetType();
 }
 
-SAnimTime CTrackViewSequenceTrack::GetKeyDuration(const uint index) const
+CTimeValue CTrackViewSequenceTrack::GetKeyDuration(const uint index) const
 {
 	SSequenceKey key;
 	GetKey(index, &key);
 
-	SAnimTime duration;
+	CTimeValue duration;
 	if (key.m_boverrideTimes)
 	{
 		duration = (key.m_endTime - key.m_startTime);
@@ -141,13 +141,13 @@ SAnimTime CTrackViewSequenceTrack::GetKeyDuration(const uint index) const
 	{
 		CTrackViewSequenceManager* pSequenceManager = CTrackViewPlugin::GetSequenceManager();
 		CTrackViewSequence* pSequence = pSequenceManager->GetSequenceByGUID(key.m_sequenceGUID);
-		duration = pSequence ? pSequence->GetTimeRange().Length() : SAnimTime(0);
+		duration = pSequence ? pSequence->GetTimeRange().Length() : 0;
 	}
 
-	return SAnimTime(duration / key.m_speed);
+	return duration / key.m_speed;
 }
 
-SAnimTime CTrackViewSequenceTrack::GetKeyAnimDuration(const uint index) const
+CTimeValue CTrackViewSequenceTrack::GetKeyAnimDuration(const uint index) const
 {
 	SSequenceKey key;
 	GetKey(index, &key);
@@ -158,10 +158,10 @@ SAnimTime CTrackViewSequenceTrack::GetKeyAnimDuration(const uint index) const
 		return pSequence->GetTimeRange().Length() / key.m_speed;
 	}
 
-	return SAnimTime(0);
+	return 0;
 }
 
-SAnimTime CTrackViewSequenceTrack::GetKeyAnimStart(const uint index) const
+CTimeValue CTrackViewSequenceTrack::GetKeyAnimStart(const uint index) const
 {
 	SSequenceKey key;
 	GetKey(index, &key);

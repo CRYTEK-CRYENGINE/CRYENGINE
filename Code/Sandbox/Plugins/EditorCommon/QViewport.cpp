@@ -185,8 +185,8 @@ QViewport::QViewport(SSystemGlobalEnvironment* env, QWidget* parent, int supersa
 	, m_fastMode(false)
 	, m_slowMode(false)
 	, m_lastTime(0)
-	, m_lastFrameTime(0.0f)
-	, m_averageFrameTime(0.0f)
+	, m_lastFrameTime(0)
+	, m_averageFrameTime(0)
 	, m_sceneDimensions(1.0f, 1.0f, 1.0f)
 	, m_creatingRenderContext(false)
 	, m_env(env)
@@ -405,15 +405,15 @@ struct AutoBool
 
 void QViewport::Update()
 {
-	int64 time = m_env->pSystem->GetITimer()->GetAsyncTime().GetMilliSecondsAsInt64();
+	CTimeValue time = m_env->pSystem->GetITimer()->GetAsyncTime();
 	if (m_lastTime == 0)
 		m_lastTime = time;
-	m_lastFrameTime = (time - m_lastTime) * 0.001f;
+	m_lastFrameTime = time - m_lastTime;
 	m_lastTime = time;
-	if (m_averageFrameTime == 0.0f)
+	if (m_averageFrameTime == 0)
 		m_averageFrameTime = m_lastFrameTime;
 	else
-		m_averageFrameTime = 0.01f * m_lastFrameTime + 0.99f * m_averageFrameTime;
+		m_averageFrameTime = "0.01" * m_lastFrameTime + "0.99" * m_averageFrameTime;
 
 	if (m_env->pRenderer == 0 ||
 	    m_env->p3DEngine == 0)
@@ -560,10 +560,7 @@ void QViewport::ProcessKeys()
 	if (!m_renderContextCreated)
 		return;
 
-	float deltaTime = m_lastFrameTime;
-
-	if (deltaTime > 0.1f)
-		deltaTime = 0.1f;
+	float deltaTime = min(CTimeValue("0.1"), m_lastFrameTime).BADGetSeconds();
 
 	QuatT qt = m_state->cameraTarget;
 	Vec3 ydir = qt.GetColumn1().GetNormalized();
@@ -674,18 +671,18 @@ void QViewport::PreRender()
 	SignalPreRender(rc);
 
 	const float fov = DEG2RAD(m_settings->camera.fov);
-	const float fTime = m_env->pTimer->GetFrameTime();
+	const CTimeValue fTime = GetGTimer()->GetFrameTime();
 	float lastRotWeight = 0.0f;
 
 	QuatT targetTM = m_state->cameraTarget;
 	QuatT currentTM = m_state->lastCameraTarget;
 
 	if ((targetTM.t - currentTM.t).len() > 0.0001f)
-		SmoothCD(currentTM.t, m_cameraSmoothPosRate, fTime, targetTM.t, m_settings->camera.smoothPos);
+		SmoothCD(currentTM.t, m_cameraSmoothPosRate, fTime, targetTM.t, BADTIME(m_settings->camera.smoothPos));
 	else
 		m_cameraSmoothPosRate = Vec3(0);
 
-	SmoothCD(lastRotWeight, m_cameraSmoothRotRate, fTime, 1.0f, m_settings->camera.smoothRot);
+	SmoothCD(lastRotWeight, m_cameraSmoothRotRate, fTime, 1.0f, BADTIME(m_settings->camera.smoothRot));
 
 	if (lastRotWeight >= 1.0f)
 		m_cameraSmoothRotRate = 0.0f;
@@ -819,7 +816,7 @@ void QViewport::Render()
 	//---------------------------------------------------------------------------------------
 
 	if (m_settings->lighting.m_useLightRotation)
-		m_LightRotationRadian += m_averageFrameTime;
+		m_LightRotationRadian += m_averageFrameTime.BADGetSeconds();
 	if (m_LightRotationRadian > gf_PI)
 		m_LightRotationRadian = -gf_PI;
 
@@ -901,9 +898,9 @@ void QViewport::Render()
 	aux->Submit();
 	aux->SetRenderFlags(oldFlags);
 
-	if ((m_settings->rendering.fps == true) && (m_averageFrameTime != 0.0f))
+	if ((m_settings->rendering.fps == true) && (m_averageFrameTime != 0))
 	{
-		IRenderAuxText::Draw2dLabel(12.0f, 12.0f, 1.25f, ColorF(1, 1, 1, 1), false, "FPS: %.2f", 1.0f / m_averageFrameTime);
+		IRenderAuxText::Draw2dLabel(12.0f, 12.0f, 1.25f, ColorF(1, 1, 1, 1), false, "FPS: %.2f", (float)(1 / m_averageFrameTime));
 	}
 
 	if (m_mouseMovementsSinceLastFrame > 1)

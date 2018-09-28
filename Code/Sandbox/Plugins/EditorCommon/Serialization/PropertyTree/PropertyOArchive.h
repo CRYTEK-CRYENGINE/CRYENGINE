@@ -43,6 +43,11 @@ protected:
 	bool operator()(float& value, const char* name, const char* label) override;
 	bool operator()(double& value, const char* name, const char* label) override;
 
+	bool operator()(CTimeValue& value, const char* name = "", const char* label = 0) override;
+	#define MP_FUNCTION(T) bool operator()(T& value, const char* name = "", const char* label = 0) override;
+	#include <CrySystem\mpfloat.types>
+	#undef MP_FUNCTION
+
 	bool operator()(const yasli::Serializer& ser, const char* name, const char* label) override;
 	bool operator()(yasli::PointerInterface& ptr, const char *name, const char *label) override;
 	bool operator()(yasli::ContainerInterface& ser, const char *name, const char *label) override;

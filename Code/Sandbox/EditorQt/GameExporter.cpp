@@ -62,7 +62,7 @@ struct SAOInfo
 #pragma pack(pop)
 
 const float gAOObjectsZRange = 32.f;
-double gBuildSectorAODataTime = 0;
+CTimeValue gBuildSectorAODataTime = 0;
 
 // low quality + nosky, high quality + nosky, low quality + sky, high quality + sky, TODO: completely remove low quality option (user can reduce resolution for more performance)
 const ETEX_Format eTerrainPrimaryTextureFormat[2][2] = {
@@ -984,7 +984,7 @@ bool CGameExporter::ExportSurfaceTexture(CPakFile& levelPakFile, const char* szF
 
 		int iIndexBlockValue = phelper.m_rIndexBlock[phelper.m_IndexBlockPos++];
 
-		gBuildSectorAODataTime = 0;
+		gBuildSectorAODataTime.SetSeconds(0);
 
 		CCryMemFile fileTemp;
 
@@ -994,7 +994,7 @@ bool CGameExporter::ExportSurfaceTexture(CPakFile& levelPakFile, const char* szF
 			return false;
 		}
 
-		pSystem->GetILog()->Log("* Building AO data took %d seconds *", int(gBuildSectorAODataTime));
+		pSystem->GetILog()->Log("* Building AO data took %d seconds *", int(gBuildSectorAODataTime.GetSeconds()));
 	}
 
 	return true;
@@ -2125,7 +2125,7 @@ void CGameExporter::BuildSectorAOData(int nAreaY, int nAreaX, int nAreaSize, SAO
 {
 	ISystem* pSystem = GetISystem();
 	ITimer* pTimer = pSystem->GetITimer();
-	double dStartTime = pTimer->GetAsyncCurTime();
+	CTimeValue dStartTime = pTimer->GetAsyncCurTime();
 
 	ILog* pLog = pSystem->GetILog();
 	pLog->Log("Building AO data for sector ( %d, %d ) x %d m ( z = %.1f-%.1f ) ... ", nAreaX, nAreaY, nAreaSize, fTerrainMinZ, fTerrainMaxZ);

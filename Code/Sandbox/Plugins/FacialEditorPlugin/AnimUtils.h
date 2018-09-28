@@ -16,7 +16,7 @@ struct ICharacterInstance;
 namespace AnimUtils
 {
 void StartAnimation(ICharacterInstance* pCharacter, const char* pAnimName);
-void SetAnimationTime(ICharacterInstance* pCharacter, float fNormalizedTime);
+void SetAnimationTime(ICharacterInstance* pCharacter, const nTime& fNormalizedTime);
 void StopAnimations(ICharacterInstance* pCharacter);
 }
 

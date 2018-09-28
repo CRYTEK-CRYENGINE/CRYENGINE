@@ -7,20 +7,19 @@
 #include "Controls/SharedFonts.h"
 #include "IUndoManager.h"
 
-inline double Round(double fVal, double fStep)
+inline mpfloat Round(const mpfloat& fValIn, const mpfloat& fStep)
 {
-	if (fStep > 0.f)
+	mpfloat fVal = fValIn;
+	if (fStep > 0)
 		fVal = int_round(fVal / fStep) * fStep;
 	return fVal;
 }
 
 namespace NumberCtrl_Private
 {
-	inline void FormatFloatForUICString(CString& outstr, int significantDigits, double value)
+	inline void FormatForUICString(CString& outstr, int significantDigits, const mpfloat& value)
 	{
-		string crystr = outstr.GetString();
-		FormatFloatForUI(crystr, significantDigits, value);
-		outstr = crystr.GetString();
+		outstr = value.str(significantDigits).GetString();
 	}
 }
 
@@ -33,9 +32,9 @@ CNumberCtrl::CNumberCtrl()
 	m_btnWidth = 10;
 	m_draggin = false;
 	m_value = 0;
-	m_min = -FLT_MAX;
-	m_max = FLT_MAX;
-	m_step = 0.01;
+	m_min = mpfloat::Min();
+	m_max = mpfloat::Max();
+	m_step = "0.01";
 	m_enabled = true;
 	m_noNotify = false;
 	m_integer = false;
@@ -148,7 +147,7 @@ int CNumberCtrl::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	//if (!(m_nFlags & NOBORDER))
 	//m_edit.ModifyStyleEx( 0,WS_EX_CLIENTEDGE );
 
-	double val = m_value;
+	mpfloat val = m_value;
 	m_value = val + 1;
 	SetInternalValue(val);
 
@@ -355,10 +354,10 @@ void CNumberCtrl::OnLButtonUp(UINT nFlags, CPoint point)
 	if (bLButonDown)
 	{
 		int btn = GetBtn(point);
-		if (!m_bDragged && btn >= 0 && m_step > 0.f)
+		if (!m_bDragged && btn >= 0 && m_step > 0)
 		{
 			// First round to nearest step.
-			double prevValue = m_value;
+			mpfloat prevValue = m_value;
 
 			if (btn == 0)
 				SetInternalValue(Round(GetInternalValue() + m_step, m_step));
@@ -400,7 +399,7 @@ void CNumberCtrl::OnMouseMove(UINT nFlags, CPoint point)
 	if (m_draggin)
 	{
 		m_bDragged = true;
-		double prevValue = m_value;
+		mpfloat prevValue = m_value;
 
 		SetCursor(m_upDownCursor);
 		if (m_btnStatus != 3)
@@ -439,7 +438,7 @@ void CNumberCtrl::OnMouseMove(UINT nFlags, CPoint point)
 	CWnd::OnMouseMove(nFlags, point);
 }
 
-void CNumberCtrl::SetRange(double min, double max)
+void CNumberCtrl::SetRange(const mpfloat& min, const mpfloat& max)
 {
 	if (m_bLocked)
 		return;
@@ -448,11 +447,12 @@ void CNumberCtrl::SetRange(double min, double max)
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CNumberCtrl::SetInternalValue(double val)
+void CNumberCtrl::SetInternalValue(const mpfloat& valIN)
 {
 	if (m_bLocked)
 		return;
 	CString s;
+	mpfloat val = valIN;
 
 	if (val < m_min) val = m_min;
 	if (val > m_max) val = m_max;
@@ -465,7 +465,7 @@ void CNumberCtrl::SetInternalValue(double val)
 	}
 	else
 	{
-		NumberCtrl_Private::FormatFloatForUICString(s, m_floatFormatPrecision, val);
+		NumberCtrl_Private::FormatForUICString(s, m_floatFormatPrecision, val);
 	}
 	m_value = val;
 
@@ -478,18 +478,18 @@ void CNumberCtrl::SetInternalValue(double val)
 }
 
 //////////////////////////////////////////////////////////////////////////
-double CNumberCtrl::GetInternalValue() const
+mpfloat CNumberCtrl::GetInternalValue() const
 {
 	if (!m_enabled)
 		return m_value;
 
-	double v;
+	mpfloat v;
 
 	if (m_edit)
 	{
 		CString str;
 		m_edit.GetWindowText(str);
-		v = m_value = atof((const char*)str);
+		v = m_value = mpfloat((const char*)str);
 	}
 	else
 		v = m_value;
@@ -501,7 +501,7 @@ double CNumberCtrl::GetInternalValue() const
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CNumberCtrl::SetValue(double val)
+void CNumberCtrl::SetValue(const mpfloat& val)
 {
 	if (m_bLocked)
 		return;
@@ -514,13 +514,13 @@ void CNumberCtrl::SetValue(double val)
 }
 
 //////////////////////////////////////////////////////////////////////////
-double CNumberCtrl::GetValue() const
+mpfloat CNumberCtrl::GetValue() const
 {
 	return GetInternalValue() / m_multiplier;
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CNumberCtrl::SetStep(double step)
+void CNumberCtrl::SetStep(const mpfloat& step)
 {
 	if (m_bLocked)
 		return;
@@ -530,7 +530,7 @@ void CNumberCtrl::SetStep(double step)
 }
 
 //////////////////////////////////////////////////////////////////////////
-double CNumberCtrl::GetStep() const
+const mpfloat& CNumberCtrl::GetStep() const
 {
 	return m_step;
 }
@@ -539,13 +539,13 @@ double CNumberCtrl::GetStep() const
 CString CNumberCtrl::GetValueAsString() const
 {
 	CString str;
-	if (fabs(m_multiplier) > 0.000001)
+	if (abs(m_multiplier) > "0.000001")
 	{
-		NumberCtrl_Private::FormatFloatForUICString(str, m_floatFormatPrecision, m_value / m_multiplier);
+		NumberCtrl_Private::FormatForUICString(str, m_floatFormatPrecision, m_value / m_multiplier);
 	}
 	else
 	{
-		NumberCtrl_Private::FormatFloatForUICString(str, m_floatFormatPrecision, 1.0f);
+		NumberCtrl_Private::FormatForUICString(str, m_floatFormatPrecision, 1);
 	}
 	return str;
 }
@@ -557,9 +557,9 @@ void CNumberCtrl::OnEditChanged()
 
 	if (!inUpdate)
 	{
-		double prevValue = m_value;
+		mpfloat prevValue = m_value;
 
-		double v = GetInternalValue();
+		mpfloat v = GetInternalValue();
 		if (v != m_value)
 		{
 			SetInternalValue(v);
@@ -639,7 +639,7 @@ void CNumberCtrl::SetInteger(bool enable)
 {
 	m_integer = enable;
 	m_step = 1;
-	double f = GetInternalValue();
+	mpfloat f = GetInternalValue();
 	m_value = f + 1;
 	SetInternalValue(f);
 }
@@ -665,7 +665,7 @@ void CNumberCtrl::OnEditKillFocus()
 
 //////////////////////////////////////////////////////////////////////////
 // calculate the digits right from the comma
-int CNumberCtrl::CalculateDecimalPlaces(double infNumber, int iniMaxPlaces)
+int CNumberCtrl::CalculateDecimalPlaces(const mpfloat& infNumber, int iniMaxPlaces)
 {
 	assert(iniMaxPlaces >= 0);
 
@@ -700,7 +700,7 @@ int CNumberCtrl::CalculateDecimalPlaces(double infNumber, int iniMaxPlaces)
 
 void CNumberCtrl::SetInternalPrecision(int iniDigits)
 {
-	m_step = pow(10.f, -iniDigits);
+	m_step = pow(mpfloat(10), mpfloat(-iniDigits));
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -739,7 +739,7 @@ void CNumberCtrl::SetFont(CFont* pFont, BOOL bRedraw)
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CNumberCtrl::SetMultiplier(double fMultiplier)
+void CNumberCtrl::SetMultiplier(const mpfloat& fMultiplier)
 {
 	if (fMultiplier != 0)
 		m_multiplier = fMultiplier;

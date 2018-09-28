@@ -19,7 +19,7 @@ void CTrackViewCameraNode::OnNodeAnimated(IAnimNode* pNode)
 {
 	CTrackViewEntityNode::OnNodeAnimated(pNode);
 
-	const SAnimTime time = GetSequence()->GetTime();
+	const CTimeValue time = GetSequence()->GetTime();
 
 	CEntityObject* pEntityObject = GetNodeEntity(false);
 	if (pEntityObject)
@@ -74,7 +74,7 @@ void CTrackViewCameraNode::UnBindFromEditorObjects()
 	CTrackViewEntityNode::UnBindFromEditorObjects();
 }
 
-void CTrackViewCameraNode::GetShakeRotation(const SAnimTime time, Quat& rotation)
+void CTrackViewCameraNode::GetShakeRotation(const CTimeValue& time, Quat& rotation)
 {
 	GetAnimNode()->QueryCameraNodeInterface()->GetShakeRotation(time, rotation);
 }
@@ -83,7 +83,7 @@ void CTrackViewCameraNode::OnFovChange(const float fov)
 {
 	if (!GetSequence()->IsAnimating())
 	{
-		const SAnimTime time = GetSequence()->GetTime();
+		const CTimeValue time = GetSequence()->GetTime();
 		SetParameter(time, eAnimParamType_FOV, fov);
 	}
 }
@@ -92,7 +92,7 @@ void CTrackViewCameraNode::OnNearZChange(const float nearZ)
 {
 	if (!GetSequence()->IsAnimating())
 	{
-		const SAnimTime time = GetSequence()->GetTime();
+		const CTimeValue time = GetSequence()->GetTime();
 		SetParameter(time, eAnimParamType_NearZ, nearZ);
 	}
 }
@@ -101,7 +101,7 @@ void CTrackViewCameraNode::OnShakeAmpAChange(const Vec3 amplitude)
 {
 	if (!GetSequence()->IsAnimating())
 	{
-		const SAnimTime time = GetSequence()->GetTime();
+		const CTimeValue time = GetSequence()->GetTime();
 		SetParameter(time, eAnimParamType_ShakeAmplitudeA, amplitude);
 	}
 }
@@ -110,7 +110,7 @@ void CTrackViewCameraNode::OnShakeAmpBChange(const Vec3 amplitude)
 {
 	if (!GetSequence()->IsAnimating())
 	{
-		const SAnimTime time = GetSequence()->GetTime();
+		const CTimeValue time = GetSequence()->GetTime();
 		SetParameter(time, eAnimParamType_ShakeAmplitudeB, amplitude);
 	}
 }
@@ -119,7 +119,7 @@ void CTrackViewCameraNode::OnShakeFreqAChange(const Vec3 frequency)
 {
 	if (!GetSequence()->IsAnimating())
 	{
-		const SAnimTime time = GetSequence()->GetTime();
+		const CTimeValue time = GetSequence()->GetTime();
 		SetParameter(time, eAnimParamType_ShakeFrequencyA, frequency);
 	}
 }
@@ -128,7 +128,7 @@ void CTrackViewCameraNode::OnShakeFreqBChange(const Vec3 frequency)
 {
 	if (!GetSequence()->IsAnimating())
 	{
-		const SAnimTime time = GetSequence()->GetTime();
+		const CTimeValue time = GetSequence()->GetTime();
 		SetParameter(time, eAnimParamType_ShakeFrequencyB, frequency);
 	}
 }
@@ -137,7 +137,7 @@ void CTrackViewCameraNode::OnShakeMultChange(const float amplitudeAMult, const f
 {
 	if (!GetSequence()->IsAnimating())
 	{
-		const SAnimTime time = GetSequence()->GetTime();
+		const CTimeValue time = GetSequence()->GetTime();
 		SetParameter(time, eAnimParamType_ShakeMultiplier, Vec4(amplitudeAMult, amplitudeBMult, frequencyAMult, frequencyBMult));
 	}
 }
@@ -146,7 +146,7 @@ void CTrackViewCameraNode::OnShakeNoiseChange(const float noiseAAmpMult, const f
 {
 	if (!GetSequence()->IsAnimating())
 	{
-		const SAnimTime time = GetSequence()->GetTime();
+		const CTimeValue time = GetSequence()->GetTime();
 		SetParameter(time, eAnimParamType_ShakeNoise, Vec4(noiseAAmpMult, noiseBAmpMult, noiseAFreqMult, noiseBFreqMult));
 	}
 }
@@ -155,7 +155,7 @@ void CTrackViewCameraNode::OnShakeWorkingChange(const float timeOffsetA, const f
 {
 	if (!GetSequence()->IsAnimating())
 	{
-		const SAnimTime time = GetSequence()->GetTime();
+		const CTimeValue time = GetSequence()->GetTime();
 		SetParameter(time, eAnimParamType_ShakeWorking, Vec4(timeOffsetA, timeOffsetB, 0.0f, 0.0f));
 	}
 }
@@ -168,12 +168,12 @@ void CTrackViewCameraNode::OnCameraShakeSeedChange(const int seed)
 	}
 }
 
-template<class T> void CTrackViewCameraNode::SetParameter(SAnimTime time, EAnimParamType paramType, const T& param)
+template<class T> void CTrackViewCameraNode::SetParameter(const CTimeValue& time, EAnimParamType paramType, const T& param)
 {
 	m_pAnimCameraNode->SetParameter(time, paramType, TMovieSystemValue(param));
 }
 
-template<class T> void CTrackViewCameraNode::GetParameter(SAnimTime time, EAnimParamType paramType, T& param)
+template<class T> void CTrackViewCameraNode::GetParameter(const CTimeValue& time, EAnimParamType paramType, T& param)
 {
 	param = stl::get<T>(m_pAnimCameraNode->GetParameter(time, paramType));
 }

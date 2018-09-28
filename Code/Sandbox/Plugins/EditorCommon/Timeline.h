@@ -22,8 +22,8 @@ struct STimelineLayout;
 
 struct STimelineViewState
 {
-	float  viewOrigin;
-	float  visibleDistance;
+	CTimeValue  viewOrigin;
+	CTimeValue  visibleDistance;
 	int    widthPixels;
 	QPoint scrollPixels;
 	int    maxScrollX;
@@ -31,8 +31,8 @@ struct STimelineViewState
 	int    treeLastOpenedWidth;
 
 	STimelineViewState()
-		: viewOrigin(0.0f)
-		, visibleDistance(1.0f)
+		: viewOrigin(0)
+		, visibleDistance(1)
 		, scrollPixels(0, 0)
 		, maxScrollX(0)
 		, treeWidth(0)
@@ -43,11 +43,11 @@ struct STimelineViewState
 	QPoint LocalToLayout(const QPoint& p) const;
 	QPoint LayoutToLocal(const QPoint& p) const;
 
-	int    ScrollOffset(float origin) const;
-	int    TimeToLayout(float time) const;
-	float  LocalToTime(int x) const;
-	int    TimeToLocal(float time) const;
-	float  LayoutToTime(int x) const;
+	int    ScrollOffset(const CTimeValue& origin) const;
+	int    TimeToLayout(const CTimeValue& time) const;
+	CTimeValue  LocalToTime(int x) const;
+	int    TimeToLocal(const CTimeValue& time) const;
+	CTimeValue  LayoutToTime(int x) const;
 };
 
 struct STrackLayout;
@@ -152,7 +152,7 @@ public:
 
 	std::vector<SHeaderElement>& GetHeaderElements() { return m_headerElements; }
 
-	std::vector<SAnimTime>&      GetTickTimePositions() { return m_tickTimePositions; }
+	std::vector<CTimeValue>&     GetTickTimePositions() { return m_tickTimePositions; }
 
 	void                         ContentUpdated();
 
@@ -161,11 +161,11 @@ public:
 	bool                         IsDragged() const { return m_mouseHandler.get() != 0; }
 
 	// make it possible to have actual time in normalized units, but different display units
-	void            SetTimeUnitScale(float timeUnitScale);
-	void            SetTime(SAnimTime time);
+	void            SetTimeUnitScale(const mpfloat& timeUnitScale);
+	void            SetTime(const CTimeValue& time);
 	void            SetCycled(bool cycled);
 	void            SetSizeToContent(bool sizeToContent);
-	void            SetFrameRate(SAnimTime::EFrameRate frameRate) { m_frameRate = frameRate; }
+	void            SetFrameRate(SAnimData::EFrameRate frameRate) { m_frameRate = frameRate; }
 	void            SetTimeSnapping(bool snapTime)                { m_snapTime = snapTime; }
 	void            SetKeySnapping(bool snapKeys)                 { m_snapKeys = snapKeys; }
 	void            SetKeyScaling(bool scaling)                   { m_scaleKeys = scaling; }
@@ -176,16 +176,16 @@ public:
 	void            SetCustomTreeCornerWidget(QWidget* pWidget, uint width);
 	void            SetVerticalScrollbarVisible(bool bVisible);
 	void            SetDrawTrackTimeMarkers(bool bDrawMarkers);
-	void            SetVisibleDistance(float distance);
-	void            ZoomContinuous(float delta);
+	void            SetVisibleDistance(const CTimeValue& distance);
+	void            ZoomContinuous(const mpfloat& delta);
 	void            ZoomStep(int delta);
 	void            SetClampToViewOrigin(float clamp)             { m_clampToViewOrigin = clamp; }
 	void            SetAllowOutOfRangeKeys(float allow)           { m_allowOutOfRangeKeys = allow; }
 	void            SetUseInternalRuler(bool value);
-	void            SetTimeUnit(SAnimTime::EDisplayMode timeUnit) { m_timeUnit = timeUnit; SignalTimeUnitChanged(); }
+	void            SetTimeUnit(SAnimData::EDisplayMode timeUnit) { m_timeUnit = timeUnit; SignalTimeUnitChanged(); }
 	void            SetUseMainTrackTimeRange(bool value)          { m_useMainTrackTimeRange = value; }
 
-	SAnimTime       Time() const                                  { return m_time; }
+	const CTimeValue& Time() const                                  { return m_time; }
 
 	bool            HandleKeyEvent(int key);
 
@@ -196,7 +196,7 @@ public:
 	void            focusOutEvent(QFocusEvent* ev) override;
 	void            mouseDoubleClickEvent(QMouseEvent* ev) override;
 
-	void            AddKeyToTrack(STimelineTrack& subTrack, SAnimTime time);
+	void            AddKeyToTrack(STimelineTrack& subTrack, const CTimeValue& time);
 
 	void            keyPressEvent(QKeyEvent* ev) override;
 	void            keyReleaseEvent(QKeyEvent* ev) override;
@@ -206,14 +206,14 @@ public:
 
 	void            focusTrack(STimelineTrack* pTrack);
 
-	Range           GetVisibleTimeRange() const;
-	Range           GetVisibleTimeRangeFull() const;
+	TRange<CTimeValue> GetVisibleTimeRange() const;
+	TRange<CTimeValue> GetVisibleTimeRangeFull() const;
 
-	void            ZoomToTimeRange(const float start, const float end);
+	void            ZoomToTimeRange(const CTimeValue& start, const CTimeValue& end);
 
 	void            ClearElementSelections();
-	SAnimTime       GetLastMousePressEventTime() const;
-	SAnimTime       GetTimeFromPos(QPoint p) const;
+	CTimeValue      GetLastMousePressEventTime() const;
+	CTimeValue      GetTimeFromPos(QPoint p) const;
 	STimelineTrack* GetTrackFromPos(const QPoint& pos) const;
 	QPoint          GetLastKeyPressEventPosition() const { return m_lastMousePressEventPos; }
 
@@ -247,8 +247,8 @@ signals:
 	void SignalUndo();//Note: this is triggered before the undo has been processed
 	void SignalRedo();//Note: this is triggered before the undo has been processed
 
-	void SignalCopy(SAnimTime time, STimelineTrack* pTrack);
-	void SignalPaste(SAnimTime time, STimelineTrack* pTrack);    
+	void SignalCopy(const CTimeValue& time, STimelineTrack* pTrack);
+	void SignalPaste(const CTimeValue& time, STimelineTrack* pTrack);
 
 public slots:
 	void OnMenuDuplicate();
@@ -289,8 +289,8 @@ private:
 	void          UpdateLayout(bool forceClamp = false);
 	void          UpdateCursor(QMouseEvent* ev, const SElementLayoutPtrs& hitElements);
 	void          UpdateHighligted(const SElementLayoutPtrs& hitElements);
-	SAnimTime     ClampAndSnapTime(SAnimTime time, bool snapToFrames) const;
-	void          ClampAndSetTime(SAnimTime time, bool scrubThrough);
+	CTimeValue    ClampAndSnapTime(const CTimeValue& time, bool snapToFrames) const;
+	void          ClampAndSetTime(const CTimeValue& time, bool scrubThrough);
 	STrackLayout* GetTrackLayoutFromPos(const QPoint& pos) const;
 	void          ResolveHitElements(const QRect& pos, SElementLayoutPtrs& hitElements);
 	void          ResolveHitElements(const QPoint& pos, SElementLayoutPtrs& hitElements);
@@ -310,9 +310,9 @@ private:
 	void CalculateRulerMarkerTimes();
 
 	// Exposed parameters
-	float                   m_timeUnitScale;
-	SAnimTime::EFrameRate   m_frameRate;
-	SAnimTime::EDisplayMode m_timeUnit;
+	mpfloat                 m_timeUnitScale;
+	SAnimData::EFrameRate   m_frameRate;
+	SAnimData::EDisplayMode m_timeUnit;
 	bool                    m_cycled                   : 1;
 	bool                    m_sizeToContent            : 1;
 	bool                    m_snapTime                 : 1;
@@ -337,7 +337,7 @@ private:
 	// State
 	STimelineViewState               m_viewState;
 	STimelineContent*                m_pContent;
-	SAnimTime                        m_time;
+	CTimeValue                       m_time;
 	std::unique_ptr<STimelineLayout> m_layout;
 	std::unique_ptr<SMouseHandler>   m_mouseHandler;
 	std::vector<SHeaderElement>      m_headerElements;
@@ -368,7 +368,7 @@ private:
 	
 	DrawingPrimitives::CRuler m_timelineDrawer;
 
-	std::vector<SAnimTime>    m_tickTimePositions;
+	std::vector<CTimeValue>   m_tickTimePositions;
 
 };
 

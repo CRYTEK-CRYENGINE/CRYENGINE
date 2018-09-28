@@ -139,7 +139,7 @@ CSequencerTrack* CSequencerNode::GetTrackForParameter(ESequencerParamType nParam
 	return NULL;
 }
 
-void CSequencerNode::SetTimeRange(Range timeRange)
+void CSequencerNode::SetTimeRange(TRange<CTimeValue> timeRange)
 {
 	const uint32 numTracks = GetTrackCount();
 	for (uint32 t = 0; t < numTracks; t++)

@@ -30,8 +30,8 @@ class IKeyTimeSet
 {
 public:
 	virtual int   GetKeyTimeCount() const = 0;
-	virtual float GetKeyTime(int index) const = 0;
-	virtual void  MoveKeyTimes(int numChanges, int* indices, float scale, float offset, bool copyKeys) = 0;
+	virtual CTimeValue GetKeyTime(int index) const = 0;
+	virtual void  MoveKeyTimes(int numChanges, int* indices, const mpfloat& scale, const CTimeValue& offset, bool copyKeys) = 0;
 	virtual bool  GetKeyTimeSelected(int index) const = 0;
 	virtual void  SetKeyTimeSelected(int index, bool selected) = 0;
 	virtual int   GetKeyCount(int index) const = 0;
@@ -46,7 +46,7 @@ public:
 	virtual ISplineInterpolator* GetSplineFromID(const string& id) = 0;
 	virtual string               GetIDFromSpline(ISplineInterpolator* pSpline) = 0;
 	virtual int                  GetSplineCount() const = 0;
-	virtual int                  GetKeyCountAtTime(float time, float threshold) const = 0;
+	virtual int                  GetKeyCountAtTime(const CTimeValue& time, float threshold) const = 0;
 };
 
 class ISplineCtrlUndo : public IUndoObject
@@ -73,7 +73,7 @@ public:
 	int                   InsertKey(ISplineInterpolator* pSpline, ISplineInterpolator* pDetailSpline, CPoint point);
 
 	void                  SetGrid(int numX, int numY)                          { m_gridX = numX; m_gridY = numY; };
-	void                  SetTimeRange(const Range& range)                     { m_timeRange = range; }
+	void                  SetTimeRange(const TRange<CTimeValue>& range)        { m_timeRange = range; }
 	void                  SetValueRange(const Range& range)                    { m_valueRange = range; }
 	void                  SetDefaultValueRange(const Range& range)             { m_defaultValueRange = range; }
 	void                  SetDefaultKeyTangentType(ESplineKeyTangentType type) { m_defaultKeyTangentType = type; }
@@ -88,22 +88,22 @@ public:
 	int                   GetSplineCount() const      { return m_splines.size(); }
 	ISplineInterpolator*  GetSpline(int nIndex) const { return m_splines[nIndex].pSpline; }
 
-	void                  SetTimeMarker(float fTime);
-	float                 GetTimeMarker() const                  { return m_fTimeMarker; }
-	void                  SetTimeScale(float timeScale)          { m_fTimeScale = timeScale; }
+	void                  SetTimeMarker(const CTimeValue& fTime);
+	const CTimeValue&     GetTimeMarker() const                  { return m_fTimeMarker; }
+	void                  SetTimeScale(const mpfloat& timeScale) { m_fTimeScale = timeScale; }
 	void                  SetGridTimeScale(float fGridTimeScale) { m_fGridTimeScale = fGridTimeScale; }
 	float                 GetGridTimeScale()                     { return m_fGridTimeScale; }
 	void                  SetTimelineCtrl(CTimelineCtrl* pTimelineCtrl);
 
-	void                  SetMinTimeEpsilon(float fMinTimeEpsilon) { m_fMinTimeEpsilon = fMinTimeEpsilon; }
-	float                 GetMinTimeEpsilon() const                { return m_fMinTimeEpsilon; }
+	void                  SetMinTimeEpsilon(const CTimeValue& fMinTimeEpsilon) { m_fMinTimeEpsilon = fMinTimeEpsilon; }
+	const CTimeValue&     GetMinTimeEpsilon() const                { return m_fMinTimeEpsilon; }
 
 	void                  SetSnapTime(bool bOn)                    { m_bSnapTime = bOn; }
 	void                  SetSnapValue(bool bOn)                   { m_bSnapValue = bOn; }
 	bool                  IsSnapTime() const                       { return m_bSnapTime; }
 	bool                  IsSnapValue() const                      { return m_bSnapValue; }
 
-	float                 SnapTimeToGridVertical(float time);
+	CTimeValue            SnapTimeToGridVertical(const CTimeValue& time);
 
 	void                  OnUserCommand(UINT cmd);
 	void                  FitSplineToViewWidth();
@@ -141,14 +141,14 @@ public:
 	void   SetZoom(Vec2 zoom);
 	void   SetScrollOffset(Vec2 ofs);
 	Vec2   GetScrollOffset();
-	float  SnapTime(float time);
+	CTimeValue  SnapTime(const CTimeValue& time);
 	float  SnapValue(float val);
 	//////////////////////////////////////////////////////////////////////////
 
 	// IKeyTimeSet Implementation
 	virtual int   GetKeyTimeCount() const;
-	virtual float GetKeyTime(int index) const;
-	virtual void  MoveKeyTimes(int numChanges, int* indices, float scale, float offset, bool copyKeys);
+	virtual CTimeValue GetKeyTime(int index) const;
+	virtual void  MoveKeyTimes(int numChanges, int* indices, const mpfloat& scale, const CTimeValue& offset, bool copyKeys);
 	virtual bool  GetKeyTimeSelected(int index) const;
 	virtual void  SetKeyTimeSelected(int index, bool selected);
 	virtual int   GetKeyCount(int index) const;
@@ -207,9 +207,9 @@ protected:
 
 	// Drawing functions
 	void                 DrawGrid(CDC* pDC);
-	void                 DrawSpline(CDC* pDC, SSplineInfo& splineInfo, float startTime, float endTime);
-	void                 DrawDetailSpline(CDC* pDC, SSplineInfo& splineInfo, float startTime, float endTime);
-	void                 DrawKeys(CDC* pDC, int splineIndex, float startTime, float endTime);
+	void                 DrawSpline(CDC* pDC, SSplineInfo& splineInfo, const CTimeValue& startTime, const CTimeValue& endTime);
+	void                 DrawDetailSpline(CDC* pDC, SSplineInfo& splineInfo, const CTimeValue& startTime, const CTimeValue& endTime);
+	void                 DrawKeys(CDC* pDC, int splineIndex, const CTimeValue& startTime, const CTimeValue& endTime);
 	void                 DrawTimeMarker(CDC* pDC);
 	void                 DrawTooltip(CDC* pDC);
 
@@ -226,15 +226,15 @@ protected:
 	void                     RemoveSelectedKeys();
 	void                     RemoveSelectedKeyTimesImpl();
 	void                     MoveSelectedKeys(Vec2 offset, bool copyKeys);
-	void                     ScaleAmplitudeKeys(float time, float startValue, float offset);
-	void                     TimeScaleKeys(float time, float startTime, float endTime);
+	void                     ScaleAmplitudeKeys(const CTimeValue& time, float startValue, float offset);
+	void                     TimeScaleKeys(const CTimeValue& time, const CTimeValue& startTime, const CTimeValue& endTime);
 	void                     ValueScaleKeys(float startValue, float endValue);
 	void                     ModifySelectedKeysFlags(int nRemoveFlags, int nAddFlags);
 
-	CPoint                   TimeToPoint(float time, ISplineInterpolator* pSpline);
-	float                    TimeToXOfs(float x);
-	void                     PointToTimeValue(CPoint point, float& time, float& value);
-	float                    XOfsToTime(int x);
+	CPoint                   TimeToPoint(const CTimeValue& time, ISplineInterpolator* pSpline);
+	float                    TimeToXOfs(const CTimeValue& x);
+	void                     PointToTimeValue(CPoint point, CTimeValue& time, float& value);
+	CTimeValue               XOfsToTime(int x);
 	CPoint                   XOfsToPoint(int x, ISplineInterpolator* pSpline);
 
 	virtual void             ClearSelection();
@@ -274,7 +274,7 @@ protected:
 	ISplineInterpolator* m_pHitDetailSpline;
 	CPoint               m_curvePoint;
 
-	float                m_fTimeMarker;
+	CTimeValue           m_fTimeMarker;
 
 	int                  m_nKeyDrawRadius;
 
@@ -285,11 +285,11 @@ protected:
 	int                  m_gridX;
 	int                  m_gridY;
 
-	float                m_fMinTime, m_fMaxTime;
+	CTimeValue           m_fMinTime, m_fMaxTime;
 	float                m_fMinValue, m_fMaxValue;
 	float                m_fTooltipScaleX, m_fTooltipScaleY;
 
-	float                m_fMinTimeEpsilon;
+	CTimeValue           m_fMinTimeEpsilon;
 
 	CToolTipCtrl         m_tooltip;
 	CPoint               m_lastToolTipPos;
@@ -303,11 +303,11 @@ protected:
 
 	CRect                m_TimeUpdateRect;
 
-	float                m_fTimeScale;
+	mpfloat              m_fTimeScale;
 	float                m_fValueScale;
 	float                m_fGridTimeScale;
 
-	Range                m_timeRange;
+	TRange<CTimeValue>   m_timeRange;
 	Range                m_valueRange;
 	Range                m_defaultValueRange;
 
@@ -327,17 +327,17 @@ protected:
 	class KeyTime
 	{
 	public:
-		KeyTime(float time, int count) : time(time), oldTime(0.0f), selected(false), count(count) {}
+		KeyTime(const CTimeValue& time, int count) : time(time), oldTime(0), selected(false), count(count) {}
 		bool operator<(const KeyTime& other) const { return this->time < other.time; }
-		float time;
-		float oldTime;
+		CTimeValue time;
+		CTimeValue oldTime;
 		bool  selected;
 		int   count;
 	};
 	mutable std::vector<KeyTime> m_keyTimes;
 	mutable int                  m_totalSplineCount;
 
-	static const float           threshold;
+	static const CTimeValue      threshold;
 
 	bool                         m_copyKeys;
 	bool                         m_startedDragging;

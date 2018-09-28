@@ -46,7 +46,7 @@ void CVehicleHelper::SetVariable(IVariable* pVar)
 
 	if (IVariable* pVar = GetChildVar(m_pVar, "position"))
 	{
-		pVar->SetLimits(-10, 10);
+		pVar->SetLimitsG(-10, 10);
 	}
 
 	EnableUpdateObjectOnVarChange("position");

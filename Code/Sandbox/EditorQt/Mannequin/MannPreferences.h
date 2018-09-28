@@ -10,7 +10,7 @@ struct SMannequinGeneralPreferences : public SPreferencePage
 
 	string defaultPreviewFile;
 	int    trackSize;
-	float  timelineWheelZoomSpeed;
+	mpfloat  timelineWheelZoomSpeed;
 	bool   bCtrlForScrubSnapping;
 };
 

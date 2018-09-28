@@ -315,7 +315,7 @@ bool QDialogLineDatabaseModel::setData(const QModelIndex& index, const QVariant&
 						pLine->SetStandaloneFile(QtUtil::ToString(value.toString()));
 						break;
 					case EColumns::PAUSE:
-						pLine->SetPauseLength(value.toFloat());
+						pLine->SetPauseLength(QtUtil::ToString(value.toString()).c_str());
 						break;
 					case EColumns::CUSTOM_DATA:
 						pLine->SetCustomData(QtUtil::ToString(value.toString()));
@@ -371,7 +371,7 @@ bool QDialogLineDatabaseModel::setData(const QModelIndex& index, const QVariant&
 					}
 					break;
 				case EColumns::MAX_QUEUING_DURATION:
-					pDialogLineSet->SetMaxQueuingDuration(value.toFloat());
+					pDialogLineSet->SetMaxQueuingDuration(QtUtil::ToString(value.toString()).c_str());
 					break;
 				case EColumns::SUBTITLE:
 					if (pDialogLineSet->GetLineCount() > 0)
@@ -406,7 +406,7 @@ bool QDialogLineDatabaseModel::setData(const QModelIndex& index, const QVariant&
 				case EColumns::PAUSE:
 					if (pDialogLineSet->GetLineCount() > 0)
 					{
-						pDialogLineSet->GetLineByIndex(0)->SetPauseLength(value.toFloat());
+						pDialogLineSet->GetLineByIndex(0)->SetPauseLength(QtUtil::ToString(value.toString()).c_str());
 					}
 					break;
 				case EColumns::CUSTOM_DATA:

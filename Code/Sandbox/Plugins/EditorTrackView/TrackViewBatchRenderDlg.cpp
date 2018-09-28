@@ -53,7 +53,7 @@ const int batchRenderFileVersion = 1;
 
 struct SFpsDesc
 {
-	int         fps;
+	rTime       fps;
 	const char* szDesc;
 };
 SFpsDesc fixedFpsOptions[] = {
@@ -479,9 +479,9 @@ void CTrackViewBatchRenderDlg::OnStartFrameChanged()
 
 	if (m_pCurrentSequence)
 	{
-		const uint32 currentTicksPerFrame = GetCurrentTicksPerFrame();
-		m_currentAnimRange.start = SAnimTime(m_inputGroup.pCaptureStartField->value() * (int32)currentTicksPerFrame);
-		m_currentAnimRange.end = SAnimTime(m_inputGroup.pCaptureEndField->value() * (int32)currentTicksPerFrame);
+		const CTimeValue currentTimePerFrame = GetCurrentTimePerFrame();
+		m_currentAnimRange.start = m_inputGroup.pCaptureStartField->value() * currentTimePerFrame;
+		m_currentAnimRange.end   = m_inputGroup.pCaptureEndField->value()   * currentTimePerFrame;
 		UpdateFrameRangeForCurrentSequence();
 	}
 }
@@ -496,9 +496,9 @@ void CTrackViewBatchRenderDlg::OnEndFrameChanged()
 
 	if (m_pCurrentSequence)
 	{
-		const uint32 currentTicksPerFrame = GetCurrentTicksPerFrame();
-		m_currentAnimRange.start = SAnimTime(m_inputGroup.pCaptureStartField->value() * (int32)currentTicksPerFrame);
-		m_currentAnimRange.end = SAnimTime(m_inputGroup.pCaptureEndField->value() * (int32)currentTicksPerFrame);
+		const CTimeValue currentTimePerFrame = GetCurrentTimePerFrame();
+		m_currentAnimRange.start = m_inputGroup.pCaptureStartField->value() * currentTimePerFrame;
+		m_currentAnimRange.end = m_inputGroup.pCaptureEndField->value() * currentTimePerFrame;
 		UpdateFrameRangeForCurrentSequence();
 	}
 }
@@ -601,15 +601,15 @@ void CTrackViewBatchRenderDlg::UpdateFrameRangeForCurrentSequence()
 {
 	if (m_pCurrentSequence)
 	{
-		const uint32 ticksPerFrame = GetCurrentTicksPerFrame();
-		if (ticksPerFrame > 0)
+		const CTimeValue timePerFrame = GetCurrentTimePerFrame();
+		if (timePerFrame > 0)
 		{
-			const uint32 captureLimitStart = m_pCurrentSequence->GetTimeRange().start.GetTicks() / ticksPerFrame;
-			const uint32 captureLimitEnd = m_pCurrentSequence->GetTimeRange().end.GetTicks() / ticksPerFrame;
+			const uint32 captureLimitStart = (uint32)(m_pCurrentSequence->GetTimeRange().start / timePerFrame);
+			const uint32 captureLimitEnd   = (uint32)(m_pCurrentSequence->GetTimeRange().end / timePerFrame);
 			m_inputGroup.pCaptureStartField->setRange(captureLimitStart, captureLimitEnd);
-			m_inputGroup.pCaptureStartField->setValue(m_currentAnimRange.start.GetTicks() / ticksPerFrame);
+			m_inputGroup.pCaptureStartField->setValue((uint32)(m_currentAnimRange.start / timePerFrame));
 			m_inputGroup.pCaptureEndField->setRange(captureLimitStart, captureLimitEnd);
-			m_inputGroup.pCaptureEndField->setValue(m_currentAnimRange.end.GetTicks() / ticksPerFrame);
+			m_inputGroup.pCaptureEndField->setValue((uint32)(m_currentAnimRange.end / timePerFrame));
 		}
 	}
 }
@@ -762,7 +762,9 @@ bool CTrackViewBatchRenderDlg::LoadOutputPreset(const char* szPathName)
 		if (selectedFpsIdx == -1)
 		{
 			const char* szCustomFps = fpsNode->getContent();
-			sscanf(szCustomFps, "%d", &m_customFPS);
+			int tmp = 0;
+			sscanf(szCustomFps, "%d", &tmp);
+			m_customFPS = tmp;
 
 			m_outputGroup.pFpsField->setCurrentIndex(-1);
 			m_outputGroup.pFpsField->setCurrentText(QObject::tr(szCustomFps));
@@ -881,7 +883,7 @@ void CTrackViewBatchRenderDlg::OnBatchViewSelectionChanged(const QItemSelection&
 		{
 			m_customFPS = item.fps;
 			CryStackStringT<char, 8> fpsText;
-			fpsText.Format("%d", item.fps);
+			fpsText.Format("%d", (int)item.fps);
 
 			m_outputGroup.pFpsField->setCurrentIndex(-1);
 			m_outputGroup.pFpsField->setCurrentText(QObject::tr(fpsText.c_str()));
@@ -1010,9 +1012,9 @@ bool CTrackViewBatchRenderDlg::WriteDialogValuesToRenderItem(SRenderItem& itemOu
 	}
 
 	// Input->Frame range
-	const uint32 ticksPerFrame = GetCurrentTicksPerFrame();
-	itemOut.frameRange.start = SAnimTime(itemOut.frameStart * (int32)ticksPerFrame);
-	itemOut.frameRange.end = SAnimTime(itemOut.frameEnd * (int32)ticksPerFrame);
+	const CTimeValue timePerFrame = GetCurrentTimePerFrame();
+	itemOut.frameRange.start = itemOut.frameStart * timePerFrame;
+	itemOut.frameRange.end   = itemOut.frameEnd * timePerFrame;
 
 	// Output->Capture Options->Buffer
 	itemOut.bufferIndex = m_outputGroup.captureOptionGroup.pBufferField->GetCheckedItem();
@@ -1168,12 +1170,12 @@ void CTrackViewBatchRenderDlg::OnLoadBatchButtonPressed()
 				continue;
 			}
 
-			int32 ticks = 0;
-			itemNode->getAttr("startframe", ticks);
-			item.frameRange.start = SAnimTime(ticks);
+			CTimeValue time = 0;
+			itemNode->getAttr("startframe", time);
+			item.frameRange.start = time;
 
-			itemNode->getAttr("endframe", ticks);
-			item.frameRange.end = SAnimTime(ticks);
+			itemNode->getAttr("endframe", time);
+			item.frameRange.end = time;
 
 			// Output
 			itemNode->getAttr("width", item.resW);
@@ -1213,8 +1215,8 @@ void CTrackViewBatchRenderDlg::OnSaveBatchButtonPressed()
 			// Input
 			itemNode->setAttr("sequence", item.pSequence->GetName());
 			itemNode->setAttr("director", item.pDirectorNode->GetName());
-			itemNode->setAttr("startframe", item.frameRange.start.GetTicks());
-			itemNode->setAttr("endframe", item.frameRange.end.GetTicks());
+			itemNode->setAttr("startframe", item.frameRange.start);
+			itemNode->setAttr("endframe", item.frameRange.end);
 
 			// Output
 			itemNode->setAttr("width", item.resW);
@@ -1286,8 +1288,8 @@ void CTrackViewBatchRenderDlg::OnCancelButtonPressed()
 void CTrackViewBatchRenderDlg::InitializeRenderContext()
 {
 	m_renderContext.currentItemIndex = 0;
-	m_renderContext.spentTicks = 0;
-	m_renderContext.expectedTotalTicks = 0;
+	m_renderContext.spentTime.SetSeconds(0);
+	m_renderContext.expectedTime.SetSeconds(0);
 	if (gEnv && gEnv->pRenderer)
 	{
 		CRenderViewport* pGameViewport = (CRenderViewport*)GetIEditor()->GetViewManager()->GetGameViewport();
@@ -1308,7 +1310,7 @@ void CTrackViewBatchRenderDlg::InitializeRenderContext()
 	for (SRenderItem renderItem : m_renderItems)
 	{
 		AnimRange rng = renderItem.frameRange;
-		m_renderContext.expectedTotalTicks += (rng.end - rng.start).GetTicks();
+		m_renderContext.expectedTime += (rng.end - rng.start);
 	}
 }
 
@@ -1329,8 +1331,8 @@ void CTrackViewBatchRenderDlg::BegCaptureItem()
 
 	// A margin value to capture the precise number of frames
 	AnimRange newRange = renderItem.frameRange;
-	int32 newEnd = newRange.end.GetTicks() + SAnimTime::numTicksPerSecond;
-	newRange.end = SAnimTime(newEnd);
+	CTimeValue newEnd = newRange.end + 1;
+	newRange.end = newEnd;
 	pNextSequence->SetTimeRange(newRange);
 
 	// Set up the custom config cvars for this item.
@@ -1341,7 +1343,7 @@ void CTrackViewBatchRenderDlg::BegCaptureItem()
 
 	// Set specific capture options for this item.
 	m_renderContext.captureOptions.m_frameRate = renderItem.fps;
-	m_renderContext.captureOptions.m_timeStep = 1.0f / renderItem.fps;
+	m_renderContext.captureOptions.m_timeStep = mpfloat(1) / renderItem.fps;
 	m_renderContext.captureOptions.m_bufferToCapture = static_cast<SCaptureFormatInfo::ECaptureBuffer>(renderItem.bufferIndex);
 
 	cry_strcpy(m_renderContext.captureOptions.m_prefix, renderItem.prefix.c_str());
@@ -1349,7 +1351,7 @@ void CTrackViewBatchRenderDlg::BegCaptureItem()
 	m_renderContext.captureOptions.m_captureFormat = (SCaptureFormatInfo::ECaptureFileFormat)renderItem.formatIndex;
 	m_renderContext.captureOptions.m_time = renderItem.frameRange.start;
 	m_renderContext.captureOptions.m_duration = (renderItem.frameRange.end - renderItem.frameRange.start);
-	m_renderContext.captureOptions.m_bOnce = (m_renderContext.captureOptions.m_duration == SAnimTime(0));
+	m_renderContext.captureOptions.m_bOnce = (m_renderContext.captureOptions.m_duration == 0);
 
 	const QModelIndex selectedEntryIdx = m_batchGroup.pBatchesView->model()->index(m_renderContext.currentItemIndex, 0);
 	if (!selectedEntryIdx.isValid())
@@ -1517,10 +1519,10 @@ void CTrackViewBatchRenderDlg::Update()
 			IAnimSequence* pCurSequence = m_renderItems[m_renderContext.currentItemIndex].pSequence;
 			AnimRange rng = pCurSequence->GetTimeRange();
 
-			SAnimTime elapsedTime = GetIEditor()->GetMovieSystem()->GetPlayingTime(pCurSequence) - rng.start;
-			if (elapsedTime.GetTicks() > 0 && m_renderContext.expectedTotalTicks > 0)
+			CTimeValue elapsedTime = GetIEditor()->GetMovieSystem()->GetPlayingTime(pCurSequence) - rng.start;
+			if (elapsedTime > 0 && m_renderContext.expectedTime > 0)
 			{
-				const int32 totalPercentage = int32(100.0f * (m_renderContext.spentTicks + elapsedTime.GetTicks()) / m_renderContext.expectedTotalTicks);
+				const int32 totalPercentage = int32(100 * (m_renderContext.spentTime + elapsedTime) / m_renderContext.expectedTime);
 				m_pProgressBar->setValue(totalPercentage);
 
 				// Progress message
@@ -1591,7 +1593,7 @@ void CTrackViewBatchRenderDlg::OnMovieEvent(IMovieListener::EMovieEvent event, I
 			}
 
 			/// Update the context.
-			m_renderContext.spentTicks += m_renderContext.captureOptions.m_duration.GetTicks();
+			m_renderContext.spentTime += m_renderContext.captureOptions.m_duration;
 			++m_renderContext.currentItemIndex;
 		}
 
@@ -1617,19 +1619,19 @@ void CTrackViewBatchRenderDlg::keyPressEvent(QKeyEvent* pEvent)
 	}
 }
 
-uint32 CTrackViewBatchRenderDlg::GetCurrentTicksPerFrame() const
+CTimeValue CTrackViewBatchRenderDlg::GetCurrentTimePerFrame() const
 {
-	uint32 ticksPerFrame = 0;
+	CTimeValue secPerFrame = 0;
 	const int32 selectedFpsIdx = m_outputGroup.pFpsField->currentIndex();
 	if (m_outputGroup.pFpsField->currentIndex() < arraysize(fixedFpsOptions))
 	{
-		ticksPerFrame = SAnimTime::numTicksPerSecond / fixedFpsOptions[selectedFpsIdx].fps;
+		secPerFrame = mpfloat(1) / fixedFpsOptions[selectedFpsIdx].fps;
 	}
 	else
 	{
-		ticksPerFrame = SAnimTime::numTicksPerSecond / m_customFPS;
+		secPerFrame = mpfloat(1) / m_customFPS;
 	}
-	return ticksPerFrame;
+	return secPerFrame;
 }
 
 string CTrackViewBatchRenderDlg::GenerateCaptureItemString(const SRenderItem& item)

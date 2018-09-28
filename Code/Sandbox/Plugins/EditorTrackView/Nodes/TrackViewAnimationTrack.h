@@ -15,12 +15,12 @@ public:
 	CTrackViewAnimationTrack(IAnimTrack* pTrack, CTrackViewAnimNode* pTrackAnimNode, CTrackViewNode* pParentNode, bool bIsSubTrack = false, uint subTrackIndex = 0);
 
 	virtual bool      KeysHaveDuration() const override { return true; }
-	virtual SAnimTime GetKeyDuration(const uint index) const override;
-	virtual SAnimTime GetKeyAnimDuration(const uint index) const override;
-	virtual SAnimTime GetKeyAnimStart(const uint index) const override;
-	virtual SAnimTime GetKeyAnimEnd(const uint index) const override;
+	virtual CTimeValue GetKeyDuration(const uint index) const override;
+	virtual CTimeValue GetKeyAnimDuration(const uint index) const override;
+	virtual CTimeValue GetKeyAnimStart(const uint index) const override;
+	virtual CTimeValue GetKeyAnimEnd(const uint index) const override;
 
 private:
-	float GetKeyDurationFromAnimationData(const SCharacterKey& key) const;
+	CTimeValue GetKeyDurationFromAnimationData(const SCharacterKey& key) const;
 };
 

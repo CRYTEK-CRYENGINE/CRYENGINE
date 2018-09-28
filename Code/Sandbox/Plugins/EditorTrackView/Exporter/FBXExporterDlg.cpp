@@ -20,11 +20,11 @@ QFBXExporterDlg::QFBXExporterDlg(bool bDisplayFPSSettingOnly, bool bExportMaster
 	m_pFPS = new QMenuComboBox();
 	m_pFPS->SetMultiSelect(false);
 	m_pFPS->SetCanHaveEmptySelection(false);
-	for (uint i = 0; i < SAnimTime::eFrameRate_Num; ++i)
+	for (uint i = 0; i < SAnimData::eFrameRate_Num; ++i)
 	{
-		SAnimTime::EFrameRate frameRate = static_cast<SAnimTime::EFrameRate>(i);
-		const char* szFrameRateName = SAnimTime::GetFrameRateName(frameRate);
-		uint frameRateValue = SAnimTime::GetFrameRateValue(frameRate);
+		SAnimData::EFrameRate frameRate = static_cast<SAnimData::EFrameRate>(i);
+		const char* szFrameRateName = SAnimData::GetFrameRateName(frameRate);
+		uint frameRateValue = SAnimData::GetFrameRateValue(frameRate);
 		m_pFPS->AddItem(szFrameRateName, QVariant::fromValue(frameRateValue));
 	}
 	pFormLayout->addRow(QObject::tr("&Select Bake FPS:"), m_pFPS);

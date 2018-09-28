@@ -1140,6 +1140,8 @@ void CPropertyCtrl::CreateItems(XmlNodeRef& node, CVarBlockPtr& outBlockPtr, IVa
 					Vec3 colorVec3(colorLinear.r, colorLinear.g, colorLinear.b);
 					colorVar->Set(colorVec3);
 				}
+			}else{
+				assert(0 && "Unsupported var type!");
 			}
 		}
 	}

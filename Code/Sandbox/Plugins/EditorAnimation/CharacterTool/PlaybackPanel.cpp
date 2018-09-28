@@ -41,14 +41,14 @@ static SEntry<AnimationContent>* GetActiveAnimationEntry(System * system)
 	return system->animationList->GetEntry(activeAnimationEntry->id);
 }
 
-static float gPlaybackSpeeds[] = { 0.01f, 0.1f, 0.25f, 0.50f, 1.0f, 1.5f, 2.0f, 10.0f };
+static mpfloat gPlaybackSpeeds[] = { "0.01", "0.1", "0.25", "0.50", 1, "1.5", 2, 10 };
 
 PlaybackPanel::PlaybackPanel(QWidget* parent, System* system, AnimEventPresetPanel* presetPanel)
 	: QWidget(parent)
 	, m_playing(false)
 	, m_system(system)
-	, m_normalizedTime(-1.0f)
-	, m_duration(-1.0f)
+	, m_normalizedTime(-1)
+	, m_duration(-1)
 	, m_timeEditChanging(false)
 	, m_timeUnits(TIME_IN_SECONDS)
 	, m_timelineContent(new STimelineContent())
@@ -100,9 +100,9 @@ PlaybackPanel::PlaybackPanel(QWidget* parent, System* system, AnimEventPresetPan
 				m_speedCombo->SetCanHaveEmptySelection(false);
 				for (size_t i = 0; i < sizeof(gPlaybackSpeeds) / sizeof(gPlaybackSpeeds[0]); ++i)
 				{
-					float speed = gPlaybackSpeeds[i];
+					mpfloat speed = gPlaybackSpeeds[i];
 					QString str;
-					str.sprintf("%.2fx", speed);
+					str.sprintf("%.2fx", BADF speed);
 					m_speedCombo->AddItem(str);
 				}
 				m_speedCombo->signalCurrentIndexChanged.Connect(this, &PlaybackPanel::OnSpeedChanged);
@@ -193,7 +193,7 @@ void PlaybackPanel::OnEventsExport()
 
 void PlaybackPanel::OnTimelineScrub(bool scrubThrough)
 {
-	float newTime = m_timeline->Time().ToFloat();
+	CTimeValue newTime = m_timeline->Time();
 	m_system->document->ScrubTime(newTime, scrubThrough);
 }
 
@@ -294,21 +294,20 @@ void PlaybackPanel::OnTimeEditValueChanged(double newValue)
 	if (m_timeEditChanging)
 		return;
 
-	double time = 0.0;
+	CTimeValue time = BADTIME(newValue);
 
 	switch (m_timeUnits)
 	{
 	case TIME_IN_FRAMES:
-		time = newValue / FrameRate();
+		time /= FrameRate();
 		break;
 	case TIME_NORMALIZED:
-		time = newValue * m_duration;
+		time *= m_duration.GetSeconds();
 		break;
 	case TIME_IN_SECONDS:
-		time = newValue;
 		break;
 	}
-	m_system->document->ScrubTime(float(time), false);
+	m_system->document->ScrubTime(time, false);
 }
 
 void PlaybackPanel::OnTimeUnitsChanged(int index)
@@ -320,7 +319,7 @@ void PlaybackPanel::OnTimeUnitsChanged(int index)
 
 void PlaybackPanel::OnSpeedChanged(int index)
 {
-	float speed = 1.0f;
+	mpfloat speed = 1;
 	if (index >= 0 && index < sizeof(gPlaybackSpeeds) / sizeof(gPlaybackSpeeds[0]))
 		speed = gPlaybackSpeeds[index];
 	m_system->document->GetPlaybackOptions().playbackSpeed = speed;
@@ -390,8 +389,8 @@ void PlaybackPanel::OnPlaybackOptionsChanged()
 		int selectedSpeedIndex = 0;
 		for (size_t i = 0; i < numSpeeds; ++i)
 		{
-			float speed = gPlaybackSpeeds[i];
-			if (fabsf(speed - options.playbackSpeed) < 1e-5f)
+			mpfloat speed = gPlaybackSpeeds[i];
+			if (abs(speed - options.playbackSpeed) < "0.00001")
 				selectedSpeedIndex = i;
 		}
 		m_speedCombo->SetChecked(selectedSpeedIndex);
@@ -405,9 +404,9 @@ void PlaybackPanel::OnDocumentActiveAnimationSwitched()
 
 void PlaybackPanel::OnPlaybackTimeChanged()
 {
-	float time = m_system->document->PlaybackTime();
-	float duration = m_system->document->PlaybackDuration();
-	float normalizedTime = duration != 0.0f ? time / duration : time;
+	CTimeValue time = m_system->document->PlaybackTime();
+	CTimeValue duration = m_system->document->PlaybackDuration();
+	nTime normalizedTime = duration != 0 ? time / duration : time.GetSeconds().conv<nTime>();
 
 	bool timeChanged = false;
 	if (m_normalizedTime != normalizedTime)
@@ -470,16 +469,16 @@ void PlaybackPanel::OnExplorerEntryModified(ExplorerEntryModifyEvent& ev)
 	}
 }
 
-float PlaybackPanel::FrameRate() const
+int PlaybackPanel::FrameRate() const
 {
-	return 30.0f;
+	return 30;
 }
 
 void PlaybackPanel::UpdateTimeUnitsUI(bool timeChanged, bool durationChanged)
 {
-	float time = m_normalizedTime;
-	float duration = m_duration;
-	int numFrames = int(duration * FrameRate() + 0.5f);
+	nTime time = m_normalizedTime;
+	CTimeValue duration = m_duration;
+	int numFrames = int(duration.GetSeconds() * FrameRate() + "0.5");
 
 	if (durationChanged)
 	{
@@ -488,34 +487,34 @@ void PlaybackPanel::UpdateTimeUnitsUI(bool timeChanged, bool durationChanged)
 		double step = 1.0;
 
 		double totalDisplay = 0.0;
-		double timeUnitScale = 1.0;
+		mpfloat timeUnitScale = 1;
 
 		switch (m_timeUnits)
 		{
 		case TIME_IN_SECONDS:
 			minimum = 0.0;
-			maximum = duration;
+			maximum = duration.BADGetSeconds();
 			step = 0.1;
-			totalDisplay = duration;
-			timeUnitScale = 1.0;
+			totalDisplay = duration.BADGetSeconds();
+			timeUnitScale = 1;
 			break;
 		case TIME_NORMALIZED:
 			minimum = 0.0;
 			maximum = 1.0;
 			totalDisplay = 1.0;
 			step = 0.01;
-			timeUnitScale = (duration > DBL_EPSILON) ? 1.0 / double(duration) : 1.0;
+			timeUnitScale = (duration > TV_EPSILON) ? 1 / duration.GetSeconds() : 1;
 			break;
 		case TIME_IN_FRAMES:
 			minimum = 0.0;
 			maximum = double(numFrames);
 			totalDisplay = numFrames;
 			step = 1.0;
-			timeUnitScale = double(FrameRate());
+			timeUnitScale = FrameRate();
 			break;
 		}
 
-		if (duration >= 0.0f)
+		if (duration >= 0)
 		{
 			QString str;
 			if (m_timeUnits == TIME_IN_FRAMES)
@@ -546,9 +545,9 @@ void PlaybackPanel::UpdateTimeUnitsUI(bool timeChanged, bool durationChanged)
 
 	if (timeChanged)
 	{
-		const float time = m_normalizedTime * m_duration;
+		const CTimeValue time = m_normalizedTime * m_duration;
 		if (!m_timeline->IsDragged())
-			m_timeline->SetTime(SAnimTime(time));
+			m_timeline->SetTime(time);
 		m_timeline->SetTimeSnapping(m_timeUnits == TIME_IN_FRAMES);
 
 		if (!m_timeEdit->hasFocus())
@@ -557,13 +556,13 @@ void PlaybackPanel::UpdateTimeUnitsUI(bool timeChanged, bool durationChanged)
 			switch (m_timeUnits)
 			{
 			case TIME_IN_SECONDS:
-				displayTime = (double)time;
+				displayTime = BADF time.GetSeconds();
 				break;
 			case TIME_NORMALIZED:
-				displayTime = m_normalizedTime;
+				displayTime = BADF m_normalizedTime;
 				break;
 			case TIME_IN_FRAMES:
-				displayTime = m_normalizedTime * numFrames;
+				displayTime = BADF(m_normalizedTime * numFrames);
 				break;
 			}
 
@@ -586,17 +585,17 @@ void PlaybackPanel::Serialize(Serialization::IArchive& ar)
 
 void PlaybackPanel::ResetTimelineZoom()
 {
-	m_timeline->ZoomToTimeRange(0.0f, m_duration);
+	m_timeline->ZoomToTimeRange(0, m_duration);
 }
 
 void PlaybackPanel::WriteTimeline()
 {
 	m_timelineContent->track.tracks.resize(1, new STimelineTrack());
 	STimelineTrack& track = *m_timelineContent->track.tracks[0];
-	m_timelineContent->track.startTime = SAnimTime(0.0f);
-	m_timelineContent->track.endTime = SAnimTime(m_duration);
-	track.startTime = SAnimTime(0.0f);
-	track.endTime = SAnimTime(m_duration);
+	m_timelineContent->track.startTime = CTimeValue(0);
+	m_timelineContent->track.endTime = m_duration;
+	track.startTime = CTimeValue(0);
+	track.endTime = m_duration;
 	track.height = 24;
 
 	SEntry<AnimationContent>* animation = GetActiveAnimationEntry(m_system);
@@ -634,8 +633,8 @@ void PlaybackPanel::WriteTimeline()
 			e.selected = std::find(selectedIds.begin(), selectedIds.end(), e.userId) != selectedIds.end();
 
 			AnimEvent eventCopy = ev;
-			eventCopy.startTime = -1.0f;
-			eventCopy.endTime = -1.0f;
+			eventCopy.startTime = -1;
+			eventCopy.endTime = -1;
 			SerializeToMemory(&e.userSideLoad, Serialization::SStruct(eventCopy));
 			unsigned int hash = CCrc32::Compute(static_cast<void*>(e.userSideLoad.data()), e.userSideLoad.size());
 			EventContentToColorMap::const_iterator it = std::lower_bound(eventContentToColor.begin(), eventContentToColor.end(), std::make_pair(hash, ColorB()),
@@ -754,14 +753,14 @@ void PlaybackPanel::OnSubselectionChanged(int layer)
 	m_timeline->ContentUpdated();
 }
 
-SAnimTime PlaybackPanel::AnimEventTimeToTimelineTime(const float animEventTime) const
+CTimeValue PlaybackPanel::AnimEventTimeToTimelineTime(const nTime& animEventTime) const
 {
-	return SAnimTime(m_duration * animEventTime);
+	return m_duration * animEventTime;
 }
 
-float PlaybackPanel::TimelineTimeToAnimEventTime(const SAnimTime timelineTime) const
+nTime PlaybackPanel::TimelineTimeToAnimEventTime(const CTimeValue& timelineTime) const
 {
-	return (m_duration > FLT_EPSILON) ? timelineTime.ToFloat() / m_duration : 0.0f;
+	return (m_duration > TV_EPSILON) ? timelineTime / m_duration : 0;
 }
 
 }

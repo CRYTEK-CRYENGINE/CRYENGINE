@@ -75,7 +75,7 @@ void CCommentNodeAnimator::AnimateCommentTextTrack(CTrackViewTrack* pTrack, cons
 
 		keyHandle.GetKey(&commentKey);
 
-		if (commentKey.m_duration > SAnimTime(0.0f) && animContext.time < keyHandle.GetTime() + commentKey.m_duration)
+		if (commentKey.m_duration > 0 && animContext.time < keyHandle.GetTime() + commentKey.m_duration)
 		{
 			m_commentContext.m_strComment = commentKey.m_comment.c_str();
 			cry_strcpy(m_commentContext.m_strFont, commentKey.m_font);
@@ -94,7 +94,7 @@ void CCommentNodeAnimator::AnimateCommentTextTrack(CTrackViewTrack* pTrack, cons
 	}
 }
 
-CTrackViewKeyHandle CCommentNodeAnimator::GetActiveKeyHandle(CTrackViewTrack* pTrack, SAnimTime fTime)
+CTrackViewKeyHandle CCommentNodeAnimator::GetActiveKeyHandle(CTrackViewTrack* pTrack, const CTimeValue& fTime)
 {
 	const int nkeys = pTrack->GetKeyCount();
 

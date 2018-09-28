@@ -290,17 +290,17 @@ void CTrackViewAnimNode::RemoveTrack(CTrackViewTrack* pTrack)
 	}
 }
 
-bool CTrackViewAnimNode::SnapTimeToPrevKey(SAnimTime& time) const
+bool CTrackViewAnimNode::SnapTimeToPrevKey(CTimeValue& time) const
 {
-	const SAnimTime startTime = time;
-	SAnimTime closestTrackTime = SAnimTime::Min();
+	const CTimeValue startTime = time;
+	CTimeValue closestTrackTime = CTimeValue::Min();
 	bool bFoundPrevKey = false;
 
 	for (size_t i = 0; i < m_childNodes.size(); ++i)
 	{
 		const CTrackViewNode* pNode = m_childNodes[i].get();
 
-		SAnimTime closestNodeTime = startTime;
+		CTimeValue closestNodeTime = startTime;
 		if (pNode->SnapTimeToPrevKey(closestNodeTime))
 		{
 			closestTrackTime = std::max(closestNodeTime, closestTrackTime);
@@ -316,17 +316,17 @@ bool CTrackViewAnimNode::SnapTimeToPrevKey(SAnimTime& time) const
 	return bFoundPrevKey;
 }
 
-bool CTrackViewAnimNode::SnapTimeToNextKey(SAnimTime& time) const
+bool CTrackViewAnimNode::SnapTimeToNextKey(CTimeValue& time) const
 {
-	const SAnimTime startTime = time;
-	SAnimTime closestTrackTime = SAnimTime::Max();
+	const CTimeValue startTime = time;
+	CTimeValue closestTrackTime = CTimeValue::Max();
 	bool bFoundNextKey = false;
 
 	for (size_t i = 0; i < m_childNodes.size(); ++i)
 	{
 		const CTrackViewNode* pNode = m_childNodes[i].get();
 
-		SAnimTime closestNodeTime = startTime;
+		CTimeValue closestNodeTime = startTime;
 		if (pNode->SnapTimeToNextKey(closestNodeTime))
 		{
 			closestTrackTime = std::min(closestNodeTime, closestTrackTime);
@@ -366,7 +366,7 @@ CTrackViewKeyBundle CTrackViewAnimNode::GetAllKeys()
 	return bundle;
 }
 
-CTrackViewKeyBundle CTrackViewAnimNode::GetKeysInTimeRange(const SAnimTime t0, const SAnimTime t1)
+CTrackViewKeyBundle CTrackViewAnimNode::GetKeysInTimeRange(const CTimeValue& t0, const CTimeValue& t1)
 {
 	CTrackViewKeyBundle bundle;
 

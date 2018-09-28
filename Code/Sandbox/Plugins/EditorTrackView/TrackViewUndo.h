@@ -29,10 +29,10 @@ protected:
 private:
 	CTrackViewSequence*               m_pSequence;
 
-	TRange<SAnimTime>                 m_oldTimeRange;
-	TRange<SAnimTime>                 m_newTimeRange;
-	TRange<SAnimTime>                 m_oldPlaybackRange;
-	TRange<SAnimTime>                 m_newPlaybackRange;
+	TRange<CTimeValue>                m_oldTimeRange;
+	TRange<CTimeValue>                m_newTimeRange;
+	TRange<CTimeValue>                m_oldPlaybackRange;
+	TRange<CTimeValue>                m_newPlaybackRange;
 	IAnimSequence::EAnimSequenceFlags m_newFlags;
 	IAnimSequence::EAnimSequenceFlags m_oldFlags;
 };

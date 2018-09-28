@@ -348,7 +348,9 @@ void SEditorSettings::LoadFrom(const QString& filename)
 	LoadValue("Settings/Mannequin", "TrackSize", gMannequinPreferences.trackSize);
 
 	LoadValue("Settings/Mannequin", "CtrlForScrubSnapping", gMannequinPreferences.bCtrlForScrubSnapping);
-	LoadValue("Settings/Mannequin", "TimelineWheelZoomSpeed", gMannequinPreferences.timelineWheelZoomSpeed);
+	float tmp;
+	LoadValue("Settings/Mannequin", "TimelineWheelZoomSpeed", tmp);
+	gMannequinPreferences.timelineWheelZoomSpeed = BADMP(tmp);
 
 	s_pCurrentQSettings = 0;
 	//////////////////////////////////////////////////////////////////////////

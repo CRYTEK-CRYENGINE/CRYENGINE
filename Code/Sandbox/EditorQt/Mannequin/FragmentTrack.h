@@ -11,7 +11,7 @@
 	#pragma once
 #endif
 
-const float LOCK_TIME_DIFF = 0.1f;
+const CTimeValue LOCK_TIME_DIFF = "0.1";
 
 //////////////////////////////////////////////////////////////////////////
 struct CFragmentKey
@@ -25,12 +25,12 @@ struct CFragmentKey
 		scopeMask(0),
 		sharedID(0),
 		historyItem(HISTORY_ITEM_INVALID),
-		clipDuration(0.0f),
-		transitionTime(0.0f),
-		tranSelectTime(0.0f),
-		tranStartTime(0.0f),
-		tranStartTimeValue(0.0f),
-		tranStartTimeRelative(0.0f),
+		clipDuration(0),
+		transitionTime(0),
+		tranSelectTime(0),
+		tranStartTime(0),
+		tranStartTimeValue(0),
+		tranStartTimeRelative(0),
 		tranFragFrom(FRAGMENT_ID_INVALID),
 		tranFragTo(FRAGMENT_ID_INVALID),
 		hasFragment(false),
@@ -49,19 +49,19 @@ struct CFragmentKey
 	ActionScopes       scopeMask;
 	uint32             sharedID;
 	uint32             historyItem;
-	float              clipDuration;
-	float              transitionTime;
-	float              tranSelectTime;
-	float              tranStartTime;
-	float              tranStartTimeValue;
-	float              tranStartTimeRelative;
+	CTimeValue         clipDuration;
+	CTimeValue         transitionTime;
+	CTimeValue         tranSelectTime;
+	CTimeValue         tranStartTime;
+	CTimeValue         tranStartTimeValue;
+	CTimeValue         tranStartTimeRelative;
 	FragmentID         tranFragFrom;
 	FragmentID         tranFragTo;
 	SFragTagState      tranTagFrom;
 	SFragTagState      tranTagTo;
 	SFragmentBlendUid  tranBlendUid;
-	float              tranLastClipEffectiveStart;
-	float              tranLastClipDuration;
+	CTimeValue         tranLastClipEffectiveStart;
+	CTimeValue         tranLastClipDuration;
 	bool               hasFragment;
 	bool               isLooping;
 	bool               trumpPrevious;
@@ -110,15 +110,15 @@ public:
 	};
 
 	virtual int     GetNumSecondarySelPts(int key) const;
-	virtual int     GetSecondarySelectionPt(int key, float timeMin, float timeMax) const;
-	virtual int     FindSecondarySelectionPt(int& key, float timeMin, float timeMax) const;
+	virtual int     GetSecondarySelectionPt(int key, const CTimeValue& timeMin, const CTimeValue& timeMax) const;
+	virtual int     FindSecondarySelectionPt(int& key, const CTimeValue& timeMin, const CTimeValue& timeMax) const;
 
-	virtual void    SetSecondaryTime(int key, int idx, float time);
-	virtual float   GetSecondaryTime(int key, int idx) const;
+	virtual void    SetSecondaryTime(int key, int idx, const CTimeValue& time);
+	virtual CTimeValue GetSecondaryTime(int key, int idx) const;
 
 	virtual bool    CanEditKey(int key) const;
 	virtual bool    CanMoveKey(int key) const;
-	virtual bool    CanAddKey(float time) const;
+	virtual bool    CanAddKey(const CTimeValue& time) const;
 	virtual bool    CanRemoveKey(int key) const;
 
 	int             GetNextFragmentKey(int key) const;
@@ -133,8 +133,8 @@ public:
 	}
 	virtual void  OnKeyMenuOption(int menuOption, int keyID);
 
-	void          GetKeyInfo(int key, const char*& description, float& duration);
-	virtual float GetKeyDuration(const int key) const;
+	void          GetKeyInfo(int key, const char*& description, CTimeValue& duration);
+	virtual CTimeValue GetKeyDuration(const int key) const;
 	void          SerializeKey(CFragmentKey& key, XmlNodeRef& keyNode, bool bLoading);
 
 	void          SelectKey(int keyID, bool select);
@@ -144,7 +144,7 @@ public:
 	virtual void  SetKey(int index, CSequencerKey* _key);
 
 	//! Set time of specified key.
-	virtual void      SetKeyTime(int index, float time);
+	virtual void      SetKeyTime(int index, const CTimeValue& time);
 
 	SScopeData&       GetScopeData();
 	const SScopeData& GetScopeData() const;
@@ -218,7 +218,7 @@ struct CClipKey : public CSequencerKey
 	~CClipKey();
 
 	void Set(const SAnimClip& animClip, IAnimationSet* pAnimSet, const EClipType transitionType[SFragmentData::PART_TOTAL]);
-	void SetupAnimClip(SAnimClip& animClip, float lastTime, int fragPart);
+	void SetupAnimClip(SAnimClip& animClip, const CTimeValue& lastTime, int fragPart);
 
 	// Change animation and automatically update duration & anim location flags
 	void         SetAnimation(const char* szAnimName, IAnimationSet* pAnimSet);
@@ -231,50 +231,50 @@ struct CClipKey : public CSequencerKey
 	// Returns the time the animation asset "starts" (in seconds),
 	// taking into account that we can shift the animation clip back in time
 	// using startTime
-	ILINE float GetEffectiveAssetStartTime() const
+	ILINE CTimeValue GetEffectiveAssetStartTime() const
 	{
 		return m_time - startTime;
 	}
 
 	// Takes into account both playbackSpeed and startTime
-	ILINE float ConvertTimeToUnclampedNormalisedTime(const float timeSeconds) const
+	ILINE nTime ConvertTimeToUnclampedNormalisedTime(const CTimeValue& timeSeconds) const
 	{
-		const float timeFromEffectiveStart = timeSeconds - GetEffectiveAssetStartTime();
+		const CTimeValue timeFromEffectiveStart = timeSeconds - GetEffectiveAssetStartTime();
 
-		const float oneLoopDuration = GetOneLoopDuration();
-		if (oneLoopDuration < FLT_EPSILON)
-			return 0.0f;
+		const CTimeValue oneLoopDuration = GetOneLoopDuration();
+		if (oneLoopDuration < TV_EPSILON)
+			return 0;
 
-		const float unclampedNormalisedTime = timeFromEffectiveStart / oneLoopDuration;
+		const nTime unclampedNormalisedTime = timeFromEffectiveStart / oneLoopDuration;
 		return unclampedNormalisedTime;
 	}
 
 	// Takes into account both playbackSpeed and startTime
-	ILINE float ConvertTimeToNormalisedTime(const float timeSeconds) const
+	ILINE nTime ConvertTimeToNormalisedTime(const CTimeValue& timeSeconds) const
 	{
-		const float unclampedNormalisedTime = ConvertTimeToUnclampedNormalisedTime(timeSeconds);
-		const float normalisedTime = unclampedNormalisedTime - (int)unclampedNormalisedTime;
+		const nTime unclampedNormalisedTime = ConvertTimeToUnclampedNormalisedTime(timeSeconds);
+		const nTime normalisedTime = unclampedNormalisedTime - (int)unclampedNormalisedTime;
 
 		return normalisedTime;
 	}
 
 	// Takes into account both playbackSpeed and startTime
-	ILINE float ConvertUnclampedNormalisedTimeToTime(const float unclampedNormalisedTime) const
+	ILINE CTimeValue ConvertUnclampedNormalisedTimeToTime(const nTime& unclampedNormalisedTime) const
 	{
-		const float timeFromStart = GetOneLoopDuration() * unclampedNormalisedTime;
-		const float timeSeconds = timeFromStart + GetEffectiveAssetStartTime();
+		const CTimeValue timeFromStart = GetOneLoopDuration() * unclampedNormalisedTime;
+		const CTimeValue timeSeconds = timeFromStart + GetEffectiveAssetStartTime();
 
 		return timeSeconds;
 	}
 
 	// Takes into account both playbackSpeed and startTime
-	ILINE float ConvertNormalisedTimeToTime(const float normalisedTime, const int loopIndex = 0) const
+	ILINE CTimeValue ConvertNormalisedTimeToTime(const nTime& normalisedTime, const int loopIndex = 0) const
 	{
 		assert(normalisedTime >= 0);
-		assert(normalisedTime <= 1.0f);
+		assert(normalisedTime <= 1);
 
-		const float unclampedNormalisedTime = normalisedTime + loopIndex;
-		const float timeSeconds = ConvertUnclampedNormalisedTimeToTime(unclampedNormalisedTime);
+		const nTime unclampedNormalisedTime = normalisedTime + loopIndex;
+		const CTimeValue timeSeconds = ConvertUnclampedNormalisedTimeToTime(unclampedNormalisedTime);
 
 		return timeSeconds;
 	}
@@ -282,48 +282,48 @@ struct CClipKey : public CSequencerKey
 	// Returns the duration in seconds of one loop of the underlying animation.
 	// Whether or not the clip is marked as 'looping', it will only count one loop.
 	// Takes into account playbackSpeed.
-	ILINE float GetOneLoopDuration() const
+	ILINE CTimeValue GetOneLoopDuration() const
 	{
-		if (duration < FLT_EPSILON)
+		if (duration < TV_EPSILON)
 		{
 			// when duration is 0, for example when it's a None clip,
 			// we want to treat it as 0-length regardless of the playbackSpeed
-			return 0.0f;
+			return 0;
 		}
 
-		if (playbackSpeed < FLT_EPSILON)
+		if (playbackSpeed < MP_EPSILON)
 		{
-			return FLT_MAX;
+			return CTimeValue::Max();
 		}
 
 		return duration / playbackSpeed;
 	}
 
-	ILINE float GetDuration() const
+	ILINE CTimeValue GetDuration() const
 	{
-		return (duration / max(0.1f, playbackSpeed)) - startTime;
+		return (duration / max(mpfloat("0.1"), playbackSpeed)) - startTime;
 	}
 
-	ILINE float GetBlendOutTime() const
+	ILINE CTimeValue GetBlendOutTime() const
 	{
-		const float cachedDuration = GetDuration();
-		return clamp_tpl(cachedDuration - blendOutDuration, 0.0f, cachedDuration);
+		const CTimeValue cachedDuration = GetDuration();
+		return CLAMP(cachedDuration - blendOutDuration, 0, cachedDuration);
 	}
 
-	ILINE float GetAssetDuration() const
+	ILINE CTimeValue GetAssetDuration() const
 	{
 		return duration;
 	}
 
-	ILINE float GetVariableDurationDelta() const
+	ILINE CTimeValue GetVariableDurationDelta() const
 	{
-		if (referenceLength > 0.0f)
+		if (referenceLength > 0)
 		{
-			return (duration / max(0.1f, playbackSpeed)) - referenceLength;
+			return (duration / max(mpfloat("0.1"), playbackSpeed)) - referenceLength;
 		}
 		else
 		{
-			return 0.0f;
+			return 0;
 		}
 	}
 
@@ -387,12 +387,12 @@ struct CClipKey : public CSequencerKey
 
 	uint32   historyItem;
 	SAnimRef animRef;
-	float    startTime;
-	float    playbackSpeed;
-	float    playbackWeight;
-	float    blendDuration;
-	float    blendOutDuration;
-	float    blendChannels[MANN_NUMBER_BLEND_CHANNELS];
+	CTimeValue startTime;
+	mpfloat   playbackSpeed;
+	float     playbackWeight;
+	CTimeValue blendDuration;
+	CTimeValue blendOutDuration;
+	mpfloat    blendChannels[MANN_NUMBER_BLEND_CHANNELS];
 	int      animFlags;
 	uint8    jointMask;
 	bool     alignToPrevious;
@@ -404,8 +404,8 @@ struct CClipKey : public CSequencerKey
 protected:
 	virtual void GetExtensions(std::vector<CString>& extensions, CString& editableExtension) const;
 
-	float                duration;
-	float                referenceLength;
+	CTimeValue           duration;
+	CTimeValue           referenceLength;
 	SAnimCache           m_animCache;
 	bool                 animIsAdditive;
 	bool                 animIsLMG;
@@ -435,33 +435,33 @@ public:
 	virtual const SKeyColour& GetBlendColour(int key) const;
 
 	virtual int               GetNumSecondarySelPts(int key) const;
-	virtual int               GetSecondarySelectionPt(int key, float timeMin, float timeMax) const;
-	virtual int               FindSecondarySelectionPt(int& key, float timeMin, float timeMax) const;
-	virtual void              SetSecondaryTime(int key, int idx, float time);
-	virtual float             GetSecondaryTime(int key, int id) const;
+	virtual int               GetSecondarySelectionPt(int key, const CTimeValue& timeMin, const CTimeValue& timeMax) const;
+	virtual int               FindSecondarySelectionPt(int& key, const CTimeValue& timeMin, const CTimeValue& timeMax) const;
+	virtual void              SetSecondaryTime(int key, int idx, const CTimeValue& time);
+	virtual CTimeValue        GetSecondaryTime(int key, int id) const;
 	virtual bool              CanMoveSecondarySelection(int key, int id) const;
 
 	virtual void              InsertKeyMenuOptions(CMenu& menu, int keyID);
 	virtual void              ClearKeyMenuOptions(CMenu& menu, int keyID);
 	virtual void              OnKeyMenuOption(int menuOption, int keyID);
 
-	virtual bool              CanAddKey(float time) const;
+	virtual bool              CanAddKey(const CTimeValue& time) const;
 	virtual bool              CanRemoveKey(int key) const;
 
 	virtual bool              CanEditKey(int key) const;
 	virtual bool              CanMoveKey(int key) const;
 
-	virtual int               CreateKey(float time);
+	virtual int               CreateKey(const CTimeValue& time);
 
 	void                      CheckKeyForSnappingToPrevious(int index);
 
 	virtual void              SetKey(int index, CSequencerKey* _key);
 
-	virtual void              SetKeyTime(int index, float time);
+	virtual void              SetKeyTime(int index, const CTimeValue& time);
 
-	void                      GetKeyInfo(int key, const char*& description, float& duration);
-	void                      GetTooltip(int key, const char*& description, float& duration);
-	virtual float             GetKeyDuration(const int key) const;
+	void                      GetKeyInfo(int key, const char*& description, CTimeValue& duration);
+	void                      GetTooltip(int key, const char*& description, CTimeValue& duration);
+	virtual CTimeValue        GetKeyDuration(const int key) const;
 	void                      SerializeKey(CClipKey& key, XmlNodeRef& keyNode, bool bLoading);
 
 	void                      SetMainAnimTrack(bool bSet) { m_mainAnimTrack = bSet; }
@@ -492,8 +492,8 @@ struct CProcClipKey : public CSequencerKey
 {
 	CProcClipKey();
 	IProceduralClipFactory::THash typeNameHash;
-	float                         duration;
-	float                         blendDuration;
+	CTimeValue                    duration;
+	CTimeValue                    blendDuration;
 	IProceduralParamsPtr          pParams;
 	uint32                        historyItem;
 	uint8                         clipType;
@@ -502,7 +502,7 @@ struct CProcClipKey : public CSequencerKey
 	uint8                         fragIndexBlend;
 
 	void FromProceduralEntry(const SProceduralEntry& procClip, const EClipType transitionType[SFragmentData::PART_TOTAL]);
-	void ToProceduralEntry(SProceduralEntry& procClip, const float lastTime, const int fragPart);
+	void ToProceduralEntry(SProceduralEntry& procClip, const CTimeValue& lastTime, const int fragPart);
 
 	void UpdateDurationBasedOnParams();
 
@@ -521,25 +521,25 @@ public:
 	virtual const SKeyColour& GetBlendColour(int key) const;
 
 	virtual int               GetNumSecondarySelPts(int key) const;
-	virtual int               GetSecondarySelectionPt(int key, float timeMin, float timeMax) const;
-	virtual int               FindSecondarySelectionPt(int& key, float timeMin, float timeMax) const;
-	virtual void              SetSecondaryTime(int key, int idx, float time);
-	virtual float             GetSecondaryTime(int key, int id) const;
+	virtual int               GetSecondarySelectionPt(int key, const CTimeValue& timeMin, const CTimeValue& timeMax) const;
+	virtual int               FindSecondarySelectionPt(int& key, const CTimeValue& timeMin, const CTimeValue& timeMax) const;
+	virtual void              SetSecondaryTime(int key, int idx, const CTimeValue& time);
+	virtual CTimeValue        GetSecondaryTime(int key, int id) const;
 	virtual bool              CanMoveSecondarySelection(int key, int id) const;
 
 	virtual void              InsertKeyMenuOptions(CMenu& menu, int keyID);
 	virtual void              ClearKeyMenuOptions(CMenu& menu, int keyID);
 	virtual void              OnKeyMenuOption(int menuOption, int keyID);
 
-	virtual bool              CanAddKey(float time) const;
+	virtual bool              CanAddKey(const CTimeValue& time) const;
 
 	virtual bool              CanEditKey(int key) const;
 	virtual bool              CanMoveKey(int key) const;
 
-	virtual int               CreateKey(float time);
+	virtual int               CreateKey(const CTimeValue& time);
 
-	void                      GetKeyInfo(int key, const char*& description, float& duration);
-	virtual float             GetKeyDuration(const int key) const;
+	void                      GetKeyInfo(int key, const char*& description, CTimeValue& duration);
+	virtual CTimeValue        GetKeyDuration(const int key) const;
 	void                      SerializeKey(CProcClipKey& key, XmlNodeRef& keyNode, bool bLoading);
 
 protected:
@@ -574,8 +574,8 @@ public:
 
 	CTagTrack(const CTagDefinition& tagDefinition);
 
-	void                      GetKeyInfo(int key, const char*& description, float& duration);
-	virtual float             GetKeyDuration(const int key) const;
+	void                      GetKeyInfo(int key, const char*& description, CTimeValue& duration);
+	virtual CTimeValue        GetKeyDuration(const int key) const;
 
 	virtual void              InsertKeyMenuOptions(CMenu& menu, int keyID);
 	virtual void              ClearKeyMenuOptions(CMenu& menu, int keyID);
@@ -615,12 +615,12 @@ struct CTransitionPropertyKey : public CSequencerKey
 	}
 	SBlendQueryResult blend;
 	EProp             prop;
-	float             refTime;
-	float             duration;
-	float             prevClipStart;
-	float             prevClipDuration;
-	float             overrideStartTime;
-	float             overrideSelectTime;
+	CTimeValue        refTime;
+	CTimeValue        duration;
+	CTimeValue        prevClipStart;
+	CTimeValue        prevClipDuration;
+	CTimeValue        overrideStartTime;
+	CTimeValue        overrideSelectTime;
 	int               toHistoryItem;
 	int               toFragIndex;
 	int               sharedId;
@@ -635,12 +635,12 @@ public:
 
 	CTransitionPropertyTrack(SScopeData& scopeData);
 
-	void                          GetKeyInfo(int key, const char*& description, float& duration);
-	virtual float                 GetKeyDuration(const int key) const;
+	void                          GetKeyInfo(int key, const char*& description, CTimeValue& duration);
+	virtual CTimeValue            GetKeyDuration(const int key) const;
 
 	virtual bool                  CanEditKey(int key) const;
 	virtual bool                  CanMoveKey(int key) const;
-	virtual bool                  CanAddKey(float time) const { return false; }
+	virtual bool                  CanAddKey(const CTimeValue& time) const { return false; }
 	virtual bool                  CanRemoveKey(int key) const { return false; }
 
 	virtual void                  InsertKeyMenuOptions(CMenu& menu, int keyID);
@@ -686,8 +686,8 @@ public:
 
 	CParamTrack();
 
-	void                      GetKeyInfo(int key, const char*& description, float& duration);
-	virtual float             GetKeyDuration(const int key) const;
+	void                      GetKeyInfo(int key, const char*& description, CTimeValue& duration);
+	virtual CTimeValue        GetKeyDuration(const int key) const;
 
 	virtual void              InsertKeyMenuOptions(CMenu& menu, int keyID);
 	virtual void              ClearKeyMenuOptions(CMenu& menu, int keyID);

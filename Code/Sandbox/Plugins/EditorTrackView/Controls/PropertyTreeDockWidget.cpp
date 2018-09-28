@@ -46,7 +46,7 @@ void CTrackViewPropertyTreeWidget::STrackViewPropertiesRoot::Serialize(Serializa
 			}
 		}
 
-		if (const SAnimTime::Settings* pAnimTimeContext = core.GetAnimTimeSettings())
+		if (const SAnimData::Settings* pAnimTimeContext = core.GetAnimTimeSettings())
 		{
 			animTimeContext.set(pAnimTimeContext);
 			animTimeContext.previousContext = ar.setLastContext(&animTimeContext);

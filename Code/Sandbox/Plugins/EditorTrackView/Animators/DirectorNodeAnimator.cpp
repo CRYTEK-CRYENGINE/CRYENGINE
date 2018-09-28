@@ -35,7 +35,7 @@ void CDirectorNodeAnimator::Animate(CTrackViewAnimNode* pNode, const SAnimContex
 		std::vector<CTrackViewSequence*> activeSequences;
 
 		// Construct sets of sequences that need to be bound/unbound at this point
-		const SAnimTime time = animContext.time;
+		const CTimeValue time = animContext.time;
 		const unsigned int numKeys = pSequenceTrack->GetKeyCount();
 		for (unsigned int i = 0; i < numKeys; ++i)
 		{
@@ -126,7 +126,7 @@ void CDirectorNodeAnimator::ForEachActiveSequence(const SAnimContext& animContex
                                                   const bool bHandleOtherKeys, std::function<void(CTrackViewSequence*, const SAnimContext&)> animateFunction,
                                                   std::function<void(CTrackViewSequence*, const SAnimContext&)> resetFunction)
 {
-	const SAnimTime time = animContext.time;
+	const CTimeValue time = animContext.time;
 	const unsigned int numKeys = pSequenceTrack->GetKeyCount();
 
 	if (bHandleOtherKeys)
@@ -144,16 +144,16 @@ void CDirectorNodeAnimator::ForEachActiveSequence(const SAnimContext& animContex
 			if (pSequence)
 			{
 				SAnimContext newAnimContext = animContext;
-				const SAnimTime sequenceTime = animContext.time - sequenceKey.m_time + sequenceKey.m_startTime;
-				const SAnimTime actualDuration = sequenceKey.m_endTime == SAnimTime(0) ? pSequence->GetTimeRange().Length() : sequenceKey.m_endTime;
-				const SAnimTime sequenceDuration = actualDuration + sequenceKey.m_startTime;
+				const CTimeValue sequenceTime = animContext.time - sequenceKey.m_time + sequenceKey.m_startTime;
+				const CTimeValue actualDuration = sequenceKey.m_endTime == 0 ? pSequence->GetTimeRange().Length() : sequenceKey.m_endTime;
+				const CTimeValue sequenceDuration = actualDuration + sequenceKey.m_startTime;
 
 				newAnimContext.time = std::min(sequenceTime, sequenceDuration);
-				const bool bInsideKeyRange = (sequenceTime >= SAnimTime(0.0f)) && (sequenceTime <= sequenceDuration);
+				const bool bInsideKeyRange = (sequenceTime >= 0) && (sequenceTime <= sequenceDuration);
 
 				if (!bInsideKeyRange)
 				{
-					if (animContext.bForcePlay && sequenceTime >= SAnimTime(0.0f) && newAnimContext.time != pSequence->GetTime())
+					if (animContext.bForcePlay && sequenceTime >= 0 && newAnimContext.time != pSequence->GetTime())
 					{
 						// If forcing animation force previous keys to their last playback position
 						animateFunction(pSequence, newAnimContext);
@@ -177,12 +177,12 @@ void CDirectorNodeAnimator::ForEachActiveSequence(const SAnimContext& animContex
 		if (pSequence)
 		{
 			SAnimContext newAnimContext = animContext;
-			const SAnimTime sequenceTime = animContext.time - sequenceKey.m_time + sequenceKey.m_startTime;
-			const SAnimTime actualDuration = sequenceKey.m_endTime == SAnimTime(0) ? pSequence->GetTimeRange().Length() : sequenceKey.m_endTime;
-			const SAnimTime sequenceDuration = actualDuration + sequenceKey.m_startTime;
+			const CTimeValue sequenceTime = animContext.time - sequenceKey.m_time + sequenceKey.m_startTime;
+			const CTimeValue actualDuration = sequenceKey.m_endTime == 0 ? pSequence->GetTimeRange().Length() : sequenceKey.m_endTime;
+			const CTimeValue sequenceDuration = actualDuration + sequenceKey.m_startTime;
 
 			newAnimContext.time = (sequenceTime < sequenceDuration) ? sequenceTime : sequenceDuration;
-			const bool bInsideKeyRange = (sequenceTime >= SAnimTime(0.0f)) && (sequenceTime <= sequenceDuration);
+			const bool bInsideKeyRange = (sequenceTime >= 0) && (sequenceTime <= sequenceDuration);
 
 			if ((bInsideKeyRange && (newAnimContext.time != pSequence->GetTime() || animContext.bForcePlay)))
 			{

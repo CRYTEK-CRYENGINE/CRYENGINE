@@ -85,9 +85,9 @@ SScopeContextData* SMannequinContexts::GetContextDataForID(TagState state, uint3
 
 namespace MannUtils
 {
-static float TIME_FOR_AUTO_REFRESH = 0.5f;
+static CTimeValue TIME_FOR_AUTO_REFRESH = "0.5";
 
-bool InsertClipTracksToNode(CSequencerNode* node, const SFragmentData& fragData, float startTime, float endTime, float& maxTime, const SClipTrackContext& trackContext)
+bool InsertClipTracksToNode(CSequencerNode* node, const SFragmentData& fragData, const CTimeValue& startTime, const CTimeValue& endTime, CTimeValue& maxTime, const SClipTrackContext& trackContext)
 {
 	assert(trackContext.context);
 
@@ -97,7 +97,7 @@ bool InsertClipTracksToNode(CSequencerNode* node, const SFragmentData& fragData,
 	assert(numProcLayers < 1000);
 	uint32 numAnimClipTracks = 0;
 	uint32 numProcClipTracks = 0;
-	float fragmentStartTime = startTime;
+	CTimeValue fragmentStartTime = startTime;
 
 	bool isLooping = false;
 
@@ -144,14 +144,14 @@ bool InsertClipTracksToNode(CSequencerNode* node, const SFragmentData& fragData,
 				//--- Insert keys
 				const TAnimClipSequence& clipSequence = fragData.animLayers[animClipTrack];
 				const uint32 numClips = clipSequence.size();
-				float timeTally = startTime;
-				float lastDuration = 0.0f;
+				CTimeValue timeTally = startTime;
+				CTimeValue lastDuration = 0;
 				for (uint32 c = 0; c < numClips; c++)
 				{
 					const SAnimClip& animClip = clipSequence[c];
 
-					float time = 0.0f;
-					if (animClip.blend.exitTime < 0.0f)
+					CTimeValue time = 0;
+					if (animClip.blend.exitTime < 0)
 					{
 						timeTally += lastDuration;
 					}
@@ -160,9 +160,9 @@ bool InsertClipTracksToNode(CSequencerNode* node, const SFragmentData& fragData,
 						timeTally += animClip.blend.exitTime;
 					}
 
-					if ((endTime > 0.0f) && (timeTally > endTime))
+					if ((endTime > 0) && (timeTally > endTime))
 					{
-						lastDuration = 0.0f;
+						lastDuration.SetSeconds(0);
 						break;
 					}
 
@@ -218,18 +218,18 @@ bool InsertClipTracksToNode(CSequencerNode* node, const SFragmentData& fragData,
 				//--- Insert keys
 				const TProcClipSequence& clipSequence = fragData.procLayers[procClipTrack];
 				const uint32 numClips = clipSequence.size();
-				float timeTally = startTime;
-				float lastDuration = 0.0f;
+				CTimeValue timeTally = startTime;
+				CTimeValue lastDuration = 0;
 				for (uint32 c = 0; c < numClips; c++)
 				{
 					const SProceduralEntry& procClip = clipSequence[c];
-					float blendDuration = procClip.blend.duration;
+					CTimeValue blendDuration = procClip.blend.duration;
 
-					float time = 0.0f;
+					CTimeValue time = 0;
 					timeTally += procClip.blend.exitTime;
-					if ((endTime > 0.0f) && (timeTally > endTime))
+					if ((endTime > 0) && (timeTally > endTime))
 					{
-						lastDuration = 0.0f;
+						lastDuration.SetSeconds(0);
 						break;
 					}
 					int key = animTrack->CreateKey(timeTally);
@@ -271,13 +271,13 @@ bool InsertClipTracksToNode(CSequencerNode* node, const SFragmentData& fragData,
 			}
 		}
 
-		animTrack->SetTimeRange(Range(0.0f, maxTime));
+		animTrack->SetTimeRange(TRange<CTimeValue>(0, maxTime));
 	}
 
 	return isLooping;
 }
 
-void GetFragmentFromClipTracks(CFragment& fragment, CSequencerNode* animNode, uint32 historyItem, float fragStartTime, int fragPart)
+void GetFragmentFromClipTracks(CFragment& fragment, CSequencerNode* animNode, uint32 historyItem, const CTimeValue& fragStartTime, int fragPart)
 {
 	fragment = CFragment();
 
@@ -328,7 +328,7 @@ void GetFragmentFromClipTracks(CFragment& fragment, CSequencerNode* animNode, ui
 				}
 			}
 
-			float lastTime = fragStartTime;
+			CTimeValue lastTime = fragStartTime;
 			bool foundBlock = false;
 			bool lastClipTypeMatched = false;
 			for (uint32 c = 0; c < numKeys; c++)
@@ -363,7 +363,7 @@ void GetFragmentFromClipTracks(CFragment& fragment, CSequencerNode* animNode, ui
 		{
 			TProcClipSequence& procClipSeq = fragment.m_procLayers[procLayer];
 
-			float lastTime = fragStartTime;
+			CTimeValue lastTime = fragStartTime;
 			bool foundBlock = false;
 			for (uint32 c = 0; c < numKeys; c++)
 			{
@@ -395,7 +395,7 @@ void GetFragmentFromClipTracks(CFragment& fragment, CSequencerNode* animNode, ui
 	}
 }
 
-void InsertFragmentTrackFromHistory(CSequencerNode* animNode, SFragmentHistoryContext& history, float startTime, float endTime, float& maxTime, SScopeData& scopeData)
+void InsertFragmentTrackFromHistory(CSequencerNode* animNode, SFragmentHistoryContext& history, const CTimeValue& startTime, const CTimeValue&  endTime, CTimeValue& maxTime, SScopeData& scopeData)
 {
 	CTransitionPropertyTrack* propsTrack = (CTransitionPropertyTrack*)animNode->CreateTrack(SEQUENCER_PARAM_TRANSITIONPROPS);
 
@@ -433,7 +433,7 @@ void InsertFragmentTrackFromHistory(CSequencerNode* animNode, SFragmentHistoryCo
 
 			if (scopeData.scopeID == rootScope)
 			{
-				float time = item.time - history.m_history.m_firstTime;
+				CTimeValue time = item.time - history.m_history.m_firstTime;
 				int newKeyID = fragTrack->CreateKey(time);
 				CFragmentKey newKey;
 				newKey.m_time = time;
@@ -504,7 +504,7 @@ void GetHistoryFromTracks(SFragmentHistoryContext& historyContext)
 
 	while (!finished)
 	{
-		float earliestTime = FLT_MAX;
+		CTimeValue earliestTime = CTimeValue::Max();
 		int bestTrack = -1;
 
 		for (uint32 i = 0; i < numTracks; i++)
@@ -513,7 +513,7 @@ void GetHistoryFromTracks(SFragmentHistoryContext& historyContext)
 
 			if (pTrack && (pTrack->GetNumKeys() > keys[i]))
 			{
-				float time = pTrack->GetKeyTime(keys[i]) + historyContext.m_history.m_firstTime;
+				CTimeValue time = pTrack->GetKeyTime(keys[i]) + historyContext.m_history.m_firstTime;
 
 				if (time < earliestTime)
 				{
@@ -686,7 +686,7 @@ void AdjustFragDataForVEGs(SFragmentData& fragData, SScopeContextData& context, 
 		params.locationAnimation.SetIdentity();
 		params.bOnRender = 0;
 		params.zoomAdjustedDistanceFromCamera = 0.0f;
-		params.overrideDeltaTime = .1f;   // to make this deterministic
+		params.overrideDeltaTime.SetSeconds("0.1");   // to make this deterministic
 
 		const uint32 numLayers = fragData.animLayers.size();
 		for (uint32 layer = 0; layer < numLayers; layer++)
@@ -709,7 +709,7 @@ void AdjustFragDataForVEGs(SFragmentData& fragData, SScopeContextData& context, 
 
 						for (int32 mp = 0; mp < eMotionParamID_COUNT; mp++)
 						{
-							pCharInst->GetISkeletonAnim()->SetDesiredMotionParam((EMotionParamID)mp, motionParams[mp], 0.0f);
+							pCharInst->GetISkeletonAnim()->SetDesiredMotionParam((EMotionParamID)mp, motionParams[mp], 0);
 						}
 
 						// Try to wait for the animation to be streamed in (activated). As there
@@ -730,8 +730,8 @@ void AdjustFragDataForVEGs(SFragmentData& fragData, SScopeContextData& context, 
 							CrySleep(sleepMillisPerRetry);
 						}
 
-						const float duration = pAnim->GetExpectedTotalDurationSeconds();
-						if (duration >= 0.0f)
+						const CTimeValue duration = pAnim->GetExpectedTotalDuration();
+						if (duration >= 0)
 						{
 							animClip.referenceLength = duration;
 						}
@@ -855,7 +855,7 @@ bool IsSequenceDirty(SMannequinContexts* contexts, CSequencerSequence* sequence,
 	}
 	totalChangeCount += contextChangeCount;
 
-	float curTime = gEnv->pTimer->GetCurrTime(ITimer::ETIMER_UI);
+	CTimeValue curTime = GetGTimer()->GetFrameStartTime(ITimer::ETIMER_UI);
 
 	if (lastChange.lastChangeCount != totalChangeCount)
 	{
@@ -1061,7 +1061,7 @@ void CFragmentHistory::LoadSequence(XmlNodeRef root)
 	{
 		root->getAttr("StartTime", m_startTime);
 		root->getAttr("EndTime", m_endTime);
-		float firstTime = m_endTime;
+		CTimeValue firstTime = m_endTime;
 
 		const uint32 numChildren = root->getChildCount();
 		m_items.resize(numChildren);
@@ -1137,7 +1137,7 @@ void CFragmentHistory::LoadSequence(XmlNodeRef root)
 
 void CFragmentHistory::LoadSequence(const int scopeContextIdx, const FragmentID fromID, const FragmentID toID, const SFragTagState fromFragTag, const SFragTagState toFragTag, const SFragmentBlendUid blendUid, const TagState& tagState)
 {
-	static const float DEFAULT_TIME_STEP = 3.0f;
+	static const CTimeValue DEFAULT_TIME_STEP = 3;
 
 	//--- Remove all but the param items
 	THistoryBuffer strippedList;
@@ -1152,11 +1152,11 @@ void CFragmentHistory::LoadSequence(const int scopeContextIdx, const FragmentID 
 	}
 	m_items = strippedList;
 
-	m_startTime = 0.0f;
-	m_firstTime = 0.0f;
-	float lastTagsTime = 0.0f;
-	float lastFragTime = 0.0f;
-	float duration = 0.0f;
+	m_startTime.SetSeconds(0);
+	m_firstTime.SetSeconds(0);
+	CTimeValue lastTagsTime = 0;
+	CTimeValue lastFragTime = 0;
+	CTimeValue duration = 0;
 
 	SMannequinContexts* pContexts = CMannequinDialog::GetCurrentInstance()->Contexts();
 	SScopeContextData* pScopeContextData = &pContexts->m_contextData[scopeContextIdx];
@@ -1181,7 +1181,7 @@ void CFragmentHistory::LoadSequence(const int scopeContextIdx, const FragmentID 
 		}
 
 		// If the duration is 0, then the animation was a pure procedural one and should be treated as not a one-shot
-		if (duration == 0.0f)
+		if (duration == 0)
 		{
 			duration = DEFAULT_TIME_STEP;
 		}
@@ -1228,7 +1228,7 @@ void CFragmentHistory::LoadSequence(const int scopeContextIdx, const FragmentID 
 
 	if ((flags != 0) && (fragData.isOneShot))
 	{
-		duration = 0.0f;
+		duration.SetSeconds(0);
 		for (int i = 0; i < SFragmentData::PART_TOTAL; ++i)
 		{
 			duration += fragData.duration[i];

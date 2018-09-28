@@ -467,16 +467,15 @@ struct SVariableSerializer
 			return;
 		}
 
-		T value;
+		bool bHardMin, bHardMax;
+		T value, dmin, dmax, limMin, limMax, fStep;
 		pVar->Get(value);
 
-		T dmin = std::numeric_limits<T>::lowest();
-		T dmax = std::numeric_limits<T>::max();
-		float limMin = dmin;
-		float limMax = dmax;
-		bool bHardMin, bHardMax;
-		float fStep;
-		pVar->GetLimits(limMin, limMax, fStep, bHardMin, bHardMax);
+		limMin = dmin = std::numeric_limits<T>::lowest();
+		limMax = dmax = std::numeric_limits<T>::max();
+
+		static_cast<CVariable<T>*>(pVar)->GetLimits(limMin, limMax, fStep, bHardMin, bHardMax);
+
 		// determine hard min/max values to have correct range decoration
 		if (bHardMin && bHardMax)
 		{

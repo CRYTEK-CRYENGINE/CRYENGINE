@@ -125,7 +125,7 @@ protected:
 	class CParamSelectionChangedUndoCommand;
 	class CContentChangedUndoCommand;
 
-	void         SetTODTime(const float fTime);
+	void         SetTODTime(const CTimeValue& fTime);
 
 	void         CreateUi();
 	void         LoadPropertiesTree();
@@ -157,6 +157,6 @@ protected:
 	int                         m_selectedParamId;
 	CContentChangedUndoCommand* m_pUndoCommand;
 
-	float                       m_fAnimTimeSecondsIn24h;
+	int		                   m_fAnimTimeSecondsIn24h;
 };
 

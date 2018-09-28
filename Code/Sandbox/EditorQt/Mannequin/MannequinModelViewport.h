@@ -39,7 +39,7 @@ public:
 	virtual ~CMannequinModelViewport();
 
 	virtual void Update();
-	void         UpdateAnimation(float timePassed);
+	void         UpdateAnimation(const CTimeValue& timePassed);
 
 	virtual void OnRender();
 
@@ -70,14 +70,14 @@ public:
 	virtual void DrawCharacter(ICharacterInstance* pInstance, const SRendParams& rRP, const SRenderingPassInfo& passInfo) override;
 
 	//--- Override base level as we don't want the animation control there
-	void SetPlaybackMultiplier(float multiplier)
+	void SetPlaybackMultiplier(const mpfloat& multiplier)
 	{
-		m_bPaused = (multiplier == 0.0f);
+		m_bPaused = (multiplier == 0);
 		m_playbackMultiplier = multiplier;
 	}
 
-	void OnScrubTime(float timePassed);
-	void OnSequenceRestart(float timePassed);
+	void OnScrubTime(const CTimeValue& timePassed);
+	void OnSequenceRestart(const CTimeValue& timePassed);
 	void UpdateDebugParams();
 
 	void OnLoadPreviewFile()
@@ -155,7 +155,7 @@ protected:
 
 private:
 
-	void UpdateCharacter(IEntity* pEntity, ICharacterInstance* pInstance, float deltaTime);
+	void UpdateCharacter(IEntity* pEntity, ICharacterInstance* pInstance, const CTimeValue& deltaTime);
 	void DrawCharacter(IEntity* pEntity, ICharacterInstance* pInstance, IStatObj* pStatObj, const SRendParams& rRP, const SRenderingPassInfo& passInfo);
 	void DrawEntityAndChildren(class CEntityObject* pEntityObject, const SRendParams& rp, const SRenderingPassInfo& passInfo);
 	void UpdatePropEntities(SMannequinContexts* pContexts, SMannequinContexts::SProp& prop);
@@ -203,11 +203,11 @@ private:
 	bool                           m_lookAtCamera;
 	bool                           m_showSceneRoots;
 	bool                           m_cameraKeyDown;
-	float                          m_playbackMultiplier;
+	mpfloat                        m_playbackMultiplier;
 	Vec3                           m_tweenToFocusStart;
 	Vec3                           m_tweenToFocusDelta;
-	float                          m_tweenToFocusTime;
-	static const float             s_maxTweenTime;
+	CTimeValue                     m_tweenToFocusTime;
+	static const CTimeValue        s_maxTweenTime;
 
 	EMannequinEditorMode           m_editorMode;
 
@@ -242,7 +242,7 @@ private:
 
 	int32                m_Stance;
 	int32                m_State;
-	f32                  m_AverageFrameTime;
+	CTimeValue           m_AverageFrameTime;
 
 	uint32               m_PlayerControl;
 

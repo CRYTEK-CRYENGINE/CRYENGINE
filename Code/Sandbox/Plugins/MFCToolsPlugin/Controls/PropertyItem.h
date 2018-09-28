@@ -24,6 +24,8 @@ enum PropertyType
 	ePropertyBool    = 2,
 	ePropertyInt,
 	ePropertyFloat,
+	ePropertyTime,
+	ePropertyMP,
 	ePropertyVector2,
 	ePropertyVector,
 	ePropertyVector4,
@@ -384,9 +386,9 @@ private:
 	bool         m_bForceModified;
 
 	// Used for number controls.
-	float m_rangeMin;
-	float m_rangeMax;
-	float m_step;
+	mpfloat m_rangeMin;
+	mpfloat m_rangeMax;
+	mpfloat m_step;
 	bool  m_bHardMin, m_bHardMax;   // Values really limited by this range.
 	int   m_nHeight;
 
@@ -432,7 +434,7 @@ private:
 	CString                 m_tip;
 	int                     m_image;
 
-	float                   m_valueMultiplier;
+	mpfloat                 m_valueMultiplier;
 
 	// Childs.
 	typedef std::vector<_smart_ptr<CPropertyItem>> Childs;

@@ -133,7 +133,7 @@ void PropertyRowCurve::redraw(property_tree::IDrawContext& context)
 		const float x = rect.left() + xInc * float(p);
 
 		float val;
-		spline.interpolate(t, val);
+		spline.interpolate(BADMP(t), val);
 
 		point.rx() = x;
 		point.ry() = rect.bottom() - (val * rect.height());
@@ -158,7 +158,7 @@ void PropertyRowCurve::redraw(property_tree::IDrawContext& context)
 
 			ISplineEvaluator::ValueType vals[3];
 			for (int i = 0; i < 3; ++i)
-				splines[i].Interpolate(t, vals[i]);
+				splines[i].Interpolate(BADMP(t), vals[i]);
 
 			painter.setPen(QColor(vals[0][0] * 255, vals[1][0] * 255, vals[2][0] * 255, 255));
 			painter.drawLine(QPointF(x, rect.bottom()), QPointF(x, rect.top()));

@@ -10,9 +10,9 @@ static void AddBeginKeyTime(const int nkey,
                             CSequencerNode* pAnimNode, CSequencerTrack* pAnimTrack,
                             CSequencerUtils::SelectedKeys& selectedKeys,
                             const bool selectedOnly, const bool noTimeRange,
-                            const float t0 = 0.0f, const float t1 = 0.0f)
+                            const CTimeValue& t0 = 0, const CTimeValue& t1 = 0)
 {
-	const float keyTime = pAnimTrack->GetKeyTime(nkey);
+	const CTimeValue keyTime = pAnimTrack->GetKeyTime(nkey);
 	const bool timeRangeOk = noTimeRange || (t0 <= keyTime && keyTime <= t1);
 	if ((!selectedOnly || pAnimTrack->IsKeySelected(nkey)) && timeRangeOk)
 	{
@@ -24,12 +24,12 @@ static void AddSecondarySelPtTimes(const int nkey,
                                    CSequencerNode* pAnimNode, CSequencerTrack* pAnimTrack,
                                    CSequencerUtils::SelectedKeys& selectedKeys,
                                    const bool selectedOnly, const bool noTimeRange,
-                                   const float t0 = 0.0f, const float t1 = 0.0f)
+                                   const CTimeValue& t0 = 0, const CTimeValue& t1 = 0)
 {
 	const int num2ndPts = pAnimTrack->GetNumSecondarySelPts(nkey);
 	for (int n2ndPt = 1; n2ndPt <= num2ndPts; n2ndPt++)
 	{
-		const float f2ndPtTime = pAnimTrack->GetSecondaryTime(nkey, n2ndPt);
+		const CTimeValue f2ndPtTime = pAnimTrack->GetSecondaryTime(nkey, n2ndPt);
 		const bool timeRangeOk = noTimeRange || (t0 <= (f2ndPtTime) && (f2ndPtTime) <= t1);
 		if ((!selectedOnly || pAnimTrack->IsKeySelected(nkey)) && timeRangeOk)
 		{
@@ -42,10 +42,10 @@ static void AddEndKeyTime(const int nkey,
                           CSequencerNode* pAnimNode, CSequencerTrack* pAnimTrack,
                           CSequencerUtils::SelectedKeys& selectedKeys,
                           const bool selectedOnly, const bool noTimeRange,
-                          const float t0 = 0.0f, const float t1 = 0.0f)
+                          const CTimeValue& t0 = 0, const CTimeValue& t1 = 0)
 {
-	const float keyTime = pAnimTrack->GetKeyTime(nkey);
-	const float duration = pAnimTrack->GetKeyDuration(nkey);
+	const CTimeValue keyTime = pAnimTrack->GetKeyTime(nkey);
+	const CTimeValue duration = pAnimTrack->GetKeyDuration(nkey);
 	const bool timeRangeOk = noTimeRange || (t0 <= (keyTime + duration) && (keyTime + duration) <= t1);
 	if ((!selectedOnly || pAnimTrack->IsKeySelected(nkey)) && timeRangeOk)
 	{
@@ -54,7 +54,7 @@ static void AddEndKeyTime(const int nkey,
 }
 
 //////////////////////////////////////////////////////////////////////////
-static int GetKeys(const CSequencerSequence* pSequence, CSequencerUtils::SelectedKeys& selectedKeys, const bool selectedOnly, const float t0 = 0, const float t1 = 0)
+static int GetKeys(const CSequencerSequence* pSequence, CSequencerUtils::SelectedKeys& selectedKeys, const bool selectedOnly, const CTimeValue& t0 = 0, const CTimeValue& t1 = 0)
 {
 	if (pSequence == NULL)
 	{
@@ -87,7 +87,7 @@ static int GetKeys(const CSequencerSequence* pSequence, CSequencerUtils::Selecte
 }
 
 //////////////////////////////////////////////////////////////////////////
-static int GetKeysByAnyTimeMarker(const CSequencerSequence* pSequence, CSequencerUtils::SelectedKeys& selectedKeys, const bool selectedOnly, const float t0 = 0.0f, const float t1 = 0.0f)
+static int GetKeysByAnyTimeMarker(const CSequencerSequence* pSequence, CSequencerUtils::SelectedKeys& selectedKeys, const bool selectedOnly, const CTimeValue& t0 = 0, const CTimeValue& t1 = 0)
 {
 	if (pSequence == NULL)
 	{
@@ -193,7 +193,7 @@ bool CSequencerUtils::IsOneTrackSelected(const SelectedTracks& selectedTracks)
 }
 
 //////////////////////////////////////////////////////////////////////////
-int CSequencerUtils::GetKeysInTimeRange(const CSequencerSequence* pSequence, SelectedKeys& selectedKeys, const float t0, const float t1)
+int CSequencerUtils::GetKeysInTimeRange(const CSequencerSequence* pSequence, SelectedKeys& selectedKeys, const CTimeValue& t0, const CTimeValue& t1)
 {
 	return GetKeysByAnyTimeMarker(pSequence, selectedKeys, false, t0, t1);
 }

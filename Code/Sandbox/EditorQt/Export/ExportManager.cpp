@@ -480,16 +480,16 @@ void CExportManager::AddPosRotScale(SExportObject* pObj, const CBaseObject* pBas
 
 	if (pBaseObj->IsKindOf(RUNTIME_CLASS(CCameraObjectTarget)))
 	{
-		AddEntityData(pObj, eAnimParamType_PositionX, pBaseObj->GetPos().x, 0.0f);
-		AddEntityData(pObj, eAnimParamType_PositionY, pBaseObj->GetPos().y, 0.0f);
-		AddEntityData(pObj, eAnimParamType_PositionZ, pBaseObj->GetPos().z, 0.0f);
-		AddEntityData(pObj, eAnimParamType_RotationX, pBaseObj->GetRotation().v.x, 0.0f);
-		AddEntityData(pObj, eAnimParamType_RotationY, pBaseObj->GetRotation().v.y, 0.0f);
-		AddEntityData(pObj, eAnimParamType_RotationZ, pBaseObj->GetRotation().v.z, 0.0f);
+		AddEntityData(pObj, eAnimParamType_PositionX, pBaseObj->GetPos().x, 0);
+		AddEntityData(pObj, eAnimParamType_PositionY, pBaseObj->GetPos().y, 0);
+		AddEntityData(pObj, eAnimParamType_PositionZ, pBaseObj->GetPos().z, 0);
+		AddEntityData(pObj, eAnimParamType_RotationX, pBaseObj->GetRotation().v.x, 0);
+		AddEntityData(pObj, eAnimParamType_RotationY, pBaseObj->GetRotation().v.y, 0);
+		AddEntityData(pObj, eAnimParamType_RotationZ, pBaseObj->GetRotation().v.z, 0);
 	}
 }
 
-void CExportManager::AddEntityData(SExportObject* pObj, EAnimParamType dataType, const float fValue, const float fTime)
+void CExportManager::AddEntityData(SExportObject* pObj, EAnimParamType dataType, const float fValue, const CTimeValue& fTime)
 {
 	Export::EntityAnimData entityData;
 	entityData.dataType = dataType;

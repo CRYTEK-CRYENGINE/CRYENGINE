@@ -1014,11 +1014,11 @@ void CDialogCAF::StartAnimation(const QString& animFilename)
 		return;
 	}
 
-	const float normalizedTime = 0.0f;
+	const nTime normalizedTime = 0;
 
 	CryCharAnimationParams params;
-	params.m_fPlaybackSpeed = 1.0f;
-	params.m_fTransTime = 0;
+	params.m_fPlaybackSpeed = 1;
+	params.m_fTransTime.SetSeconds(0);
 	params.m_fPlaybackWeight = 1.0f;
 	params.m_nLayerID = 0;
 	params.m_fKeyTime = normalizedTime;
@@ -1026,7 +1026,7 @@ void CDialogCAF::StartAnimation(const QString& animFilename)
 	params.m_nFlags |= CA_LOOP_ANIMATION;
 	skeletonAnim.StartAnimationById(localAnimID, params);
 
-	m_pScene->m_pCharInstance->SetPlaybackScale(1.0f);
+	m_pScene->m_pCharInstance->SetPlaybackScale(1);
 }
 
 bool CDialogCAF::IsCurrentScene(int sceneId) const

@@ -19,7 +19,7 @@ class CTrackViewSequence;
 struct IAnimationContextListener
 {
 	virtual void OnSequenceChanged(CTrackViewSequence* pNewSequence) {}
-	virtual void OnTimeChanged(SAnimTime newTime)                    {}
+	virtual void OnTimeChanged(const CTimeValue& newTime)            {}
 	virtual void OnPlaybackStateChanged(bool bPlaying, bool bPaused) {}
 	virtual void OnRecordingStateChanged(bool bRecording)            {}
 	virtual void OnLoopingStateChanged(bool bRecording)              {}
@@ -44,10 +44,10 @@ public:
 	/** Return current animation time in active sequence.
 	   @return Current time.
 	 */
-	SAnimTime GetTime() const            { return m_currTime; };
+	const CTimeValue& GetTime() const    { return m_currTime; };
 
-	float     GetTimeScale() const       { return m_fTimeScale; }
-	void      SetTimeScale(float fScale) { m_fTimeScale = fScale; }
+	const mpfloat& GetTimeScale() const       { return m_fTimeScale; }
+	void  SetTimeScale(const mpfloat& fScale) { m_fTimeScale = fScale; }
 
 	/** Set active editing sequence.
 	   @param seq New active sequence.
@@ -60,15 +60,15 @@ public:
 
 	/** Set time markers to play within.
 	 */
-	void SetPlaybackRange(TRange<SAnimTime> Marker) { m_playbackRange = Marker; }
+	void SetPlaybackRange(TRange<CTimeValue> Marker) { m_playbackRange = Marker; }
 
 	/** Get time markers to play within.
 	 */
-	TRange<SAnimTime> GetPlaybackRange() { return m_playbackRange; }
+	TRange<CTimeValue> GetPlaybackRange() { return m_playbackRange; }
 
 	/** Get time range of active animation sequence.
 	 */
-	TRange<SAnimTime> GetTimeRange() const { return m_timeRange; }
+	TRange<CTimeValue> GetTimeRange() const { return m_timeRange; }
 
 	/** Returns true if editor is recording animations now.
 	 */
@@ -102,7 +102,7 @@ public:
 	/** Set current animation time in active sequence.
 	   @param seq New active time.
 	 */
-	void SetTime(SAnimTime t);
+	void SetTime(const CTimeValue& t);
 
 	/** Start animation recorduing.
 	   Automatically stop playing.
@@ -112,7 +112,7 @@ public:
 
 	/** Enables/Disables automatic recording, sets the time step for each recorded frame.
 	 */
-	void SetAutoRecording(bool bEnable, SAnimTime fTimeStep);
+	void SetAutoRecording(bool bEnable, const CTimeValue& fTimeStep);
 
 	//! Check if auto recording enabled.
 	bool IsAutoRecording() const { return m_bAutoRecording; };
@@ -168,26 +168,26 @@ private:
 	EntityId GetActiveCameraEntityId() const;
 
 	//! Current time within active animation sequence.
-	SAnimTime m_currTime;
+	CTimeValue m_currTime;
 
 	//! Force update in next frame
 	bool m_bForceUpdateInNextFrame;
 
 	//! Time within active animation sequence while reset animation.
-	SAnimTime m_resetTime;
+	CTimeValue m_resetTime;
 
-	float     m_fTimeScale;
+	mpfloat    m_fTimeScale;
 
 	// Recording time step.
-	SAnimTime m_recordingTimeStep;
-	SAnimTime m_recordingCurrTime;
+	CTimeValue m_recordingTimeStep;
+	CTimeValue m_recordingCurrTime;
 
 	bool      m_bAutoRecording;
 
 	//! Time range of active animation sequence.
-	TRange<SAnimTime> m_timeRange;
+	TRange<CTimeValue> m_timeRange;
 
-	TRange<SAnimTime> m_playbackRange;
+	TRange<CTimeValue> m_playbackRange;
 
 	//! Currently active animation sequence.
 	CTrackViewSequence* m_pSequence;
@@ -196,7 +196,7 @@ private:
 	string m_sequenceName;
 
 	//! Time of active sequence (for switching back from game mode and saving)
-	SAnimTime m_sequenceTime;
+	CTimeValue m_sequenceTime;
 
 	bool      m_bLooping;
 

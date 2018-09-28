@@ -33,11 +33,11 @@ class CTrackViewSequenceEventsModel : public QAbstractItemModel
 	{
 		string eventName;
 		int32  usageCount;
-		float  firstUsage;
+		CTimeValue firstUsage;
 
 		SRow()
 			: usageCount(0)
-			, firstUsage(.0f)
+			, firstUsage(0)
 		{}
 	};
 
@@ -95,7 +95,7 @@ public:
 				case EEventColumns::UsageCount:
 					return m_dataRows[index.row()].usageCount;
 				case EEventColumns::FirstUse:
-					return m_dataRows[index.row()].firstUsage;
+					return m_dataRows[index.row()].firstUsage.BADGetSeconds();
 				}
 				break;
 			case Qt::DecorationRole:
@@ -227,7 +227,7 @@ public:
 		{
 			row.eventName = m_sequence.GetTrackEvent(i);
 			row.usageCount = 0;
-			row.firstUsage = std::numeric_limits<float>::max();
+			row.firstUsage = CTimeValue::Max();
 
 			CTrackViewAnimNodeBundle nodeBundle = m_sequence.GetAnimNodesByType(eAnimNodeType_Event);
 
@@ -250,7 +250,7 @@ public:
 						if (key.m_event == row.eventName)
 						{
 							++row.usageCount;
-							const float keyTime = keyHandle.GetTime().ToFloat();
+							const CTimeValue keyTime = keyHandle.GetTime();
 							if (keyTime < row.firstUsage)
 							{
 								row.firstUsage = keyTime;
@@ -262,7 +262,7 @@ public:
 
 			if (row.usageCount == 0)
 			{
-				row.firstUsage = .0f;
+				row.firstUsage.SetSeconds(0);
 			}
 
 			m_dataRows.emplace_back(row);

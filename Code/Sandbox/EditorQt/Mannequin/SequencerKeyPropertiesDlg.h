@@ -69,7 +69,7 @@ protected:
 		else
 		{
 			if (!pSrcVar || pSrcVar == var.GetVar())
-				value = var;
+				value = (U)var; // PERSONAL NOTE: (U) for CTimeValue = (CTimeValue)SmartVariable<CTimeValue>
 		}
 	}
 	void AddVariable(CVariableBase& varArray, IVariable& var, const char* varName, unsigned char dataType = IVariable::DT_SIMPLE)

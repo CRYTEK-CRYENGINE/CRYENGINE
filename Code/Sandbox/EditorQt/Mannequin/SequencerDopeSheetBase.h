@@ -113,16 +113,16 @@ public:
 	bool         IsDragging() const;
 
 	void         SetSequence(CSequencerSequence* pSequence) { m_pSequence = pSequence; };
-	void         SetTimeScale(float timeScale, float fAnchorTime);
-	float        GetTimeScale()                             { return m_timeScale; }
+	void         SetTimeScale(const rTime& timeScale, const CTimeValue& fAnchorTime);
+	const rTime& GetTimeScale()                             { return m_timeScale; }
 
 	void         SetScrollOffset(int hpos);
 
-	void         SetTimeRange(float start, float end);
-	virtual void SetCurrTime(float time, bool bForce = false);
-	float        GetCurrTime() const;
-	void         SetStartMarker(float fTime);
-	void         SetEndMarker(float fTime);
+	void         SetTimeRange(const CTimeValue& start, const CTimeValue& end);
+	virtual void SetCurrTime(const CTimeValue& time, bool bForce = false);
+	const CTimeValue& GetCurrTime() const;
+	void         SetStartMarker(const CTimeValue& fTime);
+	void         SetEndMarker(const CTimeValue& fTime);
 
 	void         DelSelectedKeys(bool bPrompt, bool bAllowUndo = true, bool bIgnorePermission = false);
 	void         SetMouseActionMode(ESequencerActionMode mode);
@@ -131,7 +131,7 @@ public:
 	bool         CopyPasteKeys();
 
 	bool         CopyKeys(bool bPromptAllowed = true, bool bUseClipboard = true, bool bCopyTrack = false);
-	bool         PasteKeys(CSequencerNode* pAnimNode, CSequencerTrack* pAnimTrack, float fTimeOffset);
+	bool         PasteKeys(CSequencerNode* pAnimNode, CSequencerTrack* pAnimTrack, const CTimeValue& fTimeOffset);
 	void         StartDraggingKeys(CPoint point);
 	void         StartPasteKeys();
 	void         FinalizePasteKeys();
@@ -178,12 +178,12 @@ public:
 	ESequencerSnappingMode GetSnappingMode() const
 	{ return m_snappingMode; }
 	void                   SetSnapFPS(UINT fps)
-	{ m_snapFrameTime = fps == 0 ? 0.033333f : 1.0f / float(fps); }
+	{ m_snapFrameTime = fps == 0 ? CTimeValue(1)/30 : CTimeValue(1) / fps; }
 
-	float GetSnapFps() const
+	rTime GetSnapFps() const
 	{
 		// To address issues of m_snapFrameTime being <FLT_EPSILON or >FLT_MAX
-		return 1.0f / CLAMP(m_snapFrameTime, FLT_EPSILON, FLT_MAX);
+		return 1 / CLAMP(m_snapFrameTime, TV_EPSILON, CTimeValue::Max());
 	}
 
 	ESequencerTickMode GetTickDisplayMode() const
@@ -203,7 +203,7 @@ public:
 		return m_changeCount;
 	}
 
-	const Range& GetMarkedTime() const
+	const TRange<CTimeValue>& GetMarkedTime() const
 	{
 		return m_timeMarked;
 	}
@@ -256,17 +256,17 @@ protected:
 	//////////////////////////////////////////////////////////////////////////
 	virtual void DrawControl(CDC* dc, const CRect& rcUpdate);
 	virtual void DrawTrack(int item, CDC* dc, CRect& rcItem);
-	virtual void DrawTicks(CDC* dc, CRect& rc, Range& timeRange);
+	virtual void DrawTicks(CDC* dc, CRect& rc, TRange<CTimeValue>& timeRange);
 
 	// Helper functions
-	void         ComputeFrameSteps(const Range& VisRange);
-	void         DrawTimeLineInFrames(CDC* dc, CRect& rc, COLORREF& lineCol, COLORREF& textCol, double step);
-	void         DrawTimeLineInSeconds(CDC* dc, CRect& rc, COLORREF& lineCol, COLORREF& textCol, double step);
+	void         ComputeFrameSteps(const TRange<CTimeValue>& VisRange);
+	void         DrawTimeLineInFrames(CDC* dc, CRect& rc, COLORREF& lineCol, COLORREF& textCol, const CTimeValue& step);
+	void         DrawTimeLineInSeconds(CDC* dc, CRect& rc, COLORREF& lineCol, COLORREF& textCol, const CTimeValue& step);
 
 	virtual void DrawTimeline(CDC* dc, const CRect& rcUpdate);
 	virtual void DrawSummary(CDC* dc, CRect rcUpdate);
 	virtual void DrawSelectedKeyIndicators(CDC* dc);
-	virtual void DrawKeys(CSequencerTrack* track, CDC* dc, CRect& rc, Range& timeRange, EDSRenderFlags renderFlags);
+	virtual void DrawKeys(CSequencerTrack* track, CDC* dc, CRect& rc, TRange<CTimeValue>& timeRange, EDSRenderFlags renderFlags);
 	virtual void RedrawItem(int item);
 
 	//////////////////////////////////////////////////////////////////////////
@@ -282,27 +282,27 @@ protected:
 
 	//////////////////////////////////////////////////////////////////////////
 	//! Return time snapped to timestep,
-	double GetTickTime() const;
-	float  TickSnap(float time) const;
-	float  MagnetSnap(const float time, const CSequencerNode* node) const;
-	float  FrameSnap(float time) const;
+	CTimeValue GetTickTime() const;
+	CTimeValue TickSnap(const CTimeValue& time) const;
+	CTimeValue MagnetSnap(const CTimeValue& time, const CSequencerNode* node) const;
+	CTimeValue FrameSnap(const CTimeValue& time) const;
 
 	//! Returns visible time range.
-	Range GetVisibleRange();
-	Range GetTimeRange(CRect& rc);
+	TRange<CTimeValue> GetVisibleRange();
+	TRange<CTimeValue> GetTimeRange(CRect& rc);
 
 	//! Return client position for given time.
-	int   TimeToClient(float time) const;
+	int   TimeToClient(const CTimeValue& time) const;
 
-	float TimeFromPoint(CPoint point) const;
-	float TimeFromPointUnsnapped(CPoint point) const;
+	CTimeValue TimeFromPoint(CPoint point) const;
+	CTimeValue TimeFromPointUnsnapped(CPoint point) const;
 
 	//! Unselect all selected keys.
 	void UnselectAllKeys(bool bNotify);
 	//! Offset all selected keys by this offset.
-	void OffsetSelectedKeys(const float timeOffset, const bool bSnapKeys);
+	void OffsetSelectedKeys(const CTimeValue& timeOffset, const bool bSnapKeys);
 	//! Scale all selected keys by this offset.
-	void ScaleSelectedKeys(float timeOffset, bool bSnapKeys);
+	void ScaleSelectedKeys(const mpfloat& timeOffset, bool bSnapKeys);
 	void CloneSelectedKeys();
 
 	bool FindSingleSelectedKey(CSequencerTrack*& track, int& key);
@@ -348,7 +348,7 @@ protected:
 	CPoint           m_lastTooltipPos;
 	CPoint           m_mouseDownPos;
 	CPoint           m_mouseOverPos;
-	float            m_mouseMoveStartTimeOffset;
+	CTimeValue       m_mouseMoveStartTimeOffset;
 	int              m_mouseMoveStartTrackOffset;
 	static const int SNumOfBmps = 7;
 	CImageList       m_imageSeqKeyBody[SNumOfBmps];
@@ -364,23 +364,22 @@ protected:
 
 	//////////////////////////////////////////////////////////////////////////
 	// Time.
-	float m_timeScale;
-	float m_currentTime;
-	float m_storedTime;
-	Range m_timeRange;
-	Range m_realTimeRange;
-	Range m_timeMarked;
+	rTime m_timeScale;			// Time in Seconds * Timescale = #pixels
+	CTimeValue m_currentTime;
+	CTimeValue m_storedTime;
+	TRange<CTimeValue> m_timeRange;
+	TRange<CTimeValue> m_realTimeRange;
+	TRange<CTimeValue> m_timeMarked;
 
-	//! This is how often to place ticks.
-	//! value of 10 means place ticks every 10 second.
-	double m_ticksStep;
+	//! Number of ticks to place every second.
+	rTime m_ticksStep;
 
 	//////////////////////////////////////////////////////////////////////////
 	int   m_mouseMode;
 	int   m_mouseActionMode;
 	int   m_actionMode;
 	bool  m_bAnySelected;
-	float m_keyTimeOffset;
+	CTimeValue m_keyTimeOffset;
 	float m_grabOffset;
 	int   m_secondarySelection;
 
@@ -412,22 +411,22 @@ protected:
 
 	bool                   m_bCursorWasInKey;
 
-	float                  m_fJustSelected;
+	CTimeValue             m_fJustSelected;
 
 	bool                   m_bMouseMovedAfterRButtonDown;
 
 	uint32                 m_changeCount;
 
 	ESequencerSnappingMode m_snappingMode;
-	double                 m_snapFrameTime;
+	CTimeValue             m_snapFrameTime;
 
 	ESequencerTickMode     m_tickDisplayMode;
-	double                 m_fFrameTickStep;
-	double                 m_fFrameLabelStep;
+	CTimeValue             m_fFrameTickStep;
+	CTimeValue             m_fFrameLabelStep;
 
-	void                     OffsetKey(CSequencerTrack* pTrack, const int keyIndex, const float timeOffset) const;
+	void                     OffsetKey(CSequencerTrack* pTrack, const int keyIndex, const CTimeValue& timeOffset) const;
 	void                     NotifyKeySelectionUpdate();
-	bool                     IsOkToAddKeyHere(const CSequencerTrack* pTrack, float time) const;
+	bool                     IsOkToAddKeyHere(const CSequencerTrack* pTrack, const CTimeValue& time) const;
 
 	void                     MouseMoveSelect(CPoint point);
 	void                     MouseMoveMove(CPoint point, UINT nFlags);

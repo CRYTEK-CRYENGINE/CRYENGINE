@@ -97,7 +97,7 @@ struct CSequencerKey
 		m_fileState = eNone;
 	};
 
-	float m_time;
+	CTimeValue m_time;
 	int   flags;
 
 	bool operator<(const CSequencerKey& key) const  { return m_time < key.m_time; }
@@ -157,7 +157,7 @@ public:
 	virtual void                 SetNumKeys(int numKeys) = 0;
 	virtual int                  GetNumKeys() const = 0;
 
-	virtual int                  CreateKey(float time) = 0;
+	virtual int                  CreateKey(const CTimeValue& time) = 0;
 
 	virtual void                 SetKey(int index, CSequencerKey* key) = 0;
 	virtual void                 GetKey(int index, CSequencerKey* key) const = 0;
@@ -167,16 +167,16 @@ public:
 
 	virtual void                 RemoveKey(int num) = 0;
 
-	virtual void                 GetKeyInfo(int key, const char*& description, float& duration) = 0;
-	virtual void                 GetTooltip(int key, const char*& description, float& duration) { return GetKeyInfo(key, description, duration); }
-	virtual float                GetKeyDuration(const int key) const = 0;
+	virtual void                 GetKeyInfo(int key, const char*& description, CTimeValue& duration) = 0;
+	virtual void                 GetTooltip(int key, const char*& description, CTimeValue& duration) { return GetKeyInfo(key, description, duration); }
+	virtual CTimeValue           GetKeyDuration(const int key) const = 0;
 	virtual const SKeyColour& GetKeyColour(int key) const = 0;
 	virtual const SKeyColour& GetBlendColour(int key) const = 0;
 
 	virtual bool              CanEditKey(int key) const   { return true; }
 	virtual bool              CanMoveKey(int key) const   { return true; }
 
-	virtual bool              CanAddKey(float time) const { return true; }
+	virtual bool              CanAddKey(const CTimeValue& time) const { return true; }
 	virtual bool              CanRemoveKey(int key) const { return true; }
 
 	virtual int               CloneKey(int key) = 0;
@@ -188,7 +188,7 @@ public:
 	//
 	// Returns an id that can be passed into the other secondary selection functions.
 	// Returns 0 when it could not find a secondary selection point.
-	virtual int GetSecondarySelectionPt(int key, float timeMin, float timeMax) const
+	virtual int GetSecondarySelectionPt(int key, const CTimeValue& timeMin, const CTimeValue& timeMax) const
 	{
 		return 0;
 	}
@@ -197,13 +197,13 @@ public:
 	//
 	// Returns the key index as well as an id that can be passed into the other secondary selection functions.
 	// Returns 0 when it could not find a secondary selection point.
-	virtual int FindSecondarySelectionPt(int& key, float timeMin, float timeMax) const
+	virtual int FindSecondarySelectionPt(int& key, const CTimeValue& timeMin, const CTimeValue& timeMax) const
 	{
 		return 0;
 	}
 
-	virtual void        SetSecondaryTime(int key, int id, float time)    {}
-	virtual float       GetSecondaryTime(int key, int id) const          { return 0.0f; }
+	virtual void        SetSecondaryTime(int key, int id, const CTimeValue& time)    {}
+	virtual CTimeValue  GetSecondaryTime(int key, int id) const          { return 0; }
 	virtual CString     GetSecondaryDescription(int key, int id) const   { return ""; }
 	virtual bool        CanMoveSecondarySelection(int key, int id) const { return true; }
 
@@ -226,7 +226,7 @@ public:
 			return -1;
 	}
 
-	int FindKey(float time) const
+	int FindKey(const CTimeValue& time) const
 	{
 		const int keyCount = GetNumKeys();
 		for (int i = 0; i < keyCount; i++)
@@ -239,7 +239,7 @@ public:
 		return -1;
 	}
 
-	virtual void SetKeyTime(int index, float time)
+	virtual void SetKeyTime(int index, const CTimeValue& time)
 	{
 		CSequencerKey* key = GetKey(index);
 		assert(key);
@@ -250,7 +250,7 @@ public:
 		}
 	}
 
-	float GetKeyTime(int index) const
+	const CTimeValue& GetKeyTime(int index) const
 	{
 		const CSequencerKey* key = GetKey(index);
 		assert(key);
@@ -307,8 +307,8 @@ public:
 			m_flags &= ~SEQUENCER_TRACK_SELECTED;
 	}
 
-	void         SetTimeRange(const Range& timeRange) { m_timeRange = timeRange; }
-	const Range& GetTimeRange() const                 { return m_timeRange; }
+	void         SetTimeRange(const TRange<CTimeValue>& timeRange) { m_timeRange = timeRange; }
+	const TRange<CTimeValue>& GetTimeRange() const                 { return m_timeRange; }
 
 	void         OnChange()
 	{
@@ -319,7 +319,7 @@ public:
 	void         ResetChangeCount()     { m_changeCount = 0; }
 
 	virtual bool Serialize(XmlNodeRef& xmlNode, bool bLoading, bool bLoadEmptyTracks = true) = 0;
-	virtual bool SerializeSelection(XmlNodeRef& xmlNode, bool bLoading, bool bCopySelected = false, float fTimeOffset = 0) = 0;
+	virtual bool SerializeSelection(XmlNodeRef& xmlNode, bool bLoading, bool bCopySelected = false, const CTimeValue& fTimeOffset = 0) = 0;
 
 	void         Mute(bool bMute) { m_muted = bMute; }
 	bool         IsMuted() const  { return m_muted; }
@@ -340,7 +340,7 @@ protected:
 private:
 	ESequencerParamType m_nParamType;
 	bool                m_bModified;
-	Range               m_timeRange;
+	TRange<CTimeValue>  m_timeRange;
 	int                 m_flags;
 	uint32              m_changeCount;
 	bool                m_muted;

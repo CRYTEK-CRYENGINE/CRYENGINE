@@ -48,7 +48,7 @@ class CTrackViewBatchRenderDlg
 	: public CEditorDialog
 	  , public IMovieListener
 {
-	typedef TRange<SAnimTime> AnimRange;
+	typedef TRange<CTimeValue> AnimRange;
 
 	struct SInputGroup
 	{
@@ -121,7 +121,7 @@ class CTrackViewBatchRenderDlg
 		AnimRange           frameRange;
 		int32               resW;
 		int32               resH;
-		int32               fps;
+		rTime               fps;
 		int32               formatIndex;
 		int32               bufferIndex;
 		int32               frameStart;
@@ -138,8 +138,8 @@ class CTrackViewBatchRenderDlg
 		IAnimNode*  pActiveDirectorBU;
 		AnimRange   rangeBU;
 		int32       currentItemIndex;
-		int32       expectedTotalTicks;
-		int32       spentTicks;
+		CTimeValue  expectedTime;
+		CTimeValue  spentTime;
 		int32       flagBU;
 		int32       cvarCustomResWidthBU;
 		int32       cvarCustomResHeightBU;
@@ -216,7 +216,7 @@ private:
 
 	void          keyPressEvent(QKeyEvent* pEvent);
 
-	uint32        GetCurrentTicksPerFrame() const;
+	CTimeValue    GetCurrentTimePerFrame() const;
 	void          SetCurrentSequence(IAnimSequence* pSequence);
 	static string GenerateCaptureItemString(const SRenderItem& item);
 
@@ -242,7 +242,7 @@ private:
 
 	int32                    m_customResW;
 	int32                    m_customResH;
-	int32                    m_customFPS;
+	rTime                    m_customFPS;
 	bool                     m_bIsLoadingPreset;
 
 	SDisplayContextKey       m_displayContextKey;
@@ -314,8 +314,8 @@ inline bool CTrackViewBatchRenderDlg::SRenderItem::operator==(const SRenderItem&
 
 inline CTrackViewBatchRenderDlg::SRenderContext::SRenderContext()
 	: currentItemIndex(-1)
-	, expectedTotalTicks(0)
-	, spentTicks(0)
+	, expectedTime(0)
+	, spentTime(0)
 	, flagBU(0)
 	, pActiveDirectorBU(nullptr)
 	, cvarCustomResWidthBU(0)

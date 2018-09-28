@@ -109,8 +109,8 @@ public:
 	virtual bool        CanBeRenamed() const override;
 
 	// Snap time value to prev/next key in sequence
-	virtual bool SnapTimeToPrevKey(SAnimTime& time) const override;
-	virtual bool SnapTimeToNextKey(SAnimTime& time) const override;
+	virtual bool SnapTimeToPrevKey(CTimeValue& time) const override;
+	virtual bool SnapTimeToNextKey(CTimeValue& time) const override;
 
 	// Node getters
 	CTrackViewAnimNodeBundle GetAllAnimNodes();
@@ -127,7 +127,7 @@ public:
 	// Key getters
 	virtual CTrackViewKeyBundle GetAllKeys() override;
 	virtual CTrackViewKeyBundle GetSelectedKeys() override;
-	virtual CTrackViewKeyBundle GetKeysInTimeRange(const SAnimTime t0, const SAnimTime t1) override;
+	virtual CTrackViewKeyBundle GetKeysInTimeRange(const CTimeValue& t0, const CTimeValue& t1) override;
 
 	// Type getters
 	EAnimNodeType GetType() const;

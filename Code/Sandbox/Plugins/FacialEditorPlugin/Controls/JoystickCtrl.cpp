@@ -206,7 +206,7 @@ public:
 
 	void OnClick(const Vec2& vPosition, bool controlHeld, IJoystickActionContext* pContext)
 	{
-		float sequenceTime = (m_pContainer ? m_pContainer->GetCurrentEvaluationTime() : 0.0f);
+		CTimeValue sequenceTime = (m_pContainer ? m_pContainer->GetCurrentEvaluationTime() : 0);
 		IJoystickChannel* pChannel = (m_pJoystick ? m_pJoystick->GetChannel(m_axis) : 0);
 
 		if (pChannel && m_pJoystick && !controlHeld && !JoystickUtils::HasKey(pChannel, sequenceTime))
@@ -345,7 +345,7 @@ public:
 		m_hasPlayed(false),
 		m_timeWrappedToBeginning(false)
 	{
-		m_lastTime = (m_pContainer ? m_pContainer->GetCurrentEvaluationTime() : 0.0f);
+		m_lastTime = (m_pContainer ? m_pContainer->GetCurrentEvaluationTime() : 0);
 	}
 
 	virtual void OnStartDragging(const Vec2& vPosition, IJoystickActionContext* pContext)
@@ -363,7 +363,7 @@ public:
 		if (pContext && m_pJoystick)
 			pContext->StoreSplineUndo(m_pJoystick);
 
-		float sequenceTime = m_pContainer ? m_pContainer->GetCurrentEvaluationTime() : 0.0f;
+		CTimeValue sequenceTime = m_pContainer ? m_pContainer->GetCurrentEvaluationTime() : 0;
 
 		// Get the knob position.
 		Vec2 vChannelValues(0, 0);
@@ -399,7 +399,7 @@ public:
 		{
 			Vec2 vKnobPosition = GetKnobPosition(vPosition);
 
-			float sequenceTime = m_pContainer ? m_pContainer->GetCurrentEvaluationTime() : 0.0f;
+			CTimeValue sequenceTime = m_pContainer ? m_pContainer->GetCurrentEvaluationTime() : 0;
 
 			for (IJoystick::ChannelType axis = IJoystick::ChannelType(0); axis < 2; axis = IJoystick::ChannelType(axis + 1))
 			{
@@ -445,7 +445,7 @@ public:
 
 	virtual void OnUpdate(const Vec2& vPosition, IJoystickActionContext* pContext)
 	{
-		float currentTime = (m_pContainer ? m_pContainer->GetCurrentEvaluationTime() : 0.0f);
+		CTimeValue currentTime = (m_pContainer ? m_pContainer->GetCurrentEvaluationTime() : 0);
 		if (currentTime < m_lastTime)
 		{
 			m_timeWrappedToBeginning = true;
@@ -472,7 +472,7 @@ public:
 		bool playing = (m_pContainer ? m_pContainer->GetPlaying() : false);
 		if (playing && !m_timeWrappedToBeginning)
 		{
-			const float interval = 1.0f / FACIAL_EDITOR_FPS;
+			const CTimeValue interval = mpfloat(1) / FACIAL_EDITOR_FPS;
 
 			for (IJoystick::ChannelType axis = IJoystick::ChannelType(0); axis < 2; axis = IJoystick::ChannelType(axis + 1))
 			{
@@ -480,25 +480,25 @@ public:
 				JoystickUtils::RemoveKeysInRange(pChannel, m_lastTime, currentTime + interval);
 			}
 
-			float currentInterval = floorf((currentTime + interval) / interval);
+			nTime currentInterval = floor((currentTime + interval) / interval);
 
 			float knobValues[2];
 			UpdateValues(knobValues, vPosition);
 
-			float timeDelta = currentTime - m_lastTime;
-			float timeDeltaReciprocal = (timeDelta > 0.001f ? 1.0f / timeDelta : 0.0f);
+			CTimeValue timeDelta = currentTime - m_lastTime;
+			rTime timeDeltaReciprocal = (timeDelta > "0.001" ? 1 / timeDelta : 0);
 
-			for (float lastInterval = floorf(m_lastTime / interval); lastInterval < currentInterval; ++lastInterval)
+			for (nTime lastInterval = floor(m_lastTime / interval); lastInterval < currentInterval; ++lastInterval)
 			{
 				m_hasPlayed = true;
 
-				float newKeyTime = (lastInterval + 1) * interval;
+				CTimeValue newKeyTime = (lastInterval + 1) * interval;
 
 				for (IJoystick::ChannelType axis = IJoystick::ChannelType(0); axis < 2; axis = IJoystick::ChannelType(axis + 1))
 				{
 					IJoystickChannel* pChannel = m_pJoystick ? m_pJoystick->GetChannel(axis) : 0;
 
-					float newValue = m_lastValues[axis] + (knobValues[axis] - m_lastValues[axis]) * (newKeyTime - m_lastTime) * timeDeltaReciprocal;
+					float newValue = m_lastValues[axis] + (knobValues[axis] - m_lastValues[axis]) * BADF((newKeyTime - m_lastTime) * timeDeltaReciprocal);
 
 					JoystickUtils::SetKey(pChannel, newKeyTime, newValue);
 				}
@@ -552,7 +552,7 @@ private:
 	Vec2                    m_vFirstPosition;
 	Vec2                    m_vOriginalCentre;
 	bool                    m_bAutoCreateKey;
-	float                   m_lastTime;
+	CTimeValue              m_lastTime;
 	bool                    m_hasPlayed;
 	bool                    m_timeWrappedToBeginning;
 	float                   m_lastValues[2];
@@ -778,7 +778,7 @@ void CJoystickCtrl::KeyAll()
 	GetIEditor()->GetIUndoManager()->Begin();
 	StoreSplineUndo(0);
 
-	float currentTime = (m_pContainer ? m_pContainer->GetCurrentEvaluationTime() : 0.0f);
+	CTimeValue currentTime = (m_pContainer ? m_pContainer->GetCurrentEvaluationTime() : 0);
 	for (int joystickIndex = 0; m_pJoysticks && joystickIndex < m_pJoysticks->GetJoystickCount(); ++joystickIndex)
 	{
 		IJoystick* pJoystick = (m_pJoysticks ? m_pJoysticks->GetJoystick(joystickIndex) : 0);
@@ -800,7 +800,7 @@ void CJoystickCtrl::ZeroAll()
 	GetIEditor()->GetIUndoManager()->Begin();
 	StoreSplineUndo(0);
 
-	float currentTime = (m_pContainer ? m_pContainer->GetCurrentEvaluationTime() : 0.0f);
+	CTimeValue currentTime = (m_pContainer ? m_pContainer->GetCurrentEvaluationTime() : 0);
 	for (int joystickIndex = 0; m_pJoysticks && joystickIndex < m_pJoysticks->GetJoystickCount(); ++joystickIndex)
 	{
 		IJoystick* pJoystick = (m_pJoysticks ? m_pJoysticks->GetJoystick(joystickIndex) : 0);
@@ -872,7 +872,7 @@ void CJoystickCtrl::Render(CDC& dc)
 	//OutputDebugString("Joystick Render\n");
 
 	Vec2 vCameraPosition = Vec2(GetScrollPos(SB_HORZ), GetScrollPos(SB_VERT));
-	float sequenceTime = m_pContainer ? m_pContainer->GetCurrentEvaluationTime() : 0;
+	CTimeValue sequenceTime = m_pContainer ? m_pContainer->GetCurrentEvaluationTime() : 0;
 
 	CRect clientRect;
 	GetClientRect(&clientRect);
@@ -1090,8 +1090,8 @@ void CJoystickCtrl::OnJoystickProperties(IJoystick* pJoystick)
 		IJoystickChannel* pChannel = (pJoystick ? pJoystick->GetChannel(axis) : 0);
 		dlg.SetChannelName(axis, (pChannel ? pChannel->GetName() : 0));
 		dlg.SetChannelFlipped(axis, (pChannel ? pChannel->GetFlipped() : false));
-		dlg.SetVideoScale(axis, (pChannel ? pChannel->GetVideoMarkerScale() : 1.0f));
-		dlg.SetVideoOffset(axis, (pChannel ? pChannel->GetVideoMarkerOffset() : 0.0f));
+		dlg.SetVideoScale(axis, BADMP(pChannel ? pChannel->GetVideoMarkerScale() : 1.0f));
+		dlg.SetVideoOffset(axis, BADMP(pChannel ? pChannel->GetVideoMarkerOffset() : 0.0f));
 		dlg.SetChannelEnabled(axis, pChannel != 0);
 	}
 
@@ -1106,8 +1106,8 @@ void CJoystickCtrl::OnJoystickProperties(IJoystick* pJoystick)
 			if (pChannel)
 			{
 				pChannel->SetFlipped(dlg.GetChannelFlipped(axis));
-				pChannel->SetVideoMarkerScale(dlg.GetVideoScale(axis));
-				pChannel->SetVideoMarkerOffset(dlg.GetVideoOffset(axis));
+				pChannel->SetVideoMarkerScale(BADF dlg.GetVideoScale(axis));
+				pChannel->SetVideoMarkerOffset(BADF dlg.GetVideoOffset(axis));
 			}
 		}
 
@@ -1276,7 +1276,7 @@ void CJoystickCtrl::SetContainer(IJoystickCtrlContainer* pContainer)
 
 _smart_ptr<IJoystickActionMode> CJoystickCtrl::FindActionModeForMouseDown(const Vec2& position)
 {
-	float sequenceTime = m_pContainer ? m_pContainer->GetCurrentEvaluationTime() : 0;
+	CTimeValue sequenceTime = m_pContainer ? m_pContainer->GetCurrentEvaluationTime() : 0;
 
 	_smart_ptr<IJoystickActionMode> pActionMode = 0;
 

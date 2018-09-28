@@ -6,7 +6,7 @@
 #include <CryMath/ISplines.h>
 #include <CryAnimation/IFacialAnimation.h>
 
-float JoystickUtils::Evaluate(IJoystickChannel* pChannel, float time)
+float JoystickUtils::Evaluate(IJoystickChannel* pChannel, const CTimeValue& time)
 {
 	float total = 0.0f;
 	for (int splineIndex = 0, splineCount = (pChannel ? int(pChannel->GetSplineCount()) : 0); splineIndex < splineCount; ++splineIndex)
@@ -14,13 +14,13 @@ float JoystickUtils::Evaluate(IJoystickChannel* pChannel, float time)
 		ISplineInterpolator* pSpline = (pChannel ? pChannel->GetSpline(splineIndex) : 0);
 		float v = 0.0f;
 		if (pSpline)
-			pSpline->InterpolateFloat(time, v);
+			pSpline->InterpolateFloat(time.GetSeconds(), v);
 		total += v;
 	}
 	return total;
 }
 
-void JoystickUtils::SetKey(IJoystickChannel* pChannel, float time, float value, bool createIfMissing)
+void JoystickUtils::SetKey(IJoystickChannel* pChannel, const CTimeValue& time, float value, bool createIfMissing)
 {
 	// Add up all the splines except the last one.
 	float total = 0.0f;
@@ -29,14 +29,14 @@ void JoystickUtils::SetKey(IJoystickChannel* pChannel, float time, float value, 
 		ISplineInterpolator* pSpline = (pChannel ? pChannel->GetSpline(splineIndex) : 0);
 		float v = 0.0f;
 		if (pSpline)
-			pSpline->InterpolateFloat(time, v);
+			pSpline->InterpolateFloat(time.GetSeconds(), v);
 		total += v;
 	}
 
 	// Set the key on the last spline so that the total value equals the required value.
 	int splineCount = (pChannel ? pChannel->GetSplineCount() : 0);
 	ISplineInterpolator* interpolator = (pChannel && splineCount >= 0 ? pChannel->GetSpline(splineCount - 1) : 0);
-	int keyIndex = (interpolator ? interpolator->FindKey(FacialEditorSnapTimeToFrame(time), 1.0e-5f) : -1);
+	int keyIndex = (interpolator ? interpolator->FindKey(FacialEditorSnapTimeToFrame(time),"0.00001") : -1);
 	if (interpolator && keyIndex < 0)
 	{
 		if (createIfMissing)
@@ -56,41 +56,41 @@ void JoystickUtils::Serialize(IJoystickChannel* pChannel, XmlNodeRef node, bool 
 		interpolator->SerializeSpline(node, bLoading);
 }
 
-bool JoystickUtils::HasKey(IJoystickChannel* pChannel, float time)
+bool JoystickUtils::HasKey(IJoystickChannel* pChannel, const CTimeValue& time)
 {
 	int splineCount = (pChannel ? pChannel->GetSplineCount() : 0);
 	ISplineInterpolator* interpolator = (pChannel && splineCount >= 0 ? pChannel->GetSpline(splineCount - 1) : 0);
-	int keyIndex = (interpolator ? interpolator->FindKey(FacialEditorSnapTimeToFrame(time), 1.0e-5f) : -1);
+	int keyIndex = (interpolator ? interpolator->FindKey(FacialEditorSnapTimeToFrame(time), "0.00001") : -1);
 	return (keyIndex >= 0);
 }
 
-void JoystickUtils::RemoveKey(IJoystickChannel* pChannel, float time)
+void JoystickUtils::RemoveKey(IJoystickChannel* pChannel, const CTimeValue& time)
 {
 	int splineCount = (pChannel ? pChannel->GetSplineCount() : 0);
 	ISplineInterpolator* interpolator = (pChannel && splineCount >= 0 ? pChannel->GetSpline(splineCount - 1) : 0);
-	int keyIndex = (interpolator ? interpolator->FindKey(FacialEditorSnapTimeToFrame(time), 1.0e-5f) : -1);
+	int keyIndex = (interpolator ? interpolator->FindKey(FacialEditorSnapTimeToFrame(time), "0.00001") : -1);
 	if (interpolator)
 		interpolator->RemoveKey(keyIndex);
 }
 
-void JoystickUtils::RemoveKeysInRange(IJoystickChannel* pChannel, float startTime, float endTime)
+void JoystickUtils::RemoveKeysInRange(IJoystickChannel* pChannel, const CTimeValue& startTime, const CTimeValue& endTime)
 {
 	int splineCount = (pChannel ? pChannel->GetSplineCount() : 0);
 	ISplineInterpolator* interpolator = (pChannel && splineCount >= 0 ? pChannel->GetSpline(splineCount - 1) : 0);
 	if (interpolator)
-		interpolator->RemoveKeysInRange(startTime, endTime);
+		interpolator->RemoveKeysInRange(startTime.GetSeconds(), endTime.GetSeconds());
 }
 
-void JoystickUtils::PlaceKey(IJoystickChannel* pChannel, float time)
+void JoystickUtils::PlaceKey(IJoystickChannel* pChannel, const CTimeValue& time)
 {
-	float frameTime = FacialEditorSnapTimeToFrame(time);
+	CTimeValue frameTime = FacialEditorSnapTimeToFrame(time);
 	int splineCount = (pChannel ? pChannel->GetSplineCount() : 0);
 	ISplineInterpolator* interpolator = (pChannel && splineCount >= 0 ? pChannel->GetSpline(splineCount - 1) : 0);
 	if (pChannel && interpolator && !HasKey(pChannel, frameTime))
 	{
 		float value;
-		interpolator->InterpolateFloat(frameTime, value);
-		interpolator->InsertKeyFloat(frameTime, value);
+		interpolator->InterpolateFloat(frameTime.GetSeconds(), value);
+		interpolator->InsertKeyFloat(frameTime.GetSeconds(), value);
 	}
 }
 

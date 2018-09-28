@@ -238,10 +238,10 @@ public:
 					var->SetFlags(nFlags);
 					if (s_scriptParamTypes[i].flags & SCRIPTPARAM_POSITIVE)
 					{
-						float lmin = 0, lmax = 10000;
-						var->GetLimits(lmin, lmax);
+						mpfloat lmin = 0, lmax = 10000;
+						var->GetLimitsG(lmin, lmax);
 						// set min Limit to 0 hard, to make it positive only value.
-						var->SetLimits(0, lmax, true, false);
+						var->SetLimitsG(0, lmax, true, false);
 					}
 					return var;
 				}
@@ -304,7 +304,7 @@ public:
 					string desc;
 					if (LuaCommentParser::GetInstance()->ParseComment(sTablePath, sName, &minVal, &maxVal, &stepVal, &desc))
 					{
-						var->SetLimits(minVal, maxVal, stepVal);
+						var->SetLimitsG(BADMP(minVal), BADMP(maxVal), BADMP(stepVal));
 						var->SetDescription(desc);
 					}
 

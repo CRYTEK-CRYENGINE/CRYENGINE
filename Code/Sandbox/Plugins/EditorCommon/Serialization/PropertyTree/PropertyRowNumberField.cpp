@@ -43,7 +43,7 @@ void PropertyRowNumberField::redraw(IDrawContext& context)
 			flags |= FIELD_PRESSED;
 		if (userReadOnly())
 			flags |= FIELD_DISABLED;
-		context.drawNumberEntry(valueAsString().c_str(), context.widgetRect, flags, minValue(), maxValue());
+		context.drawNumberEntry(valueAsString().c_str(), context.widgetRect, flags, minValueD(), maxValueD());
 	}
 }
 
@@ -93,11 +93,11 @@ bool PropertyRowNumberField::onMouseDown(PropertyTree* tree, Point point, bool& 
 		{
 			if (point.y() - rect.top() < rect.height() / 2)
 			{
-				addValue(tree, singlestep());
+				add(tree);
 			}
 			else
 			{
-				addValue(tree, -singlestep());
+				sub(tree);
 			}
 			valueAdded_ = true;
 		}

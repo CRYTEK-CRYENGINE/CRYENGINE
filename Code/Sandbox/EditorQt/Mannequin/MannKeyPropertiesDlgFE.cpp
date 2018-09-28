@@ -64,18 +64,18 @@ protected:
 
 		mv_alignToPrevious->SetFlags(mv_alignToPrevious->GetFlags() | IVariable::UI_DISABLED);
 		mv_playbackWeight->SetLimits(0.0f, 20.0f);
-		mv_playbackSpeed->SetLimits(0.0f, 20.0f);
-		mv_blendDuration->SetLimits(0.0f, 20.0f);
+		mv_playbackSpeed->SetLimits(0, 20);
+		mv_blendDuration->SetLimits(0, 20);
 	}
 
 private:
 	CSmartVariableArray         mv_table;
 
 	CSmartVariable<CString>     mv_animation;
-	CSmartVariable<float>       mv_startTime;
+	CSmartVariable<CTimeValue>  mv_startTime;
 	CSmartVariable<float>       mv_playbackWeight;
-	CSmartVariable<float>       mv_playbackSpeed;
-	CSmartVariable<float>       mv_blendDuration;
+	CSmartVariable<mpfloat>     mv_playbackSpeed;
+	CSmartVariable<CTimeValue>  mv_blendDuration;
 	CSmartVariable<bool>        mv_alignToPrevious;
 	CSmartVariable<bool>        mv_looping;
 	CSmartVariable<bool>        mv_timeWarping;
@@ -83,7 +83,7 @@ private:
 	CSmartVariable<bool>        mv_idle2move;
 	CSmartVariable<bool>        mv_fullRootControl;
 	CSmartVariable<int>         mv_jointMask;
-	CSmartVariable<float>       mv_blendChannel[MANN_NUMBER_BLEND_CHANNELS];
+	CSmartVariable<mpfloat>     mv_blendChannel[MANN_NUMBER_BLEND_CHANNELS];
 };
 IMPLEMENT_DYNCREATE(CAnimClipUIControls, CSequencerKeyUIControls)
 
@@ -138,7 +138,7 @@ bool CAnimClipUIControls::OnKeySelectionChange(SelectedKeys& selectedKeys)
 				mv_blendChannel[i] = key.blendChannels[i];
 			}
 
-			mv_startTime->SetLimits(0.0f, key.GetAssetDuration());
+			mv_startTime->SetLimits(0, key.GetAssetDuration());
 
 			bAssigned = true;
 		}
@@ -235,8 +235,8 @@ private:
 	CSmartVariable<bool>  mv_cyclicTransition;
 	CSmartVariable<bool>  mv_cycleLocked;
 	CSmartVariable<bool>  mv_outroTransition;
-	CSmartVariable<float> mv_selectTime;
-	CSmartVariable<float> mv_startTime;
+	CSmartVariable<CTimeValue> mv_selectTime;
+	CSmartVariable<CTimeValue> mv_startTime;
 };
 IMPLEMENT_DYNCREATE(CTransitionPropertyUIControls, CSequencerKeyUIControls)
 
@@ -264,7 +264,7 @@ bool CTransitionPropertyUIControls::OnKeySelectionChange(SelectedKeys& selectedK
 				mv_outroTransition = (key.tranFlags & SFragmentBlend::ExitTransition);
 
 				mv_selectTime = key.blend.pFragmentBlend->selectTime;
-				mv_startTime = key.blend.pFragmentBlend->startTime;
+				mv_startTime  = key.blend.pFragmentBlend->startTime;
 			}
 
 			bAssigned = true;
@@ -447,8 +447,8 @@ private:
 	CSmartVariable<bool>        mv_cyclicTransition;
 	CSmartVariable<bool>        mv_cycleLocked;
 	CSmartVariable<bool>        mv_outroTransition;
-	CSmartVariable<float>       mv_selectTime;
-	CSmartVariable<float>       mv_startTime;
+	CSmartVariable<CTimeValue>  mv_selectTime;
+	CSmartVariable<CTimeValue>  mv_startTime;
 
 };
 IMPLEMENT_DYNCREATE(CFragmentIDUIControls, CSequencerKeyUIControls)
@@ -659,7 +659,7 @@ void CFragmentIDUIControls::OnUIChange(IVariable* pVar, SelectedKeys& selectedKe
 			}
 			SyncValue(mv_selectTime, key.tranSelectTime, false, pVar);
 
-			const float prevStartTimeValue = key.tranStartTimeValue;
+			const CTimeValue prevStartTimeValue = key.tranStartTimeValue;
 			SyncValue(mv_startTime, key.tranStartTimeValue, false, pVar);
 			key.tranStartTimeRelative = prevStartTimeValue - key.tranStartTimeValue;
 
@@ -706,7 +706,7 @@ private:
 	CSmartVariableArray         mv_table;
 
 	CSmartVariableEnum<CString> mv_procType;
-	CSmartVariable<float>       mv_blendDuration;
+	CSmartVariable<CTimeValue>  mv_blendDuration;
 
 	_smart_ptr<IVariable>       mv_params;
 };
@@ -859,7 +859,7 @@ void CProcClipUIControls::UpdateProcType(CProcClipKey& key, EntityId entityId)
 					m_pVarBlock->AddVariable(mv_params, "Params");
 				}
 
-				key.blendDuration = max(0.f, key.pParams->GetEditorDefaultBlendDuration());
+				key.blendDuration = max(CTimeValue(0), key.pParams->GetEditorDefaultBlendDuration());
 			}
 		}
 		else

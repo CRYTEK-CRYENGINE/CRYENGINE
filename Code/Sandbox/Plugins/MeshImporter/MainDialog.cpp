@@ -324,7 +324,7 @@ void CMainDialog::OnViewportRender(const SRenderContext& rc)
 
 		if (!statObj.bSelected && statObj.selectionHeat > 0.0f)
 		{
-			statObj.selectionHeat -= kSelectionCooldownPerSec * gEnv->pSystem->GetITimer()->GetFrameTime();
+			statObj.selectionHeat -= kSelectionCooldownPerSec * gEnv->pSystem->GetITimer()->GetFrameTime().BADGetSeconds();
 		}
 	}
 
@@ -333,7 +333,7 @@ void CMainDialog::OnViewportRender(const SRenderContext& rc)
 		auto& renderInfo = m_nodeRenderInfoMap[i];
 		if (!renderInfo.bSelected && renderInfo.selectionHeat > 0.0f)
 		{
-			renderInfo.selectionHeat -= kSelectionCooldownPerSec * gEnv->pSystem->GetITimer()->GetFrameTime();
+			renderInfo.selectionHeat -= kSelectionCooldownPerSec * gEnv->pSystem->GetITimer()->GetFrameTime().BADGetSeconds();
 
 			const FbxTool::SNode* const pNode = GetScene()->GetNodeByIndex(i);
 			if (!IsNodeVisible(pNode))
@@ -2162,7 +2162,7 @@ void CMainDialog::AssignScene(const MeshImporter::SImportScenePayload* pPayload)
 	// Compile static objects.
 
 	ITimer* const pTimer = gEnv->pSystem->GetITimer();
-	float tMeshCompiling = 0.0f;
+	CTimeValue tMeshCompiling = 0;
 
 	// for (size_t i = 0; i < m_displayScene->statObjs.size(); ++i)
 	concurrency::parallel_for(0, (int)m_displayScene->statObjs.size(), [this, &pTimer, &tMeshCompiling](int i)
@@ -2171,7 +2171,7 @@ void CMainDialog::AssignScene(const MeshImporter::SImportScenePayload* pPayload)
 
 		CMesh* const pEngineMesh = pStatObj->GetIndexedMesh()->GetMesh();
 
-		const float startTime = pTimer->GetAsyncCurTime();
+		const CTimeValue startTime = pTimer->GetAsyncCurTime();
 		mesh_compiler::CMeshCompiler meshCompiler;
 		meshCompiler.Compile(*pEngineMesh, mesh_compiler::MESH_COMPILE_TANGENTS | mesh_compiler::MESH_COMPILE_IGNORE_TANGENT_SPACE_ERRORS);
 		tMeshCompiling += pTimer->GetAsyncCurTime() - startTime;

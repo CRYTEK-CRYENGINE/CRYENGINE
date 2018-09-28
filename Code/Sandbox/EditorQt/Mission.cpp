@@ -41,7 +41,7 @@ CMission::CMission(CCryEditDoc* doc)
 	m_environment = XmlHelpers::CreateXmlNode("Environment");
 	CXmlTemplate::SetValues(m_doc->GetEnvironmentTemplate(), m_environment);
 
-	m_time = 12; // 12 PM by default.
+	m_time.SetSeconds(12); // 12 PM by default.
 
 	m_lighting = new LightingSettings();      // default values are set in the constructor
 
@@ -161,8 +161,8 @@ void CMission::Serialize(CXmlArchive& ar, bool bParts)
 		ar.root->setAttr("Script", m_pScript->GetFilename());
 
 		CString timeStr;
-		int nHour = floor(m_time);
-		int nMins = (m_time - floor(m_time)) * 60.0f;
+		int nHour = (int)floor(m_time.GetSeconds());
+		int nMins = (int)((m_time - nHour) * 60).GetSeconds();
 		timeStr.Format("%.2d:%.2d", nHour, nMins);
 		ar.root->setAttr("MissionTime", timeStr);
 
@@ -211,8 +211,8 @@ void CMission::Export(XmlNodeRef& root, XmlNodeRef& objectsNode)
 	root->setAttr("Description", m_description);
 
 	CString timeStr;
-	int nHour = floor(m_time);
-	int nMins = (m_time - floor(m_time)) * 60.0f;
+	int nHour = (int)floor(m_time.GetSeconds());					// "Seconds" for time-of-day here are 'hours'....
+	int nMins = (int)((m_time - nHour).GetSeconds() * 60);
 	timeStr.Format("%.2d:%.2d", nHour, nMins);
 	root->setAttr("Time", timeStr);
 

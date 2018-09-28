@@ -38,6 +38,18 @@ public:
 		m_ok = true;
 	}
 
+	void Visit(CTimeValue& i)
+	{
+		i.SetSeconds(m_data);
+		m_ok = true;
+	}
+
+	void Visit(mpfloat& i)
+	{
+		i = m_data;
+		m_ok = true;
+	}
+
 	void Visit(bool& b)
 	{
 		int i;
@@ -131,6 +143,16 @@ public:
 	void Visit(const string& i)
 	{
 		m_out = i;
+	}
+
+	void Visit(const CTimeValue& i)
+	{
+		Visit(i.m_lValue);
+	}
+
+	void Visit(const mpfloat& i)
+	{
+		m_out = i.str();
 	}
 
 	void Visit(bool b)
@@ -348,6 +370,12 @@ bool CGameTokenItem::SetTypeName(const char* typeName)
 		break;
 	case eFDT_Bool:
 		m_value = TFlowInputData((bool)false, true);
+		break;
+	case eFDT_Time:
+		m_value = TFlowInputData(CTimeValue(0), true);
+		break;
+	case eFDT_MP:
+		m_value = TFlowInputData(mpfloat(0), true);
 		break;
 	default:
 		// Unknown type.

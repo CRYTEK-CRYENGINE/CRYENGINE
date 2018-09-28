@@ -95,16 +95,16 @@ public:
 	virtual bool IsBoundToEditorObjects() const override;
 
 	// Time range
-	bool              SetTimeRange(TRange<SAnimTime> timeRange, bool skipSettingsChanged = false);
-	TRange<SAnimTime> GetTimeRange() const;
+	bool              SetTimeRange(TRange<CTimeValue> timeRange, bool skipSettingsChanged = false);
+	TRange<CTimeValue> GetTimeRange() const;
 
 	// Playback range
-	void              SetPlaybackRange(TRange<SAnimTime> playbackRange, bool skipSettingsChanged = false);
-	TRange<SAnimTime> GetPlaybackRange() const { return m_playbackRange; }
+	void              SetPlaybackRange(TRange<CTimeValue> playbackRange, bool skipSettingsChanged = false);
+	TRange<CTimeValue> GetPlaybackRange() const { return m_playbackRange; }
 
 	// Current time in sequence. Note that this can be different from the time
 	// of the animation context, if this sequence is used as a sub sequence
-	const SAnimTime GetTime() const;
+	const CTimeValue& GetTime() const;
 
 	// CryMovie Flags
 	void                              SetFlags(IAnimSequence::EAnimSequenceFlags flags, bool skipSettingsChanged = false);
@@ -138,15 +138,15 @@ public:
 	// Active & deactivate
 	void Activate()                         { m_pAnimSequence->Activate(); }
 	void Deactivate()                       { m_pAnimSequence->Deactivate(); }
-	void PrecacheData(const SAnimTime time) { m_pAnimSequence->PrecacheData(time); }
+	void PrecacheData(const CTimeValue& time) { m_pAnimSequence->PrecacheData(time); }
 
 	// Begin & end cut scene
 	void BeginCutScene(const bool bResetFx) const;
 	void EndCutScene() const;
 
 	// Time step
-	float GetFixedTimeStep() const         { return m_pAnimSequence->GetFixedTimeStep(); }
-	void  SetFixedTimeStep(const float dt) { m_pAnimSequence->SetFixedTimeStep(dt); }
+	CTimeValue GetFixedTimeStep() const    { return m_pAnimSequence->GetFixedTimeStep(); }
+	void  SetFixedTimeStep(const CTimeValue& dt) { m_pAnimSequence->SetFixedTimeStep(dt); }
 
 	// Reset
 	void Reset(const bool bSeekToStart) { m_pAnimSequence->Reset(bSeekToStart); }
@@ -194,7 +194,7 @@ public:
 	// then the target anim node and finally the whole sequence. If it doesn't find any
 	// matching location, nothing will be pasted. Before pasting the given time offset is
 	// applied to the keys.
-	void PasteKeysFromClipboard(CTrackViewAnimNode* pTargetNode, CTrackViewTrack* pTargetTrack, const SAnimTime time = SAnimTime(0));
+	void PasteKeysFromClipboard(CTrackViewAnimNode* pTargetNode, CTrackViewTrack* pTargetTrack, const CTimeValue& time = 0);
 
 	// Returns a vector of pairs that match the XML track nodes in the clipboard to the tracks in the sequence for pasting.
 	// It is used by PasteKeysFromClipboard directly and to preview the locations of the to be pasted keys.
@@ -241,7 +241,7 @@ private:
 	virtual void                 EndRestoreTransaction();
 
 	// Current time when animated
-	SAnimTime m_time;
+	CTimeValue m_time;
 
 	// Stores if sequence is bound
 	bool m_bBoundToEditorObjects;
@@ -250,7 +250,7 @@ private:
 	bool m_bAnimating;
 
 	// Used for playback only
-	TRange<SAnimTime>                        m_playbackRange;
+	TRange<CTimeValue>                        m_playbackRange;
 
 	_smart_ptr<IAnimSequence>                m_pAnimSequence;
 	std::vector<ITrackViewSequenceListener*> m_sequenceListeners;

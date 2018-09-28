@@ -179,38 +179,38 @@ void CTrackViewPlaybackControlsToolbar::PopulatePlaybackMenu(CAbstractMenu* inOu
 void CTrackViewPlaybackControlsToolbar::PopulateFramerateMenu(CAbstractMenu* inOutMenu, CTrackViewCore* pTrackViewCore)
 {
 	int sec = inOutMenu->GetNextEmptySection();
-	for (uint i = 0; i < SAnimTime::eFrameRate_Num; ++i)
+	for (uint i = 0; i < SAnimData::eFrameRate_Num; ++i)
 	{
-		const char* szFrameRateName = SAnimTime::GetFrameRateName((SAnimTime::EFrameRate)i);
+		const char* szFrameRateName = SAnimData::GetFrameRateName((SAnimData::EFrameRate)i);
 
 		auto action = inOutMenu->CreateAction(szFrameRateName, sec);
 		action->setCheckable(true);
 		action->setChecked(pTrackViewCore->GetCurrentFramerate() == i);
-		connect(action, &QAction::triggered, [pTrackViewCore, i]() { pTrackViewCore->SetFramerate((SAnimTime::EFrameRate)i); });
+		connect(action, &QAction::triggered, [pTrackViewCore, i]() { pTrackViewCore->SetFramerate((SAnimData::EFrameRate)i); });
 
-		if (i == SAnimTime::eFrameRate_120fps)
+		if (i == SAnimData::eFrameRate_120fps)
 		{
 			sec = inOutMenu->GetNextEmptySection();
 		}
 	}
 }
 
-static const float gPlaybackSpeeds[] = { 0.01f, 0.1f, 0.25f, 0.50f, 0.f, 1.0f, 0.f, 1.5f, 2.0f, 10.0f };
+static const mpfloat gPlaybackSpeeds[] = { "0.01", "0.1", "0.25", "0.50", 0, 1, 0, "1.5", 2, 10 };
 
 void CTrackViewPlaybackControlsToolbar::PopulatePlaybackSpeedMenu(CAbstractMenu* inOutMenu, CTrackViewCore* pTrackViewCore)
 {
 	int sec = inOutMenu->GetNextEmptySection();
 	for (size_t i = 0; i < sizeof(gPlaybackSpeeds) / sizeof(gPlaybackSpeeds[0]); ++i)
 	{
-		float speed = gPlaybackSpeeds[i];
-		if (speed == 0.0f)
+		mpfloat speed = gPlaybackSpeeds[i];
+		if (speed == 0)
 		{
 			sec = inOutMenu->GetNextEmptySection();
 		}
 		else
 		{
 			QString str;
-			str.sprintf("%.2fx", speed);
+			str.sprintf("%.2fx", (float)speed);
 
 			auto action = inOutMenu->CreateAction(str, sec);
 			action->setCheckable(true);
@@ -244,8 +244,8 @@ void CTrackViewPlaybackControlsToolbar::OnTrackViewEditorEvent(ETrackViewEditorE
 	{
 	case eTrackViewEditorEvent_OnFramerateChanged:
 		{
-			SAnimTime::EFrameRate currentFramerate = GetTrackViewCore()->GetCurrentFramerate();
-			m_framerate = SAnimTime::GetFrameRateValue(currentFramerate);
+			SAnimData::EFrameRate currentFramerate = GetTrackViewCore()->GetCurrentFramerate();
+			m_framerate = SAnimData::GetFrameRateValue(currentFramerate);
 			//intentional fall through
 		}
 	case eTrackViewEditorEvent_OnDisplayModeChanged:
@@ -258,7 +258,7 @@ void CTrackViewPlaybackControlsToolbar::OnTrackViewEditorEvent(ETrackViewEditorE
 	}
 }
 
-void CTrackViewPlaybackControlsToolbar::UpdateTime(SAnimTime newTime, bool bForce)
+void CTrackViewPlaybackControlsToolbar::UpdateTime(const CTimeValue& newTime, bool bForce)
 {
 	if ((newTime == m_lastTime) && !bForce)
 	{
@@ -282,46 +282,45 @@ void CTrackViewPlaybackControlsToolbar::UpdateText()
 	QString text;
 	text.reserve(256);
 
-	const int32 ticks = m_lastTime.GetTicks();
-	const int32 totalSeconds = (int32)ticks / SAnimTime::numTicksPerSecond;
-	const int32 totalRemainder = ticks % SAnimTime::numTicksPerSecond;
-	const int32 mins = (int32)totalSeconds / 60;
-	const int32 secs = totalSeconds % 60;
+	//const int32 ticks = m_lastTime.GetTicks();
+	const CTimeValue totalTime = m_lastTime;
+	const CTimeValue totalRemainder = m_lastTime % 1;
+	const int32 mins = (int32)totalTime.GetSeconds() / 60;
+	const int32 secs = (int32)mod(totalTime.GetSeconds(), mpfloat(60));
 
 	switch (m_displayMode)
 	{
-	case SAnimTime::EDisplayMode::Ticks:
+	case SAnimData::EDisplayMode::Ticks:
 		{
-			text.sprintf("%010d (%d tps)", ticks, SAnimTime::numTicksPerSecond);
+			text.sprintf("%010d (%d tps)", (int)(m_lastTime.GetSeconds() * SAnimData::numTicksPerSecond), SAnimData::numTicksPerSecond);
 		}
 		break;
 
-	case SAnimTime::EDisplayMode::Frames:
+	case SAnimData::EDisplayMode::Frames:
 		{
-			const int32 ticksPerFrame = SAnimTime::numTicksPerSecond / m_framerate;
-			const int32 totalFrames = ticks / ticksPerFrame;
-			text.sprintf("%06d (%d fps)", totalFrames, m_framerate);
+			const CTimeValue ticksPerFrame = CTimeValue(1) / m_framerate;
+			const nTime totalFrames = totalTime / ticksPerFrame;
+			text.sprintf("%06d (%d fps)", (int)totalFrames, m_framerate);
 		}
 		break;
 
-	case SAnimTime::EDisplayMode::Time:
+	case SAnimData::EDisplayMode::Time:
 		{
-			const int32 millisecs = int_round(((float)totalRemainder / SAnimTime::numTicksPerSecond) * 1000.f);
-			text.sprintf("%02d:%02d:%03d (%d fps)", mins, secs, millisecs, m_framerate);
+			text.sprintf("%02d:%02d:%03d (%d fps)", mins, secs, (float)totalRemainder.GetMilliSeconds(), m_framerate);
 		}
 		break;
 
-	case SAnimTime::EDisplayMode::Timecode:
+	case SAnimData::EDisplayMode::Timecode:
 		{
-			const int32 ticksPerFrame = SAnimTime::numTicksPerSecond / m_framerate;
-			const int32 leftOverFrames = totalRemainder / (ticksPerFrame == 0 ? 1 : ticksPerFrame);
+			const CTimeValue timePerFrame = CTimeValue(1) / m_framerate;
+			const nTime leftOverFrames = totalRemainder / (timePerFrame == 0 ? 1 : timePerFrame);
 
 			if (m_framerate < 100)
-				text.sprintf("%02d:%02d:%02d (%d fps)", mins, secs, leftOverFrames, m_framerate);
+				text.sprintf("%02d:%02d:%02d (%d fps)", mins, secs, (int)leftOverFrames, m_framerate);
 			else if (m_framerate < 1000)
-				text.sprintf("%02d:%02d:%03d (%d fps)", mins, secs, leftOverFrames, m_framerate);
+				text.sprintf("%02d:%02d:%03d (%d fps)", mins, secs, (int)leftOverFrames, m_framerate);
 			else
-				text.sprintf("%02d:%02d:%04d (%d fps)", mins, secs, leftOverFrames, m_framerate);
+				text.sprintf("%02d:%02d:%04d (%d fps)", mins, secs, (int)leftOverFrames, m_framerate);
 		}
 		break;
 
@@ -349,7 +348,7 @@ void CTrackViewPlaybackControlsToolbar::OnLoopingStateChanged(bool bLooping)
 	m_pActionLoop->setChecked(bLooping);
 }
 
-void CTrackViewPlaybackControlsToolbar::OnTimeChanged(SAnimTime newTime)
+void CTrackViewPlaybackControlsToolbar::OnTimeChanged(const CTimeValue& newTime)
 {
 	UpdateTime(newTime);
 }

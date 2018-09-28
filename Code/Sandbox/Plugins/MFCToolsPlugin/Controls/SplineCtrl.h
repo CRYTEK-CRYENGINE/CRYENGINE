@@ -37,7 +37,7 @@ public:
 	void                 ToggleKeySlope(int nIndex, int nDist);
 
 	void                 SetGrid(int numX, int numY)            { m_gridX = numX; m_gridY = numY; };
-	void                 SetTimeRange(float tmin, float tmax)   { m_fMinTime = tmin; m_fMaxTime = tmax; }
+	void                 SetTimeRange(const CTimeValue& tmin, const CTimeValue& tmax)   { m_fMinTime = tmin; m_fMaxTime = tmax; }
 	void                 SetValueRange(float tmin, float tmax)  { m_fMinValue = tmin; m_fMaxValue = tmax; if (m_fMinValue == m_fMaxValue) m_fMaxValue = m_fMinValue + 0.001f; }
 	void                 SetTooltipValueScale(float x, float y) { m_fTooltipScaleX = x; m_fTooltipScaleY = y; };
 	// Lock value of first and last key to be the same.
@@ -46,7 +46,7 @@ public:
 	void                 SetSpline(ISplineInterpolator* pSpline, BOOL bRedraw = FALSE);
 	ISplineInterpolator* GetSpline();
 
-	void                 SetTimeMarker(float fTime);
+	void                 SetTimeMarker(const CTimeValue& fTime);
 	void                 SetTimelineCtrl(CTimelineCtrl* pTimelineCtrl);
 	void                 UpdateToolTip();
 
@@ -90,9 +90,9 @@ protected:
 	void   RemoveKey(int nKey);
 
 	CPoint KeyToPoint(int nKey);
-	CPoint TimeToPoint(float time);
-	void   PointToTimeValue(CPoint point, float& time, float& value);
-	float  XOfsToTime(int x);
+	CPoint TimeToPoint(const CTimeValue& time);
+	void   PointToTimeValue(CPoint point, CTimeValue& time, float& value);
+	CTimeValue XOfsToTime(int x);
 	CPoint XOfsToPoint(int x);
 
 	void   ClearSelection();
@@ -111,7 +111,7 @@ private:
 	int                  m_nHitKeyIndex;
 	int                  m_nHitKeyDist;
 
-	float                m_fTimeMarker;
+	CTimeValue           m_fTimeMarker;
 
 	int                  m_nActiveKey;
 	int                  m_nKeyDrawRadius;
@@ -121,7 +121,7 @@ private:
 	int                  m_gridX;
 	int                  m_gridY;
 
-	float                m_fMinTime, m_fMaxTime;
+	CTimeValue           m_fMinTime, m_fMaxTime;
 	float                m_fMinValue, m_fMaxValue;
 	float                m_fTooltipScaleX, m_fTooltipScaleY;
 

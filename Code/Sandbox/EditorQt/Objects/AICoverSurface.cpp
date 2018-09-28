@@ -104,7 +104,7 @@ void CAICoverSurface::Display(CObjectRenderHelper& objRenderHelper)
 
 	if (m_sampler)
 	{
-		switch (m_sampler->Update(0.025f, 2.0f))
+		switch (m_sampler->Update("0.025", 2))
 		{
 		case ICoverSampler::Finished:
 			{
@@ -215,7 +215,7 @@ void CAICoverSurface::Generate()
 	CreateSampler();
 	StartSampling();
 
-	while (m_sampler->Update(2.0f) == ICoverSampler::InProgress)
+	while (m_sampler->Update(2) == ICoverSampler::InProgress)
 		;
 
 	if ((m_sampler->GetState() != ICoverSampler::Error) && (m_sampler->GetSampleCount() > 1))
@@ -471,9 +471,9 @@ void CAICoverSurface::DisplayBadCoverSurfaceObject(DisplayContext& disp)
 	}
 	else
 	{
-		const float time = gEnv->pTimer->GetAsyncCurTime();
+		const CTimeValue time = GetGTimer()->GetAsyncCurTime();
 
-		alpha = clamp_tpl((1.0f + sinf(time * 2.5f)) * 0.5f, 0.25f, 0.7f);
+		alpha = clamp_tpl((1.0f + sinf(time.BADGetSeconds() * 2.5f)) * 0.5f, 0.25f, 0.7f);
 	}
 
 	const ColorB color(255, 0, 0, (uint8)(alpha * 255));

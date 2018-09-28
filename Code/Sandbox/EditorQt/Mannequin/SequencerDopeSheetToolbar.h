@@ -16,11 +16,11 @@ public:
 	CSequencerDopeSheetToolbar();
 	virtual ~CSequencerDopeSheetToolbar();
 	virtual void InitToolbar();
-	virtual void SetTime(float fTime, float fFps);
+	virtual void SetTime(const CTimeValue& fTime, const rTime& fFps);
 
 protected:
 	CStatic m_timeWindow;
-	float   m_lastTime;
+	CTimeValue m_lastTime;
 
 };
 

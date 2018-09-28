@@ -79,15 +79,15 @@ CAnimationContext::CAnimationContext()
 	m_bPaused = false;
 	m_bRecording = false;
 	m_bSavedRecordingState = false;
-	m_timeRange.Set(SAnimTime(0.0f), SAnimTime(0.0f));
-	m_playbackRange.Set(SAnimTime(0.0f), SAnimTime(0.0f));
-	m_currTime = SAnimTime(0.0f);
+	m_timeRange.Set(0, 0);
+	m_playbackRange.Set(0,0);
+	m_currTime.SetSeconds(0);
 	m_bForceUpdateInNextFrame = false;
-	m_fTimeScale = 1.0f;
+	m_fTimeScale = 1;
 	m_pSequence = nullptr;
 	m_bLooping = false;
 	m_bAutoRecording = false;
-	m_recordingTimeStep = SAnimTime(0.0f);
+	m_recordingTimeStep.SetSeconds(0);
 	m_bSingleFrame = false;
 	m_bPostRenderRegistered = false;
 	m_bWasRecording = false;
@@ -138,7 +138,7 @@ void CAnimationContext::SetSequence(CTrackViewSequence* pSequence, bool bForce, 
 	const bool bRecording = m_bRecording;
 	m_bRecording = false;
 
-	m_currTime = m_recordingCurrTime = SAnimTime(0.0f);
+	m_currTime = m_recordingCurrTime = CTimeValue(0);
 
 	if (!m_bPostRenderRegistered)
 	{
@@ -178,7 +178,7 @@ void CAnimationContext::SetSequence(CTrackViewSequence* pSequence, bool bForce, 
 
 		UpdateTimeRange();
 		m_pSequence->Activate();
-		m_pSequence->PrecacheData(SAnimTime(0.0f));
+		m_pSequence->PrecacheData(0);
 
 		m_pSequence->BindToEditorObjects();
 	}
@@ -190,7 +190,7 @@ void CAnimationContext::SetSequence(CTrackViewSequence* pSequence, bool bForce, 
 		for (size_t i = 0; i < m_contextListeners.size(); ++i)
 		{
 			if (!pSequence)
-				m_contextListeners[i]->OnTimeChanged(SAnimTime(0));
+				m_contextListeners[i]->OnTimeChanged(0);
 			else
 				m_contextListeners[i]->OnTimeChanged(pSequence->GetTimeRange().start);
 
@@ -207,9 +207,9 @@ void CAnimationContext::UpdateTimeRange()
 	{
 		m_timeRange = m_pSequence->GetTimeRange();
 		auto seqPlaybackRange = m_pSequence->GetPlaybackRange();
-		m_playbackRange.start = seqPlaybackRange.start != SAnimTime(-1) ? std::max(seqPlaybackRange.start, m_timeRange.start) : m_timeRange.start;
+		m_playbackRange.start = seqPlaybackRange.start != -1 ? std::max(seqPlaybackRange.start, m_timeRange.start) : m_timeRange.start;
 		m_playbackRange.start = std::min(m_playbackRange.start, m_timeRange.end);
-		m_playbackRange.end = seqPlaybackRange.end != SAnimTime(-1) ? std::min(seqPlaybackRange.end, m_timeRange.end) : m_timeRange.end;
+		m_playbackRange.end = seqPlaybackRange.end != -1 ? std::min(seqPlaybackRange.end, m_timeRange.end) : m_timeRange.end;
 		m_playbackRange.end = std::max(m_playbackRange.end, m_playbackRange.start);
 		m_playbackRange.end = std::max(m_playbackRange.end, m_timeRange.start);
 	}
@@ -226,8 +226,9 @@ void CAnimationContext::SetLoopMode(bool bLooping)
 	}
 }
 
-void CAnimationContext::SetTime(SAnimTime t)
+void CAnimationContext::SetTime(const CTimeValue& tIn)
 {
+	CTimeValue t = tIn;
 	if (t < m_timeRange.start)
 	{
 		t = m_timeRange.start;
@@ -264,9 +265,9 @@ void CAnimationContext::SetRecording(bool bRecording)
 	m_bRecording = bRecording;
 	m_bPlaying = false;
 
-	if (!bRecording && m_recordingTimeStep != SAnimTime(0.0f))
+	if (!bRecording && m_recordingTimeStep != 0)
 	{
-		SetAutoRecording(false, SAnimTime(0));
+		SetAutoRecording(false, 0);
 	}
 
 	// If started recording, assume we have modified the document.
@@ -367,7 +368,7 @@ void CAnimationContext::Stop()
 
 void CAnimationContext::Update()
 {
-	const SAnimTime lastTime = m_currTime;
+	const CTimeValue lastTime = m_currTime;
 	bool forceNotify = false;
 
 	if (m_bForceUpdateInNextFrame)
@@ -407,11 +408,11 @@ void CAnimationContext::Update()
 	}
 
 	ITimer* pTimer = GetIEditor()->GetSystem()->GetITimer();
-	const float frameTime = pTimer->GetFrameTime();
+	const CTimeValue frameTime = pTimer->GetFrameTime();
 
 	if (m_bAutoRecording)
 	{
-		m_recordingCurrTime += SAnimTime(frameTime * m_fTimeScale);
+		m_recordingCurrTime += frameTime * m_fTimeScale;
 		if ((m_recordingCurrTime - m_currTime) > m_recordingTimeStep)
 		{
 			m_currTime += m_recordingTimeStep;
@@ -419,7 +420,7 @@ void CAnimationContext::Update()
 
 		if (m_currTime > m_playbackRange.end)
 		{
-			SetAutoRecording(false, SAnimTime(0));
+			SetAutoRecording(false, 0);
 		}
 
 		// Send sync with physics event to all selected entities.
@@ -432,7 +433,7 @@ void CAnimationContext::Update()
 		if (m_pSequence != NULL)
 		{
 			SAnimContext ac;
-			ac.dt = SAnimTime(0);
+			ac.dt.SetSeconds(0);
 			ac.time = m_currTime;
 			ac.bSingleFrame = m_bSingleFrame;
 			ac.m_activeCameraEntity = GetActiveCameraEntityId();
@@ -457,7 +458,7 @@ void CAnimationContext::Update()
 
 		if (updateTime)
 		{
-			SAnimTime futureTime = m_currTime + SAnimTime(frameTime * m_fTimeScale);
+			CTimeValue futureTime = m_currTime + (frameTime * m_fTimeScale);
 			if (futureTime > m_playbackRange.end)
 			{
 				if (m_bLooping)
@@ -543,7 +544,7 @@ EntityId CAnimationContext::GetActiveCameraEntityId() const
 	return 0;
 }
 
-void CAnimationContext::SetAutoRecording(bool bEnable, SAnimTime fTimeStep)
+void CAnimationContext::SetAutoRecording(bool bEnable, const CTimeValue& fTimeStep)
 {
 	if (bEnable)
 	{
@@ -557,7 +558,7 @@ void CAnimationContext::SetAutoRecording(bool bEnable, SAnimTime fTimeStep)
 	else
 	{
 		m_bAutoRecording = false;
-		m_recordingTimeStep = SAnimTime(0);
+		m_recordingTimeStep.SetSeconds(0);
 
 		// Disables physics/ai.
 		GetIEditor()->GetGameEngine()->SetSimulationMode(false);
@@ -578,9 +579,9 @@ void CAnimationContext::GoToFrameCmd(IConsoleCmdArgs* pArgs)
 	CTrackViewSequence* pSeq = pAnimationContext->GetSequence();
 	string fullname = pSeq->GetName();
 	assert(pSeq && strcmp(fullname.c_str(), pArgs->GetArg(1)) == 0);
-	float targetFrame = (float)atof(pArgs->GetArg(2));
-	assert(pSeq->GetTimeRange().start <= SAnimTime(targetFrame) && SAnimTime(targetFrame) <= pSeq->GetTimeRange().end);
-	CTrackViewPlugin::GetAnimationContext()->m_currTime = SAnimTime(targetFrame);
+	CTimeValue targetFrame = CTimeValue(pArgs->GetArg(2));
+	assert(pSeq->GetTimeRange().start <= targetFrame && targetFrame <= pSeq->GetTimeRange().end);
+	CTrackViewPlugin::GetAnimationContext()->m_currTime = targetFrame;
 	pAnimationContext->m_bSingleFrame = true;
 
 	pAnimationContext->ForceAnimation();
@@ -616,7 +617,7 @@ void CAnimationContext::UpdateAnimatedLights()
 		  bool bTimeScrubbing = pEntityObject->GetEntityPropertyBool("bTimeScrubbingInTrackView");
 		  if (bTimeScrubbing)
 		  {
-		    pEntityObject->SetEntityPropertyFloat("_fTimeScrubbed", m_currTime);
+		    pEntityObject->SetEntityPropertyTV("_fTimeScrubbed", m_currTime);
 		  }
 		}
 	});

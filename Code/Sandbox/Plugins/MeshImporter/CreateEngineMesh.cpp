@@ -510,7 +510,7 @@ void TranslateMaterialIndices(
 void CreateMesh(const SVertex* vertices, int nIndices, CMesh& outputMesh, SCreateEngineMeshStats* pStats)
 {
 	ITimer* const pTimer = gEnv->pSystem->GetITimer();
-	float startTime, endTime;
+	CTimeValue startTime, endTime;
 
 	// Sort vertices.
 	startTime = pTimer->GetAsyncCurTime();
@@ -713,8 +713,8 @@ const char* CreateEngineMesh(
 	}
 
 	ITimer* const pTimer = gEnv->pSystem->GetITimer();
-	const float totalStartTime = pTimer->GetAsyncCurTime();
-	float startTime, endTime;
+	const CTimeValue totalStartTime = pTimer->GetAsyncCurTime();
+	CTimeValue startTime, endTime;
 
 	std::vector<SVertex> vertices;
 
@@ -769,7 +769,7 @@ const char* CreateEngineMesh(
 		pStats->elapsedCreateMesh += endTime - startTime;
 	}
 
-	const float totalEndTime = pTimer->GetAsyncCurTime();
+	const CTimeValue totalEndTime = pTimer->GetAsyncCurTime();
 	if (pStats)
 	{
 		pStats->elapsedTotal += totalEndTime - totalStartTime;

@@ -27,11 +27,11 @@ public:
 	virtual void UnBindFromEditorObjects() override;
 
 	// Get camera shake rotation
-	void GetShakeRotation(const SAnimTime time, Quat& rotation);
+	void GetShakeRotation(const CTimeValue& time, Quat& rotation);
 
 private:
-	template<class T> void SetParameter(SAnimTime time, EAnimParamType paramType, const T& type);
-	template<class T> void GetParameter(SAnimTime time, EAnimParamType paramType, T& type);
+	template<class T> void SetParameter(const CTimeValue& time, EAnimParamType paramType, const T& type);
+	template<class T> void GetParameter(const CTimeValue& time, EAnimParamType paramType, T& type);
 
 	virtual void           OnFovChange(const float fov);
 	virtual void           OnNearZChange(const float nearZ);

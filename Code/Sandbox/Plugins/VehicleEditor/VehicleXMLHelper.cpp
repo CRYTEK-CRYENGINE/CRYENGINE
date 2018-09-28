@@ -749,13 +749,13 @@ void VehicleXml::SetExtendedVarProperties(IVariable* pVar, const XmlNodeRef& nod
 	pVar->SetUserData(NULL);
 
 	{
-		float min;
-		float max;
-		pVar->GetLimits(min, max);
+		mpfloat min;
+		mpfloat max;
+		pVar->GetLimitsG(min, max);
 
 		node->getAttr("min", min);
 		node->getAttr("max", max);
-		pVar->SetLimits(min, max);
+		pVar->SetLimitsG(min, max);
 	}
 
 	{

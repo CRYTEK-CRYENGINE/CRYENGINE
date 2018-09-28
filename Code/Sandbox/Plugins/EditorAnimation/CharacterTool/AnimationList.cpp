@@ -451,9 +451,9 @@ void AnimationList::ReloadAnimationList()
 		int pakState = GetAnimationPakState(animationPath);
 		pakColumnValues.push_back(std::make_pair(entryId, pakState));
 
-		float durationSeconds = m_animationSet->GetDuration_sec(i);
+		CTimeValue durationSeconds = m_animationSet->GetDuration(i);
 		const uint32 animationSamplingFrequencyHz = 30;
-		int frameCount = 1 + uint32(durationSeconds * animationSamplingFrequencyHz + 0.5f);
+		int frameCount = 1 + uint32(durationSeconds.GetSeconds() * animationSamplingFrequencyHz + "0.5");
 		framesColumnValues.push_back(std::make_pair(entryId, frameCount));
 	}
 

@@ -400,7 +400,7 @@ void CharacterToolForm::OnFocusChanged(QWidget* old, QWidget* now)
 
 void CharacterToolForm::ResetLayout()
 {
-	m_system->document->ScrubTime(0.0f, false);
+	m_system->document->ScrubTime(0, false);
 	m_system->document->GetViewportOptions() = ViewportOptions();
 	m_system->document->DisplayOptionsChanged();
 	m_system->document->GetPlaybackOptions() = PlaybackOptions();

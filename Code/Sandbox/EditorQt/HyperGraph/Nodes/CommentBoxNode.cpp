@@ -77,7 +77,7 @@ CCommentBoxNode::CCommentBoxNode()
 		port.pVar->SetName("SortPriority");
 		port.pVar->Set(int(m_drawPriority));
 		port.pVar->SetDescription("Drawing priority");
-		port.pVar->SetLimits(0, MAX_DRAW_PRIORITY, 1);
+		port.pVar->SetLimitsG(0, (int)MAX_DRAW_PRIORITY, 1);
 		AddPort(port);
 	}
 }

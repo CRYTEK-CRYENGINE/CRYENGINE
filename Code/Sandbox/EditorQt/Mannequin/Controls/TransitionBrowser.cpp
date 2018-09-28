@@ -1388,12 +1388,12 @@ CTransitionBrowserRecord::SRecordData::SRecordData(const CString& from, const CS
 {
 }
 
-CTransitionBrowserRecord::SRecordData::SRecordData(const TTransitionID& transitionID, float selectTime)
+CTransitionBrowserRecord::SRecordData::SRecordData(const TTransitionID& transitionID, const CTimeValue& selectTime)
 	: m_to("")
 	, m_bFolder(false)
 	, m_transitionID(transitionID)
 {
-	m_from.Format("Select @ %5.2f", selectTime);
+	m_from.Format("Select @ %5.2f", (float)selectTime.GetSeconds());
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -1407,7 +1407,7 @@ CTransitionBrowserRecord::CTransitionBrowserRecord(const CString& from, const CS
 	CreateItems();
 }
 
-CTransitionBrowserRecord::CTransitionBrowserRecord(const TTransitionID& transitionID, float selectTime)
+CTransitionBrowserRecord::CTransitionBrowserRecord(const TTransitionID& transitionID, const CTimeValue& selectTime)
 	: CTreeItemRecord()
 	, m_data(transitionID, selectTime)
 {

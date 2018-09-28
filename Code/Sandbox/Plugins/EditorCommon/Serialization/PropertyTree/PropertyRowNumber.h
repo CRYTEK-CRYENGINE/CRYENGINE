@@ -66,31 +66,25 @@ Output clamp(Input value, Output min, Output max)
 	return Output(value);
 }
 
-// workaround for VS2005 missing numeric_limits<>::lowest()
-inline float limit_min(float) { return -FLT_MAX; }
-inline float limit_max(float) { return FLT_MAX; }
-inline double limit_min(double) { return -DBL_MAX; }
-inline double limit_max(double) { return DBL_MAX; }
 template<class T> T limit_min(T) { return std::numeric_limits<T>::min(); }
 template<class T> T limit_max(T) { return std::numeric_limits<T>::max(); }
-
 template<class Out, class In> void clampToType(Out* out, In value) { *out = clamp(value, limit_min((Out)value), limit_max((Out)value)); }
 
 bool isDigit(int ch);
 
 double parseFloat(const char* s);
 
-inline void clampedNumberFromString(char* value, const char* str)        { clampToType(value, stringToSignedInteger(str)); }
-inline void clampedNumberFromString(signed char* value, const char* str) { clampToType(value, stringToSignedInteger(str)); }
-inline void clampedNumberFromString(short* value, const char* str)		 { clampToType(value, stringToSignedInteger(str)); }
-inline void clampedNumberFromString(int* value, const char* str)         { clampToType(value, stringToSignedInteger(str)); }
-inline void clampedNumberFromString(long* value, const char* str)		 { clampToType(value, stringToSignedInteger(str)); }
-inline void clampedNumberFromString(long long* value, const char* str)   { clampToType(value, stringToSignedInteger(str)); }
-inline void clampedNumberFromString(unsigned char* value, const char* str)		{ clampToType(value, stringToUnsignedInteger(str)); }
+inline void clampedNumberFromString(char* value, const char* str)					{ clampToType(value, stringToSignedInteger(str)); }
+inline void clampedNumberFromString(signed char* value, const char* str)		{ clampToType(value, stringToSignedInteger(str)); }
+inline void clampedNumberFromString(short* value, const char* str)				{ clampToType(value, stringToSignedInteger(str)); }
+inline void clampedNumberFromString(int* value, const char* str)					{ clampToType(value, stringToSignedInteger(str)); }
+inline void clampedNumberFromString(long* value, const char* str)					{ clampToType(value, stringToSignedInteger(str)); }
+inline void clampedNumberFromString(long long* value, const char* str)			{ clampToType(value, stringToSignedInteger(str)); }
+inline void clampedNumberFromString(unsigned char* value, const char* str)			{ clampToType(value, stringToUnsignedInteger(str)); }
 inline void clampedNumberFromString(unsigned short* value, const char* str)		{ clampToType(value, stringToUnsignedInteger(str)); }
-inline void clampedNumberFromString(unsigned int* value, const char* str)		{ clampToType(value, stringToUnsignedInteger(str)); }
-inline void clampedNumberFromString(unsigned long* value, const char* str)		{ clampToType(value, stringToUnsignedInteger(str)); }
-inline void clampedNumberFromString(unsigned long long* value, const char* str) { clampToType(value, stringToUnsignedInteger(str)); }
+inline void clampedNumberFromString(unsigned int* value, const char* str)			{ clampToType(value, stringToUnsignedInteger(str)); }
+inline void clampedNumberFromString(unsigned long* value, const char* str)			{ clampToType(value, stringToUnsignedInteger(str)); }
+inline void clampedNumberFromString(unsigned long long* value, const char* str)	{ clampToType(value, stringToUnsignedInteger(str)); }
 inline void clampedNumberFromString(float* value, const char* str)
 {
 	double v = parseFloat(str);
@@ -100,11 +94,22 @@ inline void clampedNumberFromString(float* value, const char* str)
 		v = -FLT_MAX;
 	*value = float(v);
 }
-
 inline void clampedNumberFromString(double* value, const char* str)
 {
 	*value = parseFloat(str);
 }
+
+inline void clampedNumberFromString(CTimeValue* value, const char* str)
+{
+	*value = CTimeValue(str);
+}
+#define MP_FUNCTION(T)\
+inline void clampedNumberFromString(T* value, const char* str)\
+{\
+	*value = T(str);\
+}
+#include <CrySystem\mpfloat.types>
+#undef MP_FUNCTION
 
 
 template<class Type>
@@ -112,10 +117,10 @@ class PropertyRowNumber : public PropertyRowNumberField{
 public:
 	PropertyRowNumber()
 	{
-		hardLimit_.min = limit_min((Type)0);
-		hardLimit_.max = limit_max((Type)0);
+		hardLimit_.min = std::numeric_limits<Type>::min();
+		hardLimit_.max = std::numeric_limits<Type>::max();
 		softLimit_ = hardLimit_;
-		singleStep_ = yasli::DefaultSinglestep<Type>::value();
+		singleStep_ = yasli::DefaultSinglestep<Type>();
 	}
 
 	void setValue(Type value, const void* handle, const yasli::TypeID& type) {
@@ -125,11 +130,11 @@ public:
 	}
 	bool setValueFromString(const char* str) override{
         Type value = value_;
-		clampedNumberFromString(&value_, str);
+		  clampedNumberFromString(&value_, str);
         return value_ != value;
 	}
 	yasli::string valueAsString() const override{ 
-        return numberAsString(Type(value_));
+        return numberAsString(value_);
 	}
 
 	bool assignToPrimitive(void* object, size_t size) const override{
@@ -146,7 +151,7 @@ public:
 		hardLimit_.max = range->hardMax;
 		softLimit_.min = range->softMin;
 		softLimit_.max = range->softMax;
-		singleStep_ = (double)range->singleStep;
+		singleStep_ = range->singleStep;
 	}
 
   bool assignTo(const yasli::Serializer& ser) const override 
@@ -169,11 +174,33 @@ public:
 		ar(softLimit_.max, "softMax", "SoftMax");
 	}
 
+public: // Conversions PERSONAL IMPROVE: Perhaps in rewrites implement this as a cleaner workaround?
+
+	// Convert from mpfloat TO lossy/other-strong types.
+	template <class T = Type, typename boost::enable_if_c<isMP>::type* = 0>
+	T convType(const mpfloat & val){
+		return val.conv<T>();
+	}
+	template <class T = Type, typename boost::enable_if_c<!isMP>::type* = 0>
+	T convType(const mpfloat & val) {
+		return (T)val;
+	}
+
+	// Convert to mpfloat FROM lossy/other-strong types.
+	template <class T, typename boost::enable_if_c<isMP>::type* = 0>
+	mpfloat convTo(const T& val) {
+		return val.conv<mpfloat>();
+	}
+	template <class T, typename boost::enable_if_c<!isMP>::type* = 0>
+	mpfloat convTo(const T& val) {
+		return mpfloat().lossy(val);
+	}
+
+public: // Incrementation
 	void startIncrement() override
 	{
 		incrementStartValue_ = value_;
 	}
-
 	void endIncrement(PropertyTree* tree) override
 	{
 		if (value_ != incrementStartValue_) {
@@ -184,86 +211,89 @@ public:
 		}
 	}
 
-	void incrementLog(float screenFraction, float valueFieldFraction) override
+	void incrementLog(const mpfloat& screenFraction, const mpfloat& valueFieldFraction) override
 	{
-		double screenFractionMultiplier = 1000.0;
+		mpfloat screenFractionMultiplier = 1000;
 		if (yasli::TypeID::get<Type>() == yasli::TypeID::get<float>() ||
 			 	yasli::TypeID::get<Type>() == yasli::TypeID::get<double>()) 
-			screenFractionMultiplier = 10.0;
+			screenFractionMultiplier = 10;
 
-		double startPower = log10(fabs(double(incrementStartValue_)) + 1.0) - 3.0;
-		double power = startPower + fabs(screenFraction) * 10.0f;
-		double delta = pow(10.0, power) - pow(10.0, startPower) + screenFractionMultiplier * fabs(screenFraction);
-		double newValue;
-		if (screenFraction > 0.0f)
-			newValue = double(incrementStartValue_) + delta;
+		mpfloat incValue = convTo(incrementStartValue_);
+
+		mpfloat startPower = log10(abs(incValue) + 1) - 3;
+		mpfloat power = startPower + abs(screenFraction) * 10;
+		mpfloat delta = pow<mpfloat>(10, power) - pow<mpfloat>(10, startPower) + screenFractionMultiplier * abs(screenFraction);
+		mpfloat newValue;
+		if (screenFraction > 0)
+			newValue = incValue + delta;
 		else
-			newValue = double(incrementStartValue_) - delta;
-#ifdef _MSC_VER
-		if (_isnan(newValue)) {
-#else
-		if (isnan(newValue)) {
-#endif
-			if (screenFraction > 0.0f)
-				newValue = DBL_MAX;
-			else
-				newValue = -DBL_MAX;
-		}
-		value_ = clamp(newValue, softLimit_.min, softLimit_.max);
+			newValue = incValue - delta;
+
+		value_ = CLAMP(convType(newValue), softLimit_.min, softLimit_.max);
 	}
 
 	void increment(PropertyTree* tree, int mouseDiff, Modifier modifier) override
 	{
-		double add = 0.0;
+		mpfloat add = 0;
 		if (softLimit_.min != std::numeric_limits<Type>::min() && softLimit_.max != std::numeric_limits<Type>::max())
 		{
-			add = (softLimit_.max - softLimit_.min) * double(mouseDiff) / double(widgetRect(tree).width());
+			add = convTo(softLimit_.max - softLimit_.min) * mouseDiff / widgetRect(tree).width();
 		}
 		else
 		{
-			add = 0.1 * double(mouseDiff);
+			add = mpfloat("0.1") * mouseDiff;
 		}
 		
 		if (MODIFIER_CONTROL == modifier)
 		{
-			add *= 0.01;
+			add *= "0.1";
 		}
 		else if (MODIFIER_SHIFT == modifier)
 		{
-			add *= 100.0;
+			add *= 100;
 		}
 
-		value_ = clamp(value_ + add, softLimit_.min, softLimit_.max);
+		value_ = CLAMP(value_ + convType(add), softLimit_.min, softLimit_.max);
 	}
 
-	void addValue(PropertyTree* tree, double value) override
+public: // More incrementation
+	void add(PropertyTree* tree) override { addValue(tree, singleStep_);  }
+	void sub(PropertyTree* tree) override { subValue(tree, singleStep_); }
+
+	// PERSONAL NOTE: Has to be separate, can't pass in negative value since property might be Unsigned e.g. u64!
+	void subValue(PropertyTree* tree, const Type& value)
 	{
 		tree->model()->rowAboutToBeChanged(this);
-		value_ = clamp(value_ + value, hardLimit_.min, hardLimit_.max);
+		value_ = CLAMP(value_ - value, hardLimit_.min, hardLimit_.max);
+		tree->model()->rowChanged(this, true);
+	}
+	void addValue(PropertyTree* tree, const Type& value)
+	{
+		tree->model()->rowAboutToBeChanged(this);
+		value_ = CLAMP(value_ + value, hardLimit_.min, hardLimit_.max);
 		tree->model()->rowChanged(this, true);
 	}
 
-	bool hasMinMax() const
-	{
-		return hardLimit_.min != std::numeric_limits<Type>::lowest() && hardLimit_.max != std::numeric_limits<Type>::max();
+public: // Limit settings
+	bool hasMinMax() const {
+		return hardLimit_.min != std::numeric_limits<Type>::min() && hardLimit_.max != std::numeric_limits<Type>::max();
 	}
 
-	double minValue() const override { return hasMinMax() ? hardLimit_.min : -DBL_MAX; }
-	double maxValue() const override { return hasMinMax() ? hardLimit_.max : DBL_MAX; }
+	Type minValue() const { return hasMinMax() ? hardLimit_.min : std::numeric_limits<Type>::min(); }
+	Type maxValue() const { return hasMinMax() ? hardLimit_.max : std::numeric_limits<Type>::max(); }
 
-	double singlestep() const override
-	{
-		return singleStep_;
-	}
+	// PERSONAL IMPROVE: Until Q-related stuff has increased accuracy, limited to doubles......
+	double minValueD() const override { return (double)minValue(); } 
+	double maxValueD() const override { return (double)maxValue(); }
 
 protected:
 	Type incrementStartValue_; 
 	Type value_; 
 	struct SLimits { Type min, max; };
-	// Enforced limit that the property can absolutely not exceed
-	SLimits hardLimit_;
-	// Soft limit enforced by UI sliders etc, should be lower than the hard limit
-	SLimits softLimit_;
-	double singleStep_;
+
+	SLimits hardLimit_; 	// Enforced limit that the property can absolutely not exceed
+	SLimits softLimit_; 	// Soft limit enforced by UI sliders etc, should be lower than the hard limit
+
+	Type singleStep_;	// Increment/de-increment step
 };
 

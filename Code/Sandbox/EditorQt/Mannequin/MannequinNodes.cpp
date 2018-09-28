@@ -155,18 +155,18 @@ void CMannNodesCtrl::SetSequence(CSequencerSequence* seq)
 {
 	const int topRowIndex = (m_sequence == seq) ? GetTopRowIndex() : 0;
 
-	int64 time1 = gEnv->pTimer->GetAsyncTime().GetValue();
+	//int64 time1 = GetGTimer()->GetAsyncTime().GetValue();
 	m_itemInfos.clear();
-	int64 time2 = gEnv->pTimer->GetAsyncTime().GetValue();
+	//int64 time2 = GetGTimer()->GetAsyncTime().GetValue();
 	DeleteAllItems();
-	int64 time3 = gEnv->pTimer->GetAsyncTime().GetValue();
+	//int64 time3 = GetGTimer()->GetAsyncTime().GetValue();
 	m_sequence = seq;
-	int64 time4 = gEnv->pTimer->GetAsyncTime().GetValue();
+	//int64 time4 = GetGTimer()->GetAsyncTime().GetValue();
 
 	Reload();
-	int64 time5 = gEnv->pTimer->GetAsyncTime().GetValue();
+	//int64 time5 = GetGTimer()->GetAsyncTime().GetValue();
 	m_keysCtrl->Invalidate();
-	int64 time6 = gEnv->pTimer->GetAsyncTime().GetValue();
+	//int64 time6 = GetGTimer()->GetAsyncTime().GetValue();
 
 	if (nullptr == m_pDropTarget)
 	{
@@ -185,14 +185,14 @@ void CMannNodesCtrl::Reload()
 {
 	const float fScrollPos = SaveVerticalScrollPos();
 
-	int64 time1 = gEnv->pTimer->GetAsyncTime().GetValue();
+	//int64 time1 = GetGTimer()->GetAsyncTime().GetValue();
 	__super::Reload();
-	int64 time2 = gEnv->pTimer->GetAsyncTime().GetValue();
+	//int64 time2 = GetGTimer()->GetAsyncTime().GetValue();
 
 	RestoreVerticalScrollPos(fScrollPos);
 
 	SyncKeyCtrl();
-	int64 time3 = gEnv->pTimer->GetAsyncTime().GetValue();
+	//int64 time3 = GetGTimer()->GetAsyncTime().GetValue();
 
 	//CryLog("CMannNodesCtrl::Reload %" PRIi64 " %" PRIi64 " %" PRIi64 , time1, time2, time3);
 }
@@ -883,7 +883,7 @@ void CMannNodesCtrl::PasteTrack(CSequencerNode* node)
 	CSequencerTrack* sequenceTrack = node->CreateTrack(static_cast<ESequencerParamType>(intParamId));
 	if (sequenceTrack)
 	{
-		sequenceTrack->SerializeSelection(trackNode, true, false, 0.0f);
+		sequenceTrack->SerializeSelection(trackNode, true, false, 0);
 		sequenceTrack->OnChange();
 	}
 
@@ -1001,7 +1001,7 @@ void CMannNodesCtrl::RefreshTracks()
 {
 	if (m_keysCtrl)
 	{
-		float fTime = m_keysCtrl->GetCurrTime();
+		CTimeValue fTime = m_keysCtrl->GetCurrTime();
 		if (CMannequinDialog::GetCurrentInstance()->GetDockingPaneManager()->IsPaneSelected(CMannequinDialog::IDW_FRAGMENT_EDITOR_PANE))
 			CMannequinDialog::GetCurrentInstance()->FragmentEditor()->SetTime(fTime);
 		else if (CMannequinDialog::GetCurrentInstance()->GetDockingPaneManager()->IsPaneSelected(CMannequinDialog::IDW_PREVIEWER_PANE))
@@ -1452,10 +1452,10 @@ bool CMannNodesCtrl::CreatePointForAnimationInContextDrop(SItemInfo* pItemInfo, 
 	AddTrack(nAnimLyrIdx, pItemInfo->node);
 	CSequencerTrack* pTrack = pNode->GetTrackByIndex(pNode->GetTrackCount() - 1);
 
-	int keyID = pTrack->CreateKey(0.0f);
+	int keyID = pTrack->CreateKey(0);
 
 	CClipKey newKey;
-	newKey.m_time = 0.0f;
+	newKey.m_time.SetSeconds(0);
 	newKey.animRef.SetByString(sAnimName);
 	pTrack->SetKey(keyID, &newKey);
 	pTrack->SelectKey(keyID, true);

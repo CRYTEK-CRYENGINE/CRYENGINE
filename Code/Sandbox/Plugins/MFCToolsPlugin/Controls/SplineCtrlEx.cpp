@@ -12,8 +12,8 @@
 
 IMPLEMENT_DYNAMIC(CSplineCtrlEx, CWnd)
 
-#define DEFAULT_MIN_TIME_EPSILON     0.001f
-#define MIN_TIME_EPSILON_FOR_SCALING 0.1f
+#define DEFAULT_MIN_TIME_EPSILON     CTimeValue("0.001")
+#define MIN_TIME_EPSILON_FOR_SCALING CTimeValue("0.1")
 
 #define ACTIVE_BKG_COLOR             RGB(190, 190, 190)
 #define GRID_COLOR                   RGB(110, 110, 110)
@@ -24,7 +24,7 @@ IMPLEMENT_DYNAMIC(CSplineCtrlEx, CWnd)
 
 #define LEFT_BORDER_OFFSET           40
 
-const float CSplineCtrlEx::threshold = 0.015f;
+const CTimeValue CSplineCtrlEx::threshold = "0.015";
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -206,8 +206,8 @@ CSplineCtrlEx::CSplineCtrlEx()
 	m_nKeyDrawRadius = 3;
 	m_gridX = 10;
 	m_gridY = 10;
-	m_timeRange.start = 0;
-	m_timeRange.end = 1;
+	m_timeRange.start.SetSeconds(0);
+	m_timeRange.end.SetSeconds(1);
 	m_fMinValue = -1;
 	m_fMaxValue = 1;
 	m_valueRange.Set(-1, 1);
@@ -222,7 +222,7 @@ CSplineCtrlEx::CSplineCtrlEx()
 
 	m_ticksStep = 10;
 
-	m_fTimeMarker = -10;
+	m_fTimeMarker.SetSeconds(-10);
 	m_editMode = NothingMode;
 
 	m_bSnapTime = false;
@@ -316,12 +316,12 @@ void CSplineCtrlEx::SetScrollOffset(Vec2 ofs)
 }
 
 //////////////////////////////////////////////////////////////////////////
-float CSplineCtrlEx::SnapTime(float time)
+CTimeValue CSplineCtrlEx::SnapTime(const CTimeValue& time)
 {
 	if (m_bSnapTime)
 	{
-		float step = m_grid.step.x / 10.0f;
-		return floor((time / step) + 0.5f) * step;
+		mpfloat step = BADMP(m_grid.step.x) / 10;
+		return floor((time / step).GetSeconds() + "0.5") * step;
 	}
 	return time;
 }
@@ -346,7 +346,7 @@ int CSplineCtrlEx::GetKeyTimeCount() const
 }
 
 //////////////////////////////////////////////////////////////////////////
-float CSplineCtrlEx::GetKeyTime(int index) const
+CTimeValue CSplineCtrlEx::GetKeyTime(int index) const
 {
 	UpdateKeyTimes();
 
@@ -413,7 +413,7 @@ void CSplineCtrlEx::EndEdittingKeyTimes()
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CSplineCtrlEx::MoveKeyTimes(int numChanges, int* indices, float scale, float offset, bool copyKeys)
+void CSplineCtrlEx::MoveKeyTimes(int numChanges, int* indices, const mpfloat& scale, const CTimeValue& offset, bool copyKeys)
 {
 	if (CUndo::IsRecording())
 	{
@@ -439,13 +439,13 @@ void CSplineCtrlEx::MoveKeyTimes(int numChanges, int* indices, float scale, floa
 	class KeyChange
 	{
 	public:
-		KeyChange(ISplineInterpolator* pSpline, int keyIndex, float oldTime, float newTime, int flags)
+		KeyChange(ISplineInterpolator* pSpline, int keyIndex, const CTimeValue& oldTime, const CTimeValue& newTime, int flags)
 			: pSpline(pSpline), keyIndex(keyIndex), oldTime(oldTime), newTime(newTime), flags(flags) {}
 
 		ISplineInterpolator*           pSpline;
 		int                            keyIndex;
-		float                          oldTime;
-		float                          newTime;
+		CTimeValue                     oldTime;
+		CTimeValue                     newTime;
 		ISplineInterpolator::ValueType value;
 		int                            flags;
 		ISplineInterpolator::ValueType tin, tout;
@@ -456,8 +456,8 @@ void CSplineCtrlEx::MoveKeyTimes(int numChanges, int* indices, float scale, floa
 	{
 		int index = (indices ? indices[changeIndex] : 0);
 
-		float oldTime = m_keyTimes[index].time;
-		float time = __max(m_timeRange.start, __min(m_timeRange.end, scale * oldTime + offset));
+		CTimeValue oldTime = m_keyTimes[index].time;
+		CTimeValue time = __max(m_timeRange.start, __min(m_timeRange.end, scale * oldTime + offset));
 
 		for (int splineIndex = 0; splineIndex < int(m_splines.size()); ++splineIndex)
 		{
@@ -465,13 +465,13 @@ void CSplineCtrlEx::MoveKeyTimes(int numChanges, int* indices, float scale, floa
 
 			for (int keyIndex = 0; pSpline && keyIndex < pSpline->GetKeyCount(); ++keyIndex)
 			{
-				float keyTime = pSpline->GetKeyTime(keyIndex);
+				CTimeValue keyTime = pSpline->GetKeyTime(keyIndex);
 				KeyChange change(pSpline, keyIndex, keyTime, SnapTimeToGridVertical(time), pSpline->GetKeyFlags(keyIndex));
 
 				pSpline->GetKeyValue(keyIndex, change.value);
 				pSpline->GetKeyTangents(keyIndex, change.tin, change.tout);
 
-				if (fabsf(keyTime - oldTime) < threshold)
+				if (abs(keyTime - oldTime) < threshold)
 				{
 					individualKeyChanges.push_back(change);
 				}
@@ -483,14 +483,14 @@ void CSplineCtrlEx::MoveKeyTimes(int numChanges, int* indices, float scale, floa
 
 	for (std::vector<KeyChange>::iterator itChange = individualKeyChanges.begin(); itChange != individualKeyChanges.end(); ++itChange)
 	{
-		(*itChange).pSpline->SetKeyTime((*itChange).keyIndex, (*itChange).newTime);
+		(*itChange).pSpline->SetKeyTime((*itChange).keyIndex, (*itChange).newTime.GetSeconds());
 	}
 
 	if (copyKeys)
 	{
 		for (std::vector<KeyChange>::iterator keyToAdd = individualKeyChanges.begin(), endKeysToAdd = individualKeyChanges.end(); keyToAdd != endKeysToAdd; ++keyToAdd)
 		{
-			int keyIndex = (*keyToAdd).pSpline->InsertKey((*keyToAdd).oldTime, (*keyToAdd).value);
+			int keyIndex = (*keyToAdd).pSpline->InsertKey((*keyToAdd).oldTime.GetSeconds(), (*keyToAdd).value);
 			(*keyToAdd).pSpline->SetKeyTangents(keyIndex, (*keyToAdd).tin, (*keyToAdd).tout);
 			(*keyToAdd).pSpline->SetKeyFlags(keyIndex, (*keyToAdd).flags & (~ESPLINE_KEY_UI_SELECTED_MASK));
 		}
@@ -501,12 +501,12 @@ void CSplineCtrlEx::MoveKeyTimes(int numChanges, int* indices, float scale, floa
 	{
 		ISplineInterpolator* pSpline = m_splines[splineIndex].pSpline;
 
-		float lastKeyTime = -FLT_MAX;
+		CTimeValue lastKeyTime = CTimeValue::Min();
 		pSpline->Update();
 		for (int keyIndex = 0, keys = pSpline->GetKeyCount(); keyIndex <= keys; )
 		{
-			float keyTime = pSpline->GetKeyTime(keyIndex);
-			if (fabsf(keyTime - lastKeyTime) < m_fMinTimeEpsilon)
+			CTimeValue keyTime = pSpline->GetKeyTime(keyIndex);
+			if (abs(keyTime - lastKeyTime) < m_fMinTimeEpsilon)
 			{
 				--keys;
 				pSpline->RemoveKey(keyIndex);
@@ -629,24 +629,24 @@ BOOL CSplineCtrlEx::PreTranslateMessage(MSG* pMsg)
 }
 
 //////////////////////////////////////////////////////////////////////////
-CPoint CSplineCtrlEx::TimeToPoint(float time, ISplineInterpolator* pSpline)
+CPoint CSplineCtrlEx::TimeToPoint(const CTimeValue& time, ISplineInterpolator* pSpline)
 {
 	float val = 0;
 	if (pSpline)
-		pSpline->InterpolateFloat(time, val);
+		pSpline->InterpolateFloat(time.GetSeconds(), val);
 
-	return WorldToClient(Vec2(time, val));
+	return WorldToClient(Vec2(time.BADGetSeconds(), val));
 	;
 }
 
 //////////////////////////////////////////////////////////////////////////
-float CSplineCtrlEx::TimeToXOfs(float x)
+float CSplineCtrlEx::TimeToXOfs(const CTimeValue& x)
 {
-	return WorldToClient(Vec2(float(x), 0.0f)).x;
+	return WorldToClient(Vec2(x.BADGetSeconds(), 0.0f)).x;
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CSplineCtrlEx::PointToTimeValue(CPoint point, float& time, float& value)
+void CSplineCtrlEx::PointToTimeValue(CPoint point, CTimeValue& time, float& value)
 {
 	Vec2 v = ClientToWorld(point);
 	value = v.y;
@@ -654,11 +654,10 @@ void CSplineCtrlEx::PointToTimeValue(CPoint point, float& time, float& value)
 }
 
 //////////////////////////////////////////////////////////////////////////
-float CSplineCtrlEx::XOfsToTime(int x)
+CTimeValue CSplineCtrlEx::XOfsToTime(int x)
 {
 	Vec2 v = ClientToWorld(CPoint(x, 0));
-	float time = v.x;
-	return time;
+	return BADTIME(v.x);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -723,8 +722,8 @@ void CSplineCtrlEx::OnPaint()
 
 			// Calculate the times corresponding to the left and right of the area to be painted -
 			// we can use this to draw only the necessary parts of the splines.
-			float startTime = XOfsToTime(drawSplineRect.left);
-			float endTime = XOfsToTime(drawSplineRect.right);
+			CTimeValue startTime = XOfsToTime(drawSplineRect.left);
+			CTimeValue endTime = XOfsToTime(drawSplineRect.right);
 
 			//Draw Keys and Curve
 			for (int i = 0; i < int(m_splines.size()); ++i)
@@ -771,8 +770,8 @@ void CSplineCtrlEx::DrawGrid(CDC* pDC)
 
 	CPoint ptTop = WorldToClient(Vec2(0.0f, m_valueRange.end));
 	CPoint ptBottom = WorldToClient(Vec2(0.0f, m_valueRange.start));
-	CPoint pt0 = WorldToClient(Vec2(m_timeRange.start, 0));
-	CPoint pt1 = WorldToClient(Vec2(m_timeRange.end, 0));
+	CPoint pt0 = WorldToClient(Vec2(m_timeRange.start.BADGetSeconds(), 0));
+	CPoint pt1 = WorldToClient(Vec2(m_timeRange.end.BADGetSeconds(), 0));
 	CRect timeRc = CRect(pt0.x - 2, ptTop.y, pt1.x + 2, ptBottom.y);
 	timeRc.IntersectRect(timeRc, m_rcSpline);
 	pDC->FillSolidRect(timeRc, ACTIVE_BKG_COLOR);
@@ -867,7 +866,7 @@ void CSplineCtrlEx::DrawTooltip(CDC* pDC)
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CSplineCtrlEx::DrawSpline(CDC* pDC, SSplineInfo& splineInfo, float startTime, float endTime)
+void CSplineCtrlEx::DrawSpline(CDC* pDC, SSplineInfo& splineInfo, const CTimeValue& startTime, const CTimeValue& endTime)
 {
 	CPen* pOldPen = (CPen*)pDC->GetCurrentPen();
 
@@ -941,23 +940,23 @@ void CSplineCtrlEx::DrawSpline(CDC* pDC, SSplineInfo& splineInfo, float startTim
 		{
 			++pixels;
 
-			float time = XOfsToTime(x);
+			CTimeValue time = XOfsToTime(x);
 			ISplineInterpolator::ValueType value;
 			ISplineInterpolator::ZeroValue(value);
 
-			pSpline->Interpolate(time, value);
+			pSpline->Interpolate(time.GetSeconds(), value);
 
 			if (pDetailSpline)
 			{
 				ISplineInterpolator::ValueType value2;
 				ISplineInterpolator::ZeroValue(value2);
 
-				pDetailSpline->Interpolate(time, value2);
+				pDetailSpline->Interpolate(time.GetSeconds(), value2);
 
 				value[nCurrentDimension] = value[nCurrentDimension] + value2[nCurrentDimension];
 			}
 
-			CPoint pt = WorldToClient(Vec2(time, value[nCurrentDimension]));
+			CPoint pt = WorldToClient(Vec2(time.BADGetSeconds(), value[nCurrentDimension]));
 
 			if ((x == right && pointsInLine >= 0) || (pointsInLine > 0 && fabs(lineStart.y + gradient * (pt.x - lineStart.x) - pt.y) > 1.0f))
 			{
@@ -999,7 +998,7 @@ void CSplineCtrlEx::DrawSpline(CDC* pDC, SSplineInfo& splineInfo, float startTim
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CSplineCtrlEx::DrawKeys(CDC* pDC, int splineIndex, float startTime, float endTime)
+void CSplineCtrlEx::DrawKeys(CDC* pDC, int splineIndex, const CTimeValue& startTime, const CTimeValue& endTime)
 {
 	SSplineInfo& splineInfo = m_splines[splineIndex];
 	ISplineInterpolator* pSpline = splineInfo.pSpline;
@@ -1032,25 +1031,25 @@ void CSplineCtrlEx::DrawKeys(CDC* pDC, int splineIndex, float startTime, float e
 		int numKeys = pSpline->GetKeyCount();
 		for (i = 0; i < numKeys; i++)
 		{
-			float time = pSpline->GetKeyTime(i);
+			CTimeValue time = pSpline->GetKeyTime(i);
 			if (time >= endTime)
 				break;
 
 			ISplineInterpolator::ValueType value;
 			ISplineInterpolator::ZeroValue(value);
 
-			pSpline->Interpolate(time, value);
+			pSpline->Interpolate(time.GetSeconds(), value);
 
 			if (pDetailSpline)
 			{
 				ISplineInterpolator::ValueType value2;
 				ISplineInterpolator::ZeroValue(value2);
 
-				pDetailSpline->Interpolate(time, value2);
+				pDetailSpline->Interpolate(time.GetSeconds(), value2);
 
 				value[nCurrentDimension] = value[nCurrentDimension] + value2[nCurrentDimension];
 			}
-			CPoint pt = WorldToClient(Vec2(time, value[nCurrentDimension]));
+			CPoint pt = WorldToClient(Vec2(time.BADGetSeconds(), value[nCurrentDimension]));
 			;
 
 			if (pt.x < m_rcSpline.left)
@@ -1405,11 +1404,11 @@ void CSplineCtrlEx::OnMouseMove(UINT nFlags, CPoint point)
 			Vec2 v1 = ClientToWorld(point);
 			if (bAltClick)
 			{
-				TimeScaleKeys(m_fTimeMarker, v0.x, v1.x);
+				TimeScaleKeys(m_fTimeMarker, BADTIME(v0.x), BADTIME(v1.x));
 			}
 			else if (m_controlAmplitude)
 			{
-				ScaleAmplitudeKeys(v0.x, v0.y, v1.y - v0.y);
+				ScaleAmplitudeKeys(BADTIME(v0.x), v0.y, v1.y - v0.y);
 			}
 			else
 			{
@@ -1420,7 +1419,7 @@ void CSplineCtrlEx::OnMouseMove(UINT nFlags, CPoint point)
 
 	if (m_editMode == TrackingMode && GetNumSelected() == 1)
 	{
-		float time = 0;
+		mpfloat time = 0;
 		ISplineInterpolator::ValueType afValue;
 		CString tipText;
 		bool boFoundTheSelectedKey(false);
@@ -1436,7 +1435,7 @@ void CSplineCtrlEx::OnMouseMove(UINT nFlags, CPoint point)
 					{
 						time = pSpline->GetKeyTime(i);
 						pSpline->GetKeyValue(i, afValue);
-						tipText.Format("t=%.3f  v=%2.3f", time * m_fTooltipScaleX, afValue[nCurrentDimension] * m_fTooltipScaleY);
+						tipText.Format("t=%.3f  v=%2.3f", (float)time * m_fTooltipScaleX, afValue[nCurrentDimension] * m_fTooltipScaleY);
 						boFoundTheSelectedKey = true;
 						break;
 					}
@@ -1505,7 +1504,7 @@ void CSplineCtrlEx::UpdateKeyTimes() const
 	if (!m_bKeyTimesDirty)
 		return;
 
-	std::vector<float> selectedKeyTimes;
+	std::vector<CTimeValue> selectedKeyTimes;
 	selectedKeyTimes.reserve(m_keyTimes.size());
 	for (std::vector<KeyTime>::iterator it = m_keyTimes.begin(), end = m_keyTimes.end(); it != end; ++it)
 	{
@@ -1521,7 +1520,7 @@ void CSplineCtrlEx::UpdateKeyTimes() const
 
 		for (int keyIndex = 0; pSpline && keyIndex < pSpline->GetKeyCount(); ++keyIndex)
 		{
-			float value = pSpline->GetKeyTime(keyIndex);
+			CTimeValue value = pSpline->GetKeyTime(keyIndex);
 
 			int lower = 0;
 			int upper = int(m_keyTimes.size());
@@ -1531,22 +1530,22 @@ void CSplineCtrlEx::UpdateKeyTimes() const
 				((m_keyTimes[mid].time >= value) ? upper : lower) = mid;
 			}
 
-			if ((lower >= int(m_keyTimes.size()) || fabsf(m_keyTimes[lower].time - value) > threshold) &&
-			    (upper >= int(m_keyTimes.size()) || fabsf(m_keyTimes[upper].time - value) > threshold))
+			if ((lower >= int(m_keyTimes.size()) || abs(m_keyTimes[lower].time - value) > threshold) &&
+			    (upper >= int(m_keyTimes.size()) || abs(m_keyTimes[upper].time - value) > threshold))
 				m_keyTimes.insert(m_keyTimes.begin() + upper, KeyTime(value, 0));
 		}
 	}
 
 	for (std::vector<KeyTime>::iterator it = m_keyTimes.begin(), end = m_keyTimes.end(); it != end; ++it)
-		(*it).count = (m_pSplineSet ? m_pSplineSet->GetKeyCountAtTime((*it).time, threshold) : 0);
+		(*it).count = (m_pSplineSet ? m_pSplineSet->GetKeyCountAtTime((*it).time, threshold.BADGetSeconds()) : 0);
 
-	std::vector<float>::iterator itSelected = selectedKeyTimes.begin(), endSelected = selectedKeyTimes.end();
+	std::vector<CTimeValue>::iterator itSelected = selectedKeyTimes.begin(), endSelected = selectedKeyTimes.end();
 	for (std::vector<KeyTime>::iterator it = m_keyTimes.begin(), end = m_keyTimes.end(); it != end; ++it)
 	{
-		const float threshold = 0.01f;
+		const CTimeValue threshold = "0.01";
 		for (; itSelected != endSelected && (*itSelected) < (*it).time - threshold; ++itSelected)
 			;
-		if (itSelected != endSelected && fabsf((*itSelected) - (*it).time) < threshold)
+		if (itSelected != endSelected && abs((*itSelected) - (*it).time) < threshold)
 			(*it).selected = true;
 	}
 
@@ -1718,11 +1717,11 @@ BOOL CSplineCtrlEx::OnSetCursor(CWnd* pWnd, UINT nHitTest, UINT message)
 	{
 		if (m_pHitSpline && m_nHitKeyIndex >= 0)
 		{
-			float time = m_pHitSpline->GetKeyTime(m_nHitKeyIndex);
+			CTimeValue time = m_pHitSpline->GetKeyTime(m_nHitKeyIndex);
 			ISplineInterpolator::ValueType afValue;
 			m_pHitSpline->GetKeyValue(m_nHitKeyIndex, afValue);
 			CString tipText;
-			tipText.Format("t=%.3f  v=%2.3f", time * m_fTooltipScaleX, afValue[m_nHitDimension] * m_fTooltipScaleY);
+			tipText.Format("t=%.3f  v=%2.3f", (float)time.GetSeconds() * m_fTooltipScaleX, afValue[m_nHitDimension] * m_fTooltipScaleY);
 
 			m_tooltipText = tipText;
 			if (m_lastToolTipPos != point)
@@ -1945,7 +1944,8 @@ ISplineInterpolator* CSplineCtrlEx::HitSpline(CPoint point)
 //////////////////////////////////////////////////////////////////////////////
 CSplineCtrlEx::EHitCode CSplineCtrlEx::HitTest(CPoint point)
 {
-	float time, val;
+	CTimeValue time;
+	float val;
 	int nTotalNumberOfDimensions(0);
 	int nCurrentDimension(0);
 
@@ -1980,11 +1980,11 @@ CSplineCtrlEx::EHitCode CSplineCtrlEx::HitTest(CPoint point)
 		ISplineInterpolator::ZeroValue(stSplineValue);
 		ISplineInterpolator::ZeroValue(stDetailSplineValue);
 
-		pSpline->Interpolate(time, stSplineValue);
+		pSpline->Interpolate(time.GetSeconds(), stSplineValue);
 
 		if (pDetailSpline)
 		{
-			pDetailSpline->Interpolate(time, stDetailSplineValue);
+			pDetailSpline->Interpolate(time.GetSeconds(), stDetailSplineValue);
 		}
 
 		// For each dimension...
@@ -2030,7 +2030,7 @@ CSplineCtrlEx::EHitCode CSplineCtrlEx::HitTest(CPoint point)
 				}
 			}
 
-			CPoint splinePt = WorldToClient(Vec2(time, stSplineValue[nCurrentDimension]));
+			CPoint splinePt = WorldToClient(Vec2(time.BADGetSeconds(), stSplineValue[nCurrentDimension]));
 			;
 			bool bSplineHit = abs(splinePt.x - point.x) < 4 && abs(splinePt.y - point.y) < 4;
 
@@ -2100,7 +2100,7 @@ void CSplineCtrlEx::StopTracking()
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CSplineCtrlEx::ScaleAmplitudeKeys(float time, float startValue, float offset)
+void CSplineCtrlEx::ScaleAmplitudeKeys(const CTimeValue& time, float startValue, float offset)
 {
 	//TODO: Test it in the facial animation pane and fix it...
 	m_pHitSpline = 0;
@@ -2127,9 +2127,9 @@ void CSplineCtrlEx::ScaleAmplitudeKeys(float time, float startValue, float offse
 
 		// Find the parameters of a line between the start and end points. This will form the centre line
 		// around which the amplitude of the keys will be scaled.
-		float rangeStartTime = (firstKeyIndex >= 0 && pSpline ? pSpline->GetKeyTime(firstKeyIndex) : 0.0f);
-		float rangeEndTime = (lastKeyIndex >= 0 && pSpline ? pSpline->GetKeyTime(lastKeyIndex) : 0.0f);
-		float rangeLength = max(0.01f, rangeEndTime - rangeStartTime);
+		CTimeValue rangeStartTime = (firstKeyIndex >= 0 && pSpline ? pSpline->GetKeyTime(firstKeyIndex) : 0);
+		CTimeValue rangeEndTime = (lastKeyIndex >= 0 && pSpline ? pSpline->GetKeyTime(lastKeyIndex) : 0);
+		CTimeValue rangeLength = max(CTimeValue("0.01"), rangeEndTime - rangeStartTime);
 
 		for (int nCurrentDimension = 0; nCurrentDimension < pSpline->GetNumDimensions(); nCurrentDimension++)
 		{
@@ -2152,10 +2152,10 @@ void CSplineCtrlEx::ScaleAmplitudeKeys(float time, float startValue, float offse
 			{
 				memset(afRangeEndValue, 0, sizeof(ISplineInterpolator::ValueType));
 			}
-			float centreM = (afRangeEndValue[nCurrentDimension] - afRangeStartValue[nCurrentDimension]) / rangeLength;
-			float centreC = afRangeStartValue[nCurrentDimension] - centreM * rangeStartTime;
+			float centreM = (afRangeEndValue[nCurrentDimension] - afRangeStartValue[nCurrentDimension]) / rangeLength.BADGetSeconds();
+			float centreC = afRangeStartValue[nCurrentDimension] - centreM * rangeStartTime.BADGetSeconds();
 			// Calculate the scale factor, based on how the mouse was dragged.
-			float dragCentreValue = centreM * time + centreC;
+			float dragCentreValue = centreM * time.BADGetSeconds() + centreC;
 			float dragCentreOffset = startValue - dragCentreValue;
 			float offsetScale = (fabs(dragCentreOffset) > 0.001 ? (offset + dragCentreOffset) / dragCentreOffset : 1.0f);
 			// Scale all the selected keys around this central line.
@@ -2163,8 +2163,8 @@ void CSplineCtrlEx::ScaleAmplitudeKeys(float time, float startValue, float offse
 			{
 				if (pSpline->IsKeySelectedAtDimension(i, nCurrentDimension))
 				{
-					float keyTime = (pSpline ? pSpline->GetKeyTime(i) : 0.0f);
-					float centreValue = keyTime * centreM + centreC;
+					CTimeValue keyTime = (pSpline ? pSpline->GetKeyTime(i) : 0);
+					float centreValue = keyTime.BADGetSeconds() * centreM + centreC;
 					ISplineInterpolator::ValueType afKeyValue;
 					if (pSpline)
 					{
@@ -2193,36 +2193,36 @@ void CSplineCtrlEx::ScaleAmplitudeKeys(float time, float startValue, float offse
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CSplineCtrlEx::TimeScaleKeys(float time, float startTime, float endTime)
+void CSplineCtrlEx::TimeScaleKeys(const CTimeValue& time, const CTimeValue& startTime, const CTimeValue& endTime)
 {
 	// Calculate the scaling parameters (ie t1 = t0 * M + C).
-	float timeScaleM = 1.0f;
-	if (fabsf(startTime - time) > MIN_TIME_EPSILON_FOR_SCALING)
+	nTime timeScaleM = 1;
+	if (abs(startTime - time) > MIN_TIME_EPSILON_FOR_SCALING)
 		timeScaleM = (endTime - time) / (startTime - time);
-	float timeScaleC = endTime - startTime * timeScaleM;
+	CTimeValue timeScaleC = endTime - startTime * timeScaleM;
 
 	// Loop through all keys that are selected.
 	m_pHitSpline = 0;
 	m_pHitDetailSpline = 0;
 	m_nHitKeyIndex = -1;
 
-	float affectedRangeMin = FLT_MAX;
-	float affectedRangeMax = -FLT_MAX;
+	CTimeValue affectedRangeMin = CTimeValue::Max();
+	CTimeValue affectedRangeMax = CTimeValue::Min();
 	for (int splineIndex = 0, splineCount = m_splines.size(); splineIndex < splineCount; ++splineIndex)
 	{
 		ISplineInterpolator* pSpline = m_splines[splineIndex].pSpline;
 
 		int keyCount = pSpline->GetKeyCount();
-		float keyRangeMin = FLT_MAX;
-		float keyRangeMax = -FLT_MAX;
+		CTimeValue keyRangeMin = CTimeValue::Max();
+		CTimeValue keyRangeMax = CTimeValue::Min();
 		for (int i = 0; i < keyCount; i++)
 		{
 			if (pSpline->IsKeySelectedAtAnyDimension(i))
 			{
-				float oldTime = pSpline->GetKeyTime(i);
-				float t = SnapTime(oldTime * timeScaleM + timeScaleC);
+				CTimeValue oldTime = pSpline->GetKeyTime(i);
+				CTimeValue t = SnapTime(oldTime * timeScaleM + timeScaleC);
 
-				pSpline->SetKeyTime(i, SnapTimeToGridVertical(t));
+				pSpline->SetKeyTime(i, SnapTimeToGridVertical(t).GetSeconds());
 
 				keyRangeMin = min(keyRangeMin, oldTime);
 				keyRangeMin = min(keyRangeMin, t);
@@ -2236,13 +2236,13 @@ void CSplineCtrlEx::TimeScaleKeys(float time, float startTime, float endTime)
 			int lastMovedKey = 0;
 			for (int keyIndex = 0; keyIndex < keyCount; ++keyIndex)
 			{
-				if (pSpline->GetKeyTime(keyIndex) <= keyRangeMax)
+				if (pSpline->GetKeyTime(keyIndex) <= keyRangeMax.GetSeconds())
 					lastMovedKey = keyIndex + 1;
 			}
 			int firstMovedKey = pSpline->GetKeyCount();
 			for (int keyIndex = pSpline->GetKeyCount() - 1; keyIndex >= 0; --keyIndex)
 			{
-				if (pSpline->GetKeyTime(keyIndex) >= keyRangeMin)
+				if (pSpline->GetKeyTime(keyIndex) >= keyRangeMin.GetSeconds())
 					firstMovedKey = keyIndex;
 			}
 
@@ -2253,12 +2253,12 @@ void CSplineCtrlEx::TimeScaleKeys(float time, float startTime, float endTime)
 			affectedRangeMax = max(affectedRangeMax, (lastAffectedKey >= keyCount - 1 ? m_timeRange.end : pSpline->GetKeyTime(lastAffectedKey)));
 
 			// Loop through all moved keys, checking whether there are multiple keys on the same frame.
-			float lastKeyTime = -FLT_MAX;
+			CTimeValue lastKeyTime = CTimeValue::Min();
 			pSpline->Update();
 			for (int keyIndex = 0, keys = pSpline->GetKeyCount(); keyIndex <= keys; )
 			{
-				float keyTime = pSpline->GetKeyTime(keyIndex);
-				if (fabsf(keyTime - lastKeyTime) < m_fMinTimeEpsilon)
+				CTimeValue keyTime = pSpline->GetKeyTime(keyIndex);
+				if (abs(keyTime - lastKeyTime) < m_fMinTimeEpsilon)
 				{
 					--keys;
 					pSpline->RemoveKey(keyIndex);
@@ -2294,7 +2294,7 @@ void CSplineCtrlEx::ValueScaleKeys(float startValue, float endValue)
 {
 	// Calculate the scaling parameters.
 	float valueScale = 1.0f;
-	if (fabsf(startValue) > MIN_TIME_EPSILON_FOR_SCALING)
+	if (fabsf(startValue) > MIN_TIME_EPSILON_FOR_SCALING.BADGetSeconds())
 		valueScale = endValue / startValue;
 
 	// Loop through all keys that are selected.
@@ -2341,26 +2341,26 @@ void CSplineCtrlEx::MoveSelectedKeys(Vec2 offset, bool copyKeys)
 		DuplicateSelectedKeys();
 	}
 
-	float affectedRangeMin = FLT_MAX;
-	float affectedRangeMax = -FLT_MAX;
+	CTimeValue affectedRangeMin = CTimeValue::Max();
+	CTimeValue affectedRangeMax = CTimeValue::Min();
 	// For each spline...
 	for (int splineIndex = 0, splineCount = m_splines.size(); splineIndex < splineCount; ++splineIndex)
 	{
 		ISplineInterpolator* pSpline = m_splines[splineIndex].pSpline;
 
 		int keyCount = pSpline->GetKeyCount();
-		float keyRangeMin = FLT_MAX;
-		float keyRangeMax = -FLT_MAX;
+		CTimeValue keyRangeMin = CTimeValue::Max();
+		CTimeValue keyRangeMax = CTimeValue::Min();
 		for (int i = 0; i < keyCount; i++)
 		{
-			float oldTime = pSpline->GetKeyTime(i);
-			float t = SnapTime(oldTime + offset.x);
+			CTimeValue oldTime = pSpline->GetKeyTime(i);
+			CTimeValue t = SnapTime(oldTime + BADTIME(offset.x));
 
 			if (pSpline->IsKeySelectedAtAnyDimension(i))
 			{
-				if (pSpline->FindKey(t, m_fMinTimeEpsilon) < 0)
+				if (pSpline->FindKey(t.GetSeconds(), m_fMinTimeEpsilon.GetSeconds()) < 0)
 				{
-					pSpline->SetKeyTime(i, SnapTimeToGridVertical(t));
+					pSpline->SetKeyTime(i, SnapTimeToGridVertical(t).GetSeconds());
 				}
 
 				keyRangeMin = min(keyRangeMin, oldTime);
@@ -2387,13 +2387,13 @@ void CSplineCtrlEx::MoveSelectedKeys(Vec2 offset, bool copyKeys)
 			int lastMovedKey = 0;
 			for (int keyIndex = 0; keyIndex < keyCount; ++keyIndex)
 			{
-				if (pSpline->GetKeyTime(keyIndex) <= keyRangeMax)
+				if (pSpline->GetKeyTime(keyIndex) <= keyRangeMax.GetSeconds())
 					lastMovedKey = keyIndex + 1;
 			}
 			int firstMovedKey = pSpline->GetKeyCount();
 			for (int keyIndex = pSpline->GetKeyCount() - 1; keyIndex >= 0; --keyIndex)
 			{
-				if (pSpline->GetKeyTime(keyIndex) >= keyRangeMin)
+				if (pSpline->GetKeyTime(keyIndex) >= keyRangeMin.GetSeconds())
 					firstMovedKey = keyIndex;
 			}
 
@@ -2490,10 +2490,10 @@ void CSplineCtrlEx::RemoveSelectedKeyTimesImpl()
 			std::vector<KeyTime>::iterator itTime = m_keyTimes.begin(), endTime = m_keyTimes.end();
 			for (int keyIndex = 0, endIndex = m_splines[splineIndex].pSpline->GetKeyCount(); keyIndex < endIndex; )
 			{
-				const float threshold = 0.01f;
+				const mpfloat threshold = "0.01";
 				for (; itTime != endTime && (*itTime).time < m_splines[splineIndex].pSpline->GetKeyTime(keyIndex) - threshold; ++itTime)
 					;
-				if (itTime != endTime && fabsf((*itTime).time - m_splines[splineIndex].pSpline->GetKeyTime(keyIndex)) < threshold && (*itTime).selected)
+				if (itTime != endTime && abs((*itTime).time - m_splines[splineIndex].pSpline->GetKeyTime(keyIndex)) < threshold && (*itTime).selected)
 					m_splines[splineIndex].pSpline->RemoveKey(keyIndex);
 				else
 					++keyIndex;
@@ -2550,10 +2550,10 @@ bool CSplineCtrlEx::GetControlAmplitude() const
 	return m_controlAmplitude;
 }
 
-float CSplineCtrlEx::SnapTimeToGridVertical(float time)
+CTimeValue CSplineCtrlEx::SnapTimeToGridVertical(const CTimeValue& time)
 {
 	//float fSnapTime = int((time * m_fGridTimeScale) + 0.5f) * (1.0f / m_fGridTimeScale);
-	float fSnapTime = time;
+	CTimeValue fSnapTime = time;
 	return fSnapTime;
 }
 
@@ -2563,7 +2563,8 @@ int CSplineCtrlEx::InsertKey(ISplineInterpolator* pSpline, ISplineInterpolator* 
 	CUndo undo("Spline Insert Key");
 	StoreUndo();
 
-	float time, val;
+	CTimeValue time;
+	float val;
 	PointToTimeValue(point, time, val);
 
 	time = SnapTimeToGridVertical(time);
@@ -2572,7 +2573,7 @@ int CSplineCtrlEx::InsertKey(ISplineInterpolator* pSpline, ISplineInterpolator* 
 	for (i = 0; i < pSpline->GetKeyCount(); i++)
 	{
 		// Skip if any key already have time that is very close.
-		if (fabs(pSpline->GetKeyTime(i) - time) < m_fMinTimeEpsilon)
+		if (abs(CTimeValue(pSpline->GetKeyTime(i)) - time) < m_fMinTimeEpsilon)
 			return i;
 	}
 
@@ -2583,7 +2584,7 @@ int CSplineCtrlEx::InsertKey(ISplineInterpolator* pSpline, ISplineInterpolator* 
 	if (pDetailSpline)
 	{
 		float offset = 0.0f;
-		pDetailSpline->InterpolateFloat(time, offset);
+		pDetailSpline->InterpolateFloat(time.GetSeconds(), offset);
 		val -= offset;
 	}
 
@@ -2591,14 +2592,14 @@ int CSplineCtrlEx::InsertKey(ISplineInterpolator* pSpline, ISplineInterpolator* 
 	ISplineInterpolator::ValueType currValue;
 	ISplineInterpolator::ZeroValue(currValue);
 
-	pSpline->Interpolate(time, currValue);
+	pSpline->Interpolate(time.GetSeconds(), currValue);
 
 	if (pSpline->GetNumDimensions() > 1)
 	{
 
 	}
 
-	int nKey = pSpline->InsertKey(time, currValue);  // TODO: Don't use FE specific snapping!
+	int nKey = pSpline->InsertKey(time.GetSeconds(), currValue);  // TODO: Don't use FE specific snapping!
 	if (m_defaultKeyTangentType != SPLINE_KEY_TANGENT_NONE)
 	{
 		SetKeyTangentType(pSpline, nKey, m_defaultKeyTangentType);
@@ -2634,7 +2635,7 @@ void CSplineCtrlEx::ClearSelection()
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CSplineCtrlEx::SetTimeMarker(float fTime)
+void CSplineCtrlEx::SetTimeMarker(const CTimeValue& fTime)
 {
 	if (m_pTimelineCtrl)
 		m_pTimelineCtrl->SetTimeMarker(fTime);
@@ -2687,7 +2688,7 @@ class CKeyCopyInfo
 {
 public:
 	ISplineInterpolator::ValueType value;
-	float                          time;
+	mpfloat                        time;
 	int                            flags;
 	ISplineInterpolator::ValueType tin, tout;
 };
@@ -2721,7 +2722,7 @@ void CSplineCtrlEx::DuplicateSelectedKeys()
 
 		for (KeysToAddContainer::iterator keyToAdd = keysToInsert.begin(), endKeysToAdd = keysToInsert.end(); keyToAdd != endKeysToAdd; ++keyToAdd)
 		{
-			int keyIndex = pSpline->InsertKey(SnapTimeToGridVertical((*keyToAdd).time), (*keyToAdd).value);
+			int keyIndex = pSpline->InsertKey(SnapTimeToGridVertical((*keyToAdd).time).GetSeconds(), (*keyToAdd).value);
 			pSpline->SetKeyTangents(keyIndex, (*keyToAdd).tin, (*keyToAdd).tout);
 			pSpline->SetKeyFlags(keyIndex, (*keyToAdd).flags & (~ESPLINE_KEY_UI_SELECTED_MASK));
 		}
@@ -2740,7 +2741,7 @@ void CSplineCtrlEx::ZeroAll()
 	for (int splineIndex = 0; splineIndex < int(m_splines.size()); ++splineIndex)
 	{
 		ISplineInterpolator* pSpline = m_splines[splineIndex].pSpline;
-		int keyIndex = (pSpline ? pSpline->FindKey(m_fTimeMarker, 0.015f) : -1);
+		int keyIndex = (pSpline ? pSpline->FindKey(m_fTimeMarker.GetSeconds(), "0.015") : -1);
 		if (pSpline && keyIndex >= 0)
 			splines.push_back(pSpline);
 	}
@@ -2749,7 +2750,7 @@ void CSplineCtrlEx::ZeroAll()
 
 	for (SplineContainer::iterator itSpline = splines.begin(); itSpline != splines.end(); ++itSpline)
 	{
-		int keyIndex = ((*itSpline) ? (*itSpline)->FindKey(m_fTimeMarker, 0.015f) : -1);
+		int keyIndex = ((*itSpline) ? (*itSpline)->FindKey(m_fTimeMarker.GetSeconds(), "0.015") : -1);
 		if ((*itSpline) && keyIndex >= 0)
 			(*itSpline)->SetKeyValueFloat(keyIndex, 0.0f);
 	}
@@ -2768,7 +2769,7 @@ void CSplineCtrlEx::KeyAll()
 	for (int splineIndex = 0; splineIndex < int(m_splines.size()); ++splineIndex)
 	{
 		ISplineInterpolator* pSpline = m_splines[splineIndex].pSpline;
-		int keyIndex = (pSpline ? pSpline->FindKey(m_fTimeMarker, 0.015f) : -1);
+		int keyIndex = (pSpline ? pSpline->FindKey(m_fTimeMarker.GetSeconds(), "0.015") : -1);
 		if (pSpline && keyIndex == -1)
 			splines.push_back(pSpline);
 	}
@@ -2778,8 +2779,8 @@ void CSplineCtrlEx::KeyAll()
 	for (SplineContainer::iterator itSpline = splines.begin(); itSpline != splines.end(); ++itSpline)
 	{
 		float value = 0.0f;
-		(*itSpline)->InterpolateFloat(m_fTimeMarker, value);
-		int keyIndex = (*itSpline)->InsertKeyFloat(SnapTimeToGridVertical(m_fTimeMarker), value);
+		(*itSpline)->InterpolateFloat(m_fTimeMarker.GetSeconds(), value);
+		int keyIndex = (*itSpline)->InsertKeyFloat(SnapTimeToGridVertical(m_fTimeMarker).GetSeconds(), value);
 		if (m_defaultKeyTangentType != SPLINE_KEY_TANGENT_NONE)
 		{
 			SetKeyTangentType(*itSpline, keyIndex, m_defaultKeyTangentType);
@@ -2925,7 +2926,7 @@ void CSplineCtrlEx::SelectRectangle(CRect rc, bool bSelect)
 
 		for (int i = 0; i < (int)pSpline->GetKeyCount(); i++)
 		{
-			float t = pSpline->GetKeyTime(i);
+			CTimeValue t = pSpline->GetKeyTime(i);
 			ISplineInterpolator::ValueType afValue;
 			pSpline->GetKeyValue(i, afValue);
 
@@ -2935,7 +2936,7 @@ void CSplineCtrlEx::SelectRectangle(CRect rc, bool bSelect)
 			if (pDetailSpline)
 			{
 				ISplineInterpolator::ZeroValue(afDetailValue);
-				pDetailSpline->Interpolate(t, afDetailValue);
+				pDetailSpline->Interpolate(t.GetSeconds(), afDetailValue);
 			}
 
 			for (int nCurrentDimension = 0; nCurrentDimension < nTotalNumberOfDimensions; nCurrentDimension++)
@@ -2944,7 +2945,7 @@ void CSplineCtrlEx::SelectRectangle(CRect rc, bool bSelect)
 				{
 					afValue[nCurrentDimension] = afValue[nCurrentDimension] + afDetailValue[nCurrentDimension];
 				}
-				if (t >= t0 && t <= t1 && afValue[nCurrentDimension] >= v0 && afValue[nCurrentDimension] <= v1)
+				if (t >= BADTIME(t0) && t <= BADTIME(t1) && afValue[nCurrentDimension] >= v0 && afValue[nCurrentDimension] <= v1)
 				{
 					pSpline->SelectKeyAtDimension(i, nCurrentDimension, bSelect);
 				}
@@ -2964,8 +2965,8 @@ void CSplineCtrlEx::CopyKeys()
 	XmlNodeRef rootNode = XmlHelpers::CreateXmlNode("SplineKeys");
 
 	int i;
-	float minTime = FLT_MAX;
-	float maxTime = -FLT_MAX;
+	CTimeValue minTime = CTimeValue::Max();
+	CTimeValue maxTime = CTimeValue::Min();
 
 	ISplineInterpolator* pSpline = m_splines[0].pSpline;
 
@@ -2973,7 +2974,7 @@ void CSplineCtrlEx::CopyKeys()
 	{
 		if (!pSpline->IsKeySelectedAtAnyDimension(i))
 			continue;
-		float t = pSpline->GetKeyTime(i);
+		CTimeValue t = pSpline->GetKeyTime(i);
 		if (t < minTime)
 			minTime = t;
 		if (t > maxTime)
@@ -2988,7 +2989,7 @@ void CSplineCtrlEx::CopyKeys()
 		if (!pSpline->IsKeySelectedAtAnyDimension(i))
 			continue;
 
-		float t = pSpline->GetKeyTime(i); // Store offset time from copy/paste range.
+		CTimeValue t = pSpline->GetKeyTime(i); // Store offset time from copy/paste range.
 		ISplineInterpolator::ValueType afValue;
 		pSpline->GetKeyValue(i, afValue);
 
@@ -3033,16 +3034,16 @@ void CSplineCtrlEx::PasteKeys()
 	if (!rootNode->isTag("SplineKeys"))
 		return;
 
-	float minTime = 0;
-	float maxTime = 0;
+	CTimeValue minTime = 0;
+	CTimeValue maxTime = 0;
 	rootNode->getAttr("start", minTime);
 	rootNode->getAttr("end", maxTime);
 
 	CPoint point;
 	GetCursorPos(&point);
 	ScreenToClient(&point);
-	float fTime = XOfsToTime(point.x);
-	float fTimeRange = (maxTime - minTime);
+	CTimeValue fTime = XOfsToTime(point.x);
+	CTimeValue fTimeRange = (maxTime - minTime);
 
 	CUndo undo("Paste Spline Keys");
 
@@ -3054,7 +3055,7 @@ void CSplineCtrlEx::PasteKeys()
 	// Delete keys in range min to max time.
 	for (i = 0; i < pSpline->GetKeyCount(); )
 	{
-		float t = pSpline->GetKeyTime(i);
+		CTimeValue t = pSpline->GetKeyTime(i);
 		if (t >= fTime && t <= fTime + fTimeRange)
 		{
 			pSpline->RemoveKey(i);
@@ -3066,7 +3067,7 @@ void CSplineCtrlEx::PasteKeys()
 	for (i = 0; i < rootNode->getChildCount(); i++)
 	{
 		XmlNodeRef keyNode = rootNode->getChild(i);
-		float t = 0;
+		CTimeValue t = 0;
 		float tin = 0;
 		float tout = 0;
 		int flags = 0;
@@ -3093,7 +3094,7 @@ void CSplineCtrlEx::PasteKeys()
 			}
 		}
 
-		int key = pSpline->InsertKey(SnapTimeToGridVertical(t - minTime + fTime), afValue);
+		int key = pSpline->InsertKey(SnapTimeToGridVertical(t - minTime + fTime).GetSeconds(), afValue);
 		if (key >= 0)
 		{
 			pSpline->SelectKeyAllDimensions(key, true);
@@ -3149,8 +3150,8 @@ void CSplineCtrlEx::ModifySelectedKeysFlags(int nRemoveFlags, int nAddFlags)
 void CSplineCtrlEx::FitSplineToViewWidth()
 {
 	// Calculate time zoom so that whole time range fits.
-	float t0 = FLT_MAX;
-	float t1 = -FLT_MAX;
+	CTimeValue t0 = CTimeValue::Max();
+	CTimeValue t1 = CTimeValue::Min();
 
 	bool bAnyKey = false;
 	for (int i = 0; i < int(m_splines.size()); ++i)
@@ -3162,7 +3163,7 @@ void CSplineCtrlEx::FitSplineToViewWidth()
 
 		for (int keyIndex = 0; pSpline && keyIndex < pSpline->GetKeyCount(); ++keyIndex)
 		{
-			float keyTime = pSpline->GetKeyTime(keyIndex);
+			CTimeValue keyTime = pSpline->GetKeyTime(keyIndex);
 			t0 = std::min(t0, keyTime);
 			t1 = std::max(t1, keyTime);
 			bAnyKey = true;
@@ -3174,9 +3175,9 @@ void CSplineCtrlEx::FitSplineToViewWidth()
 		t1 = m_timeRange.end;
 	}
 
-	float zoom = abs(m_rcSpline.Width() - 20) / max(1.0f, fabs(t1 - t0));
+	float zoom = BADF (abs(m_rcSpline.Width() - 20) / max(CTimeValue(1), abs(t1 - t0)));
 	SetZoom(Vec2(zoom, m_grid.zoom.y));
-	SetScrollOffset(Vec2(t0, m_grid.origin.y));
+	SetScrollOffset(Vec2(t0.BADGetSeconds(), m_grid.origin.y));
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -3291,7 +3292,7 @@ void CSplineCtrlEx::GotoNextKey(bool previousKey)
 						if ((previousKey && i > 0) || (!previousKey && i + 1 < pSpline->GetKeyCount()))
 						{
 							int nextKey = previousKey ? i - 1 : i + 1;
-							float keyTime = pSpline->GetKeyTime(nextKey);
+							CTimeValue keyTime = pSpline->GetKeyTime(nextKey);
 
 							SetTimeMarker(keyTime);
 
@@ -3302,7 +3303,7 @@ void CSplineCtrlEx::GotoNextKey(bool previousKey)
 							pSpline->SelectKeyAtDimension(nextKey, nCurrentDimension, true);
 
 							// Set the new scrolled coordinates
-							float ofsx = keyTime - (m_grid.rect.right / 2) / m_grid.zoom.x;
+							float ofsx = keyTime .BADGetSeconds() - (m_grid.rect.right / 2) / m_grid.zoom.x;
 							float ofsy = afValue[nCurrentDimension] - (m_grid.rect.bottom / 2) / m_grid.zoom.y;
 
 							SetScrollOffset(Vec2(ofsx, ofsy));
@@ -3323,22 +3324,22 @@ void CSplineCtrlEx::GotoNextKey(bool previousKey)
 		{
 			ISplineInterpolator* pSpline = m_splines[splineIndex].pSpline;
 
-			float fClosestKeyTime = -1.0f;
-			float fClosestDist = 1E8;
+			CTimeValue fClosestKeyTime = -1;
+			CTimeValue fClosestDist = 100'000'000;
 
 			for (int i = 0; i < pSpline->GetKeyCount(); i++)
 			{
-				float fKeyTime = pSpline->GetKeyTime(i);
-				float fKeyDist = previousKey ? m_fTimeMarker - fKeyTime : fKeyTime - m_fTimeMarker;
+				CTimeValue fKeyTime = pSpline->GetKeyTime(i);
+				CTimeValue fKeyDist = previousKey ? m_fTimeMarker - fKeyTime : fKeyTime - m_fTimeMarker;
 
-				if ((fKeyDist > 0.0f) && (fKeyDist < fClosestDist))
+				if ((fKeyDist > 0) && (fKeyDist < fClosestDist))
 				{
 					fClosestDist = fKeyDist;
-					fClosestKeyTime = pSpline->GetKeyTime(i);
+					fClosestKeyTime = CTimeValue(pSpline->GetKeyTime(i));
 				}
 			}
 
-			if (fClosestKeyTime >= 0.0f)
+			if (fClosestKeyTime >= 0)
 			{
 				SetTimeMarker(fClosestKeyTime);
 
@@ -3348,14 +3349,14 @@ void CSplineCtrlEx::GotoNextKey(bool previousKey)
 				for (int i = 0; i < dimensions; i++)
 				{
 					float keyValue;
-					int keyNum = pSpline->FindKey(fClosestKeyTime);
+					int keyNum = pSpline->FindKey(fClosestKeyTime.GetSeconds());
 
 					pSpline->GetKeyValueFloat(keyNum, keyValue);
 					averageValue += keyValue;
 				}
 
 				// Set the new scrolled coordinates
-				float ofsx = fClosestKeyTime - (m_grid.rect.right / 2) / m_grid.zoom.x;
+				float ofsx = fClosestKeyTime.BADGetSeconds() - (m_grid.rect.right / 2) / m_grid.zoom.x;
 				float ofsy = averageValue / dimensions - (m_grid.rect.bottom / 2) / m_grid.zoom.y;
 
 				SetScrollOffset(Vec2(ofsx, ofsy));

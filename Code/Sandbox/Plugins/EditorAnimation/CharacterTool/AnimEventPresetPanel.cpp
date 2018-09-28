@@ -99,8 +99,8 @@ void AnimEventPresetPanel::ReadPalette()
 		if (preset.colorHue < 0.0f)
 			preset.colorHue = 0.0f;
 		preset.name = item.name;
-		preset.event.startTime = -1.0f;
-		preset.event.endTime = -1.0f;
+		preset.event.startTime = -1;
+		preset.event.endTime = -1;
 		presets.push_back(preset);
 	}
 }

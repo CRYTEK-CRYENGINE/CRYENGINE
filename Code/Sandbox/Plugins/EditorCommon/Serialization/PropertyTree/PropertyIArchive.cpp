@@ -196,6 +196,25 @@ bool PropertyIArchive::operator()(double& value, const char* name, const char* l
 		return false;
 }
 
+bool PropertyIArchive::operator()(CTimeValue& value, const char* name, const char* label)
+{
+	return (*this)(value.m_lValue, name, label);
+}
+
+#define MP_FUNCTION(T)\
+bool PropertyIArchive::operator()(T& value, const char* name, const char* label)\
+{\
+	if (openRow(name, label, "mpfloat")) {\
+		currentNode_->assignToPrimitive(&value, sizeof(value));\
+		closeRow(name);\
+		return true;\
+	}\
+	else\
+		return false;\
+}
+#include <CrySystem\mpfloat.types>
+#undef MP_FUNCTION
+
 bool PropertyIArchive::operator()(yasli::ContainerInterface& ser, const char* name, const char* label)
 {
 	const char* typeName = ser.containerType().name();

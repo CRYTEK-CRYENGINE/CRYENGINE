@@ -18,12 +18,12 @@ public:
 		: m_bIsValid(true), m_keyIndex(keyIndex), m_pTrack(pTrack) {}
 
 	void                   GetKey(STrackKey* pKey) const;
-	SAnimTime              GetTime() const;
+	CTimeValue             GetTime() const;
 	const CTrackViewTrack* GetTrack() const { return m_pTrack; }
 
-	SAnimTime              GetDuration() const;
-	SAnimTime              GetAnimDuration() const;
-	SAnimTime              GetAnimStart() const;
+	CTimeValue             GetDuration() const;
+	CTimeValue             GetAnimDuration() const;
+	CTimeValue             GetAnimStart() const;
 	bool                   IsAnimLoopable() const;
 
 private:
@@ -53,13 +53,13 @@ public:
 	void                        Select(bool bSelect);
 	bool                        IsSelected() const;
 
-	SAnimTime                   GetTime() const;
+	CTimeValue                  GetTime() const;
 
-	void                        SetDuration(SAnimTime duration);
-	SAnimTime                   GetDuration() const;
-	SAnimTime                   GetCycleDuration() const;
-	SAnimTime                   GetAnimStart() const;
-	SAnimTime                   GetAnimEnd() const;
+	void                        SetDuration(const CTimeValue& duration);
+	CTimeValue                  GetDuration() const;
+	CTimeValue                  GetCycleDuration() const;
+	CTimeValue                  GetAnimStart() const;
+	CTimeValue                  GetAnimEnd() const;
 	bool                        IsAnimLoopable() const;
 
 	string                      GetDescription() const;
@@ -159,8 +159,8 @@ public:
 	CTrackViewNode* GetChild(unsigned int index) const { return m_childNodes[index].get(); }
 
 	// Snap time value to prev/next key in sequence
-	virtual bool SnapTimeToPrevKey(SAnimTime& time) const = 0;
-	virtual bool SnapTimeToNextKey(SAnimTime& time) const = 0;
+	virtual bool SnapTimeToPrevKey(CTimeValue& time) const = 0;
+	virtual bool SnapTimeToNextKey(CTimeValue& time) const = 0;
 
 	// Selection state
 	virtual void SetSelected(bool bSelected);
@@ -176,7 +176,7 @@ public:
 	// Key getters
 	virtual CTrackViewKeyBundle GetSelectedKeys() = 0;
 	virtual CTrackViewKeyBundle GetAllKeys() = 0;
-	virtual CTrackViewKeyBundle GetKeysInTimeRange(const SAnimTime t0, const SAnimTime t1) = 0;
+	virtual CTrackViewKeyBundle GetKeysInTimeRange(const CTimeValue& t0, const CTimeValue& t1) = 0;
 
 	// Check if it's a group node
 	virtual bool IsGroupNode() const { return false; }

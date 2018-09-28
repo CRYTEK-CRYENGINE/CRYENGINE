@@ -128,7 +128,7 @@ bool CSliderCtrlEx::SetThumb(const CPoint& point)
 	if (bChanged)
 	{
 		SetPos(nNewPos);
-		float dt = ((float)(nNewPos - nMin) / (nMax - nMin));
+		mpfloat dt = ((mpfloat)(nNewPos - nMin) / (nMax - nMin));
 		SetValue(dt * (m_max - m_min) + m_min);
 	}
 	return bChanged;
@@ -172,7 +172,7 @@ void CSliderCtrlEx::EnableUndo(const CString& undoText)
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CSliderCtrlEx::SetRangeFloat(float min, float max, float step)
+void CSliderCtrlEx::SetRangeInternal(const mpfloat& min, const mpfloat& max, const mpfloat& step)
 {
 	if (m_bLocked)
 		return;
@@ -180,9 +180,9 @@ void CSliderCtrlEx::SetRangeFloat(float min, float max, float step)
 	m_max = max;
 
 	// Set internal slider range.
-	float range = FLOAT_SCALE;
-	if (step != 0.f)
-		range = pow(0.1f, floor(log(step) / log(10.f)));
+	mpfloat range = FLOAT_SCALE;
+	if (step != 0)
+		range = pow(mpfloat("0.1"), floor(log(step) / log(mpfloat(10))));
 	SetRange(int_round(min * range), int_round(max * range));
 
 	if (m_hWnd && !m_bInNotifyCallback)
@@ -190,7 +190,7 @@ void CSliderCtrlEx::SetRangeFloat(float min, float max, float step)
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CSliderCtrlEx::SetValue(float val)
+void CSliderCtrlEx::SetValue(const mpfloat& val)
 {
 	if (m_bLocked)
 		return;
@@ -204,7 +204,7 @@ void CSliderCtrlEx::SetValue(float val)
 	{
 		const int nMin = GetRangeMin();
 		const int nMax = GetRangeMax() + 1;
-		float pos = (m_value - m_min) / (m_max - m_min) * (nMax - nMin) + nMin;
+		mpfloat pos = (m_value - m_min) / (m_max - m_min) * (nMax - nMin) + nMin;
 		SetPos(int_round(pos));
 	}
 
@@ -213,7 +213,7 @@ void CSliderCtrlEx::SetValue(float val)
 }
 
 //////////////////////////////////////////////////////////////////////////
-float CSliderCtrlEx::GetValue() const
+const mpfloat& CSliderCtrlEx::GetValue() const
 {
 	return m_value;
 }
@@ -222,7 +222,7 @@ float CSliderCtrlEx::GetValue() const
 CString CSliderCtrlEx::GetValueAsString() const
 {
 	CString str;
-	str.Format("%g", m_value);
+	str.Format("%s", m_value.str());
 	return str;
 }
 

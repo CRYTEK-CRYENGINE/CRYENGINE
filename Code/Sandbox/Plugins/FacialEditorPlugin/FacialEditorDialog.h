@@ -197,7 +197,7 @@ protected:
 	bool                                CloseCurrentJoysticks();
 
 	void                                UpdateVideoSequencePlayback(float time);
-	void                                MergeVideoExtractedSequence(const char* filename, float startTime, bool loadSequence = true);
+	void                                MergeVideoExtractedSequence(const char* filename, const CTimeValue& startTime, bool loadSequence = true);
 	void                                LoadGroupFile(const char* filename);
 	void                                LoadC3DFile(const char* filename);
 	void                                LoadFBXToSequence(const char* filename);

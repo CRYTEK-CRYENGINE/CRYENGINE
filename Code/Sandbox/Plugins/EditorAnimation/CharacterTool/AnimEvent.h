@@ -16,8 +16,8 @@ namespace CharacterTool
 
 struct AnimEvent
 {
-	float  startTime;
-	float  endTime;
+	nTime  startTime;
+	nTime  endTime;
 	string type;
 	string parameter;
 	string boneName;
@@ -26,8 +26,8 @@ struct AnimEvent
 	Vec3   direction;
 
 	AnimEvent()
-		: startTime(0.0f)
-		, endTime(0.0f)
+		: startTime(0)
+		, endTime(0)
 		, type("audio_trigger")
 		, offset(ZERO)
 		, direction(ZERO)

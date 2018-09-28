@@ -15,13 +15,13 @@ public:
 	virtual void             Enter();
 	virtual void             Exit();
 	void                     TriggerExit();
-	void                     SetFragment(FragmentID fragmentID, TagState fragTags, uint32 option, float maxTime);
-	void                     Restart(float time = -1.0f);
-	void                     SetTime(float time, bool bForce = false);
-	float                    GetTimeSinceInstall() const;
-	float                    GetTimeMax() const { return m_maxTime; }
+	void                     SetFragment(FragmentID fragmentID, TagState fragTags, uint32 option, const CTimeValue& maxTime);
+	void                     Restart(const CTimeValue& time = -1);
+	void                     SetTime(const CTimeValue& time, bool bForce = false);
+	const CTimeValue&        GetTimeSinceInstall() const;
+	const CTimeValue&        GetTimeMax() const { return m_maxTime; }
 	bool                     ReachedEnd() const;
-	virtual IAction::EStatus Update(float timePassed);
+	virtual IAction::EStatus Update(const CTimeValue& timePassed);
 	virtual void             OnSequenceFinished(int layer, uint32 scopeID);
 
 	virtual int              GetPriority() const { return 102; }
@@ -29,8 +29,8 @@ public:
 private:
 	void InternalSetFragment(FragmentID fragmentID, TagState fragTags, uint32 option);
 
-	float m_timeSinceInstall;
-	float m_maxTime;
+	CTimeValue m_timeSinceInstall;
+	CTimeValue m_maxTime;
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -40,10 +40,10 @@ class CFragmentSequencePlayback
 public:
 	CFragmentSequencePlayback(const CFragmentHistory& history, IActionController& actionController, EMannequinEditorMode mode, const ActionScopes& scopeMask = ACTION_SCOPES_ALL)
 		:
-		m_time(0.0f),
-		m_maxTime(5.0f),
+		m_time(0),
+		m_maxTime(5),
 		m_curIdx(0),
-		m_playScale(1.0f),
+		m_playScale(1),
 		m_history(history),
 		m_actionController(actionController),
 		m_mode(mode),
@@ -52,11 +52,11 @@ public:
 	}
 	~CFragmentSequencePlayback();
 
-	void Restart(float time = -1.0f);
-	void SetTime(float time, bool bForce = false);
-	void Update(float time, class CMannequinModelViewport * pViewport);
+	void Restart(const CTimeValue& time = -1);
+	void SetTime(const CTimeValue& time, bool bForce = false);
+	void Update(const CTimeValue& time, class CMannequinModelViewport * pViewport);
 
-	float GetTime() const
+	const CTimeValue& GetTime() const
 	{
 		return m_time;
 	}
@@ -66,7 +66,7 @@ public:
 		m_scopeMask = scopeMask;
 	}
 
-	void SetSpeedBias(float playScale);
+	void SetSpeedBias(const mpfloat& playScale);
 
 private:
 
@@ -82,10 +82,10 @@ private:
 
 	ActionScopes            m_scopeMask;
 
-	float                   m_time;
-	float                   m_maxTime;
+	CTimeValue              m_time;
+	CTimeValue              m_maxTime;
 	uint32                  m_curIdx;
-	float                   m_playScale;
+	mpfloat                 m_playScale;
 
 };
 

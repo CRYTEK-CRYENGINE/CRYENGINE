@@ -35,16 +35,16 @@ void AnimEvent::Serialize(IArchive& ar)
 	}
 	else
 	{
-		if (startTime >= 0.0f)
+		if (startTime >= 0)
 		{
 			ar(startTime, "startTime", ">50>^");
 			ar(endTime, "endTime", 0);
 			if (ar.isInput())
 			{
-				if (startTime < 0.0f)
-					startTime = 0.0f;
-				if (endTime < 0.0f)
-					endTime = 0.0f;
+				if (startTime < 0)
+					startTime = 0;
+				if (endTime < 0)
+					endTime = 0;
 			}
 		}
 
@@ -178,7 +178,7 @@ bool AnimEvent::LoadFromXMLNode(const XmlNodeRef& dataIn)
 		return false;
 
 	type = dataIn->getAttr("name");
-	dataIn->getAttr("time", startTime = 0.0f);
+	dataIn->getAttr("time", startTime = 0);
 	dataIn->getAttr("endTime", endTime = startTime);
 	parameter = dataIn->getAttr("parameter");
 	boneName = dataIn->getAttr("bone");
@@ -196,8 +196,8 @@ void AnimEventPreset::Serialize(IArchive& ar)
 	if (ar.isInput())
 	{
 		// a little hack to hide time from presets
-		event.startTime = -1.0f;
-		event.endTime = -1.0f;
+		event.startTime = -1;
+		event.endTime = -1;
 	}
 }
 

@@ -70,6 +70,8 @@ void CFlowGraphEditModuleDlg::AddDataTypes()
 	m_flowDataTypes[eFDT_Vec3] = "Vec3";
 	m_flowDataTypes[eFDT_EntityId] = "EntityId";
 	m_flowDataTypes[eFDT_Bool] = "Bool";
+	m_flowDataTypes[eFDT_Time] = "Time";
+	m_flowDataTypes[eFDT_MP] = "MP";
 }
 
 //////////////////////////////////////////////////////////////////////////

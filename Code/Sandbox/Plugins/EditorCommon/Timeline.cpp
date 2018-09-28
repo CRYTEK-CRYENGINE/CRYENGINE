@@ -36,27 +36,27 @@
 
 #define ENABLE_PROFILING 0
 
-int STimelineViewState::ScrollOffset(float origin) const
+int STimelineViewState::ScrollOffset(const CTimeValue& origin) const
 {
-	return int((origin / visibleDistance + 0.5f) * widthPixels);
+	return int((origin / visibleDistance + "0.5") * widthPixels);
 }
 
-int STimelineViewState::TimeToLayout(float time) const
+int STimelineViewState::TimeToLayout(const CTimeValue& time) const
 {
-	return int((time / visibleDistance) * widthPixels + 0.5f);
+	return int((time / visibleDistance) * widthPixels + "0.5");
 }
 
-int STimelineViewState::TimeToLocal(float time) const
+int STimelineViewState::TimeToLocal(const CTimeValue& time) const
 {
 	return TimeToLayout(time) + treeWidth + scrollPixels.x();
 }
 
-float STimelineViewState::LayoutToTime(int x) const
+CTimeValue STimelineViewState::LayoutToTime(int x) const
 {
-	return (float(x) - 0.5f) / widthPixels * visibleDistance;
+	return (x - mpfloat("0.5")) / widthPixels * visibleDistance;
 }
 
-float STimelineViewState::LocalToTime(int x) const
+CTimeValue STimelineViewState::LocalToTime(int x) const
 {
 	return LayoutToTime(x - treeWidth - scrollPixels.x());
 }
@@ -258,14 +258,14 @@ struct STimelineLayout
 {
 	int           thumbPositionX;
 	STrackLayouts tracks;
-	SAnimTime     minStartTime;
-	SAnimTime     maxEndTime;
+	CTimeValue     minStartTime;
+	CTimeValue     maxEndTime;
 	QSize         size;
 
 	STimelineLayout()
 		: thumbPositionX(0)
-		, minStartTime(0.0f)
-		, maxEndTime(1.0f)
+		, minStartTime(0)
+		, maxEndTime(1)
 		, size(1, 1)
 	{
 	}
@@ -287,14 +287,14 @@ SElementLayout& AddElementToTrackLayout(STimelineTrack& track, STrackLayout& tra
 
 	if (element.type == STimelineElement::KEY)
 	{
-		const int left = (viewState.TimeToLayout(element.start.ToFloat()) - keySize / 2);
+		const int left = (viewState.TimeToLayout(element.start) - keySize / 2);
 		const int top = currentTop + ((track.height - keySize) / 2);
 		elementl.rect = QRect(left, top, keySize, keySize);
 	}
 	else
 	{
-		const int left = viewState.TimeToLayout(element.start.ToFloat());
-		const int right = viewState.TimeToLayout(element.end.ToFloat());
+		const int left = viewState.TimeToLayout(element.start);
+		const int right = viewState.TimeToLayout(element.end);
 		elementl.rect = QRect(left, currentTop + VERTICAL_PADDING, right - left, track.height - VERTICAL_PADDING * 2);
 	}
 
@@ -304,14 +304,14 @@ SElementLayout& AddElementToTrackLayout(STimelineTrack& track, STrackLayout& tra
 void AddCompoundElementsToTrackLayout(STimelineTrack& track, STimelineLayout* layout, const STimelineViewState& viewState, int trackId, uint keySize, int treeWidth, int& currentTop)
 {
 	const size_t numSubTracks = track.tracks.size();
-	SAnimTime currentElementTime = SAnimTime::Min();
+	CTimeValue currentElementTime = CTimeValue::Min();
 	size_t* pCurrentSubTrackIndices = static_cast<size_t*>(alloca(sizeof(size_t) * numSubTracks));
 	memset(pCurrentSubTrackIndices, 0, sizeof(size_t) * numSubTracks);
 
 	while (true)
 	{
 		bool bElementFound = false;
-		SAnimTime minElementTime = SAnimTime::Max();
+		CTimeValue minElementTime = CTimeValue::Max();
 
 		// First search for minimum element time for current track positions
 		for (size_t i = 0; i < numSubTracks; ++i)
@@ -323,7 +323,7 @@ void AddCompoundElementsToTrackLayout(STimelineTrack& track, STimelineLayout* la
 
 			if (index < numTrackElements)
 			{
-				const SAnimTime elementTime = elements[index].start;
+				const CTimeValue elementTime = elements[index].start;
 				minElementTime = min(elementTime, minElementTime);
 				bElementFound = true;
 			}
@@ -355,7 +355,7 @@ void AddCompoundElementsToTrackLayout(STimelineTrack& track, STimelineLayout* la
 
 			if (index < numTrackElements)
 			{
-				const SAnimTime elementTime = elements[index].start;
+				const CTimeValue elementTime = elements[index].start;
 
 				if (elementTime == minElementTime)
 				{
@@ -406,10 +406,10 @@ bool FilterTracks(const STimelineTrack& track, std::unordered_set<const STimelin
 
 void ClampVisibleDistanceToTotalDuration(STimelineViewState& viewState, const STimelineLayout* const layout, uint timelinePadding)
 {
-	const float totalDuration = (layout->maxEndTime - layout->minStartTime).ToFloat();
-	const float padding = (float(timelinePadding) - 0.5f) / viewState.widthPixels * totalDuration;
+	const CTimeValue totalDuration = (layout->maxEndTime - layout->minStartTime);
+	const CTimeValue padding = (timelinePadding - mpfloat("0.5")) / viewState.widthPixels * totalDuration;
 
-	viewState.visibleDistance = clamp_tpl(viewState.visibleDistance, 0.01f, totalDuration + 2.0f * padding);
+	viewState.visibleDistance = CLAMP(viewState.visibleDistance, "0.01", totalDuration + 2 * padding);
 }
 
 void CalculateMinMaxTime(STimelineLayout* layout, const STimelineTrack& parentTrack)
@@ -429,20 +429,20 @@ void CalculateMinMaxTimeWithDefaults(STimelineLayout* layout, const STimelineTra
 {
 	if (!parentTrack.tracks.empty())
 	{
-		layout->minStartTime = SAnimTime::Max();
-		layout->maxEndTime = SAnimTime::Min();
+		layout->minStartTime = CTimeValue::Max();
+		layout->maxEndTime = CTimeValue::Min();
 	}
 	else
 	{
-		layout->minStartTime = SAnimTime(0.0f);
-		layout->maxEndTime = SAnimTime(1.0f);
+		layout->minStartTime.SetSeconds(0);
+		layout->maxEndTime.SetSeconds(1);
 	}
 
 	CalculateMinMaxTime(layout, parentTrack);
 }
 
 void CalculateTrackLayout(STimelineLayout* layout, int& currentTop, int currentIndent, STimelineTrack& parentTrack, const STimelineViewState& viewState,
-                          float thumbTime, uint keySize, int treeWidth, const std::unordered_set<const STimelineTrack*>& invisibleTracks)
+                          const CTimeValue& thumbTime, uint keySize, int treeWidth, const std::unordered_set<const STimelineTrack*>& invisibleTracks)
 {
 	const size_t numTracks = parentTrack.tracks.size();
 	for (size_t i = 0; i < numTracks; ++i)
@@ -476,8 +476,8 @@ void CalculateTrackLayout(STimelineLayout* layout, int& currentTop, int currentI
 			}
 		}
 
-		int left = viewState.TimeToLayout(track.startTime.ToFloat());
-		int right = viewState.TimeToLayout(track.endTime.ToFloat());
+		int left = viewState.TimeToLayout(track.startTime);
+		int right = viewState.TimeToLayout(track.endTime);
 		trackLayout.rect = QRect(left, currentTop, right - left, track.height);
 		currentTop += track.height;
 
@@ -554,9 +554,9 @@ void UpdateScrollPixels(STimelineLayout* layout, STimelineViewState& viewState)
 {
 	if (viewState.visibleDistance != 0)
 	{
-		SAnimTime totalDuration = layout->maxEndTime - layout->minStartTime;
+		CTimeValue totalDuration = layout->maxEndTime - layout->minStartTime;
 		viewState.scrollPixels = QPoint(viewState.ScrollOffset(viewState.viewOrigin), 0);
-		viewState.maxScrollX = int(viewState.widthPixels * totalDuration.ToFloat() / viewState.visibleDistance) - viewState.widthPixels;
+		viewState.maxScrollX = int(viewState.widthPixels * totalDuration / viewState.visibleDistance) - viewState.widthPixels;
 	}
 	else
 	{
@@ -565,7 +565,7 @@ void UpdateScrollPixels(STimelineLayout* layout, STimelineViewState& viewState)
 	}
 }
 
-void CalculateLayout(STimelineLayout* layout, STimelineContent& content, STimelineViewState& viewState, const QLineEdit* pFilterLineEdit, float thumbTime, uint keySize, bool treeVisible, bool mainTrackTimeRange)
+void CalculateLayout(STimelineLayout* layout, STimelineContent& content, STimelineViewState& viewState, const QLineEdit* pFilterLineEdit, const CTimeValue& thumbTime, uint keySize, bool treeVisible, bool mainTrackTimeRange)
 {
 	if (!mainTrackTimeRange)
 	{
@@ -590,7 +590,7 @@ void CalculateLayout(STimelineLayout* layout, STimelineContent& content, STimeli
 
 	CalculateTrackLayout(layout, currentTop, 0, content.track, viewState, thumbTime, keySize, treeWidth, invisibleTracks);
 
-	layout->size = QSize(viewState.TimeToLayout(layout->maxEndTime.ToFloat()), currentTop + VERTICAL_PADDING);
+	layout->size = QSize(viewState.TimeToLayout(layout->maxEndTime), currentTop + VERTICAL_PADDING);
 }
 
 STrackLayout* HitTestTrack(STrackLayouts& tracks, const QPoint& point, bool bIgnoreTrackRange)
@@ -685,7 +685,7 @@ void ClearElementSelection(STimelineTrack& track)
 	  });
 }
 
-void SetSelectedElementTimes(STimelineTrack& track, const std::vector<SAnimTime>& times)
+void SetSelectedElementTimes(STimelineTrack& track, const std::vector<CTimeValue>& times)
 {
 	auto iter = times.begin();
 	ForEachElement(track, [&](STimelineTrack& track, STimelineElement& element)
@@ -693,14 +693,14 @@ void SetSelectedElementTimes(STimelineTrack& track, const std::vector<SAnimTime>
 			if (element.selected)
 			{
 			  track.modified = true;
-			  const SAnimTime length = element.end - element.start;
+			  const CTimeValue length = element.end - element.start;
 			  element.start = *(iter++);
 			  element.end = element.start + length;
 			}
 	  });
 }
 
-float FindNearestKeyTime(std::vector<SAnimTime>& vec, SAnimTime value, SAnimTime selectedValue, bool forwardSearch)
+CTimeValue FindNearestKeyTime(std::vector<CTimeValue>& vec, const CTimeValue& value, const CTimeValue& selectedValue, bool forwardSearch)
 {
 	if (forwardSearch)
 	{
@@ -731,23 +731,23 @@ float FindNearestKeyTime(std::vector<SAnimTime>& vec, SAnimTime value, SAnimTime
 	}
 }
 
-std::vector<SAnimTime> GetSelectedElementTimes(STimelineTrack& track)
+std::vector<CTimeValue> GetSelectedElementTimes(STimelineTrack& track)
 {
-	std::vector<SAnimTime> times;
+	std::vector<CTimeValue> times;
 	ForEachElement(track, [&](STimelineTrack& track, STimelineElement& element) { if (element.selected) { times.push_back(element.start); } });
 	return times;
 }
 
-std::vector<SAnimTime> GetAllElementTimes(STimelineTrack& track)
+std::vector<CTimeValue> GetAllElementTimes(STimelineTrack& track)
 {
-	std::vector<SAnimTime> times;
+	std::vector<CTimeValue> times;
 	ForEachElement(track, [&](STimelineTrack& track, STimelineElement& element) { if (!track.disabled && !element.selected && !element.deleted) times.push_back(element.start); });
 
 	for (size_t i = 0; i < track.tracks.size(); ++i)
 	{
 		if (track.tracks[i]->elements.size() > 0)
 		{
-			std::vector<SAnimTime> subItems = GetAllElementTimes((STimelineTrack&)track.tracks[i]);
+			std::vector<CTimeValue> subItems = GetAllElementTimes((STimelineTrack&)track.tracks[i]);
 
 			times.insert(times.end(), subItems.begin(), subItems.end());
 		}
@@ -756,9 +756,9 @@ std::vector<SAnimTime> GetAllElementTimes(STimelineTrack& track)
 	return times;
 }
 
-VectorSet<SAnimTime> GetSelectedElementsTimeSet(STimelineTrack& track)
+VectorSet<CTimeValue> GetSelectedElementsTimeSet(STimelineTrack& track)
 {
-	VectorSet<SAnimTime> timeSet;
+	VectorSet<CTimeValue> timeSet;
 	ForEachElement(track, [&](STimelineTrack& track, STimelineElement& element) { if (element.selected) { timeSet.insert(element.start); } });
 	return timeSet;
 }
@@ -790,13 +790,13 @@ void UpdateTruncatedDurations(STimelineTrack* track)
 	{
 		STimelineElement& previous = track->elements[sortedTrackIndices[i - 1]];
 		const STimelineElement& e = track->elements[sortedTrackIndices[i]];
-		SAnimTime maxEndTime = e.start;
-		if (e.blendInDuration > SAnimTime(0.0f))
-			maxEndTime += SAnimTime(std::min((e.end - e.start).GetTicks(), e.blendInDuration.GetTicks()));
+		CTimeValue maxEndTime = e.start;
+		if (e.blendInDuration > 0)
+			maxEndTime += min((e.end - e.start), e.blendInDuration);
 		if (previous.end > maxEndTime)
-			previous.truncatedDuration = SAnimTime(maxEndTime - previous.start);
+			previous.truncatedDuration = maxEndTime - previous.start;
 		else
-			previous.truncatedDuration = SAnimTime(previous.end - previous.start);
+			previous.truncatedDuration = previous.end - previous.start;
 		previous.nextKeyTime = e.start;
 		previous.nextBlendInTime = maxEndTime;
 	}
@@ -809,7 +809,7 @@ void UpdateTruncatedDurations(STimelineTrack* track)
 	}
 }
 
-void MoveSelectedElements(STimelineTrack& track, SAnimTime delta)
+void MoveSelectedElements(STimelineTrack& track, const CTimeValue& delta)
 {
 	ForEachElement(track, [delta](STimelineTrack& track, STimelineElement& element)
 		{
@@ -817,7 +817,7 @@ void MoveSelectedElements(STimelineTrack& track, SAnimTime delta)
 			{
 			  track.modified = true;
 			  element.start += delta;
-			  if (element.end != SAnimTime::Max())
+			  if (element.end != CTimeValue::Max())
 					element.end += delta;
 			}
 	  });
@@ -826,15 +826,15 @@ void MoveSelectedElements(STimelineTrack& track, SAnimTime delta)
 		UpdateTruncatedDurations(&track);
 }
 
-void ScaleSelectedElements(STimelineTrack& track, SAnimTime cursorTime, SAnimTime start, SAnimTime delta)
+void ScaleSelectedElements(STimelineTrack& track, const CTimeValue& cursorTime, const CTimeValue& start, const CTimeValue& delta)
 {
-	SAnimTime currentDistance = start - cursorTime;
-	SAnimTime newDistance = currentDistance + delta;
+	CTimeValue currentDistance = start - cursorTime;
+	CTimeValue newDistance = currentDistance + delta;
 
-	if (std::abs((float)currentDistance) < std::numeric_limits<float>::epsilon())
+	if (abs(currentDistance) < TV_EPSILON)
 		return;
 
-	float scale = float(newDistance) / float(currentDistance);
+	nTime scale = newDistance / currentDistance;
 
 	ForEachElement(track, [&](STimelineTrack& track, STimelineElement& element)
 		{
@@ -1006,17 +1006,17 @@ QBrush PickTrackBrush(const STrackLayout& track)
 
 void UpdateClipLinesCache(STracksRenderCache& renderCache, const SElementLayout& element, const QRect& rect, const STimelineViewState& viewState)
 {
-	float duration = element.elementRef.GetElement().clipAnimDuration;
+	CTimeValue duration = element.elementRef.GetElement().clipAnimDuration;
 
-	float start = MIN(duration, MAX(0, element.elementRef.GetElement().clipAnimStart));
-	float r = start / duration;
+	CTimeValue start = min(duration, max(CTimeValue(0), element.elementRef.GetElement().clipAnimStart));
+	nTime r = start / duration;
 
 	int x0L = rect.left();
 	int x0R = rect.right();
 
 	int len = viewState.TimeToLayout(duration);
 
-	int x1L = x0L - len*r;
+	int x1L = x0L - len* BADF r;
 	int x1R = x1L + len;
 
 	x1R = (x1R >= x0R ? x1R : x0R);
@@ -1033,7 +1033,7 @@ void UpdateClipLinesCache(STracksRenderCache& renderCache, const SElementLayout&
 	renderCache.unclippedClipLines.emplace_back(QLine(x1R, y1, x0R, y1));
 }
 
-void UpdateTracksRenderCache(STracksRenderCache& renderCache, QPainter& painter, const STimelineLayout& layout, const STimelineViewState& viewState, const QRect& trackRect, float timeUnitScale, bool drawMarkers, bool bShowText, int scrollOffset)
+void UpdateTracksRenderCache(STracksRenderCache& renderCache, QPainter& painter, const STimelineLayout& layout, const STimelineViewState& viewState, const QRect& trackRect, const mpfloat& timeUnitScale, bool drawMarkers, bool bShowText, int scrollOffset)
 {
 	LOADING_TIME_PROFILE_SECTION
 
@@ -1044,8 +1044,8 @@ void UpdateTracksRenderCache(STracksRenderCache& renderCache, QPainter& painter,
 	const int32 trackAreaLeft = viewState.LocalToLayout(QPoint(viewState.treeWidth, 0)).x();
 	const int32 trackAreaRight = trackAreaLeft + trackRect.width();
 
-	const Range visibleRange = Range(viewState.LocalToTime(viewState.treeWidth) * timeUnitScale, viewState.LocalToTime(trackRect.width()) * timeUnitScale);
-	const Range rulerRange = Range(layout.minStartTime.ToFloat() * timeUnitScale, layout.maxEndTime.ToFloat() * timeUnitScale);
+	const TRange<CTimeValue> visibleRange = TRange<CTimeValue>(viewState.LocalToTime(viewState.treeWidth) * timeUnitScale, viewState.LocalToTime(trackRect.width()) * timeUnitScale);
+	const TRange<CTimeValue> rulerRange   = TRange<CTimeValue>(layout.minStartTime * timeUnitScale, layout.maxEndTime * timeUnitScale);
 
 	const int32 highMarkersMod = TRACK_MARK_HEIGHT;
 	const int32 lowMarkersMod = highMarkersMod / 2;
@@ -1250,7 +1250,7 @@ void UpdateTracksRenderCache(STracksRenderCache& renderCache, QPainter& painter,
 								}
 
 								// calculate lines, to designate cropped animation length
-								if ((element.elementRef.GetElement().clipAnimStart) || (element.elementRef.GetElement().clipAnimEnd) && (!element.IsSelected()))
+								if ((element.elementRef.GetElement().clipAnimStart != 0) || (element.elementRef.GetElement().clipAnimEnd != 0) && (!element.IsSelected()))
 								{
 									UpdateClipLinesCache(renderCache, element, rect, viewState);
 								}
@@ -1272,20 +1272,20 @@ void UpdateTracksRenderCache(STracksRenderCache& renderCache, QPainter& painter,
 	}
 }
 
-void DrawSelectionLines(QPainter& painter, const STimelineViewState& viewState, const Range& visibleRange, STimelineContent& content, int rulerPrecision, int width, int height, float time, float timeUnitScale, bool hasFocus)
+void DrawSelectionLines(QPainter& painter, const STimelineViewState& viewState, const TRange<CTimeValue>& visibleRange, STimelineContent& content, int rulerPrecision, int width, int height, const CTimeValue& time, const mpfloat& timeUnitScale, bool hasFocus)
 {
 	LOADING_TIME_PROFILE_SECTION
 
-	const VectorSet<SAnimTime> times = GetSelectedElementsTimeSet(content.track);
+	const VectorSet<CTimeValue> times = GetSelectedElementsTimeSet(content.track);
 	const QColor indicatorColor = (hasFocus ? GetStyleHelper()->timelineSelectionLinesFocused() : GetStyleHelper()->timelineSelectionLines());
 
 	painter.setPen(indicatorColor);
 	for (auto iter = times.begin(); iter != times.end(); ++iter)
 	{
-		const float linePos = iter->ToFloat();
+		const CTimeValue linePos = *iter;
 		if (linePos >= visibleRange.start && linePos <= visibleRange.end)
 		{
-			const int32 indicatorX = int32(viewState.TimeToLocal(iter->ToFloat()) + 0.5f);
+			const int32 indicatorX = int32(viewState.TimeToLocal(*iter) + 0.5f);
 			painter.drawLine(QPoint(indicatorX, 0), QPoint(indicatorX, height));
 		}
 	}
@@ -1479,9 +1479,9 @@ struct CTimeline::SMoveHandler : SMouseHandler
 	const STimelineElement* m_pClickedElement;
 	QPoint                  m_startPoint;
 	bool                    m_cycleSelection;
-	SAnimTime               m_startTime;
-	SAnimTime               m_clickTime;
-	std::vector<SAnimTime>  m_elementTimes;
+	CTimeValue              m_startTime;
+	CTimeValue              m_clickTime;
+	std::vector<CTimeValue> m_elementTimes;
 
 	SMoveHandler(CTimeline* timeline, bool cycleSelection)
 		: m_timeline(timeline)
@@ -1495,10 +1495,10 @@ struct CTimeline::SMoveHandler : SMouseHandler
 
 		m_startPoint = m_timeline->m_viewState.LocalToLayout(QPoint(currentPos));
 
-		m_clickTime = SAnimTime(float(m_startPoint.x()) / m_timeline->m_viewState.widthPixels * m_timeline->m_viewState.visibleDistance);
+		m_clickTime = mpfloat(m_startPoint.x()) / m_timeline->m_viewState.widthPixels * m_timeline->m_viewState.visibleDistance;
 		m_startTime = m_clickTime;
-		SAnimTime dt = m_timeline->m_pContent->track.endTime;
-		SAnimTime clickedElementDelta = dt;
+		CTimeValue dt = m_timeline->m_pContent->track.endTime;
+		CTimeValue clickedElementDelta = dt;
 
 		const TSelectedElements selectedElements = GetSelectedElements(m_timeline->m_pContent->track);
 
@@ -1506,7 +1506,7 @@ struct CTimeline::SMoveHandler : SMouseHandler
 		{
 			const STimelineElement& element = *selectedElements[i].second;
 			clickedElementDelta = element.start - m_clickTime;
-			if (abs(clickedElementDelta.GetTicks()) < abs(dt.GetTicks()))
+			if (abs(clickedElementDelta) < abs(dt))
 			{
 				m_pClickedElement = &element;
 				dt = clickedElementDelta;
@@ -1544,26 +1544,26 @@ struct CTimeline::SMoveHandler : SMouseHandler
 
 		const bool bToggleSelected = (ev->modifiers() & Qt::SHIFT) != 0;
 
-		SAnimTime deltaTime = SAnimTime(float(delta) / m_timeline->m_viewState.widthPixels * m_timeline->m_viewState.visibleDistance);
-		SAnimTime endTime = m_timeline->m_pContent->track.endTime;		
+		CTimeValue deltaTime = mpfloat(delta) / m_timeline->m_viewState.widthPixels * m_timeline->m_viewState.visibleDistance;
+		CTimeValue endTime = m_timeline->m_pContent->track.endTime;
 		
-		SAnimTime currentTime = m_timeline->m_viewState.LayoutToTime(m_timeline->m_viewState.LocalToLayout(currentPos).x());
+		CTimeValue currentTime = m_timeline->m_viewState.LayoutToTime(m_timeline->m_viewState.LocalToLayout(currentPos).x());
 
 		bool bNeedMoveElements = false;
-		SAnimTime moveElementsDeltaTime;
+		CTimeValue moveElementsDeltaTime;
 
 		if (m_pClickedElement && (m_timeline->m_snapKeys || m_timeline->m_snapTime || bToggleSelected))
 		{
-			SAnimTime startElementTime = m_pClickedElement->start;
-			SAnimTime nearestKeyTime(startElementTime);
+			CTimeValue startElementTime = m_pClickedElement->start;
+			CTimeValue nearestKeyTime(startElementTime);
 
 			if (m_timeline->m_snapKeys)
 			{
-				if (deltaTime > SAnimTime(0.0f))
+				if (deltaTime > 0)
 				{
 					nearestKeyTime = FindNearestKeyTime(m_elementTimes, startElementTime, currentTime, true);
 				}
-				else if (deltaTime < SAnimTime(0.0f))
+				else if (deltaTime < 0)
 				{
 					nearestKeyTime = FindNearestKeyTime(m_elementTimes, startElementTime, currentTime, false);
 				}
@@ -1575,11 +1575,11 @@ struct CTimeline::SMoveHandler : SMouseHandler
 			// User drags keys when SHIFT key is pressed.  It snaps selected keys to Timeline ruler markings.
 			else if (bToggleSelected)
 			{
-				if (deltaTime > SAnimTime(0.0f))
+				if (deltaTime > 0)
 				{
 					nearestKeyTime = FindNearestKeyTime(m_timeline->GetTickTimePositions(), startElementTime, currentTime, true);
 				}
-				else if (deltaTime < SAnimTime(0.0f))
+				else if (deltaTime < 0)
 				{
 					nearestKeyTime = FindNearestKeyTime(m_timeline->GetTickTimePositions(), startElementTime, currentTime, false);
 				}
@@ -1588,7 +1588,7 @@ struct CTimeline::SMoveHandler : SMouseHandler
 			if (nearestKeyTime != startElementTime)
 			{
 				bNeedMoveElements = true;
-				moveElementsDeltaTime.SetTime(nearestKeyTime - startElementTime);
+				moveElementsDeltaTime = nearestKeyTime - startElementTime;
 				m_startTime = nearestKeyTime;
 				m_startPoint.setX(m_timeline->m_viewState.LocalToLayout(currentPos).x());
 				m_timeline->ContentChanged(true);
@@ -1598,7 +1598,7 @@ struct CTimeline::SMoveHandler : SMouseHandler
 		else
 		{
 			bNeedMoveElements = true;
-			moveElementsDeltaTime.SetTime( deltaTime );
+			moveElementsDeltaTime = deltaTime;
 			m_startTime = currentTime;
 			m_startPoint.setX(m_timeline->m_viewState.LocalToLayout(currentPos).x());
 			m_timeline->ContentChanged(true);
@@ -1627,7 +1627,7 @@ struct CTimeline::SMoveHandler : SMouseHandler
 			if (bAtLeastOneSelectedElementIsOutOfRange)
 			{
 				bNeedMoveElements = false;
-				moveElementsDeltaTime.SetTime(0);
+				moveElementsDeltaTime.SetSeconds(0);
 			}
 		}
 
@@ -1641,7 +1641,7 @@ struct CTimeline::SMoveHandler : SMouseHandler
 		m_cycleSelection = false;
 	}
 
-	virtual void MoveElements(STimelineTrack& track, SAnimTime delta) = 0;
+	virtual void MoveElements(STimelineTrack& track, const CTimeValue& delta) = 0;
 
 	void         focusOutEvent(QFocusEvent* ev)
 	{
@@ -1690,7 +1690,7 @@ struct CTimeline::SShiftHandler : public CTimeline::SMoveHandler
 {
 	SShiftHandler(CTimeline* timeline, bool cycleSelection) : SMoveHandler(timeline, cycleSelection) {}
 
-	virtual void MoveElements(STimelineTrack& track, SAnimTime delta) override
+	virtual void MoveElements(STimelineTrack& track, const CTimeValue& delta) override
 	{
 		MoveSelectedElements(m_timeline->m_pContent->track, delta);
 	}
@@ -1700,10 +1700,10 @@ struct CTimeline::SScaleHandler : public CTimeline::SMoveHandler
 {
 	SScaleHandler(CTimeline* timeline, bool cycleSelection) : SMoveHandler(timeline, cycleSelection) {}
 
-	virtual void MoveElements(STimelineTrack& track, SAnimTime delta) override
+	virtual void MoveElements(STimelineTrack& track, const CTimeValue& delta) override
 	{
-		SAnimTime cursorTime = m_timeline->Time();
-		SAnimTime start = m_startTime;
+		CTimeValue cursorTime = m_timeline->Time();
+		CTimeValue start = m_startTime;
 
 		ScaleSelectedElements(m_timeline->m_pContent->track, cursorTime, start, delta);
 	}
@@ -1713,7 +1713,7 @@ struct CTimeline::SPanHandler : SMouseHandler
 {
 	CTimeline* m_timeline;
 	QPoint     m_startPoint;
-	float      m_startOrigin;
+	CTimeValue m_startOrigin;
 	int        m_startScroll;
 
 	SPanHandler(CTimeline* timeline) : m_timeline(timeline)
@@ -1734,7 +1734,7 @@ struct CTimeline::SPanHandler : SMouseHandler
 		const QPoint pos(int(ev->x()), int(ev->y()));
 		const QPoint posDif(pos - m_startPoint);
 
-		float deltaX = 0.0f;
+		CTimeValue deltaX = 0;
 		if (m_timeline->m_viewState.widthPixels != 0)
 		{
 			deltaX = posDif.x() * m_timeline->m_viewState.visibleDistance / m_timeline->m_viewState.widthPixels;
@@ -1761,14 +1761,14 @@ struct CTimeline::SScrubHandler : SMouseHandler
 {
 	CTimeline* m_timeline;
 	SScrubHandler(CTimeline* timeline) : m_timeline(timeline) {}
-	SAnimTime  m_startThumbPosition;
+	CTimeValue m_startThumbPosition;
 	QPoint     m_startPoint;
 
 	void SetThumbPositionX(int positionX)
 	{
 		int nThumbEndPadding = (THUMB_WIDTH / 2) + 2;
 		float fVisualRange = float(m_timeline->m_viewState.widthPixels - nThumbEndPadding * 2);
-		SAnimTime time = SAnimTime(m_timeline->m_viewState.LayoutToTime(positionX));
+		CTimeValue time = m_timeline->m_viewState.LayoutToTime(positionX);
 
 		m_timeline->ClampAndSetTime(time, false);
 	}
@@ -1779,7 +1779,7 @@ struct CTimeline::SScrubHandler : SMouseHandler
 
 		QPoint posInLayout = m_timeline->m_viewState.LocalToLayout(point);
 
-		int thumbPositionX = m_timeline->m_viewState.TimeToLayout(m_timeline->m_time.ToFloat());
+		int thumbPositionX = m_timeline->m_viewState.TimeToLayout(m_timeline->m_time);
 		QRect thumbRect(thumbPositionX - THUMB_WIDTH / 2, 0, THUMB_WIDTH, THUMB_HEIGHT);
 
 		if (!thumbRect.contains(posInLayout))
@@ -1798,7 +1798,7 @@ struct CTimeline::SScrubHandler : SMouseHandler
 		bool shift = ev->modifiers().testFlag(Qt::ShiftModifier);
 		bool control = ev->modifiers().testFlag(Qt::ControlModifier);
 
-		float delta = 0.0f;
+		CTimeValue delta = 0;
 
 		if (m_timeline->m_viewState.widthPixels != 0)
 		{
@@ -1807,15 +1807,15 @@ struct CTimeline::SScrubHandler : SMouseHandler
 
 		if (shift)
 		{
-			delta *= 0.01f;
+			delta *= "0.01";
 		}
 
 		if (control)
 		{
-			delta *= 0.1f;
+			delta *= "0.1";
 		}
 
-		m_timeline->ClampAndSetTime(m_startThumbPosition + SAnimTime(delta), true);
+		m_timeline->ClampAndSetTime(m_startThumbPosition + delta, true);
 	}
 
 	void mouseMoveEvent(QMouseEvent* ev) override
@@ -2059,10 +2059,10 @@ CTimeline::CTimeline(QWidget* parent)
 	, m_cornerWidgetWidth(0)
 	, m_timelinePadding(120)
 	, m_pContent(nullptr)
-	, m_timeUnitScale(1.0f)
-	, m_frameRate(SAnimTime::eFrameRate_30fps)
-	, m_timeUnit(SAnimTime::EDisplayMode::Time)
-	, m_time(0.0f)
+	, m_timeUnitScale(1)
+	, m_frameRate(SAnimData::eFrameRate_30fps)
+	, m_timeUnit(SAnimData::EDisplayMode::Time)
+	, m_time(0)
 	, m_splitterState(ESplitterState::Normal)
 	, m_pLastSelectedTrack(nullptr)
 	, m_mouseMenuStartPos(0, 0)
@@ -2079,7 +2079,7 @@ CTimeline::CTimeline(QWidget* parent)
 	setFocusPolicy(Qt::WheelFocus);
 	setMouseTracking(true);
 
-	m_viewState.visibleDistance = 1.0f;
+	m_viewState.visibleDistance.SetSeconds(1);
 
 	auto invalidateTracks = [this]()
 	{
@@ -2122,11 +2122,15 @@ CTimeline::CTimeline(QWidget* parent)
 
 	m_highlightedTimer.setSingleShot(true);
 	m_highlightedConnection = QObject::connect(&m_highlightedTimer, &QTimer::timeout, [this]() { UpdateHightlightedInternal(); });
-	QObject::connect(this, &QObject::destroyed, [this]() { disconnect(m_highlightedConnection); });
+	//QObject::connect(this, &QObject::destroyed, [this]() { disconnect(m_highlightedConnection); });
 }
 
 CTimeline::~CTimeline()
 {
+	// PERSONAL CRYTEK: Might fail only in debug mode according to QT "Possible RIP's in debug mode". CryTek bug, not me!
+	// Moved from destroyed() bind to CTimeLine ded bind.....
+	// Reproducing: Build in debug, click 'mannequin' layout -> from that layout go to 'default' layout -> Sandbox crashes.
+	disconnect(m_highlightedConnection);
 }
 
 void CTimeline::customEvent(QEvent* pEvent)
@@ -2220,19 +2224,19 @@ void CTimeline::paintEvent(QPaintEvent* ev)
 	painter.translate(localToLayoutTranslate);
 	painter.setRenderHint(QPainter::Antialiasing);
 
-	const Range innerRange = Range(m_layout->minStartTime.ToFloat() * m_timeUnitScale, m_layout->maxEndTime.ToFloat() * m_timeUnitScale);
-	const Range visibleRange = Range(m_viewState.LocalToTime(m_viewState.treeWidth) * m_timeUnitScale, m_viewState.LocalToTime(size().width()) * m_timeUnitScale);
+	const TRange<CTimeValue> innerRange = TRange<CTimeValue>(m_layout->minStartTime * m_timeUnitScale, m_layout->maxEndTime * m_timeUnitScale);
+	const TRange<CTimeValue> visibleRange = TRange<CTimeValue>(m_viewState.LocalToTime(m_viewState.treeWidth) * m_timeUnitScale, m_viewState.LocalToTime(size().width()) * m_timeUnitScale);
 	const QRect rulerRect = QRect(m_viewState.treeWidth, -1, size().width() - m_viewState.treeWidth, RULER_HEIGHT + 2);
 	if (m_useAdvancedRuler)
 	{
 		DrawingPrimitives::CRuler::SOptions& options = m_timelineDrawer.GetOptions();
 		options.markHeight = RULER_MARK_HEIGHT;
 		options.rect = rulerRect;
-		options.visibleRange = TRange<SAnimTime>(visibleRange.start, visibleRange.end);
+		options.visibleRange = TRange<CTimeValue>(visibleRange.start, visibleRange.end);
 		options.rulerRange = options.visibleRange;
-		options.innerRange = TRange<SAnimTime>(innerRange.start, innerRange.end);
+		options.innerRange = TRange<CTimeValue>(innerRange.start, innerRange.end);
 		;
-		options.ticksPerFrame = SAnimTime::numTicksPerSecond / SAnimTime::GetFrameRateValue(m_frameRate);
+		options.secPerFrame = CTimeValue(1) / SAnimData::GetFrameRateValue(m_frameRate);
 		options.timeUnit = m_timeUnit;
 
 		m_timelineDrawer.CalculateMarkers();
@@ -2424,10 +2428,10 @@ void CTimeline::paintEvent(QPaintEvent* ev)
 
 	for (auto& element : m_headerElements)
 	{
-		if (element.visible && visibleRange.IsInside(element.time.ToFloat()))
+		if (element.visible && visibleRange.IsInside(element.time))
 		{
 			QRect rect = rulerRect;
-			int timePx = m_viewState.TimeToLocal(element.time.ToFloat());
+			int timePx = m_viewState.TimeToLocal(element.time);
 			QPixmap pixmap(element.pixmap.c_str());
 
 			if (element.alignment & Qt::AlignLeft)
@@ -2467,19 +2471,19 @@ void CTimeline::paintEvent(QPaintEvent* ev)
 
 	if (m_pContent && isEnabled())
 	{
-		const float sliderPos = m_time.ToFloat() * m_timeUnitScale;
+		const CTimeValue sliderPos = m_time * m_timeUnitScale;
 		if (sliderPos >= visibleRange.start && sliderPos <= visibleRange.end)
 		{
 			DrawingPrimitives::STimeSliderOptions timeSliderOptions;
 			timeSliderOptions.m_rect = rect();
 			timeSliderOptions.m_precision = rulerPrecision;
-			timeSliderOptions.m_position = m_viewState.TimeToLocal(m_time.ToFloat());
-			timeSliderOptions.m_time = m_time.ToFloat() * m_timeUnitScale;
+			timeSliderOptions.m_position = m_viewState.TimeToLocal(m_time);
+			timeSliderOptions.m_time = m_time * m_timeUnitScale;
 			timeSliderOptions.m_bHasFocus = hasFocus();
 			DrawingPrimitives::DrawTimeSlider(painter, timeSliderOptions);
 		}
 
-		DrawSelectionLines(painter, m_viewState, visibleRange, *m_pContent, rulerPrecision, width(), height(), m_time.ToFloat(), m_timeUnitScale, hasFocus());
+		DrawSelectionLines(painter, m_viewState, visibleRange, *m_pContent, rulerPrecision, width(), height(), m_time, m_timeUnitScale, hasFocus());
 	}
 
 	painter.translate(localToLayoutTranslate);
@@ -2690,8 +2694,8 @@ void CTimeline::UpdateHightlightedInternal()
 
 void CTimeline::UpdateTracksTimeMarkers(int32 width)
 {
-	const Range rulerRange = Range(m_layout->minStartTime.ToFloat() * m_timeUnitScale, m_layout->maxEndTime.ToFloat() * m_timeUnitScale);
-	const Range visibleRange = Range(m_viewState.LocalToTime(m_viewState.treeWidth) * m_timeUnitScale, m_viewState.LocalToTime(width) * m_timeUnitScale);
+	const TRange<CTimeValue> rulerRange = TRange<CTimeValue>(m_layout->minStartTime * m_timeUnitScale, m_layout->maxEndTime * m_timeUnitScale);
+	const TRange<CTimeValue> visibleRange = TRange<CTimeValue>(m_viewState.LocalToTime(m_viewState.treeWidth) * m_timeUnitScale, m_viewState.LocalToTime(width) * m_timeUnitScale);
 
 	const QRect rect = QRect(-m_viewState.scrollPixels.x(), 0, width - m_viewState.treeWidth, 0);
 
@@ -2702,11 +2706,11 @@ void CTimeline::ClampViewOrigin(bool force)
 {
 	if (force || m_clampToViewOrigin)
 	{
-		float zoomOffset = m_viewState.visibleDistance * 0.5f;
+		CTimeValue zoomOffset = m_viewState.visibleDistance * "0.5";
 
-		const float padding = m_viewState.LayoutToTime(m_timelinePadding);
-		float maxViewOrigin = m_layout->minStartTime.ToFloat() - zoomOffset + padding;
-		float minViewOrigin = std::min(m_viewState.visibleDistance - m_layout->maxEndTime.ToFloat() - zoomOffset - padding, maxViewOrigin);
+		const CTimeValue padding = m_viewState.LayoutToTime(m_timelinePadding);
+		CTimeValue maxViewOrigin = m_layout->minStartTime - zoomOffset + padding;
+		CTimeValue minViewOrigin = min(m_viewState.visibleDistance - m_layout->maxEndTime - zoomOffset - padding, maxViewOrigin);
 
 		m_viewState.viewOrigin = clamp_tpl(m_viewState.viewOrigin, minViewOrigin, maxViewOrigin);
 	}
@@ -2737,17 +2741,17 @@ bool CTimeline::HandleKeyEvent(int k)
 
 	if (key == QKeySequence(Qt::Key_Home))
 	{
-		m_time = SAnimTime(0);
+		m_time.SetSeconds(0);
 		update();
 		SignalScrub(false);
 		return true;
 	}
 	if (key == QKeySequence(Qt::Key_End))
 	{
-		SAnimTime endTime = SAnimTime(0);
+		CTimeValue endTime = 0;
 		for (size_t i = 0; i < m_pContent->track.tracks.size(); ++i)
 		{
-			endTime = std::max(endTime, m_pContent->track.tracks[i]->endTime);
+			endTime = max(endTime, m_pContent->track.tracks[i]->endTime);
 		}
 		m_time = endTime;
 		update();
@@ -2931,8 +2935,9 @@ void CTimeline::mousePressEvent(QMouseEvent* ev)
 	}
 }
 
-void CTimeline::AddKeyToTrack(STimelineTrack& track, SAnimTime time)
+void CTimeline::AddKeyToTrack(STimelineTrack& track, const CTimeValue& tIn)
 {
+	CTimeValue time = tIn;
 	if (m_snapKeys || m_snapTime)
 	{
 		time = time.SnapToNearest(m_frameRate);
@@ -2941,7 +2946,7 @@ void CTimeline::AddKeyToTrack(STimelineTrack& track, SAnimTime time)
 	track.modified = true;
 	track.elements.push_back(track.defaultElement);
 	track.elements.back().added = true;
-	SAnimTime length = track.defaultElement.end - track.defaultElement.start;
+	CTimeValue length = track.defaultElement.end - track.defaultElement.start;
 	track.elements.back().start = time;
 	track.elements.back().end = length;
 	track.elements.back().selected = true;
@@ -2977,7 +2982,7 @@ void CTimeline::mouseDoubleClickEvent(QMouseEvent* ev)
 
 			if (!bHit)
 			{
-				float time = m_viewState.LayoutToTime(layoutPoint.x());
+				CTimeValue time = m_viewState.LayoutToTime(layoutPoint.x());
 				STimelineTrack& timelineTrack = *track->pTimelineTrack;
 
 				if ((timelineTrack.caps & STimelineTrack::CAP_COMPOUND_TRACK) != 0)
@@ -2986,12 +2991,12 @@ void CTimeline::mouseDoubleClickEvent(QMouseEvent* ev)
 					for (size_t i = 0; i < numSubTracks; ++i)
 					{
 						STimelineTrack& subTrack = *timelineTrack.tracks[i];
-						AddKeyToTrack(subTrack, SAnimTime(time));
+						AddKeyToTrack(subTrack, time);
 					}
 				}
 				else if ((timelineTrack.caps & STimelineTrack::CAP_DESCRIPTION_TRACK) == 0)
 				{
-					AddKeyToTrack(timelineTrack, SAnimTime(time));
+					AddKeyToTrack(timelineTrack, time);
 				}
 				else
 				{
@@ -3124,9 +3129,9 @@ void CTimeline::wheelEvent(QWheelEvent* ev)
 			pixelDelta = ev->delta();
 		}
 
-		float currentTime = m_viewState.LocalToTime(ev->x());
-		ZoomContinuous((float)pixelDelta);
-		float newTime = m_viewState.LocalToTime(ev->x());
+		CTimeValue currentTime = m_viewState.LocalToTime(ev->x());
+		ZoomContinuous(pixelDelta);
+		CTimeValue newTime = m_viewState.LocalToTime(ev->x());
 
 		m_viewState.viewOrigin += newTime - currentTime;
 		UpdateLayout();
@@ -3135,19 +3140,19 @@ void CTimeline::wheelEvent(QWheelEvent* ev)
 	}
 }
 
-void CTimeline::ZoomContinuous(float delta)
+void CTimeline::ZoomContinuous(const mpfloat& delta)
 {
 	if (delta != 0)
 	{
-		const float step = std::abs(delta) / 100.0f;
+		const mpfloat step = abs(delta) / 100;
 		if (0 < delta)
 			m_viewState.visibleDistance /= step;
 		else
 			m_viewState.visibleDistance *= step;
 
-		if (m_timeUnit == SAnimTime::EDisplayMode::Frames)
+		if (m_timeUnit == SAnimData::EDisplayMode::Frames)
 		{
-			m_viewState.visibleDistance = max(m_viewState.visibleDistance, 0.35f);
+			m_viewState.visibleDistance = max(m_viewState.visibleDistance, CTimeValue("0.35"));
 		}
 
 		ClampVisibleDistanceToTotalDuration(m_viewState, m_layout.get(), m_timelinePadding);
@@ -3160,7 +3165,7 @@ void CTimeline::ZoomContinuous(float delta)
 
 void CTimeline::ZoomStep(int steps)
 {
-	ZoomContinuous(float(120 * steps));
+	ZoomContinuous(120 * steps);
 }
 
 QSize CTimeline::sizeHint() const
@@ -3209,12 +3214,12 @@ void CTimeline::resizeEvent(QResizeEvent* ev)
 	UpdateLayout();
 }
 
-SAnimTime CTimeline::ClampAndSnapTime(SAnimTime time, bool snapToFrames) const
+CTimeValue CTimeline::ClampAndSnapTime(const CTimeValue& time, bool snapToFrames) const
 {
-	SAnimTime minTime = m_layout->minStartTime;
-	SAnimTime maxTime = m_layout->maxEndTime;
-	SAnimTime unclampedTime = time;
-	SAnimTime deltaTime = maxTime - minTime;
+	CTimeValue minTime = m_layout->minStartTime;
+	CTimeValue maxTime = m_layout->maxEndTime;
+	CTimeValue unclampedTime = time;
+	CTimeValue deltaTime = maxTime - minTime;
 
 	if (m_cycled)
 	{
@@ -3226,7 +3231,7 @@ SAnimTime CTimeline::ClampAndSnapTime(SAnimTime time, bool snapToFrames) const
 		unclampedTime = ((unclampedTime - minTime) % deltaTime) + minTime;
 	}
 
-	SAnimTime clampedTime = clamp_tpl(unclampedTime, minTime, maxTime);
+	CTimeValue clampedTime = clamp_tpl(unclampedTime, minTime, maxTime);
 
 	if (!snapToFrames)
 	{
@@ -3238,9 +3243,9 @@ SAnimTime CTimeline::ClampAndSnapTime(SAnimTime time, bool snapToFrames) const
 	}
 }
 
-void CTimeline::ClampAndSetTime(SAnimTime time, bool scrubThrough)
+void CTimeline::ClampAndSetTime(const CTimeValue& time, bool scrubThrough)
 {
-	SAnimTime newTime = ClampAndSnapTime(time, m_snapTime);
+	CTimeValue newTime = ClampAndSnapTime(time, m_snapTime);
 
 	if (newTime != m_time)
 	{
@@ -3251,13 +3256,13 @@ void CTimeline::ClampAndSetTime(SAnimTime time, bool scrubThrough)
 	}
 }
 
-void CTimeline::SetTimeUnitScale(float scale)
+void CTimeline::SetTimeUnitScale(const mpfloat& scale)
 {
 	m_timeUnitScale = scale;
 	update();
 }
 
-void CTimeline::SetTime(SAnimTime time)
+void CTimeline::SetTime(const CTimeValue& time)
 {
 	m_time = time;
 	update();
@@ -3346,7 +3351,7 @@ void CTimeline::UpdateLayout(bool forceClamp)
 		}
 		             );
 
-		CalculateLayout(m_layout.get(), *m_pContent, m_viewState, m_pFilterLineEdit, m_time.ToFloat(), m_keySize, m_treeVisible, m_useMainTrackTimeRange);
+		CalculateLayout(m_layout.get(), *m_pContent, m_viewState, m_pFilterLineEdit, m_time, m_keySize, m_treeVisible, m_useMainTrackTimeRange);
 		ApplyPushOut(m_layout.get(), m_keySize);
 	}
 
@@ -3476,7 +3481,7 @@ void CTimeline::OnMenuSelectionToCursor()
 	{
 		STimelineTrack& track = *elements[i].first;
 		STimelineElement& element = *elements[i].second;
-		SAnimTime length = element.end - element.start;
+		CTimeValue length = element.end - element.start;
 		element.start = m_time;
 		element.end = element.start + length;
 		if (element.type == element.CLIP)
@@ -3558,7 +3563,7 @@ void CTimeline::OnMenuPlay()
 	SignalPlay();
 }
 
-typedef std::vector<std::pair<SAnimTime, STimelineContentElementRef>> TimeToId;
+typedef std::vector<std::pair<CTimeValue, STimelineContentElementRef>> TimeToId;
 static void GetAllTimes(TimeToId* times, const STimelineTrack& track)
 {
 	for (size_t i = 0; i < track.elements.size(); ++i)
@@ -3592,7 +3597,7 @@ static void GetAllTimes(TimeToId* times, STimelineContent& content)
 	std::sort(times->begin(), times->end());
 }
 
-static STimelineContentElementRef SelectedIdAtTime(const std::vector<STimelineContentElementRef>& selection, const STimelineContent& content, SAnimTime time)
+static STimelineContentElementRef SelectedIdAtTime(const std::vector<STimelineContentElementRef>& selection, const STimelineContent& content, const CTimeValue& time)
 {
 	for (size_t i = 0; i < selection.size(); ++i)
 	{
@@ -3820,7 +3825,7 @@ void CTimeline::SetDrawTrackTimeMarkers(bool bDrawMarkers)
 	update();
 }
 
-void CTimeline::SetVisibleDistance(float distance)
+void CTimeline::SetVisibleDistance(const CTimeValue& distance)
 {
 	m_viewState.visibleDistance = distance;
 
@@ -3828,26 +3833,26 @@ void CTimeline::SetVisibleDistance(float distance)
 	update();
 }
 
-Range CTimeline::GetVisibleTimeRange() const
+TRange<CTimeValue> CTimeline::GetVisibleTimeRange() const
 {
-	return Range(m_viewState.LocalToTime(m_viewState.treeWidth) * m_timeUnitScale,
+	return TRange<CTimeValue>(m_viewState.LocalToTime(m_viewState.treeWidth) * m_timeUnitScale,
 	             m_viewState.LocalToTime(size().width()) * m_timeUnitScale);
 }
 
-Range CTimeline::GetVisibleTimeRangeFull() const
+TRange<CTimeValue> CTimeline::GetVisibleTimeRangeFull() const
 {
-	return Range(m_viewState.LocalToTime(0) * m_timeUnitScale,
+	return TRange<CTimeValue>(m_viewState.LocalToTime(0) * m_timeUnitScale,
 	             m_viewState.LocalToTime(size().width()) * m_timeUnitScale);
 }
 
-void CTimeline::ZoomToTimeRange(const float start, const float end)
+void CTimeline::ZoomToTimeRange(const CTimeValue& start, const CTimeValue& end)
 {
 	m_viewState.scrollPixels.setX(m_viewState.TimeToLocal(start));
 	m_viewState.visibleDistance = (end - start);
 
-	if (m_timeUnit == SAnimTime::EDisplayMode::Frames)
+	if (m_timeUnit == SAnimData::EDisplayMode::Frames)
 	{
-		m_viewState.visibleDistance = max(m_viewState.visibleDistance, 0.35f);
+		m_viewState.visibleDistance = max(m_viewState.visibleDistance, CTimeValue("0.35"));
 	}
 }
 
@@ -3867,16 +3872,16 @@ STimelineTrack* CTimeline::GetTrackFromPos(const QPoint& pos) const
 	return pTrackLayout ? pTrackLayout->pTimelineTrack : nullptr;
 }
 
-SAnimTime CTimeline::GetLastMousePressEventTime() const
+CTimeValue CTimeline::GetLastMousePressEventTime() const
 {
 	QPoint layoutPoint = m_viewState.LocalToLayout(m_lastMousePressEventPos);
-	return SAnimTime(m_viewState.LayoutToTime(layoutPoint.x()));
+	return m_viewState.LayoutToTime(layoutPoint.x());
 }
 
-SAnimTime CTimeline::GetTimeFromPos(QPoint p) const
+CTimeValue CTimeline::GetTimeFromPos(QPoint p) const
 {
 	QPoint layoutPoint = m_viewState.LocalToLayout(mapFromGlobal(p));
-	return SAnimTime(m_viewState.LayoutToTime(layoutPoint.x()));
+	return m_viewState.LayoutToTime(layoutPoint.x());
 }
 
 void CTimeline::OnTrackToggled(QPoint pos)

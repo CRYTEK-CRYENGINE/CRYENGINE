@@ -7,7 +7,7 @@
 
 IMPLEMENT_DYNAMIC(CSplineCtrl, CWnd)
 
-#define MIN_TIME_EPSILON 0.01f
+#define MIN_TIME_EPSILON CTimeValue("0.01")
 
 //////////////////////////////////////////////////////////////////////////
 CSplineCtrl::CSplineCtrl()
@@ -19,8 +19,8 @@ CSplineCtrl::CSplineCtrl()
 	m_pSpline = 0;
 	m_gridX = 10;
 	m_gridY = 10;
-	m_fMinTime = -1;
-	m_fMaxTime = 1;
+	m_fMinTime.SetSeconds(-1);
+	m_fMaxTime.SetSeconds(-1);
 	m_fMinValue = -1;
 	m_fMaxValue = 1;
 	m_fTooltipScaleX = 1;
@@ -30,7 +30,7 @@ CSplineCtrl::CSplineCtrl()
 
 	m_bSelectedKeys.reserve(0);
 
-	m_fTimeMarker = -10;
+	m_fTimeMarker.SetSeconds(-10);
 }
 
 CSplineCtrl::~CSplineCtrl()
@@ -129,19 +129,19 @@ CPoint CSplineCtrl::KeyToPoint(int nKey)
 }
 
 //////////////////////////////////////////////////////////////////////////
-CPoint CSplineCtrl::TimeToPoint(float time)
+CPoint CSplineCtrl::TimeToPoint(const CTimeValue& time)
 {
 	CPoint point;
-	point.x = (time - m_fMinTime) * (m_rcSpline.Width() / (m_fMaxTime - m_fMinTime)) + m_rcSpline.left;
+	point.x = BADF((time - m_fMinTime) * (m_rcSpline.Width() / (m_fMaxTime - m_fMinTime)) + m_rcSpline.left);
 	float val = 0;
 	if (m_pSpline)
-		m_pSpline->InterpolateFloat(time, val);
+		m_pSpline->InterpolateFloat(time.GetSeconds(), val);
 	point.y = floor((m_fMaxValue - val) * (m_rcSpline.Height() / (m_fMaxValue - m_fMinValue)) + 0.5f) + m_rcSpline.top;
 	return point;
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CSplineCtrl::PointToTimeValue(CPoint point, float& time, float& value)
+void CSplineCtrl::PointToTimeValue(CPoint point, CTimeValue& time, float& value)
 {
 	time = XOfsToTime(point.x);
 	float t = float(m_rcSpline.bottom - point.y) / m_rcSpline.Height();
@@ -149,11 +149,11 @@ void CSplineCtrl::PointToTimeValue(CPoint point, float& time, float& value)
 }
 
 //////////////////////////////////////////////////////////////////////////
-float CSplineCtrl::XOfsToTime(int x)
+CTimeValue CSplineCtrl::XOfsToTime(int x)
 {
 	// m_fMinTime to m_fMaxTime time range.
 	float t = float(x - m_rcSpline.left) / m_rcSpline.Width();
-	return LERP(m_fMinTime, m_fMaxTime, t);
+	return LERP(m_fMinTime, m_fMaxTime, BADMP(t));
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -300,7 +300,7 @@ void CSplineCtrl::DrawKeys(CDC* pDC)
 
 	for (int i = 0; i < m_pSpline->GetKeyCount(); i++)
 	{
-		float time = m_pSpline->GetKeyTime(i);
+		CTimeValue time = m_pSpline->GetKeyTime(i);
 		CPoint pt = TimeToPoint(time);
 
 		COLORREF clr = RGB(220, 220, 0);
@@ -342,7 +342,7 @@ void CSplineCtrl::UpdateToolTip()
 {
 	if (m_nHitKeyIndex >= 0 && m_pSpline)
 	{
-		float time = m_pSpline->GetKeyTime(m_nHitKeyIndex);
+		CTimeValue time = m_pSpline->GetKeyTime(m_nHitKeyIndex);
 		float val;
 		m_pSpline->GetKeyValueFloat(m_nHitKeyIndex, val);
 		int cont_s = (m_pSpline->GetKeyFlags(m_nHitKeyIndex) >> SPLINE_KEY_TANGENT_IN_SHIFT) & SPLINE_KEY_TANGENT_LINEAR ? 1 : 2;
@@ -350,7 +350,7 @@ void CSplineCtrl::UpdateToolTip()
 
 		CString tipText;
 		tipText.Format("%.3f, %.3f [%d|%d]",
-		               time * m_fTooltipScaleX, val * m_fTooltipScaleY, cont_s, cont_d);
+		               (float)time.GetSeconds() * m_fTooltipScaleX, val * m_fTooltipScaleY, cont_s, cont_d);
 		m_tooltip.UpdateTipText(tipText, this, 1);
 		m_tooltip.Activate(TRUE);
 	}
@@ -495,8 +495,8 @@ void CSplineCtrl::ValidateSpline()
 	// Add initial control points (will be  serialised only if edited).
 	if (m_pSpline->GetKeyCount() == 0)
 	{
-		m_pSpline->InsertKeyFloat(0.f, 1.f);
-		m_pSpline->InsertKeyFloat(1.f, 1.f);
+		m_pSpline->InsertKeyFloat(0, 1.f);
+		m_pSpline->InsertKeyFloat(1, 1.f);
 		m_pSpline->Update();
 	}
 }
@@ -622,7 +622,8 @@ CSplineCtrl::EHitCode CSplineCtrl::HitTest(CPoint point)
 	if (!m_pSpline)
 		return HIT_NOTHING;
 
-	float time, val;
+	CTimeValue time;
+	float val;
 	PointToTimeValue(point, time, val);
 
 	m_nHitKeyIndex = -1;
@@ -671,7 +672,8 @@ void CSplineCtrl::TrackKey(CPoint point)
 
 	if (nKey >= 0)
 	{
-		float time, val;
+		CTimeValue time;
+		float val;
 
 		// Editing time & value.
 		Limit(point.x, m_rcSpline.left, m_rcSpline.right);
@@ -682,7 +684,7 @@ void CSplineCtrl::TrackKey(CPoint point)
 		for (i = 0; i < m_pSpline->GetKeyCount(); i++)
 		{
 			// Switch to next key.
-			if (fabs(m_pSpline->GetKeyTime(i) - time) < MIN_TIME_EPSILON)
+			if (abs(CTimeValue(m_pSpline->GetKeyTime(i)) - time) < MIN_TIME_EPSILON)
 			{
 				if (i != nKey)
 					return;
@@ -692,7 +694,7 @@ void CSplineCtrl::TrackKey(CPoint point)
 		m_pSpline->SetKeyValueFloat(nKey, val);
 		if ((nKey != 0 && nKey != m_pSpline->GetKeyCount() - 1) || !m_bLockFirstLastKey)
 		{
-			m_pSpline->SetKeyTime(nKey, time);
+			m_pSpline->SetKeyTime(nKey, time.GetSeconds());
 		}
 		else if (m_bLockFirstLastKey)
 		{
@@ -761,20 +763,21 @@ int CSplineCtrl::InsertKey(CPoint point)
 {
 	CUndo undo("Spline Insert Key");
 
-	float time, val;
+	CTimeValue time;
+	float val;
 	PointToTimeValue(point, time, val);
 
 	int i;
 	for (i = 0; i < m_pSpline->GetKeyCount(); i++)
 	{
 		// Skip if any key already have time that is very close.
-		if (fabs(m_pSpline->GetKeyTime(i) - time) < MIN_TIME_EPSILON)
+		if (abs(CTimeValue(m_pSpline->GetKeyTime(i)) - time) < MIN_TIME_EPSILON)
 			return i;
 	}
 
 	SendNotifyEvent(SPLN_BEFORE_CHANGE);
 
-	m_pSpline->InsertKeyFloat(time, val);
+	m_pSpline->InsertKeyFloat(time.GetSeconds(), val);
 	m_pSpline->Update();
 	ClearSelection();
 	Invalidate();
@@ -786,7 +789,7 @@ int CSplineCtrl::InsertKey(CPoint point)
 	for (i = 0; i < m_pSpline->GetKeyCount(); i++)
 	{
 		// Find key with added time.
-		if (m_pSpline->GetKeyTime(i) == time)
+		if (m_pSpline->GetKeyTime(i) == time.GetSeconds())
 			return i;
 	}
 
@@ -823,7 +826,7 @@ void CSplineCtrl::ClearSelection()
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CSplineCtrl::SetTimeMarker(float fTime)
+void CSplineCtrl::SetTimeMarker(const CTimeValue& fTime)
 {
 	if (!m_pSpline)
 		return;

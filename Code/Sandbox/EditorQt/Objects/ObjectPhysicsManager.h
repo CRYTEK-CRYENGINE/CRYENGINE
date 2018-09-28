@@ -36,7 +36,7 @@ private:
 	void UpdateSimulatingObjects();
 
 	bool                                 m_bSimulatingObjects;
-	float                                m_fStartObjectSimulationTime;
+	CTimeValue                           m_fStartObjectSimulationTime;
 	int                                  m_wasSimObjects;
 	std::vector<_smart_ptr<CBaseObject>> m_simObjects;
 	CWaitProgress*                       m_pProgress;

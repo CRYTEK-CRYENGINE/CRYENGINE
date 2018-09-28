@@ -82,8 +82,8 @@ BOOL CFragmentEditorPage::OnInitDialog()
 
 	m_hAccelerators = LoadAccelerators(AfxGetApp()->m_hInstance, MAKEINTRESOURCE(IDR_MANN_ACCELERATOR));
 
-	m_fTime = 0.0f;
-	m_playSpeed = 1.0f;
+	m_fTime.SetSeconds(0);
+	m_playSpeed = 1;
 	m_bPlay = false;
 	m_bLoop = false;
 	m_draggingTime = false;
@@ -115,7 +115,7 @@ BOOL CFragmentEditorPage::OnInitDialog()
 	// Track view
 	m_wndTrackPanel.SetMannequinContexts(m_contexts);
 	m_wndTrackPanel.Create(NULL, NULL, WS_VISIBLE | WS_CHILD | WS_CLIPCHILDREN | WS_CLIPSIBLINGS | WS_HSCROLL, CRect(200, 0, 500, 300), this, NULL);
-	m_wndTrackPanel.SetTimeRange(0, 2.0f);
+	m_wndTrackPanel.SetTimeRange(0, 2);
 	m_wndTrackPanel.SetTimeScale(100, 0);
 	m_wndTrackPanel.SetCurrTime(0);
 	m_wndTrackPanel.SetOwner(this);
@@ -271,17 +271,17 @@ void CFragmentEditorPage::OnSetFocus(CWnd* pOldWnd)
 	}
 }
 
-float CFragmentEditorPage::GetMarkerTimeStart() const
+CTimeValue CFragmentEditorPage::GetMarkerTimeStart() const
 {
 	return m_wndTrackPanel.GetMarkedTime().start;
 }
 
-float CFragmentEditorPage::GetMarkerTimeEnd() const
+CTimeValue CFragmentEditorPage::GetMarkerTimeEnd() const
 {
 	return m_wndTrackPanel.GetMarkedTime().end;
 }
 
-void CFragmentEditorPage::InstallAction(float time)
+void CFragmentEditorPage::InstallAction(const CTimeValue& time)
 {
 	OnSequenceRestart(time);
 
@@ -302,15 +302,15 @@ void CFragmentEditorPage::InstallAction(float time)
 
 void CFragmentEditorPage::Update()
 {
-	const float lastTime = m_fTime;
+	const CTimeValue lastTime = m_fTime;
 	bool isDraggingTime = m_wndTrackPanel.IsDraggingTime();
-	float dsTime = m_wndTrackPanel.GetTime();
+	CTimeValue dsTime = m_wndTrackPanel.GetTime();
 	if (m_bTimeWasChanged)
 		dsTime = m_fTime;
 
-	float effectiveSpeed = m_playSpeed;
+	mpfloat effectiveSpeed = m_playSpeed;
 	if (isDraggingTime || !m_bPlay)
-		effectiveSpeed = 0.0f;
+		effectiveSpeed = 0;
 
 	// important to call before InstallAction (for sound muting through m_bPaused)
 	m_modelViewport->SetPlaybackMultiplier(effectiveSpeed);
@@ -327,7 +327,7 @@ void CFragmentEditorPage::Update()
 
 	m_cDlgToolBar.SetTime(m_fTime, m_wndTrackPanel.GetSnapFps());
 
-	m_sequencePlayback->Update(gEnv->pTimer->GetFrameTime() * effectiveSpeed, ModelViewport());
+	m_sequencePlayback->Update(GetGTimer()->GetFrameTime() * effectiveSpeed, ModelViewport());
 
 	m_draggingTime = isDraggingTime;
 
@@ -337,7 +337,7 @@ void CFragmentEditorPage::Update()
 		{
 			if (m_bLoop)
 			{
-				const float startTime = GetMarkerTimeStart();
+				const CTimeValue startTime = GetMarkerTimeStart();
 
 				InstallAction(startTime);
 
@@ -378,7 +378,7 @@ void CFragmentEditorPage::Update()
 //////////////////////////////////////////////////////////////////////////
 void CFragmentEditorPage::OnGoToStart()
 {
-	SetTime(0.0f);
+	SetTime(0);
 	m_bPlay = false;
 	m_bTimeWasChanged = true;
 }
@@ -399,7 +399,7 @@ void CFragmentEditorPage::OnPlay()
 	{
 		if (m_fragmentPlayback && m_fragmentPlayback->ReachedEnd())
 		{
-			const float startTime = GetMarkerTimeStart();
+			const CTimeValue startTime = GetMarkerTimeStart();
 			m_fTime = startTime;
 		}
 		// important to trigger InstallAction for audio to play
@@ -441,7 +441,7 @@ void CFragmentEditorPage::SetTimeToSelectedKey()
 		CSequencerKey* pKey = key.pTrack->GetKey(key.nKey);
 		CRY_ASSERT(pKey != NULL);
 
-		float fTime = pKey->m_time;
+		CTimeValue fTime = pKey->m_time;
 		SetTime(fTime);
 		m_wndTrackPanel.SetCurrTime(fTime, true);
 	}
@@ -453,7 +453,7 @@ void CFragmentEditorPage::OnSetTimeToKey()
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CFragmentEditorPage::SetTime(float fTime)
+void CFragmentEditorPage::SetTime(const CTimeValue& fTime)
 {
 	m_fTime = fTime;
 	m_bTimeWasChanged = true;
@@ -502,7 +502,7 @@ void CFragmentEditorPage::OnReloadAnimations()
 	   }
 	 */
 
-	SetTime(0.0f);
+	SetTime(0);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -571,14 +571,14 @@ void CFragmentEditorPage::OnPlayMenu(CPoint pos)
 	struct SScales
 	{
 		const char* pszText;
-		float       fScale;
+		mpfloat     fScale;
 	};
 	SScales Scales[] = {
-		{ " 2 ", 2.0f   },
-		{ " 1 ", 1.0f   },
-		{ "1/2", 0.5f   },
-		{ "1/4", 0.25f  },
-		{ "1/8", 0.125f },
+		{ " 2 ", 2   },
+		{ " 1 ", 1   },
+		{ "1/2", "0.5"   },
+		{ "1/4", "0.25"  },
+		{ "1/8", "0.125" },
 	};
 
 	int nScales = sizeof(Scales) / sizeof(SScales);
@@ -650,7 +650,7 @@ void CFragmentEditorPage::UpdateSelectedFragment()
 	ActionScopes sequenceScopeMask = (~fragmentScopeMask) & m_contexts->viewData[eMEM_FragmentEditor].m_pActionController->GetActiveScopeMask();
 
 	m_sequencePlayback->SetScopeMask(sequenceScopeMask);
-	SetTime(0.0f);
+	SetTime(0);
 
 	CMannequinDialog::GetCurrentInstance()->PopulateTagList();
 	CMannequinDialog::GetCurrentInstance()->SetTagStateOnCtrl();
@@ -691,8 +691,8 @@ void CFragmentEditorPage::CreateLocators()
 				CProcClipKey key;
 				selectedKey.pTrack->GetKey(selectedKey.nKey, &key);
 
-				const float startTime = key.m_time;
-				const float endTime = startTime + selectedKey.pTrack->GetKeyDuration(selectedKey.nKey);
+				const CTimeValue startTime = key.m_time;
+				const CTimeValue endTime = startTime + selectedKey.pTrack->GetKeyDuration(selectedKey.nKey);
 				const bool currentlyActive = startTime <= m_fTime && m_fTime < endTime;
 
 				if (currentlyActive && key.pParams)
@@ -714,7 +714,7 @@ void CFragmentEditorPage::CreateLocators()
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CFragmentEditorPage::CheckForLocatorChanges(const float lastTime, const float newTime)
+void CFragmentEditorPage::CheckForLocatorChanges(const CTimeValue& lastTime, const CTimeValue& newTime)
 {
 	if (lastTime == newTime)
 		return;
@@ -732,8 +732,8 @@ void CFragmentEditorPage::CheckForLocatorChanges(const float lastTime, const flo
 			for (int keyID = 0; keyID < nNumKeys; ++keyID)
 			{
 				const CSequencerKey* pKey = pTrack->GetKey(keyID);
-				const float startTime = pKey->m_time;
-				const float endTime = startTime + pTrack->GetKeyDuration(keyID);
+				const CTimeValue startTime = pKey->m_time;
+				const CTimeValue endTime = startTime + pTrack->GetKeyDuration(keyID);
 
 				bool prevActive = startTime <= lastTime && lastTime < endTime;
 				bool nowActive = startTime <= newTime && newTime < endTime;
@@ -819,7 +819,7 @@ void CFragmentEditorPage::OnInternalVariableChange(IVariable* pVar)
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CFragmentEditorPage::OnSequenceRestart(float timePassed)
+void CFragmentEditorPage::OnSequenceRestart(const CTimeValue& timePassed)
 {
 	m_modelViewport->OnSequenceRestart(timePassed);
 	m_bRestartingSequence = true;

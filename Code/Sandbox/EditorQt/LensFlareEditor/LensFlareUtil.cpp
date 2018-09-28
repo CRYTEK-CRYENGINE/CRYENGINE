@@ -210,7 +210,7 @@ extern void SetVariablesTemplateFromOptics(IOpticsElementBasePtr pOptics, CVarBl
 			{
 				CSmartVariable<Vec2> vec2Var;
 				AddVariable(variableArray, vec2Var, pFuncVar->name.c_str(), pFuncVar->humanName.c_str(), pFuncVar->description.c_str());
-				vec2Var->SetLimits(range.first, range.second, 0, bHardMinLimitation, false);
+				vec2Var->SetLimits(Vec2(range.first), Vec2(range.second), Vec2(0), bHardMinLimitation, false);
 				vec2Var->Set(pFuncVar->GetVec2());
 				vec2Var->SetUserData((void*)(intptr_t)MakeFuncKey(i, k));
 			}
@@ -218,7 +218,7 @@ extern void SetVariablesTemplateFromOptics(IOpticsElementBasePtr pOptics, CVarBl
 			{
 				CSmartVariable<Vec3> vec3Var;
 				AddVariable(variableArray, vec3Var, pFuncVar->name.c_str(), pFuncVar->humanName.c_str(), pFuncVar->description.c_str());
-				vec3Var->SetLimits(range.first, range.second, 0, bHardMinLimitation, false);
+				vec3Var->SetLimits(Vec3(range.first), Vec3(range.second), Vec3(0), bHardMinLimitation, false);
 				vec3Var->Set(pFuncVar->GetVec3());
 				vec3Var->SetUserData((void*)(intptr_t)MakeFuncKey(i, k));
 			}
@@ -226,7 +226,7 @@ extern void SetVariablesTemplateFromOptics(IOpticsElementBasePtr pOptics, CVarBl
 			{
 				CSmartVariable<Vec4> vec4Var;
 				AddVariable(variableArray, vec4Var, pFuncVar->name.c_str(), pFuncVar->humanName.c_str(), pFuncVar->description.c_str());
-				vec4Var->SetLimits(range.first, range.second, 0, bHardMinLimitation, false);
+				vec4Var->SetLimits(Vec4(range.first), Vec4(range.second), Vec4(0), bHardMinLimitation, false);
 				vec4Var->Set(pFuncVar->GetVec4());
 				vec4Var->SetUserData((void*)(intptr_t)MakeFuncKey(i, k));
 			}

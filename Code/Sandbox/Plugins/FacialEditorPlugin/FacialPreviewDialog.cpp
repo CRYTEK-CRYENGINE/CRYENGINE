@@ -257,17 +257,17 @@ void CModelViewportFE::Update()
 		int positionSplineKeyCount = (pPositionSpline ? pPositionSpline->GetKeyCount() : 0);
 		int orientationSplineKeyCount = (pOrientationSpline ? pOrientationSpline->GetKeyCount() : 0);
 
-		float sequenceTime = (m_pContext ? m_pContext->GetSequenceTime() : 0);
+		CTimeValue sequenceTime = (m_pContext ? m_pContext->GetSequenceTime() : 0);
 
 		if (positionSplineKeyCount > 0 && orientationSplineKeyCount > 0)
 		{
 			Vec3 position(0.0f, 0.0f, 0.0f);
 			if (pPositionSpline)
-				pPositionSpline->Interpolate(sequenceTime, (ISplineInterpolator::ValueType&)position);
+				pPositionSpline->Interpolate(sequenceTime.GetSeconds(), (ISplineInterpolator::ValueType&)position);
 
 			Quat orientation(0.0f, 0.0f, 0.0f, 1.0f);
 			if (pOrientationSpline)
-				pOrientationSpline->Interpolate(sequenceTime, (ISplineInterpolator::ValueType&)orientation);
+				pOrientationSpline->Interpolate(sequenceTime.GetSeconds(), (ISplineInterpolator::ValueType&)orientation);
 			orientation.Normalize();
 
 			QuatT quat(position, orientation);
@@ -280,7 +280,7 @@ void CModelViewportFE::Update()
 		if (pFOVSpline && fovSplineKeyCount)
 		{
 			float fov = 0.0f;
-			pFOVSpline->InterpolateFloat(sequenceTime, fov);
+			pFOVSpline->InterpolateFloat(sequenceTime.GetSeconds(), fov);
 			mv_fov = min(150.0f, max(5.0f, fov));
 		}
 	}

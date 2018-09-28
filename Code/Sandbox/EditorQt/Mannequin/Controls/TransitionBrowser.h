@@ -72,7 +72,7 @@ public:
 		{
 		}
 		SRecordData(const CString& from, const CString& to);
-		SRecordData(const TTransitionID& transitionID, float selectTime);
+		SRecordData(const TTransitionID& transitionID, const CTimeValue& selectTime);
 
 		bool operator==(const SRecordData& rhs) const
 		{
@@ -101,7 +101,7 @@ public:
 	CTransitionBrowserRecord(const CString& from, const CString& to);
 
 	// create an entry that is not a folder
-	CTransitionBrowserRecord(const TTransitionID& transitionID, float selectTime);
+	CTransitionBrowserRecord(const TTransitionID& transitionID, const CTimeValue& selectTime);
 
 	inline CTransitionBrowserRecord* GetParent()
 	{

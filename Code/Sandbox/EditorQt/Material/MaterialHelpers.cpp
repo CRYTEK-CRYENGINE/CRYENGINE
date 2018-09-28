@@ -30,8 +30,8 @@ static void ParsePublicParamsScript(const char* sUIScript, IVariable* pVar)
 			token = itemToken.Tokenize(" \t\r\n=", p2);
 		}
 
-		float minLimit, maxLimit;
-		pVar->GetLimits(minLimit, maxLimit);
+		mpfloat minLimit, maxLimit;
+		pVar->GetLimitsG(minLimit, maxLimit);
 
 		if (stricmp(element[1], "UIWidget") == 0)
 		{
@@ -50,11 +50,11 @@ static void ParsePublicParamsScript(const char* sUIScript, IVariable* pVar)
 		}
 		else if (stricmp(element[1], "UIMin") == 0)
 		{
-			pVar->SetLimits(atof(element[2]), maxLimit);
+			pVar->SetLimitsG(element[2].c_str(), maxLimit);
 		}
 		else if (stricmp(element[1], "UIMax") == 0)
 		{
-			pVar->SetLimits(minLimit, atof(element[2]));
+			pVar->SetLimitsG(minLimit, element[2].c_str());
 		}
 		else if (stricmp(element[1], "UIStep") == 0)
 		{

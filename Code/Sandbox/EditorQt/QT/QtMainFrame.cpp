@@ -2444,7 +2444,7 @@ bool CEditorMainFrame::OnNativeEvent(void* message, long* result)
 	case WM_MBUTTONUP:
 	case WM_KEYUP:
 	case WM_MOUSEWHEEL:
-		m_lastUserInputTime = gEnv->pTimer->GetAsyncTime();
+		m_lastUserInputTime = GetGTimer()->GetAsyncTime();
 		break;
 	}
 #endif
@@ -2473,13 +2473,13 @@ void CEditorMainFrame::OnIdleCallback()
 		}
 	}
 
-	CTimeValue frameStartTime = gEnv->pTimer->GetAsyncTime();
+	CTimeValue frameStartTime = GetGTimer()->GetAsyncTime();
 	if (!m_bUserEventPriorityMode ||
 	    (frameStartTime - m_lastUserInputTime).GetMilliSeconds() >= m_lastFrameDuration.GetMilliSeconds() ||
 	    bOverViewport)
 	{
 		res = CCryEditApp::GetInstance()->IdleProcessing(false);
-		m_lastFrameDuration = gEnv->pTimer->GetAsyncTime() - frameStartTime;
+		m_lastFrameDuration = GetGTimer()->GetAsyncTime() - frameStartTime;
 	}
 
 	CTabPaneManager::GetInstance()->OnIdle();
@@ -2488,9 +2488,9 @@ void CEditorMainFrame::OnIdleCallback()
 	static float movingAverage = 0.0;
 	static const float decayRate = 1.0f / 30.0f; // 30 frames
 
-	float currFrameTime = m_lastFrameDuration.GetMilliSeconds();
+	mpfloat currFrameTime = m_lastFrameDuration.GetMilliSeconds();
 	// Exponential moving avg: newAverage = decayRate * currVal + (1 - decayRate) * prevMovingAverage
-	movingAverage = decayRate * currFrameTime + (1 - decayRate) * movingAverage;
+	movingAverage = decayRate * BADF currFrameTime + (1 - decayRate) * movingAverage;
 
 	// if idle frame processing took more than timeout value ms, activate emergency mode where we basically disregard all updates during user interaction
 	m_bUserEventPriorityMode = (movingAverage > gPerformancePreferences.userInputPriorityTime);

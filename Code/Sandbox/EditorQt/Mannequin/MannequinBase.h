@@ -218,9 +218,9 @@ class CFragmentHistory
 public:
 	CFragmentHistory(IActionController& actionController)
 		:
-		m_firstTime(0.0f),
-		m_startTime(0.0f),
-		m_endTime(0.0f),
+		m_firstTime(0),
+		m_startTime(0),
+		m_endTime(0),
 		m_actionController(actionController)
 	{
 	}
@@ -261,14 +261,14 @@ public:
 
 		SHistoryItem()
 			:
-			time(-1.0f),
+			time(-1),
 			type(None),
 			loadedScopeMask(0),
 			fragment(FRAGMENT_ID_INVALID),
 			fragOptionIdx(OPTION_IDX_RANDOM),
 			fragOptionIdxSel(OPTION_IDX_RANDOM),
 			installedScopeMask(0),
-			startTime(-1.0f),
+			startTime(-1),
 			trumpsPrevious(false),
 			isLocation(false)
 		{
@@ -276,14 +276,14 @@ public:
 
 		SHistoryItem(ActionScopes _scopeMask, FragmentID _fragment)
 			:
-			time(-1.0f),
+			time(-1),
 			type(Fragment),
 			loadedScopeMask(_scopeMask),
 			fragment(_fragment),
 			fragOptionIdx(OPTION_IDX_RANDOM),
 			fragOptionIdxSel(OPTION_IDX_RANDOM),
 			installedScopeMask(0),
-			startTime(-1.0f),
+			startTime(-1),
 			trumpsPrevious(false),
 			isLocation(false)
 		{
@@ -291,7 +291,7 @@ public:
 
 		SHistoryItem(const TagState& _tagState)
 			:
-			time(-1.0f),
+			time(-1),
 			type(Tag),
 			tagState(_tagState),
 			loadedScopeMask(0),
@@ -299,7 +299,7 @@ public:
 			fragOptionIdx(OPTION_IDX_RANDOM),
 			fragOptionIdxSel(OPTION_IDX_RANDOM),
 			installedScopeMask(0),
-			startTime(-1.0f),
+			startTime(-1),
 			trumpsPrevious(false),
 			isLocation(false)
 		{
@@ -307,19 +307,19 @@ public:
 
 		SHistoryItem(const char* _paramName, const SMannParameter& _mannParam)
 			:
-			time(-1.0f),
+			time(-1),
 			type(Param),
 			loadedScopeMask(0),
 			fragment(FRAGMENT_ID_INVALID),
 			param(_mannParam),
 			paramName(_paramName),
 			installedScopeMask(0),
-			startTime(-1.0f),
+			startTime(-1),
 			trumpsPrevious(false),
 			isLocation(false)
 		{
 		}
-		float          time;
+		CTimeValue     time;
 		EType          type;
 		SFragTagState  tagState;
 		ActionScopes   loadedScopeMask;
@@ -329,12 +329,12 @@ public:
 		SMannParameter param;
 		CString        paramName;
 		ActionScopes   installedScopeMask;
-		float          startTime;
+		CTimeValue     startTime;
 		bool           trumpsPrevious;
 		bool           isLocation;
 	};
 
-	const SHistoryItem* FindLastByType(SHistoryItem::EType type, float endTime) const
+	const SHistoryItem* FindLastByType(SHistoryItem::EType type, const CTimeValue& endTime) const
 	{
 		const SHistoryItem* ret = NULL;
 		for (THistoryBuffer::const_iterator iter = m_items.begin(); (iter != m_items.end()) && (iter->time <= endTime); iter++)
@@ -352,9 +352,9 @@ public:
 	typedef std::vector<SHistoryItem> THistoryBuffer;
 
 	THistoryBuffer     m_items;
-	float              m_firstTime;
-	float              m_startTime;
-	float              m_endTime;
+	CTimeValue         m_firstTime;
+	CTimeValue         m_startTime;
+	CTimeValue         m_endTime;
 
 	IActionController& m_actionController;
 };
@@ -413,21 +413,21 @@ struct SLastChange
 	SLastChange()
 		:
 		lastChangeCount(0),
-		changeTime(0.0f),
+		changeTime(0),
 		dirty(0)
 	{}
 
 	uint32 lastChangeCount;
-	float  changeTime;
+	CTimeValue changeTime;
 	bool   dirty;
 };
 
 namespace MannUtils
 {
-bool                     InsertClipTracksToNode(CSequencerNode* node, const SFragmentData& fragData, float startTime, float endTime, float& maxTime, const SClipTrackContext& trackContext);
-void                     GetFragmentFromClipTracks(CFragment& fragment, CSequencerNode* animNode, uint32 historyNode = HISTORY_ITEM_INVALID, float fragStartTime = 0.0f, int fragPart = 0);
+bool                     InsertClipTracksToNode(CSequencerNode* node, const SFragmentData& fragData, const CTimeValue& startTime, const CTimeValue& endTime, CTimeValue& maxTime, const SClipTrackContext& trackContext);
+void                     GetFragmentFromClipTracks(CFragment& fragment, CSequencerNode* animNode, uint32 historyNode = HISTORY_ITEM_INVALID, const CTimeValue& fragStartTime = 0, int fragPart = 0);
 
-void                     InsertFragmentTrackFromHistory(CSequencerNode* animNode, SFragmentHistoryContext& historyContext, float startTime, float endTime, float& maxTime, SScopeData& scopeData);
+void                     InsertFragmentTrackFromHistory(CSequencerNode* animNode, SFragmentHistoryContext& historyContext, const CTimeValue& startTime, const CTimeValue& endTime, CTimeValue& maxTime, SScopeData& scopeData);
 void                     GetHistoryFromTracks(SFragmentHistoryContext& historyContext);
 
 void                     FlagsToTagList(char* tagList, uint32 bufferSize, const SFragTagState& tagState, FragmentID fragID, const SControllerDef& def, const char* emptyString = NULL);
@@ -550,11 +550,11 @@ public:
 	{
 		if (!m_locked[paramID])
 		{
-			skelAnim.SetDesiredMotionParam(paramID, value, 0.0f);
+			skelAnim.SetDesiredMotionParam(paramID, value, 0);
 		}
 	}
 
-	void UpdateInput(ICharacterInstance* pChar, float timePassed, IActionController* pAction)
+	void UpdateInput(ICharacterInstance* pChar, const CTimeValue& timePassed, IActionController* pAction)
 	{
 		if (pChar)
 		{
@@ -566,7 +566,7 @@ public:
 			{
 				if (m_locked[i])
 				{
-					skelAnim.SetDesiredMotionParam((EMotionParamID)i, m_lockedValues[i], 0.0f);
+					skelAnim.SetDesiredMotionParam((EMotionParamID)i, m_lockedValues[i], 0);
 				}
 			}
 		}

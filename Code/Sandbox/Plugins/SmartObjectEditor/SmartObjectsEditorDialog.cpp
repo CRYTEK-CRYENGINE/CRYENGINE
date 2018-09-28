@@ -311,9 +311,9 @@ public:
 
 	//////////////////////////////////////////////////////////////////////////
 	// Delay variables
-	CVariable<float> delayMinimum;
-	CVariable<float> delayMaximum;
-	CVariable<float> delayMemory;
+	CVariable<CTimeValue> delayMinimum;
+	CVariable<CTimeValue> delayMaximum;
+	CVariable<CTimeValue> delayMemory;
 
 	//////////////////////////////////////////////////////////////////////////
 	// Multipliers variables
@@ -324,7 +324,7 @@ public:
 
 	//////////////////////////////////////////////////////////////////////////
 	// Action variables
-	CVariable<float>   fLookAtOnPerc;
+	CVariable<mpfloat> fLookAtOnPerc;
 	CVariable<CString> userPreActionState;
 	CVariable<CString> objectPreActionState;
 	CVariableEnum<int> actionType;
@@ -393,12 +393,12 @@ public:
 		limitsOrientation.SetLimits(-360.0f, 360.0f);
 		limitsOrientationToTarget.SetLimits(-360.0f, 360.0f);
 
-		delayMinimum.SetLimits(0.0f, 1000.0f);
-		delayMaximum.SetLimits(0.0f, 1000.0f);
-		delayMemory.SetLimits(0.0f, 1000.0f);
+		delayMinimum.SetLimits(0, 1000);
+		delayMaximum.SetLimits(0, 1000);
+		delayMemory.SetLimits(0, 1000);
 
 		multipliersRandomness.SetLimits(0.0f, 100.0f);
-		fLookAtOnPerc.SetLimits(0.0f, 100.0f);
+		fLookAtOnPerc.SetLimits(0, 100);
 
 		fStartWidth.SetLimits(0.0f, 10.0f);
 		fStartDirectionTolerance.SetLimits(0.0f, 180.0f);
@@ -570,16 +570,16 @@ public:
 		condition.bHorizLimitOnly = horizLimitOnly;
 		condition.fOrientationToTargetLimit = limitsOrientationToTarget;
 
-		condition.fMinDelay = delayMinimum;
-		condition.fMaxDelay = delayMaximum;
-		condition.fMemory = delayMemory;
+		condition.fMinDelay = (CTimeValue)delayMinimum;
+		condition.fMaxDelay = (CTimeValue)delayMaximum;
+		condition.fMemory = (CTimeValue)delayMemory;
 
 		condition.fProximityFactor = multipliersProximity;
 		condition.fOrientationFactor = multipliersOrientation;
 		condition.fVisibilityFactor = multipliersVisibility;
 		condition.fRandomnessFactor = multipliersRandomness;
 
-		condition.fLookAtOnPerc = fLookAtOnPerc;
+		condition.fLookAtOnPerc = (mpfloat)fLookAtOnPerc;
 		objectPreActionState.Get(temp);
 		condition.sObjectPreActionState = temp;
 		userPreActionState.Get(temp);
@@ -2648,16 +2648,16 @@ void CSmartObjectsEditorDialog::OnAddEntry()
 		false,      //  bool    bHorizLimitOnly
 		360.0f,     //	float	fOrientationToTargetLimit;
 
-		0.5f,       //	float	fMinDelay;
-		5.0f,       //	float	fMaxDelay;
-		2.0f,       //	float	fMemory;
+		"0.5",   //	CTimeValue	fMinDelay;
+		5,       //	CTimeValue	fMaxDelay;
+		2,       //	CTimeValue	fMemory;
 
-		1.0f,       //	float	fProximityFactor;
+		1,       //	float	fProximityFactor;
 		0.0f,       //	float	fOrientationFactor;
 		0.0f,       //	float	fVisibilityFactor;
 		0.0f,       //	float	fRandomnessFactor;
 
-		0,          //	float	fLookAtOnPerc;
+		0,          //	mpfloat	fLookAtOnPerc;
 		"",         //	string	sUserPreActionState;
 		"",         //	string	sObjectPreActionState;
 		eAT_Action, //	EActionType eActionType;
@@ -4161,11 +4161,11 @@ void CSmartObjectsEditorDialog::SetTemplateDefaults(SmartObjectCondition& condit
 				else if (pParam->sName == "limitsOrientationToTarget")
 					condition.fOrientationToTargetLimit = atof(pParam->sValue);
 				else if (pParam->sName == "delayMinimum")
-					condition.fMinDelay = atof(pParam->sValue);
+					condition.fMinDelay = CTimeValue(pParam->sValue.c_str());
 				else if (pParam->sName == "delayMaximum")
-					condition.fMaxDelay = atof(pParam->sValue);
+					condition.fMaxDelay = CTimeValue(pParam->sValue.c_str());
 				else if (pParam->sName == "delayMemory")
-					condition.fMemory = atof(pParam->sValue);
+					condition.fMemory = CTimeValue(pParam->sValue.c_str());
 				else if (pParam->sName == "multipliersProximity")
 					condition.fProximityFactor = atof(pParam->sValue);
 				else if (pParam->sName == "multipliersOrientation")
@@ -4175,7 +4175,7 @@ void CSmartObjectsEditorDialog::SetTemplateDefaults(SmartObjectCondition& condit
 				else if (pParam->sName == "multipliersRandomness")
 					condition.fRandomnessFactor = atof(pParam->sValue);
 				else if (pParam->sName == "fLookAtOnPerc")
-					condition.fLookAtOnPerc = atof(pParam->sValue);
+					condition.fLookAtOnPerc = mpfloat(pParam->sValue.c_str());
 				else if (pParam->sName == "userPreActionState")
 					condition.sUserPreActionState = pParam->sValue;
 				else if (pParam->sName == "objectPreActionState")

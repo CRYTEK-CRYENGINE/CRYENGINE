@@ -11,7 +11,7 @@
 #include <CryMath/Bezier.h>
 #include <CryMath/Bezier_impl.h>
 
-CTrackViewKeyHandle CTrackViewSplineTrack::CreateKey(const SAnimTime time)
+CTrackViewKeyHandle CTrackViewSplineTrack::CreateKey(const CTimeValue& time)
 {
 	const float value = stl::get<float>(GetValue(time));
 	CTrackViewKeyHandle handle = CTrackViewTrack::CreateKey(time);
@@ -43,7 +43,7 @@ void CTrackViewSplineTrack::SetKey(uint keyIndex, const STrackKey* pKey)
 	}
 }
 
-void CTrackViewSplineTrack::SetValue(const SAnimTime time, const TMovieSystemValue& value)
+void CTrackViewSplineTrack::SetValue(const CTimeValue& time, const TMovieSystemValue& value)
 {
 	CTrackViewTrack::SetValue(time, value);
 
@@ -98,13 +98,13 @@ void CTrackViewSplineTrack::UpdateKeyTangents(uint keyIndex)
 		GetKey(keyIndex + 1, &rightKey);
 	}
 
-	const SAnimTime leftTime = bHasLeftKey ? leftKey.m_time : key.m_time;
-	const SAnimTime rightTime = bHasRightKey ? rightKey.m_time : key.m_time;
+	const CTimeValue leftTime = bHasLeftKey ? leftKey.m_time : key.m_time;
+	const CTimeValue rightTime = bHasRightKey ? rightKey.m_time : key.m_time;
 
 	// Rebase to [0, rightTime - leftTime] to increase float precision
-	const float floatTime = (key.m_time - leftTime).ToFloat();
+	const float floatTime = (key.m_time - leftTime).BADGetSeconds();
 	const float floatLeftTime = 0.0f;
-	const float floatRightTime = (rightTime - leftTime).ToFloat();
+	const float floatRightTime = (rightTime - leftTime).BADGetSeconds();
 
 	key.m_controlPoint = Bezier::CalculateInTangent(floatTime, key.m_controlPoint,
 	                                                floatLeftTime, bHasLeftKey ? &leftKey.m_controlPoint : nullptr,

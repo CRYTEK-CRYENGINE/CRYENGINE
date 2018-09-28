@@ -19,7 +19,7 @@
 
 namespace
 {
-static const float MIN_TIME_RANGE = 1.0f;
+static const CTimeValue MIN_TIME_RANGE = 1;
 static const int CHAR_BUFFER_SIZE = 512;
 };
 
@@ -92,9 +92,9 @@ BOOL CPreviewerPage::OnInitDialog()
 
 	m_hAccelerators = LoadAccelerators(AfxGetApp()->m_hInstance, MAKEINTRESOURCE(IDR_MANN_ACCELERATOR));
 
-	m_fTime = 0.0f;
-	m_fMaxTime = 0.0f;
-	m_playSpeed = 1.0f;
+	m_fTime.SetSeconds(0);
+	m_fMaxTime.SetSeconds(0);
+	m_playSpeed = 1;
 	m_bPlay = false;
 	m_bLoop = false;
 	m_draggingTime = false;
@@ -270,12 +270,12 @@ void CPreviewerPage::OnSetFocus(CWnd* pOldWnd)
 	m_wndNodes.SyncKeyCtrl();
 }
 
-float CPreviewerPage::GetMarkerTimeStart() const
+const CTimeValue& CPreviewerPage::GetMarkerTimeStart() const
 {
 	return m_wndTrackPanel.GetMarkedTime().start;
 }
 
-float CPreviewerPage::GetMarkerTimeEnd() const
+const CTimeValue& CPreviewerPage::GetMarkerTimeEnd() const
 {
 	return m_wndTrackPanel.GetMarkedTime().end;
 }
@@ -283,14 +283,14 @@ float CPreviewerPage::GetMarkerTimeEnd() const
 void CPreviewerPage::Update()
 {
 	bool isDraggingTime = m_wndTrackPanel.IsDraggingTime();
-	float dsTime = m_wndTrackPanel.GetTime();
+	CTimeValue dsTime = m_wndTrackPanel.GetTime();
 
-	float effectiveSpeed = m_playSpeed;
+	mpfloat effectiveSpeed = m_playSpeed;
 	if (isDraggingTime)
 	{
 		m_sequencePlayback->SetTime(dsTime);
 		m_fTime = dsTime;
-		effectiveSpeed = 0.0f;
+		effectiveSpeed = 0;
 	}
 	else if (m_draggingTime)
 	{
@@ -298,7 +298,7 @@ void CPreviewerPage::Update()
 
 	if (!m_bPlay)
 	{
-		effectiveSpeed = 0.0f;
+		effectiveSpeed = 0;
 	}
 
 	m_cDlgToolBar.SetTime(m_fTime, m_wndTrackPanel.GetSnapFps());
@@ -307,13 +307,13 @@ void CPreviewerPage::Update()
 
 	m_draggingTime = isDraggingTime;
 
-	float endTime = GetMarkerTimeEnd();
-	if (endTime <= 0.0f)
+	CTimeValue endTime = GetMarkerTimeEnd();
+	if (endTime <= 0)
 	{
 		endTime = m_fMaxTime;
 	}
 
-	m_sequencePlayback->Update(gEnv->pTimer->GetFrameTime() * effectiveSpeed, m_modelViewport);
+	m_sequencePlayback->Update(GetGTimer()->GetFrameTime() * effectiveSpeed, m_modelViewport);
 
 	m_fTime = m_sequencePlayback->GetTime();
 
@@ -321,7 +321,7 @@ void CPreviewerPage::Update()
 	{
 		if (m_bLoop)
 		{
-			const float startTime = GetMarkerTimeStart();
+			const CTimeValue startTime = GetMarkerTimeStart();
 
 			m_fTime = startTime;
 			m_sequencePlayback->SetTime(startTime);
@@ -355,10 +355,10 @@ void CPreviewerPage::Update()
 //////////////////////////////////////////////////////////////////////////
 void CPreviewerPage::OnGoToStart()
 {
-	m_fTime = 0.0f;
+	m_fTime.SetSeconds(0);
 	m_bPlay = false;
 
-	m_sequencePlayback->SetTime(0.0f);
+	m_sequencePlayback->SetTime(0);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -377,14 +377,14 @@ void CPreviewerPage::OnPlay()
 
 	if (m_bPlay)
 	{
-		float endTime = GetMarkerTimeEnd();
-		if (endTime <= 0.0f)
+		CTimeValue endTime = GetMarkerTimeEnd();
+		if (endTime <= 0)
 		{
 			endTime = m_fMaxTime;
 		}
 		if (m_fTime > endTime)
 		{
-			const float startTime = GetMarkerTimeStart();
+			const CTimeValue startTime = GetMarkerTimeStart();
 
 			m_fTime = startTime;
 			m_sequencePlayback->SetTime(startTime);
@@ -428,14 +428,14 @@ void CPreviewerPage::OnPlayMenu(CPoint pos)
 	struct SScales
 	{
 		const char* pszText;
-		float       fScale;
+		mpfloat     fScale;
 	};
 	SScales Scales[] = {
-		{ " 2 ", 2.0f   },
-		{ " 1 ", 1.0f   },
-		{ "1/2", 0.5f   },
-		{ "1/4", 0.25f  },
-		{ "1/8", 0.125f },
+		{ " 2 ", 2   },
+		{ " 1 ", 1   },
+		{ "1/2", "0.5"   },
+		{ "1/4", "0.25"  },
+		{ "1/8"," 0.125" },
 	};
 
 	int nScales = sizeof(Scales) / sizeof(SScales);
@@ -558,8 +558,8 @@ void CPreviewerPage::OnReloadAnimations()
 	   }
 	 */
 
-	OnSequenceRestart(0.0f);
-	SetTime(0.0f);
+	OnSequenceRestart(0);
+	SetTime(0);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -606,7 +606,7 @@ void CPreviewerPage::OnToggleAttachToEntity()
 }
 
 //////////////////////////////////////////////////////////////////////////
-float CPreviewerPage::PopulateClipTracks(CSequencerNode* node, const int scopeID)
+CTimeValue CPreviewerPage::PopulateClipTracks(CSequencerNode* node, const int scopeID)
 {
 	struct SSelectedKey
 	{
@@ -657,7 +657,7 @@ float CPreviewerPage::PopulateClipTracks(CSequencerNode* node, const int scopeID
 
 	const ActionScopes scopeFlag = BIT64(scopeID);
 
-	float maxTime = MIN_TIME_RANGE;
+	CTimeValue maxTime = MIN_TIME_RANGE;
 	SClipTrackContext trackContext;
 	trackContext.tagState.globalTags = m_tagState;
 	trackContext.context = m_contexts->m_scopeData[scopeID].context[eMEM_Previewer];
@@ -669,8 +669,8 @@ float CPreviewerPage::PopulateClipTracks(CSequencerNode* node, const int scopeID
 
 	FragmentID lastfragment = FRAGMENT_ID_INVALID;
 	SFragTagState lastTagState;
-	float lastTime = 0.0f;           // last fragment's insertion time, in 'track time'
-	float lastFragmentDuration = 0.0f;
+	CTimeValue lastTime = 0;           // last fragment's insertion time, in 'track time'
+	CTimeValue lastFragmentDuration = 0;
 	bool lastPrimaryInstall = false;
 
 	float motionParams[eMotionParamID_COUNT];
@@ -716,7 +716,7 @@ float CPreviewerPage::PopulateClipTracks(CSequencerNode* node, const int scopeID
 
 				if (trackContext.context && trackContext.context->database)
 				{
-					float nextTime = -1.0f;
+					CTimeValue nextTime = -1;
 					for (uint32 n = h + 1; n < m_fragmentHistory->m_history.m_items.size(); n++)
 					{
 						const CFragmentHistory::SHistoryItem& nextItem = m_fragmentHistory->m_history.m_items[n];
@@ -731,7 +731,7 @@ float CPreviewerPage::PopulateClipTracks(CSequencerNode* node, const int scopeID
 					trackContext.historyItem = h;
 					trackContext.scopeID = scopeID;
 
-					const float time = item.time - m_fragmentHistory->m_history.m_firstTime;
+					const CTimeValue time = item.time - m_fragmentHistory->m_history.m_firstTime;
 
 					uint32 rootScope = 0;
 					for (uint32 i = 0; i <= scopeID; i++)
@@ -782,7 +782,7 @@ float CPreviewerPage::PopulateClipTracks(CSequencerNode* node, const int scopeID
 					}
 
 					FragmentID installFragID = item.fragment;
-					const float fragmentTime = item.time - lastTime; // how much time has passed relative to the last fragment's insertion time, so 'fragment time'
+					const CTimeValue fragmentTime = item.time - lastTime; // how much time has passed relative to the last fragment's insertion time, so 'fragment time'
 					SBlendQuery blendQuery;
 					blendQuery.fragmentFrom = lastfragment;
 					blendQuery.fragmentTo = installFragID;
@@ -806,8 +806,8 @@ float CPreviewerPage::PopulateClipTracks(CSequencerNode* node, const int scopeID
 					const SFragmentBlend* pFirstBlend = blend1.pFragmentBlend;
 					const bool hasTransition = (pFirstBlend != NULL);
 
-					float blendStartTime = 0.0f;  // in 'track time'
-					float blendSelectTime = 0.0f; // in 'track time'
+					CTimeValue blendStartTime  = 0;  // in 'track time'
+					CTimeValue blendSelectTime = 0; // in 'track time'
 					if (rootScope == scopeID)
 					{
 						if (!item.trumpsPrevious)
@@ -822,7 +822,7 @@ float CPreviewerPage::PopulateClipTracks(CSequencerNode* node, const int scopeID
 								{
 									// In a cyclic transition treat selectTime as normalised time
 									// (we assume it's in the first cycle here and adjust it lateron in the CycleLocked case)
-									blendSelectTime = lastClipKey.ConvertUnclampedNormalisedTimeToTime(pFirstBlend->selectTime);
+									blendSelectTime = lastClipKey.ConvertUnclampedNormalisedTimeToTime(pFirstBlend->selectTime.GetSeconds().conv<nTime>());
 
 									if (pFirstBlend->flags & SFragmentBlend::CycleLocked)
 									{
@@ -830,15 +830,15 @@ float CPreviewerPage::PopulateClipTracks(CSequencerNode* node, const int scopeID
 										// Figure out which cycle we are currently in, and move
 										// startTime & selectTime into the same cycle.
 
-										float cycleIncrement = 0.0f;
-										blendStartTime = lastClipKey.ConvertUnclampedNormalisedTimeToTime(pFirstBlend->startTime);
-										const float lastPrimeClipDuration = lastClipKey.GetOneLoopDuration();
+										CTimeValue cycleIncrement = 0;
+										blendStartTime = lastClipKey.ConvertUnclampedNormalisedTimeToTime(pFirstBlend->startTime.GetSeconds().conv<nTime>());
+										const CTimeValue lastPrimeClipDuration = lastClipKey.GetOneLoopDuration();
 										for (; blendStartTime + cycleIncrement <= time; cycleIncrement += lastPrimeClipDuration)
 											;
 
 										if (blendSelectTime + cycleIncrement > time)
 										{
-											cycleIncrement = max(cycleIncrement - lastPrimeClipDuration, 0.0f);
+											cycleIncrement = max(cycleIncrement - lastPrimeClipDuration, CTimeValue(0));
 										}
 
 										blendStartTime += cycleIncrement;
@@ -860,13 +860,13 @@ float CPreviewerPage::PopulateClipTracks(CSequencerNode* node, const int scopeID
 						blendStartTime = item.startTime - fragData.duration[0];
 					}
 
-					const float insertionTime = max(time, blendStartTime); // in 'track time'
+					const CTimeValue insertionTime = max(time, blendStartTime); // in 'track time'
 
-					float lastInsertedClipEndTime = 0.0f;
+					CTimeValue lastInsertedClipEndTime = 0;
 					const bool isLooping = MannUtils::InsertClipTracksToNode(node, fragData, insertionTime, nextTime, lastInsertedClipEndTime, trackContext);
 					maxTime = max(maxTime, lastInsertedClipEndTime);
 
-					float firstBlendDuration = 0.0f;
+					CTimeValue firstBlendDuration = 0;
 					bool foundReferenceBlend = false;
 					if (fragData.animLayers.size() > 0)
 					{
@@ -895,13 +895,13 @@ float CPreviewerPage::PopulateClipTracks(CSequencerNode* node, const int scopeID
 						}
 					}
 
-					float transitionTime = insertionTime;
-					const float transitionClipEffectiveStartTime = lastClipKey.GetEffectiveAssetStartTime();
-					const float transitionLastClipDuration = lastClipKey.GetOneLoopDuration();
+					CTimeValue transitionTime = insertionTime;
+					const CTimeValue transitionClipEffectiveStartTime = lastClipKey.GetEffectiveAssetStartTime();
+					const CTimeValue transitionLastClipDuration = lastClipKey.GetOneLoopDuration();
 					int partID = 0;
 					if (blend1.pFragmentBlend)
 					{
-						const float duration = fragData.duration[partID];
+						const CTimeValue duration = fragData.duration[partID];
 						const int id = fragTrack->CreateKey(transitionTime);
 						CFragmentKey fragKey;
 						fragTrack->GetKey(id, &fragKey);
@@ -922,7 +922,7 @@ float CPreviewerPage::PopulateClipTracks(CSequencerNode* node, const int scopeID
 					}
 					if (blend2.pFragmentBlend)
 					{
-						const float duration = fragData.duration[partID];
+						const CTimeValue duration = fragData.duration[partID];
 						const int id = fragTrack->CreateKey(transitionTime);
 						CFragmentKey fragKey;
 						fragTrack->GetKey(id, &fragKey);
@@ -940,14 +940,14 @@ float CPreviewerPage::PopulateClipTracks(CSequencerNode* node, const int scopeID
 
 					lastFragmentDuration = ((fragData.duration[partID] + transitionTime) - insertionTime);
 
-					const float fragmentClipDuration = lastInsertedClipEndTime - insertionTime;
+					const CTimeValue fragmentClipDuration = lastInsertedClipEndTime - insertionTime;
 					for (int i = 0; i < numFragKeys; i++)
 					{
 						CFragmentKey fragKey;
 						fragTrack->GetKey(i, &fragKey);
 						if (fragKey.historyItem == trackContext.historyItem)
 						{
-							const float duration = fragData.duration[partID];
+							const CTimeValue duration = fragData.duration[partID];
 
 							fragKey.transitionTime = firstBlendDuration;
 							fragKey.tagState = fragmentSelection.tagState;
@@ -1007,22 +1007,22 @@ void CPreviewerPage::PopulateAllClipTracks()
 	m_contexts->viewData[eMEM_Previewer].m_pAnimContext->randGenerator.seed(m_seed);
 
 	uint32 numScopes = m_contexts->m_scopeData.size();
-	float maxTime = MIN_TIME_RANGE;
+	CTimeValue maxTime = MIN_TIME_RANGE;
 	for (uint32 i = 0; i < numScopes; i++)
 	{
 		CSequencerNode* animNode = m_contexts->m_scopeData[i].animNode[eMEM_Previewer];
 		if (animNode)
 		{
-			const float maxTimeCur = PopulateClipTracks(animNode, i);
+			const CTimeValue maxTimeCur = PopulateClipTracks(animNode, i);
 			maxTime = max(maxTime, maxTimeCur);
 		}
 	}
-	maxTime += 1.0f;
+	maxTime += 1;
 	maxTime = max(maxTime, (m_fragmentHistory->m_history.m_endTime - m_fragmentHistory->m_history.m_firstTime));
 
-	Range timeRange(0.0f, maxTime);
+	TRange<CTimeValue> timeRange(0, maxTime);
 	m_sequence->SetTimeRange(timeRange);
-	m_wndTrackPanel.SetTimeRange(0.0f, maxTime);
+	m_wndTrackPanel.SetTimeRange(0, maxTime);
 	m_fMaxTime = maxTime;
 
 	//--- Create locators
@@ -1069,7 +1069,7 @@ void CPreviewerPage::SetUIFromHistory()
 
 			if (item.type == CFragmentHistory::SHistoryItem::Tag)
 			{
-				float time = item.time - m_fragmentHistory->m_history.m_firstTime;
+				CTimeValue time = item.time - m_fragmentHistory->m_history.m_firstTime;
 				int newKeyID = tagTrack->CreateKey(time);
 				CTagKey newKey;
 				newKey.m_time = time;
@@ -1078,7 +1078,7 @@ void CPreviewerPage::SetUIFromHistory()
 			}
 			else if (item.type == CFragmentHistory::SHistoryItem::Param)
 			{
-				float time = item.time - m_fragmentHistory->m_history.m_firstTime;
+				CTimeValue time = item.time - m_fragmentHistory->m_history.m_firstTime;
 				int newKeyID = paramTrack->CreateKey(time);
 				CParamKey newKey;
 				newKey.m_time = time;
@@ -1108,8 +1108,8 @@ void CPreviewerPage::SetUIFromHistory()
 				animNode->SetName(m_contexts->m_scopeData[i].name + " (none)");
 			}
 
-			float maxTime = MIN_TIME_RANGE;
-			MannUtils::InsertFragmentTrackFromHistory(animNode, *m_fragmentHistory, 0.0f, 0.0f, maxTime, m_contexts->m_scopeData[i]);
+			CTimeValue maxTime = MIN_TIME_RANGE;
+			MannUtils::InsertFragmentTrackFromHistory(animNode, *m_fragmentHistory, 0, 0, maxTime, m_contexts->m_scopeData[i]);
 			m_contexts->m_scopeData[i].fragTrack[eMEM_Previewer] = (CFragmentTrack*)animNode->GetTrackForParameter(SEQUENCER_PARAM_FRAGMENTID);// fragTrack;
 
 			m_contexts->m_scopeData[i].animNode[eMEM_Previewer] = animNode;
@@ -1134,7 +1134,7 @@ void CPreviewerPage::SetHistoryFromUI()
 	MannUtils::GetHistoryFromTracks(*m_fragmentHistory);
 	m_fragmentHistory->m_history.UpdateScopeMasks(m_contexts, m_tagState);
 
-	Range range = m_sequence->GetTimeRange();
+	TRange<CTimeValue> range = m_sequence->GetTimeRange();
 	m_fragmentHistory->m_history.m_startTime = range.start;
 	m_fragmentHistory->m_history.m_endTime = range.end;
 }
@@ -1198,7 +1198,7 @@ void CPreviewerPage::LoadSequence(const char* szFilename)
 		m_fragmentHistory->m_history.LoadSequence(filename);
 		m_fragmentHistory->m_history.UpdateScopeMasks(m_contexts, m_tagState);
 
-		m_sequencePlayback->SetTime(0.0f);
+		m_sequencePlayback->SetTime(0);
 
 		SetUIFromHistory();
 
@@ -1217,7 +1217,7 @@ void CPreviewerPage::LoadSequence(const int scopeContextIdx, const FragmentID fr
 	// this sets the keys onto each scope (track?)
 	m_fragmentHistory->m_history.UpdateScopeMasks(m_contexts, m_tagState);
 
-	m_sequencePlayback->SetTime(0.0f);
+	m_sequencePlayback->SetTime(0);
 
 	// this goes away and populates everything like magic
 	SetUIFromHistory();
@@ -1261,7 +1261,7 @@ void CPreviewerPage::OnSaveSequence()
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CPreviewerPage::OnSequenceRestart(float newTime)
+void CPreviewerPage::OnSequenceRestart(const CTimeValue& newTime)
 {
 	m_modelViewport->OnSequenceRestart(newTime);
 	m_bRestartingSequence = true;
@@ -1390,7 +1390,7 @@ void CPreviewerPage::SetTagState(const TagState& tagState)
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CPreviewerPage::SetTime(float fTime)
+void CPreviewerPage::SetTime(const CTimeValue& fTime)
 {
 	if (m_sequencePlayback != NULL)
 	{

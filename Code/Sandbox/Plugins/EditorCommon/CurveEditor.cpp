@@ -70,7 +70,7 @@ QPainterPath CreatePathFromCurve(const SCurveEditorCurve& curve, std::function<V
 {
 	QPainterPath path;
 
-	const Vec2 startPoint(curve.m_keys[0].m_time.ToFloat(), curve.m_keys[0].m_controlPoint.m_value);
+	const Vec2 startPoint(curve.m_keys[0].m_time.BADGetSeconds(), curve.m_keys[0].m_controlPoint.m_value);
 	const Vec2 startTransformed = transformFunc(startPoint);
 	path.moveTo(startTransformed.x, startTransformed.y);
 
@@ -80,8 +80,8 @@ QPainterPath CreatePathFromCurve(const SCurveEditorCurve& curve, std::function<V
 		const SCurveEditorKey segmentStartKey = curve.ApplyOutTangent(*iter, true);
 		const SCurveEditorKey segmentEndKey = curve.ApplyInTangent(*(iter + 1), true);
 
-		const Vec2 p0 = Vec2(segmentStartKey.m_time.ToFloat(), segmentStartKey.m_controlPoint.m_value);
-		const Vec2 p3 = Vec2(segmentEndKey.m_time.ToFloat(), segmentEndKey.m_controlPoint.m_value);
+		const Vec2 p0 = Vec2(segmentStartKey.m_time.BADGetSeconds(), segmentStartKey.m_controlPoint.m_value);
+		const Vec2 p3 = Vec2(segmentEndKey.m_time.BADGetSeconds(), segmentEndKey.m_controlPoint.m_value);
 		const Vec2 p1 = p0 + segmentStartKey.m_controlPoint.m_outTangent;
 		const Vec2 p2 = p3 + segmentEndKey.m_controlPoint.m_inTangent;
 
@@ -102,7 +102,7 @@ QPainterPath CreateExtrapolatedPathFromCurve(const SCurveEditorCurve& curve, std
 
 	if (curve.m_keys.size() > 0)
 	{
-		const Vec2 startPoint = Vec2(curve.m_keys[0].m_time.ToFloat(), curve.m_keys[0].m_controlPoint.m_value);
+		const Vec2 startPoint = Vec2(curve.m_keys[0].m_time.BADGetSeconds(), curve.m_keys[0].m_controlPoint.m_value);
 		const Vec2 startTransformed = transformFunc(startPoint);
 		if (startTransformed.x > 0.0f)
 		{
@@ -110,7 +110,7 @@ QPainterPath CreateExtrapolatedPathFromCurve(const SCurveEditorCurve& curve, std
 			path.lineTo(0.0f, startTransformed.y);
 		}
 
-		const Vec2 endPoint(curve.m_keys.back().m_time.ToFloat(), curve.m_keys.back().m_controlPoint.m_value);
+		const Vec2 endPoint(curve.m_keys.back().m_time.BADGetSeconds(), curve.m_keys.back().m_controlPoint.m_value);
 		const Vec2 endTransformed = transformFunc(endPoint);
 		if (endTransformed.x < windowWidth)
 		{
@@ -152,8 +152,8 @@ QPainterPath CreateDiscontinuityPathFromCurve(const SCurveEditorCurve& curve, st
 
 			if (segmentStartKey.m_controlPoint.m_value != iter->m_controlPoint.m_value)
 			{
-				const Vec2 start = Vec2(segmentStartKey.m_time.ToFloat(), segmentStartKey.m_controlPoint.m_value);
-				const Vec2 end = Vec2(iter->m_time.ToFloat(), iter->m_controlPoint.m_value);
+				const Vec2 start = Vec2(segmentStartKey.m_time.BADGetSeconds(), segmentStartKey.m_controlPoint.m_value);
+				const Vec2 end = Vec2(iter->m_time.BADGetSeconds(), iter->m_controlPoint.m_value);
 
 				const QPointF startTransformed = Vec2ToPoint(transformFunc(start));
 				const QPointF endTransformed = Vec2ToPoint(transformFunc(end));
@@ -164,8 +164,8 @@ QPainterPath CreateDiscontinuityPathFromCurve(const SCurveEditorCurve& curve, st
 
 			if (segmentEndKey.m_controlPoint.m_value != (iter + 1)->m_controlPoint.m_value)
 			{
-				const Vec2 start = Vec2(segmentEndKey.m_time.ToFloat(), segmentEndKey.m_controlPoint.m_value);
-				const Vec2 end = Vec2((iter + 1)->m_time.ToFloat(), (iter + 1)->m_controlPoint.m_value);
+				const Vec2 start = Vec2(segmentEndKey.m_time.BADGetSeconds(), segmentEndKey.m_controlPoint.m_value);
+				const Vec2 end = Vec2((iter + 1)->m_time.BADGetSeconds(), (iter + 1)->m_controlPoint.m_value);
 
 				const QPointF startTransformed = Vec2ToPoint(transformFunc(start));
 				const QPointF endTransformed = Vec2ToPoint(transformFunc(end));
@@ -217,7 +217,7 @@ void DrawKeys(QPainter& painter, const SCurveEditorCurve& curve, std::function<V
 	{
 		SCurveEditorKey key = *iter;
 
-		const Vec2 keyPoint = Vec2(key.m_time.ToFloat(), key.m_controlPoint.m_value);
+		const Vec2 keyPoint = Vec2(key.m_time.BADGetSeconds(), key.m_controlPoint.m_value);
 		const QPointF transformedKeyPoint = Vec2ToPoint(transformFunc(keyPoint));
 
 		const bool bIsFirstKey = (iter == curve.m_keys.begin());
@@ -385,8 +385,8 @@ Range GetBezierSegmentValueRange(const SCurveEditorKey& startKey, const SCurveEd
 
 std::pair<float, Vec2> ClosestPointOnSimpleSegment(const Vec2& point, const SCurveEditorKey& segmentStartKey, const SCurveEditorKey& segmentEndKey, std::function<Vec2(Vec2)> transformFunc)
 {
-	const Vec2 a = transformFunc(Vec2(segmentStartKey.m_time.ToFloat(), segmentStartKey.m_controlPoint.m_value));
-	const Vec2 b = transformFunc(Vec2(segmentEndKey.m_time.ToFloat(), segmentEndKey.m_controlPoint.m_value));
+	const Vec2 a = transformFunc(Vec2(segmentStartKey.m_time.BADGetSeconds(), segmentStartKey.m_controlPoint.m_value));
+	const Vec2 b = transformFunc(Vec2(segmentEndKey.m_time.BADGetSeconds(), segmentEndKey.m_controlPoint.m_value));
 
 	const Vec2 ab = b - a;
 	const Vec2 ap = point - a;
@@ -577,7 +577,7 @@ struct CCurveEditor::SZoomHandler : public CCurveEditor::SMouseHandler
 struct CCurveEditor::SScrubHandler : SMouseHandler
 {
 	CCurveEditor* m_pCurveEditor;
-	SAnimTime     m_startThumbPosition;
+	CTimeValue    m_startThumbPosition;
 	QPoint        m_startPoint;
 
 	SScrubHandler(CCurveEditor* pCurveEditor) : m_pCurveEditor(pCurveEditor)
@@ -591,7 +591,7 @@ struct CCurveEditor::SScrubHandler : SMouseHandler
 
 		const Vec2 pointInCurveSpace = TransformPointFromScreen(m_pCurveEditor->m_zoom, m_pCurveEditor->m_translation, m_pCurveEditor->GetCurveArea(), PointToVec2(point));
 
-		m_pCurveEditor->m_time = clamp_tpl(SAnimTime(pointInCurveSpace.x), m_pCurveEditor->m_timeRange.start, m_pCurveEditor->m_timeRange.end);
+		m_pCurveEditor->m_time = clamp_tpl(BADTIME(pointInCurveSpace.x), m_pCurveEditor->m_timeRange.start, m_pCurveEditor->m_timeRange.end);
 		m_startThumbPosition = m_pCurveEditor->m_time;
 		m_startPoint = point;
 
@@ -619,7 +619,7 @@ struct CCurveEditor::SScrubHandler : SMouseHandler
 			delta *= 0.1f;
 		}
 
-		m_pCurveEditor->m_time = clamp_tpl(m_startThumbPosition + SAnimTime(delta), m_pCurveEditor->m_timeRange.start, m_pCurveEditor->m_timeRange.end);
+		m_pCurveEditor->m_time = clamp_tpl(m_startThumbPosition + BADTIME(delta), m_pCurveEditor->m_timeRange.start, m_pCurveEditor->m_timeRange.end);
 		m_pCurveEditor->SignalScrub();
 	}
 
@@ -638,8 +638,8 @@ struct CCurveEditor::SMoveHandler : public CCurveEditor::SMouseHandler
 {
 	Vec2                   m_startPoint;
 	Vec2                   m_prevPoint;
-	SAnimTime              m_minSelectedTime;
-	std::vector<SAnimTime> m_keyTimes;
+	CTimeValue              m_minSelectedTime;
+	std::vector<CTimeValue> m_keyTimes;
 	std::vector<float>     m_keyValues;
 	CCurveEditor*          m_pCurveEditor;
 
@@ -685,7 +685,7 @@ struct CCurveEditor::SMoveHandler : public CCurveEditor::SMouseHandler
 					else
 					{
 						// Adjust time
-						SAnimTime deltaTime = SAnimTime(offset.x);
+						CTimeValue deltaTime = BADTIME(offset.x);
 						key.m_time = m_keyTimes[k] + deltaTime;
 						LimitRange(key.m_time, m_pCurveEditor->m_timeRange, m_pCurveEditor->m_timeLimiting, snapDist.x, delta.x);
 					}
@@ -725,7 +725,7 @@ struct CCurveEditor::SMoveHandler : public CCurveEditor::SMouseHandler
 
 	void StoreKeyPositions()
 	{
-		m_minSelectedTime = SAnimTime::Max();
+		m_minSelectedTime = CTimeValue::Max();
 
 		for (auto& curve : m_pCurveEditor->m_pContent->m_curves)
 		{
@@ -774,6 +774,22 @@ struct CCurveEditor::SMoveHandler : public CCurveEditor::SMouseHandler
 			if (delta < 0.0f && val < range.start && val >= range.start - T(snap))
 				val = range.start;
 			else if (delta > 0.0f && val > range.end && val <= range.end + T(snap))
+				val = range.end;
+		}
+	}
+
+	template<>
+	void LimitRange(CTimeValue& val, TRange<CTimeValue> range, ELimit limiting, float snap, float delta)
+	{
+		if (limiting == ELimit::Clamp)
+		{
+			range.ClipValue(val);
+		}
+		else if (limiting == ELimit::Snap)
+		{
+			if (delta < 0.0f && val < range.start && val >= range.start - BADTIME(snap))
+				val = range.start;
+			else if (delta > 0.0f && val > range.end && val <= range.end + BADTIME(snap))
 				val = range.end;
 		}
 	}
@@ -876,7 +892,7 @@ CCurveEditor::CCurveEditor(QWidget* parent)
 	: QWidget(parent)
 	, m_pContent(nullptr)
 	, m_pMouseHandler(nullptr)
-	, m_frameRate(SAnimTime::eFrameRate_30fps)
+	, m_frameRate(SAnimData::eFrameRate_30fps)
 	, m_bHandlesVisible(true)
 	, m_bRulerVisible(true)
 	, m_bTimeSliderVisible(true)
@@ -886,10 +902,10 @@ CCurveEditor::CCurveEditor(QWidget* parent)
 	, m_bAllowDiscontinuous(true)
 	, m_bKeysSelected(false)
 	, m_bMoveAxisLocked(false)
-	, m_time(SAnimTime(0))
+	, m_time(0)
 	, m_zoom(0.5f, 0.5f)
 	, m_translation(0.5f, 0.5f)
-	, m_timeRange(SAnimTime::Min(), SAnimTime::Max())
+	, m_timeRange(CTimeValue::Min(), CTimeValue::Max())
 	, m_valueRange(-1.0f, 1.0f)
 	, m_rulerHeight(Private_CurveEditor::kDefaultRulerHeight)
 	, m_rulerTicksYOffset(0)
@@ -918,17 +934,17 @@ void CCurveEditor::SetContent(SCurveEditorContent* pContent)
 	}
 }
 
-void CCurveEditor::SetTime(const SAnimTime time)
+void CCurveEditor::SetTime(const CTimeValue& time)
 {
 	m_timeRange.ClipValue(m_time = time);
 	update();
 }
 
-void CCurveEditor::SetTimeRange(const SAnimTime start, const SAnimTime end, ELimit limit)
+void CCurveEditor::SetTimeRange(const CTimeValue& start, const CTimeValue& end, ELimit limit)
 {
 	if (start <= end)
 	{
-		m_timeRange = TRange<SAnimTime>(start, end);
+		m_timeRange = TRange<CTimeValue>(start, end);
 		m_timeLimiting = limit;
 		update();
 	}
@@ -944,20 +960,20 @@ void CCurveEditor::SetValueRange(const float min, const float max, ELimit limit)
 	}
 }
 
-void CCurveEditor::ZoomToTimeRange(const float start, const float end)
+void CCurveEditor::ZoomToTimeRange(const CTimeValue& start, const CTimeValue& end)
 {
-	const float delta = (end - start);
+	const CTimeValue delta = (end - start);
 
-	if (delta > 1e-10f)
+	if (delta > "0.0000000001")
 	{
-		m_zoom.x = 1.0f / (end - start);
-		m_translation.x = start / (start - end);
+		m_zoom.x = BADF(1 / (end - start));
+		m_translation.x = BADF(start / (start - end));
 	}
 	else
 	{
 		// Just center around value with zoom = 1.0f
 		m_zoom.x = 1.0f;
-		m_translation.x = 0.5f - start;
+		m_translation.x = 0.5f - start.BADGetSeconds();
 	}
 
 	if (int width = GetCurveArea().width())
@@ -1012,7 +1028,7 @@ void CCurveEditor::paintEvent(QPaintEvent* pEvent)
 	};
 
 	const QColor rangeHighlightColor = GetStyleHelper()->curveRangeHighlight();
-	const QRectF rangesRect(Vec2ToPoint(transformFunc(Vec2(m_timeRange.start.ToFloat(), m_valueRange.start))), Vec2ToPoint(transformFunc(Vec2(m_timeRange.end.ToFloat(), m_valueRange.end))));
+	const QRectF rangesRect(Vec2ToPoint(transformFunc(Vec2(m_timeRange.start.BADGetSeconds(), m_valueRange.start))), Vec2ToPoint(transformFunc(Vec2(m_timeRange.end.BADGetSeconds(), m_valueRange.end))));
 	painter.setPen(QPen(Qt::NoPen));
 	painter.setBrush(rangeHighlightColor);
 	painter.drawRect(rangesRect);
@@ -1067,14 +1083,15 @@ void CCurveEditor::paintEvent(QPaintEvent* pEvent)
 	{
 		DrawingPrimitives::SRulerOptions rulerOptions;
 		rulerOptions.m_rect = QRect(0, -1, size().width(), m_rulerHeight + 2);
-		rulerOptions.m_visibleRange = Range(-m_translation.x / m_zoom.x, (1.0f - m_translation.x) / m_zoom.x);
+		rulerOptions.m_visibleRange = TRange<CTimeValue>(BADTIME(-m_translation.x / m_zoom.x), BADTIME((1.0f - m_translation.x) / m_zoom.x));
 		rulerOptions.m_rulerRange = rulerOptions.m_visibleRange;
 		rulerOptions.m_markHeight = kRulerMarkHeight;
 		rulerOptions.m_shadowSize = kRulerShadowHeight;
 		rulerOptions.m_ticksYOffset = m_rulerTicksYOffset;
 		rulerOptions.m_drawBackgroundCallback = [this, &painter, &rulerOptions]()
 		{
-			SignalDrawRulerBackground(painter, rulerOptions.m_rect, rulerOptions.m_visibleRange);
+			Range tmp = Range(rulerOptions.m_visibleRange.start.BADGetSeconds(), rulerOptions.m_visibleRange.end.BADGetSeconds());
+			SignalDrawRulerBackground(painter, rulerOptions.m_rect, tmp);
 		};
 
 		int rulerPrecision;
@@ -1085,8 +1102,8 @@ void CCurveEditor::paintEvent(QPaintEvent* pEvent)
 			DrawingPrimitives::STimeSliderOptions timeSliderOptions;
 			timeSliderOptions.m_rect = rect();
 			timeSliderOptions.m_precision = rulerPrecision;
-			timeSliderOptions.m_position = transformFunc(Vec2(m_time.ToFloat(), 0.0f)).x;
-			timeSliderOptions.m_time = m_time.ToFloat();
+			timeSliderOptions.m_position = transformFunc(Vec2(m_time.BADGetSeconds(), 0.0f)).x;
+			timeSliderOptions.m_time = m_time;
 			timeSliderOptions.m_bHasFocus = hasFocus();
 			DrawingPrimitives::DrawTimeSlider(painter, timeSliderOptions);
 		}
@@ -1132,8 +1149,8 @@ void CCurveEditor::DrawGrid(QPainter& painter)
 	gridColor.setAlpha(128);
 	const QColor textColor = GetStyleHelper()->curveText();
 
-	const Range horizontalVisibleRange = Range(-m_translation.x / m_zoom.x, (1.0f - m_translation.x) / m_zoom.x);
-	const Range verticalVisibleRange = Range((m_translation.y - 1.0f) / m_zoom.y, m_translation.y / m_zoom.y);
+	const TRange<CTimeValue> horizontalVisibleRange = TRange<CTimeValue>(BADTIME(-m_translation.x / m_zoom.x), BADTIME((1.0f - m_translation.x) / m_zoom.x));
+	const TRange<CTimeValue> verticalVisibleRange   = TRange<CTimeValue>(BADTIME((m_translation.y - 1.0f) / m_zoom.y), BADTIME(m_translation.y / m_zoom.y));
 
 	QRect curveRect = GetCurveArea();
 	const int height = curveRect.height();
@@ -1453,7 +1470,7 @@ void CCurveEditor::SelectInRect(const QRect& rect, bool bToggleSelected, bool bD
 	bool hasSelectedKeys = false;
 	ForEachKey(*m_pContent, [&](SCurveEditorCurve& curve, SCurveEditorKey& key)
 	{
-		const Vec2 screenPoint = TransformPointToScreen(m_zoom, m_translation, GetCurveArea(), Vec2(key.m_time.ToFloat(), key.m_controlPoint.m_value));
+		const Vec2 screenPoint = TransformPointToScreen(m_zoom, m_translation, GetCurveArea(), Vec2(key.m_time.BADGetSeconds(), key.m_controlPoint.m_value));
 		bool bKeyFoundInRect = rect.contains((int)screenPoint.x, (int)screenPoint.y);
 
 		if (!bToggleSelected && !bDeselect)
@@ -1564,7 +1581,7 @@ std::pair<SCurveEditorCurve*, SCurveEditorKey*> CCurveEditor::HitDetectKey(const
 	{
 		for (auto& key : curve.m_keys)
 		{
-			const Vec2 keyPoint = Vec2(key.m_time.ToFloat(), key.m_controlPoint.m_value);
+			const Vec2 keyPoint = Vec2(key.m_time.BADGetSeconds(), key.m_controlPoint.m_value);
 			const Vec2 transformedPoint = TransformPointToScreen(m_zoom, m_translation, GetCurveArea(), keyPoint);
 			if ((transformedPoint - PointToVec2(point)).GetLength() <= kHitDistance)
 			{
@@ -1590,7 +1607,7 @@ std::tuple<SCurveEditorCurve*, SCurveEditorKey, SCurveEditorKey*, CCurveEditor::
 		{
 			SCurveEditorKey key = *iter;
 
-			const Vec2 keyPoint = Vec2(key.m_time.ToFloat(), key.m_controlPoint.m_value);
+			const Vec2 keyPoint = Vec2(key.m_time.BADGetSeconds(), key.m_controlPoint.m_value);
 			const bool bIsFirstKey = (iter == curve.m_keys.begin());
 			const bool bIsLastKey = (iter == (curve.m_keys.end() - 1));
 			if (!bIsFirstKey)
@@ -1643,7 +1660,7 @@ Vec2 CCurveEditor::ClosestPointOnCurve(const Vec2 point, const SCurveEditorCurve
 	Vec2 closestPoint;
 	float minDistance = std::numeric_limits<float>::max();
 
-	const Vec2 startKeyTransformed = transformFunc(Vec2(curve.m_keys.front().m_time.ToFloat(), curve.m_keys.front().m_controlPoint.m_value));
+	const Vec2 startKeyTransformed = transformFunc(Vec2(curve.m_keys.front().m_time.BADGetSeconds(), curve.m_keys.front().m_controlPoint.m_value));
 	if (point.x < startKeyTransformed.x)
 	{
 		const float distanceToCurve = std::abs(point.y - startKeyTransformed.y);
@@ -1654,7 +1671,7 @@ Vec2 CCurveEditor::ClosestPointOnCurve(const Vec2 point, const SCurveEditorCurve
 		}
 	}
 
-	const Vec2 endKeyTransformed = transformFunc(Vec2(curve.m_keys.back().m_time.ToFloat(), curve.m_keys.back().m_controlPoint.m_value));
+	const Vec2 endKeyTransformed = transformFunc(Vec2(curve.m_keys.back().m_time.BADGetSeconds(), curve.m_keys.back().m_controlPoint.m_value));
 	if (point.x > endKeyTransformed.x)
 	{
 		const float distanceToCurve = std::abs(point.y - endKeyTransformed.y);
@@ -1682,11 +1699,11 @@ Vec2 CCurveEditor::ClosestPointOnCurve(const Vec2 point, const SCurveEditorCurve
 		}
 		else
 		{
-			const Vec2 p0 = transformFunc(Vec2(segmentStartKey.m_time.ToFloat(), segmentStartKey.m_controlPoint.m_value));
-			const Vec2 p3 = transformFunc(Vec2(segmentEndKey.m_time.ToFloat(), segmentEndKey.m_controlPoint.m_value));
-			const Vec2 p1 = transformFunc(Vec2(segmentStartKey.m_time.ToFloat() + segmentStartKey.m_controlPoint.m_outTangent.x,
+			const Vec2 p0 = transformFunc(Vec2(segmentStartKey.m_time.BADGetSeconds(), segmentStartKey.m_controlPoint.m_value));
+			const Vec2 p3 = transformFunc(Vec2(segmentEndKey.m_time.BADGetSeconds(), segmentEndKey.m_controlPoint.m_value));
+			const Vec2 p1 = transformFunc(Vec2(segmentStartKey.m_time.BADGetSeconds() + segmentStartKey.m_controlPoint.m_outTangent.x,
 			                                   segmentStartKey.m_controlPoint.m_value + segmentStartKey.m_controlPoint.m_outTangent.y));
-			const Vec2 p2 = transformFunc(Vec2(segmentEndKey.m_time.ToFloat() + segmentEndKey.m_controlPoint.m_inTangent.x,
+			const Vec2 p2 = transformFunc(Vec2(segmentEndKey.m_time.BADGetSeconds() + segmentEndKey.m_controlPoint.m_inTangent.x,
 			                                   segmentEndKey.m_controlPoint.m_value + segmentEndKey.m_controlPoint.m_inTangent.y));
 			
 			if (ArePointsAligned(p0, p1, p2, p3))
@@ -1765,7 +1782,7 @@ void CCurveEditor::AddPointToCurve(const Vec2 point, SCurveEditorCurve* pCurve)
 	using namespace Private_CurveEditor;
 	PreContentUpdate();
 	SCurveEditorKey key;
-	key.m_time = SAnimTime(point.x);
+	key.m_time = BADTIME(point.x);
 	key.m_controlPoint.m_value = point.y;
 	key.m_bAdded = true;
 	pCurve->m_keys.push_back(key);
@@ -1854,20 +1871,20 @@ void CCurveEditor::OnFitCurvesHorizontally()
 {
 	if (m_pContent)
 	{
-		TRange<SAnimTime> range(SAnimTime::Max(), SAnimTime::Min());
+		TRange<CTimeValue> range(CTimeValue::Max(), CTimeValue::Min());
 
 		for (const auto& curve : m_pContent->m_curves)
 		{
 			if (curve.m_keys.size() > 0)
 			{
-				range |= TRange<SAnimTime>(curve.m_keys.front().m_time, curve.m_keys.back().m_time);
+				range |= TRange<CTimeValue>(curve.m_keys.front().m_time, curve.m_keys.back().m_time);
 			}
 		}
 
 		if (range.IsEmpty())
 			range = m_timeRange;
 
-		ZoomToTimeRange(range.start.ToFloat(), range.end.ToFloat());
+		ZoomToTimeRange(range.start, range.end);
 	}
 
 	update();

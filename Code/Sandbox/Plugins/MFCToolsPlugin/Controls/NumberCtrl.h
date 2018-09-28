@@ -51,7 +51,7 @@ public:
 
 	void EnableNotifyWithoutValueChange(bool bFlag);
 
-	void SetMultiplier(double fMultiplier);
+	void SetMultiplier(const mpfloat& fMultiplier);
 
 	// Overrides
 	// ClassWizard generated virtual function overrides
@@ -63,16 +63,16 @@ public:
 	virtual ~CNumberCtrl();
 
 	//! Set/get current value.
-	void    SetValue(double val);
-	double  GetValue() const;
+	void    SetValue(const mpfloat& val);
+	mpfloat GetValue() const;
 	CString GetValueAsString() const;
 
 	//! Set/get increment step.
-	void   SetStep(double step);
-	double GetStep() const;
+	void   SetStep(const mpfloat& step);
+	const mpfloat& GetStep() const;
 
 	//! Set min/max values.
-	void SetRange(double min, double max);
+	void SetRange(const mpfloat& min, const mpfloat& max);
 
 	//! Value in control will be integer.
 	void SetInteger(bool enable);
@@ -115,18 +115,18 @@ protected:
 	void         OnEditChanged();
 	void         LoadIcons();
 
-	void         SetInternalValue(double val);
+	void         SetInternalValue(const mpfloat& val);
 	//! Get current value.
-	double       GetInternalValue() const;
+	mpfloat      GetInternalValue() const;
 
 	CNumberCtrlEdit m_edit;
 
 	int             m_nFlags;
-	double          m_step;
-	double          m_min, m_max;
-	mutable double  m_value;
-	double          m_lastUpdateValue;
-	double          m_multiplier;
+	mpfloat         m_step;
+	mpfloat         m_min, m_max;
+	mutable mpfloat m_value;
+	mpfloat         m_lastUpdateValue;
+	mpfloat         m_multiplier;
 	// 0 if no buttons pressed.
 	// 1 if up button pressed.
 	// 2 if down button pressed.
@@ -160,7 +160,7 @@ protected:
 	//! \param infNumber source double number
 	//! \param iniMaxPlaces maximum number of places (used for numeric rounding problems)
 	//! \return number of places 0..iniMaxPlaces
-	static int   CalculateDecimalPlaces(double infNumber, int iniMaxPlaces);
+	static int   CalculateDecimalPlaces(const mpfloat& infNumber, int iniMaxPlaces);
 public:
 	afx_msg void OnSize(UINT nType, int cx, int cy);
 };

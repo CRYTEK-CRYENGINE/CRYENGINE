@@ -31,6 +31,9 @@ public:
 	virtual bool operator()(uint8& value, const char* name = "", const char* label = 0) override;
 	virtual bool operator()(char& value, const char* name = "", const char* label = 0);
 
+	virtual bool operator()(CTimeValue& value, const char* name = "", const char* label = 0) override;
+	virtual bool operator()(mpfloat& value, const char* name = "", const char* label = 0) override;
+
 	virtual bool operator()(const SStruct& ser, const char* name = "", const char* label = 0) override;
 	virtual bool operator()(IContainer& ser, const char* name = "", const char* label = 0) override;
 	//virtual bool operator()( IPointer& ptr, const char* name = "", const char* label = 0 ) override;

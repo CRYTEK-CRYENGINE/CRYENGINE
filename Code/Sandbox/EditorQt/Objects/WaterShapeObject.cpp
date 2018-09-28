@@ -212,7 +212,7 @@ void CWaterShapeObject::OnWaterParamChange(IVariable* var)
 		pa.bConvexBorder = mv_convexBorder ? 1 : 0;
 		pa.waveSim.waveSpeed = mv_waveSpeed;
 		pa.waveSim.dampingCenter = mv_waveDamping;
-		pa.waveSim.timeStep = mv_waveTimestep;
+		pa.waveSim.timeStep = BADTIME(mv_waveTimestep);
 		pa.waveSim.heightLimit = mv_hlimit;
 		pa.waveSim.simDepth = mv_simDepth;
 		pa.waveSim.minVel = mv_minVel;
@@ -318,7 +318,7 @@ void CWaterShapeObject::UpdateGameArea()
 			pa.cellSize = mv_waterCell;
 			pa.waveSim.waveSpeed = mv_waveSpeed;
 			pa.waveSim.dampingCenter = mv_waveDamping;
-			pa.waveSim.timeStep = mv_waveTimestep;
+			pa.waveSim.timeStep = BADTIME(mv_waveTimestep);
 			pa.waveSim.heightLimit = mv_hlimit;
 			pa.waveSim.simDepth = mv_simDepth;
 			pa.waveSim.minVel = mv_minVel;

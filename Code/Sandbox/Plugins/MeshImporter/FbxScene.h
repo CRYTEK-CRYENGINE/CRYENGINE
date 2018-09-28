@@ -695,10 +695,10 @@ private:
 
 struct SCreateEngineMeshStats
 {
-	float elapsedTotal;
-	float elapsedCreateDirectMesh;
-	float elapsedTranslateMaterialIndices;
-	float elapsedCreateMesh;
+	CTimeValue elapsedTotal;
+	CTimeValue elapsedCreateDirectMesh;
+	CTimeValue elapsedTranslateMaterialIndices;
+	CTimeValue elapsedCreateMesh;
 
 	struct STranslateMaterialIndicesStats
 	{
@@ -714,29 +714,29 @@ struct SCreateEngineMeshStats
 
 	struct SCreateMeshStats
 	{
-		float elapsedSortVertices;
-		float elapsedMakeUniqueVertices;
-		float elapsedSortTriangles;
-		float elapsedCollectSubsets;
-		float elapsedProcessSubsets;
-		float elapsedCreateCMesh;
+		CTimeValue elapsedSortVertices;
+		CTimeValue elapsedMakeUniqueVertices;
+		CTimeValue elapsedSortTriangles;
+		CTimeValue elapsedCollectSubsets;
+		CTimeValue elapsedProcessSubsets;
+		CTimeValue elapsedCreateCMesh;
 
 		SCreateMeshStats()
-			: elapsedSortVertices(0.0f)
-			, elapsedMakeUniqueVertices(0.0f)
-			, elapsedSortTriangles(0.0f)
-			, elapsedCollectSubsets(0.0f)
-			, elapsedProcessSubsets(0.0f)
-			, elapsedCreateCMesh(0.0f)
+			: elapsedSortVertices(0)
+			, elapsedMakeUniqueVertices(0)
+			, elapsedSortTriangles(0)
+			, elapsedCollectSubsets(0)
+			, elapsedProcessSubsets(0)
+			, elapsedCreateCMesh(0)
 		{}
 	};
 	SCreateMeshStats createMesh;
 
 	SCreateEngineMeshStats()
-		: elapsedTotal(0.0f)
-		, elapsedCreateDirectMesh(0.0f)
-		, elapsedTranslateMaterialIndices(0.0f)
-		, elapsedCreateMesh(0.0f)
+		: elapsedTotal(0)
+		, elapsedCreateDirectMesh(0)
+		, elapsedTranslateMaterialIndices(0)
+		, elapsedCreateMesh(0)
 	{}
 
 	static void Log(const SCreateEngineMeshStats& stats);
@@ -744,13 +744,13 @@ struct SCreateEngineMeshStats
 
 struct SCreateMeshStats
 {
-	float                  elapsedTotal;
-	float                  elapsedSearchMaterials;
+	CTimeValue             elapsedTotal;
+	CTimeValue             elapsedSearchMaterials;
 	SCreateEngineMeshStats createEngineMesh;
 
 	SCreateMeshStats()
-		: elapsedTotal(0.0f)
-		, elapsedSearchMaterials(0.0f)
+		: elapsedTotal(0)
+		, elapsedSearchMaterials(0)
 		, createEngineMesh()
 	{}
 

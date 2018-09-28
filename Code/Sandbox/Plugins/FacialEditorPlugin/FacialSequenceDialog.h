@@ -60,7 +60,7 @@ public:
 	virtual ISplineInterpolator* GetSplineFromID(const string& id);
 	virtual string               GetIDFromSpline(ISplineInterpolator* pSpline);
 	virtual int                  GetSplineCount() const;
-	virtual int                  GetKeyCountAtTime(float time, float threshold) const;
+	virtual int                  GetKeyCountAtTime(const CTimeValue& time, float threshold) const;
 
 	// IEditorNotifyListener implementation
 	virtual void OnEditorNotifyEvent(EEditorNotifyEvent event);
@@ -172,8 +172,8 @@ protected:
 
 	IFacialAnimChannel* GetChannelFromSpline(ISplineInterpolator* pSpline);
 	void                DisplayPlaybackSpeedInToolbar();
-	float               ReadPlaybackSpeedFromToolbar();
-	float               ReadFrameFromToolbar();
+	mpfloat             ReadPlaybackSpeedFromToolbar();
+	mpfloat             ReadFrameFromToolbar();
 	float               ReadSmoothSigmaFromToolbar();
 	float               ReadKeyCleanupErrorMaxFromToolbar();
 	float               ReadRemoveNoiseSigmaFromToolbar();

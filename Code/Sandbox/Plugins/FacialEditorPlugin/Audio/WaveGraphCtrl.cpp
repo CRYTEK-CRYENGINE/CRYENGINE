@@ -22,7 +22,7 @@ CWaveGraphCtrl::CWaveGraphCtrl()
 	m_nTimer = -1;
 
 	m_nLeftOffset = 40;
-	m_fTimeMarker = 0;
+	m_fTimeMarker.SetSeconds(0);
 	m_timeRange.Set(0, 1);
 	m_TimeUpdateRect.SetRectEmpty();
 
@@ -31,9 +31,9 @@ CWaveGraphCtrl::CWaveGraphCtrl()
 
 	m_bScrubbing = false;
 	m_bPlaying = false;
-	m_fPlaybackSpeed = 1.0f;
+	m_fPlaybackSpeed = 1;
 
-	//m_fLastTimeCheck = gEnv->pTimer->GetAsyncTime();
+	//m_fLastTimeCheck = GetGTimer()->GetAsyncTime();
 	m_lastTimeCheck = timeGetTime();
 }
 
@@ -70,7 +70,7 @@ int CWaveGraphCtrl::GetWaveformCount()
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CWaveGraphCtrl::SetWaveformTime(int index, float time)
+void CWaveGraphCtrl::SetWaveformTime(int index, const CTimeValue& time)
 {
 	m_waveforms[index].time = time;
 }
@@ -113,7 +113,7 @@ void CWaveGraphCtrl::LoadWaveformSound(int index, const CString& soundFile)
 	//++(*itSound).second.refcount;
 	//m_waveforms[index].itSound = itSound;
 
-	//m_fLastTimeCheck = gEnv->pTimer->GetAsyncTime();
+	//m_fLastTimeCheck = GetGTimer()->GetAsyncTime();
 	m_lastTimeCheck = timeGetTime();
 }
 
@@ -138,9 +138,9 @@ void CWaveGraphCtrl::DeleteUnusedSounds()
 }
 
 //////////////////////////////////////////////////////////////////////////
-float CWaveGraphCtrl::GetWaveformLength(int waveformIndex)
+CTimeValue CWaveGraphCtrl::GetWaveformLength(int waveformIndex)
 {
-	return 0.0f;
+	return 0;
 	/*if (waveformIndex < 0 || waveformIndex >= int(m_waveforms.size()))
 	   return 0.0f;
 	   CWaveFileReader* pReader = (*m_waveforms[waveformIndex].itSound).second.pWaveFileReader;
@@ -304,7 +304,7 @@ void CWaveGraphCtrl::DrawTimeMarker(CDC* pDC)
 		CPen timePen;
 		timePen.CreatePen(PS_SOLID, 1, RGB(255, 0, 255));
 		CPen* pOldPen = pDC->SelectObject(&timePen);
-		CPoint pt = WorldToClient(Vec2(m_fTimeMarker, 0));
+		CPoint pt = WorldToClient(Vec2(m_fTimeMarker.BADGetSeconds(), 0));
 		if (pt.x >= m_rcWaveGraph.left && pt.x <= m_rcWaveGraph.right)
 		{
 			pDC->MoveTo(pt.x, m_rcWaveGraph.top + 1);
@@ -338,8 +338,8 @@ void CWaveGraphCtrl::DrawGrid(CDC* pDC)
 	if (GetStyle() & WAVCTRLN_STYLE_NOGRID)
 		return;
 
-	CPoint pt0 = WorldToClient(Vec2(m_timeRange.start, 0));
-	CPoint pt1 = WorldToClient(Vec2(m_timeRange.end, 0));
+	CPoint pt0 = WorldToClient(Vec2(m_timeRange.start.BADGetSeconds(), 0));
+	CPoint pt1 = WorldToClient(Vec2(m_timeRange.end.BADGetSeconds(), 0));
 	CRect timeRc = CRect(pt0.x - 2, m_rcWaveGraph.top, pt1.x + 2, m_rcWaveGraph.bottom);
 	timeRc.IntersectRect(timeRc, m_rcWaveGraph);
 	pDC->FillSolidRect(timeRc, ACTIVE_BKG_COLOR);
@@ -530,9 +530,9 @@ void CWaveGraphCtrl::OnLButtonDown(UINT nFlags, CPoint point)
 	{
 		m_editMode = eClickingMode;
 
-		//m_fLastTimeCheck = gEnv->pTimer->GetAsyncTime();
+		//m_fLastTimeCheck = GetGTimer()->GetAsyncTime();
 		m_lastTimeCheck = timeGetTime();
-		SetTimeMarkerInternal(max(m_timeRange.start, min(m_timeRange.end, FacialEditorSnapTimeToFrame(ClientToWorld(point).x))));
+		SetTimeMarkerInternal(max(m_timeRange.start, min(m_timeRange.end, CTimeValue(FacialEditorSnapTimeToFrame(BADTIME(ClientToWorld(point).x))))));
 
 		SendNotifyMessage(WAVCTRLN_TIME_CHANGE);
 
@@ -567,7 +567,7 @@ void CWaveGraphCtrl::OnMouseMove(UINT nFlags, CPoint point)
 			SendNotifyMessage(WAVECTRLN_RESET_CHANGES);
 
 			// Work out how far to drag the waveform in seconds.
-			float dt = (point.x - m_StartClickPoint.x) / m_grid.zoom.x;
+			CTimeValue dt = BADTIME((point.x - m_StartClickPoint.x) / m_grid.zoom.x);
 
 			// Pass on the changes to our parent.
 			ASSERT(m_nWaveformBeingDragged >= 0 && m_nWaveformBeingDragged < int(m_waveforms.size()));
@@ -587,11 +587,11 @@ void CWaveGraphCtrl::OnMouseMove(UINT nFlags, CPoint point)
 			if (point.x == m_StartClickPoint.x && point.y == m_StartClickPoint.y)
 				return;
 
-			//m_fLastTimeCheck = gEnv->pTimer->GetAsyncTime();
+			//m_fLastTimeCheck = GetGTimer()->GetAsyncTime();
 			m_editMode = eScrubbingMode;
 			m_bScrubbing = true;
 			m_lastTimeCheck = timeGetTime();
-			float fNewTime = min(m_timeRange.end, ClientToWorld(point).x);
+			CTimeValue fNewTime = min(m_timeRange.end, BADTIME(ClientToWorld(point).x));
 			SetTimeMarkerInternal(fNewTime);
 			StartSoundsAtTime(fNewTime, true);
 
@@ -608,7 +608,7 @@ void CWaveGraphCtrl::OnMouseMove(UINT nFlags, CPoint point)
 			if (point.x == m_StartClickPoint.x && point.y == m_StartClickPoint.y)
 				return;
 
-			float fNewTime = min(m_timeRange.end, ClientToWorld(point).x);
+			CTimeValue fNewTime = min(m_timeRange.end, BADTIME(ClientToWorld(point).x));
 			SetTimeMarkerInternal(fNewTime);
 			break;
 		}
@@ -621,9 +621,9 @@ void CWaveGraphCtrl::OnLButtonUp(UINT nFlags, CPoint point)
 	switch (m_editMode)
 	{
 	case eScrubbingMode:
-		//m_fLastTimeCheck = gEnv->pTimer->GetAsyncTime();
+		//m_fLastTimeCheck = GetGTimer()->GetAsyncTime();
 		m_lastTimeCheck = timeGetTime();
-		SetTimeMarkerInternal(min(m_timeRange.end, FacialEditorSnapTimeToFrame(ClientToWorld(point).x)));
+		SetTimeMarkerInternal(min(m_timeRange.end, CTimeValue(FacialEditorSnapTimeToFrame(BADTIME(ClientToWorld(point).x)))));
 		ReleaseCapture();
 		m_editMode = eNothingMode;
 		break;
@@ -664,7 +664,7 @@ void CWaveGraphCtrl::StartPlayback()
 {
 	m_bPlaying = true;
 	m_bScrubbing = false;
-	//m_fLastTimeCheck = gEnv->pTimer->GetAsyncTime();
+	//m_fLastTimeCheck = GetGTimer()->GetAsyncTime();
 	m_lastTimeCheck = timeGetTime();
 	UpdatePlayback();
 }
@@ -682,7 +682,7 @@ void CWaveGraphCtrl::StopPlayback()
 	    pSound->SetPaused(true);
 	   }
 	   }*/
-	m_fTimeMarker = 0.0f;
+	m_fTimeMarker.SetSeconds(0);
 	Invalidate();
 }
 
@@ -721,7 +721,7 @@ void CWaveGraphCtrl::EndScrubbing()
 	   }*/
 }
 
-void CWaveGraphCtrl::SetPlaybackSpeed(float fSpeed)
+void CWaveGraphCtrl::SetPlaybackSpeed(const mpfloat& fSpeed)
 {
 	/*if (m_fPlaybackSpeed != fSpeed)
 	   {
@@ -735,20 +735,20 @@ void CWaveGraphCtrl::SetPlaybackSpeed(float fSpeed)
 	   }*/
 }
 
-float CWaveGraphCtrl::GetPlaybackSpeed()
+const mpfloat& CWaveGraphCtrl::GetPlaybackSpeed()
 {
 	return m_fPlaybackSpeed;
 }
 
-float CWaveGraphCtrl::GetTimeMarker()
+const CTimeValue& CWaveGraphCtrl::GetTimeMarker()
 {
 	return m_fTimeMarker;
 }
 
 //////////////////////////////////////////////////////////////////////////
-float CWaveGraphCtrl::CalculateTimeRange()
+CTimeValue CWaveGraphCtrl::CalculateTimeRange()
 {
-	float minT = 0, maxT = 1;
+	CTimeValue minT = 0, maxT = 1;
 	/*for (int waveformIndex = 0, waveformCount = m_waveforms.size(); waveformIndex < waveformCount; ++waveformIndex)
 	   {
 	   float startTime = m_waveforms[waveformIndex].time;
@@ -760,7 +760,7 @@ float CWaveGraphCtrl::CalculateTimeRange()
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CWaveGraphCtrl::SetTimeMarker(float fTime)
+void CWaveGraphCtrl::SetTimeMarker(const CTimeValue& fTime)
 {
 	if (fTime == m_fTimeMarker)
 		return;
@@ -770,14 +770,14 @@ void CWaveGraphCtrl::SetTimeMarker(float fTime)
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CWaveGraphCtrl::SetTimeMarkerInternal(float fTime)
+void CWaveGraphCtrl::SetTimeMarkerInternal(const CTimeValue& fTime)
 {
 	if (fTime == m_fTimeMarker)
 		return;
 
 	// Erase old first.
-	CPoint pt0 = WorldToClient(Vec2(m_fTimeMarker, 0));
-	CPoint pt1 = WorldToClient(Vec2(fTime, 0));
+	CPoint pt0 = WorldToClient(Vec2(m_fTimeMarker.BADGetSeconds(), 0));
+	CPoint pt1 = WorldToClient(Vec2(fTime.BADGetSeconds(), 0));
 	CRect rc = CRect(pt0.x, m_rcWaveGraph.top, pt1.x, m_rcWaveGraph.bottom);
 	rc.NormalizeRect();
 	rc.InflateRect(5, 0);
@@ -867,10 +867,10 @@ void CWaveGraphCtrl::SetBottomWnd(CWnd* pWnd, int nHeight)
 }
 
 //////////////////////////////////////////////////////////////////////////
-float CWaveGraphCtrl::FindEndOfWaveforms()
+CTimeValue CWaveGraphCtrl::FindEndOfWaveforms()
 {
 	// Check whether we need to start playing any sounds at this new time.
-	float endTime = 0.0f;
+	CTimeValue endTime = 0;
 	/*for (int waveFormIndex = 0, waveFormCount = m_waveforms.size(); waveFormIndex < waveFormCount; ++waveFormIndex)
 	   {
 	   ISound* pSound = (*m_waveforms[waveFormIndex].itSound).second.pSound;
@@ -887,12 +887,12 @@ void CWaveGraphCtrl::UpdatePlayback()
 	if (!m_bPlaying || m_bScrubbing)
 		return;
 
-	float fTime = m_fTimeMarker;
+	CTimeValue fTime = m_fTimeMarker;
 
 	// Update the time marker based on real time.
-	//CTimeValue currentRealTime = gEnv->pTimer->GetAsyncTime();
+	//CTimeValue currentRealTime = GetGTimer()->GetAsyncTime();
 	DWORD currentRealTime = timeGetTime();
-	float elapsedTime = float(currentRealTime - m_lastTimeCheck) / 1000.0f;
+	CTimeValue elapsedTime = mpfloat(currentRealTime - m_lastTimeCheck) / 1000;
 	fTime = m_fTimeMarker + elapsedTime * m_fPlaybackSpeed;
 
 	// Try to keep the time synched with the sound engine - adjust the time if there are any sounds playing.
@@ -920,8 +920,8 @@ void CWaveGraphCtrl::UpdatePlayback()
 	if (fTime != m_fTimeMarker)
 	{
 		// Erase old first.
-		CPoint pt0 = WorldToClient(Vec2(m_fTimeMarker, 0));
-		CPoint pt1 = WorldToClient(Vec2(fTime, 0));
+		CPoint pt0 = WorldToClient(Vec2(m_fTimeMarker.BADGetSeconds(), 0));
+		CPoint pt1 = WorldToClient(Vec2(fTime.BADGetSeconds(), 0));
 		CRect rc = CRect(pt0.x, m_rcWaveGraph.top, pt1.x, m_rcWaveGraph.bottom);
 		rc.NormalizeRect();
 		rc.InflateRect(5, 0);
@@ -946,7 +946,7 @@ struct WaveformSortPredicate
 };
 
 //////////////////////////////////////////////////////////////////////////
-void CWaveGraphCtrl::StartSoundsAtTime(float fTime, bool bForceStart)
+void CWaveGraphCtrl::StartSoundsAtTime(const CTimeValue& fTime, bool bForceStart)
 {
 	// Created a sorted list of waveforms.
 	//std::vector<int> sortedWaveformIndices(m_waveforms.size());

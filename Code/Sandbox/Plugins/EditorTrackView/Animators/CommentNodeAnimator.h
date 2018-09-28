@@ -50,7 +50,7 @@ private:
 	virtual ~CCommentNodeAnimator();
 
 	void                AnimateCommentTextTrack(CTrackViewTrack* pTrack, const SAnimContext& ac);
-	CTrackViewKeyHandle GetActiveKeyHandle(CTrackViewTrack* pTrack, SAnimTime fTime);
+	CTrackViewKeyHandle GetActiveKeyHandle(CTrackViewTrack* pTrack, const CTimeValue& fTime);
 	Vec2                GetScreenPosFromNormalizedPos(const Vec2& unitPos);
 	void                DrawText(const char* szFontName, float fSize, const Vec2& unitPos, const ColorF col, const char* szText, int align);
 

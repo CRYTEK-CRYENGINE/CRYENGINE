@@ -24,13 +24,13 @@ CTimelineCtrl::CTimelineCtrl()
 {
 	m_bAutoDelete = false;
 
-	m_timeRange.start = 0;
-	m_timeRange.end = 1;
+	m_timeRange.start.SetSeconds(0);
+	m_timeRange.end.SetSeconds(1);
 
 	m_timeScale = 1;
 	m_fTicksTextScale = 1.0f;
 
-	m_fTimeMarker = -10;
+	m_fTimeMarker.SetSeconds(-10);
 
 	m_nTicksStep = 100;
 
@@ -39,7 +39,7 @@ CTimelineCtrl::CTimelineCtrl()
 	m_leftOffset = 0;
 	m_scrollOffset = 0;
 
-	m_ticksStep = 10.0f;
+	m_ticksStep = 10;
 
 	m_grid.zoom.x = 100;
 
@@ -144,15 +144,15 @@ BOOL CTimelineCtrl::PreTranslateMessage(MSG* pMsg)
 }
 
 //////////////////////////////////////////////////////////////////////////
-int CTimelineCtrl::TimeToClient(float time)
+int CTimelineCtrl::TimeToClient(const CTimeValue& time)
 {
-	return m_grid.WorldToClient(Vec2(time, 0)).x;
+	return m_grid.WorldToClient(Vec2(time.BADGetSeconds(), 0)).x;
 }
 
 //////////////////////////////////////////////////////////////////////////
-float CTimelineCtrl::ClientToTime(int x)
+CTimeValue CTimelineCtrl::ClientToTime(int x)
 {
-	return m_grid.ClientToWorld(CPoint(x, 0)).x;
+	return BADTIME(m_grid.ClientToWorld(CPoint(x, 0)).x);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -190,9 +190,9 @@ void CTimelineCtrl::OnPaint()
 }
 
 //////////////////////////////////////////////////////////////////////////
-float CTimelineCtrl::SnapTime(float time)
+CTimeValue CTimelineCtrl::SnapTime(const CTimeValue& time)
 {
-	double t = floor((double)time * m_ticksStep + 0.5);
+	CTimeValue t = floor(time.GetSeconds() * m_ticksStep + "0.5");
 	t = t / m_ticksStep;
 	return t;
 }
@@ -215,7 +215,7 @@ void CTimelineCtrl::DrawTicks(CDC& dc)
 	CPen redpen(PS_SOLID, 1, timeMarkerCol);
 
 	// Draw time ticks every tick step seconds.
-	Range timeRange = m_timeRange;
+	TRange<CTimeValue> timeRange = m_timeRange;
 	CString str;
 
 	dc.SetTextColor(textCol);
@@ -278,7 +278,7 @@ void CTimelineCtrl::DrawTicks(CDC& dc)
 		CPen& penToUse = (keyTimeSelected ? keySelectedPen : keyPen);
 		dc.SelectObject(&penToUse);
 
-		float keyTime = (m_pKeyTimeSet ? m_pKeyTimeSet->GetKeyTime(keyTimeIndex) : 0.0f);
+		CTimeValue keyTime = (m_pKeyTimeSet ? m_pKeyTimeSet->GetKeyTime(keyTimeIndex) : 0);
 
 		int x = TimeToClient(keyTime);
 		dc.Rectangle(x - 2, rc.top, x + 3, rc.bottom);
@@ -288,11 +288,11 @@ void CTimelineCtrl::DrawTicks(CDC& dc)
 }
 
 //////////////////////////////////////////////////////////////////////////
-Range CTimelineCtrl::GetVisibleRange() const
+TRange<CTimeValue> CTimelineCtrl::GetVisibleRange() const
 {
-	Range r;
+	TRange<CTimeValue> r;
 
-	r.start = (m_scrollOffset - m_leftOffset) / m_timeScale;
+	r.start.SetSeconds((m_scrollOffset - m_leftOffset) / m_timeScale);
 	r.end = r.start + (m_rcTimeline.Width()) / m_timeScale;
 	// Intersect range with global time range.
 	r = m_timeRange & r;
@@ -441,23 +441,24 @@ void CTimelineCtrl::OnMouseMove(UINT nFlags, CPoint point)
 			}
 
 			bool altClicked = ((GetAsyncKeyState(VK_MENU) & 0x8000) != 0);
-			float scale, offset;
-			float startTime = ClientToTime(m_lastPoint.x);
-			float endTime = ClientToTime(point.x);
+			mpfloat scale;
+			CTimeValue offset;
+			CTimeValue startTime = ClientToTime(m_lastPoint.x);
+			CTimeValue endTime = ClientToTime(point.x);
 			if (altClicked)
 			{
 				// Alt was pressed, so we should scale the key times rather than translate.
 				// Calculate the scaling parameters (ie t1 = t0 * M + C).
-				scale = 1.0f;
-				if (fabsf(startTime - m_fTimeMarker) > 0.1)
-					scale = (endTime - m_fTimeMarker) / (startTime - m_fTimeMarker);
+				scale = 1;
+				if (abs(startTime - m_fTimeMarker) > "0.1")
+					scale = ((endTime - m_fTimeMarker) / (startTime - m_fTimeMarker)).conv<mpfloat>();
 				offset = endTime - startTime * scale;
 			}
 			else
 			{
 				// Simply move the keys.
 				offset = endTime - startTime;
-				scale = 1.0f;
+				scale = 1;
 			}
 
 			MoveSelectedKeyTimes(scale, offset);
@@ -466,8 +467,8 @@ void CTimelineCtrl::OnMouseMove(UINT nFlags, CPoint point)
 
 	case TRACKING_MODE_SELECTION_RANGE:
 		{
-			float start = min(ClientToTime(m_lastPoint.x), ClientToTime(point.x));
-			float end = max(ClientToTime(m_lastPoint.x), ClientToTime(point.x));
+			CTimeValue start = min(ClientToTime(m_lastPoint.x), ClientToTime(point.x));
+			CTimeValue end = max(ClientToTime(m_lastPoint.x), ClientToTime(point.x));
 			SelectKeysInRange(start, end, !(nFlags & MK_SHIFT));
 			m_lastPoint = point;
 			Invalidate();
@@ -484,10 +485,10 @@ void CTimelineCtrl::OnMouseMove(UINT nFlags, CPoint point)
 }
 
 //////////////////////////////////////////////////////////////////////////
-CString CTimelineCtrl::TimeToString(float time)
+CString CTimelineCtrl::TimeToString(const CTimeValue& time)
 {
 	CString str;
-	str.Format("%.3f", time);
+	str.Format("%.3f", (float)time.GetSeconds());
 	return str;
 }
 
@@ -560,8 +561,10 @@ void CTimelineCtrl::StopTracking()
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CTimelineCtrl::SetTimeMarker(float fTime)
+void CTimelineCtrl::SetTimeMarker(const CTimeValue& fTimeIn)
 {
+	CTimeValue fTime = fTimeIn;
+
 	if (fTime < m_timeRange.start)
 		fTime = m_timeRange.start;
 	else if (fTime > m_timeRange.end)
@@ -606,7 +609,7 @@ int CTimelineCtrl::HitKeyTimes(CPoint point)
 	int hitKeyTimeIndex = -1;
 	for (int keyTimeIndex = 0; m_pKeyTimeSet && keyTimeIndex < m_pKeyTimeSet->GetKeyTimeCount(); ++keyTimeIndex)
 	{
-		float keyTime = (m_pKeyTimeSet ? m_pKeyTimeSet->GetKeyTime(keyTimeIndex) : 0.0f);
+		CTimeValue keyTime = (m_pKeyTimeSet ? m_pKeyTimeSet->GetKeyTime(keyTimeIndex) : 0);
 		int x = TimeToClient(keyTime);
 		if (abs(point.x - x) <= threshold)
 			hitKeyTimeIndex = keyTimeIndex;
@@ -616,7 +619,7 @@ int CTimelineCtrl::HitKeyTimes(CPoint point)
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CTimelineCtrl::MoveSelectedKeyTimes(float scale, float offset)
+void CTimelineCtrl::MoveSelectedKeyTimes(const mpfloat& scale, const CTimeValue& offset)
 {
 	std::vector<int> indices;
 	for (int keyTimeIndex = 0; m_pKeyTimeSet && keyTimeIndex < m_pKeyTimeSet->GetKeyTimeCount(); ++keyTimeIndex)
@@ -630,11 +633,11 @@ void CTimelineCtrl::MoveSelectedKeyTimes(float scale, float offset)
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CTimelineCtrl::SelectKeysInRange(float start, float end, bool select)
+void CTimelineCtrl::SelectKeysInRange(const CTimeValue& start, const CTimeValue& end, bool select)
 {
 	for (int keyTimeIndex = 0; m_pKeyTimeSet && keyTimeIndex < m_pKeyTimeSet->GetKeyTimeCount(); ++keyTimeIndex)
 	{
-		float time = (m_pKeyTimeSet ? m_pKeyTimeSet->GetKeyTime(keyTimeIndex) : 0.0f);
+		CTimeValue time = (m_pKeyTimeSet ? m_pKeyTimeSet->GetKeyTime(keyTimeIndex) : 0);
 		if (m_pKeyTimeSet && time >= start && time <= end)
 			m_pKeyTimeSet->SetKeyTimeSelected(keyTimeIndex, select);
 	}

@@ -16,9 +16,9 @@ public:
 	                      CTrackViewNode* pParentNode, bool bIsSubTrack = false, uint subTrackIndex = 0)
 		: CTrackViewTrack(pTrack, pTrackAnimNode, pParentNode, bIsSubTrack, subTrackIndex) {}
 
-	virtual CTrackViewKeyHandle CreateKey(const SAnimTime time) override;
+	virtual CTrackViewKeyHandle CreateKey(const CTimeValue& time) override;
 	virtual void                SetKey(uint keyIndex, const STrackKey* pKey) override;
-	virtual void                SetValue(const SAnimTime time, const TMovieSystemValue& value) override;
+	virtual void                SetValue(const CTimeValue& time, const TMovieSystemValue& value) override;
 	virtual void                OffsetKeys(const TMovieSystemValue& offset) override;
 
 private:

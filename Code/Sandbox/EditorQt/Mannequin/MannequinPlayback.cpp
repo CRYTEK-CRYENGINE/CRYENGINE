@@ -10,7 +10,7 @@
 #include <CryGame/IGameFramework.h>
 #include "MannequinModelViewport.h"
 
-const float MIN_TIME_CHANGE_EPSILON = 0.01f;
+const CTimeValue MIN_TIME_CHANGE_EPSILON = "0.01";
 
 const int PLAYER_ACTION_PRIORITY = 10;
 
@@ -18,8 +18,8 @@ const int PLAYER_ACTION_PRIORITY = 10;
 
 CFragmentPlayback::CFragmentPlayback(ActionScopes scopeMask, uint32 flags)
 	: CBasicAction(PLAYER_ACTION_PRIORITY, FRAGMENT_ID_INVALID, TAG_STATE_EMPTY, flags | IAction::NoAutoBlendOut, scopeMask),
-	m_maxTime(5.0f),
-	m_timeSinceInstall(0.0f)
+	m_maxTime(5),
+	m_timeSinceInstall(0)
 {
 	AddRef();
 }
@@ -34,38 +34,39 @@ void CFragmentPlayback::Exit()
 	CBasicAction::Exit();
 }
 
-void CFragmentPlayback::SetFragment(FragmentID fragmentID, TagState fragTags, uint32 option, float maxTime)
+void CFragmentPlayback::SetFragment(FragmentID fragmentID, TagState fragTags, uint32 option, const CTimeValue& maxTime)
 {
-	m_timeSinceInstall = 0.0f;
+	m_timeSinceInstall.SetSeconds(0);
 	m_maxTime = maxTime;
 
 	__super::SetFragment(fragmentID, fragTags, option);
 }
 
-void CFragmentPlayback::Restart(float time)
-{
-	if (time < 0.0f)
+void CFragmentPlayback::Restart(const CTimeValue& tIn)
+{	
+	CTimeValue time = tIn;
+	if (time < 0)
 	{
 		time = m_timeSinceInstall;
 	}
-	m_timeSinceInstall = -1.0f;
+	m_timeSinceInstall.SetSeconds(-1);
 	SetTime(time, true);
 }
 
-void CFragmentPlayback::SetTime(float time, bool bForce)
+void CFragmentPlayback::SetTime(const CTimeValue& time, bool bForce)
 {
 	m_timeSinceInstall = time;
 }
 
-float CFragmentPlayback::GetTimeSinceInstall() const
+const CTimeValue& CFragmentPlayback::GetTimeSinceInstall() const
 {
 	return m_timeSinceInstall;
 }
 
 bool CFragmentPlayback::ReachedEnd() const
 {
-	const float endMarker = CMannequinDialog::GetCurrentInstance()->FragmentEditor()->GetMarkerTimeEnd();
-	if (endMarker > 0.0f)
+	const CTimeValue endMarker = CMannequinDialog::GetCurrentInstance()->FragmentEditor()->GetMarkerTimeEnd();
+	if (endMarker > 0)
 	{
 		return m_timeSinceInstall > endMarker;
 	}
@@ -73,7 +74,7 @@ bool CFragmentPlayback::ReachedEnd() const
 	return (m_timeSinceInstall > m_maxTime);
 }
 
-IAction::EStatus CFragmentPlayback::Update(float timePassed)
+IAction::EStatus CFragmentPlayback::Update(const CTimeValue& timePassed)
 {
 	m_timeSinceInstall += timePassed;
 
@@ -109,7 +110,7 @@ public:
 		}
 	}
 
-	IAction::EStatus Update(float timePassed)
+	IAction::EStatus Update(const CTimeValue& timePassed)
 	{
 		return CBasicAction::Update(timePassed);
 	}
@@ -129,13 +130,14 @@ CFragmentSequencePlayback::~CFragmentSequencePlayback()
 	m_actions.clear();
 }
 
-void CFragmentSequencePlayback::Restart(float time)
+void CFragmentSequencePlayback::Restart(const CTimeValue& tIn)
 {
-	if (time < 0.0f)
+	CTimeValue time = tIn;
+	if (time < 0)
 	{
 		time = m_time;
 	}
-	m_time = -1.0f;
+	m_time.SetSeconds(-1);
 	SetTime(time, true);
 }
 
@@ -151,13 +153,13 @@ void CFragmentSequencePlayback::StopPrevious(ActionScopes scopeMask)
 	}
 }
 
-void CFragmentSequencePlayback::SetTime(float time, bool bForce)
+void CFragmentSequencePlayback::SetTime(const CTimeValue& time, bool bForce)
 {
-	const float timeDiff = m_time - time;
+	const CTimeValue timeDiff = m_time - time;
 
-	const float MAX_TIME_STEP = 0.2f;
+	const CTimeValue MAX_TIME_STEP = "0.2";
 
-	if (bForce || (fabs_tpl(timeDiff) >= MIN_TIME_CHANGE_EPSILON))
+	if (bForce || (abs(timeDiff) >= MIN_TIME_CHANGE_EPSILON))
 	{
 		ActionScopes availableScopeMask = m_scopeMask & m_actionController.GetActiveScopeMask();
 		const uint32 numActions = m_actions.size();
@@ -198,24 +200,24 @@ void CFragmentSequencePlayback::SetTime(float time, bool bForce)
 		memset(lastScopeUpdateTime, 0, sizeof(lastScopeUpdateTime));
 
 		uint32 idx;
-		float lastUpdateTime = 0.0f;
+		CTimeValue lastUpdateTime = 0;
 		for (idx = 0; idx < m_history.m_items.size(); idx++)
 		{
 			const CFragmentHistory::SHistoryItem& item = m_history.m_items[idx];
 
-			const float itemTime = item.time - m_history.m_firstTime;
+			const CTimeValue itemTime = item.time - m_history.m_firstTime;
 
 			if (itemTime <= time)
 			{
 				if (idx > 0)
 				{
-					float incrementTime = itemTime - lastUpdateTime;
+					CTimeValue incrementTime = itemTime - lastUpdateTime;
 
-					if (incrementTime > 0.0f)
+					if (incrementTime > 0)
 					{
 						if (pViewPort)
 						{
-							if (MAX_TIME_STEP > 0.0f)
+							if (MAX_TIME_STEP > 0)
 							{
 								while (incrementTime > MAX_TIME_STEP)
 								{
@@ -239,7 +241,7 @@ void CFragmentSequencePlayback::SetTime(float time, bool bForce)
 						{
 							StopPrevious(filteredMask);
 
-							if ((m_mode == eMEM_TransitionEditor) && (item.time > 0.0f))
+							if ((m_mode == eMEM_TransitionEditor) && (item.time > 0))
 							{
 								m_actionController.SetFlag(AC_NoTransitions, false);
 							}
@@ -284,12 +286,12 @@ void CFragmentSequencePlayback::SetTime(float time, bool bForce)
 		}
 		m_curIdx = idx;
 
-		float incrementTime = time - lastUpdateTime;
-		if (incrementTime > 0.0f)
+		CTimeValue incrementTime = time - lastUpdateTime;
+		if (incrementTime > 0)
 		{
 			if (pViewPort)
 			{
-				if (MAX_TIME_STEP > 0.0f)
+				if (MAX_TIME_STEP > 0)
 				{
 					while (incrementTime > MAX_TIME_STEP)
 					{
@@ -312,7 +314,7 @@ void CFragmentSequencePlayback::SetTime(float time, bool bForce)
 	}
 }
 
-void CFragmentSequencePlayback::Update(float timePassed, CMannequinModelViewport* pViewPort)
+void CFragmentSequencePlayback::Update(const CTimeValue& timePassed, CMannequinModelViewport* pViewPort)
 {
 	m_time += timePassed * m_playScale;
 
@@ -322,7 +324,7 @@ void CFragmentSequencePlayback::Update(float timePassed, CMannequinModelViewport
 	for (idx = m_curIdx; idx < m_history.m_items.size(); idx++)
 	{
 		const CFragmentHistory::SHistoryItem& item = m_history.m_items[idx];
-		const float itemTime = item.time - m_history.m_firstTime;
+		const CTimeValue itemTime = item.time - m_history.m_firstTime;
 		if (itemTime < m_time)
 		{
 			switch (item.type)
@@ -334,7 +336,7 @@ void CFragmentSequencePlayback::Update(float timePassed, CMannequinModelViewport
 					{
 						StopPrevious(filteredMask);
 
-						if ((m_mode == eMEM_TransitionEditor) && (item.time > 0.0f))
+						if ((m_mode == eMEM_TransitionEditor) && (item.time > 0))
 						{
 							m_actionController.SetFlag(AC_NoTransitions, false);
 						}
@@ -384,7 +386,7 @@ void CFragmentSequencePlayback::Update(float timePassed, CMannequinModelViewport
 	m_curIdx = idx;
 }
 
-void CFragmentSequencePlayback::SetSpeedBias(float playScale)
+void CFragmentSequencePlayback::SetSpeedBias(const mpfloat& playScale)
 {
 	if (m_playScale != playScale)
 	{

@@ -12,8 +12,8 @@ public:
 	{
 		enum { MAX_PHONEME_LENGTH = 8 };
 
-		int   startTime;
-		int   endTime;
+		CTimeValue startTime;
+		CTimeValue endTime;
 		int   nPhonemeCode;
 		char  sPhoneme[MAX_PHONEME_LENGTH];
 		float intensity;
@@ -21,8 +21,8 @@ public:
 
 	struct SWord
 	{
-		int   startTime;
-		int   endTime;
+		CTimeValue  startTime;
+		CTimeValue  endTime;
 		char* sWord;
 	};
 

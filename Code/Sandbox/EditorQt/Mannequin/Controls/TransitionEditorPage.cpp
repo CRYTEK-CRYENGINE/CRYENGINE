@@ -19,7 +19,7 @@
 
 namespace
 {
-static const float TRANSITION_MIN_TIME_RANGE = 1.0f;
+static const CTimeValue TRANSITION_MIN_TIME_RANGE = 1;
 static const int TRANSITION_CHAR_BUFFER_SIZE = 512;
 };
 
@@ -85,9 +85,9 @@ BOOL CTransitionEditorPage::OnInitDialog()
 
 	m_hAccelerators = LoadAccelerators(AfxGetApp()->m_hInstance, MAKEINTRESOURCE(IDR_MANN_ACCELERATOR));
 
-	m_fTime = 0.0f;
-	m_fMaxTime = 0.0f;
-	m_playSpeed = 1.0f;
+	m_fTime.SetSeconds(0);
+	m_fMaxTime.SetSeconds(0);
+	m_playSpeed = 1;
 	m_bPlay = false;
 	m_bLoop = false;
 	m_draggingTime = false;
@@ -262,12 +262,12 @@ void CTransitionEditorPage::OnSetFocus(CWnd* pOldWnd)
 	}
 }
 
-float CTransitionEditorPage::GetMarkerTimeStart() const
+const CTimeValue& CTransitionEditorPage::GetMarkerTimeStart() const
 {
 	return m_wndTrackPanel.GetMarkedTime().start;
 }
 
-float CTransitionEditorPage::GetMarkerTimeEnd() const
+const CTimeValue& CTransitionEditorPage::GetMarkerTimeEnd() const
 {
 	return m_wndTrackPanel.GetMarkedTime().end;
 }
@@ -275,14 +275,14 @@ float CTransitionEditorPage::GetMarkerTimeEnd() const
 void CTransitionEditorPage::Update()
 {
 	bool isDraggingTime = m_wndTrackPanel.IsDraggingTime();
-	float dsTime = m_wndTrackPanel.GetTime();
+	CTimeValue dsTime = m_wndTrackPanel.GetTime();
 
-	float effectiveSpeed = m_playSpeed;
+	mpfloat effectiveSpeed = m_playSpeed;
 	if (isDraggingTime)
 	{
 		m_sequencePlayback->SetTime(dsTime);
 		m_fTime = dsTime;
-		effectiveSpeed = 0.0f;
+		effectiveSpeed = 0;
 	}
 	else if (m_draggingTime)
 	{
@@ -290,7 +290,7 @@ void CTransitionEditorPage::Update()
 
 	if (!m_bPlay)
 	{
-		effectiveSpeed = 0.0f;
+		effectiveSpeed = 0;
 	}
 
 	m_cDlgToolBar.SetTime(m_fTime, m_wndTrackPanel.GetSnapFps());
@@ -299,13 +299,13 @@ void CTransitionEditorPage::Update()
 
 	m_draggingTime = isDraggingTime;
 
-	float endTime = GetMarkerTimeEnd();
-	if (endTime <= 0.0f)
+	CTimeValue endTime = GetMarkerTimeEnd();
+	if (endTime <= 0)
 	{
 		endTime = m_fMaxTime;
 	}
 
-	m_sequencePlayback->Update(gEnv->pTimer->GetFrameTime() * effectiveSpeed, m_modelViewport);
+	m_sequencePlayback->Update(GetGTimer()->GetFrameTime() * effectiveSpeed, m_modelViewport);
 
 	m_fTime = m_sequencePlayback->GetTime();
 
@@ -313,7 +313,7 @@ void CTransitionEditorPage::Update()
 	{
 		if (m_bLoop)
 		{
-			const float startTime = GetMarkerTimeStart();
+			const CTimeValue startTime = GetMarkerTimeStart();
 
 			m_fTime = startTime;
 			m_sequencePlayback->SetTime(startTime);
@@ -350,10 +350,10 @@ void CTransitionEditorPage::Update()
 //////////////////////////////////////////////////////////////////////////
 void CTransitionEditorPage::OnGoToStart()
 {
-	m_fTime = 0.0f;
+	m_fTime.SetSeconds(0);
 	m_bPlay = false;
 
-	m_sequencePlayback->SetTime(0.0f);
+	m_sequencePlayback->SetTime(0);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -372,14 +372,14 @@ void CTransitionEditorPage::OnPlay()
 
 	if (m_bPlay)
 	{
-		float endTime = GetMarkerTimeEnd();
-		if (endTime <= 0.0f)
+		CTimeValue endTime = GetMarkerTimeEnd();
+		if (endTime <= 0)
 		{
 			endTime = m_fMaxTime;
 		}
 		if (m_fTime > endTime)
 		{
-			const float startTime = GetMarkerTimeStart();
+			const CTimeValue startTime = GetMarkerTimeStart();
 
 			m_fTime = startTime;
 			m_sequencePlayback->SetTime(startTime);
@@ -423,14 +423,14 @@ void CTransitionEditorPage::OnPlayMenu(CPoint pos)
 	struct SScales
 	{
 		const char* pszText;
-		float       fScale;
+		mpfloat     fScale;
 	};
 	SScales Scales[] = {
-		{ " 2 ", 2.0f   },
-		{ " 1 ", 1.0f   },
-		{ "1/2", 0.5f   },
-		{ "1/4", 0.25f  },
-		{ "1/8", 0.125f },
+		{ " 2 ", 2   },
+		{ " 1 ", 1   },
+		{ "1/2", "0.5"   },
+		{ "1/4", "0.25"  },
+		{ "1/8", "0.125" },
 	};
 
 	int nScales = sizeof(Scales) / sizeof(SScales);
@@ -535,8 +535,8 @@ void CTransitionEditorPage::OnReloadAnimations()
 	   }
 	 */
 
-	OnSequenceRestart(0.0f);
-	SetTime(0.0f);
+	OnSequenceRestart(0);
+	SetTime(0);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -583,7 +583,7 @@ void CTransitionEditorPage::OnToggleAttachToEntity()
 }
 
 //////////////////////////////////////////////////////////////////////////
-float CTransitionEditorPage::PopulateClipTracks(CSequencerNode* node, const int scopeID)
+CTimeValue CTransitionEditorPage::PopulateClipTracks(CSequencerNode* node, const int scopeID)
 {
 	struct SSelectedKey
 	{
@@ -642,7 +642,7 @@ float CTransitionEditorPage::PopulateClipTracks(CSequencerNode* node, const int 
 
 	const ActionScopes scopeFlag = BIT64(scopeID);
 
-	float maxTime = TRANSITION_MIN_TIME_RANGE;
+	CTimeValue maxTime = TRANSITION_MIN_TIME_RANGE;
 	SClipTrackContext trackContext;
 	trackContext.tagState.globalTags = m_tagState;
 	trackContext.context = m_contexts->m_scopeData[scopeID].context[eMEM_TransitionEditor];
@@ -654,8 +654,8 @@ float CTransitionEditorPage::PopulateClipTracks(CSequencerNode* node, const int 
 
 	FragmentID lastfragment = FRAGMENT_ID_INVALID;
 	SFragTagState lastTagState;
-	float lastTime = 0.0f;           // last fragment's insertion time, in 'track time'
-	float lastFragmentDuration = 0.0f;
+	CTimeValue lastTime = 0;           // last fragment's insertion time, in 'track time'
+	CTimeValue lastFragmentDuration = 0;
 	bool lastPrimaryInstall = false;
 
 	float motionParams[eMotionParamID_COUNT];
@@ -701,7 +701,7 @@ float CTransitionEditorPage::PopulateClipTracks(CSequencerNode* node, const int 
 
 				if (trackContext.context && trackContext.context->database)
 				{
-					float nextTime = -1.0f;
+					CTimeValue nextTime = -1;
 					for (uint32 n = h + 1; n < m_fragmentHistory->m_history.m_items.size(); n++)
 					{
 						const CFragmentHistory::SHistoryItem& nextItem = m_fragmentHistory->m_history.m_items[n];
@@ -716,7 +716,7 @@ float CTransitionEditorPage::PopulateClipTracks(CSequencerNode* node, const int 
 					trackContext.historyItem = h;
 					trackContext.scopeID = scopeID;
 
-					const float time = item.time - m_fragmentHistory->m_history.m_firstTime;
+					const CTimeValue time = item.time - m_fragmentHistory->m_history.m_firstTime;
 
 					uint32 rootScope = 0;
 					for (uint32 i = 0; i <= scopeID; i++)
@@ -767,7 +767,7 @@ float CTransitionEditorPage::PopulateClipTracks(CSequencerNode* node, const int 
 					}
 
 					FragmentID installFragID = item.fragment;
-					const float fragmentTime = item.time - lastTime; // how much time has passed relative to the last fragment's insertion time, so 'fragment time'
+					const CTimeValue fragmentTime = item.time - lastTime; // how much time has passed relative to the last fragment's insertion time, so 'fragment time'
 					SBlendQuery blendQuery;
 					blendQuery.fragmentFrom = lastfragment;
 					blendQuery.fragmentTo = installFragID;
@@ -796,10 +796,10 @@ float CTransitionEditorPage::PopulateClipTracks(CSequencerNode* node, const int 
 					const bool hasTransition = (pFirstBlend != NULL);
 					//ADD STUFF
 
-					float blendStartTime = 0.0f;  // in 'track time'
-					float blendSelectTime = 0.0f; // in 'track time'
-					float transitionStartTime = m_fragmentHistory->m_history.m_startTime;
-					float cycleIncrement = 0.0f;
+					CTimeValue blendStartTime = 0;  // in 'track time'
+					CTimeValue blendSelectTime = 0; // in 'track time'
+					CTimeValue transitionStartTime = m_fragmentHistory->m_history.m_startTime;
+					CTimeValue cycleIncrement = 0;
 					if (rootScope == scopeID)
 					{
 						if (!item.trumpsPrevious)
@@ -814,7 +814,7 @@ float CTransitionEditorPage::PopulateClipTracks(CSequencerNode* node, const int 
 								{
 									// In a cyclic transition treat selectTime as normalised time
 									// (we assume it's in the first cycle here and adjust it lateron in the CycleLocked case)
-									blendSelectTime = lastClipKey.ConvertUnclampedNormalisedTimeToTime(pFirstBlend->selectTime);
+									blendSelectTime = lastClipKey.ConvertUnclampedNormalisedTimeToTime(pFirstBlend->selectTime.GetSeconds().conv<nTime>());
 
 									if (pFirstBlend->flags & SFragmentBlend::CycleLocked)
 									{
@@ -822,14 +822,14 @@ float CTransitionEditorPage::PopulateClipTracks(CSequencerNode* node, const int 
 										// Figure out which cycle we are currently in, and move
 										// startTime & selectTime into the same cycle.
 
-										blendStartTime = lastClipKey.ConvertUnclampedNormalisedTimeToTime(pFirstBlend->startTime);
-										const float lastPrimeClipDuration = lastClipKey.GetOneLoopDuration();
+										blendStartTime = lastClipKey.ConvertUnclampedNormalisedTimeToTime(pFirstBlend->startTime.GetSeconds().conv<nTime>());
+										const CTimeValue lastPrimeClipDuration = lastClipKey.GetOneLoopDuration();
 										for (; blendStartTime + cycleIncrement <= time; cycleIncrement += lastPrimeClipDuration)
 											;
 
 										if (blendSelectTime + cycleIncrement > time)
 										{
-											cycleIncrement = max(cycleIncrement - lastPrimeClipDuration, 0.0f);
+											cycleIncrement = max(cycleIncrement - lastPrimeClipDuration, CTimeValue(0));
 										}
 
 										blendStartTime += cycleIncrement;
@@ -852,13 +852,13 @@ float CTransitionEditorPage::PopulateClipTracks(CSequencerNode* node, const int 
 						blendStartTime = item.startTime - fragData.duration[0];
 					}
 
-					const float insertionTime = max(time, blendStartTime); // in 'track time'
+					const CTimeValue insertionTime = max(time, blendStartTime); // in 'track time'
 
-					float lastInsertedClipEndTime = 0.0f;
+					CTimeValue lastInsertedClipEndTime = 0;
 					const bool isLooping = MannUtils::InsertClipTracksToNode(node, fragData, insertionTime, nextTime, lastInsertedClipEndTime, trackContext);
 					maxTime = max(maxTime, lastInsertedClipEndTime);
 
-					float firstBlendDuration = 0.0f;
+					CTimeValue firstBlendDuration = 0;
 					bool foundReferenceBlend = false;
 					if (fragData.animLayers.size() > 0)
 					{
@@ -887,13 +887,13 @@ float CTransitionEditorPage::PopulateClipTracks(CSequencerNode* node, const int 
 						}
 					}
 
-					float transitionTime = insertionTime;
-					const float transitionClipEffectiveStartTime = lastClipKey.GetEffectiveAssetStartTime();
-					const float transitionLastClipDuration = lastClipKey.GetOneLoopDuration();
+					CTimeValue transitionTime = insertionTime;
+					const CTimeValue transitionClipEffectiveStartTime = lastClipKey.GetEffectiveAssetStartTime();
+					const CTimeValue transitionLastClipDuration = lastClipKey.GetOneLoopDuration();
 					int partID = 0;
 					if (blend1.pFragmentBlend)
 					{
-						const float duration = fragData.duration[partID];
+						const CTimeValue duration = fragData.duration[partID];
 						const int id = propsTrack->CreateKey(transitionTime);
 						CTransitionPropertyKey transitionKey;
 						propsTrack->GetKey(id, &transitionKey);
@@ -945,7 +945,7 @@ float CTransitionEditorPage::PopulateClipTracks(CSequencerNode* node, const int 
 					}
 					if (blend2.pFragmentBlend)
 					{
-						const float duration = fragData.duration[partID];
+						const CTimeValue duration = fragData.duration[partID];
 						const int id = propsTrack->CreateKey(transitionTime);
 						CTransitionPropertyKey transitionKey;
 						propsTrack->GetKey(id, &transitionKey);
@@ -994,14 +994,14 @@ float CTransitionEditorPage::PopulateClipTracks(CSequencerNode* node, const int 
 
 					lastFragmentDuration = ((fragData.duration[partID] + transitionTime) - insertionTime);
 
-					const float fragmentClipDuration = lastInsertedClipEndTime - insertionTime;
+					const CTimeValue fragmentClipDuration = lastInsertedClipEndTime - insertionTime;
 					for (int i = 0; i < numFragKeys; i++)
 					{
 						CFragmentKey fragKey;
 						fragTrack->GetKey(i, &fragKey);
 						if (fragKey.historyItem == trackContext.historyItem)
 						{
-							const float duration = fragData.duration[partID];
+							const CTimeValue duration = fragData.duration[partID];
 
 							fragKey.transitionTime = firstBlendDuration;
 							fragKey.tagState = fragmentSelection.tagState;
@@ -1062,22 +1062,22 @@ void CTransitionEditorPage::PopulateAllClipTracks()
 	m_contexts->viewData[eMEM_TransitionEditor].m_pAnimContext->randGenerator.seed(m_seed);
 
 	uint32 numScopes = m_contexts->m_scopeData.size();
-	float maxTime = TRANSITION_MIN_TIME_RANGE;
+	CTimeValue maxTime = TRANSITION_MIN_TIME_RANGE;
 	for (uint32 i = 0; i < numScopes; i++)
 	{
 		CSequencerNode* animNode = m_contexts->m_scopeData[i].animNode[eMEM_TransitionEditor];
 		if (animNode)
 		{
-			const float maxTimeCur = PopulateClipTracks(animNode, i);
+			const CTimeValue maxTimeCur = PopulateClipTracks(animNode, i);
 			maxTime = max(maxTime, maxTimeCur);
 		}
 	}
-	maxTime += 1.0f;
+	maxTime += 1;
 	maxTime = max(maxTime, (m_fragmentHistory->m_history.m_endTime - m_fragmentHistory->m_history.m_firstTime));
 
-	Range timeRange(0.0f, maxTime);
+	TRange<CTimeValue> timeRange(0, maxTime);
 	m_sequence->SetTimeRange(timeRange);
-	m_wndTrackPanel.SetTimeRange(0.0f, maxTime);
+	m_wndTrackPanel.SetTimeRange(0, maxTime);
 	m_fMaxTime = maxTime;
 
 	//--- Create locators
@@ -1097,7 +1097,7 @@ void CTransitionEditorPage::PopulateAllClipTracks()
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CTransitionEditorPage::InsertContextHistoryItems(const SScopeData& scopeData, const float keyTime)
+void CTransitionEditorPage::InsertContextHistoryItems(const SScopeData& scopeData, const CTimeValue& keyTime)
 {
 	for (uint32 h = 0; h < m_contextHistory->m_history.m_items.size(); h++)
 	{
@@ -1135,7 +1135,7 @@ void CTransitionEditorPage::SetUIFromHistory()
 	if (!m_fragmentHistory.get())
 		return;
 
-	float transitionStartTime = 3.0f; // Default transition start time
+	CTimeValue transitionStartTime = 3; // Default transition start time
 
 	uint32 numScopes = m_contexts->m_scopeData.size();
 	m_sequence->RemoveAll();
@@ -1159,7 +1159,7 @@ void CTransitionEditorPage::SetUIFromHistory()
 
 			if (item.type == CFragmentHistory::SHistoryItem::Tag)
 			{
-				float time = item.time - m_fragmentHistory->m_history.m_firstTime;
+				CTimeValue time = item.time - m_fragmentHistory->m_history.m_firstTime;
 				int newKeyID = tagTrack->CreateKey(time);
 				CTagKey newKey;
 				newKey.m_time = time;
@@ -1174,7 +1174,7 @@ void CTransitionEditorPage::SetUIFromHistory()
 			}
 			else if (item.type == CFragmentHistory::SHistoryItem::Param)
 			{
-				float time = item.time - m_fragmentHistory->m_history.m_firstTime;
+				CTimeValue time = item.time - m_fragmentHistory->m_history.m_firstTime;
 				int newKeyID = paramTrack->CreateKey(time);
 				CParamKey newKey;
 				newKey.m_time = time;
@@ -1192,7 +1192,7 @@ void CTransitionEditorPage::SetUIFromHistory()
 
 		if (!(m_scopeMaskFrom & BIT64(i)))
 		{
-			InsertContextHistoryItems(scopeData, 0.0f);
+			InsertContextHistoryItems(scopeData, 0);
 		}
 		else if (!(m_scopeMaskTo & BIT64(i))) // If scope was in "from" then it is already applied - we don't want duplicates
 		{
@@ -1211,8 +1211,8 @@ void CTransitionEditorPage::SetUIFromHistory()
 			animNode->SetName(scopeData.name + " (none)");
 		}
 
-		float maxTime = TRANSITION_MIN_TIME_RANGE;
-		MannUtils::InsertFragmentTrackFromHistory(animNode, *m_fragmentHistory, 0.0f, 0.0f, maxTime, scopeData);
+		CTimeValue maxTime = TRANSITION_MIN_TIME_RANGE;
+		MannUtils::InsertFragmentTrackFromHistory(animNode, *m_fragmentHistory, 0, 0, maxTime, scopeData);
 		scopeData.fragTrack[eMEM_TransitionEditor] = (CFragmentTrack*)animNode->GetTrackForParameter(SEQUENCER_PARAM_FRAGMENTID);
 		scopeData.animNode[eMEM_TransitionEditor] = animNode;
 	}
@@ -1235,7 +1235,7 @@ void CTransitionEditorPage::SetHistoryFromUI()
 	MannUtils::GetHistoryFromTracks(*m_fragmentHistory);
 	m_fragmentHistory->m_history.UpdateScopeMasks(m_contexts, m_tagState);
 
-	Range range = m_sequence->GetTimeRange();
+	TRange<CTimeValue> range = m_sequence->GetTimeRange();
 	m_fragmentHistory->m_history.m_startTime = range.start;
 	m_fragmentHistory->m_history.m_endTime = range.end;
 }
@@ -1321,16 +1321,16 @@ void CTransitionEditorPage::OnUpdateTV(bool forceUpdate)
 
 							// Copy values directly from the key
 							blendCopy.flags = key.tranFlags;
-							blendCopy.selectTime = max(0.f, key.overrideSelectTime);
+							blendCopy.selectTime = max(CTimeValue(0), key.overrideSelectTime);
 							if (key.tranFlags & SFragmentBlend::Cyclic)
 							{
-								blendCopy.startTime = key.overrideStartTime - (float)(int)key.overrideStartTime;
+								blendCopy.startTime = key.overrideStartTime - (int)key.overrideStartTime.GetSeconds();
 							}
 							else
 							{
-								blendCopy.startTime = min(0.f, key.overrideStartTime);
+								blendCopy.startTime = min(CTimeValue(0), key.overrideStartTime);
 							}
-							CryLogAlways("Set times from GUI: %f %f", blendCopy.selectTime, blendCopy.startTime);
+							CryLogAlways("Set times from GUI: %f %f", (float)blendCopy.selectTime.GetSeconds(), (float)blendCopy.startTime.GetSeconds());
 						}
 						else if (key.prop == CTransitionPropertyKey::eTP_Select)
 						{
@@ -1339,15 +1339,15 @@ void CTransitionEditorPage::OnUpdateTV(bool forceUpdate)
 							if (key.tranFlags & SFragmentBlend::Cyclic)
 							{
 								//clipSelectTime = (fragKey.tranSelectTime - fragKey.tranLastClipEffectiveStart) / fragKey.tranLastClipDuration;
-								blendCopy.selectTime = (key.m_time - key.prevClipStart) / key.prevClipDuration;
+								blendCopy.selectTime = CTimeValue(((key.m_time - key.prevClipStart) / key.prevClipDuration).conv<mpfloat>());
 								CryLogAlways("Pre-clip select time: %f", blendCopy.selectTime);
-								blendCopy.selectTime -= (float)(int)blendCopy.selectTime;
-								CryLogAlways("Set select time from key %f (%f - %f) / %f", blendCopy.selectTime, key.m_time, key.prevClipStart, key.prevClipDuration);
+								blendCopy.selectTime -= (int)blendCopy.selectTime.GetSeconds();
+								CryLogAlways("Set select time from key %f (%f - %f) / %f", (float)blendCopy.selectTime.GetSeconds(), (float)key.m_time.GetSeconds(), (float)key.prevClipStart.GetSeconds(), (float)key.prevClipDuration.GetSeconds());
 							}
 							else
 							{
 								blendCopy.selectTime = key.m_time - key.prevClipStart;
-								CryLogAlways("Set select time from key %f (%f - %f)", blendCopy.selectTime, key.m_time, key.prevClipStart);
+								CryLogAlways("Set select time from key %f (%f - %f)", (float)blendCopy.selectTime.GetSeconds(), (float)key.m_time.GetSeconds(), (float)key.prevClipStart.GetSeconds());
 							}
 						}
 						else if (key.prop == CTransitionPropertyKey::eTP_Start)
@@ -1357,15 +1357,15 @@ void CTransitionEditorPage::OnUpdateTV(bool forceUpdate)
 							if (key.tranFlags & SFragmentBlend::Cyclic)
 							{
 								//clipStartTime  = (tranStartTime - fragKey.tranLastClipEffectiveStart) / fragKey.tranLastClipDuration;
-								blendCopy.startTime = (key.m_time - key.refTime) / key.prevClipDuration;
+								blendCopy.startTime = CTimeValue(((key.m_time - key.refTime) / key.prevClipDuration).conv<mpfloat>());
 								CryLogAlways("Pre-clip start time: %f", blendCopy.startTime);
-								blendCopy.startTime -= (float)(int)blendCopy.startTime;
-								CryLogAlways("Set start time from key %f (%f - %f) / %f", blendCopy.startTime, key.refTime, key.m_time, key.prevClipDuration);
+								blendCopy.startTime -= (int)blendCopy.startTime.GetSeconds();
+								CryLogAlways("Set start time from key %f (%f - %f) / %f", (float)blendCopy.startTime.GetSeconds(), (float)key.refTime.GetSeconds(), (float)key.m_time.GetSeconds(), (float)key.prevClipDuration.GetSeconds());
 							}
 							else
 							{
-								blendCopy.startTime = min(0.0f, key.m_time - key.refTime);
-								CryLogAlways("Set start time from key %f (%f - %f)", blendCopy.startTime, key.m_time, key.refTime);
+								blendCopy.startTime = min(CTimeValue(0), key.m_time - key.refTime);
+								CryLogAlways("Set start time from key %f (%f - %f)", (float)blendCopy.startTime.GetSeconds(), (float)key.m_time.GetSeconds(), (float)key.refTime.GetSeconds());
 							}
 						}
 					}
@@ -1414,13 +1414,13 @@ void CTransitionEditorPage::OnUpdateTV(bool forceUpdate)
 						}
 					}
 
-					const float tranStartTime = fragKey.m_time;
+					const CTimeValue tranStartTime = fragKey.m_time;
 					int prevKeyID = pFragTrack->GetPrecedingFragmentKey(k, true);
 					const bool hasPrevClip = (prevKeyID >= 0);
 					const SFragmentBlend* pFragmentBlend = fragKey.context->database->GetBlend(fragKey.tranFragFrom, fragKey.tranFragTo, fragKey.tranTagFrom, fragKey.tranTagTo, fragKey.tranBlendUid);
 					if (pFragmentBlend)
 					{
-						float clipSelectTime, clipStartTime;
+						CTimeValue clipSelectTime, clipStartTime;
 
 						if (hasPrevClip && !alreadyDoneTransition)
 						{
@@ -1429,15 +1429,15 @@ void CTransitionEditorPage::OnUpdateTV(bool forceUpdate)
 
 							if (fragKey.tranFlags & SFragmentBlend::Cyclic)
 							{
-								clipSelectTime = (fragKey.tranSelectTime - fragKey.tranLastClipEffectiveStart) / fragKey.tranLastClipDuration;
-								clipStartTime = (tranStartTime - fragKey.tranLastClipEffectiveStart) / fragKey.tranLastClipDuration;
-								clipSelectTime -= (float)(int)clipSelectTime;
-								clipStartTime -= (float)(int)clipStartTime;
+								clipSelectTime = CTimeValue(((fragKey.tranSelectTime - fragKey.tranLastClipEffectiveStart) / fragKey.tranLastClipDuration).conv<mpfloat>());
+								clipStartTime = CTimeValue(((tranStartTime - fragKey.tranLastClipEffectiveStart) / fragKey.tranLastClipDuration).conv<mpfloat>());
+								clipSelectTime -= (int)clipSelectTime.GetSeconds();
+								clipStartTime -= (int)clipStartTime.GetSeconds();
 							}
 							else
 							{
 								clipSelectTime = fragKey.tranSelectTime - prevFragKey.m_time;
-								clipStartTime = min(tranStartTime - prevFragKey.clipDuration - max(prevFragKey.tranStartTime, prevFragKey.m_time), 0.0f);
+								clipStartTime = min(tranStartTime - prevFragKey.clipDuration - max(prevFragKey.tranStartTime, prevFragKey.m_time), CTimeValue(0));
 							}
 						}
 						else
@@ -1453,7 +1453,7 @@ void CTransitionEditorPage::OnUpdateTV(bool forceUpdate)
 							MannUtils::GetFragmentFromClipTracks(fragmentNew, scopeData.animNode[eMEM_TransitionEditor], fragKey.historyItem, tranStartTime, fragKey.fragIndex);
 							SFragmentBlend fragBlend;
 							fragBlend.pFragment = &fragmentNew;
-							fragBlend.enterTime = 0.0f;
+							fragBlend.enterTime.SetSeconds(0);
 							fragBlend.selectTime = clipSelectTime;
 							fragBlend.startTime = clipStartTime;
 							fragBlend.flags = fragKey.tranFlags;
@@ -1525,7 +1525,7 @@ void CTransitionEditorPage::LoadSequence(const int scopeContextIdx, const Fragme
 	// this sets the keys onto each scope (track?)
 	m_fragmentHistory->m_history.UpdateScopeMasks(m_contexts, m_tagState);
 
-	m_sequencePlayback->SetTime(0.0f);
+	m_sequencePlayback->SetTime(0);
 
 	// this goes away and populates everything like magic
 	SetUIFromHistory();
@@ -1543,7 +1543,7 @@ void CTransitionEditorPage::ClearSequence()
 {
 	if (m_sequencePlayback != NULL)
 	{
-		m_sequencePlayback->SetTime(0.0f);
+		m_sequencePlayback->SetTime(0);
 	}
 
 	m_wndNodes.SetSequence(NULL);
@@ -1551,7 +1551,7 @@ void CTransitionEditorPage::ClearSequence()
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CTransitionEditorPage::OnSequenceRestart(float newTime)
+void CTransitionEditorPage::OnSequenceRestart(const CTimeValue& newTime)
 {
 	m_modelViewport->OnSequenceRestart(newTime);
 	m_bRestartingSequence = true;
@@ -1747,7 +1747,7 @@ void CTransitionEditorPage::SetTagState(const TagState& tagState)
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CTransitionEditorPage::SetTime(float fTime)
+void CTransitionEditorPage::SetTime(const CTimeValue& fTime)
 {
 	if (m_sequencePlayback != NULL)
 	{

@@ -522,7 +522,7 @@ void QMaterialPreview::validateSize()
 //////////////////////////////////////////////////////////////////////////
 CMaterialToolBar::CMaterialToolBar() :
 	m_pEdit(0),
-	m_fIdleFilterTextTime(0.0f),
+	m_fIdleFilterTextTime(0),
 	m_curFilter(eFilter_Materials)
 {
 }
@@ -553,7 +553,7 @@ BOOL CMaterialToolBar::OnCommand(WPARAM wParam, LPARAM lParam)
 {
 	if (HIWORD(wParam) == EN_CHANGE)
 	{
-		m_fIdleFilterTextTime = gEnv->pTimer->GetCurrTime();
+		m_fIdleFilterTextTime = GetGTimer()->GetFrameStartTime();
 	}
 
 	return __super::OnCommand(wParam, lParam);
@@ -566,7 +566,7 @@ const CString& CMaterialToolBar::GetFilterText(bool* pOutIsNew)
 		*pOutIsNew = false;
 
 	// If user types fast do not proceed for every character. Delay is 0.3 (0.3f) seconds
-	if (m_fIdleFilterTextTime > 0.0f && gEnv->pTimer->GetCurrTime() - m_fIdleFilterTextTime > 0.3f)
+	if (m_fIdleFilterTextTime > 0 && GetGTimer()->GetFrameStartTime() - m_fIdleFilterTextTime > "0.3")
 	{
 		if (m_pEdit)
 		{
@@ -578,7 +578,7 @@ const CString& CMaterialToolBar::GetFilterText(bool* pOutIsNew)
 					*pOutIsNew = true;
 			}
 		}
-		m_fIdleFilterTextTime = 0.0f;
+		m_fIdleFilterTextTime.SetSeconds(0);
 	}
 
 	return m_filterText;
@@ -590,7 +590,7 @@ void CMaterialToolBar::Reset()
 	if (m_pEdit)
 		m_pEdit->SetEditText("");
 	m_filterText = "";
-	m_fIdleFilterTextTime = 0.0f;
+	m_fIdleFilterTextTime.SetSeconds(0);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -679,7 +679,7 @@ CMaterialBrowserCtrl::CMaterialBrowserCtrl()
 	m_bHighlightMaterial = false;
 	m_timeOfHighlight = 0;
 
-	m_fIdleSaveMaterialTime = 0.0f;
+	m_fIdleSaveMaterialTime.SetSeconds(0);
 	m_bShowOnlyCheckedOut = false;
 
 	GetIEditorImpl()->RegisterNotifyListener(this);
@@ -1167,12 +1167,12 @@ void CMaterialBrowserCtrl::OnEditorNotifyEvent(EEditorNotifyEvent event)
 
 			// Idle save material
 			// If material is changed in less than 1 second (1.0f) it is saved only one time after last change
-			if (m_fIdleSaveMaterialTime > 0.0001f && gEnv->pTimer->GetCurrTime() - m_fIdleSaveMaterialTime > 1.0f)
+			if (m_fIdleSaveMaterialTime > "0.0001" && GetGTimer()->GetFrameStartTime() - m_fIdleSaveMaterialTime > 1)
 			{
 				CMaterial* pMtl = GetCurrentMaterial();
 				if (pMtl)
 					pMtl->Save();
-				m_fIdleSaveMaterialTime = 0.0f;
+				m_fIdleSaveMaterialTime.SetSeconds(0);
 			}
 		}
 		break;
@@ -1187,7 +1187,7 @@ void CMaterialBrowserCtrl::OnEditorNotifyEvent(EEditorNotifyEvent event)
 //////////////////////////////////////////////////////////////////////////
 void CMaterialBrowserCtrl::IdleSaveMaterial()
 {
-	m_fIdleSaveMaterialTime = gEnv->pTimer->GetCurrTime();
+	m_fIdleSaveMaterialTime = GetGTimer()->GetFrameStartTime();
 }
 
 /*

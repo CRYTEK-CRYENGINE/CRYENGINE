@@ -131,7 +131,7 @@ CRopeObject::CRopeObject()
 	m_ropeParams.fTextureTileU = 1.0f;
 	m_ropeParams.fTextureTileV = 10.0f;
 	m_ropeParams.nMaxIters = 650;
-	m_ropeParams.maxTimeStep = 0.02f;
+	m_ropeParams.maxTimeStep = CTimeValue("0.02");
 	m_ropeParams.stiffness = 10.0f;
 	m_ropeParams.hardness = 20.0f;
 	m_ropeParams.damping = 0.2f;
@@ -230,7 +230,7 @@ void CRopeObject::Display(CObjectRenderHelper& objRenderHelper)
 			nLinkedMask = pRopeNode->GetLinkedEndsMask();
 
 		m_endLinksDisplayUpdateCounter++;
-		if (pRopeNode && m_endLinksDisplayUpdateCounter > 10 && gEnv->pPhysicalWorld->GetPhysVars()->lastTimeStep == 0.0f)
+		if (pRopeNode && m_endLinksDisplayUpdateCounter > 10 && gEnv->pPhysicalWorld->GetPhysVars()->lastTimeStep == 0)
 		{
 			m_endLinksDisplayUpdateCounter = 0;
 

@@ -12,10 +12,11 @@ namespace DrawingPrimitives
 {
 enum
 {
-	RULER_MIN_PIXELS_PER_TICK = 3,
+	RULER_MIN_PIXELS_PER_SEC = 3,
 };
 
-void CalculateTicks(uint size, Range visibleRange, Range rulerRange, int* pRulerPrecision, Range* pScreenRulerRange, Ticks& ticksOut, const Range* innerRange)
+// pScreenRulerRange == Range in PIXELS
+void CalculateTicks(uint size, TRange<CTimeValue> visibleRange, TRange<CTimeValue> rulerRange, int* pRulerPrecision, TRange<int32>* pScreenRulerRange, Ticks& ticksOut, const TRange<CTimeValue>* innerRange)
 {
 	ticksOut.clear();
 
@@ -29,14 +30,14 @@ void CalculateTicks(uint size, Range visibleRange, Range rulerRange, int* pRuler
 		return;
 	}
 
-	const float pixelsPerUnit = visibleRange.Length() > 0.0f ? (float)size / visibleRange.Length() : 1.0f;
+	const rTime pixelsPerUnit = visibleRange.Length() > 0 ? (mpfloat)size / visibleRange.Length() : 1;
 
-	const float startTime = rulerRange.start;
-	const float endTime = rulerRange.end;
-	const float totalDuration = endTime - startTime;
+	const CTimeValue startTime = rulerRange.start;
+	const CTimeValue endTime = rulerRange.end;
+	const CTimeValue totalDuration = endTime - startTime;
 
-	const float ticksMinPower = log10f(RULER_MIN_PIXELS_PER_TICK);
-	const float ticksPowerDelta = ticksMinPower - log10f(pixelsPerUnit);
+	const rTime ticksMinPower = log10(rTime((int)RULER_MIN_PIXELS_PER_SEC));
+	const rTime ticksPowerDelta = ticksMinPower - log10(pixelsPerUnit);
 
 	const int digitsAfterPoint = max(-int(ceil(ticksPowerDelta)) - 1, 0);
 	if (pRulerPrecision)
@@ -44,39 +45,39 @@ void CalculateTicks(uint size, Range visibleRange, Range rulerRange, int* pRuler
 		*pRulerPrecision = digitsAfterPoint;
 	}
 
-	const float scaleStep = powf(10.0f, ceil(ticksPowerDelta));
-	const float scaleStepPixels = scaleStep * pixelsPerUnit;
-	const int numMarkers = int(totalDuration / scaleStep) + 1;
+	const CTimeValue scaleStep = pow(rTime(10), ceil(ticksPowerDelta)).conv<mpfloat>();
+	const mpfloat scaleStepPixels = (scaleStep * pixelsPerUnit);
+	const int numMarkers = int(totalDuration.GetSeconds() / scaleStep) + 1;
 
-	const float startTimeRound = int(startTime / scaleStep) * scaleStep;
-	const int32 startOffsetMod = int(startTime / scaleStep) % 10;
-	const int32 scaleOffsetPixels = (startTime - startTimeRound) * pixelsPerUnit;
+	const CTimeValue startTimeRound = int(startTime / scaleStep) * scaleStep;
+	const int32 startOffsetMod      = int(startTime / scaleStep) % 10;
+	const mpfloat scaleOffsetPixels   = ((startTime - startTimeRound) * pixelsPerUnit);
 
-	const int32 startX = (float)(rulerRange.start - visibleRange.start) * pixelsPerUnit;
-	const int32 endX = startX + (numMarkers - 1) * scaleStepPixels - scaleOffsetPixels;
+	const mpfloat startX = (rulerRange.start - visibleRange.start) * pixelsPerUnit;
+	const mpfloat endX   = startX + (numMarkers - 1) * scaleStepPixels - scaleOffsetPixels;
 
 	if (pScreenRulerRange)
 	{
-		*pScreenRulerRange = Range(startX, endX);
+		*pScreenRulerRange = TRange<int32>((int32)startX, (int32)endX);
 	}
 
 	const int startLoop = std::max((int)((scaleOffsetPixels - startX) / scaleStepPixels) - 1, 0);
-	const int endLoop = std::min((int)((size + scaleOffsetPixels - startX) / scaleStepPixels) + 1, numMarkers);
+	const int endLoop   = std::min((int)((size + scaleOffsetPixels - startX) / scaleStepPixels) + 1, numMarkers);
 
 	const int32 innerNumMarkers = innerRange ? int32((innerRange->end - innerRange->start) / scaleStep) : 0;
-	const int32 innerBegX = innerRange ? (innerRange->start - visibleRange.start) * pixelsPerUnit - 1 : startX;
-	const int32 innerEndX = innerRange ? innerBegX + innerNumMarkers * scaleStepPixels + 1 : endX;
+	const mpfloat innerBegX = innerRange ? (innerRange->start - visibleRange.start) * pixelsPerUnit - 1 : startX;
+	const mpfloat innerEndX = innerRange ? innerBegX + innerNumMarkers * scaleStepPixels + 1 : endX;
 
 	for (int i = startLoop; i < endLoop; ++i)
 	{
 		STick tick;
 
-		const int32 xi = startX + i;
-		const int32 x = xi * scaleStepPixels - scaleOffsetPixels;
-		const float value = startTimeRound + i * scaleStep;
+		const mpfloat xi = startX + i;
+		const mpfloat x = xi * scaleStepPixels - scaleOffsetPixels;
+		const CTimeValue value = startTimeRound + i * scaleStep;
 
 		tick.m_bTenth = (startOffsetMod + i) % 10 != 0;
-		tick.m_position = x;
+		tick.m_position = (int)x;
 		tick.m_value = value;
 		tick.m_bIsOuterTick = x<innerBegX || x> innerEndX;
 
@@ -123,7 +124,7 @@ void DrawTicks(QPainter& painter, const QPalette& palette, const SRulerOptions& 
 void DrawRuler(QPainter& painter, const SRulerOptions& options, int* pRulerPrecision)
 {
 	int rulerPrecision;
-	Range screenRulerRange;
+	TRange<int32> screenRulerRange;
 	std::vector<STick> ticks;
 	CalculateTicks(options.m_rect.width(), options.m_visibleRange, options.m_rulerRange, &rulerPrecision, &screenRulerRange, ticks, options.m_pInnerRange);
 
@@ -169,7 +170,7 @@ void DrawRuler(QPainter& painter, const SRulerOptions& options, int* pRulerPreci
 	for (const STick& tick : ticks)
 	{
 		const int x = tick.m_position + options.m_rect.left();
-		const float value = tick.m_value;
+		const CTimeValue value = tick.m_value;
 
 		if (!tick.m_bIsOuterTick)
 			painter.setPen(innerTickColor);
@@ -189,7 +190,7 @@ void DrawRuler(QPainter& painter, const SRulerOptions& options, int* pRulerPreci
 			else
 				painter.setPen(outerTickTextColor);
 
-			str.sprintf(format, value);
+			str.sprintf(format, (float)value.GetSeconds());
 			painter.drawText(QPoint(x + 2, rulerYBase - options.m_markHeight + 1), str);
 		}
 	}
@@ -200,9 +201,10 @@ void DrawRuler(QPainter& painter, const SRulerOptions& options, int* pRulerPreci
 	//painter.drawLine(QPoint(options.m_rect.right(), 0), QPoint(options.m_rect.right(), options.m_rect.top() + height));
 }
 
-float InUnits(const SAnimTime& animTime, int32 unit)
+// NOTE: Converted to seconds or frame units depending on display mode.
+mpfloat InUnits(const CTimeValue& animTime, const mpfloat& unit)
 {
-	return static_cast<float>(animTime.GetTicks()) / unit;
+	return animTime.GetSeconds() / unit;
 }
 
 void CRuler::CalculateMarkers(TRange<int32>* pScreenRulerRange)
@@ -216,31 +218,31 @@ void CRuler::CalculateMarkers(TRange<int32>* pScreenRulerRange)
 
 	m_ticks.clear();
 
-	const bool bIsFramesOrTimecode = m_options.timeUnit == SAnimTime::EDisplayMode::Frames /* || m_options.timeUnit == SAnimTime::EDisplayMode::Timecode*/;
-	const int32 unit = !bIsFramesOrTimecode ? SAnimTime::numTicksPerSecond : m_options.ticksPerFrame;
-	const int32 fps = SAnimTime::numTicksPerSecond / m_options.ticksPerFrame;
+	const bool bIsFramesOrTimecode = m_options.timeUnit == SAnimData::EDisplayMode::Frames /* || m_options.timeUnit == SAnimTime::EDisplayMode::Timecode*/;
+	const mpfloat unit = !bIsFramesOrTimecode ? 1 : m_options.secPerFrame.GetSeconds();
+	const rTime fps = 1 / m_options.secPerFrame;
 
-	const float startTick = InUnits(m_options.rulerRange.start, unit);
-	const float endTick = InUnits(m_options.rulerRange.end, unit);
-	const float totalDuration = endTick - startTick;
+	const mpfloat startTick = InUnits(m_options.rulerRange.start, unit);
+	const mpfloat endTick   = InUnits(m_options.rulerRange.end, unit);
+	const mpfloat totalDuration = endTick - startTick;
 
-	const float pixelsPerUnit = m_options.visibleRange.Length().GetTicks() > 0 ? m_options.rect.width() / InUnits(m_options.visibleRange.Length(), unit) : 1.0f;
+	const mpfloat pixelsPerUnit = m_options.visibleRange.Length() > 0 ? m_options.rect.width() / InUnits(m_options.visibleRange.Length(), unit) : 1;
 
-	const float ticksMinPower = log10f(7);
-	const float ticksPowerDelta = ticksMinPower - log10f(pixelsPerUnit);
+	const mpfloat ticksMinPower = log10(mpfloat(7));
+	const mpfloat ticksPowerDelta = ticksMinPower - log10(pixelsPerUnit);
 
 	m_decimalDigits = max(-int32(ceil(ticksPowerDelta)) - 1, 0);
 
-	const float scaleStep = powf(10.f, ceil(ticksPowerDelta));
-	const float scaleStepPixels = scaleStep * pixelsPerUnit;
+	const mpfloat scaleStep = pow(mpfloat(10), ceil(ticksPowerDelta));
+	const mpfloat scaleStepPixels = scaleStep * pixelsPerUnit;
 	const int32 numMarkers = int32(totalDuration / scaleStep) + 1;
 
-	const float startTimeRound = int32(startTick / scaleStep) * scaleStep;
-	const int32 startOffsetMod = int32(startTick / scaleStep) % 10;
-	const int32 scaleOffsetPixels = (startTick - startTimeRound) * pixelsPerUnit;
+	const mpfloat startTimeRound = int32(startTick / scaleStep) * scaleStep;
+	const int32   startOffsetMod = int32(startTick / scaleStep) % 10;
+	const mpfloat scaleOffsetPixels = (startTick - startTimeRound) * pixelsPerUnit;
 
 	const int32 startX = static_cast<int32>(InUnits(m_options.rulerRange.start - m_options.visibleRange.start, unit) * pixelsPerUnit);
-	const int32 endX = startX + (numMarkers - 1) * scaleStepPixels - scaleOffsetPixels;
+	const int32 endX   = static_cast<int32>(startX + (numMarkers - 1) * scaleStepPixels - scaleOffsetPixels);
 
 	if (pScreenRulerRange)
 	{
@@ -252,23 +254,23 @@ void CRuler::CalculateMarkers(TRange<int32>* pScreenRulerRange)
 
 	const int32 innerNumMarkers = !m_options.innerRange.IsEmpty() ? int32(InUnits(m_options.innerRange.end - m_options.innerRange.start, unit) / scaleStep) : 0;
 	const int32 innerBegX = !m_options.innerRange.IsEmpty() ? int32(InUnits(m_options.innerRange.start - m_options.visibleRange.start, unit) * pixelsPerUnit - 1) : startX;
-	const int32 innerEndX = !m_options.innerRange.IsEmpty() ? innerBegX + innerNumMarkers * scaleStepPixels + 1 : endX;
+	const mpfloat innerEndX = !m_options.innerRange.IsEmpty() ? innerBegX + innerNumMarkers * scaleStepPixels + 1 : endX;
 
-	const float startFrameRound = startTimeRound * float(unit);
-	const float frameScaleStep = scaleStep * float(unit);
+	const mpfloat startFrameRound = startTimeRound * unit;
+	const mpfloat frameScaleStep = scaleStep * unit;
 
 	for (int i = startLoop; i < endLoop; ++i)
 	{
 		STick tick;
 
 		const int32 xi = startX + i;
-		const int32 x = xi * scaleStepPixels - scaleOffsetPixels;
+		const mpfloat x = xi * scaleStepPixels - scaleOffsetPixels;
 
-		tick.position = x;
+		tick.position = (int32)x;
 		if (!bIsFramesOrTimecode)
 		{
 			tick.bTenth = ((startOffsetMod + i) % 10) == 0;
-			tick.value.SetTime(startTimeRound + i * scaleStep);
+			tick.value.SetSeconds(startTimeRound + i * scaleStep);
 		}
 		else
 		{
@@ -276,7 +278,7 @@ void CRuler::CalculateMarkers(TRange<int32>* pScreenRulerRange)
 			if (/*m_options.timeUnit == SAnimTime::EDisplayMode::Frames && */ !tick.bTenth)
 				continue;
 
-			tick.value.SetTicks(startFrameRound + i * frameScaleStep);
+			tick.value.SetSeconds(startFrameRound + i * frameScaleStep);
 		}
 		tick.bIsOuterTick = x<innerBegX || x> innerEndX;
 
@@ -347,16 +349,16 @@ void CRuler::GenerateFormat(char* szFormatOut)
 	switch (m_options.timeUnit)
 	{
 	default:
-	case SAnimTime::EDisplayMode::Time:
+	case SAnimData::EDisplayMode::Time:
 		sprintf(szFormatOut, "%%.%df", m_decimalDigits);
 		return;
-	case SAnimTime::EDisplayMode::Frames:
-	case SAnimTime::EDisplayMode::Ticks:
+	case SAnimData::EDisplayMode::Frames:
+	case SAnimData::EDisplayMode::Ticks:
 		sprintf(szFormatOut, "%%d");
 		return;
-	case SAnimTime::EDisplayMode::Timecode:
+	case SAnimData::EDisplayMode::Timecode:
 		{
-			const int32 fps = SAnimTime::numTicksPerSecond / m_options.ticksPerFrame;
+			const rTime fps = 1 / m_options.secPerFrame;
 			if (fps < 100)
 				sprintf(szFormatOut, "%%.2d:%%.2d:%%.2d");
 			else if (fps < 1000)
@@ -374,26 +376,26 @@ QString& CRuler::ToString(const STick& tick, QString& strOut, const char* szForm
 	switch (m_options.timeUnit)
 	{
 	default:
-	case SAnimTime::EDisplayMode::Time:
+	case SAnimData::EDisplayMode::Time:
 		{
-			str.Format(szFormat, tick.value.ToFloat());
+			str.Format(szFormat, (float)tick.value.GetSeconds());
 		}
 		break;
-	case SAnimTime::EDisplayMode::Frames:
+	case SAnimData::EDisplayMode::Frames:
 		{
-			int32 frame = tick.value.GetTicks() / m_options.ticksPerFrame;
+			int32 frame = int32(tick.value / m_options.secPerFrame);
 			str.Format(szFormat, frame);
 		}
 		break;
-	case SAnimTime::EDisplayMode::Ticks:
+	case SAnimData::EDisplayMode::Ticks:
 		{
-			str.Format(szFormat, tick.value.GetTicks());
+			str.Format(szFormat, int32(tick.value.GetSeconds() * SAnimData::numTicksPerSecond));
 		}
 		break;
-	case SAnimTime::EDisplayMode::Timecode:
+	case SAnimData::EDisplayMode::Timecode:
 		{
-			int32 seconds = static_cast<int32>(tick.value.ToFloat());
-			int32 frames = (tick.value.GetTicks() - SAnimTime::numTicksPerSecond * seconds) / m_options.ticksPerFrame;
+			int32 seconds = static_cast<int32>(tick.value.GetSeconds());
+			int32 frames = int32((tick.value - seconds) / m_options.secPerFrame);
 			int32 minutes = seconds / 60;
 			seconds -= minutes * 60;
 

@@ -95,6 +95,11 @@ public:
 	void              SetEntityPropertyFloat(const char* name, float value);
 	void              SetEntityPropertyString(const char* name, const string& value);
 
+	CTimeValue        GetEntityPropertyTV(const char* name) const;
+	mpfloat           GetEntityPropertyMP(const char* name) const;
+	void              SetEntityPropertyTV(const char* name, const CTimeValue& value);
+	void              SetEntityPropertyMP(const char* name, const mpfloat& value);
+
 	virtual void      Display(CObjectRenderHelper& objRenderHelper);
 
 	virtual void      GetDisplayBoundBox(AABB& box);

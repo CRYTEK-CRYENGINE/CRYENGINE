@@ -37,13 +37,13 @@ struct AimParameters
 	AimDirection direction;
 	float        offsetX;
 	float        offsetY;
-	float        smoothTime;
+	nTime        smoothTime;
 	Vec3         targetPosition;
 
 	AimParameters()
 		: offsetX(0.0f)
 		, offsetY(0.0f)
-		, smoothTime(0.1f)
+		, smoothTime("0.1")
 		, direction(AIM_CAMERA)
 		, targetPosition(0.0, 2.0f, 0.0f)
 	{

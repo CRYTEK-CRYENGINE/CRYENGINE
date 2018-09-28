@@ -342,8 +342,8 @@ void CSequencerTrackPropsDlg::SetSequence(CSequencerSequence* pSequence)
 {
 	if (pSequence)
 	{
-		Range range = pSequence->GetTimeRange();
-		m_time.SetRange(range.start, range.end);
+		TRange<CTimeValue> range = pSequence->GetTimeRange();
+		m_time.SetRange(range.start.GetSeconds(), range.end.GetSeconds());
 	}
 }
 
@@ -364,7 +364,7 @@ bool CSequencerTrackPropsDlg::OnKeySelectionChange(CSequencerUtils::SelectedKeys
 
 	if (m_track != NULL)
 	{
-		m_time.SetValue(m_track->GetKeyTime(m_key));
+		m_time.SetValue(m_track->GetKeyTime(m_key).GetSeconds());
 		m_keySpinBtn.SetRange(1, m_track->GetNumKeys());
 		m_keySpinBtn.SetPos(m_key + 1);
 
@@ -405,7 +405,7 @@ void CSequencerTrackPropsDlg::OnUpdateTime()
 	if (m_key < 0 || m_key >= m_track->GetNumKeys())
 		return;
 
-	float time = m_time.GetValue();
+	CTimeValue time = BADTIME(m_time.GetValue());
 	m_track->SetKeyTime(m_key, time);
 	m_track->SortKeys();
 

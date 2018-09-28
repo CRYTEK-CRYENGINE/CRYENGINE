@@ -281,7 +281,7 @@ void CFacialEditorDialog::SetJoystickPosition(int joystickIndex, float x, float 
 {
 	IJoystickSet* pJoysticks = (m_pContext ? m_pContext->GetJoystickSet() : 0);
 	IJoystick* pJoystick = (pJoysticks && joystickIndex >= 0 && joystickIndex < pJoysticks->GetJoystickCount() ? pJoysticks->GetJoystick(joystickIndex) : 0);
-	float time = (m_pContext ? m_pContext->GetSequenceTime() : 0);
+	CTimeValue time = (m_pContext ? m_pContext->GetSequenceTime() : 0);
 	float axisValues[2] = { x, y };
 	for (IJoystick::ChannelType axis = IJoystick::ChannelType(0); axis < 2; axis = IJoystick::ChannelType(axis + 1))
 	{
@@ -297,7 +297,7 @@ void CFacialEditorDialog::GetJoystickPosition(int joystickIndex, float& x, float
 {
 	IJoystickSet* pJoysticks = (m_pContext ? m_pContext->GetJoystickSet() : 0);
 	IJoystick* pJoystick = (pJoysticks && joystickIndex >= 0 && joystickIndex < pJoysticks->GetJoystickCount() ? pJoysticks->GetJoystick(joystickIndex) : 0);
-	float time = (m_pContext ? m_pContext->GetSequenceTime() : 0);
+	CTimeValue time = (m_pContext ? m_pContext->GetSequenceTime() : 0);
 	float* axisValues[2] = { &x, &y };
 	for (IJoystick::ChannelType axis = IJoystick::ChannelType(0); axis < 2; axis = IJoystick::ChannelType(axis + 1))
 	{
@@ -761,7 +761,7 @@ typedef struct
 }tJoystickTemp;
 
 //////////////////////////////////////////////////////////////////////////
-void CFacialEditorDialog::MergeVideoExtractedSequence(const char* filename, float startTime, bool loadSequence)
+void CFacialEditorDialog::MergeVideoExtractedSequence(const char* filename, const CTimeValue& startTime, bool loadSequence)
 {
 	// Load the file
 	FILE* fpVideoFile = fopen(filename, "rt");
@@ -878,7 +878,7 @@ void CFacialEditorDialog::MergeVideoExtractedSequence(const char* filename, floa
 	SetVideoFrameResolution(w, h, 24);
 
 	// time is in seconds
-	float fVideoFPS = 1.0f / (float)(nFPS);
+	CTimeValue fVideoSPF = CTimeValue(1) / nFPS;
 
 	int nCurrFrame = 0;
 
@@ -900,17 +900,17 @@ void CFacialEditorDialog::MergeVideoExtractedSequence(const char* filename, floa
 
 	int nJoystickPhonemeStrenght = -1;
 
-	float fLenSeconds = fVideoFPS * nFrames;
+	CTimeValue fLenSeconds = fVideoSPF * nFrames;
 
 	for (int nFrameIndex = 0; nFrameIndex < nFrames; ++nFrameIndex)
 	{
-		//float oldTime = (nFrameIndex - 1) * fVideoFPS;
-		float time = nFrameIndex * fVideoFPS;
+		//float oldTime = (nFrameIndex - 1) * fVideoSPF;
+		CTimeValue time = nFrameIndex * fVideoSPF;
 
 		// Play back the sequence.
 		if (fpVideoFile)
 		{
-			float fCurrTimeDiff = fVideoFPS; //time-oldTime;
+			CTimeValue fCurrTimeDiff = fVideoSPF; //time-oldTime;
 
 			//if (fCurrTimeDiff>1.0f || fCurrTimeDiff<0)
 			// reset, has been a big delay inbetween frames,
@@ -918,13 +918,13 @@ void CFacialEditorDialog::MergeVideoExtractedSequence(const char* filename, floa
 			//fCurrTimeDiff=1.0f;
 
 			// check if it is time to read the next frame
-			//if (fCurrTimeDiff > fVideoFPS)
+			//if (fCurrTimeDiff > fVideoSPF)
 			{
 				int nDummy;
 				char szText[256];
 				char szBuffer[256];
 
-				//fCurrTimeDiff-=fVideoFPS; // adjust it precisely
+				//fCurrTimeDiff-=fVideoSPF; // adjust it precisely
 
 				fgets(szText, 256, fpVideoFile);
 
@@ -1032,20 +1032,15 @@ void CFacialEditorDialog::MergeVideoExtractedSequence(const char* filename, floa
 				} //1
 			}
 
-			float fLerp = fCurrTimeDiff / (fVideoFPS);
-			//fLerp=0;
-			if (fLerp < 0) fLerp = 0;
-			else if (fLerp > 1.0f)
-				fLerp = 1.0f;
-
+			nTime fLerp = CLAMP(fCurrTimeDiff / (fVideoSPF), 0, 1);
 			for (int joystickIndex = 0, joystickCount = GetJoystickCount(); joystickIndex < joystickCount; ++joystickIndex)
 			{
 				if (nJoystickSet[joystickIndex] == 0)
 					continue;
 
 				float fDirs[2];
-				fDirs[0] = fPreviousDirX[joystickIndex] + fLerp * (fCurrDirX[joystickIndex] - fPreviousDirX[joystickIndex]);
-				fDirs[1] = fPreviousDirY[joystickIndex] + fLerp * (fCurrDirY[joystickIndex] - fPreviousDirY[joystickIndex]);
+				fDirs[0] = fPreviousDirX[joystickIndex] + BADF fLerp * (fCurrDirX[joystickIndex] - fPreviousDirX[joystickIndex]);
+				fDirs[1] = fPreviousDirY[joystickIndex] + BADF fLerp * (fCurrDirY[joystickIndex] - fPreviousDirY[joystickIndex]);
 
 				/*
 				   if (joystickIndex==nJoystickPhonemeStrenght)
@@ -1053,7 +1048,7 @@ void CFacialEditorDialog::MergeVideoExtractedSequence(const char* filename, floa
 				   ISplineInterpolator* pPhonemeStrengthSpline = pPhonemeStrengthChannel->GetInterpolator();
 				   if (pPhonemeStrengthSpline)
 				   {
-				    pPhonemeStrengthSpline->RemoveKeysInRange(time, time + fVideoFPS);
+				    pPhonemeStrengthSpline->RemoveKeysInRange(time, time + fVideoSPF);
 				    //pPhonemeStrengthSpline->InsertKeyFloat(time, fDirs[1]);
 				    pPhonemeStrengthSpline->InsertKeyFloat(time, 1);
 				   }
@@ -1067,7 +1062,7 @@ void CFacialEditorDialog::MergeVideoExtractedSequence(const char* filename, floa
 					IJoystickChannel* pChannel = (pJoystick ? pJoystick->GetChannel(axis) : 0);
 					if (loadSequence)
 					{
-						JoystickUtils::RemoveKeysInRange(pChannel, startTime + time, startTime + time + fVideoFPS);
+						JoystickUtils::RemoveKeysInRange(pChannel, startTime + time, startTime + time + fVideoSPF);
 						float value = (pChannel && pChannel->GetFlipped() ? -fDirs[axis] : fDirs[axis]);
 						JoystickUtils::SetKey(pChannel, startTime + time, value);
 					}
@@ -1094,16 +1089,16 @@ void CFacialEditorDialog::MergeVideoExtractedSequence(const char* filename, floa
 //////////////////////////////////////////////////////////////////////////
 struct LoadGroupFileSoundEntry
 {
-	LoadGroupFileSoundEntry(const string& filename, float time) : filename(filename), time(time), existingPosition(-1) {}
+	LoadGroupFileSoundEntry(const string& filename, const CTimeValue& time) : filename(filename), time(time), existingPosition(-1) {}
 	string filename;
-	float  time;
+	CTimeValue  time;
 	int    existingPosition;
 };
 struct LoadGroupFileSkeletonAnimationEntry
 {
-	LoadGroupFileSkeletonAnimationEntry(const string& animationName, float time) : animationName(animationName), time(time) {}
+	LoadGroupFileSkeletonAnimationEntry(const string& animationName, const CTimeValue& time) : animationName(animationName), time(time) {}
 	string animationName;
-	float  time;
+	CTimeValue  time;
 };
 struct LoadGroupFileSoundEntryExistingPositionOrderingPredicate : public std::binary_function<bool, LoadGroupFileSoundEntry, LoadGroupFileSoundEntry>
 {
@@ -1124,13 +1119,13 @@ void CFacialEditorDialog::LoadGroupFile(const char* filename)
 
 	std::vector<LoadGroupFileSoundEntry> soundsToLoad;
 	std::vector<LoadGroupFileSkeletonAnimationEntry> skeletonAnimationsToLoad;
-	std::vector<float> fovKeyTimes;
+	std::vector<mpfloat> fovKeyTimes;
 	std::vector<float> fovKeyValues;
-	std::vector<float> cameraPositionKeyTimes;
+	std::vector<mpfloat> cameraPositionKeyTimes;
 	std::vector<Vec3> cameraPositionKeyValues;
-	std::vector<float> cameraOrientationKeyTimes;
+	std::vector<mpfloat> cameraOrientationKeyTimes;
 	std::vector<Quat> cameraOrientationKeyValues;
-	float length = 1.0f;
+	CTimeValue length = 1;
 	{
 #pragma message("TODO: Can't access TrackView directly from here anymore")
 		/*// We are going to load the objects using the engine, and then undo our changes to get rid of them
@@ -1528,7 +1523,7 @@ void CFacialEditorDialog::LoadGroupFile(const char* filename)
 
 		// Set the length.
 		if (pSequence)
-			pSequence->SetTimeRange(Range(0.0f, length));
+			pSequence->SetTimeRange(TRange<CTimeValue>(0, length));
 	}
 
 	m_pContext->bSequenceModfied = true;
@@ -1549,14 +1544,14 @@ void CFacialEditorDialog::UpdateSkeletonAnimText()
 	SetProjectTitle(title);
 
 	IFacialAnimSequence* pSequence = (m_pContext ? m_pContext->GetSequence() : 0);
-	float sequenceTime = (m_pContext ? m_pContext->GetSequenceTime() : 0);
+	CTimeValue sequenceTime = (m_pContext ? m_pContext->GetSequenceTime() : 0);
 	if (pPane && pSequence)
 	{
 		int skeletonAnimationToPlayIndex = -1;
 		for (int skeletonAnimationIndex = 0, skeletonAnimationCount = (pSequence ? pSequence->GetSkeletonAnimationEntryCount() : 0); skeletonAnimationIndex < skeletonAnimationCount; ++skeletonAnimationIndex)
 		{
 			IFacialAnimSkeletonAnimationEntry* pEntry = (pSequence ? pSequence->GetSkeletonAnimationEntry(skeletonAnimationIndex) : 0);
-			float animationStartTime = (pEntry ? pEntry->GetStartTime() : 0.0f);
+			CTimeValue animationStartTime = (pEntry ? pEntry->GetStartTime() : 0);
 			if (animationStartTime <= sequenceTime)
 				skeletonAnimationToPlayIndex = skeletonAnimationIndex;
 		}
@@ -2427,7 +2422,7 @@ void CFacialEditorDialog::OnSequenceLoadVideoExtractedSequence()
 
 	CString filename;
 	if (CFileUtil::SelectFile("Video Extracted Sequence Files (*.txt)|*.txt", "", filename))
-		MergeVideoExtractedSequence(filename.GetString(), (m_pContext ? m_pContext->GetSequenceTime() : 0.0f), true);
+		MergeVideoExtractedSequence(filename.GetString(), (m_pContext ? m_pContext->GetSequenceTime() : 0), true);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -2436,7 +2431,7 @@ void CFacialEditorDialog::OnSequenceLoadVideoIgnoreSequence()
 
 	CString filename;
 	if (CFileUtil::SelectFile("Video Extracted Sequence Files (*.txt)|*.txt", "", filename))
-		MergeVideoExtractedSequence(filename.GetString(), (m_pContext ? m_pContext->GetSequenceTime() : 0.0f), false);
+		MergeVideoExtractedSequence(filename.GetString(), (m_pContext ? m_pContext->GetSequenceTime() : 0), false);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -2542,7 +2537,7 @@ void CFacialEditorDialog::OnCreateExpressionFromCurrentPositions()
 	}
 
 	// Create sub-effectors for each of the channels.
-	float currentTime = (m_pContext ? m_pContext->GetSequenceTime() : 0.0f);
+	CTimeValue currentTime = (m_pContext ? m_pContext->GetSequenceTime() : 0);
 	IFacialAnimSequence* sequence = (m_pContext ? m_pContext->GetSequence() : 0);
 	for (int channelIndex = 0; sequence && channelIndex < sequence->GetChannelCount(); ++channelIndex)
 	{
@@ -2550,7 +2545,7 @@ void CFacialEditorDialog::OnCreateExpressionFromCurrentPositions()
 		ISplineInterpolator* spline = (channel ? channel->GetLastInterpolator() : 0);
 		float currentValue = 0.0f;
 		if (spline)
-			spline->InterpolateFloat(currentTime, currentValue);
+			spline->InterpolateFloat(currentTime.GetSeconds(), currentValue);
 		IFacialEffector* channelEffector = (library && channel ? library->Find(channel->GetEffectorName()) : 0);
 		IFacialEffCtrl* subCtrl = 0;
 		if (effector && channelEffector && fabsf(currentValue) > 0.01f)
@@ -2920,7 +2915,7 @@ BOOL CFacialEditorDialog::OnMouseWheel(UINT nFlags, short zDelta, CPoint pt)
 //////////////////////////////////////////////////////////////////////////
 void CFacialEditorDialog::DisplayCurrentVideoFrame()
 {
-	float fCurrTime = m_pContext->GetSequenceTime();
+	CTimeValue fCurrTime = m_pContext->GetSequenceTime();
 
 	int w = m_pContext->GetVideoFrameReader().GetWidth(fCurrTime);
 	int h = m_pContext->GetVideoFrameReader().GetHeight(fCurrTime);

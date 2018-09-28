@@ -14,7 +14,7 @@ void DrawTimeSlider(QPainter& painter, const STimeSliderOptions& options)
 	cry_sprintf(format, "%%.%df", options.m_precision + 1);
 
 	QString text;
-	text.sprintf(format, options.m_time);
+	text.sprintf(format, (float)options.m_time.GetSeconds());
 
 	QFontMetrics fm(painter.font());
 	const int textWidth = fm.width(text) + fm.height();

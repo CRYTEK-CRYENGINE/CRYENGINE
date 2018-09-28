@@ -74,17 +74,17 @@ public:
 	CFacialVideoFrameReader();
 	~CFacialVideoFrameReader();
 
-	int                  AddAVI(const char* filename, float time);
+	int                  AddAVI(const char* filename, const CTimeValue& time);
 	void                 DeleteAVI(int index);
 	void                 DeleteUnusedAVIs();
-	int                  GetLastLoadedAVIFrameFromTime(float time);
+	int                  GetLastLoadedAVIFrameFromTime(const CTimeValue& time);
 	int                  GetAVICount() const;
-	int                  GetWidth(float time);
-	int                  GetHeight(float time);
-	const unsigned char* GetFrame(float time);
+	int                  GetWidth(const CTimeValue& time);
+	int                  GetHeight(const CTimeValue& time);
+	const unsigned char* GetFrame(const CTimeValue& time);
 
 private:
-	void FindAVIFrame(float time, IAVI_Reader*& pAVI, int& frame);
+	void FindAVIFrame(const CTimeValue& time, IAVI_Reader*& pAVI, int& frame);
 
 	struct AVIEntry
 	{
@@ -98,7 +98,7 @@ private:
 	struct AVIEntity
 	{
 		AVIMap::iterator itAVI;
-		float            time;
+		CTimeValue       time;
 	};
 
 	AVIMap                 m_avis;
@@ -193,13 +193,13 @@ public:
 	void                     SetSequence(IFacialAnimSequence* pSequence);
 	IFacialAnimSequence*     GetSequence() { return m_pCurrentSequence; };
 
-	void                     SetSequenceTime(float fTime);
-	float                    GetSequenceTime() { return m_fSequenceTime; };
+	void                     SetSequenceTime(const CTimeValue& fTime);
+	const CTimeValue&        GetSequenceTime() { return m_fSequenceTime; };
 
 	void                     PlaySequence(bool bPlay);
 	bool                     IsPlayingSequence() const { return m_bPlaying; }
 
-	void                     SetSkeletonAnimation(const CString& filename, float startTime);
+	void                     SetSkeletonAnimation(const CString& filename, const CTimeValue& startTime);
 	void                     PreviewEffector(IFacialEffector* pEffector, float fWeight = 1.0f);
 	void                     StopPreviewingEffector();
 
@@ -245,9 +245,9 @@ public:
 
 	CFacialVideoFrameReader m_videoFrameReader;
 
-	float                     GetTimelineLength();
+	CTimeValue                GetTimelineLength();
 
-	void                      SetPoseFromExpression(IFacialEffector* pEffector, float weight, float time);
+	void                      SetPoseFromExpression(IFacialEffector* pEffector, const mpfloat& weight, const CTimeValue& time);
 
 	template<typename H> void CheckMorphs(H& handler)
 	{
@@ -276,8 +276,8 @@ public:
 	void  SetOverlapSounds(bool bSetOverlapSounds);
 	bool  GetOverlapSounds() const;
 
-	void  SetPreviewWeight(float fPreviewWeight);
-	float GetPreviewWeight() const;
+	void  SetPreviewWeight(const mpfloat& fPreviewWeight);
+	const mpfloat& GetPreviewWeight() const;
 
 	void  ConvertSequenceToCorrectFrameRate(IFacialAnimSequence* pSequence);
 
@@ -320,7 +320,7 @@ private:
 	IFacialEffector*                m_pSlidersPreviewEffector;
 	std::set<IFacialAnimChannel*>   m_highlightedChannels;
 
-	float                           m_fSequenceTime;
+	CTimeValue                      m_fSequenceTime;
 	//float m_fVideoLength;
 	//int		m_nVideoWidth;
 	//int		m_nVideoHeight;
@@ -335,7 +335,7 @@ private:
 	bool  m_bAnimateSkeleton;
 	bool  m_bAnimateCamera;
 	bool  m_bOverlapSounds;
-	float m_fPreviewWeight;
+	mpfloat m_fPreviewWeight;
 
 public:
 	float m_fC3DScale;

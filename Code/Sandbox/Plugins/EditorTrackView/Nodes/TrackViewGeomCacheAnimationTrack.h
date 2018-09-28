@@ -20,13 +20,13 @@ public:
 		: CTrackViewTrack(pTrack, pTrackAnimNode, pParentNode, bIsSubTrack, subTrackIndex) {}
 
 private:
-	virtual CTrackViewKeyHandle CreateKey(const SAnimTime time) override;
+	virtual CTrackViewKeyHandle CreateKey(const CTimeValue& time) override;
 
 	virtual bool                KeysHaveDuration() const override { return true; }
 
-	virtual SAnimTime           GetKeyDuration(const uint index) const override;
-	virtual SAnimTime           GetKeyAnimDuration(const uint index) const override;
-	virtual SAnimTime           GetKeyAnimStart(const uint index) const override;
+	virtual CTimeValue          GetKeyDuration(const uint index) const override;
+	virtual CTimeValue          GetKeyAnimDuration(const uint index) const override;
+	virtual CTimeValue          GetKeyAnimStart(const uint index) const override;
 	virtual bool                IsKeyAnimLoopable(const uint index) const override;
 };
 #endif

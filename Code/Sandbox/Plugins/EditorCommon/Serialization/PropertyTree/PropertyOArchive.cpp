@@ -365,6 +365,19 @@ bool PropertyOArchive::operator()(double& value, const char* name, const char* l
 	return true;
 }
 
+bool PropertyOArchive::operator()(CTimeValue& value, const char* name, const char* label)
+{
+	return (*this)(value.m_lValue, name, label);
+}
+
+#define MP_FUNCTION(T)\
+bool PropertyOArchive::operator()(T& value, const char* name, const char* label)\
+{\
+	lastNode_ = updateRowPrimitive<PropertyRowNumber<T>>(name, label, "mpfloat", value, &value, yasli::TypeID::get<T>());\
+	return true;\
+}
+#include <CrySystem\mpfloat.types>
+#undef MP_FUNCTION
 
 bool PropertyOArchive::operator()(yasli::ContainerInterface& ser, const char *name, const char *label)
 {
