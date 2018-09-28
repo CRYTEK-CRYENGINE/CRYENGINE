@@ -85,25 +85,25 @@ class CWheeledVehicleEntity : public CRigidEntity {
 
 	enum snapver { SNAPSHOT_VERSION = 1 };
 	virtual int GetSnapshotVersion() { return SNAPSHOT_VERSION; }
-	virtual int GetStateSnapshot(class CStream &stm, float time_back=0, int flags=0);
-	virtual int GetStateSnapshot(TSerialize ser, float time_back=0, int flags=0);
+	virtual int GetStateSnapshot(class CStream &stm, const CTimeValue& time_back=0, int flags=0);
+	virtual int GetStateSnapshot(TSerialize ser, const CTimeValue& time_back=0, int flags=0);
 	virtual int SetStateFromSnapshot(class CStream &stm, int flags=0);
 	virtual int SetStateFromSnapshot(TSerialize ser, int flags=0);
 
 	virtual int AddGeometry(phys_geometry *pgeom, pe_geomparams* params,int id=-1,int bThreadSafe=1);
 	virtual void RemoveGeometry(int id,int bThreadSafe=1);
 
-	virtual float GetMaxTimeStep(float time_interval);
-	virtual float GetDamping(float time_interval);
-	virtual float CalcEnergy(float time_interval);
-	virtual void CheckAdditionalGeometry(float time_interval);
-	virtual int RegisterContacts(float time_interval,int nMaxPlaneContacts);
+	virtual CTimeValue GetMaxTimeStep(const CTimeValue& time_interval);
+	virtual float GetDamping(const CTimeValue& time_interval);
+	virtual float CalcEnergy(const CTimeValue& time_interval);
+	virtual void CheckAdditionalGeometry(const CTimeValue& time_interval);
+	virtual int RegisterContacts(const CTimeValue& time_interval,int nMaxPlaneContacts);
 	virtual int RemoveCollider(CPhysicalEntity *pCollider, bool bRemoveAlways=true);
 	virtual int HasContactsWith(CPhysicalEntity *pent);
 	virtual int HasPartContactsWith(CPhysicalEntity *pent, int ipart, int bGreaterOrEqual=0);
-	virtual void AddAdditionalImpulses(float time_interval);
+	virtual void AddAdditionalImpulses(const CTimeValue& time_interval);
 	virtual void AlertNeighbourhoodND(int mode);
-	virtual int Update(float time_interval, float damping);
+	virtual int Update(const CTimeValue& time_interval, float damping);
 	virtual void ComputeBBox(Vec3 *BBox, int flags);
 	//virtual RigidBody *GetRigidBody(int ipart=-1) { return &m_bodyStatic; }
 	virtual void OnContactResolved(entity_contact *pcontact, int iop, int iGroupId);
@@ -112,7 +112,7 @@ class CWheeledVehicleEntity : public CRigidEntity {
 	virtual void GetMemoryStatistics(ICrySizer *pSizer) const;
 
 	void RecalcSuspStiffness();
-	float ComputeDrivingTorque(float time_interval);
+	float ComputeDrivingTorque(const CTimeValue& time_interval);
 
 	suspension_point *m_susp = nullptr;
 	int m_suspAlloc = 0;
@@ -131,10 +131,10 @@ class CWheeledVehicleEntity : public CRigidEntity {
 	int8 m_bKeepTractionWhenTilted;
 	float m_kSteerToTrack;
 	float m_EminRigid,m_EminVehicle;
-	float m_maxAllowedStepVehicle,m_maxAllowedStepRigid;
+	CTimeValue m_maxAllowedStepVehicle,m_maxAllowedStepRigid;
 	float m_dampingVehicle;
 	//Vec3 m_Ffriction,m_Tfriction;
-	float m_timeNoContacts;
+	CTimeValue m_timeNoContacts;
 	mutable volatile int m_lockVehicle;
   float m_pullTilt;
   float m_drivingTorque;

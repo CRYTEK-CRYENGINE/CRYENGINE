@@ -69,14 +69,14 @@ CRigidEntity::CRigidEntity(CPhysicalWorld *pWorld, IGeneralMemoryHeap* pHeap)
 	, m_collTypes(ent_terrain | ent_static | ent_sleeping_rigid | ent_rigid | ent_living | ent_independent)
 	, m_velFastDir(0.0f)
 	, m_sizeFastDir(0.0f)
-	, m_timeStepFull(0.01f)
-	, m_timeStepPerformed(0.0f)
-	, m_lastTimeStep(0.0f)
-	, m_minAwakeTime(0.0f)
-	, m_nextTimeStep(0.0f)
+	, m_timeStepFull("0.01")
+	, m_timeStepPerformed(0)
+	, m_lastTimeStep(0)
+	, m_minAwakeTime(0)
+	, m_nextTimeStep(0)
 	, m_gravity(0.0f, 0.0f, -9.81f)
 	, m_Emin(sqr(0.07f))
-	, m_maxAllowedStep(0.02f)
+	, m_maxAllowedStep("0.02")
 	, m_vAccum(ZERO)
 	, m_wAccum(ZERO)
 	, m_damping(0.0f)
@@ -94,7 +94,7 @@ CRigidEntity::CRigidEntity(CPhysicalWorld *pWorld, IGeneralMemoryHeap* pHeap)
 	, m_prevw(ZERO)
 	, m_E0(0.0f)
 	, m_Estep(0.0f)
-	, m_timeCanopyFallen(0.0f)
+	, m_timeCanopyFallen(0)
 	, m_bCanopyContact(0)
 	, m_nCanopyContactsLost(0)
 	, m_Psoft(ZERO)
@@ -573,16 +573,16 @@ int CRigidEntity::GetStatus(pe_status *_status) const
 			int numStates = m_pNetStateHistory->GetNumReceivedStates();
 			if (numStates > 0) {
 				const SRigidEntityNetSerialize& latestState = m_pNetStateHistory->GetReceivedState(numStates - 1);
-				float sequenceDeltaAverage = m_pNetStateHistory->GetAverageSequenceDelta();
-				float sequenceOffset = (GetLocalSequenceNumber() - latestState.sequenceNumber) + sequenceDeltaAverage;
-				if (sequenceOffset > MAX_SEQUENCE_NUMBER / 2.0f) {
+				mpfloat sequenceDeltaAverage = m_pNetStateHistory->GetAverageSequenceDelta();
+				mpfloat sequenceOffset = (GetLocalSequenceNumber() - latestState.sequenceNumber) + sequenceDeltaAverage;
+				if (sequenceOffset > MAX_SEQUENCE_NUMBER / mpfloat(2)) {
 					sequenceOffset -= MAX_SEQUENCE_NUMBER;
 				}
 				status->pos = latestState.pos;
 				status->rot = latestState.rot;
 				status->vel = latestState.vel;
 				status->angvel = latestState.angvel;
-				status->timeOffset = sequenceOffset / m_pWorld->m_vars.netSequenceFrequency;
+				status->timeOffset.SetSeconds(sequenceOffset / m_pWorld->m_vars.netSequenceFrequency);
 				return 1;
 			}
 		}
@@ -978,7 +978,7 @@ int CRigidEntity::Action(pe_action *_action, int bThreadSafe)
 		if (m_body.v.len2()+m_body.w.len2()>0) {
 			if (!m_bAwake)
 				Awake();
-			m_timeIdle = 0;
+			m_timeIdle.SetSeconds(0);
 		} else if (m_body.Minv==0)
 			Awake(0);
 
@@ -1164,7 +1164,7 @@ int CRigidEntity::Awake(int bAwake,int iSource)
 			m_bSmallAndFastForced &= bAwake;
 			m_iSimClass = m_bAwake+1; m_pWorld->RepositionEntity(this,2);
 			if (bAwake)
-				m_minAwakeTime = 0.1f;
+				m_minAwakeTime.SetSeconds("0.1");
 		}
 		if (m_body.Minv==0 && bAwake) for(i=0;i<m_nColliders;i++)	
 		{
@@ -1244,7 +1244,7 @@ bool CRigidEntity::IgnoreCollisionsWith(const CPhysicalEntity *pent, int bCheckC
 	return false;
 }
 
-void CRigidEntity::FakeRayCollision(CPhysicalEntity *pent, float dt)
+void CRigidEntity::FakeRayCollision(CPhysicalEntity *pent, const CTimeValue& dt)
 {
 	ray_hit hit;
 	int bHit;
@@ -1260,9 +1260,9 @@ void CRigidEntity::FakeRayCollision(CPhysicalEntity *pent, float dt)
 			bbox.Basis.SetIdentity();
 			bbox.size = (m_BBox[1]-m_BBox[0])*0.5f;
 		}
-		bHit = m_pWorld->CollideEntityWithPrimitive(pent,box::type,&bbox, m_body.v*dt, &hit);
+		bHit = m_pWorld->CollideEntityWithPrimitive(pent,box::type,&bbox, m_body.v*dt.BADGetSeconds(), &hit);
 	} else 
-		bHit = m_pWorld->RayTraceEntity(pent,m_body.pos,m_body.v*dt,&hit);
+		bHit = m_pWorld->RayTraceEntity(pent,m_body.pos,m_body.v*dt.BADGetSeconds(),&hit);
 	if (bHit) {
 		EventPhysCollision epc;
 		pe_action_impulse ai;
@@ -1299,14 +1299,14 @@ inline int wait_for_ent(volatile CPhysicalEntity *pent)
 }
 
 
-int CRigidEntity::GetPotentialColliders(CPhysicalEntity **&pentlist, float dt)
+int CRigidEntity::GetPotentialColliders(CPhysicalEntity **&pentlist, const CTimeValue& dt)
 {
 	int i,j,nents,bSameGroup;
 	masktype constraint_mask;
 	if (m_body.Minv+m_body.v.len2()+m_body.w.len2()<=0)
 		return 0;
 	int iCaller = get_iCaller_int();
-	Vec3 BBox[2]={m_BBoxNew[0],m_BBoxNew[1]}, move=m_body.v*m_timeStepFull, inflator=Vec3(m_pWorld->m_vars.maxContactGap*4*isneg(m_iLastLog));
+	Vec3 BBox[2]={m_BBoxNew[0],m_BBoxNew[1]}, move=m_body.v*m_timeStepFull.BADGetSeconds(), inflator=Vec3(m_pWorld->m_vars.maxContactGap*4*isneg(m_iLastLog));
 	BBox[0] += min(Vec3(ZERO),move); BBox[1] += max(Vec3(ZERO),move);
 	BBox[0] -= inflator; BBox[1] += inflator;
 	nents = m_pWorld->GetEntitiesAround(BBox[0],BBox[1], pentlist, m_collTypes|ent_sort_by_mass|ent_triggers, this, 0,iCaller);
@@ -1341,7 +1341,7 @@ int CRigidEntity::GetPotentialColliders(CPhysicalEntity **&pentlist, float dt)
 				pentlist[i]->m_iGroup==-1 || 
 				!(pentlist[i]->IsAwake() | (m_flags&ref_use_simple_solver | pentlist[i]->m_flags&ref_use_simple_solver)&-bSameGroup) ||
 				m_pWorld->m_pGroupNums[pentlist[i]->m_iGroup]<m_pWorld->m_pGroupNums[m_iGroup] && 
-				 (max(m_body.v.len2(),((CRigidEntity*)pentlist[i])->m_body.v.len2())*sqr(dt) < sqr(m_pWorld->m_vars.maxContactGap*5) || 
+				 (max(m_body.v.len2(),((CRigidEntity*)pentlist[i])->m_body.v.len2())*sqr(dt.BADGetSeconds()) < sqr(m_pWorld->m_vars.maxContactGap*5) || 
 					wait_for_ent(pentlist[i]))))
 			{
 				pentlist[j++] = pentlist[i];
@@ -1432,7 +1432,7 @@ int CRigidEntity::CheckForNewContacts(geom_world_data *pgwd0,intersection_params
 	nParts = m_nParts&nParts>>31 | max(nParts,0);
 	event.pEntity[0]=this; event.pForeignData[0]=m_pForeignData; event.iForeignData[0]=m_iForeignData;
 
-	nents = GetPotentialColliders(pentlist, pip->time_interval*((int)pip->bSweepTest & ~-iszero((int)m_flags & ref_small_and_fast)));
+	nents = GetPotentialColliders(pentlist, BADTIME(pip->time_interval*((int)pip->bSweepTest & ~-iszero((int)m_flags & ref_small_and_fast))));
 	pip->bKeepPrevContacts = false;
 
 	for(i=iStartPart; i<iStartPart+nParts; i++) if (m_parts[i].flagsCollider) {
@@ -1455,7 +1455,7 @@ int CRigidEntity::CheckForNewContacts(geom_world_data *pgwd0,intersection_params
 				pip->vrel_min = 1E10f;
 			else
 				continue;
-			if (m_timeCanopyFallen<3.0f) {
+			if (m_timeCanopyFallen < 3) {
 				ipt = idxmax3(m_gravity.abs());
 				aray.m_dirn.zero()[ipt] = sgn(m_gravity[ipt]);
 				aray.m_dirn = ((aray.m_dirn)*m_qNew)*m_parts[i].q;
@@ -1816,7 +1816,7 @@ entity_contact *CRigidEntity::RegisterContactPoint(int idx, const Vec3 &pt, cons
 }
 
 
-void CRigidEntity::UpdatePenaltyContacts(float time_interval)
+void CRigidEntity::UpdatePenaltyContacts(const CTimeValue& time_interval)
 {
 	//int i,nContacts,bResolveInstantly;
 	entity_contact *pContact,*pContactNext;//*pContacts[16];
@@ -1914,9 +1914,10 @@ void CRigidEntity::UpdatePenaltyContacts(float time_interval)
 	}*/
 }
 
-static float g_timeInterval=0.01f,g_rtimeInterval=100.0f;
+static CTimeValue g_timeInterval = "0.01";
+static rTime g_rtimeInterval = 1/g_timeInterval;
 
-int CRigidEntity::UpdatePenaltyContact(entity_contact *pContact, float time_interval)//, int bResolveInstantly,entity_contact **pContacts,int &nContacts)
+int CRigidEntity::UpdatePenaltyContact(entity_contact *pContact, const CTimeValue& time_interval)//, int bResolveInstantly,entity_contact **pContacts,int &nContacts)
 {
 	CRY_PROFILE_FUNCTION(PROFILE_PHYSICS );
 
@@ -1926,7 +1927,7 @@ int CRigidEntity::UpdatePenaltyContact(entity_contact *pContact, float time_inte
 	Matrix33 rmtx,rmtx1,K;
 	
 	if (g_timeInterval!=time_interval)
-		g_rtimeInterval = 1.0f/(g_timeInterval=time_interval);
+		g_rtimeInterval = 1/(g_timeInterval=time_interval);
 
 	//for(j=0; j<2; j++)
 	//	pContact->pt[j] = pContact->pbody[j]->q*pContact->ptloc[j]+pContact->pbody[j]->pos;
@@ -1938,7 +1939,7 @@ int CRigidEntity::UpdatePenaltyContact(entity_contact *pContact, float time_inte
 
 	if (dpn<m_pWorld->m_vars.maxContactGapSimple) {//,(pContact->r*n)*-2)) {
 		//pContact->r = dp; 
-		dp *= g_rtimeInterval*m_pWorld->m_vars.penaltyScale;
+		dp *= BADF g_rtimeInterval*m_pWorld->m_vars.penaltyScale;
 		vrel = pContact->pbody[0]->v+(pContact->pbody[0]->w^pContact->pt[0]-pContact->pbody[0]->pos);
 		vrel-= pContact->pbody[1]->v+(pContact->pbody[1]->w^pContact->pt[1]-pContact->pbody[1]->pos);
 		//pContact->vrel = vrel;
@@ -2158,7 +2159,7 @@ void CRigidEntity::OnContactResolved(entity_contact *pContact, int iop, int iGro
 	int i,j;
 	if (iop==0 && pContact->bConstraint && m_pConstraintInfos[j=pContact->iConstraint-1].limit>0 && 
 			!(m_pConstraintInfos[j].flags & constraint_no_tears) &&
-			pContact->Pspare>m_pConstraintInfos[j].limit*max(0.01f,m_lastTimeStep)) 
+			pContact->Pspare>m_pConstraintInfos[j].limit*max(CTimeValue("0.01"),m_lastTimeStep).BADGetSeconds()) 
 	{	
 		for(i=0;i<NMASKBITS && getmask(i)<=m_constraintMask;i++) 
 			if (m_constraintMask & getmask(i) && m_pConstraintInfos[i].id==m_pConstraintInfos[j].id) {
@@ -2196,7 +2197,7 @@ void CRigidEntity::BreakableConstraintsUpdated()
 }
 
 
-void CRigidEntity::UpdateConstraints(float time_interval)
+void CRigidEntity::UpdateConstraints(const CTimeValue& time_interval)
 {
 	int i; 
 	Ang3 angles;
@@ -2225,7 +2226,7 @@ void CRigidEntity::UpdateConstraints(float time_interval)
 			m_pConstraints[i].flags &= ~contact_constraint_3dof	| -iszero(m_pConstraints[i].flags & (contact_constraint_1dof|contact_constraint_2dof));
 			if (!(m_pConstraints[i].flags & (contact_angular|contact_constraint_3dof)) && 
 					(m_pConstraints[i].flags & contact_constraint_2dof || sa.dirClosest.len2()>1.01f) &&
-					(m_pConstraints[i].pt[0]-m_pConstraints[i].pt[1]).len2()>m_body.v.len2()*sqr(m_maxAllowedStep*2))
+					(m_pConstraints[i].pt[0]-m_pConstraints[i].pt[1]).len2()>m_body.v.len2()*sqr(m_maxAllowedStep.BADGetSeconds()*2))
 				m_pConstraints[i].flags |= contact_constraint_3dof;
 			m_pConstraints[i].nloc = !frames[FrameOwner(m_pConstraints[i])].q*(sa.dirClosest.len2()>1.01f ? sa.dirClosest.normalized():sa.dirClosest);
 		}	else
@@ -2236,7 +2237,7 @@ void CRigidEntity::UpdateConstraints(float time_interval)
 		m_pConstraintInfos[i].bActive = 1;
 		m_pConstraints[i].iConstraint = i+1;
 		m_pConstraints[i].bConstraint = 1;
-		m_pConstraints[i].Pspare = m_pConstraintInfos[i].limit*max(0.01f,m_lastTimeStep);
+		m_pConstraints[i].Pspare = m_pConstraintInfos[i].limit*max(0.01f,m_lastTimeStep.BADGetSeconds());
 		m_pConstraints[i].flags = m_pConstraints[i].flags & ~contact_preserve_Pspare | contact_preserve_Pspare & -isneg(1e-6f-m_pConstraints[i].Pspare);
 
 		if (m_pConstraintInfos[i].flags & constraint_rope) {
@@ -2254,7 +2255,7 @@ void CRigidEntity::UpdateConstraints(float time_interval)
 			m_dampingEx = max(m_dampingEx, sp.damping);
 			m_pConstraintInfos[i].pConstraintEnt->Awake();
 			m_pConstraints[i].pbody[0]->L -= m_pConstraints[i].n*((m_pConstraints[i].n*m_pConstraints[i].pbody[0]->L)*
-																														min(0.9f,time_interval*m_pConstraintInfos[i].damping));
+																														min(0.9f,time_interval.BADGetSeconds()*m_pConstraintInfos[i].damping));
 			m_pConstraints[i].pbody[0]->w = m_pConstraints[i].pbody[0]->Iinv*m_pConstraints[i].pbody[0]->L;
 		}	else if (!(m_pConstraints[i].flags & contact_angular)) {
 			int iframe = FrameOwner(m_pConstraints[i]);
@@ -2352,12 +2353,12 @@ void CRigidEntity::UpdateConstraints(float time_interval)
 		}
 		if (hasDamping) {
 			if (m_pConstraints[i].flags & contact_angular){
-				dL *= -min(0.9f,time_interval*m_pConstraintInfos[i].damping);
+				dL *= -min(0.9f,time_interval.BADGetSeconds()*m_pConstraintInfos[i].damping);
 				pbody0->L += dL; pbody1->L -= dL; 
 				pbody0->w = pbody0->Iinv*pbody0->L;
 				pbody1->w = pbody1->Iinv*pbody1->L;	
 			} else if (!(m_pConstraintInfos[i].flags & constraint_rope)) {
-				dL *= -min(0.9f,time_interval*m_pConstraintInfos[i].damping);
+				dL *= -min(0.9f,time_interval.BADGetSeconds()*m_pConstraintInfos[i].damping);
 				pbody0->v = (pbody0->P+=dL)*pbody0->Minv; pbody0->w = pbody0->Iinv*(pbody0->L+=r0^dL);
 				dL *= pbody1->Minv*pbody1->M;
 				pbody1->P -= dL; pbody1->v -= dL*pbody1->Minv; 
@@ -2370,7 +2371,7 @@ void CRigidEntity::UpdateConstraints(float time_interval)
 }
 
 
-int CRigidEntity::EnforceConstraints(float time_interval)
+int CRigidEntity::EnforceConstraints(const CTimeValue& time_interval)
 {
 	return 0;
 	/*int i,i1,bEnforced=0;
@@ -2415,7 +2416,7 @@ int CRigidEntity::EnforceConstraints(float time_interval)
 }
 
 
-float CRigidEntity::CalcEnergy(float time_interval)
+float CRigidEntity::CalcEnergy(const CTimeValue& time_interval)
 {
 	Vec3 v(ZERO);
 	float Emax=m_body.M*sqr(m_pWorld->m_vars.maxVel)*2,Econstr=0;
@@ -2553,7 +2554,7 @@ void CRigidEntity::CheckContactConflicts(geom_contact *pcontacts, int ncontacts,
 }
 
 
-void CRigidEntity::ProcessCanopyContact(geom_contact *pcontacts, int i, float time_interval, int iCaller)
+void CRigidEntity::ProcessCanopyContact(geom_contact *pcontacts, int i, const CTimeValue& time_interval, int iCaller)
 {
 	int j;
 	box bbox; 
@@ -2579,19 +2580,19 @@ void CRigidEntity::ProcessCanopyContact(geom_contact *pcontacts, int i, float ti
 		dP = pcontacts[i].dir*(ks*pcontacts[i].t);
 		m_Psoft += dP; m_Lsoft += center^dP;
 		dv = m_body.v + (m_body.w^center);
-		if (/*dv.len2()<sqr(0.15f) ||*/m_timeCanopyFallen>3.0f) for(j=0;j<pcontacts[i].nborderpt;j++) {
+		if (/*dv.len2()<sqr(0.15f) ||*/m_timeCanopyFallen>3) for(j=0;j<pcontacts[i].nborderpt;j++) {
 			pcontacts[i].n = -pcontacts[i].dir;
 			if (pContact = RegisterContactPoint(i, pcontacts[i].ptborder[j], pcontacts, pcontacts[i].iPrim[0],pcontacts[i].iFeature[0], 
 				pcontacts[i].iPrim[1],pcontacts[i].iFeature[1], contact_new, 0.001f, iCaller))
 				pContact->nloc.zero();
 			m_Psoft.zero(); m_Lsoft.zero();
 		} else {
-			dP = dv*(-2.0f*sqrt_tpl(ks*Mpt)*time_interval);
-			m_Pext += dP; m_Lext += (center^dP)-m_body.L*(time_interval*kd);
+			dP = dv*(-2.0f*sqrt_tpl(ks*Mpt)*time_interval.BADGetSeconds());
+			m_Pext += dP; m_Lext += (center^dP)-m_body.L*(time_interval.BADGetSeconds()*kd);
 		}
 		//m_timeCanopyFallen += isneg(dv.len2()-sqr(0.15f))*4.0f;
 		m_timeCanopyFallen += time_interval*sgn(pcontacts[i].t-(bbox.size.x+bbox.size.y+bbox.size.z)*0.02f);
-		m_timeCanopyFallen = min(5.0f*isneg(-m_nColliders), max(0.0f,m_timeCanopyFallen));
+		m_timeCanopyFallen = min(CTimeValue(5*isneg(-m_nColliders)), max(CTimeValue(0),m_timeCanopyFallen));
 		m_bCanopyContact |= 1;
 
 		if (m_flags & pef_log_collisions && m_nMaxEvents>0 || m_parts[g_CurCollParts[i][0]].flags & geom_log_interactions) {
@@ -2696,16 +2697,16 @@ void CRigidEntity::DelayedIntersect(geom_contact *pcontacts, int ncontacts, CPhy
 	if ((bCanopy*2 | m_bCanopyContact & 1)==1) {
 		m_body.P += m_Pext; m_Pext.zero();
 		m_body.L += m_Lext; m_Lext.zero();
-		m_body.P += m_Psoft*m_lastTimeStep; m_body.L += m_Lsoft*m_lastTimeStep;
+		m_body.P += m_Psoft*m_lastTimeStep.BADGetSeconds(); m_body.L += m_Lsoft*m_lastTimeStep.BADGetSeconds();
 		m_body.v = m_body.P*m_body.Minv;
 		m_body.w = m_body.Iinv*m_body.L;
 	}
 }
 
 
-void CRigidEntity::StartStep(float time_interval)
+void CRigidEntity::StartStep(const CTimeValue& time_interval)
 {
-	m_timeStepPerformed = 0;
+	m_timeStepPerformed.SetSeconds(0);
 	m_timeStepFull = time_interval;
 	m_sweepGap = m_pWorld->m_vars.maxContactGap*0.5f;
 }
@@ -2713,10 +2714,13 @@ void CRigidEntity::StartStep(float time_interval)
 int __bstop = 0;
 extern int __curstep;
 
-int CRigidEntity::Step(float time_interval)
+int CRigidEntity::Step(const CTimeValue& time_intervalIn)
 {
 	CRY_PROFILE_FUNCTION(PROFILE_PHYSICS );
   PHYS_ENTITY_PROFILER
+
+	CTimeValue time_interval = time_intervalIn;
+	const float tSeconds = time_interval.BADGetSeconds();
 
 	geom_contact *pcontacts;
 	int i,j,itmax,itmax0,ncontacts,bHasContacts,bNoForce,bSeverePenetration=0,bNoUnproj=0,bWasUnproj=0,nsweeps=0;
@@ -2746,12 +2750,12 @@ int CRigidEntity::Step(float time_interval)
 	m_pStableContact = 0;
 
 	m_dampingEx = 0;
-	if (m_timeStepPerformed>m_timeStepFull-0.001f || m_nParts==0)
+	if (m_timeStepPerformed>m_timeStepFull-"0.001" || m_nParts==0)
 		return 1;
 	m_timeStepPerformed += time_interval;
 	m_lastTimeStep = time_interval;
-	time_interval += (m_nextTimeStep-time_interval)*isneg(1e-8f-m_nextTimeStep);
-	m_nextTimeStep = 0;
+	time_interval += (m_nextTimeStep-time_interval)*isneg(CTimeValue("0.00000001")-m_nextTimeStep);//1e-8f
+	m_nextTimeStep.SetSeconds(0);
 	m_minFriction = 0.1f;
 	bNoForce = iszero(m_body.Fcollision.len2());
 	bNoUnproj = isneg(4-(int)m_nFutileUnprojFrames*bNoForce);
@@ -2768,7 +2772,7 @@ int CRigidEntity::Step(float time_interval)
 		m_qNew = m_body.q*m_body.qfb;
 		m_posNew = m_body.pos-m_qNew*m_body.offsfb;
 
-		ip.maxSurfaceGapAngle = max(0.15f, min(0.25f, (fabs_tpl(m_body.w.x)+fabs_tpl(m_body.w.y)+fabs_tpl(m_body.w.z))*time_interval));
+		ip.maxSurfaceGapAngle = max(0.15f, min(0.25f, (fabs_tpl(m_body.w.x)+fabs_tpl(m_body.w.y)+fabs_tpl(m_body.w.z))*tSeconds));
 		ip.axisContactNormal = -m_gravity.normalized();
 		//ip.bNoAreaContacts = !m_pWorld->m_vars.bUseDistanceContacts;
 		gwd.v = m_body.v;
@@ -2787,13 +2791,13 @@ int CRigidEntity::Step(float time_interval)
 		m_qNew.Normalize();
 		m_sizeFastDir *= (m_bSmallAndFastForced^1 | bHasContacts); // force sweep if no contacts and small_and_fast was set manually (for projectiles)
 
-		if (!EnforceConstraints(time_interval) && m_velFastDir*(time_interval-bNoUnproj)>m_sizeFastDir*0.5f*(1-m_alwaysSweep)) {
+		if (!EnforceConstraints(time_interval) && m_velFastDir*(tSeconds -bNoUnproj)>m_sizeFastDir*0.5f*(1-m_alwaysSweep)) {
 			SweepAgain:
 			pos = m_posNew; m_posNew = m_pos;
 			qrot = m_qNew; m_qNew = m_qrot;
 			ComputeBBox(m_BBoxNew,0);
 			ip.bSweepTest = true; 
-			ip.time_interval = time_interval;
+			ip.time_interval = tSeconds;
 			if (m_sweepGap<0 && gwd.v.len2()>m_body.v.len2()*0.01f)
 				ip.time_interval -= m_sweepGap*1.2f/max(1e-6f,gwd.v.len());
 			m_flags |= ref_small_and_fast & -isneg(ip.maxUnproj-1.0f);
@@ -2811,7 +2815,7 @@ int CRigidEntity::Step(float time_interval)
 				m_body.pos = m_prevPos - pcontacts[itmax0].dir*max(0.0f,(float)pcontacts[itmax0].t+m_sweepGap);
 				m_posNew = m_body.pos-qrot*m_body.offsfb;
 				bWasUnproj = m_alwaysSweep^1;
-				if (OnSweepHit(pcontacts[itmax0], itmax0, ip.time_interval, gwd.v, nsweeps))
+				if (OnSweepHit(pcontacts[itmax0], itmax0, BADTIME(ip.time_interval), gwd.v, nsweeps))
 					goto SweepAgain;
 				if (m_bCollisionCulling || m_nParts==1 && m_parts[0].pPhysGeomProxy->pGeom->IsConvex(0.02f)) 
 					ip.ptOutsidePivot[0] = m_body.pos;
@@ -2828,13 +2832,13 @@ int CRigidEntity::Step(float time_interval)
 				}
 			m_qNew = qrot;
 			ip.bSweepTest = false;
-			ip.time_interval = time_interval*3;
+			ip.time_interval = tSeconds *3;
 		}	else {
 			if (m_bSmallAndFastForced) {
 				CPhysicalEntity **pentlist;
 				GetPotentialColliders(pentlist, time_interval);
 			}
-			ip.time_interval = time_interval;
+			ip.time_interval = tSeconds;
 		}
 
 		ComputeBBox(m_BBoxNew,0); 
@@ -2867,7 +2871,7 @@ int CRigidEntity::Step(float time_interval)
 					break;
 			}
 			if (pContact==CONTACT_END(m_pContactStart) && pcontacts[i].iUnprojMode==0 && (!bHasContacts || pcontacts[i].t>ip.maxUnproj*0.1f) && 
-					pcontacts[i].t < pcontacts[i].vel*time_interval*1.1f) 
+					pcontacts[i].t < pcontacts[i].vel*tSeconds*1.1f)
 			{	m_posNew += pcontacts[i].dir*(pcontacts[i].t-e);
 				m_body.pos += pcontacts[i].dir*(pcontacts[i].t-e);
 				bWasUnproj = 1;
@@ -2894,7 +2898,7 @@ int CRigidEntity::Step(float time_interval)
 			m_body.P += m_Pext; m_Pext.zero();
 			m_body.L += m_Lext; m_Lext.zero();
 			m_Estep = (m_body.v.len2() + (m_body.L*m_body.w)*m_body.Minv)*0.5f;
-			m_body.P += m_gravity*(m_body.M*time_interval);
+			m_body.P += m_gravity*(m_body.M*tSeconds);
 			m_body.v = m_body.P*m_body.Minv;
 			m_body.w = m_body.Iinv*m_body.L;
 			m_E0 = m_body.M*m_body.v.len2() + m_body.L*m_body.w;
@@ -2905,7 +2909,7 @@ int CRigidEntity::Step(float time_interval)
 		Vec3 extPull(ZERO);
 		for(i=0; m_constraintMask>=getmask(i); i++) if (m_constraintMask & getmask(i) && !(m_pConstraints[i].flags & contact_angular))
 			extPull += m_pConstraints[i].n*m_pConstraints[i].Pspare;
-		extPull *= isneg(sqr(m_body.M*m_lastTimeStep*3)*m_gravity.len2() - extPull.len2());
+		extPull *= isneg(sqr(m_body.M*m_lastTimeStep.BADGetSeconds()*3)*m_gravity.len2() - extPull.len2());
 
 		for(i=0;i<ncontacts;i++) if (pcontacts[i].t>=0) { // penetration contacts - register points and add additional penalty impulse in solver
 			if (!(m_parts[g_CurCollParts[i][0]].flags & geom_squashy)) {
@@ -2970,8 +2974,8 @@ int CRigidEntity::Step(float time_interval)
 	if (!bUseSimpleSolver) {
 		m_body.P += m_Pext; m_Pext.zero();
 		m_body.L += m_Lext; m_Lext.zero();
-		m_body.P += gravity*(m_body.M*time_interval);
-		m_body.P += m_Psoft*time_interval; m_body.L += m_Lsoft*time_interval;
+		m_body.P += gravity*(m_body.M*tSeconds);
+		m_body.P += m_Psoft* tSeconds; m_body.L += m_Lsoft* tSeconds;
 		m_body.UpdateState();
 	}
 	AddAdditionalImpulses(time_interval);
@@ -2982,7 +2986,7 @@ int CRigidEntity::Step(float time_interval)
 
 	bSeverePenetration &= isneg(m_pWorld->m_threadData[iCaller].groupMass*0.001f-m_body.M);
 	if (bSeverePenetration & m_bHadSeverePenetration) {
-		if ((m_body.v.len2()+m_body.w.len2()*sqr(ip.maxUnproj*0.5f))*sqr(time_interval) < sqr(ip.maxUnproj*0.1f))
+		if ((m_body.v.len2()+m_body.w.len2()*sqr(ip.maxUnproj*0.5f))*sqr(tSeconds) < sqr(ip.maxUnproj*0.1f))
 			bSeverePenetration = 0; // apparently we cannot resolve the situation by stepping back
 		else {
 			m_body.P.zero(); m_body.L.zero(); m_body.v.zero();m_body.w.zero();
@@ -2996,14 +3000,14 @@ int CRigidEntity::Step(float time_interval)
 }
 
 
-int CRigidEntity::PostStepNotify(float time_interval,pe_params_buoyancy *pb,int nMaxBuoys,int iCaller)
+int CRigidEntity::PostStepNotify(const CTimeValue& time_interval,pe_params_buoyancy *pb,int nMaxBuoys,int iCaller)
 {
 	Vec3 gravity;
 	int nBuoys=0;
-	if (time_interval > 0.0f && (nBuoys=m_pWorld->CheckAreas(this,gravity,pb,nMaxBuoys,m_body.v))) {
+	if (time_interval > 0 && (nBuoys=m_pWorld->CheckAreas(this,gravity,pb,nMaxBuoys,m_body.v))) {
 		if (!is_unused(gravity)) {
 			if ((m_gravityFreefall-gravity).len2())
-				m_minAwakeTime = 0.2f;
+				m_minAwakeTime.SetSeconds("0.2");
 			m_gravity = m_gravityFreefall = gravity;
 		}
 		//SetParams(&pb);
@@ -3036,10 +3040,12 @@ int CRigidEntity::PostStepNotify(float time_interval,pe_params_buoyancy *pb,int 
 }
 
 
-float CRigidEntity::GetMaxTimeStep(float time_interval)
+CTimeValue CRigidEntity::GetMaxTimeStep(const CTimeValue& time_intervalIn)
 {
-	if (m_timeStepPerformed > m_timeStepFull-0.001f)
-		return time_interval;
+	if (m_timeStepPerformed > m_timeStepFull-"0.001")
+		return time_intervalIn;
+
+	CTimeValue time_interval = time_intervalIn;
 
 	box bbox;	float bestvol=0;
 	int i,j=0,j1,iBest=-1;
@@ -3061,7 +3067,7 @@ float CRigidEntity::GetMaxTimeStep(float time_interval)
 	Vec3 vloc,vsz,size;
 	vloc = m_body.v;
 	if (m_forcedMove.len2()>0.0f)
-		vloc += m_forcedMove/max(0.0001f,time_interval);
+		vloc += m_forcedMove/max(0.0001f,time_interval.BADGetSeconds());
 	vloc = bbox.Basis*(vloc*(m_qrot*m_parts[iBest].q));
 	size = bbox.size*m_parts[iBest].scale;
 	vsz(fabsf(vloc.x)*size.y*size.z, fabsf(vloc.y)*size.x*size.z, fabsf(vloc.z)*size.x*size.y);
@@ -3074,14 +3080,14 @@ float CRigidEntity::GetMaxTimeStep(float time_interval)
 	if (j>=0) { // if there are no collisions with static objects *or* there are collisions with very heavy rigid objects
 		if (m_bCanSweep)
 			bSkipSpeedCheck = true;
-		else if (min(m_maxAllowedStep,time_interval)*m_velFastDir > m_sizeFastDir*0.7f) {
+		else if (min(m_maxAllowedStep,time_interval).BADGetSeconds()*m_velFastDir > m_sizeFastDir*0.7f) {
 			int ient,nents;
-			Vec3 BBox[2]={m_BBox[0],m_BBox[1]}, delta=m_body.v*m_maxAllowedStep;
+			Vec3 BBox[2]={m_BBox[0],m_BBox[1]}, delta=m_body.v*m_maxAllowedStep.BADGetSeconds();
 			geom_contact *pcontacts;
 			intersection_params ip;
 			geom_world_data gwd0,gwd1;
 			ip.bStopAtFirstTri = true;
-			ip.time_interval = m_maxAllowedStep;
+			ip.time_interval = m_maxAllowedStep.BADGetSeconds();
 			ip.bThreadSafe = 1;
 
 			BBox[isneg(-delta.x)].x += delta.x;
@@ -3120,11 +3126,11 @@ float CRigidEntity::GetMaxTimeStep(float time_interval)
 		for(bSkipSpeedCheck=true,j=0; j<m_nColliders; j++) if (m_pColliders[j]!=this && m_pColliderContacts[j])
 			bSkipSpeedCheck = false;*/
 
-	if (!bSkipSpeedCheck && time_interval*fabsf(vloc[i])>size[i]*0.7f)
-		time_interval = max(0.005f,size[i]*1.7f/fabsf(vloc[i]));
+	if (!bSkipSpeedCheck && time_interval.BADGetSeconds()*fabsf(vloc[i])>size[i]*0.7f)
+		time_interval = BADTIME(max(0.005f,size[i]*1.7f/fabsf(vloc[i]))); // PERSONAL TODO: More clamping
 
 	int bDegradeQuality = -m_pWorld->m_threadData[iCaller].bGroupInvisible & ~(1-m_nColliders>>31);
-	return min(min(m_timeStepFull-m_timeStepPerformed,m_maxAllowedStep*(1-bDegradeQuality*0.5f)),time_interval);
+	return min(min(m_timeStepFull-m_timeStepPerformed,m_maxAllowedStep*(1-bDegradeQuality*mpfloat("0.5"))),time_interval);
 }
 
 
@@ -3208,7 +3214,7 @@ int CRigidEntity::GetContactCount(int nMaxPlaneContacts)
 }
 
 
-int CRigidEntity::RegisterContacts(float time_interval,int nMaxPlaneContacts)
+int CRigidEntity::RegisterContacts(const CTimeValue& time_interval,int nMaxPlaneContacts)
 {
 	CRY_PROFILE_FUNCTION(PROFILE_PHYSICS );
 
@@ -3306,7 +3312,7 @@ int CRigidEntity::RegisterContacts(float time_interval,int nMaxPlaneContacts)
 }
 
 
-void CRigidEntity::UpdateContactsAfterStepBack(float time_interval)
+void CRigidEntity::UpdateContactsAfterStepBack(const CTimeValue& time_interval)
 {
 	entity_contact *pContact;
 	Vec3 diff;
@@ -3325,7 +3331,7 @@ void CRigidEntity::UpdateContactsAfterStepBack(float time_interval)
 }
 
 
-void CRigidEntity::StepBack(float time_interval)
+void CRigidEntity::StepBack(const CTimeValue& time_interval)
 {
 	if (time_interval>0) {
 		m_body.pos = m_prevPos;
@@ -3341,7 +3347,7 @@ void CRigidEntity::StepBack(float time_interval)
 		ComputeBBoxRE(partCoordTmp);
 		UpdatePosition(m_pWorld->RepositionEntity(this,1,m_BBoxNew));
 	}	else
-		m_nextTimeStep = 0.001f;
+		m_nextTimeStep.SetSeconds("0.001");
 
 	m_body.v = m_prevv;
 	m_body.w = m_prevw;
@@ -3354,20 +3360,21 @@ void CRigidEntity::StepBack(float time_interval)
 }
 
 
-float CRigidEntity::GetDamping(float time_interval)
+float CRigidEntity::GetDamping(const CTimeValue& time_interval)
 {
 	float damping = max(m_nColliders ? m_damping : m_dampingFreefall,m_dampingEx);
 	//if (!(m_flags & pef_fixed_damping) && m_nGroupSize>=m_pWorld->m_vars.nGroupDamping) 
 	//	damping = max(damping,m_pWorld->m_vars.groupDamping);
 
-	return max(0.0f,1.0f-damping*time_interval);
+	return max(0.0f,1.0f-damping*time_interval.BADGetSeconds());
 }
 
 
-int CRigidEntity::Update(float time_interval, float damping)
+int CRigidEntity::Update(const CTimeValue& time_interval, float damping)
 {
 	int i,j,iCaller=get_iCaller_int();
-	float dt,E,E_accum, Emin = m_bFloating && m_nColliders+m_nPrevColliders==0 ? m_EminWater : m_Emin;
+	float E,E_accum, Emin = m_bFloating && m_nColliders+m_nPrevColliders==0 ? m_EminWater : m_Emin;
+	CTimeValue dt;
 	Vec3 L_accum,pt[4];
 	coord_block_BBox partCoordTmp[2];
 	//m_nStickyContacts = m_nSlidingContacts = 0;
@@ -3376,7 +3383,7 @@ int CRigidEntity::Update(float time_interval, float damping)
 		damping = max(0.9f,damping);
 	CapBodyVel();
 	m_nCanopyContactsLost += iszero((int)(m_bCanopyContact & 3)-2);
-	m_timeCanopyFallen += 3.0f*iszero((int)(m_nCanopyContactsLost & 3)-3);
+	m_timeCanopyFallen += 3*iszero((int)(m_nCanopyContactsLost & 3)-3);
 
 	m_body.v*=damping; m_body.w*=damping; m_body.P*=damping; m_body.L*=damping;
 
@@ -3466,9 +3473,9 @@ int CRigidEntity::Update(float time_interval, float damping)
 		if (m_flags & ref_use_simple_solver)
 			E = min(E,m_Estep);
 		dt = time_interval+(m_timeStepFull-time_interval)*m_pWorld->m_threadData[iCaller].bGroupInvisible;
-		m_timeIdle = max(0.0f, m_timeIdle-(iszero(m_nColliders+m_nPrevColliders+m_submergedFraction)&isneg(-200.0f-m_pos.z))*dt*3);
+		m_timeIdle = max(CTimeValue(0), m_timeIdle-(iszero(m_nColliders+m_nPrevColliders+m_submergedFraction)&isneg(-200.0f-m_pos.z))*dt*3);
 		m_timeIdle *= m_pWorld->m_threadData[iCaller].bGroupInvisible;
-		i = isneg(0.0001f-m_maxTimeIdle); // forceful deactivation is turned on
+		i = isneg(CTimeValue("0.0001")-m_maxTimeIdle); // forceful deactivation is turned on
 		i = i^1 | isneg((m_timeIdle+=dt*i)-m_maxTimeIdle);
 
 		if (m_bAwake&=i) {
@@ -3500,7 +3507,7 @@ int CRigidEntity::Update(float time_interval, float damping)
 				if (++m_nSleepFrames>=2 && m_iSimClass==2) {
 					m_iSimClass=1; m_pWorld->RepositionEntity(this,2);
 					m_nSleepFrames = 0;
-					m_timeCanopyFallen = max(0.0f, m_timeCanopyFallen-1.5f);
+					m_timeCanopyFallen = max(CTimeValue(0), m_timeCanopyFallen-"1.5");
 					m_vAccum.zero(); m_wAccum.zero();
 				}
 			}
@@ -3509,7 +3516,7 @@ int CRigidEntity::Update(float time_interval, float damping)
 		}
 		m_nRestMask = (m_nRestMask<<1) | (m_bAwake^1);
 	}
-	m_minAwakeTime = max(m_minAwakeTime,0.0f)-time_interval;
+	m_minAwakeTime = max(m_minAwakeTime,CTimeValue(0))-time_interval;
 	m_bStable = 0;
 	(m_body.flags &= ~rb_RK4) |= rb_RK4*isneg(m_nColliders-1);
 
@@ -3532,7 +3539,7 @@ int CRigidEntity::Update(float time_interval, float damping)
 		m_checksums[m_iLastChecksum].checksum = GetStateChecksum();
 	}*/
 
-	return (m_bAwake^1) | isneg(m_timeStepFull-m_timeStepPerformed-0.001f) | m_pWorld->m_threadData[iCaller].bGroupInvisible;
+	return (m_bAwake^1) | isneg(m_timeStepFull-m_timeStepPerformed-"0.001") | m_pWorld->m_threadData[iCaller].bGroupInvisible;
 }
 
 #if USE_IMPROVED_RIGID_ENTITY_SYNCHRONISATION
@@ -3565,14 +3572,14 @@ void SRigidEntityNetStateHistory::PushReceivedSequenceDelta(uint8 delta) {
 
 void SRigidEntityNetStateHistory::UpdateSequenceDeltaAverage(uint8 delta, int sampleCount) {
 	if (sampleCount > 1) {
-		float difference = delta - sequenceDeltaAverage;
-		if (difference > MAX_SEQUENCE_NUMBER / 2.0f) {
+		mpfloat difference = delta - sequenceDeltaAverage;
+		if (difference > MAX_SEQUENCE_NUMBER / mpfloat(2)) {
 			difference -= MAX_SEQUENCE_NUMBER;
 		}
-		else if (difference < -MAX_SEQUENCE_NUMBER / 2.0f) {
+		else if (difference < -MAX_SEQUENCE_NUMBER / mpfloat(2)) {
 			difference += MAX_SEQUENCE_NUMBER;
 		}
-		const float weight = 1.0f / sampleCount;
+		const mpfloat weight = mpfloat(1) / sampleCount;
 		sequenceDeltaAverage += difference * weight;
 	}
 	else {
@@ -3580,8 +3587,9 @@ void SRigidEntityNetStateHistory::UpdateSequenceDeltaAverage(uint8 delta, int sa
 	}
 }
 
+// POINT OF INTEREST : Sequence = seconds*sequence_frequency. Used to get interpolated state, e.g. TIMELINES!!!!!
 void CRigidEntity::UpdateStateFromNetwork() {
-	float interpedSequence = GetInterpSequenceNumber();
+	mpfloat interpedSequence = GetInterpSequenceNumber();
 	SRigidEntityNetSerialize interpolatedPos;
 	if (GetInterpolatedState(interpedSequence, interpolatedPos)) {
 		pe_params_pos setpos;	setpos.bRecalcBounds = 16|32|64;
@@ -3604,7 +3612,7 @@ void CRigidEntity::UpdateStateFromNetwork() {
 }
 #endif
 
-int CRigidEntity::GetStateSnapshot(CStream &stm, float time_back, int flags)
+int CRigidEntity::GetStateSnapshot(CStream &stm, const CTimeValue& time_back, int flags)
 {
 	if (flags & ssf_checksum_only) {
 		stm.Write(false);
@@ -3658,7 +3666,7 @@ void SRigidEntityNetSerialize::Serialize( TSerialize ser )
 #endif
 }
 
-int CRigidEntity::GetStateSnapshot( TSerialize ser, float time_back, int flags )
+int CRigidEntity::GetStateSnapshot( TSerialize ser, const CTimeValue& time_back, int flags )
 {
 	CPhysicalEntity::GetStateSnapshot(ser,time_back,flags);
 
@@ -3855,25 +3863,25 @@ int CRigidEntity::SetStateFromSnapshot(CStream &stm, int flags)
 	int iMiddle,iBound[2]={ m_iLastChecksum+1-NCHECKSUMS,m_iLastChecksum+1 };
 	unsigned int checksum,checksum_hist;
 	coord_block_BBox partCoordTmp[2];
-	if (m_pWorld->m_iTimeSnapshot[2]>=m_checksums[iBound[0]&NCHECKSUMS-1].iPhysTime &&
-			m_pWorld->m_iTimeSnapshot[2]<=m_checksums[iBound[1]-1&NCHECKSUMS-1].iPhysTime)
+	if (m_pWorld->m_timeSnapshot[2]>=m_checksums[iBound[0]&NCHECKSUMS-1].physTime &&
+			m_pWorld->m_timeSnapshot[2]<=m_checksums[iBound[1]-1&NCHECKSUMS-1].physTime)
 	{
 		do {
 			iMiddle = iBound[0]+iBound[1]>>1;
-			iBound[isneg(m_pWorld->m_iTimeSnapshot[2]-m_checksums[iMiddle&NCHECKSUMS-1].iPhysTime)] = iMiddle;
+			iBound[isneg(m_pWorld->m_timeSnapshot[2]-m_checksums[iMiddle&NCHECKSUMS-1].physTime)] = iMiddle;
 		} while(iBound[1]>iBound[0]+1);
 		checksum_hist = m_checksums[iBound[0]&NCHECKSUMS-1].checksum;
 	} else
 		checksum_hist = GetStateChecksum();
 
 #ifdef _DEBUG
-	if (m_pWorld->m_iTimeSnapshot[2]!=0) {
-		if (m_bAwake && m_checksums[iBound[0]&NCHECKSUMS-1].iPhysTime!=m_pWorld->m_iTimeSnapshot[2])
-			m_pWorld->m_pLog->Log("Rigid Entity: time not in list (%d, bounds %d-%d) (id %d)", m_pWorld->m_iTimeSnapshot[2],
-				m_checksums[iBound[0]&NCHECKSUMS-1].iPhysTime,m_checksums[iBound[1]&NCHECKSUMS-1].iPhysTime,m_id);
-		if(m_bAwake && (m_checksums[iBound[0]-1&NCHECKSUMS-1].iPhysTime==m_checksums[iBound[0]&NCHECKSUMS-1].iPhysTime ||
-			 m_checksums[iBound[0]+1&NCHECKSUMS-1].iPhysTime==m_checksums[iBound[0]&NCHECKSUMS-1].iPhysTime))
-			m_pWorld->m_pLog->Log("Rigid Entity: 2 same times in history (id %d)",m_id);
+	if (m_pWorld->m_timeSnapshot[2]!=0) {
+		if (m_bAwake && m_checksums[iBound[0]&NCHECKSUMS-1].physTime!=m_pWorld->m_timeSnapshot[2])
+				m_pWorld->m_pLog->Log("Rigid Entity: time not in list (%d, bounds %d-%d) (id %d)", m_pWorld->m_timeSnapshot[2],
+				m_checksums[iBound[0]&NCHECKSUMS-1].physTime,m_checksums[iBound[1]&NCHECKSUMS-1].physTime,m_id);
+		if(m_bAwake && (m_checksums[iBound[0]-1&NCHECKSUMS-1].physTime == m_checksums[iBound[0]&NCHECKSUMS-1].physTime ||
+			 m_checksums[iBound[0]+1&NCHECKSUMS-1].physTime == m_checksums[iBound[0]&NCHECKSUMS-1].physTime))
+			 m_pWorld->m_pLog->Log("Rigid Entity: 2 same times in history (id %d)",m_id);
 	}
 #endif
 
@@ -3929,8 +3937,8 @@ int CRigidEntity::SetStateFromSnapshot(CStream &stm, int flags)
 			ComputeBBoxRE(partCoordTmp);
 			UpdatePosition(m_pWorld->RepositionEntity(this,1,m_BBoxNew));
 
-			m_iLastChecksum = iBound[0]+sgn(m_pWorld->m_iTimeSnapshot[2]-m_checksums[iBound[0]&NCHECKSUMS-1].iPhysTime) & NCHECKSUMS-1;
-			m_checksums[m_iLastChecksum].iPhysTime = m_pWorld->m_iTimeSnapshot[2];
+			m_iLastChecksum = iBound[0]+sgn(m_pWorld->m_timeSnapshot[2]-m_checksums[iBound[0]&NCHECKSUMS-1].physTime) & NCHECKSUMS-1;
+			m_checksums[m_iLastChecksum].physTime = m_pWorld->m_timeSnapshot[2];
 			m_checksums[m_iLastChecksum].checksum = GetStateChecksum();
 		} else {
 			stm.Seek(stm.GetReadPos()+sizeof(Vec3)*8 + 
@@ -3985,19 +3993,19 @@ void CRigidEntity::SetNetworkAuthority(int auth, int paused)
 #if USE_IMPROVED_RIGID_ENTITY_SYNCHRONISATION
 uint8 CRigidEntity::GetLocalSequenceNumber() const
 {
-	const CTimeValue &frameStartTime = gEnv->pTimer->GetFrameStartTime();
-	return (uint8)((frameStartTime.GetMilliSecondsAsInt64() * m_pWorld->m_vars.netSequenceFrequency) / 1000);
+	const CTimeValue &frameStartTime = GetGTimer()->GetFrameStartTime();
+	return (uint8)(frameStartTime.GetSeconds() * m_pWorld->m_vars.netSequenceFrequency);
 }
 
-float CRigidEntity::GetInterpSequenceNumber()
+mpfloat CRigidEntity::GetInterpSequenceNumber()
 {
-	float sequenceDeltaAverage = 0.0f;
+	mpfloat sequenceDeltaAverage = 0;
 	{
 			ReadLock lock(m_lockNetInterp);
 			sequenceDeltaAverage = m_pNetStateHistory->GetAverageSequenceDelta();
 	}
-	float interpedSequence = GetLocalSequenceNumber() + sequenceDeltaAverage - m_pWorld->m_vars.netInterpTime * m_pWorld->m_vars.netSequenceFrequency;
-	if (interpedSequence < 0.0f) {
+	mpfloat interpedSequence = GetLocalSequenceNumber() + sequenceDeltaAverage - m_pWorld->m_vars.netInterpTime.GetSeconds() * m_pWorld->m_vars.netSequenceFrequency;
+	if (interpedSequence < 0) {
 		interpedSequence += MAX_SEQUENCE_NUMBER;
 	}
 	else if (interpedSequence > MAX_SEQUENCE_NUMBER) {
@@ -4006,7 +4014,7 @@ float CRigidEntity::GetInterpSequenceNumber()
 	return interpedSequence;
 }
 
-bool CRigidEntity::GetInterpolatedState(float sequenceNumber, SRigidEntityNetSerialize &interpState)
+bool CRigidEntity::GetInterpolatedState(const mpfloat& sequenceNumber, SRigidEntityNetSerialize &interpState)
 {
 	ReadLock lock(m_lockNetInterp);
 
@@ -4014,14 +4022,14 @@ bool CRigidEntity::GetInterpolatedState(float sequenceNumber, SRigidEntityNetSer
 	SRigidEntityNetSerialize* pUpperBound = NULL;
 	for (int i=m_pNetStateHistory->GetNumReceivedStates()-1; i>=0; --i) {
 		SRigidEntityNetSerialize& state = m_pNetStateHistory->GetReceivedState(i);
-		float difference = state.sequenceNumber - sequenceNumber;
-		if (difference > MAX_SEQUENCE_NUMBER / 2.0f) {
+		mpfloat difference = state.sequenceNumber - sequenceNumber;
+		if (difference > MAX_SEQUENCE_NUMBER / mpfloat(2)) {
 			difference -= MAX_SEQUENCE_NUMBER;
 		}
-		else if (difference < -MAX_SEQUENCE_NUMBER / 2.0f) {
+		else if (difference < -MAX_SEQUENCE_NUMBER / mpfloat(2)) {
 			difference += MAX_SEQUENCE_NUMBER;
 		}
-		if (difference > 0.0f) {
+		if (difference > 0) {
 			pUpperBound = &state;
 		}
 		else {
@@ -4038,20 +4046,20 @@ bool CRigidEntity::GetInterpolatedState(float sequenceNumber, SRigidEntityNetSer
 		interpState = *pLowerBound;
 		if (interpState.simclass) {
 			// Extrapolate from lower bound if the entity is still awake
-			float sequenceDiff = sequenceNumber - pLowerBound->sequenceNumber;
-			if (sequenceDiff < 0.0f) {
+			mpfloat sequenceDiff = sequenceNumber - pLowerBound->sequenceNumber;
+			if (sequenceDiff < 0) {
 				sequenceDiff += MAX_SEQUENCE_NUMBER;
 			}
-			float extrapTime = sequenceDiff / m_pWorld->m_vars.netSequenceFrequency;
+			CTimeValue extrapTime = sequenceDiff / m_pWorld->m_vars.netSequenceFrequency;
 			if (extrapTime > m_pWorld->m_vars.netExtrapMaxTime)
 			{
 				extrapTime = m_pWorld->m_vars.netExtrapMaxTime;
 				interpState.simclass = false;	// Send the entity to sleep, will result in history being erased
 			}
-			interpState.pos += extrapTime * interpState.vel;
+			interpState.pos += extrapTime.BADGetSeconds() * interpState.vel;
 			float wlen = interpState.angvel.len();
 			if (wlen > FLT_EPSILON) {
-				interpState.rot = Quat::CreateRotationAA(wlen*extrapTime,interpState.angvel/wlen)*interpState.rot;
+				interpState.rot = Quat::CreateRotationAA(wlen*extrapTime.BADGetSeconds(),interpState.angvel/wlen)*interpState.rot;
 				interpState.rot.Normalize();
 			}
 		}
@@ -4064,7 +4072,7 @@ bool CRigidEntity::GetInterpolatedState(float sequenceNumber, SRigidEntityNetSer
 		return true;
 	}
 
-	float seq1 = pLowerBound->sequenceNumber, seq2 = sequenceNumber, seq3 = pUpperBound->sequenceNumber;
+	mpfloat seq1 = pLowerBound->sequenceNumber, seq2 = sequenceNumber, seq3 = pUpperBound->sequenceNumber;
 	if (seq2 < seq1) {
 		seq2 += MAX_SEQUENCE_NUMBER;
 		seq3 += MAX_SEQUENCE_NUMBER;
@@ -4072,12 +4080,12 @@ bool CRigidEntity::GetInterpolatedState(float sequenceNumber, SRigidEntityNetSer
 	if (seq3 < seq2) {
 		seq3 += MAX_SEQUENCE_NUMBER;
 	}
-	float t = (seq2 - seq1) / (seq3 - seq1);
+	mpfloat t = (seq2 - seq1) / (seq3 - seq1);
 
-	interpState.pos.SetLerp(pLowerBound->pos, pUpperBound->pos, t);
-	interpState.rot.SetSlerp(pLowerBound->rot, pUpperBound->rot, t);
-	interpState.vel.SetLerp(pLowerBound->vel, pUpperBound->vel, t);
-	interpState.angvel.SetLerp(pLowerBound->angvel, pUpperBound->angvel, t);
+	interpState.pos.SetLerp(pLowerBound->pos, pUpperBound->pos, BADF t);
+	interpState.rot.SetSlerp(pLowerBound->rot, pUpperBound->rot, BADF t);
+	interpState.vel.SetLerp(pLowerBound->vel, pUpperBound->vel, BADF t);
+	interpState.angvel.SetLerp(pLowerBound->angvel, pUpperBound->angvel, BADF t);
 	interpState.simclass = pLowerBound->simclass;
 	interpState.sequenceNumber = (uint8)sequenceNumber;
 	return true;
@@ -4446,8 +4454,10 @@ unsigned int CRigidEntity::GetStateChecksum()
 }
 
 
-void CRigidEntity::ApplyBuoyancy(float time_interval,const Vec3& gravity,pe_params_buoyancy *pb,int nBuoys)
+void CRigidEntity::ApplyBuoyancy(const CTimeValue& time_interval,const Vec3& gravity,pe_params_buoyancy *pb,int nBuoys)
 {
+	const float tSeconds = time_interval.BADGetSeconds();
+
 	if (m_kwaterDensity==0 || m_body.Minv==0) {
 		m_submergedFraction=0; return;
 	}
@@ -4489,8 +4499,8 @@ void CRigidEntity::ApplyBuoyancy(float time_interval,const Vec3& gravity,pe_para
 				ai.impulse  *= resistance; 
 				totResistance += ai.impulse*-(pb[ibuoy].iMedium-1>>31);
 				ibuoySplash += ibuoy-ibuoySplash & pb[ibuoy].iMedium-1>>31;
-				ai.impulse *= time_interval;
-				ai.angImpulse *= resistance*time_interval;
+				ai.impulse *= tSeconds;
+				ai.angImpulse *= resistance* tSeconds;
 			} else {
 				ai.impulse.zero();
 				ai.angImpulse.zero();
@@ -4500,11 +4510,11 @@ void CRigidEntity::ApplyBuoyancy(float time_interval,const Vec3& gravity,pe_para
 			if (m_parts[i].pPhysGeomProxy->V*cube(m_parts[i].scale)*density*m_body.Minv > lift_thresh) {
 				if (dist>-r) {
 					V = m_parts[i].pPhysGeomProxy->pGeom->CalculateBuoyancy(&pb[ibuoy].waterPlane,&gwd,center);
-					dP = pb[ibuoy].waterPlane.n*(g*density*V*time_interval);
+					dP = pb[ibuoy].waterPlane.n*(g*density*V*tSeconds);
 					ai.impulse += dP; ai.angImpulse += center-pbody->pos^dP;
 				} else {
 					V = m_parts[i].pPhysGeomProxy->V*cube(m_parts[i].scale);
-					ai.impulse -= gravity*(density*V*time_interval);
+					ai.impulse -= gravity*(density*V*tSeconds);
 				}
 			}
 
@@ -4849,7 +4859,7 @@ void CRigidEntity::DrawHelperInformation(IPhysRenderer *pRenderer, int flags)
 
 			// Draw the smoothed position we want to move to
 			{
-				float interpedSequence = GetInterpSequenceNumber();
+				mpfloat interpedSequence = GetInterpSequenceNumber();
 				SRigidEntityNetSerialize interpolatedPos;
 				if (GetInterpolatedState(interpedSequence, interpolatedPos)) {
 					Vec3 pos = interpolatedPos.pos + Vec3(0, 0, 3);

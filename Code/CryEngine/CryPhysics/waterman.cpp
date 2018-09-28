@@ -25,7 +25,7 @@ CWaterMan::CWaterMan(CPhysicalWorld *pWorld, IPhysicalEntity *pArea)
 	m_pWorld = pWorld; m_pArea = pArea;
 	m_next = m_prev = 0;
 	m_nTiles=-1; m_nCells=32; m_pTiles=0; m_pTilesTmp=0; m_pCellMask=0;	m_pCellNorm=0;
-	m_dt = 0.02f; m_timeSurplus=0; 
+	m_dt.SetSeconds("0.02"); m_timeSurplus.SetSeconds(0); 
 	m_rtileSz=1.0f/(m_tileSz=10.0f); m_cellSz=m_tileSz/m_nCells;
 	m_waveSpeed=100.f; m_minhSpread=0.05f; m_minVel=0.01f; m_dampingCenter=0.2f; m_dampingRim=1.5f;
 	m_origin.zero(); m_waterOrigin.Set(1E10f,1E10f,1E10f);
@@ -264,7 +264,7 @@ void CWaterMan::OnWaterInteraction(CPhysicalEntity *pent)
 	}
 
 	if (nMeshes+nPrims && depth>0) {
-		float kr = m_kResistance*m_dt*min(1.0f,depth/max(1e-4f,m_depth*m_cellSz));
+		float kr = m_kResistance*m_dt.BADGetSeconds()*min(1.0f,depth/max(1e-4f,m_depth*m_cellSz));
 		if (nMeshes) {
 			jgc.pqueue=m_pCellQueue; jgc.szQueue=m_szCellQueue;
 			for(i=0;i<(wgrid.size.x+1)*wgrid.size.y;i++) if (jgc.pCellMask[i]&2 && jgc.pCellMask[i]&15<<2)
@@ -441,7 +441,7 @@ void CWaterMan::SetViewerPos(const Vec3 &newpos, int iCaller)
 	m_posViewer = newpos;
 }
 
-void CWaterMan::UpdateWaterLevel(const plane& waterPlane, float dt)
+void CWaterMan::UpdateWaterLevel(const plane& waterPlane, const CTimeValue& dt)
 {
 	m_waterOrigin += waterPlane.n*(waterPlane.n*(waterPlane.origin-m_waterOrigin));
 	float diff = waterPlane.n*(waterPlane.origin-m_origin);
@@ -449,7 +449,7 @@ void CWaterMan::UpdateWaterLevel(const plane& waterPlane, float dt)
 	OffsetWaterLevel(-diff,dt);
 }
 
-void CWaterMan::OffsetWaterLevel(float diff, float dt)
+void CWaterMan::OffsetWaterLevel(float diff, const CTimeValue& dt)
 {
 	if (dt>0) {
 		for(int i=0;i<=sqr(m_nTiles*2+1);i++) if (m_pTiles[i]->bActive)
@@ -478,7 +478,7 @@ struct reflector_tracer {
 
 inline void CWaterMan::advect_cell(const Vec2i& itile, const Vec2i& cell, const Vec2& vel, float m, grid* rgrid)
 {
-	Vec2 dir = vel*(m_rcellSz*m_dt), posNew = Vec2(cell)+dir;
+	Vec2 dir = vel*(m_rcellSz*m_dt.BADGetSeconds()), posNew = Vec2(cell)+dir;
 	Vec2i ic(float2int(posNew.x+0.5f),float2int(posNew.y+0.5f));
 	for(int i=0,i1; i<4; i++) if (SWaterTile *ptile1 = get_tile(itile,ic-Vec2i(i>>1,i&1),i1)) {
 		float frac = fabs_tpl((posNew+Vec2i(i>>1^1,i&1^1)-ic).area());
@@ -499,35 +499,38 @@ inline void CWaterMan::advect_cell(const Vec2i& itile, const Vec2i& cell, const 
 	}
 }
 
-void CWaterMan::TimeStep(float time_interval)
+void CWaterMan::TimeStep(const CTimeValue& time_interval)
 {
 	if (m_nTiles<0 || !m_bActive || !m_pTiles)
 		return;
 	CRY_PROFILE_FUNCTION(PROFILE_PHYSICS );
 
 	int i,j,ix,iy,i1,hasBorder=0, tileActive,volActive=0;
-	float vmax,h,dt,vsum=0,depth=m_depth*m_cellSz,rnTiles=1.0f/max(1,m_nTiles),minh=max(depth*-0.95f,m_cellSz*-m_hlimit),maxh=m_cellSz*m_hlimit;
+	float vmax,h,vsum=0,depth=m_depth*m_cellSz,rnTiles=1.0f/max(1,m_nTiles),minh=max(depth*-0.95f,m_cellSz*-m_hlimit),maxh=m_cellSz*m_hlimit;
 	Vec2i itile,ic,ic1,dc,dc1,strideTile(1,m_nTiles*2+1),stride(1,m_nCells);
-	Diag33 damping; damping.x=damping.y=max(0.0f,1-m_dampingCenter*m_dt);
+	Diag33 damping; damping.x=damping.y=max(0.0f,1-m_dampingCenter*m_dt.BADGetSeconds());
 	SWaterTile *ptile,*ptile1;
 	grid rgrid;
 	rgrid.size.set(m_nCells,m_nCells);
 	rgrid.step.set(1,1); rgrid.stepr.set(1,1);
 	rgrid.stride.set(1,m_nCells);
 	rgrid.origin.zero(); rgrid.bCyclic=1;
-	if (m_pWorld->m_vars.fixedTimestep)
+	if (m_pWorld->m_vars.fixedTimestep != 0)
 		m_dt = m_pWorld->m_vars.fixedTimestep;
 	float g = m_waveSpeed;
 
+	CTimeValue dt;
 	for(dt=m_timeSurplus; dt<time_interval; dt+=m_dt)	{
-		float doffs = min(fabs_tpl(m_doffs),m_dt*3)*sgnnz(m_doffs);
+		// Water level offset
+		float doffs = min(fabs_tpl(m_doffs),m_dt.BADGetSeconds()*3)*sgnnz(m_doffs);
 		m_doffs -= doffs;
 		volActive = 0;
 
+		const float tSeconds = m_dt.BADGetSeconds();
 		for(itile.x=0;itile.x<=m_nTiles*2;itile.x++) for(itile.y=0;itile.y<=m_nTiles*2;itile.y++) 
 			if ((ptile=m_pTiles[itile*strideTile])->bActive) {
 				float tdist = max(fabs_tpl(itile.x-m_nTiles),fabs_tpl(itile.y-m_nTiles))*rnTiles;
-				damping.z = max(0.0f,1-m_dt*(m_dampingRim*tdist + m_dampingCenter*(1-tdist)));
+				damping.z = max(0.0f,1- tSeconds *(m_dampingRim*tdist + m_dampingCenter*(1-tdist)));
 				for(i=sqr(m_nCells)-1; i>=0; i--) 
 					ptile->mv[i] = Vec2(ptile->pvel[i]=damping*ptile->pvel[i])*(ptile->m[i]=ptile->ph[i]+depth);
 			}	else {
@@ -544,18 +547,18 @@ void CWaterMan::TimeStep(float time_interval)
 					for(j=0,dc.set(0,1),h=0; j<4; j++,dc=dc.rot90cw()) if (ptile1=get_tile(itile,ic+dc,i1))	{
 						nused += used=ptile1->cell_used(i1);
 						h += ptile1->ph[i1]*used;	hasBorder|=1-used;
-						ptile->mv[i] += Vec2(ptile1->pvel[i1])*max(0.0f,-ptile1->pvel[i1].z*m_dt*0.25f)*pullm;
+						ptile->mv[i] += Vec2(ptile1->pvel[i1])*max(0.0f,-ptile1->pvel[i1].z*tSeconds*0.25f)*pullm;
 					}
-					vsum += (ptile->pvel[i].z += (h*rnused[nused]-ptile->ph[i])*g*m_dt);
+					vsum += (ptile->pvel[i].z += (h*rnused[nused]-ptile->ph[i])*g*tSeconds);
 				}
 				for(iy=1,i=m_nCells+1;iy<m_nCells-1;iy++,i+=2) for(ix=1;ix<m_nCells-1;ix++,i++) if (ptile->cell_used(i)) {
 					float pullm = isneg(-ptile->pvel[i].z); int nused=0,used;
 					for(j=0,dc.set(0,1),h=0; j<4; j++,dc=dc.rot90cw()) {
 						nused += used=ptile->cell_used(i1=(Vec2i(ix,iy)+dc)*stride);
 						h += ptile->ph[i1]*used; hasBorder|=1-used;
-						ptile->mv[i] += Vec2(ptile->pvel[i1])*max(0.0f,-ptile->pvel[i1].z*m_dt*0.25f)*pullm;
+						ptile->mv[i] += Vec2(ptile->pvel[i1])*max(0.0f,-ptile->pvel[i1].z*tSeconds*0.25f)*pullm;
 					}
-					vsum += (ptile->pvel[i].z += (h*rnused[nused]-ptile->ph[i])*g*m_dt);
+					vsum += (ptile->pvel[i].z += (h*rnused[nused]-ptile->ph[i])*g*tSeconds);
 				}
 			}
 
@@ -581,13 +584,13 @@ void CWaterMan::TimeStep(float time_interval)
 				float hnew = ptile->m[i]-depth+doffs;
 				ptile->pvel[i].z -= vsum;
 				*(Vec2*)(ptile->pvel+i) = (Vec2(ptile->mv[i])/max(m_cellSz*0.01f,ptile->m[i]))*inside;
-				int flip = isneg(ptile->ph[i]*(hnew += ptile->pvel[i].z*m_dt));
-				hnew *= 1-m_dampingCenter*0.5f*m_dt;
+				int flip = isneg(ptile->ph[i]*(hnew += ptile->pvel[i].z*tSeconds));
+				hnew *= 1-m_dampingCenter*0.5f*tSeconds;
 				ptile->pvel[i].z *= (inrange(hnew,minh,maxh) | isneg(ptile->pvel[i].z*hnew));
 				h = max(h, ptile->ph[i] = min(maxh,max(minh, hnew))*(1-flip&inside));
 				vmax = max(vmax, ptile->pvel[i].len2());
 			}
-			volActive += (tileActive = isneg(sqr(m_minVel)-max(vmax,sqr(h*2*g*m_dt))));
+			volActive += (tileActive = isneg(sqr(m_minVel)-max(vmax,sqr(h*2*g*tSeconds))));
 			ptile->Activate(tileActive);
 		}
 	}

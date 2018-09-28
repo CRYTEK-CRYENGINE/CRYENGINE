@@ -18,7 +18,7 @@ public:
 	void Add(const Vec3 &center,const Vec3 Ibodyop,const quaternionf &qop, float volume,float mass);
 	void zero();
 
-	void Step(float dt);
+	void Step(const CTimeValue& dt);
 	void UpdateState();
 	void GetContactMatrix(const Vec3 &r, Matrix33 &K);
 
@@ -110,10 +110,10 @@ struct entity_contact {
 };
 
 void DisablePreCG();
-void InitContactSolver(float time_interval);
+void InitContactSolver(const CTimeValue& time_interval);
 void CleanupContactSolvers();
 void RegisterContact(entity_contact *pcontact);
-int InvokeContactSolver(float time_interval, SolverSettings *pss, float Ebefore, entity_contact **&pContacts,int &nContacts);
+int InvokeContactSolver(const CTimeValue& time_interval, SolverSettings *pss, float Ebefore, entity_contact **&pContacts,int &nContacts);
 char *AllocSolverTmpBuf(int size);
 
 #endif

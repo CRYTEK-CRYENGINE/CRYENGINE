@@ -87,13 +87,13 @@ struct SSkelInfo {
 	SSkinInfo *pSkinInfo;
 	CPhysicalEntity *pSkelEnt;
 	int idSkel;
-	float timeStep;
+	CTimeValue timeStep;
 	int nSteps;
 	float maxImpulse;
-	float lastUpdateTime;
+	CTimeValue lastUpdateTime;
 	Vec3 lastUpdatePos;
 	Quat lastUpdateq;
-	float lastCollTime;
+	CTimeValue lastCollTime;
 	float lastCollImpulse;
 };
 
@@ -115,11 +115,11 @@ struct SStructureInfo {
 	int bModified;
 	int idpartBreakOrg;
 	int nPartsAlloc;
-	float timeLastUpdate;
+	CTimeValue timeLastUpdate;
 	int nPrevJoints;
 	int nLastUsedJoints;
 	float prevdt;
-	float minSnapshotTime;
+	CTimeValue minSnapshotTime;
 	float autoDetachmentDist;
 	Vec3 lastExplPos;
 	Vec3 *Pexpl,*Lexpl;
@@ -209,17 +209,17 @@ public:
   virtual CPhysicalEntity *GetEntity();
 	virtual CPhysicalEntity *GetEntityFast() { return this; }
 
-	virtual void StartStep(float time_interval) {}
-	virtual float GetMaxTimeStep(float time_interval) { return time_interval; }
-	virtual float GetLastTimeStep(float time_interval) { return time_interval; }
-	virtual int Step(float time_interval) { return 1; }
-	virtual int DoStep(float time_interval, int iCaller=0) { return Step(time_interval); }
-	virtual void StepBack(float time_interval) {} 
+	virtual void StartStep(const CTimeValue& time_interval) {}
+	virtual CTimeValue GetMaxTimeStep(const CTimeValue& time_interval) { return time_interval; }
+	virtual const CTimeValue& GetLastTimeStep(const CTimeValue& time_interval) { return time_interval; }
+	virtual int Step(const CTimeValue& time_interval) { return 1; }
+	virtual int DoStep(const CTimeValue& time_interval, int iCaller=0) { return Step(time_interval); }
+	virtual void StepBack(const CTimeValue& time_interval) {}
 	virtual int GetContactCount(int nMaxPlaneContacts) { return 0; }
-	virtual int RegisterContacts(float time_interval,int nMaxPlaneContacts) { return 0; }
-	virtual int Update(float time_interval, float damping) { return 1; }
-	virtual float CalcEnergy(float time_interval) { return 0; }
-	virtual float GetDamping(float time_interval) { return 1.0f; } 
+	virtual int RegisterContacts(const CTimeValue& time_interval,int nMaxPlaneContacts) { return 0; }
+	virtual int Update(const CTimeValue& time_interval, float damping) { return 1; }
+	virtual float CalcEnergy(const CTimeValue& time_interval) { return 0; }
+	virtual float GetDamping(const CTimeValue& time_interval) { return 1.0f; }
 	virtual float GetMaxFriction() { return 100.0f; }
 	virtual bool IgnoreCollisionsWith(const CPhysicalEntity *pent, int bCheckConstraints=0) const { return false; }
 	virtual void GetSleepSpeedChange(int ipart, Vec3 &v,Vec3 &w) { v.zero(); w.zero(); }
@@ -256,27 +256,27 @@ public:
 	template<typename Rot> void GetPartTransform(int ipart, Vec3 &offs, Rot &R, float &scale, const CPhysicalPlaceholder *trg) const;
 	template<typename CTrg> Vec3* GetPartBBox(int ipart, Vec3* BBox, const CTrg *trg) const;
 	virtual void GetLocTransform(int ipart, Vec3 &offs, quaternionf &q, float &scale, const CPhysicalPlaceholder *trg) const;
-	virtual void GetLocTransformLerped(int ipart, Vec3 &offs, quaternionf &q, float &scale, float timeBack, const CPhysicalPlaceholder *trg) const { GetLocTransform(ipart,offs,q,scale,trg); }
+	virtual void GetLocTransformLerped(int ipart, Vec3 &offs, quaternionf &q, float &scale, const nTime& timeBack, const CPhysicalPlaceholder *trg) const { GetLocTransform(ipart,offs,q,scale,trg); }
 	virtual void DetachPartContacts(int ipart,int iop0, CPhysicalEntity *pent,int iop1, int bCheckIfEmpty=1) {}
 	int TouchesSphere(const Vec3 &center, float r);
 
 	virtual void DrawHelperInformation(IPhysRenderer *pRenderer, int flags);
 	virtual void GetMemoryStatistics(ICrySizer *pSizer) const;
 
-	virtual int GetStateSnapshot(class CStream &stm, float time_back=0,	int flags=0) { return 0; }
-	virtual int GetStateSnapshot(TSerialize ser, float time_back=0, int flags=0);
+	virtual int GetStateSnapshot(class CStream &stm, const CTimeValue& time_back=0,	int flags=0) { return 0; }
+	virtual int GetStateSnapshot(TSerialize ser, const CTimeValue& time_back=0, int flags=0);
 	virtual int SetStateFromSnapshot(class CStream &stm, int flags=0) { return 0; }
 	virtual int SetStateFromSnapshot(TSerialize ser, int flags=0);
 	virtual int SetStateFromTypedSnapshot(TSerialize ser, int iSnapshotType, int flags=0);
 	virtual int PostSetStateFromSnapshot() { return 1; }
 	virtual unsigned int GetStateChecksum() { return 0; }
-	virtual int GetStateSnapshotTxt(char *txtbuf,int szbuf, float time_back=0);
+	virtual int GetStateSnapshotTxt(char *txtbuf,int szbuf, const CTimeValue& time_back=0);
 	virtual void SetStateFromSnapshotTxt(const char *txtbuf,int szbuf);
 	virtual void SetNetworkAuthority(int authoritive, int paused) {}
 
 	void AllocStructureInfo();
 	int GenerateJoints();
-	int UpdateStructure(float time_interval, pe_explosion *pexpl, int iCaller=0, Vec3 gravity=Vec3(0));
+	int UpdateStructure(const CTimeValue& time_interval, pe_explosion *pexpl, int iCaller=0, Vec3 gravity=Vec3(0));
 	void RemoveBrokenParent(int i, int nIsles);
 	int MapHitPointFromParent(int i, const Vec3 &pt);
 	virtual void RecomputeMassDistribution(int ipart=-1,int bMassChanged=1) {}
@@ -360,9 +360,9 @@ public:
 
 	SCollisionClass m_collisionClass;
 
-	float m_timeIdle,m_maxTimeIdle;
+	CTimeValue m_timeIdle,m_maxTimeIdle;
 
-	float m_timeStructUpdate;
+	CTimeValue m_timeStructUpdate;
 	int m_updStage,m_nUpdTicks;
 	SExplosionInfo *m_pExpl;
 

@@ -41,21 +41,21 @@ public:
 	virtual void *GetForeignData(int itype=0) const { return 0; }
 	virtual int GetiForeignData() const { return 0; }
 
-	virtual int GetStateSnapshot(class CStream &stm, float time_back=0, int flags=0) { return 0; }
-	virtual int GetStateSnapshot(TSerialize ser, float time_back=0, int flags=0) { return 0; }
+	virtual int GetStateSnapshot(class CStream &stm, const CTimeValue& time_back=0, int flags=0) { return 0; }
+	virtual int GetStateSnapshot(TSerialize ser, const CTimeValue&  time_back=0, int flags=0) { return 0; }
 	virtual int SetStateFromSnapshot(class CStream &stm, int flags=0) { return 0; }
 	virtual int SetStateFromSnapshot(TSerialize ser, int flags=0) { return 0; }
 	virtual int SetStateFromTypedSnapshot(TSerialize ser, int type, int flags/* =0 */) {return 0;}
 	virtual int PostSetStateFromSnapshot() { return 0; }
-	virtual int GetStateSnapshotTxt(char *txtbuf,int szbuf, float time_back=0) { return 0; }
+	virtual int GetStateSnapshotTxt(char *txtbuf,int szbuf, const CTimeValue&  time_back=0) { return 0; }
 	virtual void SetStateFromSnapshotTxt(const char *txtbuf,int szbuf) {}
 	virtual unsigned int GetStateChecksum() { return 0; }
 	virtual void SetNetworkAuthority(int authoritive, int paused) {}
 
-	virtual void StartStep(float time_interval) {}
-	virtual int Step(float time_interval) { return 0; }
-	virtual int DoStep(float time_interval, int iCaller) { return 0; }
-	virtual void StepBack(float time_interval) {}
+	virtual void StartStep(const CTimeValue&  time_interval) {}
+	virtual int Step(const CTimeValue&  time_interval) { return 0; }
+	virtual int DoStep(const CTimeValue&  time_interval, int iCaller) { return 0; }
+	virtual void StepBack(const CTimeValue&  time_interval) {}
 	virtual IPhysicalWorld *GetWorld() const { return 0; }
 
 	virtual void GetMemoryStatistics(ICrySizer *pSizer) const {}
@@ -291,7 +291,7 @@ int CPhysArea::ApplyParams(const Vec3& pt, Vec3& gravity, const Vec3 &vel, pe_pa
 						if (true) {//fabs_tpl((org-m_pb.waterPlane.origin)*n)-sz*n.abs() < 1.5f) {
 							sz = (Rabs=m_R*Matrix33(transG.q)).Fabs()*sz;
 							heightfield hf, *phf=&hf;
-							int iyscale=1,vmask=0; float *pdata; Vec3 vel(ZERO),*pvel=&vel;
+							int iyscale=1,vmask=0; float *pdata = nullptr; Vec3 vel(ZERO),*pvel=&vel;
 							float (*getHeight)(float *data,getHeightCallback func, int ix,int iy);
 							if (m_pWaterMan) {
 								hf.size.set(m_pWaterMan->m_nCells,m_pWaterMan->m_nCells);
@@ -803,7 +803,7 @@ int CPhysArea::SetParams(pe_params *_params, int bThreadSafe)
 			((float*)&m_waveSim)[i]=((float*)&params->waveSim)[i]; bSetWaterman=true; 
 		}
 		if (m_pWaterMan && bSetWaterman) {
-			memcpy(&(params_wavesim&)pwm, &params->waveSim, sizeof(params_wavesim));
+			(params_wavesim&)pwm = params->waveSim;
 			m_pWaterMan->SetParams(&pwm);
 		}
 		m_pWorld->m_numNonWaterAreas += IsAreaNonWater(this);
@@ -879,9 +879,9 @@ int CPhysArea::GetParams(pe_params *_params) const
 		params->volumeAccuracy = m_accuracyV;
 		if (m_pWaterMan) {
 			pe_params_waterman pwm; m_pWaterMan->GetParams(&pwm);
-			memcpy(&params->waveSim, &(params_wavesim&)pwm, sizeof(params->waveSim));
+			params->waveSim = (params_wavesim&)pwm;
 		} else
-			memcpy(&params->waveSim, &m_waveSim, sizeof(m_waveSim));
+			params->waveSim = m_waveSim;
 		params->bConvexBorder = m_bConvexBorder;
 		return 1;
 	}
@@ -1087,7 +1087,7 @@ int CPhysArea::OnBBoxOverlap(const EventPhysBBoxOverlap *pEvent)
 	return 0;
 }
 
-void CPhysArea::Update(float dt)
+void CPhysArea::Update(const CTimeValue& dt)
 {
 	int iCaller = get_iCaller();
 	Release(); // since it was addreffed by an update request
@@ -1249,7 +1249,7 @@ void CPhysArea::Update(float dt)
 				m_pb.waterPlane.n = -g;
 			m_BBox[0]=m_BBox[1] = loc*Vec3(m_pt[0]);
 			float diff = m_pb.waterPlane.n*(m_BBox[0]-m_pb.waterPlane.origin);
-			if (diff>m_sleepVel*dt || (m_moveAccum+=diff)>m_sleepVel*dt) {
+			if (diff>m_sleepVel*dt.BADGetSeconds() || (m_moveAccum+=diff)>m_sleepVel*dt.BADGetSeconds()) {
 				m_moveAccum=0; m_nSleepFrames=0;
 			}	else if ((++m_nSleepFrames&3)==3)
 				m_moveAccum = 0; 
@@ -1351,7 +1351,7 @@ void CPhysArea::Update(float dt)
 		Vec3 org = m_R*Vec3(BBox[0]+BBox[1]-Vec2(pwm.tileSize,pwm.tileSize))*0.5f*m_scale+m_offset;
 		m_pb.waterPlane.origin = org+m_pb.waterPlane.n*(m_pb.waterPlane.n*(m_pb.waterPlane.origin-org));
 		pwm.posViewer = m_R*Vec3(BBox[0]+BBox[1])*0.5f*m_scale+m_offset;
-		memcpy(&(params_wavesim&)pwm, &m_waveSim, sizeof(m_waveSim));
+		(params_wavesim&)pwm = m_waveSim;
 		m_pWaterMan->SetParams(&pwm);
 	}
 

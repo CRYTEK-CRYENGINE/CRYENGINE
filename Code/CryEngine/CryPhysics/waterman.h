@@ -30,10 +30,10 @@ public:
 	void OnWaterInteraction(class CPhysicalEntity *pent);
 	void OnWaterHit(const Vec3 &pthit,const Vec3 &vel);
 	void SetViewerPos(const Vec3& newpos,int iCaller=0);
-	void UpdateWaterLevel(const plane& waterPlane, float dt=0);
-	void OffsetWaterLevel(float diff,float dt);
+	void UpdateWaterLevel(const plane& waterPlane, const CTimeValue& dt=0);
+	void OffsetWaterLevel(float diff, const CTimeValue& dt);
 	void GenerateSurface(const Vec2i* BBox, Vec3 *pvtx,Vec3_tpl<index_t> *pTris, const Vec2 *ptbrd,int nbrd, const Vec3 &offs=Vec3(ZERO), Vec2 *pttmp=0, float tmax=0);
-	void TimeStep(float dt);
+	void TimeStep(const CTimeValue& dt);
 	int IsActive() { for(int i=0;i<sqr(m_nTiles*2+1);i++) if (m_pTiles[i] && m_pTiles[i]->bActive) return 1; return 0; }
 	void Reset() { for(int i=0;i<sqr(m_nTiles*2+1);i++) if (m_pTiles[i]) m_pTiles[i]->Activate(0); m_doffs=0; }
 	void DrawHelpers(IPhysRenderer *pRenderer);
@@ -64,7 +64,7 @@ public:
 	IPhysicalEntity *m_pArea;
 	CWaterMan *m_next,*m_prev;
 	int m_bActive;
-	float m_timeSurplus,m_dt;
+	CTimeValue m_timeSurplus,m_dt;
 	int m_nTiles,m_nCells;
 	float m_tileSz,m_rtileSz;
 	float m_cellSz,m_rcellSz;

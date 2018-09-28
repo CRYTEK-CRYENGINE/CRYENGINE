@@ -26,12 +26,12 @@ CRopeEntity::CRopeEntity(CPhysicalWorld *pWorld, IGeneralMemoryHeap* pHeap)
 	, m_gravity(ZERO)
 	, m_gravity0(ZERO)
 	, m_damping(0.2f)
-	, m_maxAllowedStep(0.05f)
+	, m_maxAllowedStep("0.05")
 	, m_Emin(sqr(0.04f))
-	, m_timeStepPerformed(0.0f)
-	, m_timeStepFull(0.0f)
+	, m_timeStepPerformed(0)
+	, m_timeStepFull(0)
 	, m_nSlowFrames(0)
-	, m_lastTimeStep(0.0f)
+	, m_lastTimeStep(0)
 	, m_nSleepingNeighboursFrames(0)
 	, m_bHasContacts(0)
 	, m_bContactsRegistered(0)
@@ -40,7 +40,7 @@ CRopeEntity::CRopeEntity(CPhysicalWorld *pWorld, IGeneralMemoryHeap* pHeap)
 	, m_length(0.0f)
 	, m_nSegs(-1)
 	, m_segs(nullptr)
-	, m_timeLastActive(0.0f)
+	, m_timeLastActive(0)
 	, m_bTargetPoseActive(0)
 	, m_stiffnessAnim(70.0f)
 	, m_lastposHost(ZERO)
@@ -57,7 +57,7 @@ CRopeEntity::CRopeEntity(CPhysicalWorld *pWorld, IGeneralMemoryHeap* pHeap)
 	, m_wind1(ZERO)
 	, m_airResistance(0.0f)
 	, m_windVariance(0.0f)
-	, m_windTimer(0.0f)
+	, m_windTimer(0)
 	, m_waterResistance(5.0f)
 	, m_rdensity(1.0f / 500)
 	, m_jointLimit(0.0f)
@@ -177,7 +177,7 @@ int CRopeEntity::Awake(int bAwake,int iSource)
 		for(i=0;i<m_nColliders;i++) if (m_pColliders[i]->GetType()==PE_ROPE)
 			m_pColliders[i]->Awake();
 		if (!(m_flags & pef_step_requested))
-			m_timeIdle = 0;
+			m_timeIdle.SetSeconds(0);
 	}
 	return 1; 
 }
@@ -558,7 +558,7 @@ int CRopeEntity::GetStatus(pe_status *_status) const
 }
 
 
-void CRopeEntity::EnforceConstraints(float seglen, const quaternionf& qtv,const Vec3& offstv,float scaletv, int bTargetPoseActive, float dt)
+void CRopeEntity::EnforceConstraints(float seglen, const quaternionf& qtv,const Vec3& offstv,float scaletv, int bTargetPoseActive, const CTimeValue& dt)
 {
 	int i,iDir,iStart,iEnd,bHasContacts;
 
@@ -646,7 +646,7 @@ void CRopeEntity::EnforceConstraints(float seglen, const quaternionf& qtv,const 
 		for(i=0;i<m_nAttach;m_segs[m_attach[i++].ivtx].kdP=0);
 		for(i=0;i<2;i++) m_segs[m_nSegs*i].kdP=!m_pTiedTo[i];
 
-		bHasContacts = max(100,float2int((dt>0 ? max(0.2f,dt/m_maxAllowedStep):1.0f)*min(sqr(m_nSegs),m_maxIters>>2)));
+		bHasContacts = max(100,float2int((dt>0 ? max(0.2f,BADF(dt/m_maxAllowedStep)):1.0f)*min(sqr(m_nSegs),m_maxIters>>2)));
 		int iDir0 = (iDir = m_pTiedTo[1] && !m_pTiedTo[0] ? 1:-1);
 		do {
 			iDir = -iDir;
@@ -1043,24 +1043,24 @@ void CRopeEntity::FillVtxContactData(rope_vtx *pvtx,int iseg, SRopeCheckPart &cp
 }
 
 
-void CRopeEntity::StartStep(float time_interval)
+void CRopeEntity::StartStep(const CTimeValue& time_interval)
 {
-	m_timeStepPerformed = 0;
+	m_timeStepPerformed.SetSeconds(0);
 	m_timeStepFull = time_interval;
 	m_posBody[0][0]=m_posBody[0][1]; m_qBody[0][0]=m_qBody[0][1];
 	m_posBody[1][0]=m_posBody[1][1]; m_qBody[1][0]=m_qBody[1][1];
 }
 
 
-float CRopeEntity::GetMaxTimeStep(float time_interval)
+CTimeValue CRopeEntity::GetMaxTimeStep(const CTimeValue& time_interval)
 {
-	if (m_timeStepPerformed > m_timeStepFull-0.001f)
+	if (m_timeStepPerformed > m_timeStepFull-"0.001")
 		return time_interval;
 	return min(min(m_timeStepFull-m_timeStepPerformed,m_maxAllowedStep),time_interval);
 }
 
 
-void CRopeEntity::StepSubdivided(float time_interval, SRopeCheckPart *checkParts,int nCheckParts, float seglen)
+void CRopeEntity::StepSubdivided(const CTimeValue& time_interval, SRopeCheckPart *checkParts,int nCheckParts, float seglen)
 {
 	int i,j,iStart,iEnd,i1,j1,iter,iMoveEnd[2],ncont,bIncomplete[2],bStrainRechecked=0,bRopeChanged;
 	Vec3 dv,center,dir,n;
@@ -1405,13 +1405,13 @@ void CRopeEntity::StepSubdivided(float time_interval, SRopeCheckPart *checkParts
 					RegisterContacts(time_interval,1);
 					float Ebefore=m_energy, Eafter=0.0f, damping=1.0f;
 					for(i=0;i<m_nColliders;i++) if (m_pColliders[i]->m_iSimClass>2)
-						Ebefore += m_pColliders[i]->CalcEnergy(0.0f);
+						Ebefore += m_pColliders[i]->CalcEnergy(0);
 					for(i=m_nColliders-1;i>=0;i--) if (m_pColliders[i]->m_iSimClass>2)
 						m_pColliders[i]->RegisterContacts(time_interval,4);
 					entity_contact **pContacts; int nContacts=0;
 					InvokeContactSolver(time_interval,&m_pWorld->m_vars,Ebefore, pContacts,nContacts);
 					for(i=0;i<m_nColliders;i++) if (m_pColliders[i]->m_iSimClass>2)
-						Eafter += m_pColliders[i]->CalcEnergy(0.0f);
+						Eafter += m_pColliders[i]->CalcEnergy(0);
 					if (Eafter>Ebefore)
 						damping = sqrt_tpl(Ebefore/Eafter);
 					for(entity_contact *pContact=m_pContact; pContact; pContact=pContact->next)	for(j=0;j<2;j++) 
@@ -1438,10 +1438,11 @@ inline bool skip_vtx(rope_vtx *pvtx) {
 	return is_unused(pvtx[0].ncontact) || !(pvtx[0].pt-pvtx[-1].pt).len2() || ((pvtx[-1].dir-pvtx[0].dir)*pvtx[0].ncontact)*pvtx[0].dP<=0;
 }
 
-void CRopeEntity::ZeroLengthStraighten(float time_interval)
+void CRopeEntity::ZeroLengthStraighten(const CTimeValue& time_interval)
 {
 	int i,j,iseg,jseg,imin=-1,imax=-1;//,nVtx,nSegs,nExtraSegs,nExtraSegsCur;
-	float len,seglen,rdt=1.0f/time_interval;//,rseglen,curlen;
+	float len, seglen;
+	rTime rdt = 1 / time_interval;
 	if (!(m_flags & rope_subdivide_segs))
 		return;
 	if (!m_bContactsRegistered)
@@ -1464,7 +1465,7 @@ void CRopeEntity::ZeroLengthStraighten(float time_interval)
 		end0 += (seglen-end0)*iszero(m_segs[iseg].iVtx0-i);
 		int i0=max(i+1,m_segs[iseg].iVtx0), i1=min(j-1,m_segs[jseg].iVtx0), imid=-1;
 		for(int ivtx=i0; ivtx<=i1; ivtx++,end0+=seglen) {
-			m_vtx[ivtx].vel = (m_vtx[i].pt+dir*end0 - m_vtx[ivtx].pt)*rdt;
+			m_vtx[ivtx].vel = (m_vtx[i].pt+dir*end0 - m_vtx[ivtx].pt)*BADF rdt;
 			m_vtx[ivtx].vcontact.zero();
 			for(; m_segs[iseg].iVtx0<ivtx; iseg++);
 			imid += iseg+1 & -(iszero(m_segs[iseg].iVtx0-ivtx) & iszero(m_segs[iseg+1].iVtx0-ivtx-1) & isneg(ivtx-i1) & isneg(i0-ivtx)) & imid>>31;
@@ -1488,7 +1489,7 @@ void CRopeEntity::ZeroLengthStraighten(float time_interval)
 		i=m_segs[imax].iVtx0; memmove(m_vtx+i+2, m_vtx+i+1, (m_nVtx-2-i)*sizeof(m_vtx[0]));
 		memmove(m_segs+imax+2, m_segs+imax+1, (m_nSegs-2-imax)*sizeof(m_segs[0]));
 		for(j=imax+2;j<=m_nSegs;j++) m_segs[j].iVtx0++;
-		m_segs[imax+1].pt=m_vtx[i+1].pt = (m_vtx[i].pt+m_vtx[i+1].pt+(m_vtx[i].vel+m_vtx[i+2].vel)*time_interval)*0.5f;
+		m_segs[imax+1].pt=m_vtx[i+1].pt = (m_vtx[i].pt+m_vtx[i+1].pt+(m_vtx[i].vel+m_vtx[i+2].vel)*time_interval.BADGetSeconds())*0.5f;
 		m_vtx[i+1].vel.zero(); m_vtx[i+1].vcontact.zero(); m_segs[imax+1].vel.zero(); m_segs[imax+1].vcontact.zero();
 		MARK_UNUSED m_vtx[i+1].ncontact; m_segs[imax+1].pContactEnt=0;
 	}
@@ -1543,7 +1544,7 @@ void CRopeEntity::ZeroLengthStraighten(float time_interval)
 	}*/
 }
 
-float CRopeEntity::Solver(float time_interval, float seglen)
+float CRopeEntity::Solver(const CTimeValue& time_interval, float seglen)
 {
 	int i,j,iStart,iter;
 	float E,Ebefore,k;
@@ -1697,13 +1698,13 @@ float CRopeEntity::Solver(float time_interval, float seglen)
 		}
 	} else {
 		for(i=0,E=0;i<=m_nSegs;i++) E += (m_segs[i].pt-m_segs[i].pt0).len2();
-		E /= sqr(time_interval);
+		E /= sqr(time_interval.BADGetSeconds());
 	}
 	return E;
 }
 
 
-void CRopeEntity::ApplyStiffness(float time_interval, int bTargetPoseActive, const quaternionf &qtv,const Vec3 &offstv,float scaletv)
+void CRopeEntity::ApplyStiffness(const CTimeValue& time_interval, int bTargetPoseActive, const quaternionf &qtv,const Vec3 &offstv,float scaletv)
 {
 	int i;
 	Vec3 dv,dw,dir0dst,dir1dst,dir0src,dir1src,axis0src,axis1src,axis0dst,axis1dst,vrel;
@@ -1712,7 +1713,7 @@ void CRopeEntity::ApplyStiffness(float time_interval, int bTargetPoseActive, con
 	if (bTargetPoseActive==1) {
 		for(i=0; i<m_nSegs; i++) {
 			dv = (qtv*m_segs[i+1].ptdst*scaletv+offstv-m_segs[i+1].pt)*m_stiffnessAnim*(1-m_stiffnessDecayAnim*(i+1)*rnSegs);
-			a = max(0.0f, 1-m_dampingAnim*time_interval);
+			a = max(0.0f, 1-m_dampingAnim*time_interval.BADGetSeconds());
 			m_segs[i+1].vel = m_segs[i+1].vel*a + dv*(1-a);
 		}
 	}	else if (bTargetPoseActive==2) {
@@ -1750,9 +1751,9 @@ void CRopeEntity::ApplyStiffness(float time_interval, int bTargetPoseActive, con
 					angleDst -= 2*sgnnz(angleDst-angleSrc)*g_PI;
 				dw -= dir0src*(angleDst-angleSrc);
 				// update m_segs[i+1].vel
-				dv = dw*(m_stiffnessAnim*(1-m_stiffnessDecayAnim*(i+1)*rnSegs)*time_interval) ^ m_segs[i+1].pt-m_segs[i].pt;
+				dv = dw*(m_stiffnessAnim*(1-m_stiffnessDecayAnim*(i+1)*rnSegs)*time_interval.BADGetSeconds()) ^ m_segs[i+1].pt-m_segs[i].pt;
 				vrel = m_segs[i+1].vel-m_segs[i].vel;
-				m_segs[i+1].vel = m_segs[i].vel + vrel*max(0.0f,1.0f-m_dampingAnim*time_interval) + dv;
+				m_segs[i+1].vel = m_segs[i].vel + vrel*max(0.0f,1.0f-m_dampingAnim*time_interval.BADGetSeconds()) + dv;
 			}
 		} else for(i=0;i<=m_nSegs;i++)
 			m_segs[i].pt = qtv*m_segs[i].ptdst*scaletv+offstv;
@@ -1906,8 +1907,11 @@ void CRopeEntity::CheckCollisions(int iDir, SRopeCheckPart *checkParts,int nChec
 		m_segs[i].dir = (m_segs[i+1].pt-m_segs[i].pt).normalized();
 }
 
-int CRopeEntity::Step(float time_interval)
+int CRopeEntity::Step(const CTimeValue& time_intervalIn)
 {
+	CTimeValue time_interval = time_intervalIn;
+	const float tSeconds = time_interval.BADGetSeconds();
+
 	if (m_nSegs<=0 || !m_bAwake)
 		return 1;
 	CRY_PROFILE_FUNCTION(PROFILE_PHYSICS );
@@ -1918,8 +1922,9 @@ int CRopeEntity::Step(float time_interval)
 	int i,j,k,iDir,iEnd,iter,bTargetPoseActive=m_bTargetPoseActive,bGridLocked=0,bHasContacts=0,nCheckParts=0;
 	int collTypes = m_collTypes;
 	Vec3 pos,gravity,dir,ptend[2],sz,BBox[2],ptnew,dv,dw,vrel,dir0,offstv(ZERO),collBBox[2];
-	float diff,a,b,E,rnSegs=1.0f/m_nSegs,rcollDist=0,scaletv=1.0f,ktimeBack,
-				damping=max(0.0f,1.0f-(m_damping-m_dampingAnim*(m_bTargetPoseActive-1>>31))*time_interval);
+	float diff,a,b,E,rnSegs=1.0f/m_nSegs,rcollDist=0,scaletv=1.0f, 
+				damping=max(0.0f,1.0f-(m_damping-m_dampingAnim*(m_bTargetPoseActive-1>>31))*tSeconds);
+	nTime ktimeBack;
 	quaternionf dq,qtv(1,0,0,0),q;
 	RigidBody *pbody,rbody;
 	pe_params_buoyancy pb[4];
@@ -1955,10 +1960,10 @@ int CRopeEntity::Step(float time_interval)
 		return 1;
 	}
 	if (m_pWorld->m_bWorldStep!=2) {
-		if (m_timeStepPerformed>m_timeStepFull-0.001f || m_timeStepPerformed>0 && (m_flags & pef_invisible))
+		if (m_timeStepPerformed>m_timeStepFull-"0.001" || m_timeStepPerformed>0 && (m_flags & pef_invisible))
 			return 1;
 	}	else if (time_interval>0)
-		time_interval = max(0.001f, min(m_timeStepFull-m_timeStepPerformed, time_interval));
+		time_interval = max(CTimeValue("0.001"), min(m_timeStepFull-m_timeStepPerformed, time_interval)); // PERSONAL TODO: More random clamping up/down
 	else
 		return 1;
 
@@ -1988,12 +1993,12 @@ int CRopeEntity::Step(float time_interval)
 			m_pTiedTo[i]->GetLocTransformLerped(m_iTiedPart[i], offstv,qtv,scaletv,ktimeBack, this);
 	}
 
-	if ((m_windTimer+=time_interval*4)>1.0f) {
-		m_windTimer = 0; m_wind0 = m_wind1;
+	if ((m_windTimer+=time_interval*4)>  1) {
+		m_windTimer.SetSeconds(0); m_wind0 = m_wind1;
 		a = m_windVariance*(fabs_tpl(dir.x)+fabs_tpl(dir.y)+fabs_tpl(dir.z));
 		m_wind1 = dir+Vec3(cry_random(0.0f, a)-a*0.5f,cry_random(0.0f, a)-a*0.5f,cry_random(0.0f, a)-a*0.5f);
 	}
-	dw = m_wind0*m_windTimer+m_wind1*(1.0f-m_windTimer);
+	dw = m_wind0*m_windTimer.BADGetSeconds()+m_wind1*(1.0f-m_windTimer.BADGetSeconds());
 	if (bTargetPoseActive && m_segs[0].pContactEnt && m_segs[0].tcontact<0.2f) {
 		//gravity.zero(); dw.zero(); 
 		bTargetPoseActive=0;
@@ -2001,7 +2006,7 @@ int CRopeEntity::Step(float time_interval)
 	}
 
 	if (m_flags & rope_findiff_attached_vel)
-		a = 1.0f/m_timeStepFull;
+		a = 1.0f/m_timeStepFull.BADGetSeconds();
 	for(i=1;i>=0;i--) if (m_pTiedTo[i]) {
 		m_pTiedTo[i]->GetLocTransformLerped(m_iTiedPart[i], pos,q,scale,ktimeBack, this);
 		m_posBody[i][1] = pos; m_qBody[i][1] = q;
@@ -2029,26 +2034,26 @@ int CRopeEntity::Step(float time_interval)
 
 	for(i=(m_pTiedTo[0]!=0),j=m_pTiedTo[1]!=0;i<=m_nSegs-j;i++)	{
 		m_segs[i].pt0 = m_segs[i].pt;
-		ptnew = m_segs[i].pt + m_segs[i].vel*time_interval;
+		ptnew = m_segs[i].pt + m_segs[i].vel*tSeconds;
 		Vec3 ptdst = qtv*m_segs[i].ptdst*scaletv+offstv;
 		if (bTargetPoseActive==1 && (m_stiffnessAnim==0 || (m_segs[i].pt-ptdst)*(ptnew-ptdst)<0 && 
 				(ptnew-ptdst).len2()<sqr(seglen*0.08f)))
 			ptnew = ptdst;
 		m_segs[i].pt = ptnew;
-		m_segs[i].vel += gravity*(time_interval*k);
-		m_segs[i].vel += (dw-m_segs[i].vel)*(min(1.0f,m_airResistance*time_interval)*k);
+		m_segs[i].vel += gravity*(tSeconds*k);
+		m_segs[i].vel += (dw-m_segs[i].vel)*(min(1.0f,m_airResistance*tSeconds)*k);
 		for(iter=0;iter<iEnd;iter++) 
 			if ((diff=((m_segs[i].pt-pb[iter].waterPlane.origin)*pb[iter].waterPlane.n)*(pb[iter].iMedium-1>>31))*k*m_collDist>0) {
 				if (rcollDist==0)
 					rcollDist = 1.0f/m_collDist;
-				m_segs[i].vel += (pb[iter].waterFlow-m_segs[i].vel)*min(1.0f,m_waterResistance*time_interval)-
-													gravity*(pb[iter].waterDensity*m_rdensity*min(1.0f,diff*rcollDist)*time_interval);
+				m_segs[i].vel += (pb[iter].waterFlow-m_segs[i].vel)*min(1.0f,m_waterResistance*tSeconds)-
+													gravity*(pb[iter].waterDensity*m_rdensity*min(1.0f,diff*rcollDist)*tSeconds);
 			}
 	}
 
 	if (m_flags & rope_subdivide_segs && m_nVtx>0) {
 		for(i=0;i<m_nVtx;i++)	
-			m_vtx[i].pt += m_vtx[i].vel*time_interval;
+			m_vtx[i].pt += m_vtx[i].vel*tSeconds;
 		for(i=0;i<m_nSegs;i++) if (m_segs[i+1].iVtx0>m_segs[i].iVtx0+1) {
 			dir0 = (m_vtx[m_segs[i+1].iVtx0].pt-m_vtx[m_segs[i].iVtx0].pt).normalized();
 			for(m_segs[i].ptdst.zero(),j=m_segs[i].iVtx0,b=0; j<m_segs[i+1].iVtx0; j++) {
@@ -2343,7 +2348,7 @@ int CRopeEntity::Step(float time_interval)
 	i = -isneg(E-m_Emin*(m_nSegs+1));
 	int nSlowFrames = m_nSlowFrames;
 	nSlowFrames = (nSlowFrames&i)-i;
-	i = isneg(0.0001f-m_maxTimeIdle); // forceful deactivation is turned on
+	i = isneg(CTimeValue("0.0001")-m_maxTimeIdle); // forceful deactivation is turned on
 	bAwake = (isneg(nSlowFrames-4)|(bTargetPoseActive&1)) & (i^1 | isneg((m_timeIdle+=time_interval*i)-m_maxTimeIdle));
 	if (m_pTiedTo[0] && m_pTiedTo[0]->GetType()==PE_ROPE)
 		bAwake |= m_pTiedTo[0]->IsAwake();
@@ -2371,10 +2376,10 @@ int CRopeEntity::Step(float time_interval)
 	event.pos = m_pos;
 	m_pWorld->OnEvent(m_flags,&event);
 
-	return isneg(m_timeStepFull-m_timeStepPerformed-0.001f);
+	return isneg(m_timeStepFull-m_timeStepPerformed-"0.001");
 }
 
-int CRopeEntity::RegisterContacts(float time_interval,int nMaxPlaneContacts)
+int CRopeEntity::RegisterContacts(const CTimeValue& time_interval,int nMaxPlaneContacts)
 {
 	m_energy = 0;
 	if (!m_bStrained || !m_pTiedTo[0] || !m_pTiedTo[1] || m_penaltyScale==0)
@@ -2489,7 +2494,7 @@ int CRopeEntity::RegisterContacts(float time_interval,int nMaxPlaneContacts)
 							(Body2Rope.q*(pbody[2]->Iinv*(pbody[2]->Tcollision*Body2Rope.q)) ^ m_vtx[i].pt-Body2Rope*pbody[2]->pos));
 			}
 		pContact->nloc.y = 1/kP;
-		pContact->nloc.z = m_maxForce*max(0.01f,time_interval)*1.1f;
+		pContact->nloc.z = m_maxForce*max(0.01f,time_interval.BADGetSeconds())*1.1f;
 
 		pContact->flags = contact_rope | (m_flags & rope_no_tears && m_maxForce>0 ? contact_rope_stretchy : 0);
 		pContact->n = dir0;
@@ -2510,7 +2515,7 @@ int CRopeEntity::RegisterContacts(float time_interval,int nMaxPlaneContacts)
 }
 
 
-int CRopeEntity::Update(float time_interval, float damping)
+int CRopeEntity::Update(const CTimeValue& time_interval, float damping)
 {
 	if (m_bStrained && m_pTiedTo[0] && m_pTiedTo[1]) {
 		int i,j,i0;
@@ -2559,7 +2564,7 @@ int CRopeEntity::Update(float time_interval, float damping)
 					m_vtx[j].pContactEnt->OnContactResolved(m_pContact,i+2,-1);
 			}
 		}
-		if (m_maxForce>0 && len>m_maxForce*max(0.01f,time_interval) && !(m_flags & rope_no_tears)) {
+		if (m_maxForce>0 && len>m_maxForce*max(0.01f,time_interval.BADGetSeconds()) && !(m_flags & rope_no_tears)) {
 			EventPhysJointBroken epjb;
 			epjb.idJoint=0; epjb.bJoint=0; MARK_UNUSED epjb.pNewEntity[0],epjb.pNewEntity[1];
 			epjb.pEntity[0]=epjb.pEntity[1]=this; epjb.pForeignData[0]=epjb.pForeignData[1]=m_pForeignData; 
@@ -2654,7 +2659,7 @@ void CRopeEntity::ApplyVolumetricPressure(const Vec3 &epicenter, float kr, float
 }
 
 
-int CRopeEntity::GetStateSnapshot(CStream &stm,float time_back,int flags)
+int CRopeEntity::GetStateSnapshot(CStream &stm,const CTimeValue& time_back,int flags)
 {
 	ReadLock lock(m_lockUpdate);
 	stm.WriteNumberInBits(SNAPSHOT_VERSION,4);
@@ -2742,7 +2747,7 @@ void CRopeEntity::OnNeighbourSplit(CPhysicalEntity *pentOrig, CPhysicalEntity *p
 }
 
 
-int CRopeEntity::GetStateSnapshot(TSerialize ser, float time_back, int flags)
+int CRopeEntity::GetStateSnapshot(TSerialize ser, const CTimeValue& time_back, int flags)
 {
 	int i;
 	bool bAwake;

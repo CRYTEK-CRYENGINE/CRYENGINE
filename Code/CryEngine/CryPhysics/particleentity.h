@@ -24,16 +24,16 @@ class CParticleEntity : public CPhysicalEntity {
 	virtual void AlertNeighbourhoodND(int mode) { if (m_pColliderToIgnore) m_pColliderToIgnore->Release(); m_pColliderToIgnore=0; }
 
 	enum snapver { SNAPSHOT_VERSION = 3 };
-	virtual int GetStateSnapshot(class CStream &stm,float time_back=0,int flags=0);
+	virtual int GetStateSnapshot(class CStream &stm,const CTimeValue& time_back=0,int flags=0);
 	virtual int SetStateFromSnapshot(class CStream &stm, int flags);
 
-	virtual int GetStateSnapshot(TSerialize ser, float time_back, int flags);
+	virtual int GetStateSnapshot(TSerialize ser, const CTimeValue& time_back, int flags);
 	virtual int SetStateFromSnapshot(TSerialize ser, int flags);
 
-	virtual void StartStep(float time_interval);
-	virtual float GetMaxTimeStep(float time_interval);
-	virtual int Step(float time_interval) { return DoStep(time_interval); }
-	virtual int DoStep(float time_interval,int iCaller=get_iCaller_int());
+	virtual void StartStep(const CTimeValue& time_interval);
+	virtual CTimeValue GetMaxTimeStep(const CTimeValue& time_interval);
+	virtual int Step(const CTimeValue& time_interval) { return DoStep(time_interval); }
+	virtual int DoStep(const CTimeValue& time_interval,int iCaller=get_iCaller_int());
 
 	virtual void DrawHelperInformation(IPhysRenderer *pRenderer, int flags);
 	virtual void GetMemoryStatistics(ICrySizer *pSizer) const;
@@ -49,13 +49,13 @@ class CParticleEntity : public CPhysicalEntity {
 	CPhysicalEntity *m_pColliderToIgnore;
 	int m_collTypes;
 	Vec3 m_slide_normal;
-	float m_timeSurplus;
+	CTimeValue m_timeSurplus;
 	float m_depth;
 	Vec3 m_velMedium;
 	
-	float m_timeStepPerformed,m_timeStepFull;
-	float m_timeForceAwake;
-	float m_sleepTime;
+	CTimeValue m_timeStepPerformed,m_timeStepFull;
+	CTimeValue m_timeForceAwake;
+	CTimeValue m_sleepTime;
 
 	unsigned int m_areaCheckPeriod : 8;
 	unsigned int m_nStepCount : 8;

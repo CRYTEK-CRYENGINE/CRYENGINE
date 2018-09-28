@@ -43,7 +43,7 @@ CTetrLattice::CTetrLattice(IPhysicalWorld *pWorld)
 	, m_flags(0)
 	, m_maxTension(0.0f)
 	, m_imaxTension(LPush)
-	, m_lastImpulseTime(-1.0f)
+	, m_lastImpulseTime(-1)
 	, m_pGridTet0(nullptr)
 	, m_pGrid(nullptr)
 {
@@ -71,7 +71,7 @@ CTetrLattice::CTetrLattice(CTetrLattice *src, int bCopyData)
 	, m_flags(src->m_flags)
 	, m_maxTension(0)
 	, m_imaxTension(LPush)
-	, m_lastImpulseTime(-1.0f)
+	, m_lastImpulseTime(-1)
 	, m_RGrid(src->m_RGrid)
 	, m_posGrid(src->m_posGrid)
 	, m_stepGrid(src->m_stepGrid)
@@ -359,7 +359,7 @@ void CTetrLattice::Subtract(IGeometry *pGeom, const geom_world_data *pgwd1,const
 }
 
 
-int CTetrLattice::CheckStructure(float time_interval,const Vec3 &gravity, const plane *pGround,int nPlanes, pe_explosion *pexpl, 
+int CTetrLattice::CheckStructure(const CTimeValue& time_interval,const Vec3 &gravity, const plane *pGround,int nPlanes, pe_explosion *pexpl,
 																 int maxIters,int bLogTension)
 {
 	CRY_PROFILE_FUNCTION(PROFILE_PHYSICS );
@@ -367,7 +367,8 @@ int CTetrLattice::CheckStructure(float time_interval,const Vec3 &gravity, const 
 	int i,j,nTets=0,nFaces=0,iter;
 	Vec3 pt,dw0,dw1,n;
 	real pAp,a,b,r2=0,r2new;
-	float e,vmax,t2=sqr(time_interval),area2,Pn,Ln,nlen2;
+	float e,vmax,area2,Pn,Ln,nlen2;
+	float t2 = sqr(time_interval).BADGetSeconds();
 	Matrix33 rmtx;
 	quotientf tens,tensMax;
 	SCGTetr *pTet0,*pTet1;
@@ -684,7 +685,7 @@ void CTetrLattice::Split(CTriMesh **pChunks,int nChunks, CTetrLattice **pLattice
 }
 
 
-int CTetrLattice::AddImpulse(const Vec3 &pt, const Vec3 &impulse,const Vec3 &momentum, const Vec3& gravity,float worldTime)
+int CTetrLattice::AddImpulse(const Vec3 &pt, const Vec3 &impulse,const Vec3 &momentum, const Vec3& gravity,const CTimeValue& worldTime)
 {
 	int i,bCheckStructure=0;
 	Vec3 ptloc;

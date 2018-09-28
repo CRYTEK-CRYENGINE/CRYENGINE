@@ -44,9 +44,9 @@ CWheeledVehicleEntity::CWheeledVehicleEntity(CPhysicalWorld *pworld, IGeneralMem
 	, m_bKeepTractionWhenTilted(0)
 	, m_kSteerToTrack(0.0f)
 	, m_EminVehicle(sqr(0.05f))
-	, m_maxAllowedStepVehicle(0.02f)
+	, m_maxAllowedStepVehicle("0.02")
 	, m_dampingVehicle(0.01f)
-	, m_timeNoContacts(10.0f)
+	, m_timeNoContacts(10)
 	, m_lockVehicle(0)
 	, m_pullTilt(0.0f)
 	, m_drivingTorque(0.0f)
@@ -276,7 +276,7 @@ int CWheeledVehicleEntity::Action(pe_action *_action, int bThreadSafe)
 		else*/ if (_action->type==pe_action_reset::type_id) {
 			for(int i=0;i<m_nParts-m_nHullParts;i++) 
 				m_susp[i].w=m_susp[i].wa=m_susp[i].T=0;
-			m_enginePedal = 0; m_timeNoContacts = 10.0f;
+			m_enginePedal = 0; m_timeNoContacts.SetSeconds(10);
 		}
 		return res;
 	}
@@ -340,12 +340,12 @@ int CWheeledVehicleEntity::Action(pe_action *_action, int bThreadSafe)
 		//if (m_bHandBrake)
 		//	m_enginePedal = 0;
 		if ((m_enginePedal!=0 || !m_bHandBrake && bPrevHandBrake) && !m_bAwake) {
-			m_bAwake=1;	m_minAwakeTime = max(m_minAwakeTime,1.0f);
+			m_bAwake=1;	m_minAwakeTime = max(m_minAwakeTime,CTimeValue(1));
 			if (m_iSimClass<2) {
 				m_iSimClass = 2; m_pWorld->RepositionEntity(this, 2);
 			}
 		}
-		m_timeIdle = 0;
+		m_timeIdle.SetSeconds(0);
 	}
 
 	return 0;
@@ -711,7 +711,7 @@ void CWheeledVehicleEntity::ComputeBBox(Vec3 *BBox, int flags)
 }
 
 
-void CWheeledVehicleEntity::CheckAdditionalGeometry(float time_interval)
+void CWheeledVehicleEntity::CheckAdditionalGeometry(const CTimeValue& time_interval)
 {
 	CRY_PROFILE_FUNCTION(PROFILE_PHYSICS );
 
@@ -782,7 +782,7 @@ void CWheeledVehicleEntity::CheckAdditionalGeometry(float time_interval)
 	for(i=0,bHasContacts=m_nContacts;i<m_nParts-m_nHullParts;i++)
 		bHasContacts += m_susp[i].bContact;
 
-	bFakeInnerWheels = isneg((m_flags & wwef_fake_inner_wheels)*(0.001f-m_maxTimeIdle));
+	bFakeInnerWheels = isneg((m_flags & wwef_fake_inner_wheels)*(CTimeValue("0.001")-m_maxTimeIdle));
 	if (bFakeInnerWheels) for(iwheel=0;iwheel<m_nParts-m_nHullParts;iwheel++) if (m_susp[iwheel].fullen>0) {
 		j = isneg(m_susp[iwheel].pt.x);
 		iwMiny[j] += iwheel+1 & iwMiny[j]>>31;
@@ -836,7 +836,7 @@ void CWheeledVehicleEntity::CheckAdditionalGeometry(float time_interval)
 			gwd[0].v = m_body.v + (m_body.w ^ m_qrot*m_susp[iwheel].pos+m_posNew-m_body.pos); 
 			gwd[0].w = m_body.w;
 			gwd[0].centerOfMass = m_body.pos;
-			ip.time_interval = time_interval*1.4f;
+			ip.time_interval = time_interval.BADGetSeconds()*1.4f;
 		}
 		Vec3 partBBox[2];
 
@@ -924,7 +924,7 @@ void CWheeledVehicleEntity::CheckAdditionalGeometry(float time_interval)
 					max(0.0f,(tmax-m_pWorld->m_vars.maxContactGap))*m_pWorld->m_vars.unprojVelScale*2);
 			}
 		}
-		m_susp[iwheel].curlen = min(newlen, m_susp[iwheel].curlen+time_interval*7.0f);
+		m_susp[iwheel].curlen = min(newlen, m_susp[iwheel].curlen+time_interval.BADGetSeconds()*7.0f);
 		m_susp[iwheel].pos.z += m_susp[iwheel].fullen-m_susp[iwheel].curlen;
 		m_parts[iwheel+m_nHullParts].pos = m_susp[iwheel].pos;
 	}
@@ -979,7 +979,7 @@ void CWheeledVehicleEntity::CheckAdditionalGeometry(float time_interval)
 }*/
 
 
-float CWheeledVehicleEntity::ComputeDrivingTorque(float time_interval)
+float CWheeledVehicleEntity::ComputeDrivingTorque(const CTimeValue& time_interval)
 {
 	if (m_nGears==0) return 0.f;
 
@@ -1001,9 +1001,9 @@ float CWheeledVehicleEntity::ComputeDrivingTorque(float time_interval)
 
 	if (m_iCurGear!=1) {
 		if (m_clutch>0)
-			m_wengine += (wwheel-m_wengine)*(m_clutchSpeed*2*time_interval);
+			m_wengine += (wwheel-m_wengine)*(m_clutchSpeed*2*time_interval.BADGetSeconds());
 		if (fabs_tpl(m_wengine)>m_engineMinw) {//m_enginePedal!=0) {
-			m_clutch += time_interval*m_clutchSpeed;
+			m_clutch += time_interval.BADGetSeconds()*m_clutchSpeed;
 			if (m_clutch>1.0f)
 				m_clutch=1.0f, m_wengine=wwheel; // ful clutch
 		}
@@ -1058,8 +1058,10 @@ int g_iwhist=0,g_checksum[NH],g_ncompare=0,g_bstartcompare=0,g_histinit=0,g_iwhi
 int g_forcepedal = 0;*/
 
 
-void CWheeledVehicleEntity::AddAdditionalImpulses(float time_interval)
+void CWheeledVehicleEntity::AddAdditionalImpulses(const CTimeValue& time_interval)
 {
+	const float tSeconds = time_interval.BADGetSeconds();
+
 	int i,j,/*idx[NMAXWHEELS],nContacts,*/bAllSlip=1,iDriver[2],bContact[2],iside;//,i1,j1,nfr=0,nfr1,slide[16];
 	float fN,friction,kLatFriction,Npull,N,fpull,driving_torque=0,minfric,maxfric,wengine,wground,wground_avg[2],Npull_tot[2];
 	int iCaller = get_iCaller_int();
@@ -1100,7 +1102,7 @@ void CWheeledVehicleEntity::AddAdditionalImpulses(float time_interval)
 			if (T0.x*T0.y*m_susp[i].T>0 && fabsf(m_susp[i].T*T0.y)>fabsf(T0.x))
 				m_susp[i].T = T0.val();
 		}*/
-		m_susp[i].prevTdt = m_susp[i].T*time_interval;
+		m_susp[i].prevTdt = m_susp[i].T*tSeconds;
 		m_susp[i].prevw = m_susp[i].w;
 		if (m_susp[i].bDriving)	{      
       float t = driving_torque;
@@ -1116,7 +1118,7 @@ void CWheeledVehicleEntity::AddAdditionalImpulses(float time_interval)
 			m_susp[i].w = 0;
 		bAllSlip &= m_susp[i].bSlipPull|m_susp[i].bDriving^1;
 		m_susp[i].bSlipPull = m_susp[i].bContact^1;
-		m_susp[i].rot += m_susp[i].w*time_interval;
+		m_susp[i].rot += m_susp[i].w*tSeconds;
 		if (m_susp[i].rot>2*g_PI) m_susp[i].rot-=2*g_PI;
 		if (m_susp[i].rot<-2*g_PI) m_susp[i].rot+=2*g_PI;
 	}
@@ -1132,7 +1134,7 @@ void CWheeledVehicleEntity::AddAdditionalImpulses(float time_interval)
 			fN -= m_susp[i].vworld*m_susp[i].kDamping;
 			if (m_susp[i].iBuddy>=0 && m_kStabilizer>0)
 				fN -= (m_susp[i].curlen-m_susp[m_susp[i].iBuddy].curlen)*m_susp[i].kStiffness*m_kStabilizer;
-			m_susp[i].PN = max(0.0f,fN*time_interval);
+			m_susp[i].PN = max(0.0f,fN*tSeconds);
 			dP = axisz*m_susp[i].PN; Pexp += dP; Lexp += m_susp[i].rworld^dP;
 //			idx[nContacts++] = i;
 		}
@@ -1249,13 +1251,13 @@ void CWheeledVehicleEntity::AddAdditionalImpulses(float time_interval)
 			kLatFriction = 1.0f;
 		} else {
 			ptc = R*(m_susp[i].ptc0-Vec3(0,0,m_susp[i].curlen-m_susp[i].len0))+m_posNew - m_body.pos;
-			fpull = m_susp[i].T*m_susp[i].rinv*time_interval;
+			fpull = m_susp[i].T*m_susp[i].rinv*tSeconds;
 			if (isneg(fabs_tpl(Npull)-fabs_tpl(fpull)) & m_susp[i].bDriving) {
 				m_susp[i].bSlipPull = 1;
 				fpull = sgn(fpull)*Npull;
 				if (m_gears[m_iCurGear]*m_enginePedal>0) {
 					float wengineLoc = wengine*(m_steer*m_susp[i].pt.x>0 ? fabs_tpl(max(-1.0f,1.0f-fabs_tpl(m_steer*m_kSteerToTrack))) : 1.0f);
-					m_susp[i].w = m_susp[i].w*(1-time_interval*4)+wengineLoc*time_interval*4;
+					m_susp[i].w = m_susp[i].w*(1- tSeconds *4)+wengineLoc* tSeconds *4;
 					fpull *= isneg(wground*wengineLoc-sqr(wengineLoc)*0.9f);
 				} else
 					m_susp[i].w = wground;
@@ -1310,7 +1312,7 @@ void CWheeledVehicleEntity::AddAdditionalImpulses(float time_interval)
 		nfr += isneg(m_body.M*1E-6f*frmax[nfr].y-frmax[nfr].x);
 		m_susp[i].bSlip = 0;*/
 	} else if (bAllSlip)
-		m_susp[i].w += m_susp[i].T*m_susp[i].Iinv*time_interval;
+		m_susp[i].w += m_susp[i].T*m_susp[i].Iinv*tSeconds;
 
 	if (m_kSteerToTrack!=0) for(i=0;i<m_nParts-m_nHullParts;i++) {
 		m_susp[i].w = m_susp[iDriver[iside = isneg(m_susp[i].pt.x)]].w;
@@ -1443,7 +1445,7 @@ void CWheeledVehicleEntity::AddAdditionalImpulses(float time_interval)
 	}*/
 }
 
-int CWheeledVehicleEntity::RegisterContacts(float time_interval,int nMaxPlaneContacts)
+int CWheeledVehicleEntity::RegisterContacts(const CTimeValue& time_interval,int nMaxPlaneContacts)
 {
 	EventPhysCollision epc;
 	epc.pEntity[0]=this; epc.pForeignData[0]=m_pForeignData; epc.iForeignData[0]=m_iForeignData;
@@ -1486,20 +1488,20 @@ void CWheeledVehicleEntity::OnContactResolved(entity_contact *pcontact, int iop,
 }
 
 
-float CWheeledVehicleEntity::GetMaxTimeStep(float time_interval) 
+CTimeValue CWheeledVehicleEntity::GetMaxTimeStep(const CTimeValue& time_interval) 
 {
 	m_maxAllowedStep = m_bHasContacts ? m_maxAllowedStepRigid : m_maxAllowedStepVehicle;
-	m_maxAllowedStep *= 1.0f-0.25f*(-((int)m_flags & pef_invisible)>>31);
+	m_maxAllowedStep *= 1-mpfloat("0.25")*(-((int)m_flags & pef_invisible)>>31);
 	return CRigidEntity::GetMaxTimeStep(time_interval);
 }
 
 
-float CWheeledVehicleEntity::GetDamping(float time_interval)
+float CWheeledVehicleEntity::GetDamping(const CTimeValue& time_interval)
 {
-	return m_bHasContacts ? CRigidEntity::GetDamping(time_interval) : max(0.0f,1.0f-m_dampingVehicle*time_interval);
+	return m_bHasContacts ? CRigidEntity::GetDamping(time_interval) : max(0.0f,1.0f-m_dampingVehicle*time_interval.BADGetSeconds());
 }
 
-float CWheeledVehicleEntity::CalcEnergy(float time_interval)
+float CWheeledVehicleEntity::CalcEnergy(const CTimeValue& time_interval)
 {
 	float E=0;
 	for(int i=0;i<m_nParts-m_nHullParts;i++)
@@ -1535,16 +1537,16 @@ int CWheeledVehicleEntity::RemoveCollider(CPhysicalEntity *pCollider, bool bRemo
 }
 
 
-int CWheeledVehicleEntity::Update(float time_interval, float damping)
+int CWheeledVehicleEntity::Update(const CTimeValue& time_interval, float damping)
 {
 	if (m_nContacts)
-		m_timeNoContacts = 0;
+		m_timeNoContacts.SetSeconds(0);
 	else 
 		m_timeNoContacts += time_interval;
 	int i,bWheelContact=0;
 	for(i=0;i<m_nParts-m_nHullParts;i++) 
 		bWheelContact |= m_susp[i].bContact;
-	m_bHasContacts = isneg(m_timeNoContacts-0.5f);
+	m_bHasContacts = isneg(m_timeNoContacts-"0.5");
 	m_Emin = (m_bHasContacts|bWheelContact^1) ? m_EminRigid : m_EminVehicle;
 
 	CRigidEntity::Update(time_interval, damping);
@@ -1604,11 +1606,11 @@ int CWheeledVehicleEntity::Update(float time_interval, float damping)
 		g_iwhist = g_iwhist+1 & NH-1;
 	}*/
 
-	return (m_bAwake^1) | isneg(m_timeStepFull-m_timeStepPerformed-0.001f) | iszero(m_enginePedal+(~m_flags & pef_invisible));
+	return (m_bAwake^1) | isneg(m_timeStepFull-m_timeStepPerformed-"0.001") | iszero(m_enginePedal+(~m_flags & pef_invisible));
 }
 
 
-int CWheeledVehicleEntity::GetStateSnapshot(CStream &stm, float time_back, int flags)
+int CWheeledVehicleEntity::GetStateSnapshot(CStream &stm, const CTimeValue& time_back, int flags)
 {
 	CRigidEntity::GetStateSnapshot(stm,time_back,flags);
 
@@ -1716,7 +1718,7 @@ void SWheeledVehicleEntityNetSerialize::Serialize( TSerialize ser, int nSusp )
 	ser.Value("curGear", curGear, 'pGr');
 }
 
-int CWheeledVehicleEntity::GetStateSnapshot(TSerialize ser, float time_back, int flags)
+int CWheeledVehicleEntity::GetStateSnapshot(TSerialize ser, const CTimeValue& time_back, int flags)
 {
 	SWheeledVehicleEntityNetSerialize helper = {
 		m_susp,

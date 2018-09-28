@@ -44,13 +44,13 @@ CParticleEntity::CParticleEntity(CPhysicalWorld *pWorld, IGeneralMemoryHeap* pHe
 	, m_pColliderToIgnore(nullptr)
 	, m_collTypes(ent_all)
 	, m_slide_normal(0.0f, 0.0f, 1.0f)
-	, m_timeSurplus(0.0f)
+	, m_timeSurplus(0)
 	, m_depth(0.0f)
 	, m_velMedium(ZERO)
-	, m_timeStepPerformed(0.0f)
-	, m_timeStepFull(0.0f)
-	, m_timeForceAwake(0.0f)
-	, m_sleepTime(0.0f)
+	, m_timeStepPerformed(0)
+	, m_timeStepFull(0)
+	, m_timeForceAwake(0)
+	, m_sleepTime(0)
 	, m_areaCheckPeriod(6)
 	, m_nStepCount(0)
 	, m_bHadCollisions(0)
@@ -225,13 +225,13 @@ int CParticleEntity::GetParams(pe_params *_params) const
 }
 
 
-int CParticleEntity::GetStateSnapshot(CStream &stm, float time_back, int flags)
+int CParticleEntity::GetStateSnapshot(CStream &stm, const CTimeValue& time_back, int flags)
 {
 	ReadLock lock0(m_lockUpdate),lock1(m_lockParticle);
 	stm.WriteNumberInBits(SNAPSHOT_VERSION, 4);
 	if (m_pWorld->m_vars.bMultiplayer) {
 		if (!IsAwake()) {
-			if (m_sleepTime>5.0f)
+			if (m_sleepTime>5)
 				stm.Write(false);
 			else {
 				stm.Write(true);
@@ -344,7 +344,7 @@ int CParticleEntity::SetStateFromSnapshot(CStream &stm, int flags)
 }
 
 
-int CParticleEntity::GetStateSnapshot(TSerialize ser, float time_back, int flags)
+int CParticleEntity::GetStateSnapshot(TSerialize ser, const CTimeValue& time_back, int flags)
 {
 	if (ser.GetSerializationTarget()==eST_Network)
 	{
@@ -478,14 +478,14 @@ int CParticleEntity::IsAwake(int ipart) const
 }
 
 
-void CParticleEntity::StartStep(float time_interval)
+void CParticleEntity::StartStep(const CTimeValue& time_interval)
 {
-	m_timeStepPerformed = 0;
+	m_timeStepPerformed.SetSeconds(0);
 	m_timeStepFull = time_interval;
 }
-float CParticleEntity::GetMaxTimeStep(float time_interval)
+CTimeValue CParticleEntity::GetMaxTimeStep(const CTimeValue& time_interval)
 {
-	if (m_timeStepPerformed > m_timeStepFull-0.001f)
+	if (m_timeStepPerformed > m_timeStepFull-"0.001")
 		return time_interval;
 	return min_safe(m_timeStepFull-m_timeStepPerformed,time_interval);
 }
@@ -505,8 +505,11 @@ float CParticleEntity::GetMaxTimeStep(float time_interval)
 
 int g_retest=0;*/
 
-int CParticleEntity::DoStep(float time_interval, int iCaller)
+int CParticleEntity::DoStep(const CTimeValue& time_intervalIn, int iCaller)
 {
+	CTimeValue time_interval = time_intervalIn;
+	const float tSeconds = time_interval.BADGetSeconds();
+
 	static ray_hit _hits[MAX_PHYS_THREADS+1][8];
   ray_hit (&hits)[8] = _hits[get_iCaller()];
 	pe_action_impulse ai;
@@ -528,15 +531,15 @@ int CParticleEntity::DoStep(float time_interval, int iCaller)
 	} else {
 		gravity = m_gravity; kAirResistance = m_kAirResistance;
 	}
-	if (min(m_timeStepPerformed-m_timeStepFull+0.0001f,m_timeStepFull)>0)
-		time_interval = 0.0001f;
+	if (min(m_timeStepPerformed-m_timeStepFull+"0.0001",m_timeStepFull)>0) // PERSONAL TODO: All these hardcoded clamps/approximations, why??
+		time_interval.SetSeconds("0.0001");
 	m_timeStepPerformed += time_interval;
 
 	if (m_pColliderToIgnore && m_pColliderToIgnore->m_iSimClass==7)
 		m_pColliderToIgnore = 0;
 
   if (m_timeSurplus==0)
-    m_timeSurplus=1;
+    m_timeSurplus.SetSeconds(1);
 
 	if (IsAwake()) {
 		CRY_PROFILE_FUNCTION(PROFILE_PHYSICS );
@@ -546,9 +549,9 @@ int CParticleEntity::DoStep(float time_interval, int iCaller)
 		pos=pos0 = m_pos; vel=vel0 = m_vel;
 		heading = m_heading; slide_normal = m_slide_normal;
 		if (!m_bSliding)
-			vel0 += gravity*time_interval*0.5f;
+			vel0 += gravity* tSeconds*0.5f;
 		flags = m_flags;
-		pos += vel0*time_interval;
+		pos += vel0* tSeconds;
 		m_bRecentCollisions = max(0,(int)m_bRecentCollisions-1);
 
 		if (m_bSliding && m_iPierceability<=sf_max_pierceable) {
@@ -571,14 +574,14 @@ int CParticleEntity::DoStep(float time_interval, int iCaller)
 						friction = min(1.0f,friction); // limit sliding friction on slopes
 					vn = hits[0].n*vel0; vtang = vel0-hits[0].n*vn; vtang_len = vtang.len(); rvtang_len = vtang_len>1e-4 ? 1.0f/vtang_len:0;
 					vel = vel0 = sd.v + hits[0].n*max(0.0f,vn) + 
-						vtang*(max(0.0f,vtang_len-max(0.0f,-(vn+(m_gravity*hits[0].n)*time_interval))*friction)*rvtang_len);
+						vtang*(max(0.0f,vtang_len-max(0.0f,-(vn+(m_gravity*hits[0].n)*tSeconds))*friction)*rvtang_len);
 					m_wspin.zero(); m_qspin.SetIdentity();
 					if (!(m_flags & particle_constant_orientation) && m_normal.len2()>0.0f)
 						(qrot = Quat::CreateRotationV0V1(qrot*m_normal,hits[0].n)*qrot).Normalize();
 					flags |= particle_constant_orientation;
 				} else {
 					friction = m_pWorld->m_FrictionTable[m_surface_idx&NSURFACETYPES-1];
-					vel0 = vel = sd.v+(vel0-slide_normal*(vel0*slide_normal))*max(0.0f,1.0f-time_interval*friction);
+					vel0 = vel = sd.v+(vel0-slide_normal*(vel0*slide_normal))*max(0.0f,1.0f- tSeconds *friction);
 					m_wspin = slide_normal^(vel-sd.v)*m_rdim;
 					if (m_rollax.len2()>0.0f && m_wspin.len2()>1e-20f)
 						(m_qspin = Quat::CreateRotationV0V1(m_qspin*m_rollax,m_wspin.normalized())*m_qspin).Normalize();
@@ -587,7 +590,7 @@ int CParticleEntity::DoStep(float time_interval, int iCaller)
 					gravity.zero();
 				else
 					gravity -= slide_normal*(slide_normal*gravity);
-				m_bForceAwake = ((CPhysicalEntity*)hits[0].pCollider)->m_iSimClass<=2 || m_timeForceAwake>40.0f ? 2:1;
+				m_bForceAwake = ((CPhysicalEntity*)hits[0].pCollider)->m_iSimClass<=2 || m_timeForceAwake>40 ? 2:1;
 			} else {
 				m_bSliding = 0;
 				if (!(m_flags & particle_constant_orientation)) {
@@ -598,18 +601,18 @@ int CParticleEntity::DoStep(float time_interval, int iCaller)
 		}
 		
 		vel += (gravity + heading*m_accThrust + (m_velMedium-vel)*kAirResistance +
-			(heading^(heading^m_gravity)).normalize()*(m_kAccLift*vel.len()))*time_interval;
+			(heading^(heading^m_gravity)).normalize()*(m_kAccLift*vel.len()))*tSeconds;
 		(heading=vel).normalize();
 
 		if (!(flags & particle_constant_orientation)) {
 			if (!(m_flags & particle_no_spin)) {
-				if (m_wspin.len2()*sqr(time_interval)<0.1f*0.1f) {
-					m_qspin.w	-= (m_wspin*m_qspin.v)*time_interval*0.5f;
-					m_qspin.v += ((m_wspin^m_qspin.v)+m_wspin*m_qspin.w)*(time_interval*0.5f);
+				if (m_wspin.len2()*sqr(tSeconds)<0.1f*0.1f) {
+					m_qspin.w	-= (m_wspin*m_qspin.v)*tSeconds*0.5f;
+					m_qspin.v += ((m_wspin^m_qspin.v)+m_wspin*m_qspin.w)*(tSeconds*0.5f);
 					// m_qspin += quaternionf(0,m_wspin*0.5f)*m_qspin*time_interval;
 				}	else {
 					float wlen = m_wspin.len();
-					m_qspin = Quat::CreateRotationAA(wlen*time_interval,m_wspin/wlen)*m_qspin;
+					m_qspin = Quat::CreateRotationAA(wlen*tSeconds,m_wspin/wlen)*m_qspin;
 				}
 				m_qspin.Normalize();
 			} else
@@ -790,7 +793,7 @@ int CParticleEntity::DoStep(float time_interval, int iCaller)
 					qrot = Quat::CreateRotationV0V1(qrot*m_normal,hits[0].n)*qrot;
 			} else {
 				vel_next = vel + (gravity + heading*m_accThrust - vel*kAirResistance +
-					(heading^(heading^m_gravity)).normalize()*(m_kAccLift*vel.len()))*time_interval;
+					(heading^(heading^m_gravity)).normalize()*(m_kAccLift*vel.len()))*tSeconds;
 				if ((vel_next*hits[0].n)*j < (m_minVel+0.001f)*j) {
 					if (m_dim!=m_dimLying)
 						pos = hits[0].pt+hits[0].n*m_dimLying;
@@ -806,11 +809,11 @@ int CParticleEntity::DoStep(float time_interval, int iCaller)
 			}
 			vel += sd.v;
 
-			m_bForceAwake = hits[0].n.z>0.7f && (((CPhysicalEntity*)hits[0].pCollider)->m_iSimClass<=2 || m_timeForceAwake>40.0f) ? 2:1;
+			m_bForceAwake = hits[0].n.z>0.7f && (((CPhysicalEntity*)hits[0].pCollider)->m_iSimClass<=2 || m_timeForceAwake>40) ? 2:1;
 		}
 		i = m_bForceAwake & 1;
 		m_timeForceAwake = m_timeForceAwake*i + time_interval*i;
-		m_sleepTime = 0;
+		m_sleepTime.SetSeconds(0);
 
 		Vec3 BBox[2];
 		int bGridLocked = 0;

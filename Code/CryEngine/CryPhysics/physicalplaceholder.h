@@ -67,21 +67,21 @@ public:
 	virtual void *GetForeignData(int itype=0) const { return m_iForeignData==itype ? m_pForeignData : 0; }
 	virtual int GetiForeignData() const { return m_iForeignData; }
 
-	virtual int GetStateSnapshot(class CStream &stm, float time_back=0, int flags=0);
-	virtual int GetStateSnapshot(TSerialize ser, float time_back=0, int flags=0);
+	virtual int GetStateSnapshot(class CStream &stm, const CTimeValue& time_back=0, int flags=0);
+	virtual int GetStateSnapshot(TSerialize ser, const CTimeValue& time_back=0, int flags=0);
 	virtual int SetStateFromSnapshot(class CStream &stm, int flags=0);
 	virtual int SetStateFromSnapshot(TSerialize ser, int flags=0);
 	virtual int SetStateFromTypedSnapshot(TSerialize ser, int type, int flags=0);
 	virtual int PostSetStateFromSnapshot();
-	virtual int GetStateSnapshotTxt(char *txtbuf,int szbuf, float time_back=0);
+	virtual int GetStateSnapshotTxt(char *txtbuf,int szbuf, const CTimeValue& time_back=0);
 	virtual void SetStateFromSnapshotTxt(const char *txtbuf,int szbuf);
 	virtual unsigned int GetStateChecksum();
 	virtual void SetNetworkAuthority(int authoritive, int paused);
 
-	virtual void StartStep(float time_interval);
-	virtual int Step(float time_interval);
-	virtual int DoStep(float time_interval,int iCaller) { return 1; }
-	virtual void StepBack(float time_interval);
+	virtual void StartStep(const CTimeValue& time_interval);
+	virtual int Step(const CTimeValue& time_interval);
+	virtual int DoStep(const CTimeValue& time_interval,int iCaller) { return 1; }
+	virtual void StepBack(const CTimeValue& time_interval);
 	virtual IPhysicalWorld *GetWorld() const;
 
 	virtual void GetMemoryStatistics(ICrySizer *pSizer) const {};

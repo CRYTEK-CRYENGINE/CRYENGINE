@@ -102,10 +102,11 @@ inline Quat w_dt(const Vec3 &w, float dt) {
 	return Quat(cosha, w*(sinha/wlen));
 }
 
-void RigidBody::Step(float dt)
+void RigidBody::Step(const CTimeValue& dtIn)
 {
 	UpdateState();	
 
+	float dt = dtIn.BADGetSeconds();
 	pos += v*dt;
 
 	float E0 = 0;
@@ -404,7 +405,7 @@ real ComputeRc(RigidBody *body0, entity_contact **pContacts, int nAngContacts,in
 }
 
 
-void InitContactSolver(float time_interval)
+void InitContactSolver(const CTimeValue& time_interval)
 {
 	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Physics, 0, "Physics Contact Solver");
 
@@ -927,7 +928,7 @@ void UpdateBodies(int iCaller, SEntityGrid *pgrid=nullptr)
 }
 
 
-int InvokeContactSolver(float time_interval, SolverSettings *pss, float Ebefore, entity_contact **&pContactsOut,int &nContactsOut)
+int InvokeContactSolver(const CTimeValue& time_interval, SolverSettings *pss, float Ebefore, entity_contact **&pContactsOut,int &nContactsOut)
 {
 	CRY_PROFILE_FUNCTION(PROFILE_PHYSICS );
 
@@ -938,7 +939,7 @@ int InvokeContactSolver(float time_interval, SolverSettings *pss, float Ebefore,
 	RigidBody *body0,*body1;
 	rope_solver_vtx *prope;
 	Vec3 r0,r1,n,dp,dP;
-	float vrel,Eafter,dPn,dPtang,rtime_interval=1/time_interval;
+	float vrel,Eafter,dPn,dPtang,rtime_interval=1/time_interval.BADGetSeconds();
 	float e = pss->accuracyMC;
 	Matrix33 Ctmp;
 	buddy_info *pbuddy0,*pbuddy1;
@@ -1733,6 +1734,8 @@ __solver_step++;
 					}
 				}
 
+				const float tSeconds = time_interval.BADGetSeconds();
+
 				// update bodies' positions with v_unproj*dt,w_unproj*dt
 				for(i=0; i<nBodies; i++) {
 					j = g_pBodies[i]->bProcessed[iCaller];
@@ -1741,13 +1744,13 @@ __solver_step++;
 					g_pBodies[i]->Eunproj = (g_infos[j].v_unproj.len2()+(g_infos[j].w_unproj*L)*g_pBodies[i]->Minv)*0.5f;
 					if (g_pBodies[i]->Eunproj>0) {
 						if (!pss->bCGUnprojVel) {
-							g_pBodies[i]->pos += g_infos[j].v_unproj*time_interval;
-							if (g_infos[j].w_unproj.len2()*sqr(time_interval)<sqr(0.003f))
-								g_pBodies[i]->q += quaternionf(0,g_infos[j].w_unproj*0.5f)*g_pBodies[i]->q*time_interval;
+							g_pBodies[i]->pos += g_infos[j].v_unproj*tSeconds;
+							if (g_infos[j].w_unproj.len2()*sqr(tSeconds)<sqr(0.003f))
+								g_pBodies[i]->q += quaternionf(0,g_infos[j].w_unproj*0.5f)*g_pBodies[i]->q*tSeconds;
 							else {
 								float wlen = g_infos[j].w_unproj.len();
 								//q = quaternionf(wlen*dt,w/wlen)*q;
-								g_pBodies[i]->q = Quat::CreateRotationAA(wlen*time_interval,g_infos[j].w_unproj/wlen)*g_pBodies[i]->q;
+								g_pBodies[i]->q = Quat::CreateRotationAA(wlen*tSeconds,g_infos[j].w_unproj/wlen)*g_pBodies[i]->q;
 							}
 							g_pBodies[i]->q.Normalize();
 							// don't unpdate Iinv and w, no1 will appreciate it after this point

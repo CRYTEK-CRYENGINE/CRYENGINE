@@ -86,9 +86,9 @@ class CRopeEntity : public CPhysicalEntity {
 	virtual int GetStatus(pe_status*) const;
 	virtual int Action(pe_action*,int bThreadSafe=1);
 
-	virtual void StartStep(float time_interval);
-	virtual float GetMaxTimeStep(float time_interval);
-	virtual int Step(float time_interval);
+	virtual void StartStep(const CTimeValue& time_interval);
+	virtual CTimeValue GetMaxTimeStep(const CTimeValue& time_interval);
+	virtual int Step(const CTimeValue& time_interval);
 	virtual int Awake(int bAwake=1,int iSource=0);
 	virtual int IsAwake(int ipart=-1) const { return m_bPermanent; }
 	virtual void AlertNeighbourhoodND(int mode);
@@ -97,26 +97,26 @@ class CRopeEntity : public CPhysicalEntity {
 	virtual float GetMassInv() { return 1E26f; }
 	virtual RigidBody *GetRigidBodyData(RigidBody *pbody, int ipart=-1);
 	virtual void GetLocTransform(int ipart, Vec3 &offs, quaternionf &q, float &scale, const CPhysicalPlaceholder *trg) const;
-	void EnforceConstraints(float seglen, const quaternionf& qtv,const Vec3& offstv,float scaletv, int bTargetPoseActive, float dt=0);
+	void EnforceConstraints(float seglen, const quaternionf& qtv,const Vec3& offstv,float scaletv, int bTargetPoseActive, const CTimeValue& dt = 0);
 	virtual void OnNeighbourSplit(CPhysicalEntity *pentOrig, CPhysicalEntity *pentNew);
-	virtual int RegisterContacts(float time_interval,int nMaxPlaneContacts);
-	virtual int Update(float time_interval, float damping);
-	virtual float GetDamping(float time_interval) { return max(0.0f,1.0f-m_damping*time_interval); }
-	virtual float CalcEnergy(float time_interval) { return time_interval>0 ? m_energy:0.0f; }
-	virtual float GetLastTimeStep(float time_interval) { return m_lastTimeStep; }
+	virtual int RegisterContacts(const CTimeValue& time_interval,int nMaxPlaneContacts);
+	virtual int Update(const CTimeValue& time_interval, float damping);
+	virtual float GetDamping(const CTimeValue& time_interval) { return max(0.0f,1.0f-m_damping*time_interval.BADGetSeconds()); }
+	virtual float CalcEnergy(const CTimeValue& time_interval) { return time_interval>0 ? m_energy:0.0f; }
+	virtual const CTimeValue& GetLastTimeStep(const CTimeValue& time_interval) { return m_lastTimeStep; }
 	virtual void ApplyVolumetricPressure(const Vec3 &epicenter, float kr, float rmin);
 	void RecalcBBox();
 
 	void CheckCollisions(int iDir, SRopeCheckPart *checkParts,int nCheckParts, float seglen,float rseglen, const Vec3 &hingeAxis);
-	void StepSubdivided(float time_interval, SRopeCheckPart *checkParts,int nCheckParts, float seglen);
-	void ZeroLengthStraighten(float time_interval);
-	float Solver(float time_interval, float seglen);
-	void ApplyStiffness(float time_interval, int bTargetPoseActive, const quaternionf &qtv,const Vec3 &offstv,float scaletv);
+	void StepSubdivided(const CTimeValue& time_interval, SRopeCheckPart *checkParts,int nCheckParts, float seglen);
+	void ZeroLengthStraighten(const CTimeValue& time_interval);
+	float Solver(const CTimeValue& time_interval, float seglen);
+	void ApplyStiffness(const CTimeValue& time_interval, int bTargetPoseActive, const quaternionf &qtv,const Vec3 &offstv,float scaletv);
 
 	enum snapver { SNAPSHOT_VERSION = 8 };
-	virtual int GetStateSnapshot(CStream &stm, float time_back=0,int flags=0);
+	virtual int GetStateSnapshot(CStream &stm, const CTimeValue& time_back=0,int flags=0);
 	virtual int SetStateFromSnapshot(CStream &stm, int flags);
-	virtual int GetStateSnapshot(TSerialize ser, float time_back=0,int flags=0);
+	virtual int GetStateSnapshot(TSerialize ser, const CTimeValue& time_back=0,int flags=0);
 	virtual int SetStateFromSnapshot(TSerialize ser, int flags);
 
 	virtual void DrawHelperInformation(IPhysRenderer *pRenderer, int flags);
@@ -128,11 +128,11 @@ class CRopeEntity : public CPhysicalEntity {
 
 	Vec3 m_gravity,m_gravity0;
 	float m_damping;
-	float m_maxAllowedStep;
+	CTimeValue m_maxAllowedStep;
 	float m_Emin;
-	float m_timeStepPerformed,m_timeStepFull;
+	CTimeValue m_timeStepPerformed,m_timeStepFull;
 	int m_nSlowFrames;
-	float m_lastTimeStep;
+	CTimeValue m_lastTimeStep;
 	
 	int m_nSleepingNeighboursFrames;
 	int m_bHasContacts;
@@ -145,7 +145,7 @@ class CRopeEntity : public CPhysicalEntity {
 	//Grouping these values as they are all used by CRopeEntity::GetStatus(). This avoids L2 cache line pollution
 	int m_nSegs;
 	ROPE_SAFE_ARRAY(rope_segment) m_segs;
-	float m_timeLastActive;
+	CTimeValue m_timeLastActive;
 	int m_bTargetPoseActive;
 	float m_stiffnessAnim;
 	Vec3 m_lastposHost;
@@ -158,7 +158,8 @@ class CRopeEntity : public CPhysicalEntity {
 	float m_stiffness;
 	float m_dampingAnim,m_stiffnessDecayAnim;
 	Vec3 m_wind,m_wind0,m_wind1;
-  float m_airResistance,m_windVariance,m_windTimer;
+   float m_airResistance,m_windVariance;
+   CTimeValue m_windTimer;
 	float m_waterResistance,m_rdensity;
 	float m_jointLimit,m_jointLimitDecay;
 	float m_szSensor;

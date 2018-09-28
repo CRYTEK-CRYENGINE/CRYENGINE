@@ -59,12 +59,12 @@ public:
 	virtual int GetParams(pe_params *_params);
 
 	void Subtract(IGeometry *pGeonm, const geom_world_data *pgwd1,const geom_world_data *pgwd2);
-	int CheckStructure(float time_interval,const Vec3 &gravity, const plane *pGround,int nPlanes,pe_explosion *pexpl, int maxIters=100000,int bLogTension=0);
+	int CheckStructure(const CTimeValue& time_interval,const Vec3 &gravity, const plane *pGround,int nPlanes,pe_explosion *pexpl, int maxIters=100000,int bLogTension=0);
 	void Split(CTriMesh **pChunks,int nChunks, CTetrLattice **pLattices); 
 	int Defragment();
 	virtual void DrawWireframe(IPhysRenderer *pRenderer, geom_world_data *gwd, int idxColor);
 	float GetLastTension(int &itype) { itype=m_imaxTension; return m_maxTension; }
-	int AddImpulse(const Vec3 &pt, const Vec3 &impulse,const Vec3 &momentum, const Vec3 &gravity,float worldTime);
+	int AddImpulse(const Vec3 &pt, const Vec3 &impulse,const Vec3 &momentum, const Vec3 &gravity, const CTimeValue& worldTime);
 
 	virtual IGeometry *CreateSkinMesh(int nMaxTrisPerBVNode);
 	virtual int CheckPoint(const Vec3 &pt, int *idx, float *w);
@@ -105,7 +105,7 @@ public:
 	int m_flags;
 	float m_maxTension;
 	int m_imaxTension;
-	float m_lastImpulseTime;
+	CTimeValue m_lastImpulseTime;
 
 	Matrix33 m_RGrid;
 	Vec3 m_posGrid;

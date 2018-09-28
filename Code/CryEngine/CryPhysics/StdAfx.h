@@ -90,11 +90,18 @@ class CStream;
 #define DoBreak { __debugbreak(); }
 #endif
 
+// PERSONAL IMPROVE: More'n likely is_valid should be replaced by NumberValid() etc.
+// The same goes for used/unused, could easily do 'SetInvalid()' and the like......
+MPOnly ILINE bool is_valid(const T& op) { return NumberValid(op); }
+TVOnly ILINE bool is_valid(const T& op) { return NumberValid(op); }
+
 ILINE bool is_valid(float op) { return op*op>=0 && op*op<1E30f; }
 ILINE bool is_valid(int op) { return true; }
 ILINE bool is_valid(unsigned int op) { return true; }
 ILINE bool is_valid(const Quat& op) { return is_valid(op|op); }
-template<class dtype> bool is_valid(const dtype &op) { return is_valid(op.x*op.x + op.y*op.y + op.z*op.z); }
+
+template<class T, typename boost::disable_if_c< isMP || isTV >::type* = 0>
+bool is_valid(const T&op) { return is_valid(op.x*op.x + op.y*op.y + op.z*op.z); }
 
 #define VALIDATOR_LOG(pLog,str) if (pLog) pLog->Log("%s", str) //OutputDebugString(str)
 #define VALIDATORS_START bool validate( const char *strSource, ILog *pLog, const Vec3 &pt,\

@@ -17,7 +17,7 @@
 CWalkingRigidEntity::CWalkingRigidEntity(CPhysicalWorld *pworld, IGeneralMemoryHeap* pHeap) : CRigidEntity(pworld,pHeap) 
 { 
 	m_alwaysSweep = 1; 
-	m_maxAllowedStep = 0.05f;
+	m_maxAllowedStep.SetSeconds("0.05");
 }
 
 int CWalkingRigidEntity::AddGeometry(phys_geometry *pgeom, pe_geomparams* params,int id,int bThreadSafe)
@@ -216,14 +216,14 @@ int CWalkingRigidEntity::GetStatus(pe_status* _status) const
 	return CRigidEntity::GetStatus(_status);
 }
 
-int CWalkingRigidEntity::Step(float dt) 
+int CWalkingRigidEntity::Step(const CTimeValue& dt) 
 { 
 	m_nCollEnts=-1; m_moveDist=0; m_Eaux=0; 
 	m_sweepGap = -m_pWorld->m_vars.maxContactGapPlayer;
 	return CRigidEntity::Step(dt); 
 }
 
-bool CWalkingRigidEntity::OnSweepHit(geom_contact &cnt, int icnt, float &dt, Vec3 &vel, int &nsweeps)
+bool CWalkingRigidEntity::OnSweepHit(geom_contact &cnt, int icnt, CTimeValue &dt, Vec3 &vel, int &nsweeps)
 {
 	m_pos = m_posNew;
 	if (!m_pentGround) {
@@ -239,18 +239,19 @@ bool CWalkingRigidEntity::OnSweepHit(geom_contact &cnt, int icnt, float &dt, Vec
 	}
 	float move = max(0.0f, (float)cnt.t+m_sweepGap);
 	if (nsweeps==1 && m_moveDist+move==0)
-		dt = 0;
+		dt.SetSeconds(0);
 	else
-		dt = max(0.0f, dt-(move-m_sweepGap*1.2f)/vel.len());
+		dt = BADTIME(max(0.0f, dt.BADGetSeconds()-(move-m_sweepGap*1.2f)/vel.len()));
 	m_moveDist += move;
 	vel -= cnt.n*(vel*cnt.n-m_sweepGap);
-	if (++nsweeps>=3 || vel.len2()*sqr(dt)<sqr(m_sweepGap)*0.01f || vel*m_body.v<=0)
+	const float tSeconds = dt.BADGetSeconds();
+	if (++nsweeps>=3 || vel.len2()*sqr(tSeconds)<sqr(m_sweepGap)*0.01f || vel*m_body.v<=0)
 		return false;
-	m_posNew += vel*dt; m_body.pos += vel*dt;
+	m_posNew += vel* tSeconds; m_body.pos += vel* tSeconds;
 	return true;
 }
 
-int CWalkingRigidEntity::GetPotentialColliders(CPhysicalEntity **&pentlist, float dt)
+int CWalkingRigidEntity::GetPotentialColliders(CPhysicalEntity **&pentlist, const CTimeValue& dt)
 {
 	if (m_nCollEnts<0) {
 		for(int i=0,j;i<m_nLegs;i++) 
@@ -265,14 +266,14 @@ int CWalkingRigidEntity::GetPotentialColliders(CPhysicalEntity **&pentlist, floa
 	return m_nCollEnts;
 }
 
-void CWalkingRigidEntity::CheckAdditionalGeometry(float dt)
+void CWalkingRigidEntity::CheckAdditionalGeometry(const CTimeValue& dt)
 {
 	int iCaller = get_iCaller_int();
 	CPhysicalEntity **pents;
 	int nents = GetPotentialColliders(pents);
 	CRayGeom aray;
 	geom_world_data gwd[2];
-	float thit = 1e10f, stickDist = m_velStick*dt;
+	float thit = 1e10f, stickDist = m_velStick*dt.BADGetSeconds();
 	CPhysicalEntity *pentGround = nullptr;
 	Vec3 ptlocGround(ZERO), nlocGround(ZERO);
 	int ipartGround, matidGround, ilegHit = -1;
@@ -313,7 +314,7 @@ void CWalkingRigidEntity::CheckAdditionalGeometry(float dt)
 	}
 }
 
-int CWalkingRigidEntity::RegisterContacts(float dt, int nMaxPlaneContacts)
+int CWalkingRigidEntity::RegisterContacts(const CTimeValue& dt, int nMaxPlaneContacts)
 {
 	if (m_pentGround) 
 		if (m_nContacts || m_constraintMask || m_friction>0 || m_pentGround->GetMassInv()>0) {
@@ -331,7 +332,7 @@ int CWalkingRigidEntity::RegisterContacts(float dt, int nMaxPlaneContacts)
 		}	else {
 			float diff = m_legs[m_ilegHit*3+1]*m_legs[m_ilegHit*3+2]-m_distHit;
 			Vec3 leg = m_qNew*-m_legs[m_ilegHit*3+2];
-			m_body.v -= (m_nColliders ? m_gravity : m_gravityFreefall)*dt;
+			m_body.v -= (m_nColliders ? m_gravity : m_gravityFreefall)*dt.BADGetSeconds();
 			m_body.v += leg*(diff*m_unprojScale-m_body.v*leg);
 			m_body.P = m_body.v*m_body.M;
 		}

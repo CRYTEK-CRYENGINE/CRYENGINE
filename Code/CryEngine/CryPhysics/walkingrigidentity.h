@@ -19,12 +19,12 @@ public:
 	virtual int GetStatus(pe_status*) const;
 
 	virtual void RecomputeMassDistribution(int ipart=-1,int bMassChanged=1);
-	virtual int Step(float dt);
-	virtual float CalcEnergy(float dt) { return m_Eaux + CRigidEntity::CalcEnergy(dt); }
-	virtual int GetPotentialColliders(CPhysicalEntity **&pentlist, float dt=0);
-	virtual bool OnSweepHit(geom_contact &cnt, int icnt, float &dt, Vec3 &vel, int &nsweeps);
-	virtual void CheckAdditionalGeometry(float dt);
-	virtual int RegisterContacts(float dt,int nMaxPlaneContacts);
+	virtual int Step(const CTimeValue& dt);
+	virtual float CalcEnergy(const CTimeValue& dt) { return m_Eaux + CRigidEntity::CalcEnergy(dt); }
+	virtual int GetPotentialColliders(CPhysicalEntity **&pentlist, const CTimeValue& dt=0);
+	virtual bool OnSweepHit(geom_contact &cnt, int icnt, CTimeValue&dt, Vec3 &vel, int &nsweeps);
+	virtual void CheckAdditionalGeometry(const CTimeValue& dt);
+	virtual int RegisterContacts(const CTimeValue& dt,int nMaxPlaneContacts);
 	virtual void GetMemoryStatistics(ICrySizer *pSizer) const;
 
 	Vec3 *m_legs = nullptr;

@@ -95,7 +95,7 @@ struct SBreakRequest {
 
 struct pe_PODcell {
 	int inextActive;
-	float lifeTime;
+	CTimeValue lifeTime;
 	int nObjects;
 	Vec2 zlim;
 };
@@ -129,7 +129,7 @@ struct SThreadData {
 };
 
 struct SThreadTaskRequest {
-	float time_interval;
+	CTimeValue time_interval;
 	int bSkipFlagged;
 	int ipass;
 	int iter;
@@ -345,8 +345,8 @@ public:
 	int GetFreeThunk();
 
 	virtual IPhysicalEntity* CreatePhysicalEntity(pe_type type, pe_params* params=0, void *pForeignData=0,int iForeignData=0, int id=-1, IGeneralMemoryHeap* pHeap = NULL)
-	{ return CreatePhysicalEntity(type,0.0f,params,pForeignData,iForeignData,id, NULL, pHeap); }
-	virtual IPhysicalEntity* CreatePhysicalEntity(pe_type type, float lifeTime, pe_params* params=0, void *pForeignData=0,int iForeignData=0,
+	{ return CreatePhysicalEntity(type,0,params,pForeignData,iForeignData,id, NULL, pHeap); }
+	virtual IPhysicalEntity* CreatePhysicalEntity(pe_type type, const CTimeValue& lifeTime, pe_params* params=0, void *pForeignData=0,int iForeignData=0,
 		int id=-1,IPhysicalEntity *pHostPlaceholder=0, IGeneralMemoryHeap* pHeap = NULL);
 	virtual IPhysicalEntity *CreatePhysicalPlaceholder(pe_type type, pe_params* params=0, void *pForeignData=0,int iForeignData=0, int id=-1);
 	virtual int DestroyPhysicalEntity(IPhysicalEntity *pent, int mode=0, int bThreadSafe=0);
@@ -360,22 +360,14 @@ public:
 		return iChunk<m_nPlaceholderChunks ? (iChunk<<PLACEHOLDER_CHUNK_SZLG2 | (int)(pent-m_pPlaceholders[iChunk]))+1 : 0;
 	}
 
-	virtual void TimeStep(float time_interval, int flags=ent_all|ent_deleted);
-	virtual float GetPhysicsTime() { return m_timePhysics; }
-	virtual int GetiPhysicsTime() { return m_iTimePhysics; }
-	virtual void SetPhysicsTime(float time) {
+	virtual void TimeStep(const CTimeValue& time_interval, int flags=ent_all|ent_deleted);
+	virtual const CTimeValue& GetPhysicsTime() { return m_timePhysics; }
+	// PERSONAL NOTE : As with time - granularity, this is all not needed anymore. CTimeValue has a standerdized accuracy across the entire engine.
+	virtual void SetPhysicsTime(const CTimeValue& time) {
 		m_timePhysics = time;
-		if (m_vars.timeGranularity>0)
-			m_iTimePhysics = (int)(m_timePhysics/m_vars.timeGranularity+0.5f);
 	}
-	virtual void SetiPhysicsTime(int itime) { m_timePhysics = (m_iTimePhysics=itime)*m_vars.timeGranularity; }
-	virtual void SetSnapshotTime(float time_snapshot,int iType=0) {
+	virtual void SetSnapshotTime(const CTimeValue& time_snapshot, int iType=0) {
 		m_timeSnapshot[iType] = time_snapshot;
-		if (m_vars.timeGranularity>0)
-			m_iTimeSnapshot[iType] = (int)(time_snapshot/m_vars.timeGranularity+0.5f);
-	}
-	virtual void SetiSnapshotTime(int itime_snapshot,int iType=0) {
-		m_iTimeSnapshot[iType] = itime_snapshot; m_timeSnapshot[iType] = itime_snapshot*m_vars.timeGranularity;
 	}
 
 	// *important* if request RWIs queued iForeignData should be a EPhysicsForeignIds
@@ -401,7 +393,7 @@ public:
 	virtual void DestroyDynamicEntities();
 	virtual void PurgeDeletedEntities();
 	virtual int DeformPhysicalEntity(IPhysicalEntity *pent, const Vec3 &ptHit,const Vec3 &dirHit,float r, int flags=0);
-	virtual void UpdateDeformingEntities(float time_interval);
+	virtual void UpdateDeformingEntities(const CTimeValue& time_interval);
 	virtual int GetEntityCount(int iEntType) { return m_nTypeEnts[iEntType]; }
 	virtual int ReserveEntityCount(int nNewEnts);
 
@@ -429,7 +421,7 @@ public:
 	int ChangeEntitySimClass(CPhysicalEntity *pent, int bGridLocked);
 	int RepositionEntity(CPhysicalPlaceholder *pobj, int flags=3, Vec3 *BBox=0, int bQueued=0);
 	void DetachEntityGridThunks(CPhysicalPlaceholder *pobj);
-	void ScheduleForStep(CPhysicalEntity *pent, float time_interval);
+	void ScheduleForStep(CPhysicalEntity *pent, const CTimeValue& time_interval);
 	CPhysicalEntity *CheckColliderListsIntegrity();
 
 	virtual int CoverPolygonWithCircles(strided_pointer<Vec2> pt,int npt,bool bConsecutive, const Vec2 &center,
@@ -442,7 +434,7 @@ public:
 	{ return ::TriangulatePoly(pVtx, nVtx, pTris, szTriBuf); }
 	virtual void SetPhysicsStreamer(IPhysicsStreamer *pStreamer) { m_pPhysicsStreamer=pStreamer; }
 	virtual void SetPhysicsEventClient(IPhysicsEventClient *pEventClient) { m_pEventClient=pEventClient; }
-	virtual float GetLastEntityUpdateTime(IPhysicalEntity *pent) { return m_updateTimes[((CPhysicalPlaceholder*)pent)->m_iSimClass & 7]; }
+	virtual const CTimeValue& GetLastEntityUpdateTime(IPhysicalEntity *pent) { return m_updateTimes[((CPhysicalPlaceholder*)pent)->m_iSimClass & 7]; }
 	virtual volatile int *GetInternalLock(int idx) {
 		switch (idx) {
 			case PLOCK_WORLD_STEP: return &m_lockStep;
@@ -597,14 +589,14 @@ public:
 	}
 	int ReallocTmpEntList(CPhysicalEntity **&pEntList, int iCaller, int szNew);
 
-	void ProcessNextEntityIsland(float time_interval, int ipass, int iter, int &bAllGroupsFinished, int iCaller);
-	void ProcessIslandSolverResults(int i, int iter, float groupTimeStep,float Ebefore, int nEnts,float fixedDamping, int &bAllGroupsFinished,
+	void ProcessNextEntityIsland(const CTimeValue& time_interval, int ipass, int iter, int &bAllGroupsFinished, int iCaller);
+	void ProcessIslandSolverResults(int i, int iter, const CTimeValue& groupTimeStep,float Ebefore, int nEnts,float fixedDamping, int &bAllGroupsFinished,
 		entity_contact **pContacts,int nContacts,int nBodies, int iCaller,int64 iticks0);
 	int ReadDelayedSolverResults(CMemStream &stm, float &dt,float &Ebefore,int &nEnts,float &fixedDamping, entity_contact **pContacts,RigidBody **pBodies);
 	void ProcessNextEngagedIndependentEntity(int iCaller);
-	void ProcessNextLivingEntity(float time_interval, int bSkipFlagged, int iCaller);
-	void ProcessNextIndependentEntity(float time_interval, int bSkipFlagged, int iCaller);
-	void ProcessBreakingEntities(float time_interval);
+	void ProcessNextLivingEntity(const CTimeValue& time_interval, int bSkipFlagged, int iCaller);
+	void ProcessNextIndependentEntity(const CTimeValue& time_interval, int bSkipFlagged, int iCaller);
+	void ProcessBreakingEntities(const CTimeValue& time_interval);
 	void ThreadProc(int ithread, SPhysTask *pTask);
 
 	template<class T> void ReallocQueue(T *&pqueue, int sz,int &szAlloc, int &head,int &tail, int nGrow) {
@@ -785,9 +777,8 @@ public:
 	Matrix33 m_HeightfieldBasis;
 	Vec3 m_HeightfieldOrigin;
 
-	float m_timePhysics,m_timeSurplus,m_timeSnapshot[4];
-	int m_iTimePhysics,m_iTimeSnapshot[4];
-	float m_updateTimes[8];
+	CTimeValue m_timePhysics,m_timeSurplus,m_timeSnapshot[4];
+	CTimeValue m_updateTimes[8];
 	int m_iSubstep,m_bWorldStep;
 	float m_curGroupMass;
 	CPhysicalEntity *m_pAuxStepEnt;
@@ -798,7 +789,7 @@ public:
 	volatile int m_lockEntProfiler,m_lockFuncProfiler;
 	phys_profile_info m_grpProfileData[16];
 	phys_job_info m_JobProfileInfo[6];
-	float m_lastTimeInterval;
+	CTimeValue m_lastTimeInterval;
 	int m_nSlowFrames;
 	uint32 m_nPumpLoggedEventsHits;
 	volatile threadID m_idThread;
@@ -970,7 +961,7 @@ public:
 	{
 		return RayTraceInternal(org, dir, pHit, pp);
 	}
-	void Update(float dt);
+	void Update(const CTimeValue& dt);
 	void ProcessBorder();
 	void DeleteWaterMan();
 	static int OnBBoxOverlap(const EventPhysBBoxOverlap*);

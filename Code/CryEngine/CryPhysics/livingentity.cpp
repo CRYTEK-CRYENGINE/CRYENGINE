@@ -59,7 +59,7 @@ CLivingEntity::CLivingEntity(CPhysicalWorld *pWorld, IGeneralMemoryHeap* pHeap)
 	, m_velRequested(ZERO)
 	, m_gravity(0, 0, -9.81f)
 	, m_nslope(0.0f, 0.0f, 1.0f)
-	, m_dtRequested(0.0f)
+	, m_dtRequested(0)
 	, m_kInertia(8.0f)
 	, m_kInertiaAccel(0.0f)
 	, m_kAirControl(0.1f)
@@ -71,7 +71,7 @@ CLivingEntity::CLivingEntity(CPhysicalWorld *pWorld, IGeneralMemoryHeap* pHeap)
 	, m_dh(0.0f)
 	, m_dhSpeed(0.0f)
 	, m_dhAcc(0.0f)
-	, m_stablehTime(1.0f)
+	, m_stablehTime(1)
 	, m_hLatest(-1e-10f)
 	, m_nodSpeed(60.0f)
 	, m_mass(80)
@@ -80,25 +80,25 @@ CLivingEntity::CLivingEntity(CPhysicalWorld *pWorld, IGeneralMemoryHeap* pHeap)
 	, m_lastGroundSurfaceIdx(-1)
 	, m_lastGroundSurfaceIdxAux(-1)
 	, m_lastGroundPrim(-1)
-	, m_timeFlying(0.0f)
-	, m_timeForceInertia(0.0f)
+	, m_timeFlying(0)
+	, m_timeForceInertia(0)
 	, m_slopeSlide(cos_tpl(g_PI * 0.2f))
 	, m_slopeClimb(cos_tpl(g_PI * 0.3f))
 	, m_slopeJump(cos_tpl(g_PI*0.3f))
 	, m_slopeFall(cos_tpl(g_PI*0.39f))
 	, m_maxVelGround(10.0f)
 	, m_groundContactEps(GROUND_EPS_SIZE)
-	, m_timeImpulseRecover(5.0f)
+	, m_timeImpulseRecover(5)
 	, m_pCylinderGeom(nullptr)
 	, m_hHead(1.9f)
 	, m_pHeadGeom(nullptr)
-	, m_timeUseLowCap(-1.0f)
-	, m_timeSinceStanceChange(0.0f)
-	, m_timeSinceImpulseContact(10.0f)
-	, m_timeStepFull(0.0f)
-	, m_timeStepPerformed(0.0f)
+	, m_timeUseLowCap(-1)
+	, m_timeSinceStanceChange(0)
+	, m_timeSinceImpulseContact(10)
+	, m_timeStepFull(0)
+	, m_timeStepPerformed(0)
 	, m_iSnapshot(0)
-	, m_iTimeLastSend(-1)
+	, m_timeLastSend(-1)
 	, m_collTypes(ent_terrain | ent_static | ent_sleeping_rigid | ent_rigid | ent_living)
 	, m_pLivingEntToIgnore(nullptr)
 	, m_bFlying(1)
@@ -121,8 +121,8 @@ CLivingEntity::CLivingEntity(CPhysicalWorld *pWorld, IGeneralMemoryHeap* pHeap)
 	, m_posLocal(ZERO)
 	, m_deltaV(ZERO)
 	, m_deltaQRot(IDENTITY)
-	, m_timeSmooth(0.16f)
-	, m_timeRotChanged(-1.0f)
+	, m_timeSmooth("0.16")
+	, m_timeRotChanged(-1)
 	, m_pContacts(nullptr)
 	, m_nContacts(0)
 	, m_nContactsAlloc(0)
@@ -324,9 +324,9 @@ int CLivingEntity::SetParams(pe_params *_params, int bThreadSafe)
 			if (fabs_tpl(m_qrot.w)<1e-10f) 
 				m_qrot.w = 0;
 			m_qrot.Normalize();
-			if (m_pBody && !(m_pBody->Ibody_inv*Vec3(1)).len2() && m_pWorld->m_lastTimeInterval) {
+			if (m_pBody && !(m_pBody->Ibody_inv*Vec3(1)).len2() && m_pWorld->m_lastTimeInterval != 0) {
 				Quat dq = m_qrot*!prevq;
-				m_pBody->w = dq.v.len2()<sqr(0.3f) ? dq.v*2/m_pWorld->m_lastTimeInterval : Vec3(ZERO);
+				m_pBody->w = dq.v.len2()<sqr(0.3f) ? dq.v*2/m_pWorld->m_lastTimeInterval.BADGetSeconds() : Vec3(ZERO);
 				m_timeRotChanged = m_pWorld->m_timePhysics;
 			}
 
@@ -401,7 +401,7 @@ int CLivingEntity::SetParams(pe_params *_params, int bThreadSafe)
 					m_dhSpeed = 4*(params->heightEye-m_hEye);
 				}*/
 				m_hEye = params->heightEye;
-				m_timeSinceStanceChange = 0;
+				m_timeSinceStanceChange.SetSeconds(0);
 			}
 
 			if (!is_unused(params->heightHead)) m_hHead = params->heightHead;
@@ -537,7 +537,7 @@ int CLivingEntity::GetStatus(pe_status *_status) const
 				else
 					m_pos = m_posLogged;*/
 			if (m_bActive)
-				((CLivingEntity*)this)->m_pos += m_deltaPos*(m_timeSmooth*(1/0.3f))-m_qrot*Vec3(0,0,m_dh);
+				((CLivingEntity*)this)->m_pos += m_deltaPos*(m_timeSmooth.BADGetSeconds()*(1/0.3f))-m_qrot*Vec3(0,0,m_dh);
 			res = CPhysicalEntity::GetStatus(_status);
 			((CLivingEntity*)this)->m_pos = prevPos;
 		}
@@ -580,13 +580,13 @@ int CLivingEntity::GetStatus(pe_status *_status) const
 		status->v = m_vel;
 		if (m_pLastGroundCollider)
 			status->v += m_velGround;
-		float rdt = 1.0f/m_timeSmooth;
+		rTime rdt = 1/m_timeSmooth;
 		quaternionf dq = m_deltaQRot;
-		status->a = m_deltaV*rdt;
+		status->a = m_deltaV*BADF rdt;
 		if (dq.v.len2()<sqr(0.05f))
-			status->w = dq.v*(2*rdt);
+			status->w = dq.v*BADF(2*rdt);
 		else
-			status->w = dq.v.normalized()*(acos_tpl(dq.w)*2*rdt);
+			status->w = dq.v.normalized()*(acos_tpl(dq.w)*2*BADF rdt);
 		status->centerOfMass = (m_BBox[0]+m_BBox[1])*0.5f;
 		status->mass = m_mass;
 		/*for(idx=idx-1&m_szHistory-1; dt<status->time_interval; idx=idx-1&m_szHistory-1) {
@@ -665,12 +665,12 @@ int CLivingEntity::Action(pe_action* _action, int bThreadSafe)
 					if (action->iJump==2) {
 						m_vel += action->dir; bForceHistory = true; m_forceFly = false;
 						if (action->dir.z>1.0f) {
-							m_timeFlying=0;
+							m_timeFlying.SetSeconds(0);
 							m_bJumpRequested = 1;
 						}
 					}	else {
 						m_vel = action->dir; bForceHistory = true; m_forceFly = false;
-						m_timeFlying=0;
+						m_timeFlying.SetSeconds(0);
 						m_bJumpRequested = 1;
 					}
 				}
@@ -700,7 +700,7 @@ int CLivingEntity::Action(pe_action* _action, int bThreadSafe)
 			if (m_flags & lef_snap_velocities)
 				m_vel = DecodeVec6b(EncodeVec6b(m_vel));
 			if (impulse.z*m_massinv>1.0f) {
-				m_bFlying=1; m_timeFlying=0;
+				m_bFlying=1; m_timeFlying.SetSeconds(0);
 			}
 		} else {
 			pe_action_move am;
@@ -720,7 +720,7 @@ int CLivingEntity::Action(pe_action* _action, int bThreadSafe)
 	if (_action->type==pe_action_reset::type_id) {
 		WriteLock lock(m_lockLiving);
 		m_vel.zero(); m_velRequested.zero();
-		m_dh = m_dhSpeed = 0; m_stablehTime = 1;
+		m_dh = m_dhSpeed = 0; m_stablehTime.SetSeconds(1);
 		m_bFlying = 1;
 		return 1;
 	}
@@ -741,12 +741,12 @@ int CLivingEntity::Action(pe_action* _action, int bThreadSafe)
 }
 
 
-int CLivingEntity::GetStateSnapshot(CStream &stm,float time_back,int flags)
+int CLivingEntity::GetStateSnapshot(CStream &stm,const CTimeValue& time_back,int flags)
 {
 	WriteLock lock0(m_lockUpdate),lock1(m_lockLiving);
 	Vec3 pos_prev=m_pos, vel_prev=m_vel, nslope_prev=m_nslope;
 	int bFlying_prev=m_bFlying;
-	float timeFlying_prev=m_timeFlying, timeUseLowCap_prev=m_timeUseLowCap;
+	CTimeValue timeFlying_prev=m_timeFlying, timeUseLowCap_prev=m_timeUseLowCap;
 	quaternionf qrot_prev=m_qrot;
 	CPhysicalEntity *pLastGroundCollider=m_pLastGroundCollider;
 	int iLastGroundColliderPart=m_iLastGroundColliderPart;
@@ -755,8 +755,8 @@ int CLivingEntity::GetStateSnapshot(CStream &stm,float time_back,int flags)
 	stm.WriteNumberInBits(SNAPSHOT_VERSION,4);
 	if (m_pWorld->m_vars.bMultiplayer) {
 		WriteCompressedPos(stm,m_pos,(m_id+m_iSnapshot&31)!=0);
-		if (m_pWorld->m_iTimePhysics!=m_iTimeLastSend) {
-			m_iSnapshot++; m_iTimeLastSend = m_pWorld->m_iTimePhysics;
+		if (m_pWorld->m_timePhysics!=m_timeLastSend) {
+			m_iSnapshot++; m_timeLastSend = m_pWorld->m_timePhysics;
 		}
 	} else
 		stm.Write(m_pos);
@@ -784,7 +784,7 @@ int CLivingEntity::GetStateSnapshot(CStream &stm,float time_back,int flags)
 	}
 	if (m_timeFlying>0) {
 		stm.Write(true);
-		stm.Write((unsigned short)float2int(m_timeFlying*6553.6f));
+		stm.Write(m_timeFlying.GetSeconds().str().c_str());
 	} else stm.Write(false);
 	unsigned int imft = 0;
 	stm.WriteNumberInBits(imft,2);
@@ -815,7 +815,7 @@ void SLivingEntityNetSerialize::Serialize( TSerialize ser )
 	ser.Value( "velRequested", velRequested, 'pLVl');
 }
 
-int CLivingEntity::GetStateSnapshot(TSerialize ser, float time_back, int flags)
+int CLivingEntity::GetStateSnapshot(TSerialize ser, const CTimeValue& time_back, int flags)
 {
  	WriteLock lock0(m_lockUpdate),lock1(m_lockLiving);
 
@@ -853,7 +853,7 @@ int CLivingEntity::SetStateFromSnapshot(CStream &stm, int flags)
 		return 1;
 	}
 
-	m_posLocal = m_pos + m_deltaPos*(m_timeSmooth*(1/0.3f));
+	m_posLocal = m_pos + m_deltaPos*(m_timeSmooth.BADGetSeconds()*(1/0.3f));
 
 	Vec3 pos0=m_pos/*,vel0=m_vel,velRequested0=m_velRequested*/;
 //	int bFlying0=m_bFlying;
@@ -884,8 +884,10 @@ int CLivingEntity::SetStateFromSnapshot(CStream &stm, int flags)
 		else m_velRequested.zero();
 	}
 	stm.Read(bnz); if (bnz) {
-		stm.Read(tmp); m_timeFlying = tmp*(10.0f/65536);
-	} else m_timeFlying = 0;
+		const char* str;
+		stm.Read(str); m_timeFlying = CTimeValue(str); // PERSONAL DEBUG: Make sure this Read()/Write() works. Was it limited to 4MB before? 
+																	  // See void CAttrWriter::Set(const char* pAttrName, float val)
+	} else m_timeFlying.SetSeconds(0);
 	unsigned int imft; stm.ReadNumberInBits(imft,2);
 	static float flytable[] = {0.0f, 0.2f, 0.5f, 1.0f};
 	stm.Read(bnz);
@@ -931,8 +933,8 @@ int CLivingEntity::SetStateFromSnapshot(TSerialize ser, int flags)
 
 		if (flags & ssf_compensate_time_diff)
 		{
-			float dtBack=(m_pWorld->m_iTimeSnapshot[1]-m_pWorld->m_iTimeSnapshot[0])*m_pWorld->m_vars.timeGranularity;
-			helper.pos += helper.vel * dtBack;
+			CTimeValue dtBack = m_pWorld->m_timeSnapshot[1] - m_pWorld->m_timeSnapshot[0];
+			helper.pos += helper.vel * dtBack.BADGetSeconds();
 		}
 
 		const float MAX_DIFFERENCE = std::max( helper.vel.GetLength() * 0.1f, 0.1f );
@@ -969,7 +971,7 @@ int CLivingEntity::SetStateFromSnapshot(TSerialize ser, int flags)
 
 
 float CLivingEntity::ShootRayDown(le_precomp_entity* pents, int nents, le_precomp_part *pparts, const Vec3 &pos,
-	Vec3 &nslope, float time_interval, bool bUseRotation,bool bUpdateGroundCollider,bool bIgnoreSmallObjects)
+	Vec3 &nslope, const CTimeValue& time_interval, bool bUseRotation,bool bUpdateGroundCollider,bool bIgnoreSmallObjects)
 {
 	int i,j,jbest,ncont,idbest,idbestAux=-1,iPrim=-1,bHasMatSubst=0;
 	int j1,iCaller=get_iCaller_int();
@@ -1059,9 +1061,9 @@ float CLivingEntity::ShootRayDown(le_precomp_entity* pents, int nents, le_precom
 			m_lastGroundPrim = iPrim;
 
 			if (pPrevCollider!=pentbest)
-				AddLegsImpulse(m_gravity*time_interval+m_vel,nslope,true);
+				AddLegsImpulse(m_gravity*time_interval.BADGetSeconds()+m_vel,nslope,true);
 			else
-				AddLegsImpulse(m_gravity*time_interval,nslope,false);
+				AddLegsImpulse(m_gravity*time_interval.BADGetSeconds(),nslope,false);
 
 			pe_status_dynamics sd;
 			sd.ipart = jbest;
@@ -1169,14 +1171,14 @@ void CLivingEntity::RegisterUnprojContact(const le_contact &unproj)
 }
 
 
-float CLivingEntity::GetMaxTimeStep(float time_interval)
+CTimeValue CLivingEntity::GetMaxTimeStep(const CTimeValue& time_interval)
 {
-	if (m_timeStepPerformed > m_timeStepFull-0.001f)
+	if (m_timeStepPerformed > m_timeStepFull-"0.001")
 		return time_interval;
 	return min_safe(m_timeStepFull-m_timeStepPerformed,time_interval);
 }
 
-Vec3 CLivingEntity::SyncWithGroundCollider(float time_interval)
+Vec3 CLivingEntity::SyncWithGroundCollider(const CTimeValue& time_interval)
 {
 	int i; Vec3 newpos=m_pos;
 	if (m_pLastGroundCollider && m_pLastGroundCollider->m_iSimClass==7)
@@ -1190,7 +1192,7 @@ Vec3 CLivingEntity::SyncWithGroundCollider(float time_interval)
 		m_pLastGroundCollider->GetPartTransform(i=m_iLastGroundColliderPart, coll_origin,coll_q,coll_scale, this);
 		newpos = coll_q*m_posLastGroundColl*coll_scale + coll_origin + m_qrot*Vec3(0,0,m_hPivot);
  		const Vec3 diff = (newpos-m_pos);
-		const float fMaxDist = m_maxVelGround * time_interval;
+		const float fMaxDist = m_maxVelGround * time_interval.BADGetSeconds();
  		if ( diff.len2() > sqr(fMaxDist) )
  				newpos = m_pos+(diff).normalized()*(fMaxDist);
 
@@ -1202,7 +1204,7 @@ Vec3 CLivingEntity::SyncWithGroundCollider(float time_interval)
 		RigidBody body(false), *pbody=m_pLastGroundCollider->GetRigidBodyTrans(&body, i, this, 0,true);
 		pbody->GetContactMatrix(newpos-pbody->pos,K);
 		Vec3 velGround = sd.v+(sd.w^newpos-sd.centerOfMass);
-		if ((velGround-velGround0).len2() < m_gravity.len2()*sqr(time_interval*2.0f))
+		if ((velGround-velGround0).len2() < m_gravity.len2()*sqr(time_interval*2).BADGetSeconds())
 			m_velGround = velGround;
 		else {
 			Vec3 dP = (K+Matrix33(Diag33(Vec3(m_massinv)))).GetInverted()*(velGround-velGround0);
@@ -1259,26 +1261,29 @@ void CLivingEntity::UpdatePosition(const Vec3 &pos, const Vec3 *BBox, int bGridL
 	m_pWorld->UnlockGrid(this,-bGridLocked);
 }
 
-void CLivingEntity::StartStep(float time_interval)
+void CLivingEntity::StartStep(const CTimeValue& time_interval)
 {
-	m_timeStepPerformed = 0;
+	m_timeStepPerformed.SetSeconds(0);
 	m_timeStepFull = time_interval;
 	if (m_dtRequested>0) {
 		if( time_interval > m_dtRequested )
 			m_timeStepFull = m_dtRequested;
-		m_dtRequested = 0;
+		m_dtRequested.SetSeconds(0);
 	}
 	m_nContacts = 0; m_bMoved = 0;
 }
 
 
-int CLivingEntity::Step(float time_interval)
+int CLivingEntity::Step(const CTimeValue& time_intervalIN)
 {
+	CTimeValue time_interval = time_intervalIN;
+
 	if (time_interval<=0)
 		return 1;
-	float dt = m_timeStepFull-m_timeStepPerformed;
+	CTimeValue dt = m_timeStepFull-m_timeStepPerformed;
 	time_interval = m_pWorld->m_bWorldStep==2 ? min(time_interval, dt) : dt;
-	time_interval = max(time_interval, 0.001f);
+	time_interval = max(time_interval, CTimeValue("0.001")); // PERSONAL TODO: Moar clamps!
+	const float tSeconds = time_interval.BADGetSeconds();
 
 	const int iCaller = get_iCaller_int();
 	int i,j,jmin,ipartMin,nents,ncont,bFlying,bWasFlying,bUnprojected,idmat,iPrim, bHasExtraParts=0,
@@ -1304,7 +1309,7 @@ int CLivingEntity::Step(float time_interval)
 
 	IF (nNoResponseAllocLE==0, 0) pNoResponseContactLE=new le_tmp_contact[nNoResponseAllocLE=16];
 
-	if (m_timeForceInertia>0.0001f)
+	if (m_timeForceInertia > "0.0001")
 		kInertia = 6.0f;
 	else if (m_kInertiaAccel && m_velRequested.len2()>0.1f)
 		kInertia = m_kInertiaAccel;
@@ -1318,7 +1323,7 @@ int CLivingEntity::Step(float time_interval)
 		m_timeUseLowCap -= time_interval;
 		m_timeSinceStanceChange += time_interval;
 		m_timeSinceImpulseContact += time_interval;
-		m_timeForceInertia = max(0.0f,m_timeForceInertia-time_interval);
+		m_timeForceInertia = max(CTimeValue(0),m_timeForceInertia-time_interval);
 		m_timeStepPerformed += time_interval;
 	}
 
@@ -1337,7 +1342,7 @@ int CLivingEntity::Step(float time_interval)
 		}
 		if (bFlying && !m_pWorld->m_vars.bFlyMode && m_kAirControl>0)	{
 			if (kInertia>0) {
-				Vec3 velDelta = m_velRequested * (m_kInertia*time_interval*m_kAirControl);
+				Vec3 velDelta = m_velRequested * (m_kInertia*tSeconds*m_kAirControl);
 				Vec3 velDiff = m_velRequested - vel;
 					
 				const float kAirControlSelect = m_kAirControl-1.0f;
@@ -1364,12 +1369,12 @@ int CLivingEntity::Step(float time_interval)
 		if (m_forceFly)
 			vel = m_velRequested;
  		else if (bFlying && !m_bSwimming && !m_pWorld->m_vars.bFlyMode) 
- 			move += m_gravity*sqr(time_interval)*0.5f; 
+ 			move += m_gravity*sqr(tSeconds)*0.5f;
 
 		if (vel.len2() > sqr(m_pWorld->m_vars.maxVelPlayers))
 			vel.normalize() *= m_pWorld->m_vars.maxVelPlayers;
 		
-		move += vel*time_interval;
+		move += vel* tSeconds;
 
 		m_forceFly = false;
 		bUnprojected = 0;
@@ -1389,7 +1394,7 @@ int CLivingEntity::Step(float time_interval)
 			const Vec3 posDiff = pos - m_pos, maxUpStep = axis*(m_hCyl-m_size.z-m_size.x*m_bUseCapsule);
 			BBoxInner[0] = m_BBox[0]+(posDiff)-Vec3(fGap,fGap,fGap)+min(maxUpStep,Vec3(0));
 			BBoxInner[1] = m_BBox[1]+(posDiff)+Vec3(fGap,fGap,fGap)+max(maxUpStep,Vec3(0));
-			const float fGap2 = max(10.0f*time_interval,fGap); // adds a safety margin of m_size.x width
+			const float fGap2 = max(10.0f*tSeconds,fGap); // adds a safety margin of m_size.x width
 			const Vec3 BBoxOuter0 = m_BBox[0]+(posDiff)-Vec3(fGap2,fGap2,fGap2)+min(maxUpStep,Vec3(0));
 			const Vec3 BBoxOuter1 = m_BBox[1]+(posDiff)+Vec3(fGap2,fGap2,fGap2)+max(maxUpStep,Vec3(0));
 
@@ -1411,7 +1416,7 @@ int CLivingEntity::Step(float time_interval)
 					else if (pentlist[i]->GetMassInv()*0.4f<fMassInv) {
 						pentlist[i]->GetStatus(&sd);
 						vrel = max(vrel,sd.v.len()+sd.w.len()*max(max(size.x,size.y),size.z));;
-						bHasFastPhys |= (bFastPhys = isneg(fSizeX*0.2f-vrel*time_interval));
+						bHasFastPhys |= (bFastPhys = isneg(fSizeX*0.2f-vrel* tSeconds));
 					}
 				}
 				if (!bFastPhys && !AABB_overlap(pentlist[i]->m_BBox,BBoxInner) && size.len2()>0)
@@ -1424,7 +1429,7 @@ int CLivingEntity::Step(float time_interval)
 					 idmat==PE_LIVING && pentlist[i]->m_parts[0].flags&collider_flags && 
 					 pentlist[i]!=this && m_pLivingEntToIgnore!=pentlist[i] && ((CLivingEntity*)pentlist[i])->m_pLivingEntToIgnore!=this))
 				{
-					if (pentlist[i]->m_iSimClass==1 && m_timeSinceImpulseContact<0.2f && pentlist[i]->GetMassInv()>0)	{
+					if (pentlist[i]->m_iSimClass==1 && m_timeSinceImpulseContact < "0.2" && pentlist[i]->GetMassInv()>0)	{
 						int ipart; unsigned int flags; 
 						for(ipart=0,flags=0; ipart<pentlist[i]->m_nParts; ipart++) 
 							flags |= pentlist[i]->m_parts[ipart].flags;
@@ -1478,14 +1483,14 @@ int CLivingEntity::Step(float time_interval)
 			gwd[0].centerOfMass = gwd[0].offset = pos + gwd[0].R*m_parts[0].pos; 
 			gwd[0].v.zero(); gwd[0].w.zero(); // since we check a static character against potentially moving environment here
 			ip.vrel_min = fSizeX;
-			ip.time_interval = time_interval*2;
+			ip.time_interval = tSeconds*2;
 			ip.maxUnproj = fSizeX*2.5f;
 			ip.ptOutsidePivot[0] = gwd[0].offset;
 			pCyl[0] = m_pCylinderGeom;
 			if (bHasFastPhys) {
 				cylinder cylOuter;
-				cylOuter.r = fSizeX+min(fSizeX*1.5f,vrel*time_interval);
-				cylOuter.hh = fSizeZ+min(fSizeZ,vrel*time_interval);
+				cylOuter.r = fSizeX+min(fSizeX*1.5f,vrel*tSeconds);
+				cylOuter.hh = fSizeZ+min(fSizeZ,vrel*tSeconds);
 				cylOuter.center.zero();
 				cylOuter.axis.Set(0,0,1);
 				CylinderGeomOuter.CreateCylinder(&cylOuter);
@@ -1505,7 +1510,7 @@ int CLivingEntity::Step(float time_interval)
 						pent->GetStatus(&sd);
 						const Vec3 &sz0 = pPrecompEnts[i].sz;
 						vrel = max(vrel,sd.v.len()+sd.w.len()*max(max(sz0.x,sz0.y),sz0.z));
-						bFastPhys = isneg(fSizeX*0.2f-vrel*time_interval);
+						bFastPhys = isneg(fSizeX*0.2f-vrel* tSeconds);
 						gwd[1].v = sd.v; gwd[1].w = sd.w;
 						gwd[1].centerOfMass = sd.centerOfMass;
 					}	else {
@@ -1607,7 +1612,7 @@ int CLivingEntity::Step(float time_interval)
 										}
 										RigidBody body(false), *pbody = pent->GetRigidBodyTrans(&body,j,this);
 										vrel = ncontact*(pbody->v+(pbody->w^pcontacts[ncont].center-pbody->pos)-vel-m_velGround);
-										if (iCyl==0 || fabs_tpl(vrel)*time_interval>m_size.x*0.2f) {
+										if (iCyl==0 || fabs_tpl(vrel)*tSeconds>m_size.x*0.2f) {
 											vrel = max(0.0f,vrel-ncontact*(vel+m_velGround));
 											float imp=vrel/max(1e-6f,ncontact*K*ncontact);
 											ai.impulse = ncontact*imp;
@@ -1619,7 +1624,7 @@ int CLivingEntity::Step(float time_interval)
 											/*if (vel.z>-5) {
 											vel.z = max(0.0f, vel.z); vel.z += ai.impulse.len()*fMassInv*0.1f; 
 											}*/
-											bFlying = 1; m_timeFlying = 0;
+											bFlying = 1; m_timeFlying.SetSeconds(0);
 											if (m_kInertia==0)
 												m_timeForceInertia = m_timeImpulseRecover;
 											if (bPushOther) {
@@ -1629,7 +1634,7 @@ int CLivingEntity::Step(float time_interval)
 												//if (pent->GetType()<PE_LIVING)
 												//	ai.impulse *= 0.2f;
 												pent->Action(&ai,1);
-												m_timeSinceImpulseContact = 0;
+												m_timeSinceImpulseContact.SetSeconds(0);
 											}
 											idmat = pPrecompParts[j1].surface_idx&pcontacts[ncont].id[1]>>31 | max(pcontacts[ncont].id[1],0);
 											RegisterContact(pos,pcontacts[ncont].pt,ncontact,pent,j,idmat,imp,0,pcontacts[ncont].iPrim[1]);
@@ -1654,7 +1659,7 @@ int CLivingEntity::Step(float time_interval)
 			const float fAxisDotSlope = axis*nslope;
 			if (fAxisDotSlope>m_slopeFall && 
 					(hcur<h && hcur>h-(m_hCyl-m_size.z)*1.01f || 
-					 hcur>h && sqr_signed(hcur-h)<vel.len2()*sqr(time_interval) && !bFlying && !m_bJumpRequested && !m_bSwimming)) 
+					 hcur>h && sqr_signed(hcur-h)<vel.len2()*sqr(tSeconds) && !bFlying && !m_bJumpRequested && !m_bSwimming))
 			{
 				if (h>hcur && m_nslope*axis<m_slopeSlide && m_nslope*nslope<m_slopeSlide && 
 						fAxisDotSlope<m_slopeSlide && m_velRequested.len2()==0) 
@@ -1845,7 +1850,7 @@ int CLivingEntity::Step(float time_interval)
 									ai.impulse *= 0.2f;
 								pentmin->Action(&ai);
 								if (pentmin->m_iSimClass<3)
-									m_timeSinceImpulseContact = 0;
+									m_timeSinceImpulseContact.SetSeconds(0);
 							}
 						}
 						movelen -= tmin; movesum += tmin;
@@ -1891,7 +1896,7 @@ int CLivingEntity::Step(float time_interval)
 									if(m_pCylinderGeom->Intersect(pPrecompParts[j1].pgeom, gwd,gwd+1, &ip, pcontacts)) { 
 									if (pcontacts->t>m_pWorld->m_vars.maxContactGapPlayer)
 										vel.zero(),m_bStuck=1;	
-									pos = pos0; m_timeUseLowCap=1.0f; 
+									pos = pos0; m_timeUseLowCap.SetSeconds(1);
 									goto nomove; 
 								}
 							}
@@ -1934,7 +1939,7 @@ int CLivingEntity::Step(float time_interval)
 				
 				Vec3 velReq = m_velRequested,g;
 				if (!m_bSwimming) velReq -= m_nslope*(velReq*m_nslope);
-				if (kInertia * time_interval > 1.0f)	kInertia = 1.0f/time_interval;
+				if (kInertia * tSeconds > 1.0f)	kInertia = 1.0f/ tSeconds;
 				Vec3 last_force = (velReq-vel)*kInertia;
 				const float axisSlope = m_nslope*axis;
 				if (axisSlope<m_slopeSlide && !m_bSwimming)	{
@@ -1942,7 +1947,7 @@ int CLivingEntity::Step(float time_interval)
 					last_force += g-m_nslope*(g*m_nslope);
 				}
 				
-				const Vec3 velIncLastForce = vel + (last_force*time_interval);
+				const Vec3 velIncLastForce = vel + (last_force*tSeconds);
 				if (velIncLastForce*vel<0 && velIncLastForce*m_velRequested<=0)
 					vel.zero();
 				else
@@ -1963,7 +1968,7 @@ int CLivingEntity::Step(float time_interval)
 			}
 
 			if (!bFlying)
-				m_timeFlying = 0;
+				m_timeFlying.SetSeconds(0);
 
 			if (m_flags & lef_snap_velocities)
 				vel = DecodeVec6b(EncodeVec6b(vel));
@@ -1971,25 +1976,26 @@ int CLivingEntity::Step(float time_interval)
 			if (!m_bStateReading) {
 				float dh;
 				if (!bFlying && (dh=(pos-pos0)*axis)>m_size.z*0.01f) {
-					m_dhSpeed = max(m_dhSpeed, dh/m_stablehTime);
+					m_dhSpeed = max(m_dhSpeed, dh/m_stablehTime.BADGetSeconds());
 					m_dh += dh;
-					m_stablehTime = 0;
+					m_stablehTime.SetSeconds(0);
 				}	else
 					dh = 0;
-				m_stablehTime = min(m_stablehTime+time_interval,0.5f);
+				m_stablehTime = min(m_stablehTime+time_interval,CTimeValue("0.5"));
 
-				m_dhSpeed += m_dhAcc*time_interval;
-				if (m_dhAcc==0 && m_dh*m_dhSpeed<0 || m_dh*m_dhAcc<0 || m_dh*(m_dh-m_dhSpeed*time_interval)<0)
+				m_dhSpeed += m_dhAcc* tSeconds;
+				if (m_dhAcc==0 && m_dh*m_dhSpeed<0 || m_dh*m_dhAcc<0 || m_dh*(m_dh-m_dhSpeed* tSeconds)<0)
 					m_dh = m_dhSpeed = m_dhAcc = 0;
 				else
-					m_dh -= m_dhSpeed*time_interval;
+					m_dh -= m_dhSpeed* tSeconds;
 			}
 
 			if (m_pHeadGeom) {
 				ip.bSweepTest = true;
 				gwd[0].offset = pos + gwd[0].R*m_parts[0].pos; 
 				gwd[0].v = axis; 
-				tmin = ip.time_interval = m_hHead-m_hCyl-min(m_dh,0.0f);
+				ip.time_interval = m_hHead - m_hCyl - min(m_dh, 0.0f);
+				tmin = ip.time_interval;
 				for(i=0;i<nents;i++) if (pentlist[i]->m_iSimClass==0) {//pentlist[i]->GetType()!=PE_LIVING && pentlist[i]->GetMassInv()*0.4f<m_massinv) {
 					for(int j1=0;j1<pentlist[i]->GetUsedPartsCount(iCaller);j1++) 
 						if (pentlist[i]->m_parts[j=pentlist[i]->GetUsedPart(iCaller,j1)].flags & collider_flags) {
@@ -1998,8 +2004,8 @@ int CLivingEntity::Step(float time_interval)
 								tmin = min(tmin,(float)pcontacts[0].t);
 						}
 				}
-				if (m_dh<ip.time_interval+min(m_dh,0.0f)-tmin || fabs_tpl(m_dhSpeed)+fabs_tpl(m_dhAcc)==0)
-					m_dh = ip.time_interval+min(m_dh,0.0f)-tmin;
+				if (m_dh<ip.time_interval +min(m_dh,0.0f)-tmin || fabs_tpl(m_dhSpeed)+fabs_tpl(m_dhAcc)==0)
+					m_dh = ip.time_interval +min(m_dh,0.0f)-tmin;
 			}
 		}
 		
@@ -2018,8 +2024,8 @@ int CLivingEntity::Step(float time_interval)
 	} else if (!m_bActive) {
 		m_pos = pos;
 		if (m_velRequested.len2()>0) {
-			m_pos += m_velRequested*time_interval;
-			m_BBox[0] += m_velRequested*time_interval; m_BBox[1] += m_velRequested*time_interval;
+			m_pos += m_velRequested*tSeconds;
+			m_BBox[0] += m_velRequested* tSeconds; m_BBox[1] += m_velRequested* tSeconds;
 			m_pWorld->RepositionEntity(this,1|8);
 			bMoving = 1;
 		}
@@ -2036,7 +2042,7 @@ int CLivingEntity::Step(float time_interval)
 		m_bFlying		= bFlying;
 		m_deltaQRot = m_qrot * !oldQRot;
 
-		m_timeSmooth = (float)__fsel(-time_interval, m_timeSmooth, time_interval);
+		m_timeSmooth = __fsel(-time_interval, m_timeSmooth, time_interval);
 		if (m_pWorld->m_bUpdateOnlyFlagged) {
 			m_deltaPos = m_posLocal-m_pos;
 			if (m_deltaPos.len2()<sqr(0.01f) || m_deltaPos.len2()>sqr(2.0f))
@@ -2049,7 +2055,7 @@ int CLivingEntity::Step(float time_interval)
 				m_pBody->pos=m_pos+m_qrot*Vec3(0,0,m_hCyl); m_pBody->q=m_qrot;
 				m_pBody->P=(m_pBody->v=m_vel)*(m_pBody->M=m_mass);
 				m_pBody->Minv=m_massinv; 
-				if (m_pWorld->m_timePhysics > m_timeRotChanged+0.05f)
+				if (m_pWorld->m_timePhysics > m_timeRotChanged+"0.05")
 					m_pBody->w.zero(), m_pBody->L.zero();
 				/*quaternionf dq = m_history[m_iHist].q*!m_history[m_iHist-3&m_szHistory-1].q;
 				float dt=0; for(i=0; i<4; i++)
@@ -2091,7 +2097,7 @@ int CLivingEntity::Step(float time_interval)
 
 
 
-float CLivingEntity::CalcEnergy(float time_interval)
+float CLivingEntity::CalcEnergy(const CTimeValue& time_interval)
 {
 	float E=m_mass*sqr(m_vel);
 	if (m_pBody)
@@ -2101,7 +2107,7 @@ float CLivingEntity::CalcEnergy(float time_interval)
 	return E; 
 }
 
-int CLivingEntity::RegisterContacts(float time_interval,int nMaxPlaneContacts)
+int CLivingEntity::RegisterContacts(const CTimeValue& time_interval,int nMaxPlaneContacts)
 {
 	int i,j;
 	Vec3 pt[2],axis=m_qrot*Vec3(0,0,1);
@@ -2164,7 +2170,7 @@ int CLivingEntity::RegisterContacts(float time_interval,int nMaxPlaneContacts)
 	return 1;
 }
 
-int CLivingEntity::Update(float time_interval, float damping)
+int CLivingEntity::Update(const CTimeValue& time_interval, float damping)
 {
 	int i,j;
 	for(i=0;i<m_nContacts;i++) if (m_pContacts[i].pSolverContact[0])
@@ -2186,7 +2192,7 @@ int CLivingEntity::Update(float time_interval, float damping)
 		m_bJumpRequested |= isneg(-v.z);
 
 		if ((m_pBody->Ibody*w).len2()>0) {
-			m_qrot *= Quat::CreateRotationAA(w.len()*time_interval, Vec3(0,0,sgnnz((w*m_qrot).z)));
+			m_qrot *= Quat::CreateRotationAA(w.len()*time_interval.BADGetSeconds(), Vec3(0,0,sgnnz((w*m_qrot).z)));
 			m_qrot.Normalize();
 			m_pBody->w.zero(); m_pBody->L.zero();
 		}
@@ -2260,25 +2266,27 @@ void CLivingEntity::GetMemoryStatistics(ICrySizer *pSizer) const
 	CPhysicalEntity::GetMemoryStatistics(pSizer);
 }
 
-void CLivingEntity::Step_HandleFlying(Vec3 &vel, const Vec3& velGround, int bWasFlying, const Vec3& heightAdj, const float kInertia, const float time_interval)
+void CLivingEntity::Step_HandleFlying(Vec3 &vel, const Vec3& velGround, int bWasFlying, const Vec3& heightAdj, const float kInertia, const CTimeValue& time_interval)
 {
+	const float tSeconds = time_interval.BADGetSeconds();
+
 	Vec3 last_force, gravity, gravityAdjusted;
 	if (!bWasFlying)
 		vel += velGround;
 	if (!m_pWorld->m_vars.bFlyMode) {
-		gravity = m_gravity * time_interval;
+		gravity = m_gravity * tSeconds;
 		if ((gravity*heightAdj)<0.f) { // Remove any slope adjustment from the gravity accumulation
-			gravityAdjusted = gravity + heightAdj/time_interval;
+			gravityAdjusted = gravity + heightAdj/ tSeconds;
 			if (gravityAdjusted*gravity>0.f)
 				vel += gravityAdjusted;
 		} else
 			vel += gravity;
 		if (m_bSwimming) 
-			vel += (m_velRequested-vel)*kInertia*time_interval;
+			vel += (m_velRequested-vel)*kInertia*tSeconds;
 		/*if ((vel+last_force*time_interval)*vel<0)
 			vel.zero();
 		else*/
-		last_force = -vel*m_kAirResistance*time_interval;
+		last_force = -vel*m_kAirResistance*tSeconds;
 		if (last_force.len2()<vel.len2()*4.0f)
 			vel += last_force;
 	}

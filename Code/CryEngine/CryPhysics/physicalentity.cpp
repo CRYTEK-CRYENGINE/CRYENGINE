@@ -76,9 +76,9 @@ CPhysicalEntity::CPhysicalEntity(CPhysicalWorld *pworld, IGeneralMemoryHeap* pHe
 	, m_lockColliders(0)
 	, m_pOuterEntity(nullptr)
 	, m_bProcessed_aux(0)
-	, m_timeIdle(0.0f)
-	, m_maxTimeIdle(0.0f)
-	, m_timeStructUpdate(0.0f)
+	, m_timeIdle(0)
+	, m_maxTimeIdle(0)
+	, m_timeStructUpdate(0)
 	, m_updStage(1)
 	, m_nUpdTicks(0)
 	, m_pExpl(nullptr)
@@ -533,7 +533,7 @@ int CPhysicalEntity::SetParams(pe_params *_params, int bThreadSafe)
 			if (m_parts[i].flags & geom_can_modify && m_pStructure && m_pStructure->defparts && m_pStructure->defparts[i].pSkelEnt && 
 					!((CGeometry*)m_parts[i].pPhysGeom->pGeom)->IsAPrimitive())
 				m_pWorld->ClonePhysGeomInEntity(this, i, m_pWorld->CloneGeometry(m_parts[i].pPhysGeom->pGeom));
-			if (m_nRefCount && m_iSimClass==0 && m_pWorld->m_vars.lastTimeStep>0.0f) {
+			if (m_nRefCount && m_iSimClass==0 && m_pWorld->m_vars.lastTimeStep>0) {
 				CPhysicalEntity **pentlist;
 				Vec3 inflator = Vec3(10.0f)*m_pWorld->m_vars.maxContactGap;
 				for(int j=m_pWorld->GetEntitiesAround(m_BBox[0]-inflator,m_BBox[1]+inflator, pentlist, ent_sleeping_rigid|ent_living|ent_independent)-1; j>=0; j--)
@@ -843,7 +843,7 @@ int CPhysicalEntity::SetParams(pe_params *_params, int bThreadSafe)
 		pe_params_softbody psb;
 		if (!is_unused(params->stiffness)) psb.shapeStiffnessNorm = params->stiffness;
 		if (!is_unused(params->thickness)) psb.thickness = params->thickness;
-		if (!is_unused(params->maxStretch)) psb.maxSafeStep = params->maxStretch;
+		if (!is_unused(params->maxStretch)) psb.maxSafeStep = BADTIME(params->maxStretch);
 		if (!is_unused(params->maxImpulse)) m_pStructure->defparts[i].maxImpulse = params->maxImpulse;
 		if (!is_unused(params->timeStep)) m_pStructure->defparts[i].timeStep = params->timeStep;
 		if (!is_unused(params->nSteps)) m_pStructure->defparts[i].nSteps = params->nSteps;
@@ -1003,7 +1003,7 @@ int CPhysicalEntity::GetParams(pe_params *_params) const
 		m_pStructure->defparts[i].pSkelEnt->GetParams(&psb);
 		params->stiffness = psb.shapeStiffnessNorm;
 		params->thickness = psb.thickness;
-		params->maxStretch = psb.maxSafeStep;
+		params->maxStretch = psb.maxSafeStep.BADGetSeconds();
 		params->maxImpulse = m_pStructure->defparts[i].maxImpulse;
 		params->timeStep = m_pStructure->defparts[i].timeStep;
 		params->nSteps = m_pStructure->defparts[i].nSteps;
@@ -1221,7 +1221,7 @@ int CPhysicalEntity::Action(pe_action *_action, int bThreadSafe)
 					P = ((action->impulse*rdensity)*m_qrot)*m_parts[i].q;
 				if (!is_unused(action->angImpulse))
 					L = ((action->angImpulse*rdensity)*m_qrot)*m_parts[i].q;
-				if (m_parts[i].pLattice->AddImpulse(ptloc, P,L, m_pWorld->m_vars.gravity*(m_pWorld->m_vars.jointGravityStep*m_pWorld->m_updateTimes[0]),
+				if (m_parts[i].pLattice->AddImpulse(ptloc, P,L, m_pWorld->m_vars.gravity*BADF(m_pWorld->m_vars.jointGravityStep*m_pWorld->m_updateTimes[0]),
 						m_pWorld->m_updateTimes[0]) && !(m_flags & pef_deforming)) 
 				{	m_updStage = 0; m_pWorld->MarkEntityAsDeforming(this);
 				}
@@ -1613,7 +1613,7 @@ void CPhysicalEntity::RemoveGeometry(int id, int bThreadSafe)
 	int i,j,n=0;
 
 	for(i=m_nParts-1;i>=0;i--) if (m_parts[i].id==id) {
-		if (m_nRefCount && m_iSimClass==0 && m_pWorld->m_vars.lastTimeStep>0.0f) {
+		if (m_nRefCount && m_iSimClass==0 && m_pWorld->m_vars.lastTimeStep>0) {
 			CPhysicalEntity **pentlist;
 			Vec3 inflator = Vec3(10.0f)*m_pWorld->m_vars.maxContactGap;
 			for(j=m_pWorld->GetEntitiesAround(m_BBox[0]-inflator,m_BBox[1]+inflator, pentlist, ent_sleeping_rigid|ent_living|ent_independent)-1; j>=0; j--)
@@ -1974,7 +1974,7 @@ struct SMemSerializer : ISerialize {
 	int pos,size;
 };
 
-int CPhysicalEntity::GetStateSnapshotTxt(char *txtbuf,int szbuf, float time_back) 
+int CPhysicalEntity::GetStateSnapshotTxt(char *txtbuf,int szbuf, const CTimeValue& time_back) 
 {
 	const int version = 0;
 	SMemSerializer mser;
@@ -2083,7 +2083,7 @@ int CPhysicalEntity::MapHitPointFromParent(int iParent, const Vec3 &pt)
 	return iClosest;
 }
 
-int CPhysicalEntity::UpdateStructure(float time_interval, pe_explosion *pexpl, int iCaller, Vec3 gravity)
+int CPhysicalEntity::UpdateStructure(const CTimeValue& time_interval, pe_explosion *pexpl, int iCaller, Vec3 gravity)
 {
 	int i,j,i0,i1,flags=0,nPlanes,ihead,itail,nIsles,iter,bBroken,nJoints,nJoints0,nMeshSplits=0,iLastIdx=m_iLastIdx;
 	EventPhysUpdateMesh epum;
@@ -2114,7 +2114,8 @@ int CPhysicalEntity::UpdateStructure(float time_interval, pe_explosion *pexpl, i
 	bop_meshupdate *pmu=0;
 	pe_params_buoyancy pb;
 	pe_params_structural_joint psj;
-	float t,Pn,vmax,M,V0,dt=time_interval,impTot;
+	float t,Pn,vmax,M,V0,impTot;
+	const float dt = time_interval.BADGetSeconds();
 	quotientf jtens;
 	
 	static int idRemoveGeoms[256];
@@ -2132,7 +2133,7 @@ int CPhysicalEntity::UpdateStructure(float time_interval, pe_explosion *pexpl, i
 	nPlanes = min(m_nGroundPlanes, (int)(CRY_ARRAY_COUNT(ground)));
 	if (iCaller>=0 && (!m_pWorld->CheckAreas(this,gravity,&pb,1,Vec3(ZERO),iCaller) || is_unused(gravity)))
 		gravity = m_pWorld->m_vars.gravity;	
-	gravity *= dt*m_pWorld->m_vars.jointGravityStep;
+	gravity *= dt*m_pWorld->m_vars.jointGravityStep.BADGetSeconds();
 	static volatile int g_lockUpdateStructure = 0;
 	WriteLock lock(g_lockUpdateStructure);
 	epcep.breakImpulse.zero(); epcep.breakAngImpulse.zero(); epcep.cutRadius=0; epcep.breakSize=0; 
@@ -2620,7 +2621,7 @@ int CPhysicalEntity::UpdateStructure(float time_interval, pe_explosion *pexpl, i
 
 			if (m_pWorld->m_vars.bLogLatticeTension && (bBroken || impTot>0 && m_pWorld->m_timePhysics>m_pStructure->minSnapshotTime))	{
 				if (bBroken)
-					m_pStructure->minSnapshotTime=m_pWorld->m_timePhysics+2.0f;
+					m_pStructure->minSnapshotTime=m_pWorld->m_timePhysics+2;
 				m_pStructure->nPrevJoints = nJoints0;
 				m_pStructure->prevdt = dt;
 				for(i=0;i<nJoints;i++) {
@@ -3017,7 +3018,7 @@ int CPhysicalEntity::UpdateStructure(float time_interval, pe_explosion *pexpl, i
 										sp.damping = 1.5f;
 										epcep.pEntNew->SetParams(&sp);
 										pe_action_awake aa;
-										aa.minAwakeTime = 2.0f;
+										aa.minAwakeTime.SetSeconds(2);
 										epcep.pEntNew->Action(&aa);
 									}
 								}
@@ -3144,7 +3145,7 @@ int CPhysicalEntity::UpdateStructure(float time_interval, pe_explosion *pexpl, i
 		pe_action_reset ar;	ar.bClearContacts = 2;
 		pent->Action(&ar);
 		UpdateDeformablePart(i);
-		if (m_pStructure->defparts[i].lastUpdateTime && m_pWorld->m_timePhysics > m_pStructure->defparts[i].lastUpdateTime+2.0f)
+		if (m_pStructure->defparts[i].lastUpdateTime != 0 && m_pWorld->m_timePhysics > m_pStructure->defparts[i].lastUpdateTime+2)
 			((CSoftEntity*)pent)->BakeCurrentPose();
 		m_pStructure->defparts[i].lastUpdateTime = m_pWorld->m_timePhysics;
 		m_pStructure->defparts[i].lastUpdatePos = m_pos;
@@ -3223,7 +3224,7 @@ void CPhysicalEntity::OnContactResolved(entity_contact *pContact, int iop, int i
 				m_pWorld->MarkEntityAsDeforming(this), m_iGroup=iGroupId;
 				if (m_pStructure->defparts && m_pStructure->defparts[i].pSkelEnt && 
 						(!((CGeometry*)m_parts[i].pPhysGeom->pGeom)->IsAPrimitive() ||
-						 m_pWorld->m_timePhysics > m_pStructure->defparts[i].lastCollTime+2.0f || 
+						 m_pWorld->m_timePhysics > m_pStructure->defparts[i].lastCollTime+2 || 
 						 pContact->Pspare > m_pStructure->defparts[i].lastCollImpulse*1.5f))
 				{
 					pe_action_impulse ai;
@@ -3244,14 +3245,14 @@ void CPhysicalEntity::OnContactResolved(entity_contact *pContact, int iop, int i
 			dP = n*(pContact->Pspare*rdensity*scale);
 
 			if (m_parts[i].pLattice->AddImpulse(ptloc, (dP*m_qrot)*m_parts[i].q, Vec3(0,0,0), 
-					m_pWorld->m_vars.gravity*m_pWorld->m_vars.jointGravityStep*m_pWorld->m_updateTimes[0],m_pWorld->m_updateTimes[0]) && !(m_flags & pef_deforming))
+					m_pWorld->m_vars.gravity*BADF(m_pWorld->m_vars.jointGravityStep*m_pWorld->m_updateTimes[0]),m_pWorld->m_updateTimes[0]) && !(m_flags & pef_deforming))
 				m_updStage=0,m_iGroup=iGroupId,m_pWorld->MarkEntityAsDeforming(this);
 		}	
 	}
 }
 
 
-int CPhysicalEntity::GetStateSnapshot(TSerialize ser, float time_back, int flags) 
+int CPhysicalEntity::GetStateSnapshot(TSerialize ser, const CTimeValue& time_back, int flags) 
 { 
 	if (ser.GetSerializationTarget()!=eST_Network)
 	{
@@ -3635,7 +3636,7 @@ bool CPhysicalEntity::MakeDeformable(int ipart, int iskel, float r)
 	else {
 		psb.collTypes = 0; gp.flagsCollider = geom_colltype_obstruct|geom_colltype_foliage_proxy;
 	}
-	psb.maxSafeStep = 0.01f; 
+	psb.maxSafeStep.SetSeconds("0.01"); 
 	psb.impulseScale = 0.002f;
 	psb.explosionScale = 0.005f;
 	psb.shapeStiffnessNorm=10.0f; psb.shapeStiffnessTang=0.0f;
@@ -3661,7 +3662,7 @@ bool CPhysicalEntity::MakeDeformable(int ipart, int iskel, float r)
 	pski->pSkelEnt->m_iForeignData = m_iForeignData;
 	delete[] aap.piVtx;
 	RemoveGeometry(m_parts[iskel].id);
-	m_pStructure->defparts[ipart].timeStep = 0.005f;
+	m_pStructure->defparts[ipart].timeStep.SetSeconds("0.005");
 	m_pStructure->defparts[ipart].nSteps = 7;
 	m_pStructure->defparts[ipart].lastUpdateTime = m_pWorld->m_timePhysics;
 	m_pStructure->defparts[ipart].lastUpdatePos = m_pos;
@@ -3722,7 +3723,7 @@ CPhysicalPlaceholder *CPhysicalEntity::ReleasePartPlaceholder(int i)
 	CPhysicalPlaceholder *res = m_parts[i].pPlaceholder;
 	m_parts[i].pPlaceholder->m_BBox[0] = Vec3(1e20f); // make sure rwi and geb don't notice it
 	m_parts[i].pPlaceholder->m_BBox[1] = Vec3(-1e20f);
-	int64 timeout = CryGetTicks()+m_pWorld->m_vars.ticksPerSecond*5;
+	int64 timeout = CryGetTicks() + GetGTimer()->GetTicksPerSecond()*5;
 	while(m_parts[i].pPlaceholder->m_bProcessed & 0xFFFF && CryGetTicks()<timeout); // make sure no external rwi/geb references it
 	m_parts[i].pPlaceholder->m_pEntBuddy = 0;
 	m_parts[i].pPlaceholder = 0;
@@ -3944,7 +3945,7 @@ int CPhysicalEntity::GenerateJoints()
 		Vec3 impulse = m_qrot*pFakeJoints[i].n*pFakeJoints[i].maxTorqueBend;
 		m_pStructure->pParts[j].Pext += impulse;
 		m_pStructure->pParts[j].Lext += m_qrot*(pFakeJoints[i].pt-m_parts[j].q*m_parts[j].pPhysGeom->origin*m_parts[j].scale-m_parts[j].pos) ^ impulse;
-		UpdateStructure(0.01f,0,-1,m_pWorld->m_vars.gravity);
+		UpdateStructure("0.01",0,-1,m_pWorld->m_vars.gravity);
 		if (g_nPartsAlloc < m_nParts || !m_pStructure->nJoints)
 			break;
 

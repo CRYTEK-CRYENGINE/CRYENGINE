@@ -39,7 +39,7 @@ CPhysicalEntity *CPhysicalPlaceholder::GetEntity()
 			return 0;
 	}	else
 		pEntBuddy = (CPhysicalEntity*)m_pEntBuddy;
-	pEntBuddy->m_timeIdle = 0;
+	pEntBuddy->m_timeIdle.SetSeconds(0);
 	return pEntBuddy;
 }
 
@@ -167,7 +167,7 @@ int CPhysicalPlaceholder::Action(pe_action* action, int bThreadSafe) {
 	if (action->type==pe_action_reset::type_id) {
 		if (!m_pEntBuddy)
 			return 1;
-		((CPhysicalEntity*)m_pEntBuddy)->m_timeIdle = ((CPhysicalEntity*)m_pEntBuddy)->m_maxTimeIdle+1.0f;
+		((CPhysicalEntity*)m_pEntBuddy)->m_timeIdle = ((CPhysicalEntity*)m_pEntBuddy)->m_maxTimeIdle+1;
 		return m_pEntBuddy->Action(action);
 	}
 	return GetEntity()->Action(action); 
@@ -179,10 +179,10 @@ int CPhysicalPlaceholder::AddGeometry(phys_geometry *pgeom, pe_geomparams* param
 void CPhysicalPlaceholder::RemoveGeometry(int id, int bThreadSafe) { 
 	return GetEntity()->RemoveGeometry(id,bThreadSafe); 
 }
-int CPhysicalPlaceholder::GetStateSnapshot(class CStream &stm, float time_back, int flags) { 
+int CPhysicalPlaceholder::GetStateSnapshot(class CStream &stm, const CTimeValue&  time_back, int flags) {
 	return GetEntity()->GetStateSnapshot(stm,time_back,flags); 
 }
-int CPhysicalPlaceholder::GetStateSnapshot(TSerialize ser, float time_back, int flags) {
+int CPhysicalPlaceholder::GetStateSnapshot(TSerialize ser, const CTimeValue&  time_back, int flags) {
 	return GetEntity()->GetStateSnapshot(ser,time_back,flags);
 }
 int CPhysicalPlaceholder::SetStateFromSnapshot(class CStream &stm, int flags) { 
@@ -197,7 +197,7 @@ int CPhysicalPlaceholder::SetStateFromTypedSnapshot(TSerialize ser, int type, in
 int CPhysicalPlaceholder::PostSetStateFromSnapshot() { 
 	return GetEntity()->PostSetStateFromSnapshot(); 
 }
-int CPhysicalPlaceholder::GetStateSnapshotTxt(char *txtbuf,int szbuf, float time_back) {
+int CPhysicalPlaceholder::GetStateSnapshotTxt(char *txtbuf,int szbuf, const CTimeValue& time_back) {
 	return GetEntity()->GetStateSnapshotTxt(txtbuf,szbuf,time_back);
 }
 void CPhysicalPlaceholder::SetStateFromSnapshotTxt(const char *txtbuf,int szbuf) {
@@ -210,12 +210,12 @@ void CPhysicalPlaceholder::SetNetworkAuthority(int authoritive, int paused) {
 	return GetEntity()->SetNetworkAuthority(authoritive, paused);
 }
 
-int CPhysicalPlaceholder::Step(float time_interval) { 
+int CPhysicalPlaceholder::Step(const CTimeValue& time_interval) {
 	return GetEntity()->Step(time_interval); 
 }
-void CPhysicalPlaceholder::StartStep(float time_interval) { 
+void CPhysicalPlaceholder::StartStep(const CTimeValue& time_interval) {
 	GetEntity()->StartStep(time_interval); 
 }
-void CPhysicalPlaceholder::StepBack(float time_interval) { 
+void CPhysicalPlaceholder::StepBack(const CTimeValue& time_interval) {
 	return GetEntity()->StepBack(time_interval); 
 }

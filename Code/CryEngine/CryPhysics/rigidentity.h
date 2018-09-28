@@ -25,7 +25,7 @@ struct constraint_info {
 };
 
 struct checksum_item {
-	int iPhysTime;
+	CTimeValue physTime;
 	unsigned int checksum;
 };
 const int NCHECKSUMS = 1;
@@ -38,7 +38,7 @@ struct SRigidEntityNetSerialize
 	Vec3 angvel;
 	bool simclass;
 #if USE_IMPROVED_RIGID_ENTITY_SYNCHRONISATION
-	uint8 sequenceNumber;
+	uint8 sequenceNumber; // == TimeInSeconds * m_pWorld->m_vars.netSequenceFrequency
 #endif
 
 	void Serialize( TSerialize ser );
@@ -56,7 +56,7 @@ struct SRigidEntityNetStateHistory {
 		, receivedStatesStart(0)
 		, receivedSequencesStart(0)
 		, paused(0)
-		, sequenceDeltaAverage(0.0f)
+		, sequenceDeltaAverage(0)
 	{
 		ZeroArray(m_receivedStates);
 		ZeroArray(m_receivedSequenceDeltas);
@@ -65,7 +65,7 @@ struct SRigidEntityNetStateHistory {
 	inline int GetNumReceivedStates() { return numReceivedStates; }
 	inline int GetNumReceivedSequences() { return numReceivedSequences; }
 	inline SRigidEntityNetSerialize& GetReceivedState(int index) { return m_receivedStates[(index + receivedStatesStart) % MAX_STATE_HISTORY_SNAPSHOTS]; }
-	inline float GetAverageSequenceDelta() { return sequenceDeltaAverage; }
+	inline const mpfloat& GetAverageSequenceDelta() { return sequenceDeltaAverage; }
 	void PushReceivedState(const SRigidEntityNetSerialize& item);
 	void PushReceivedSequenceDelta(uint8 delta);
 
@@ -74,7 +74,7 @@ struct SRigidEntityNetStateHistory {
 		numReceivedSequences = 0;
 		receivedStatesStart = 0;
 		receivedSequencesStart = 0;
-		sequenceDeltaAverage = 0.0f;
+		sequenceDeltaAverage = 0;
 	}
 	inline int8 Paused() { return paused; }
 	inline void SetPaused(int8 p) { paused = p; }
@@ -89,7 +89,7 @@ private:
 	int8 receivedStatesStart;
 	int8 receivedSequencesStart;
 	int8 paused;
-	float sequenceDeltaAverage;
+	mpfloat sequenceDeltaAverage;
 };
 #endif
 
@@ -125,8 +125,8 @@ class CRigidEntity : public CPhysicalEntity {
 
 	enum snapver { SNAPSHOT_VERSION = 9 };
 	virtual int GetSnapshotVersion() { return SNAPSHOT_VERSION; }
-	virtual int GetStateSnapshot(class CStream &stm, float time_back=0, int flags=0);
-	virtual int GetStateSnapshot(TSerialize ser, float time_back=0, int flags=0);
+	virtual int GetStateSnapshot(class CStream &stm, const CTimeValue& time_back=0, int flags=0);
+	virtual int GetStateSnapshot(TSerialize ser, const CTimeValue& time_back=0, int flags=0);
 	virtual int SetStateFromSnapshot(class CStream &stm, int flags=0);
 	virtual int SetStateFromSnapshot(TSerialize ser, int flags);
 	virtual int PostSetStateFromSnapshot();
@@ -137,26 +137,26 @@ class CRigidEntity : public CPhysicalEntity {
 	int WriteContacts(TSerialize ser);
 	int ReadContacts(TSerialize ser);
 
-	virtual void StartStep(float time_interval);
-	virtual float GetMaxTimeStep(float time_interval);
-	virtual float GetLastTimeStep(float time_interval) { return m_lastTimeStep; }
-	virtual int Step(float time_interval);
-	virtual void StepBack(float time_interval);
+	virtual void StartStep(const CTimeValue& time_interval);
+	virtual CTimeValue GetMaxTimeStep(const CTimeValue& time_interval);
+	virtual const CTimeValue& GetLastTimeStep(const CTimeValue& time_interval) { return m_lastTimeStep; }
+	virtual int Step(const CTimeValue& time_interval);
+	virtual void StepBack(const CTimeValue& time_interval);
 	virtual int GetContactCount(int nMaxPlaneContacts);
-	virtual int RegisterContacts(float time_interval,int nMaxPlaneContacts);
-	virtual int Update(float time_interval, float damping);
-	virtual float CalcEnergy(float time_interval);
-	virtual float GetDamping(float time_interval);
+	virtual int RegisterContacts(const CTimeValue& time_interval,int nMaxPlaneContacts);
+	virtual int Update(const CTimeValue& time_interval, float damping);
+	virtual float CalcEnergy(const CTimeValue& time_interval);
+	virtual float GetDamping(const CTimeValue& time_interval);
 	virtual float GetMaxFriction() { return m_maxFriction; }
 	virtual void GetSleepSpeedChange(int ipart, Vec3 &v,Vec3 &w) { v=m_vSleep; w=m_wSleep; }
 
-	virtual bool OnSweepHit(geom_contact &cnt, int icnt, float &dt, Vec3 &vel, int &nsweeps) {
+	virtual bool OnSweepHit(geom_contact &cnt, int icnt, CTimeValue& dt, Vec3 &vel, int &nsweeps) {
 		if (m_nColliders)
 			m_minFriction = 3.0f;
 		return false;
 	}
-	virtual void CheckAdditionalGeometry(float time_interval) {}
-	virtual void AddAdditionalImpulses(float time_interval) {}
+	virtual void CheckAdditionalGeometry(const CTimeValue& time_interval) {}
+	virtual void AddAdditionalImpulses(const CTimeValue& time_interval) {}
 	virtual void RecomputeMassDistribution(int ipart=-1,int bMassChanged=1);
 
 	virtual void DrawHelperInformation(IPhysRenderer *pRenderer, int flags);
@@ -168,24 +168,24 @@ class CRigidEntity : public CPhysicalEntity {
 	entity_contact *RegisterContactPoint(int idx, const Vec3 &pt, const geom_contact *pcontacts, int iPrim0,int iFeature0, 
 		int iPrim1,int iFeature1, int flags=contact_new, float penetration=0, int iCaller=get_iCaller_int(), const Vec3 &nloc=Vec3(ZERO));
 	int CheckForNewContacts(geom_world_data *pgwd0,intersection_params *pip, int &itmax, Vec3 sweep=Vec3(0), int iStartPart=0,int nParts=-1, int *pFlagsAccum=0);
-	virtual int GetPotentialColliders(CPhysicalEntity **&pentlist, float dt=0);
+	virtual int GetPotentialColliders(CPhysicalEntity **&pentlist, const CTimeValue& dt=0);
 	virtual int CheckSelfCollision(int ipart0,int ipart1) { return 0; }
-	void UpdatePenaltyContacts(float time_interval);
-	int UpdatePenaltyContact(entity_contact *pContact, float time_interval);
+	void UpdatePenaltyContacts(const CTimeValue& time_interval);
+	int UpdatePenaltyContact(entity_contact *pContact, const CTimeValue& time_interval);
 	void VerifyExistingContacts(float maxdist);
-	int EnforceConstraints(float time_interval);
-	void UpdateConstraints(float time_interval);
-	void UpdateContactsAfterStepBack(float time_interval);
-	void ApplyBuoyancy(float time_interval,const Vec3 &gravity,pe_params_buoyancy *pb,int nBuoys);
+	int EnforceConstraints(const CTimeValue& time_interval);
+	void UpdateConstraints(const CTimeValue& time_interval);
+	void UpdateContactsAfterStepBack(const CTimeValue& time_interval);
+	void ApplyBuoyancy(const CTimeValue& time_interval,const Vec3 &gravity,pe_params_buoyancy *pb,int nBuoys);
 	void ArchiveContact(entity_contact *pContact, float imp=0, int bLastInGroup=1, float r=0.0f);
 	int CompactContactBlock(entity_contact *pContact,int endFlags, float maxPlaneDist, int nMaxContacts,int &nContacts,
 		entity_contact *&pResContact, Vec3 &n,float &maxDist, const Vec3 &ptTest, const Vec3 &dirTest) const;
 	void ComputeBBoxRE(coord_block_BBox *partCoord);
 	void UpdatePosition(int bGridLocked);
-	int PostStepNotify(float time_interval,pe_params_buoyancy *pb,int nMaxBuoys,int iCaller);
+	int PostStepNotify(const CTimeValue& time_interval,pe_params_buoyancy *pb,int nMaxBuoys,int iCaller);
 	masktype MaskIgnoredColliders(int iCaller, int bScheduleForStep=0);
 	void UnmaskIgnoredColliders(masktype constraint_mask, int iCaller);
-	void FakeRayCollision(CPhysicalEntity *pent, float dt);
+	void FakeRayCollision(CPhysicalEntity *pent, const CTimeValue& dt);
 	int ExtractConstraintInfo(int i, masktype constraintMask, pe_action_add_constraint &aac);
 	EventPhysJointBroken &ReportConstraintBreak(EventPhysJointBroken &epjb, int i);
 	virtual bool IgnoreCollisionsWith(const CPhysicalEntity *pent, int bCheckConstraints=0) const;
@@ -201,10 +201,10 @@ class CRigidEntity : public CPhysicalEntity {
 	void CheckContactConflicts(geom_contact *pcontacts, int ncontacts, int iCaller);
 	void ProcessContactEvents(geom_contact* pcontact, int i, int iCaller);
 	virtual void DelayedIntersect(geom_contact *pcontacts, int ncontacts, CPhysicalEntity **pColliders, int (*iCollParts)[2]);
-	void ProcessCanopyContact(geom_contact *pcontacts, int i, float time_interval, int iCaller);
+	void ProcessCanopyContact(geom_contact *pcontacts, int i, const CTimeValue& time_interval, int iCaller);
 #if USE_IMPROVED_RIGID_ENTITY_SYNCHRONISATION
-	float GetInterpSequenceNumber();
-	bool GetInterpolatedState(float sequenceNumber, SRigidEntityNetSerialize &interpState);
+	mpfloat GetInterpSequenceNumber();
+	bool GetInterpolatedState(const mpfloat& sequenceNumber, SRigidEntityNetSerialize &interpState);
 	void UpdateStateFromNetwork();
 	uint8 GetLocalSequenceNumber() const;
 #endif
@@ -248,15 +248,15 @@ class CRigidEntity : public CPhysicalEntity {
 
 	float m_velFastDir,m_sizeFastDir;
 
-	float m_timeStepFull;
-	float m_timeStepPerformed;
-	float m_lastTimeStep;
-	float m_minAwakeTime;
-	float m_nextTimeStep;
+	CTimeValue m_timeStepFull;
+	CTimeValue m_timeStepPerformed;
+	CTimeValue m_lastTimeStep;
+	CTimeValue m_minAwakeTime;
+	CTimeValue m_nextTimeStep;
 
 	Vec3 m_gravity,m_gravityFreefall;
 	float m_Emin;
-	float m_maxAllowedStep;
+	CTimeValue m_maxAllowedStep;
 	Vec3 m_vAccum,m_wAccum;
 	float m_damping,m_dampingFreefall;
 	float m_dampingEx;
@@ -271,7 +271,7 @@ class CRigidEntity : public CPhysicalEntity {
 	Vec3 m_prevPos,m_prevv,m_prevw;
 	quaternionf m_prevq;
 	float m_E0,m_Estep;
-	float m_timeCanopyFallen;
+	CTimeValue m_timeCanopyFallen;
 	unsigned int m_bCanopyContact : 8;
 	unsigned int m_nCanopyContactsLost : 15;
 	unsigned int m_sequenceOffset : 8;

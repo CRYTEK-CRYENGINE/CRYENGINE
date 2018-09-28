@@ -958,7 +958,6 @@ PhysXWorld::PhysXWorld(ILog* pLog) : m_debugDraw(false)
 	MARK_UNUSED m_vars.flagsColliderDebris;
 	m_vars.flagsANDDebris = -1;
 	m_vars.bDebugExplosions = 0;
-	m_vars.ticksPerSecond = 3000000000U;
 	#if USE_IMPROVED_RIGID_ENTITY_SYNCHRONISATION
 	m_vars.netInterpTime = 0.1f;
 	m_vars.netExtrapMaxTime = 0.5f;

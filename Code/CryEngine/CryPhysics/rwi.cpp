@@ -152,7 +152,7 @@ struct entity_grid_checker {
 						MarkAsPODThread(pWorld);
 						pWorld->m_nOnDemandListFailures=0; ++pWorld->m_iLastPODUpdate;
 						if (pWorld->m_pPhysicsStreamer && pWorld->m_pPhysicsStreamer->CreatePhysicalEntitiesInBox(bbox.center-bbox.size,bbox.center+bbox.size)) {	
-							pPODcell->lifeTime = pWorld->m_nOnDemandListFailures ? 0.001f:8.0f;
+							pPODcell->lifeTime.SetSeconds(pWorld->m_nOnDemandListFailures ? mpfloat("0.001") : 8);
 							pPODcell->inextActive = pgrid->iActivePODCell0;
 							pgrid->iActivePODCell0 = icell.y<<16|icell.x;
 							szList = max(szList, pWorld->GetTmpEntList(pTmpEntList, iCaller));
@@ -161,7 +161,7 @@ struct entity_grid_checker {
 					}
 				} ReadLockCond lockPODr(pWorld->m_lockPODGrid,1); lockPODr.SetActive(0);
 			}	else
-				pPODcell->lifeTime = max(8.0f,pPODcell->lifeTime);
+				pPODcell->lifeTime = max(CTimeValue(8),pPODcell->lifeTime);
 			UnmarkAsPODThread(pWorld);
 			ReadLockCond relock(pWorld->m_lockGrid,1); relock.SetActive(0);
 		}

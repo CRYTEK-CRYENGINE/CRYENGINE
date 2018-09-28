@@ -119,49 +119,49 @@ class CArticulatedEntity : public CRigidEntity {
 
 	virtual RigidBody *GetRigidBody(int ipart=-1,int bWillModify=0);
 	virtual RigidBody *GetRigidBodyData(RigidBody *pbody, int ipart=-1);
-	virtual void GetLocTransformLerped(int ipart, Vec3 &offs, quaternionf &q, float &scale, float timeBack, const CPhysicalPlaceholder *trg) const;
+	virtual void GetLocTransformLerped(int ipart, Vec3 &offs, quaternionf &q, float &scale, const nTime& timeBack, const CPhysicalPlaceholder *trg) const;
 	virtual void OnContactResolved(entity_contact *pcontact, int iop, int iGroupId);
 
 	virtual void GetMemoryStatistics(ICrySizer *pSizer) const;
 
 	enum snapver { SNAPSHOT_VERSION = 6 };
-	virtual int GetStateSnapshot(CStream &stm, float time_back=0,int flags=0);
+	virtual int GetStateSnapshot(CStream &stm, const CTimeValue& time_back=0,int flags=0);
 	virtual int SetStateFromSnapshot(CStream &stm, int flags);
-	virtual int GetStateSnapshot(TSerialize ser, float time_back=0, int flags=0);
+	virtual int GetStateSnapshot(TSerialize ser, const CTimeValue& time_back=0, int flags=0);
 	virtual int SetStateFromSnapshot(TSerialize ser, int flags);
 
-	virtual float GetMaxTimeStep(float time_interval);
-	virtual int Step(float time_interval);
-	virtual void StepBack(float time_interval);
-	virtual int RegisterContacts(float time_interval,int nMaxPlaneContacts);
-	virtual int Update(float time_interval, float damping);
-	virtual float CalcEnergy(float time_interval);
-	virtual float GetDamping(float time_interval);
+	virtual CTimeValue GetMaxTimeStep(const CTimeValue& time_interval);
+	virtual int Step(const CTimeValue& time_interval);
+	virtual void StepBack(const CTimeValue& time_interval);
+	virtual int RegisterContacts(const CTimeValue& time_interval,int nMaxPlaneContacts);
+	virtual int Update(const CTimeValue& time_interval, float damping);
+	virtual float CalcEnergy(const CTimeValue& time_interval);
+	virtual float GetDamping(const CTimeValue& time_interval);
 	virtual void GetSleepSpeedChange(int ipart, Vec3 &v,Vec3 &w) { int i=m_infos[ipart].iJoint; v=m_joints[i].vSleep; w=m_joints[i].wSleep; }
 
-	virtual int GetPotentialColliders(CPhysicalEntity **&pentlist, float dt=0);
+	virtual int GetPotentialColliders(CPhysicalEntity **&pentlist, const CTimeValue& dt=0);
 	virtual int CheckSelfCollision(int ipart0,int ipart1);
 	virtual int IsAwake(int ipart=-1) const;
 	virtual void RecomputeMassDistribution(int ipart=-1,int bMassChanged=1);
 	virtual void BreakableConstraintsUpdated();
 	virtual void DrawHelperInformation(IPhysRenderer *pRenderer, int flags);
 
-	int SyncWithHost(int bRecalcJoints,float time_interval);
+	int SyncWithHost(int bRecalcJoints, const CTimeValue& time_interval);
 	void SyncBodyWithJoint(int idx, int flags=3);
 	void SyncJointWithBody(int idx, int flags=1);
 	void UpdateJointRotationAxes(int idx);
 	void CheckForGimbalLock(int idx);
 	int GetUnprojAxis(int idx, Vec3 &axis);
 
-	int StepJoint(int idx, float time_interval,int &bBounced, int bFlying, int iCaller);
+	int StepJoint(int idx, const CTimeValue& time_interval,int &bBounced, int bFlying, int iCaller);
 	void JointListUpdated();
-	void StepFeatherstone(float time_interval, int bBounced, Matrix33 &M0host);
-	int CalcBodyZa(int idx, float time_interval, vectornf &Za_change);
+	void StepFeatherstone(const CTimeValue& time_interval, int bBounced, Matrix33 &M0host);
+	int CalcBodyZa(int idx, const CTimeValue& time_interval, vectornf &Za_change);
 	int CalcBodyIa(int idx, matrixf& Ia_change, int bIncludeLimits=1);
 	void CalcBodiesIinv(int bLockLimits);
 	int CollectPendingImpulses(int idx,int &bNotZero,int bBounce=1);
 	void PropagateImpulses(const Vec3 &dv,int bLockLimits=0,int bApplyVel=1,const Vec3 &dw=Vec3(ZERO));
-	void CalcVelocityChanges(float time_interval, const Vec3 &dv,const Vec3 &dw);
+	void CalcVelocityChanges(const CTimeValue& time_interval, const Vec3 &dv,const Vec3 &dw);
 	void GetJointTorqueResponseMatrix(int idx, Matrix33 &K);
 	void UpdatePosition(int bGridLocked);
 	void UpdateJointDyn();
@@ -173,9 +173,9 @@ class CArticulatedEntity : public CRigidEntity {
 				m_infos[i].posHist[0] = m_infos[i].posHist[1]; m_infos[i].posHist[1] = m_infos[i].pos;
 				m_infos[i].qHist[0] = m_infos[i].qHist[1]; m_infos[i].qHist[1] = m_infos[i].q;
 			}
-			float rhistTime0 = m_rhistTime;
-			m_rhistTime = 1.0f/max(m_timeStepFull,0.0001f);
-			if (rhistTime0==0)
+			rTime rhistTime0 = m_rhistTime;
+			m_rhistTime = 1/max(m_timeStepFull, CTimeValue("0.0001"));
+			if (rhistTime0 == 0)
 				UpdateHistory(1);
 		}
 		return bStepDone;
@@ -192,7 +192,7 @@ class CArticulatedEntity : public CRigidEntity {
 	Vec3 m_acc,m_wacc;
 	Matrix33 m_M0inv;
 	Vec3 m_Ya_vec[2];
-	float m_simTime,m_simTimeAux;
+	CTimeValue m_simTime,m_simTimeAux;
 	float m_scaleBounceResponse;
 	int m_bGrounded;
 	int m_nRoots;
@@ -227,7 +227,7 @@ class CArticulatedEntity : public CRigidEntity {
 
 	Vec3 m_posHist[2];
 	quaternionf m_qHist[2];
-	float m_rhistTime;
+	rTime m_rhistTime;
 	int m_bContactsAssigned;
 
 	mutable volatile int m_lockJoints;

@@ -42,9 +42,9 @@
 
 
 
-enum fieldTypes { ft_int=0,ft_uint,ft_short,ft_ushort,ft_uint64,ft_float,ft_vector,ft_quaternion,ft_entityptr,ft_matrix33,ft_proc };
-static char *g_strFormats[2][10] = {{ "%i","%X","%hd","%hu","%I64X","%.8g","(%.8g %.8g %.8g)", "(%f (%f %f %f))", "%d", "(%f %f %f)(%f %f %f)(%f %f %f)" },
-																	  { "%i","%X","%hd","%hu","%I64X","%g", "(%g %g %g)", "(%f (%f %f %f))", "%d", "(%f %f %f)(%f %f %f)(%f %f %f)" }};
+enum fieldTypes { ft_int=0,ft_uint,ft_short,ft_ushort,ft_uint64,ft_float,ft_vector,ft_quaternion,ft_entityptr,ft_matrix33,ft_proc,ft_time};
+static char *g_strFormats[2][11] = {{ "%i","%X","%hd","%hu","%I64X","%.8g","(%.8g %.8g %.8g)", "(%f (%f %f %f))", "%d", "(%f %f %f)(%f %f %f)(%f %f %f)", "" },
+																	  { "%i","%X","%hd","%hu","%I64X","%g", "(%g %g %g)", "(%f (%f %f %f))", "%d", "(%f %f %f)(%f %f %f)(%f %f %f)", "" }};
 static char g_strTabs[17] = "\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t";
 
 struct parse_item;
@@ -181,6 +181,9 @@ struct Serializer {
 					case ft_short: sprintf(ptr0, g_strFormats[0][list[i]->itype], *(short*)pdata); break;
 					case ft_ushort: sprintf(ptr0, g_strFormats[0][list[i]->itype], *(unsigned short*)pdata); break;
 					case ft_uint64: sprintf(ptr0, g_strFormats[0][list[i]->itype], *(long long*)pdata); break;
+					case ft_time:
+						if (is_unused(*(CTimeValue*)pdata)) continue;
+						sprintf(ptr0, g_strFormats[0][list[i]->itype], (*(CTimeValue*)pdata).GetSeconds()); break;
 					case ft_float: 
 						if (is_unused(*(float*)pdata)) continue; 
 						sprintf(ptr0, g_strFormats[0][list[i]->itype], *(float*)pdata); break;
@@ -224,10 +227,13 @@ struct Serializer {
 					switch (pitem->itype) {
 						case ft_int: case ft_uint: case ft_short: case ft_ushort: case ft_uint64: case ft_float: 
 							sscanf(ptr1, g_strFormats[1][pitem->itype], pdata); break;
+						case ft_time:{ CTimeValue* time = (CTimeValue*)pdata;
+							time->SetSeconds(ptr1);
+						} break;
 						case ft_vector: {	Vec3 *v = (Vec3*)pdata; 
 							sscanf(ptr1, g_strFormats[1][pitem->itype], &v->x,&v->y,&v->z); 
 						} break;
-						case ft_quaternion: {	quaternionf *q = (quaternionf*)pdata; 
+						case ft_quaternion: { quaternionf *q = (quaternionf*)pdata; 
 							sscanf(ptr1, g_strFormats[1][pitem->itype], &q->w,&q->v.x,&q->v.y,&q->v.z); 
 						}	break;
 						case ft_matrix33: { Matrix33 &R = *(Matrix33*)pdata;
@@ -2168,8 +2174,7 @@ struct CPhysVarsSerializer : Serializer {
 		DECLARE_MEMBER("iCollisionMode", ft_int, iCollisionMode)
 		DECLARE_MEMBER("bSingleStepMode", ft_int, bSingleStepMode)
 		DECLARE_MEMBER("bDoStep", ft_int, bDoStep)
-		DECLARE_MEMBER("fixedTimestep", ft_float, fixedTimestep)
-		DECLARE_MEMBER("timeGranularity", ft_float, timeGranularity)
+		DECLARE_MEMBER("fixedTimestep", ft_time, fixedTimestep)
 		DECLARE_MEMBER("iDrawHelpers", ft_int, iDrawHelpers)
 		DECLARE_MEMBER("maxContactGap", ft_float, maxContactGap)
 		DECLARE_MEMBER("maxContactGapPlayer", ft_float, maxContactGapPlayer)

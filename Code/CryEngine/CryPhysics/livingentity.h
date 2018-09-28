@@ -90,14 +90,14 @@ public:
 	virtual int GetParams(pe_params*) const;
 	virtual int GetStatus(pe_status*) const;
 	virtual int Action(pe_action*,int bThreadSafe=1);
-	virtual void StartStep(float time_interval);
-	virtual float GetMaxTimeStep(float time_interval);
-	virtual int Step(float time_interval);
+	virtual void StartStep(const CTimeValue& time_interval);
+	virtual CTimeValue GetMaxTimeStep(const CTimeValue& time_interval);
+	virtual int Step(const CTimeValue& time_interval);
 	//int StepBackEx(float time_interval, bool bRollbackHistory=true);
-	virtual void StepBack(float time_interval) { /*StepBackEx(time_interval);*/ }
-	virtual float CalcEnergy(float time_interval);
-	virtual int RegisterContacts(float time_interval,int nMaxPlaneContacts);
-	virtual int Update(float time_interval, float damping);
+	virtual void StepBack(const CTimeValue& time_interval) { /*StepBackEx(time_interval);*/ }
+	virtual float CalcEnergy(const CTimeValue& time_interval);
+	virtual int RegisterContacts(const CTimeValue& time_interval,int nMaxPlaneContacts);
+	virtual int Update(const CTimeValue& time_interval, float damping);
 	virtual int Awake(int bAwake=1,int iSource=0);
 	virtual void AlertNeighbourhoodND(int mode) { ReleaseGroundCollider(); CPhysicalEntity::AlertNeighbourhoodND(mode); }
 	virtual void ComputeBBox(Vec3 *BBox, int flags=update_part_bboxes);
@@ -114,8 +114,8 @@ public:
 	virtual void DrawHelperInformation(IPhysRenderer *pRenderer, int flags);
 
 	enum snapver { SNAPSHOT_VERSION = 2 };
-	virtual int GetStateSnapshot(class CStream &stm, float time_back=0, int flags=0);
-	virtual int GetStateSnapshot(TSerialize ser, float time_back=0, int flags=0);
+	virtual int GetStateSnapshot(class CStream &stm, const CTimeValue& time_back=0, int flags=0);
+	virtual int GetStateSnapshot(TSerialize ser, const CTimeValue& time_back=0, int flags=0);
 	virtual int SetStateFromSnapshot(class CStream &stm, int flags=0);
 	virtual int SetStateFromSnapshot(TSerialize ser, int flags=0);
 
@@ -126,11 +126,11 @@ public:
 		Ibuf[3][0]+=m_massinv; Ibuf[4][1]+=m_massinv; Ibuf[5][2]+=m_massinv;
 	}
 	float ShootRayDown(le_precomp_entity* pents, int nents, le_precomp_part *pparts, const Vec3 &pos,
-		Vec3 &nslope, float time_interval=0, bool bUseRotation=false, bool bUpdateGroundCollider=false,bool bIgnoreSmallObjects=true);
+		Vec3 &nslope, const CTimeValue& time_interval=0, bool bUseRotation=false, bool bUpdateGroundCollider=false,bool bIgnoreSmallObjects=true);
 	void AddLegsImpulse(const Vec3 &vel, const Vec3 &nslope, bool bInstantChange);
 	void ReleaseGroundCollider();
 	void SetGroundCollider(CPhysicalEntity *pCollider, int bAcceptStatic=0);
-	Vec3 SyncWithGroundCollider(float time_interval);
+	Vec3 SyncWithGroundCollider(const CTimeValue& time_interval);
 	void RegisterContact(const Vec3 &posSelf, const Vec3& pt,const Vec3& n, CPhysicalEntity *pCollider, int ipart,int idmat, 
 		float imp=0, int bLegsContact=0, int iPrim=-1, int ipartMin=0);
 	void RegisterUnprojContact(const le_contact &unproj);
@@ -140,35 +140,36 @@ public:
 	//void AllocateExtendedHistory();
 
 	void UpdatePosition(const Vec3 &pos, const Vec3 *BBox, int bGridLocked);
-	void Step_HandleFlying(Vec3 &vel, const Vec3& velGround, int bWasFlying, const Vec3& heightAdj, const float kInertia, const float time_interval);
+	void Step_HandleFlying(Vec3 &vel, const Vec3& velGround, int bWasFlying, const Vec3& heightAdj, const float kInertia, const CTimeValue& time_interval);
 	void Step_HandleWasFlying(Vec3& vel, int& bFlying, const Vec3& axis, const int bGroundContact);
 	void Step_HandleLivingEntity();
 
 	Vec3 m_vel,m_velRequested,m_gravity,m_nslope;
-	float m_dtRequested;
+	CTimeValue m_dtRequested;
 	float m_kInertia,m_kInertiaAccel,m_kAirControl,m_kAirResistance, m_hCyl,m_hEye,m_hPivot;
 	Vec3 m_size;
-	float m_dh,m_dhSpeed,m_dhAcc,m_stablehTime,m_hLatest,m_nodSpeed;
+	float m_dh,m_dhSpeed,m_dhAcc,m_hLatest,m_nodSpeed;
+	CTimeValue m_stablehTime;
 	float m_mass,m_massinv;
 	int m_surface_idx;
 	int m_lastGroundSurfaceIdx,m_lastGroundSurfaceIdxAux;
 	int m_lastGroundPrim;
-	float m_timeFlying,m_timeForceInertia;
+	CTimeValue m_timeFlying,m_timeForceInertia;
 	float m_slopeSlide,m_slopeClimb,m_slopeJump,m_slopeFall;
 	float m_maxVelGround;
 	float m_groundContactEps;
-	float m_timeImpulseRecover;
+	CTimeValue m_timeImpulseRecover;
 	CCylinderGeom *m_pCylinderGeom;
 	float m_hHead;
 	CSphereGeom *m_pHeadGeom;
 	phys_geometry m_CylinderGeomPhys;
-	float m_timeUseLowCap;
-	float m_timeSinceStanceChange;
-	float m_timeSinceImpulseContact;
+	CTimeValue m_timeUseLowCap;
+	CTimeValue m_timeSinceStanceChange;
+	CTimeValue m_timeSinceImpulseContact;
 	//float m_dhHist[2],m_timeOnStairs;
-	float m_timeStepFull,m_timeStepPerformed;
+	CTimeValue m_timeStepFull,m_timeStepPerformed;
 	int m_iSnapshot;
-	int m_iTimeLastSend;
+	CTimeValue m_timeLastSend;
 	int m_collTypes;
 	CPhysicalEntity *m_pLivingEntToIgnore;
 
@@ -192,8 +193,8 @@ public:
 	Vec3 m_deltaPos,m_posLocal;
 	Vec3 m_deltaV;
 	Quat m_deltaQRot;
-	float m_timeSmooth;
-	float m_timeRotChanged;
+	CTimeValue m_timeSmooth;
+	CTimeValue m_timeRotChanged;
 
 // 	le_history_item *m_history,m_history_buf[4];
 // 	int m_szHistory,m_iHist;
