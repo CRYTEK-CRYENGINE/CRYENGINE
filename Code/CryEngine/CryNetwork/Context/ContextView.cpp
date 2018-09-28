@@ -596,7 +596,7 @@ CContextView::CContextView() :
 	m_bDead(false),
 	m_currentState(eCVS_Initial),
 	m_ignoringCurObject(false),
-	m_remotePhysicsTime(0.0f),
+	m_remotePhysicsTime(0),
 	m_flushUpdates(false),
 	m_allowVoice(true)
 {

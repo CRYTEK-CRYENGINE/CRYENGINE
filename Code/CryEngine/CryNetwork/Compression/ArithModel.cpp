@@ -196,7 +196,7 @@ int64 CArithModel::WriteGetTimeDelta(ETimeStream time, const CTimeValue& value, 
 
 	adapt.timeFraction32 = m_timeFraction32;
 
-	int64 delta = value.GetMilliSecondsAsInt64() - (oldTime.GetMilliSecondsAsInt64() + (int64)dt);
+	int64 delta = (int64)value.GetMilliSeconds() - ((int64)oldTime.GetMilliSeconds() + (int64)dt);
 
 	if (delta < -32768 || delta > 32767)
 		pDeltaInfo->Reset();
@@ -223,7 +223,7 @@ void CArithModel::WriteTime(CCommOutputStream& stm, ETimeStream time, CTimeValue
 	if (isLarge)
 	{
 		stm.EncodeShift(16, 65535, 1);
-		stm.WriteBitsLarge(value.GetMilliSecondsAsInt64(), 64);
+		stm.WriteBitsLarge((int64)value.GetMilliSeconds(), 64);
 	}
 	else
 	{
@@ -282,7 +282,7 @@ CTimeValue CArithModel::ReadTimeWithDelta(CCommInputStream& stm, ETimeStream tim
 
 	adapt.timeFraction32 = m_timeFraction32;
 
-	int64 millis = (oldTime.GetMilliSecondsAsInt64() + (int64)dt) + delta;
+	int64 millis = ((int64)oldTime.GetMilliSeconds() + (int64)dt) + delta;
 
 	if (!adapt.isInFrame)
 		adapt.startTime.SetMilliSeconds(millis);
@@ -359,7 +359,7 @@ CTimeValue CArithModel::ReadTime(CCommInputStream& stm, ETimeStream time)
 			encodedDelta = value;
 		//		NetLog( "READ: encodedDelta:%.4x rate:%.4x error:%.4x [%s]",
 		//			encodedDelta, pDeltaInfo->rate, pDeltaInfo->error, hit? "hit" : "miss" );
-		millis = (oldTime.GetMilliSecondsAsInt64() + (int64)dt) + encodedDelta - 32768;
+		millis = ((int64)oldTime.GetMilliSeconds() + (int64)dt) + encodedDelta - 32768;
 		pDeltaInfo->Update(encodedDelta, hit);
 
 	#if DEBUG_TIME_COMPRESSION
@@ -404,7 +404,7 @@ float CArithModel::EstimateSizeOfTime(ETimeStream time, CTimeValue value) const
 		pDeltaInfo = &adapt.frameDelta;
 	}
 
-	int64 delta = (value - oldTime).GetMilliSecondsAsInt64();
+	int64 delta = (int64)(value - oldTime).GetMilliSeconds();
 	uint16 encodedDelta;
 	bool isLarge = false;
 	if (delta < -32768)

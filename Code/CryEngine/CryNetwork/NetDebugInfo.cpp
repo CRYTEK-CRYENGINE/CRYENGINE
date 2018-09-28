@@ -73,11 +73,11 @@ void CNetDebugInfoSection::Draw3dLine(const Vec3 pos, uint32 nLine, const float*
 
 CNetDebugObjectsInfo::CNetDebugObjectsInfo()
 	: CNetDebugInfoSection(CNetDebugInfo::eP_Test, 50.0F, 50.0F),
-	m_boundObjects(CTimeValue(5.0F)),
-	m_sendTraffic(CTimeValue(5.0F)),
-	m_sendPackets(CTimeValue(5.0F)),
-	m_recvTraffic(CTimeValue(5.0F)),
-	m_recvPackets(CTimeValue(5.0F))
+	m_boundObjects(CTimeValue(5)),
+	m_sendTraffic(CTimeValue(5)),
+	m_sendPackets(CTimeValue(5)),
+	m_recvTraffic(CTimeValue(5)),
+	m_recvPackets(CTimeValue(5))
 {
 }
 

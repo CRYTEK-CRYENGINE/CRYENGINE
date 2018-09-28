@@ -108,14 +108,14 @@ bool DecodeString(const char* buf, uint64& value)
 }
 	#endif
 
-bool DecodeString(const char* buf, CTimeValue& value)
+MPOnly bool DecodeString(const char* buf, T& value)
 {
-	value = 0.0f;
-	float temp;
-	bool ok = sscanf(buf, "%f", &temp) != 0;
-	if (ok)
-		value = temp;
-	return ok;
+	value = 0;
+	return 1 == (value = buf);
+}
+TVOnly bool DecodeString(const char* buf, T& value)
+{
+	return DecodeString(buf, value.m_lValue);
 }
 
 bool DecodeString(const char* buf, ScriptAnyValue& value)
@@ -281,7 +281,7 @@ CDemoPlaybackListener::CDemoPlaybackListener(CNetContext* pContext, const char* 
 
 	m_pState = &m_defaultHandlers;
 	m_buffer.key[0] = 0;
-	m_startTime = -1.0f;
+	m_startTime.SetSeconds(-1);
 
 	m_currentlyBinding = 0;
 	m_currentlyBindingStatic = false;
@@ -340,7 +340,7 @@ void CDemoPlaybackListener::OnObjectEvent(CNetContextState* pState, SNetObjectEv
 		break;
 	case eNOE_InGame:
 		m_bInGame = true;
-		m_initTime = gEnv->pTimer->GetFrameStartTime();
+		m_initTime = GetGTimer()->GetFrameStartTime();
 
 		m_pContext->GetGameContext()->PassDemoPlaybackMappedOriginalServerPlayer(MapID(LOCAL_PLAYER_ENTITY_ID));
 		break;
@@ -500,19 +500,18 @@ CDemoPlaybackListener::EInputResult CDemoPlaybackListener::BeginFrame()
 	if (!m_bInGame)
 		return eIR_TryLater;
 
-	if (m_startTime < 0.0f)
+	if (m_startTime < 0)
 	{
 		if (!DecodeString(m_buffer.value, m_startTime))
 			return eIR_AbortRead;
 	}
 
-	ITimer* pTimer = gEnv->pTimer;
-	float time = (pTimer->GetFrameStartTime() - m_initTime).GetSeconds();
+	CTimeValue time = GetGTimer()->GetFrameStartTime() - m_initTime;
 
 	if (time < m_startTime)
 		return eIR_TryLater;
 
-	m_startTime = -1.0f;
+	m_startTime.SetSeconds(-1);
 	return eIR_Ok;
 }
 

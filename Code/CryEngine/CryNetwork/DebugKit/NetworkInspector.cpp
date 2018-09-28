@@ -36,7 +36,7 @@ const char* GetNameForCompareFrequentNetMessageType(int id)
 	return 0;
 }
 
-void CNetworkInspector::AddMessage(const char* description, float sizeInBytes, float queuingLatency, const char* additionalText)
+void CNetworkInspector::AddMessage(const char* description, float sizeInBytes, const CTimeValue& queuingLatency, const char* additionalText)
 {
 	NetMessage tempMsg(description, sizeInBytes, queuingLatency, additionalText);
 
@@ -50,10 +50,10 @@ void CNetworkInspector::AddMessage(const char* description, float sizeInBytes, f
 
 void CNetworkInspector::Update()
 {
-	m_lastDumpTime = gEnv->pTimer->GetFrameStartTime();
+	m_lastDumpTime = GetGTimer()->GetFrameStartTime();
 	if (m_vMessages.size() > 0)
 	{
-		if (m_lastDumpTime.GetMilliSeconds() - m_lastMessageDeleted.GetMilliSeconds() > 500)
+		if (m_lastDumpTime - m_lastMessageDeleted > "0.5")
 		{
 			m_vMessages.erase(m_vMessages.begin());
 			m_lastMessageDeleted = m_lastDumpTime;
@@ -88,7 +88,7 @@ string CNetworkInspector::CreateOutputText(NetMessage& msg)
 	if (msg.m_sizeInBytes > 0)
 		output += string().Format(" sz: %.1f", msg.m_sizeInBytes);
 	if (msg.m_queuingLatency > 0)
-		output += string().Format(" lat: %.1fms", msg.m_queuingLatency);
+		output += string().Format(" lat: %.1fms", (float)msg.m_queuingLatency.GetMilliSeconds());
 	if (msg.m_additionalText.length() > 0)
 		// here additional text can be dumped to screen
 		output.append(msg.m_additionalText);
@@ -106,7 +106,7 @@ string CNetworkInspector::CreateOutputText(FrequentNetMessage& msg)
 	}
 	if (msg.m_averageQueuingLatency > 0)
 	{
-		output += string().Format(" lat av: %.1f", msg.m_averageQueuingLatency);
+		output += string().Format(" lat av: %.1f", (float)msg.m_averageQueuingLatency.GetMilliSeconds());
 	}
 	return output;
 }
@@ -181,7 +181,7 @@ void CNetworkInspector::RefreshShowcase()
 	//kill old messages
 	for (frqIT = m_vFreqMessages.begin(); frqIT != m_vFreqMessages.end(); ++frqIT)
 	{
-		uint32 seconds = (uint32)(m_lastDumpTime.GetSeconds() - (*frqIT).m_lastTime.GetSeconds());
+		mpfloat seconds = m_lastDumpTime - (*frqIT).m_lastTime;
 		if (!seconds)
 			continue;
 		if (seconds > 5)

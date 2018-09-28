@@ -42,8 +42,8 @@ void CNetDebugChannelViewer::Draw(const SNetworkProfilingStats* const pNetworkPr
 		{
 			DrawLine(line++, s_white, "%16s : %4d : %4d : %7.02f / %7.02f [%2d] :  %d / %8.02f / %5.02f : %4d / %4d  :  %c",
 			         channelStats.m_name,
-			         channelStats.m_ping,
-			         channelStats.m_pingSmoothed,
+			         (float)channelStats.m_ping.GetMilliSeconds(),
+			         (float)channelStats.m_pingSmoothed.GetMilliSeconds(),
 			         channelStats.m_bandwidthInbound,
 			         channelStats.m_bandwidthOutbound,
 			         channelStats.m_bandwidthShares,

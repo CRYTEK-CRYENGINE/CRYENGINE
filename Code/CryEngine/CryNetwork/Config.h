@@ -119,8 +119,8 @@
 // Turn off to simplify the scheduler to reduce time taken to schedule packets : Currently ignores bang/pulses
 #define FULL_ON_SCHEDULING     1
 
-// Used to predict replicated values, unit is Hz.
-#define REPLICATION_TIME_PRECISION 3000.f
+// Used to predict replicated values, unit is Hz. PERSONAL CRYTEK: Improve precision?
+#define REPLICATION_TIME_PRECISION 3000
 
 // Lock network thread to wake up only once in a game frame
 #define LOCK_NETWORK_FREQUENCY      1

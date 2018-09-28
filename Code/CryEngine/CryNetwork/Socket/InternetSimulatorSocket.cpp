@@ -6,15 +6,17 @@
 #if INTERNET_SIMULATOR
 
 	#include "Network.h"
+// POINT OF INTEREST
+// How to use this internet simulator etc.?
 
 CInternetSimulatorSocket::SProfileEntry CInternetSimulatorSocket::sm_DefaultProfiles[CInternetSimulatorSocket::DEFAULT_PROFILE_MAX] =
 {
-	{ 0.0f,  0.0f,  0.00f, 0.04f },                 // DEFAULT_PROFILE_GREAT
-	{ 0.0f,  2.0f,  0.01f, 0.05f },                 // DEFAULT_PROFILE_GOOD
-	{ 1.0f,  5.0f,  0.04f, 0.08f },                 // DEFAULT_PROFILE_TYPICAL
-	{ 2.0f,  8.0f,  0.10f, 0.40f },                 // DEFAULT_PROFILE_IFFY
-	{ 5.0f,  12.0f, 0.20f, 0.80f },                 // DEFAULT_PROFILE_BAD
-	{ 10.0f, 20.0f, 0.70f, 2.00f },                 // DEFAULT_PROFILE_AWFUL
+	{ 0.0f,  0.0f,  "0.00", "0.04" },                 // DEFAULT_PROFILE_GREAT
+	{ 0.0f,  2.0f,  "0.01", "0.05" },                 // DEFAULT_PROFILE_GOOD
+	{ 1.0f,  5.0f,  "0.04", "0.08" },                 // DEFAULT_PROFILE_TYPICAL
+	{ 2.0f,  8.0f,  "0.10", "0.40" },                 // DEFAULT_PROFILE_IFFY
+	{ 5.0f,  12.0f, "0.20", "0.80" },                 // DEFAULT_PROFILE_BAD
+	{ 10.0f, 20.0f," 0.70", "2.00" },                 // DEFAULT_PROFILE_AWFUL
 };
 
 CInternetSimulatorSocket::SProfileEntry* CInternetSimulatorSocket::sm_pProfiles = NULL;
@@ -86,24 +88,24 @@ ESocketError CInternetSimulatorSocket::Send(const uint8* pBuffer, size_t nLength
 		return eSE_Ok;
 	}
 
-	float fLagRange = CVARS.net_PacketLagMax - CVARS.net_PacketLagMin;
-	float fExtraTime = CVARS.net_PacketLagMin;
+	CTimeValue fLagRange  = CVARS.net_PacketLagMax - CVARS.net_PacketLagMin;
+	CTimeValue fExtraTime = CVARS.net_PacketLagMin;
 
-	if (fLagRange > 0.0f)
+	if (fLagRange > 0)
 	{
-		fExtraTime += (fLagRange * s_InternetSimRandomGen.GenerateFloat());
+		fExtraTime += (fLagRange * BADTIME(s_InternetSimRandomGen.GenerateFloat()));
 	}
 
-	g_socketBandwidth.simLastPacketLag = (uint32)(fExtraTime * 1000.0f);
+	g_socketBandwidth.simLastPacketLag = fExtraTime;
 
-	if (fExtraTime <= 0.0f)
+	if (fExtraTime <= 0)
 	{
 		return m_pChild->Send(pBuffer, nLength, to);
 	}
 	else
 	{
 		SPendingSend* pPS = new SPendingSend;
-		CTimeValue sendTime = g_time + CTimeValue(fExtraTime);
+		CTimeValue sendTime = g_time + fExtraTime;
 		pPS->eType = ePT_Data;
 		pPS->pBuffer = new uint8[nLength];
 		memcpy(pPS->pBuffer, pBuffer, nLength);
@@ -131,24 +133,24 @@ ESocketError CInternetSimulatorSocket::SendVoice(const uint8* pBuffer, size_t nL
 		return eSE_Ok;
 	}
 
-	float fLagRange = CVARS.net_PacketLagMax - CVARS.net_PacketLagMin;
-	float fExtraTime = CVARS.net_PacketLagMin;
+	CTimeValue fLagRange = CVARS.net_PacketLagMax - CVARS.net_PacketLagMin;
+	CTimeValue fExtraTime = CVARS.net_PacketLagMin;
 
-	if (fLagRange > 0.0f)
+	if (fLagRange > 0)
 	{
-		fExtraTime += (fLagRange * s_InternetSimRandomGen.GenerateFloat());
+		fExtraTime += (fLagRange * BADTIME(s_InternetSimRandomGen.GenerateFloat()));
 	}
 
-	g_socketBandwidth.simLastPacketLag = (uint32)(fExtraTime * 1000.0f);
+	g_socketBandwidth.simLastPacketLag = fExtraTime;
 
-	if (fExtraTime <= 0.0f)
+	if (fExtraTime <= 0)
 	{
 		return m_pChild->SendVoice(pBuffer, nLength, to);
 	}
 	else
 	{
 		SPendingSend* pPS = new SPendingSend;
-		CTimeValue sendTime = g_time + CTimeValue(fExtraTime);
+		CTimeValue sendTime = g_time + fExtraTime;
 		pPS->eType = ePT_Voice;
 		pPS->pBuffer = new uint8[nLength];
 		memcpy(pPS->pBuffer, pBuffer, nLength);
@@ -184,16 +186,16 @@ void CInternetSimulatorSocket::SetProfile(EProfile profile)
 	case PROFILE_PERFECT:
 		{
 			CNetCVars::Get().net_PacketLossRate = 0.0f;
-			CNetCVars::Get().net_PacketLagMin = 0.0f;
-			CNetCVars::Get().net_PacketLagMax = 0.0f;
+			CNetCVars::Get().net_PacketLagMin.SetSeconds(0);
+			CNetCVars::Get().net_PacketLagMax.SetSeconds(0);
 			CryLog("[LagProfiles] Using Perfect profile settings.");
 		}
 		break;
 	case PROFILE_FATAL:
 		{
 			CNetCVars::Get().net_PacketLossRate = 100.0f;
-			CNetCVars::Get().net_PacketLagMin = 60.0f;
-			CNetCVars::Get().net_PacketLagMax = 60.0f;
+			CNetCVars::Get().net_PacketLagMin.SetSeconds(60);
+			CNetCVars::Get().net_PacketLagMax.SetSeconds(60);
 			CryLog("[LagProfiles] Using Fatal profile settings.");
 		}
 		break;
@@ -263,7 +265,7 @@ void CInternetSimulatorSocket::LoadXMLProfiles(const char* pFileName)
 					XmlNodeRef profileNode = rootNode->getChild(i);
 					if (profileNode->isTag("Profile"))
 					{
-						memcpy(pProfile, &sm_DefaultProfiles[DEFAULT_PROFILE_TYPICAL], sizeof(SProfileEntry));
+						pProfile = &sm_DefaultProfiles[DEFAULT_PROFILE_TYPICAL];
 
 						profileNode->getAttr("minPacketLoss", pProfile->fLossMin);
 						profileNode->getAttr("maxPacketLoss", pProfile->fLossMax);

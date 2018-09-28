@@ -166,7 +166,7 @@ struct SContextViewObjectEx
 
 		for (NetworkAspectID i = 0; i < NumAspects; i++)
 		{
-			partialUpdateReceived[i] = 0.0f;
+			partialUpdateReceived[i].SetSeconds(0);
 			partialUpdatesRemaining[i] = 0;
 			notifyPartialUpdateHandle[i] = SSendableHandle();
 			ackedAspectVersions[i] = ~uint32(0);

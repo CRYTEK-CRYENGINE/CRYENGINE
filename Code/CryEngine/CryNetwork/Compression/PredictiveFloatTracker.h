@@ -26,7 +26,7 @@ public:
 		std::vector<SequenceEntry> mEntries;
 
 		void Use();
-		float GetSecondsFromLastUse() const;
+		CTimeValue GetTimeFromLastUse() const;
 	};
 
 public:

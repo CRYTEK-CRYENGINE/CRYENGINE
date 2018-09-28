@@ -409,7 +409,7 @@ void netProfileCheckBudgets(SNetProfileStackEntry* entry)
 	// don't check root, we cover this with the socket measurements
 	if ((entry != s_netProfileRoot) && (entry->m_budget > NO_BUDGET) && (entry->counts.m_worst > entry->m_budget))
 	{
-		NetQuickLog(true, 10.f, "%s has exceeded its budget of %.2f k/bits by %.2f k/bits", entry->m_name.c_str(), entry->m_budget, (entry->counts.m_worst - entry->m_budget));
+		NetQuickLog(true, 10, "%s has exceeded its budget of %.2f k/bits by %.2f k/bits", entry->m_name.c_str(), entry->m_budget, (entry->counts.m_worst - entry->m_budget));
 		s_budgetExceeded = true;
 	}
 
@@ -495,7 +495,7 @@ void netProfileFormatSocketView(FILE* file)
 	                    g_socketBandwidth.bandwidthStats.m_1secAvg.m_totalBandwidthSent, g_socketBandwidth.bandwidthStats.m_1secAvg.m_totalBandwidthSent / float(ONE_K_BITS),
 	                    g_socketBandwidth.sizeDisplayRx, g_socketBandwidth.sizeDisplayRx / float(ONE_K_BITS),
 	                    g_socketBandwidth.bandwidthStats.m_total.m_totalPacketsSent,
-	                    g_socketBandwidth.numDisplayNetTicks, gEnv->pTimer->GetFrameRate());
+	                    g_socketBandwidth.numDisplayNetTicks, GetGTimer()->GetFrameRate());
 
 	fprintf(file, "%s", stringBuffer.c_str());
 }
@@ -623,10 +623,10 @@ void netProfileClearTickBits(SNetProfileStackEntry* pNode)
 bool netProfileSocketMeasurementTick()
 {
 	bool shouldDumpLogs = false;
-	CTimeValue when = gEnv->pTimer->GetAsyncTime();
+	CTimeValue when = GetGTimer()->GetAsyncTime();
 
-	#define   AVERAGE_PERIOD (1.f)  // 1 means don't average, and we probably want that when dumping to file
-	#define   UPDATE_PERIOD  (1.f / AVERAGE_PERIOD)
+	#define   AVERAGE_PERIOD (1)  // 1 means don't average, and we probably want that when dumping to file
+	#define   UPDATE_PERIOD  CTimeValue(mpfloat(1) / AVERAGE_PERIOD)
 
 	g_socketBandwidth.numNetTicks++;
 
@@ -667,7 +667,7 @@ bool netProfileSocketMeasurementTick()
 		g_socketBandwidth.bandwidthStats.m_10secAvg.m_totalPacketsRecvd = (uint64)(g_socketBandwidth.numPacketsRecv.GetAverage() * AVERAGE_PERIOD);
 
 		g_socketBandwidth.avgValueRx = g_socketBandwidth.bandwidthUsedAmountRx.GetAverage() * AVERAGE_PERIOD;
-		g_socketBandwidth.sizeDisplayRx = g_socketBandwidth.periodStats.m_totalBandwidthRecvd * AVERAGE_PERIOD;
+		g_socketBandwidth.sizeDisplayRx = g_socketBandwidth.periodStats.m_totalBandwidthRecvd * (float)AVERAGE_PERIOD;
 
 		g_socketBandwidth.last = when;
 		g_socketBandwidth.numDisplayNetTicks = g_socketBandwidth.numNetTicks;
@@ -680,7 +680,7 @@ bool netProfileSocketMeasurementTick()
 
 		if (kbits > socketBudget)
 		{
-			NetQuickLog(true, 10.f, "root has exceeded its budget of %.2f k/bits by %.2f k/bits", socketBudget, (kbits - socketBudget));
+			NetQuickLog(true, 10, "root has exceeded its budget of %.2f k/bits by %.2f k/bits", socketBudget, (kbits - socketBudget));
 			s_budgetExceeded = true;
 		}
 

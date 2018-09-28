@@ -324,7 +324,7 @@ void CNetContext::BackgroundPassthrough(NetTimerId, void* p, CTimeValue)
 {
 	CNetContext* pThis = static_cast<CNetContext*>(p);
 	pThis->m_pState->FetchAndPropogateChangesFromGame(false);
-	pThis->m_backgroundPassthrough = TIMER.ADDTIMER(g_time + 0.01f, BackgroundPassthrough, pThis, "CNetContext::BackgroundPassthrough() m_backgroundPassThrough");
+	pThis->m_backgroundPassthrough = TIMER.ADDTIMER(g_time + "0.01", BackgroundPassthrough, pThis, "CNetContext::BackgroundPassthrough() m_backgroundPassThrough");
 }
 
 void CNetContext::EnableBackgroundPassthrough(bool enable)

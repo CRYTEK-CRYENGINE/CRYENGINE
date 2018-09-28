@@ -49,14 +49,14 @@ private:
 		STask() : state(eCVS_Initial), pTask(0)
 #ifndef _RELEASE
 			, numRuns(0)
-			, done(0.0f)
+			, done(0)
 #endif
 		{
 		}
 		STask(EContextViewState s, IContextEstablishTask* p) : state(s), pTask(p)
 #ifndef _RELEASE
 			, numRuns(0)
-			, done(0.0f)
+			, done(0)
 #endif
 		{
 		}

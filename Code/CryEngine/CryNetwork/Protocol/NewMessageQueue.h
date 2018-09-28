@@ -29,7 +29,7 @@ struct SSchedulingParams
 	// what is the (approximate) time that we'll send again
 	CTimeValue  next;
 	// how long (approximately!) does it take to send a packet from here to the remote pc
-	float       transportLatency;
+	CTimeValue   transportLatency;
 	// how many bytes should a packet be?
 	TPacketSize targetBytes;
 	// what is this packets sequence number?
@@ -171,8 +171,8 @@ class CMessageQueue
 	{
 		// scheduling policy
 		float                 priority;
-		float                 maxLatency;
-		float                 discardLatency;
+		CTimeValue            maxLatency;
+		CTimeValue            discardLatency;
 		float                 maxBandwidth;
 		bool                  drawn;
 		// distance/direction scaling
@@ -229,7 +229,7 @@ private:
 	struct SSentEnt
 	{
 		SSentEnt(CTimeValue w, float b) : when(w), bandwidth(b) {}
-		SSentEnt() : when(0.0f), bandwidth(0) {}
+		SSentEnt() : when(0), bandwidth(0) {}
 		CTimeValue when;
 		float      bandwidth;
 	};
@@ -244,7 +244,7 @@ private:
 		TSentEntQueue sends;
 		float         totBandwidthUsed;
 		float         bandwidthThisFrame;
-		float         expirationPeriod;
+		CTimeValue    expirationPeriod;
 
 		SAccountingGroup()
 		{
@@ -265,12 +265,12 @@ private:
 
 			if (!sends.Empty())
 			{
-				while (!(sends.Empty()) && (now.GetDifferenceInSeconds(sends.Front().when) > expirationPeriod))
+				while (!(sends.Empty()) && (now - sends.Front().when > expirationPeriod))
 				{
 					PopSend();
 				}
 
-				bandwidthUsed = totBandwidthUsed / expirationPeriod;
+				bandwidthUsed = totBandwidthUsed / expirationPeriod.BADGetSeconds();
 			}
 
 			return bandwidthUsed;
@@ -503,7 +503,7 @@ private:
 	SMsgSlot*             AllocSlot(SSendableHandle& id, EMsgSlotState initState);
 	SMsgSlot*             GetSlot(SSendableHandle id);
 	SMsgSlot*             GetSlotSafe(SSendableHandle id);
-	ELatencyClass         GetLatencyClassForGroup(float expectedTimeNow, float expectedTimeNext, SAccountingGroup* pGrp);
+	ELatencyClass         GetLatencyClassForGroup(const CTimeValue& expectedTimeNow, const CTimeValue& expectedTimeNext, SAccountingGroup* pGrp);
 
 	void                  PrepareMessageList(const SSchedulingParams& params);
 	void                  BeginAccountingFrame();

@@ -177,7 +177,7 @@ private:
 
 	struct SKeyExchangeStuff
 	{
-		SKeyExchangeStuff() : kes(eKES_NotStarted), kesStart(0.0f) {}
+		SKeyExchangeStuff() : kes(eKES_NotStarted), kesStart(0) {}
 		EKeyExchangeState                 kes;
 #if ALLOW_ENCRYPTION
 		CExponentialKeyExchange           exchange;
@@ -260,7 +260,7 @@ private:
 	// someone we're trying to connect to
 	struct SPendingConnection : public SKeyExchangeStuff
 	{
-		SPendingConnection() : pChannel(0), lastSend(0.0f), connectCounter(0), profile(0) {}
+		SPendingConnection() : pChannel(0), lastSend(0), connectCounter(0), profile(0) {}
 
 		string                  connectionString;
 		TNetAddress             to;
@@ -277,7 +277,7 @@ private:
 	// someone we're currently connecting with (waiting for game)
 	struct SConnecting : public SKeyExchangeStuff
 	{
-		SConnecting() : lastNotify(0.0f) {}
+		SConnecting() : lastNotify(0) {}
 
 		string           connectionString; // save the connection string for later use
 		uint32           socketCaps;

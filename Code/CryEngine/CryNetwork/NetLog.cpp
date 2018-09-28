@@ -35,8 +35,8 @@ struct SNetLogRecord
 	uint32              sev;
 	static const size_t STRUCT_SIZE = 1024;
 	static const size_t MSG_SIZE = STRUCT_SIZE - sizeof(ENetLogSeverity);
-	float               timeout;
-	float               lifetime;
+	CTimeValue          timeout;
+	CTimeValue          lifetime;
 	char                msg[MSG_SIZE];
 	bool                seen;
 	char                tstamp[32];
@@ -135,12 +135,12 @@ struct SNetLogRecord
 				done = false;
 			else
 			{
-				float maxTime = timeout;
-				if (maxTime < 0.1f)
-					maxTime = 0.1f;
-				float alpha = 1.0f - (lifetime / maxTime);
+				CTimeValue maxTime = timeout;
+				if (maxTime < "0.1")
+					maxTime.SetSeconds("0.1");
+				float alpha = 1.0f - BADF(lifetime / maxTime);
 				alpha = CLAMP(alpha, 0, 1);
-				lifetime += gEnv->pTimer->GetFrameTime();
+				lifetime += GetGTimer()->GetFrameTime();
 				clr[phase][3] = alpha;
 				gEnv->pAuxGeomRenderer->Draw2dLabel(10.f, (float)(g_tempVarY += 10), 1, clr[phase], false, "%s", msg);
 				clr[phase][3] = 1.0f;
@@ -249,7 +249,7 @@ void ParseBacklogString(const string& backlog, string& base, std::vector<string>
 	}
 }
 
-static void RecordNetLog(uint32 sev, float timeout, const char* fmt, va_list args)
+static void RecordNetLog(uint32 sev, const CTimeValue& timeout, const char* fmt, va_list args)
 {
 	if (CNetCVars::Get().LogLevel == 0)
 	{
@@ -262,7 +262,7 @@ static void RecordNetLog(uint32 sev, float timeout, const char* fmt, va_list arg
 	rec.msg[SNetLogRecord::MSG_SIZE - 1] = 0;
 	rec.seen = false;
 	rec.timeout = timeout;
-	rec.lifetime = 0.0f;
+	rec.lifetime.SetSeconds(0);
 	cry_strcpy(rec.tstamp, GetTimestampString());
 
 	if ((sev & eNLS_Secret) == 0)
@@ -271,7 +271,7 @@ static void RecordNetLog(uint32 sev, float timeout, const char* fmt, va_list arg
 		g_backlog.CyclePush(string().Format("[%s] %s", rec.tstamp, rec.msg));
 	}
 
-	if (timeout <= 0.0f && IsPrimaryThread())
+	if (timeout <= 0 && IsPrimaryThread())
 		rec.Print(0);
 	else
 	{
@@ -323,7 +323,7 @@ void VNetLog(const char* pFmt, va_list args)
 		return;
 	}
 
-	RecordNetLog(eNLS_Information, 0.0f, pFmt, args);
+	RecordNetLog(eNLS_Information, 0, pFmt, args);
 }
 
 void NetLogAlways(const char* fmt, ...)
@@ -335,7 +335,7 @@ void NetLogAlways(const char* fmt, ...)
 
 	va_list args;
 	va_start(args, fmt);
-	RecordNetLog(eNLS_Always, 0.0f, fmt, args);
+	RecordNetLog(eNLS_Always, 0, fmt, args);
 	va_end(args);
 }
 
@@ -348,7 +348,7 @@ void NetLogAlways_Secret(const char* fmt, ...)
 
 	va_list args;
 	va_start(args, fmt);
-	RecordNetLog(eNLS_Always | eNLS_Secret, 0.0f, fmt, args);
+	RecordNetLog(eNLS_Always | eNLS_Secret, 0, fmt, args);
 	va_end(args);
 }
 
@@ -361,7 +361,7 @@ void NetWarning(const char* fmt, ...)
 
 	va_list args;
 	va_start(args, fmt);
-	RecordNetLog(eNLS_Warning, 0.0f, fmt, args);
+	RecordNetLog(eNLS_Warning, 0, fmt, args);
 	va_end(args);
 }
 
@@ -374,7 +374,7 @@ void NetError(const char* fmt, ...)
 
 	va_list args;
 	va_start(args, fmt);
-	RecordNetLog(eNLS_Error, 0.0f, fmt, args);
+	RecordNetLog(eNLS_Error, 0, fmt, args);
 	va_end(args);
 }
 
@@ -408,11 +408,11 @@ void NetLogHUD(const char* fmt, ...)
 
 	va_list args;
 	va_start(args, fmt);
-	RecordNetLog(eNLS_OnTheMainScreen, 10.0f, fmt, args);
+	RecordNetLog(eNLS_OnTheMainScreen, 10, fmt, args);
 	va_end(args);
 }
 
-void NetQuickLog(bool toConsole, float timeout, const char* fmt, ...)
+void NetQuickLog(bool toConsole, const CTimeValue& timeout, const char* fmt, ...)
 {
 	if (CNetCVars::Get().LogLevel == 0)
 	{
@@ -452,7 +452,7 @@ void NetLogPacketDebug(const char* fmt, ...)
 	{
 		va_list args;
 		va_start(args, fmt);
-		RecordNetLog(eNLS_Information, 0.0f, fmt, args);
+		RecordNetLog(eNLS_Information, 0, fmt, args);
 		va_end(args);
 	}
 }

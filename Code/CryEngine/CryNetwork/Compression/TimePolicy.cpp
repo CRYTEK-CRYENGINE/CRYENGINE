@@ -53,7 +53,7 @@ bool CTimePolicy::ReadValue(CCommInputStream& in, CTimeValue& value, CArithModel
 {
 	value = pModel->ReadTime(in, m_stream);
 
-	NetLogPacketDebug("CTimePolicy::ReadValue %" PRId64 " (%f)", value.GetMilliSecondsAsInt64(), in.GetBitSize());
+	NetLogPacketDebug("CTimePolicy::ReadValue %" PRId64 " (%f)", (int64)value.GetMilliSeconds(), in.GetBitSize());
 	return true;
 }
 
@@ -67,7 +67,7 @@ bool CTimePolicy::WriteValue(CCommOutputStream& out, CTimeValue value, CArithMod
 bool CTimePolicy::ReadValue(CNetInputSerializeImpl* in, CTimeValue& value, uint32 age) const
 {
 	value = in->ReadTime(m_stream);
-	NetLogPacketDebug("CTimePolicy::ReadValue %" PRId64 " (%f)", value.GetMilliSecondsAsInt64(), in->GetBitSize());
+	NetLogPacketDebug("CTimePolicy::ReadValue %" PRId64 " (%f)", (int64)value.GetMilliSeconds(), in->GetBitSize());
 	return true;
 }
 

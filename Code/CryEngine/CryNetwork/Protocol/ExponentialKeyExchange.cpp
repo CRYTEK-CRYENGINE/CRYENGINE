@@ -68,7 +68,7 @@ void CExponentialKeyExchange::Generate(KEY_TYPE& gg, KEY_TYPE& pp, KEY_TYPE& AA)
 	char s[256];
 
 regenerate:         // LH : Should be safe to simply regenerate a new key
-	uint64 seed = gEnv->pTimer->GetAsyncTime().GetMilliSecondsAsInt64();
+	uint64 seed = (int64)GetGTimer()->GetAsyncTime().GetMilliSeconds();
 	//	seed = 0x53275A-13-13;		// LH : This is a key that generates a 0 in e - which reproduces the infinite loop problem - if memory conditions are right
 
 	// generate private key
@@ -140,7 +140,7 @@ void CExponentialKeyExchange::Generate(KEY_TYPE& BB, const KEY_TYPE& gg, const K
 	char s[256];
 
 regenerate:     // LH : Should be safe to simply regenerate a new key
-	uint64 seed = gEnv->pTimer->GetAsyncTime().GetMilliSecondsAsInt64();
+	uint64 seed = (int64)GetGTimer()->GetAsyncTime().GetMilliSeconds();
 
 	// generate private key
 	CAutoBIGD b;

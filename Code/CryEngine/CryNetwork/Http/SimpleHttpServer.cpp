@@ -694,8 +694,8 @@ void CSimpleHttpServerInternal::OnConnectionAccepted(IStreamSocketPtr pStreamSoc
 		conn->m_pSocketSession->GetPeerAddr(conn->m_remoteAddr);
 
 		//m_sessionState = eSS_WaitFirstRequest;
-		//m_authenticationTimeoutStart = gEnv->pTimer->GetAsyncCurTime();
-		//m_lineReadingTimeoutStart = gEnv->pTimer->GetAsyncCurTime();
+		//m_authenticationTimeoutStart = GetGTimer()->GetAsyncCurTime();
+		//m_lineReadingTimeoutStart = GetGTimer()->GetAsyncCurTime();
 		// TODO: should reset all the relevant states here
 
 		conn->m_requestType = eRT_None;
@@ -780,7 +780,7 @@ bool CSimpleHttpServerInternal::ParseHeaderLine(int connectionID, string& line)
 
 					//	m_sessionState = eSS_ChallengeSent;
 					//}
-					//m_lineReadingTimeoutStart = gEnv->pTimer->GetAsyncCurTime();
+					//m_lineReadingTimeoutStart = GetGTimer()->GetAsyncCurTime();
 					return true;
 				}
 			}
@@ -805,7 +805,7 @@ bool CSimpleHttpServerInternal::ParseHeaderLine(int connectionID, string& line)
 
 					//	m_sessionState = eSS_ChallengeSent;
 					//}
-					//m_lineReadingTimeoutStart = gEnv->pTimer->GetAsyncCurTime();
+					//m_lineReadingTimeoutStart = GetGTimer()->GetAsyncCurTime();
 					return true;
 				}
 			}
@@ -1342,7 +1342,7 @@ void CSimpleHttpServerInternal::UnauthorizedResponse(int connectionID, string& r
 	response += CRLF;
 
 	char timestamp[33];
-	cry_sprintf(timestamp, "%f", gEnv->pTimer->GetAsyncCurTime());
+	cry_sprintf(timestamp, "%f", GetGTimer()->GetAsyncCurTime());
 	string raw = RESOLVER.ToNumericString(remoteAddr) + ":" + timestamp + ":" + "luolin";
 	{
 		CWhirlpoolHash hash(raw);

@@ -1351,7 +1351,7 @@ void CMessageQueue::WriteMessages(IMessageOutput* pOut, const SSchedulingParams&
 	#if ENABLE_DEBUG_KIT
 			if (CVARS.NetInspector)
 			{
-				NET_INSPECTOR.AddMessage(pEntSend->msg.pSendable->GetDescription(), (sizeAfter - sizeBefore) / 8.0f, (g_time - pEntSend->msg.inserted).GetMilliSeconds());
+				NET_INSPECTOR.AddMessage(pEntSend->msg.pSendable->GetDescription(), (sizeAfter - sizeBefore) / 8.0f, (g_time - pEntSend->msg.inserted));
 			}
 	#endif
 		}

@@ -305,7 +305,7 @@ private:
 			this->channelTime = channelTime;
 			this->receiveTime = g_time;
 		}
-		ILINE SChannelChange() : aspectIdx(0), pChannel(), channelTime(0.0f) {}
+		ILINE SChannelChange() : aspectIdx(0), pChannel(), channelTime(0) {}
 
 		struct SCompareObjectsThenReceiveTime
 		{

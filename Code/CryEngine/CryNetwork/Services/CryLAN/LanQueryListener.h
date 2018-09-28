@@ -84,7 +84,7 @@ public:
 	//actually send an add server to game code
 	void NQ_AddServer(SLANServerDetails msg);
 	//actually send an add pong to game code
-	void NQ_AddPong(string address, uint32 ping);
+	void NQ_AddPong(string address, CTimeValue ping);
 	//actually refresh pings
 	void NQ_RefreshPings();
 
@@ -113,8 +113,7 @@ private:
 	void ProcessPongFrom(const uint8* buffer, size_t bufferLength, const TNetAddress& addr);
 	void BroadcastQuery();
 
-	ITimer*            m_pTimer;
-	float              m_lastPingCleanUp, m_lastPingRefresh, m_lastBroadcast, m_lastServerListUpdate;
+	CTimeValue         m_lastPingCleanUp, m_lastPingRefresh, m_lastBroadcast, m_lastServerListUpdate;
 	IDatagramSocketPtr m_pSocket;
 	uint16             m_port;
 

@@ -27,7 +27,7 @@ void NetLogAlways(const char* fmt, ...) PRINTF_PARAMS(1, 2);        // CryLogAlw
 void NetLogAlways_Secret(const char* fmt, ...) PRINTF_PARAMS(1, 2); // CryLogAlways
 void NetError(const char* fmt, ...) PRINTF_PARAMS(1, 2);            // CryFatalError
 void NetWarning(const char* fmt, ...) PRINTF_PARAMS(1, 2);          // CryWarning
-void NetQuickLog(bool toConsole, float timeout, const char* fmt, ...) PRINTF_PARAMS(3, 4);
+void NetQuickLog(bool toConsole, const CTimeValue& timeout, const char* fmt, ...) PRINTF_PARAMS(3, 4);
 void NetPerformanceWarning(const char* fmt, ...) PRINTF_PARAMS(1, 2);
 void NetComment(const char* fmt, ...) PRINTF_PARAMS(1, 2);    // CryComment
 

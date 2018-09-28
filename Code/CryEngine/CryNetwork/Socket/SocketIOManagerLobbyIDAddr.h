@@ -23,7 +23,7 @@ public:
 	~CSocketIOManagerLobbyIDAddr();
 	bool        Init();
 	const char* GetName() override { return "LobbyIDAddr"; }
-	bool        PollWait(uint32 waitTime) override;
+	bool        PollWait(const CTimeValue& waitTime) override;
 	int         PollWork(bool& performedWork) override;
 	static void RecvPacket(void* privateRef, uint8* recvBuffer, uint32 recvSize, CRYSOCKET recvSocket, TNetAddress& recvAddr);
 

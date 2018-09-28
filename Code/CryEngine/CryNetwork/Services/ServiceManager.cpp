@@ -7,7 +7,7 @@
 
 #include "NetworkACL/NetProfileTokens.h"
 
-static const float POLL_TIME = 10.0f;
+static const CTimeValue POLL_TIME = 10;
 
 CServiceManager::CServiceManager()
 {

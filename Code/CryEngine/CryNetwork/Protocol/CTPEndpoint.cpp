@@ -72,17 +72,6 @@ private:
 	const SNetMessageDef* m_prior;
 };
 
-// get the 64 bit representation of a time value
-inline uint64 GetIntRepresentationOfTime(CTimeValue value)
-{
-	return (uint64) value.GetMilliSecondsAsInt64();
-}
-inline CTimeValue GetTimeRepresentationOfInt(uint64 value)
-{
-	CTimeValue out;
-	out.SetMilliSeconds(value);
-	return out;
-}
 /*
    static const char * ReliabilityMessage( INetMessage * pMsg )
    {
@@ -109,7 +98,7 @@ static const uint32 SequenceNumberMask = (1u << SequenceNumberBits) - 1u;
 static const uint32 SequenceNumberDiameter = 1u << SequenceNumberBits;
 static const uint32 SequenceNumberRadius = 1u << (SequenceNumberBits - 1);
 
-static const CTimeValue IncomingTimeoutLength = 0.033f;
+static const CTimeValue IncomingTimeoutLength = "0.033";
 
 #if ENABLE_DEBUG_KIT || ENABLE_CORRUPT_PACKET_DUMP
 static void DumpBytes(const uint8* p, size_t len)
@@ -1082,7 +1071,7 @@ void CCTPEndpoint::SendPacketsIfNecessary(CTimeValue nTime, bool isDisconnecting
 		NET_ASSERT(m_nOutputSeq >= m_nInputAck);
 		if (m_nOutputSeq + 1 >= m_nInputAck + WHOLE_SEQ)
 		{
-			if (g_time.GetDifferenceInSeconds(lastSendTime) < 0.5f)
+			if (g_time - lastSendTime < "0.5")
 			{
 				return;
 			}
@@ -1295,7 +1284,7 @@ void CCTPEndpoint::EmptyMessages()
 void CCTPEndpoint::DumpOutputState(const CTimeValue& time)
 {
 	fprintf(m_log_output, "-----------------------------------\n");
-	fprintf(m_log_output, "Time: %d\n", time.GetMilliSeconds());
+	fprintf(m_log_output, "Time: %d\n", (int64)time.GetMilliSeconds());
 	fprintf(m_log_output, "OutputSeq: %d\n", m_nOutputSeq);
 	fprintf(m_log_output, "InputAck: %d\n", m_nInputAck);
 	fprintf(m_log_output, "ReliableSeq: %d %s\n", m_nReliableSeq, m_bReliableWait ? "waiting" : "not-waiting");
@@ -1314,7 +1303,7 @@ void CCTPEndpoint::DumpOutputState(const CTimeValue& time)
 void CCTPEndpoint::DumpInputState(const CTimeValue& time)
 {
 	fprintf(m_log_input, "-----------------------------------\n");
-	fprintf(m_log_input, "Time: %d\n", time.GetMilliSeconds());
+	fprintf(m_log_input, "Time: %d\n", (int64)time.GetMilliSeconds());
 	fprintf(m_log_input, "InputSeq: %d\n", m_nInputSeq - 1);
 	fprintf(m_log_input, "Acks: from %d (with %d queued)\n     ", m_nFrontAck, m_dqAcks.size());
 	//for (size_t i=0; i<m_dqAcks.size(); ++i)
@@ -2259,13 +2248,13 @@ uint32 CCTPEndpoint::SendPacket(CTimeValue nTime, const SSendPacketParams& param
 
 	SSchedulingParams schedParams;
 	schedParams.now = nTime;
-	schedParams.next = nTime + 0.1f;
+	schedParams.next = nTime + "0.1";
 	schedParams.targetBytes = (m_pParent->IsLocal() ? CNetCVars::Get().MaxPacketSize : (params.nSize
 #if NEW_BANDWIDTH_MANAGEMENT
 	                                                                                    + params.nSpareBytes
 #endif // NEW_BANDWIDTH_MANAGEMENT
 	                                                                                    ));
-	schedParams.transportLatency = m_PacketRateCalculator.GetPing(true) * 0.5f;
+	schedParams.transportLatency = m_PacketRateCalculator.GetPing(true) * "0.5";
 
 #if FULL_ON_SCHEDULING
 	schedParams.haveWitnessPosition = m_pParent->GetWitnessPosition(schedParams.witnessPosition);
@@ -2418,8 +2407,7 @@ uint32 CCTPEndpoint::SendPacket(CTimeValue nTime, const SSendPacketParams& param
 	//
 	// send message stream
 	//
-
-	uint32 timeToSend = (uint32)(gEnv->pTimer->GetReplicationTime() * REPLICATION_TIME_PRECISION);
+	uint32 timeToSend = (uint32)(GetGTimer()->GetReplicationTime().GetSeconds() * REPLICATION_TIME_PRECISION);
 
 	m_outputStreamImpl.GetOutput().WriteBits(timeToSend, 32);
 
@@ -2568,8 +2556,8 @@ void CCTPEndpoint::GetBandwidthStatistics(uint32 channelIndex, SBandwidthStats* 
 #endif // NEW_BANDWIDTH_MANAGEMENT
 
 	SNetChannelStats& stats = pStats->m_channel[channelIndex];
-	stats.m_ping = static_cast<uint32>(m_PacketRateCalculator.GetPing(false) * 1000.0f);
-	stats.m_pingSmoothed = static_cast<uint32>(m_PacketRateCalculator.GetPing(true) * 1000.0f);
+	stats.m_ping = m_PacketRateCalculator.GetPing(false);
+	stats.m_pingSmoothed = m_PacketRateCalculator.GetPing(true);
 	stats.m_bandwidthInbound = m_PacketRateCalculator.GetBandwidthUsage(g_time, CPacketRateCalculator::eIO_Incoming);
 	stats.m_bandwidthOutbound = m_PacketRateCalculator.GetBandwidthUsage(g_time, CPacketRateCalculator::eIO_Outgoing);
 #if NEW_BANDWIDTH_MANAGEMENT
@@ -2608,7 +2596,7 @@ void CCTPEndpoint::SchedulerDebugDraw()
 
 	SSchedulingParams schedParams;
 	schedParams.now = g_time;
-	schedParams.next = schedParams.now + 0.1f;
+	schedParams.next = schedParams.now + "0.1";
 	schedParams.nSeq = m_nOutputSeq;
 	//	int age = m_nOutputSeq - m_nInputAck;
 #if !NEW_BANDWIDTH_MANAGEMENT
@@ -2616,7 +2604,7 @@ void CCTPEndpoint::SchedulerDebugDraw()
 #else
 	schedParams.targetBytes = m_PacketRateCalculator.GetMaxPacketSize();
 #endif // !NEW_BANDWIDTH_MANAGEMENT
-	schedParams.transportLatency = m_PacketRateCalculator.GetPing(true) * 0.5f;
+	schedParams.transportLatency = m_PacketRateCalculator.GetPing(true) * "0.5";
 #if FULL_ON_SCHEDULING
 	schedParams.haveWitnessPosition = m_pParent->GetWitnessPosition(schedParams.witnessPosition);
 	schedParams.haveWitnessDirection = m_pParent->GetWitnessDirection(schedParams.witnessDirection);
@@ -2670,17 +2658,17 @@ void CCTPEndpoint::ChannelStatsDraw()
 	TBOStr backoffTimeStr = "      ";
 	bool backingOff;
 	if (backingOff = GetBackoffTime(backoffTime, true))
-		backoffTimeStr.Format("%4.2f/", backoffTime.GetMilliSeconds());
+		backoffTimeStr.Format("%4.2f/", (float)backoffTime.GetMilliSeconds());
 	else
 		backoffTimeStr = "../";
 	if (GetBackoffTime(backoffTime, false))
-		backoffTimeStr += TBOStr().Format("%4.2f", backoffTime.GetMilliSeconds());
+		backoffTimeStr += TBOStr().Format("%4.2f", (float)backoffTime.GetMilliSeconds());
 	else
 		backoffTimeStr += "..";
 
 	y += (drawScale * 10.0f);
-	m_queue.DrawLabel(0.0f, y, white, "%4d", static_cast<uint32>(m_PacketRateCalculator.GetPing(false) / 1000.0f));
-	m_queue.DrawLabel(drawScale * 40.0f, y, white, "[%4d]", static_cast<uint32>(m_PacketRateCalculator.GetPing(true) / 1000.0f));
+	m_queue.DrawLabel(0.0f, y, white, "%4d", static_cast<uint32>(m_PacketRateCalculator.GetPing(false).GetSeconds() / 1000));
+	m_queue.DrawLabel(drawScale * 40.0f, y, white, "[%4d]", static_cast<uint32>(m_PacketRateCalculator.GetPing(true).GetSeconds() / 1000));
 	//m_queue.DrawLabel(drawScale * 80.0f, y, white, "%13.2f", m_PacketRateCalculator.GetTcpFriendlyBitRate());
 	m_queue.DrawLabel(drawScale * 120.0f, y, white, "%-6d", m_PacketRateCalculator.GetBandwidthUsage(g_time, CPacketRateCalculator::eIO_Incoming));
 	m_queue.DrawLabel(drawScale * 160.0f, y, white, "%-6d", m_PacketRateCalculator.GetBandwidthUsage(g_time, CPacketRateCalculator::eIO_Outgoing));
@@ -2800,21 +2788,21 @@ void CCTPEndpoint::BackOff()
 bool CCTPEndpoint::GetBackoffTime(CTimeValue& tm, bool total)
 {
 	tm = g_time - m_backoffTimer;
-	float timeSince = tm.GetSeconds();
+	CTimeValue timeSince = tm;
 	if (!m_receivedPacketSinceBackoff)
 	{
-		if (!total && timeSince > 5.0f)
+		if (!total && timeSince > 5)
 		{
 			BroadcastMessage(SCTPEndpointEvent(eCEE_BackoffTooLong));
 			return false;
 		}
 		if (!total)
-			tm = 0.2f;
+			tm.SetSeconds("0.2");
 		return true;
 	}
-	if (timeSince > 0.1f)
+	if (timeSince > "0.1")
 		return false;
 	if (!total)
-		tm = 0.2f;
+		tm.SetSeconds("0.2");
 	return true;
 }

@@ -38,7 +38,7 @@ CSocketIOManagerIOCP::CSocketIOManagerIOCP() : CSocketIOManager(eSIOMC_SupportsB
 
 	m_iocp = NULL;
 	m_pendingData = false;
-	m_lastBackoffCheck = 0.0f;
+	m_lastBackoffCheck.SetSeconds(0);
 }
 
 CSocketIOManagerIOCP::~CSocketIOManagerIOCP()
@@ -73,7 +73,7 @@ private:
 	SIORequest*           m_pReq;
 };
 
-bool CSocketIOManagerIOCP::PollWait(uint32 waitTime)
+bool CSocketIOManagerIOCP::PollWait(const CTimeValue& waitTime)
 {
 	if (m_pWatchdog)
 	{
@@ -83,7 +83,7 @@ bool CSocketIOManagerIOCP::PollWait(uint32 waitTime)
 	ULONG_PTR sockid_fromOS;
 
 	g_systemBranchCounters.iocpReapSleep++;
-	m_cio.bSuccess = GetQueuedCompletionStatus(m_iocp, &m_cio.nIOSize, &sockid_fromOS, &m_cio.pOverlapped, waitTime);
+	m_cio.bSuccess = GetQueuedCompletionStatus(m_iocp, &m_cio.nIOSize, &sockid_fromOS, &m_cio.pOverlapped, (DWORD)waitTime.GetMilliSeconds());
 	m_cio.sockid = (int)sockid_fromOS;
 	m_cio.err = WAIT_TIMEOUT + 1; // a value that's != WAIT_TIMEOUT
 	if (!m_cio.bSuccess)
@@ -141,8 +141,8 @@ int CSocketIOManagerIOCP::PollWork(bool& performedWork)
 
 	// check for anything we haven't sent to in a long long time
 	// can't use g_time due to it not being threadsafe here, we hold no locks
-	CTimeValue now = gEnv->pTimer->GetAsyncTime();
-	if ((now - m_lastBackoffCheck).GetSeconds() > 0.5f)
+	CTimeValue now = GetGTimer()->GetAsyncTime();
+	if ((now - m_lastBackoffCheck).GetSeconds() > "0.5")
 	{
 		g_systemBranchCounters.iocpBackoffCheck++;
 		SCOPED_COMM_LOCK;
@@ -152,7 +152,7 @@ int CSocketIOManagerIOCP::PollWork(bool& performedWork)
 				continue;
 			for (TBackoffTargets::iterator itBack = itSock->backoffTargets.begin(); itBack != itSock->backoffTargets.end(); ++itBack)
 			{
-				if ((now - itBack->second.lastSystemSend).GetSeconds() > 1.0f)
+				if ((now - itBack->second.lastSystemSend).GetSeconds() > 1)
 				{
 					DoRequestSendTo(&*itSock, itBack->first, Frame_IDToHeader + eH_KeepAlive, 1, now);
 				}
@@ -188,8 +188,8 @@ void CSocketIOManagerIOCP::BackoffDueToRequest(SRegisteredSocket* pSock, SIORequ
 	TBackoffTargets::iterator it = pSock->backoffTargets.find(addr);
 	if (it == pSock->backoffTargets.end())
 		return;
-	CTimeValue now = gEnv->pTimer->GetAsyncTime();
-	if (now - it->second.lastBackoffSend > 1.0f)
+	CTimeValue now = GetGTimer()->GetAsyncTime();
+	if (now - it->second.lastBackoffSend > 1)
 	{
 		DoRequestSendTo(pSock, addr, Frame_IDToHeader + eH_BackOff, 1, now);
 	}
@@ -222,7 +222,7 @@ int CSocketIOManagerIOCP::PollInner(const SCompletedIO& io)
 	SIORequest* pReq = (SIORequest*)io.pOverlapped;
 	CRecursionGuard rg(this);
 	CAutoFreeIORequest freeReq(this, pReq);
-	g_time = gEnv->pTimer->GetAsyncTime();
+	g_time = GetGTimer()->GetAsyncTime();
 
 	SRegisteredSocket* pSock = 0;
 
@@ -679,7 +679,7 @@ bool CSocketIOManagerIOCP::RequestSendTo(SSocketID sockid, const TNetAddress& ad
 	if (!rs)
 		return false;
 
-	return DoRequestSendTo(rs, addr, pData, len, 0.0f);
+	return DoRequestSendTo(rs, addr, pData, len, 0);
 }
 
 bool CSocketIOManagerIOCP::RequestSendVoiceTo(SSocketID sockid, const TNetAddress& addr, const uint8* pData, size_t len)
@@ -697,8 +697,8 @@ bool CSocketIOManagerIOCP::DoRequestSendTo(SRegisteredSocket* rs, const TNetAddr
 	TBackoffTargets::iterator it = rs->backoffTargets.find(addr);
 	if (it != rs->backoffTargets.end())
 	{
-		if (now == 0.0f)
-			now = gEnv->pTimer->GetAsyncTime();
+		if (now == 0)
+			now = GetGTimer()->GetAsyncTime();
 
 		it->second.lastSystemSend = now;
 		if (len == 1)

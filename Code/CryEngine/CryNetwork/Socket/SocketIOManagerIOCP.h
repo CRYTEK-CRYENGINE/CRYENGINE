@@ -24,7 +24,7 @@ public:
 	~CSocketIOManagerIOCP();
 	bool        Init();
 	const char* GetName() override { return "iocp"; }
-	bool        PollWait(uint32 waitTime) override;
+	bool        PollWait(const CTimeValue& waitTime) override;
 	int         PollWork(bool& performedWork) override;
 
 	SSocketID   RegisterSocket(CRYSOCKET sock, int protocol) override;
@@ -126,7 +126,7 @@ private:
 
 	struct SBackoffTarget
 	{
-		SBackoffTarget() : lastBackoffSend(0.0f), lastSystemSend(0.0f) {}
+		SBackoffTarget() : lastBackoffSend(0), lastSystemSend(0) {}
 		CTimeValue lastBackoffSend;
 		CTimeValue lastSystemSend;
 		CTimeValue lastKeepAliveSend;

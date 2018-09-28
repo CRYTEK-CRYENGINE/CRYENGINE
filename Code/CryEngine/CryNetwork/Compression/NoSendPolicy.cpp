@@ -64,43 +64,47 @@ public:
 #endif
 
 #if USE_ARITHSTREAM
-	template<class T>
-	bool ReadValue(CCommInputStream& in, T& value, CArithModel* pModel, uint32 age) const
+	MPOff bool ReadValue(CCommInputStream& in, T& value, CArithModel* pModel, uint32 age) const
 	{
 		value = T(m_values[0]);
 		return true;
 	}
+	MPOnly bool ReadValue(CCommInputStream& in, T& value, CArithModel* pModel, uint32 age) const
+	{
+		value = m_values[0].conv<T>();
+		return true;
+	}
 	bool ReadValue(CCommInputStream& in, bool& value, CArithModel* pModel, uint32 age) const
 	{
-		value = (fabsf(m_values[0]) > 1e-6f);
+		value = (fabsf((float)m_values[0]) > 1e-6f);
 		return true;
 	}
 	bool ReadValue(CCommInputStream& in, Vec2& value, CArithModel* pModel, uint32 age) const
 	{
-		value[0] = m_values[0];
-		value[1] = m_values[1];
+		value[0] = (float)m_values[0];
+		value[1] = (float)m_values[1];
 		return true;
 	}
 	bool ReadValue(CCommInputStream& in, Vec3& value, CArithModel* pModel, uint32 age) const
 	{
-		value[0] = m_values[0];
-		value[1] = m_values[1];
-		value[2] = m_values[2];
+		value[0] = (float)m_values[0];
+		value[1] = (float)m_values[1];
+		value[2] = (float)m_values[2];
 		return true;
 	}
 	bool ReadValue(CCommInputStream& in, Ang3& value, CArithModel* pModel, uint32 age) const
 	{
-		value[0] = m_values[0];
-		value[1] = m_values[1];
-		value[2] = m_values[2];
+		value[0] = (float)m_values[0];
+		value[1] = (float)m_values[1];
+		value[2] = (float)m_values[2];
 		return true;
 	}
 	bool ReadValue(CCommInputStream& in, Quat& value, CArithModel* pModel, uint32 age) const
 	{
-		value.w = m_values[0];
-		value.v.x = m_values[1];
-		value.v.y = m_values[2];
-		value.v.z = m_values[3];
+		value.w = (float)m_values[0];
+		value.v.x = (float)m_values[1];
+		value.v.y = (float)m_values[2];
+		value.v.z = (float)m_values[3];
 		return true;
 	}
 	bool ReadValue(CCommInputStream& in, SSerializeString& value, CArithModel* pModel, uint32 age) const
@@ -199,7 +203,7 @@ public:
 #endif
 private:
 	static const int NENT = 4;
-	float            m_values[NENT];
+	mpfloat          m_values[NENT];
 };
 
 REGISTER_COMPRESSION_POLICY(CNoSendPolicy, "NoSend");

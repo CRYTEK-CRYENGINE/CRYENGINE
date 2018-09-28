@@ -13,7 +13,6 @@
 #include "Config.h"
 
 #if NEW_BANDWIDTH_MANAGEMENT
-
 	#define MAX_TIME_DRIFT 3000
 
 template<int N>
@@ -30,10 +29,10 @@ public:
 			// increasing then we need to reset our cache otherwise the ServerTime calculations will be broken
 			int previousIndex = (m_count - 1) % N;
 
-			int64 previousX = m_x[previousIndex].GetMilliSecondsAsInt64();
-			int64 previousY = m_y[previousIndex].GetMilliSecondsAsInt64();
-			int64 newX = x.GetMilliSecondsAsInt64();
-			int64 newY = y.GetMilliSecondsAsInt64();
+			int64 previousX = (int64)m_x[previousIndex].GetMilliSeconds();
+			int64 previousY = (int64)m_y[previousIndex].GetMilliSeconds();
+			int64 newX = (int64)x.GetMilliSeconds();
+			int64 newY = (int64)y.GetMilliSeconds();
 
 			int64 diffX = newX - previousX;
 			int64 diffY = newY - previousY;
@@ -72,12 +71,12 @@ public:
 	class CResult
 	{
 	public:
-		CResult() : m_zeroTime(0.0f), m_intercept(0.0f), m_slope(0.0f) {}
-		CResult(CTimeValue zeroTime, CTimeValue intercept, float slope) : m_zeroTime(zeroTime), m_intercept(intercept), m_slope(slope) {}
+		CResult() : m_zeroTime(0), m_intercept(0), m_slope(0) {}
+		CResult(CTimeValue zeroTime, CTimeValue intercept, const mpfloat& slope) : m_zeroTime(zeroTime), m_intercept(intercept), m_slope(slope) {}
 
 		CTimeValue RemoteTimeAt(CTimeValue localTime) const
 		{
-			return m_intercept + (localTime - m_zeroTime).GetSeconds() * m_slope;
+			return m_intercept + (localTime - m_zeroTime) * m_slope;
 		}
 
 		CTimeValue GetZeroTime() const
@@ -85,7 +84,7 @@ public:
 			return m_zeroTime;
 		}
 
-		float GetSlope() const
+		const mpfloat& GetSlope() const
 		{
 			return m_slope;
 		}
@@ -93,7 +92,7 @@ public:
 	private:
 		CTimeValue m_zeroTime;
 		CTimeValue m_intercept;
-		float      m_slope;
+		mpfloat    m_slope;
 	};
 
 	bool GetRegression(CTimeValue zeroTime, CResult& result) const
@@ -102,7 +101,7 @@ public:
 
 		if (m_cached)
 		{
-			if (fabsf((zeroTime - m_cache.GetZeroTime()).GetSeconds()) <= 1.0f)
+			if (abs((zeroTime - m_cache.GetZeroTime()).GetSeconds()) <= 1)
 			{
 				// have valid, cached result
 				//NetLog("CTimerRegression::GetRegression() thinks we have cached value");
@@ -124,8 +123,8 @@ public:
 			//NetLog("CTimerRegression::GetRegression() thinks we have to recalculate cache (%d elements)", sz);
 			if (sz >= 3)
 			{
-				CTimeValue averageX = 0.0f;
-				CTimeValue averageY = 0.0f;
+				CTimeValue averageX = 0;
+				CTimeValue averageY = 0;
 
 				for (int i = 0; i < sz; i++)
 				{
@@ -135,21 +134,21 @@ public:
 				averageX /= sz;
 				averageY /= sz;
 
-				float slopeNumer = 0.0f;
-				float slopeDenom = 0.0f;
+				mpfloat slopeNumer = 0;
+				mpfloat slopeDenom = 0;
 
 				for (int i = 0; i < sz; i++)
 				{
-					float xfactor = ((m_x[i] - zeroTime) - averageX).GetSeconds();
-					slopeNumer += xfactor * (m_y[i] - averageY).GetSeconds();
+					CTimeValue xfactor = (m_x[i] - zeroTime) - averageX;
+					slopeNumer += xfactor * (m_y[i] - averageY);
 					slopeDenom += xfactor * xfactor;
 				}
 
 				//NetLog("CTimerRegression::GetRegression() avgX %f, avgY %f, slopeNum %f, slopeDenom %f", averageX, averageY, slopeNumer, slopeDenom);
-				if (fabsf(slopeDenom) >= 1e-6)
+				if (abs(slopeDenom) >= "0.000001") // 1e-6 MP_SCIFI
 				{
-					float slope = slopeNumer / slopeDenom;
-					CTimeValue intercept = averageY - slope * averageX.GetSeconds();
+					mpfloat slope = slopeNumer / slopeDenom;
+					CTimeValue intercept = averageY - slope * averageX;
 					//NetLog("CTimerRegression::GetRegression() slope %f, intercept %f", slope, intercept.GetSeconds());
 					result = m_cache = CResult(zeroTime, intercept, slope);
 					m_cached = haveResult = true;
@@ -193,7 +192,7 @@ public:
 	}
 	CTimeValue FirstSampleTime()
 	{
-		return m_samples.Empty() ? 0.0f : m_samples.Front();
+		return m_samples.Empty() ? 0 : m_samples.Front();
 	}
 	uint32 Size()
 	{
@@ -202,13 +201,13 @@ public:
 	bool  Empty() { return m_samples.Empty(); }
 	float CountsPerSecond()
 	{
-		return CountsPerSecond(m_samples.Empty() ? 0.0f : m_samples.Back());
+		return CountsPerSecond(m_samples.Empty() ? 0 : m_samples.Back());
 	}
 	float CountsPerSecond(CTimeValue nTime)
 	{
 		CTimeValue nBegin = FirstSampleTime();
 		NET_ASSERT(nTime >= nBegin);
-		return float(Size()) / (nTime - nBegin + 1.0f * (nTime == nBegin)).GetSeconds();
+		return float(Size()) / (nTime - nBegin + 1 * (nTime == nBegin)).BADGetSeconds();
 	}
 	float CountsPerSecond(CTimeValue nTime, CTimeValue from)
 	{
@@ -222,7 +221,7 @@ public:
 		if (iter == m_samples.End())
 			return 0.0f;
 		// *iter, not from --> we go one event earlier than the 'from' timestamp
-		return float(m_samples.End() - iter) / (nTime - *iter).GetSeconds();
+		return float(m_samples.End() - iter) / (nTime - *iter).BADGetSeconds();
 	}
 	CTimeValue GetLast()
 	{
@@ -258,7 +257,7 @@ public:
 	void                                    GotPacket(CTimeValue nTime, uint16 nSize);
 	void                                    AckedPacket(CTimeValue nTime, uint32 nSeq, bool bAck);
 	void                                    AddPingSample(CTimeValue nTime, CTimeValue nPing, CTimeValue nRemoteTime);
-	float                                   GetPing(bool smoothed) const;
+	CTimeValue                              GetPing(bool smoothed) const;
 	bool                                    NeedMorePings() const { return m_ping.Size() < m_ping.Capacity() / 2; }
 	float                                   GetBandwidthUsage(CTimeValue nTime, CPacketRateCalculator::eIncomingOutgoing direction);
 	float                                   GetPacketLossPerSecond(CTimeValue nTime);
@@ -273,7 +272,7 @@ public:
 		return m_timeRegression.GetRegression(g_time, r);
 	}
 
-	CTimeValue  PingMeasureDelay()     { return CTimeValue(1.0f); }
+	CTimeValue  PingMeasureDelay()     { return CTimeValue(1); }
 
 	TPacketSize GetMaxPacketSize(void) { return CNetCVars::Get().MaxPacketSize; }
 	TPacketSize GetIdealPacketSize(const CTimeValue time, bool idle, TPacketSize maxPacketSize);
@@ -307,14 +306,14 @@ private:
 
 	INetChannel::SPerformanceMetrics      m_metrics;
 
-	CCyclicStatsBuffer<float, 16>         m_ping;
+	CCyclicStatsBuffer<CTimeValue, 16>    m_ping;
 	CCyclicStatsBuffer<CTimeValue, 128>   m_bandwidthUsedTime[2];
 	CCyclicStatsBuffer<uint32, 128>       m_bandwidthUsedAmount[2];
 	CCyclicStatsBuffer<float, 256>        m_tfrcHist;
 	float                                 m_lastSlowStartRate;
 	bool                                  m_hadAnyLoss;
 	bool                                  m_allowSlowStartIncrease;
-	float                                 m_rttEstimate;
+	CTimeValue                            m_rttEstimate;
 	CTimeValue                            m_lastThroughputCalcTime;
 
 	CTimedCounter                         m_sentPackets;
@@ -325,9 +324,9 @@ private:
 	mutable CTimeValue                    m_remoteTimeUpdated;
 	mutable CTimeValue                    m_remoteTimeEstimate;
 	mutable CTimeValue                    m_lastRemoteTimeEstimate;
-	mutable CCyclicStatsBuffer<float, 16> m_timeVelocityBuffer;
+	mutable CCyclicStatsBuffer<mpfloat, 16> m_timeVelocityBuffer;
 
-	// number of milliseconds per second to move our clock to
+	// number of seconds per second to move our clock to
 	// sync to a remote clock
 	const CTimeValue           m_minAdvanceTimeRate;
 	const CTimeValue           m_maxAdvanceTimeRate;

@@ -153,7 +153,7 @@ static void ReadMMMDataCache()
 {
 	if (gEnv->pSystem->GetApplicationInstance() == 0)
 	{
-		CTimeValue start = gEnv->pTimer->GetAsyncTime();
+		CTimeValue start = GetGTimer()->GetAsyncTime();
 		s_mmmSaveDataFileCacheIndex = 0;
 		s_mmmSaveDataFileCacheSize = MMM_SAVE_DATA_FILE_CACHE_SIZE;
 
@@ -171,7 +171,7 @@ static void ReadMMMDataCache()
 			}
 		}
 
-		CTimeValue end = gEnv->pTimer->GetAsyncTime();
+		CTimeValue end = GetGTimer()->GetAsyncTime();
 		s_readDataTime += (end - start);
 	}
 }
@@ -1044,7 +1044,7 @@ void CMementoMemoryManager::Tick()
 		s_pMMMSaveFile = fxopen("mmm.dat", "rb");
 
 		s_readDataTime = CTimeValue();
-		CTimeValue start = gEnv->pTimer->GetAsyncTime();
+		CTimeValue start = GetGTimer()->GetAsyncTime();
 
 		NetLog("MMM playback start time %" PRId64, start.GetMilliSecondsAsInt64());
 
@@ -1109,7 +1109,7 @@ void CMementoMemoryManager::Tick()
 			}
 		}
 
-		CTimeValue end = gEnv->pTimer->GetAsyncTime();
+		CTimeValue end = GetGTimer()->GetAsyncTime();
 		NetLog("MMM playback end time %" PRId64 " time taken %" PRId64 " File read time %" PRId64 " time taken - file read time %" PRId64, end.GetMilliSecondsAsInt64(), (end - start).GetMilliSecondsAsInt64(), s_readDataTime.GetMilliSecondsAsInt64(), ((end - start) - s_readDataTime).GetMilliSecondsAsInt64());
 
 		fclose(s_pMMMSaveFile);

@@ -82,7 +82,7 @@ public:
 		return m_pGameChannel;
 	}
 	virtual CTimeValue    GetRemoteTime() const;
-	virtual float         GetPing(bool smoothed) const;
+	virtual CTimeValue    GetPing(bool smoothed) const;
 	virtual bool          IsSufferingHighLatency(CTimeValue nTime) const;
 	virtual CTimeValue    GetTimeSinceRecv() const;
 	virtual void          DispatchRMI(IRMIMessageBodyPtr pBody);
@@ -128,7 +128,7 @@ public:
 	// ~INetChannel
 
 #if ENABLE_RMI_BENCHMARK
-	virtual void LogRMIBenchmark(ERMIBenchmarkAction action, const SRMIBenchmarkParams& params, void (* pCallback)(ERMIBenchmarkLogPoint point0, ERMIBenchmarkLogPoint point1, int64 delay, void* pUserData), void* pUserData);
+	virtual void LogRMIBenchmark(ERMIBenchmarkAction action, const SRMIBenchmarkParams& params, void (* pCallback)(ERMIBenchmarkLogPoint point0, ERMIBenchmarkLogPoint point1, CTimeValue delay, void* pUserData), void* pUserData);
 #endif
 
 #if NEW_BANDWIDTH_MANAGEMENT
@@ -313,7 +313,7 @@ public:
 		m_lastVoiceTransmission = g_time;
 	}
 
-	void ResetTimeSinceRecv() { m_timeSinceRecv = 0ll; }
+	void ResetTimeSinceRecv() { m_timeSinceRecv.SetSeconds(0); }
 
 	void SetPreordered(bool p);
 	void SetProfileId(int id);
@@ -461,7 +461,7 @@ private:
 		{
 		}
 
-		void       (* pCallback)(ERMIBenchmarkLogPoint point0, ERMIBenchmarkLogPoint point1, int64 delay, void* pUserData);
+		void       (* pCallback)(ERMIBenchmarkLogPoint point0, ERMIBenchmarkLogPoint point1, CTimeValue delay, void* pUserData);
 		void*      pUserData;
 		EntityId   entity;
 		uint32     eventBits;

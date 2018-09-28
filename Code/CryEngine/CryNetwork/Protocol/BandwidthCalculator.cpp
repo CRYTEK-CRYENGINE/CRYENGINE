@@ -41,30 +41,30 @@ static void CalculateDesiredMinMax(float desired, float tolLow, float tolHigh, f
 }
 
 CPacketRateCalculator::CPacketRateCalculator() :
-	m_sentPackets(5.0f),
-	m_lostPackets(5.0f),
-	m_minAdvanceTimeRate(0.80f),
-	m_maxAdvanceTimeRate(1.20f),
+	m_sentPackets(5),
+	m_lostPackets(5),
+	m_minAdvanceTimeRate("0.8"),
+	m_maxAdvanceTimeRate("1.2"),
 	m_lastSlowStartRate(0.0f),
 	m_hadAnyLoss(false),
 	m_allowSlowStartIncrease(false),
 	m_latencyLabHighestSequence(0),
-	m_remoteTimeEstimate(0.0f)
+	m_remoteTimeEstimate(0)
 {
-	m_lastThroughputCalcTime = 0.0f;
-	m_rttEstimate = 1.0f;
+	m_lastThroughputCalcTime.SetSeconds(0);
+	m_rttEstimate.SetSeconds(1);
 
 	m_metrics.m_bandwidthShares = CNetCVars::Get().net_defaultBandwidthShares;
 	m_metrics.m_packetRate = CNetCVars::Get().net_defaultPacketRate;
 	m_metrics.m_packetRateIdle = CNetCVars::Get().net_defaultPacketRateIdle;
 }
 
-float CPacketRateCalculator::GetPing(bool smoothed) const
+CTimeValue CPacketRateCalculator::GetPing(bool smoothed) const
 {
 	if (m_ping.Empty())
-		return 0.0f;
+		return 0;
 	else if (smoothed)
-		return m_ping.GetAverage();
+		return m_ping.GetAverageT();
 	else
 		return m_ping.GetLast();
 }
@@ -74,13 +74,13 @@ float CPacketRateCalculator::GetBandwidthUsage(CTimeValue nTime, CPacketRateCalc
 	NET_ASSERT(m_bandwidthUsedTime[direction].Size() == m_bandwidthUsedAmount[direction].Size());
 
 	uint32 total = m_bandwidthUsedAmount[direction].GetTotal();
-	float time = m_bandwidthUsedTime[direction].Empty() ? 1.0f :
-	             (nTime - m_bandwidthUsedTime[direction].GetFirst()).GetSeconds();
-	// ensure time >= 1
-	if (time < 1.0f)
-		time = 1.0f;
+	CTimeValue time = m_bandwidthUsedTime[direction].Empty() ? 1 : nTime - m_bandwidthUsedTime[direction].GetFirst();
 
-	return (static_cast<float>(total) / time);
+	// ensure time >= 1
+	if (time < 1)
+		time.SetSeconds(1);
+
+	return BADF(total / time.GetSeconds());
 }
 
 float CPacketRateCalculator::GetPacketLossPerSecond(CTimeValue nTime)
@@ -119,7 +119,7 @@ void CPacketRateCalculator::SentPacket(CTimeValue nTime, uint32 nSeq, uint16 nSi
 	m_bandwidthUsedTime[eIO_Outgoing].AddSample(nTime);
 	m_bandwidthUsedAmount[eIO_Outgoing].AddSample(nSize + UDP_HEADER_SIZE);
 
-	// TODO: make sure nTime is the current time, otherwise we have to use gEnv->pTimer->GetAsyncTime()
+	// TODO: make sure nTime is the current time, otherwise we have to use GetGTimer()->GetAsyncTime()
 	//m_latencyLab[nSeq] = nTime;
 	m_latencyLab.CyclePush(nTime);
 	m_latencyLabHighestSequence = nSeq;
@@ -144,7 +144,7 @@ void CPacketRateCalculator::AckedPacket(CTimeValue nTime, uint32 nSeq, bool bAck
 		m_allowSlowStartIncrease = true;
 	}
 
-	// TODO: make sure nTime is the current time, otherwise we have to use gEnv->pTimer->GetAsyncTime()
+	// TODO: make sure nTime is the current time, otherwise we have to use GetGTimer()->GetAsyncTime()
 	if (bAck && !m_latencyLab.Empty())
 	{
 		uint32 sz = m_latencyLab.Size() - 1;
@@ -155,11 +155,11 @@ void CPacketRateCalculator::AckedPacket(CTimeValue nTime, uint32 nSeq, bool bAck
 			CTimeValue latency = nTime - m_latencyLab[i];
 			if (latency >= CVARS.HighLatencyThreshold)
 			{
-				if (m_highLatencyStartTime == 0.0f)
+				if (m_highLatencyStartTime == 0)
 					m_highLatencyStartTime = nTime;
 			}
 			else
-				m_highLatencyStartTime = 0.0f;
+				m_highLatencyStartTime.SetSeconds(0);
 			while (true)
 			{
 				m_latencyLab.Pop();
@@ -173,7 +173,7 @@ void CPacketRateCalculator::AckedPacket(CTimeValue nTime, uint32 nSeq, bool bAck
 
 void CPacketRateCalculator::UpdateLatencyLab(CTimeValue nTime)
 {
-	// TODO: make sure nTime is the current time, otherwise we need to use gEnv->pTimer->GetAsyncTime()
+	// TODO: make sure nTime is the current time, otherwise we need to use GetGTimer()->GetAsyncTime()
 	MiniQueue<CTimeValue, 127>::SIterator itor = m_latencyLab.Begin();
 	for (; itor != m_latencyLab.End(); ++itor)
 	{
@@ -181,7 +181,7 @@ void CPacketRateCalculator::UpdateLatencyLab(CTimeValue nTime)
 		if (latency < CVARS.HighLatencyThreshold)
 			break;
 
-		if (m_highLatencyStartTime == 0.0f)
+		if (m_highLatencyStartTime == 0)
 			m_highLatencyStartTime = nTime;
 	}
 
@@ -190,10 +190,10 @@ void CPacketRateCalculator::UpdateLatencyLab(CTimeValue nTime)
 
 bool CPacketRateCalculator::IsSufferingHighLatency(CTimeValue nTime) const
 {
-	if (CVARS.HighLatencyThreshold <= 0.0f)
+	if (CVARS.HighLatencyThreshold <= 0)
 		return false;
 
-	if (m_highLatencyStartTime == 0.0f)
+	if (m_highLatencyStartTime == 0)
 		return false;
 
 	return nTime - m_highLatencyStartTime >= CVARS.HighLatencyTimeLimit;
@@ -201,12 +201,12 @@ bool CPacketRateCalculator::IsSufferingHighLatency(CTimeValue nTime) const
 
 CTimeValue CPacketRateCalculator::GetRemoteTime() const
 {
-	static const float MAX_STEP_SIZE = 0.01f;
+	static const CTimeValue MAX_STEP_SIZE = "0.01";
 
 	TTimeRegression::CResult r;
 
-	float age = (g_time - m_remoteTimeUpdated).GetSeconds();
-	if (fabsf(age) > 0.5f)
+	CTimeValue age = g_time - m_remoteTimeUpdated;
+	if (abs(age) > "0.5")
 	{
 		if (CVARS.RemoteTimeEstimationWarning != 0)
 		{
@@ -217,7 +217,7 @@ CTimeValue CPacketRateCalculator::GetRemoteTime() const
 		if (!ok)
 		{
 			//			branch = 1;
-			m_remoteTimeUpdated = 0.0f;
+			m_remoteTimeUpdated.SetSeconds(0);
 		}
 		else
 		{
@@ -235,27 +235,27 @@ CTimeValue CPacketRateCalculator::GetRemoteTime() const
 		if (!ok)
 		{
 			//			branch = 3;
-			m_remoteTimeUpdated = 0.0f;
+			m_remoteTimeUpdated.SetSeconds(0);
 		}
 		else
 			do
 			{
 				//			branch = 4;
-				float step = std::min(age, MAX_STEP_SIZE);
+				CTimeValue step = std::min(age, MAX_STEP_SIZE);
 				const CTimeValue targetPos = r.RemoteTimeAt(m_remoteTimeUpdated);
 
-				if (fabsf((m_remoteTimeEstimate - targetPos).GetSeconds()) < 1.25f)
+				if (abs((m_remoteTimeEstimate - targetPos).GetSeconds()) < "1.25")
 				{
-					const float targetVel = r.GetSlope();
-					const float maxVel = 20.0f;
-					const float minVel = 1.0f / maxVel;
+					const mpfloat targetVel = r.GetSlope();
+					const mpfloat maxVel = 20;
+					const mpfloat minVel = 1 / maxVel;
 
-					const float rawVelocity = Clamp(targetVel + (targetPos - m_remoteTimeEstimate).GetSeconds(), minVel, maxVel);
+					const mpfloat rawVelocity = CLAMP(targetVel + (targetPos - m_remoteTimeEstimate).GetSeconds(), minVel, maxVel);
 					m_timeVelocityBuffer.AddSample(rawVelocity);
 
 					m_remoteTimeEstimate += m_timeVelocityBuffer.GetTotal() / m_timeVelocityBuffer.Size() * step;
-					m_remoteTimeUpdated += step;
-					age = (g_time - m_remoteTimeUpdated).GetSeconds();
+					m_remoteTimeUpdated  += step;
+					age = g_time - m_remoteTimeUpdated;
 				}
 				else
 				{
@@ -266,7 +266,7 @@ CTimeValue CPacketRateCalculator::GetRemoteTime() const
 					break;
 				}
 			}
-			while (age > 1e-4f);
+			while (age > "0.0001");// 1e-4 MP_SCIFI
 	}
 
 	//	if (m_lastRemoteTimeEstimate > m_remoteTimeEstimate)
@@ -279,16 +279,16 @@ CTimeValue CPacketRateCalculator::GetRemoteTime() const
 void CPacketRateCalculator::AddPingSample(CTimeValue nTime, CTimeValue nPing,
                                           CTimeValue nRemoteTime)
 {
-	if (nRemoteTime == CTimeValue(0.0f))
+	if (nRemoteTime == CTimeValue(0))
 	{
 		NetWarning("[time] zero remote time ignored");
 		return;
 	}
 
-	m_ping.AddSample(nPing.GetSeconds());
-	m_rttEstimate = m_ping.GetAverage();
+	m_ping.AddSample(nPing);
+	m_rttEstimate = m_ping.GetAverageT();
 
-	m_timeRegression.AddSample(nTime - 0.5f * nPing.GetSeconds(), nRemoteTime);
+	m_timeRegression.AddSample(nTime - "0.5" * nPing, nRemoteTime);
 }
 
 TPacketSize CPacketRateCalculator::GetIdealPacketSize(const CTimeValue time, bool idle, TPacketSize maxPacketSize)
@@ -351,13 +351,13 @@ void CPacketRateCalculator::CalculateCurrentBandwidth(const CTimeValue time, flo
 	float packetsSent = 0.0f;
 
 	// Walk back through the sample timestamps for the last second
-	const float desiredTimePeriod = 1.0f;
-	float actualTimePeriod = 0.0f;
-	float timeDiff = 0.0f;
+	const CTimeValue desiredTimePeriod = 1;
+	CTimeValue actualTimePeriod = 0;
+	CTimeValue timeDiff = 0;
 	while ((index < numSamples) && (timeDiff < desiredTimePeriod))
 	{
 		const CTimeValue& sampleTime = m_bandwidthUsedTime[eIO_Outgoing][numSamples - index];
-		timeDiff = time.GetDifferenceInSeconds(sampleTime);
+		timeDiff = time - sampleTime;
 		if (timeDiff < desiredTimePeriod)
 		{
 			bytesSent += m_bandwidthUsedAmount[eIO_Outgoing][numSamples - index];
@@ -367,10 +367,10 @@ void CPacketRateCalculator::CalculateCurrentBandwidth(const CTimeValue time, flo
 		++index;
 	}
 
-	if (actualTimePeriod > 0.0f)
+	if (actualTimePeriod > 0)
 	{
-		packetsPerSecond = packetsSent / actualTimePeriod;
-		bytesPerSecond = bytesSent / actualTimePeriod;
+		packetsPerSecond = packetsSent / actualTimePeriod.BADGetSeconds();
+		bytesPerSecond = bytesSent / actualTimePeriod.BADGetSeconds();
 	}
 	else
 	{
@@ -393,9 +393,9 @@ CTimeValue CPacketRateCalculator::GetNextPacketTime(int age, bool idle)
 	{
 		packetRate = m_metrics.m_packetRateIdle;
 	}
-	float desiredInterval = 1.0f / static_cast<float>(packetRate);
+	CTimeValue desiredInterval = CTimeValue(1 / mpfloat(packetRate));
 
-	CTimeValue next = m_bandwidthUsedTime[eIO_Outgoing].GetFirst() + CTimeValue(desiredInterval);
+	CTimeValue next = m_bandwidthUsedTime[eIO_Outgoing].GetFirst() + desiredInterval;
 	if (next < g_time)
 	{
 		next = g_time;

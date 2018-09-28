@@ -24,20 +24,20 @@ TNetChannelID CNetChannel::m_nextLocalChannelID = 989;
 
 int g_nChannels = 0;
 
-static const float STATS_UPDATE_INTERVAL = 0.1f;
-static const CTimeValue KEEPALIVE_REPLY_TIMEOUT = 0.7f;
+static const CTimeValue STATS_UPDATE_INTERVAL = "0.1";
+static const CTimeValue KEEPALIVE_REPLY_TIMEOUT = "0.7";
 
 CNetChannel::CNetChannel(const TNetAddress& ipRemote, const CExponentialKeyExchange::KEY_TYPE& key, uint32 remoteSocketCaps, CrySessionHandle session) :
 	m_privateKey(key),
 	m_ip(ipRemote),
-	m_nKeepAliveTimer(0.0f),
-	m_nKeepAliveTimer2(0.0f),
-	m_nKeepAlivePingTimer(0.0f),
-	m_nKeepAliveReplyTimer(0.0f),
-	m_lastVoiceTransmission(0.0f),
-	m_lastPingSent(0.0f),
-	m_remoteTime(0.0f),
-	m_timeSinceRecv(0.0f),
+	m_nKeepAliveTimer(0),
+	m_nKeepAliveTimer2(0),
+	m_nKeepAlivePingTimer(0),
+	m_nKeepAliveReplyTimer(0),
+	m_lastVoiceTransmission(0),
+	m_lastPingSent(0),
+	m_remoteTime(0),
+	m_timeSinceRecv(0),
 #if USE_CHANNEL_TIMERS
 	m_timer(0),
 #endif // USE_CHANNEL_TIMERS
@@ -448,7 +448,7 @@ CTimeValue CNetChannel::GetRemoteTime() const
 	return m_remoteTime;
 }
 
-float CNetChannel::GetPing(bool smoothed) const
+CTimeValue CNetChannel::GetPing(bool smoothed) const
 {
 	return m_ctpEndpoint.GetPing(smoothed);
 }
@@ -504,7 +504,7 @@ public:
 
 	virtual EMessageSendResult Send(INetSender* pSender)
 	{
-		CTimeValue currentTime = gEnv->pTimer->GetAsyncTime();
+		CTimeValue currentTime = GetGTimer()->GetAsyncTime();
 		m_pChannel->m_pingLock = false;
 		m_pChannel->m_lastPingSent = currentTime;
 		m_pChannel->m_pings.push(currentTime);
@@ -555,7 +555,7 @@ public:
 
 	virtual EMessageSendResult Send(INetSender* pSender)
 	{
-		CTimeValue currentTime = gEnv->pTimer->GetAsyncTime();
+		CTimeValue currentTime = GetGTimer()->GetAsyncTime();
 		pSender->BeginMessage(CNetChannel::Pong);
 		pSender->ser.Value("when", m_when, 'pong');
 		CTimeValue elapsed = currentTime - m_recvd;
@@ -625,9 +625,9 @@ void CNetChannel::CallUpdate(CTimeValue time)
 	// opportunistically try and send a ping (piggybacking on whatever update this is)
 	// IsTimeReady() doesn't become true until 3 ping pongs have happened and after this pings are less important
 	// So send pings more often until IsTimeReady() becomes true
-#define TIME_NOT_READY_PING_TIMER 0.1f
+#define TIME_NOT_READY_PING_TIMER CTimeValue("0.1")
 	bool timeReady = IsTimeReady();
-	float timeSinceLastPing = (g_time - m_lastPingSent).GetSeconds();
+	CTimeValue timeSinceLastPing = g_time - m_lastPingSent;
 
 	if (!m_pingLock &&
 	    ((timeReady && (timeSinceLastPing > CNetCVars::Get().PingTime)) ||
@@ -663,19 +663,19 @@ void CNetChannel::CallUpdateIfNecessary(CTimeValue time, bool force)
 	if (!IsLocal())
 	{
 		m_lastSyncTime = g_time;
-		needToUpdate |= (m_channelUpdateAccumulator <= 0.0f);
+		needToUpdate |= (m_channelUpdateAccumulator <= 0);
 	}
 
 	if (needToUpdate)
 	{
 		// Accumulate the desired send interval
-		CTimeValue interval = (1.0f / static_cast<float>(m_ctpEndpoint.GetPerformanceMetrics()->m_packetRate));
+		CTimeValue interval = 1 / mpfloat(m_ctpEndpoint.GetPerformanceMetrics()->m_packetRate);
 		m_channelUpdateAccumulator += interval;
 		//NetLog("[CH ACC]: adding %0.3fs to accumulator (%0.3fs) for channel %s", interval.GetSeconds(), m_channelUpdateAccumulator.GetSeconds(), GetName());
-		if (m_channelUpdateAccumulator.GetSeconds() < 0.0f)
+		if (m_channelUpdateAccumulator.GetSeconds() < 0)
 		{
 			// Prevent accumulator triggering multiple times (e.g. when accumulating large negative values during loading)
-			m_channelUpdateAccumulator.SetValue(0);
+			m_channelUpdateAccumulator.SetSeconds(0);
 		}
 
 		CallUpdate(time);
@@ -701,7 +701,7 @@ NET_IMPLEMENT_IMMEDIATE_MESSAGE(CNetChannel, Ping, eNRT_UnreliableUnordered, 0)
 	ser.Value("when", when, 'ping');
 	if (CPongMsg* pMsg = m_pingpongarena.Construct<CPongMsg>())
 	{
-		CTimeValue currentTime = gEnv->pTimer->GetAsyncTime();
+		CTimeValue currentTime = GetGTimer()->GetAsyncTime();
 		pMsg->Reset(this, when, currentTime);
 		NetSubstituteSendable(pMsg, 0, 0, &m_pongHdl);
 	}
@@ -711,17 +711,18 @@ NET_IMPLEMENT_IMMEDIATE_MESSAGE(CNetChannel, Ping, eNRT_UnreliableUnordered, 0)
 NET_IMPLEMENT_IMMEDIATE_MESSAGE(CNetChannel, Pong, eNRT_UnreliableUnordered, 0)
 {
 	CTimeValue when, elapsed, remote;
-	CTimeValue currentTime = gEnv->pTimer->GetAsyncTime();
+	CTimeValue currentTime = GetGTimer()->GetAsyncTime();
 	ser.Value("when", when, 'pong');
 	ser.Value("elapsed", elapsed, 'pelp');
 	ser.Value("remote", remote, 'trem');
 	bool found = false;
 	while (!found && !m_pings.empty())
 	{
-		float millis = (m_pings.top() - when).GetMilliSeconds();
-		if (millis > 1.0f)
+		mpfloat millis = (m_pings.top() - when).GetMilliSeconds();
+		// PERSONAL CRYTEK: PERSONAL DEBUG: 1 < millis < 2 generally. Is it that much slower or is it more accurate? Or inaccurate!?? Default time setup has the value going ~0.2->1......
+		if (millis > 2)
 			break;
-		else if (millis > -1.0f)
+		else if (millis > -1)
 		{
 			when = m_pings.top();
 			found = true;
@@ -731,7 +732,7 @@ NET_IMPLEMENT_IMMEDIATE_MESSAGE(CNetChannel, Pong, eNRT_UnreliableUnordered, 0)
 	if (found)
 	{
 		CTimeValue ping = currentTime - when - elapsed;
-		if (ping > 0.0f)
+		if (ping > 0)
 			m_ctpEndpoint.AddPingSample(currentTime, ping, remote);
 	}
 	return true;
@@ -739,17 +740,17 @@ NET_IMPLEMENT_IMMEDIATE_MESSAGE(CNetChannel, Pong, eNRT_UnreliableUnordered, 0)
 
 CTimeValue CNetChannel::GetInactivityTimeout(bool backingOff)
 {
-	CTimeValue inactivityTimeout = 30.0f;
+	CTimeValue inactivityTimeout = 30;
 	if (gEnv->pSystem->IsDevMode())
 	{
-		if (CNetCVars::Get().InactivityTimeoutDevmode > 0.001f)
+		if (CNetCVars::Get().InactivityTimeoutDevmode > "0.001")
 			inactivityTimeout = CNetCVars::Get().InactivityTimeoutDevmode;
 	}
-	else if (CNetCVars::Get().InactivityTimeout > 0.001f)
+	else if (CNetCVars::Get().InactivityTimeout > "0.001")
 		inactivityTimeout = CNetCVars::Get().InactivityTimeout;
-	inactivityTimeout += 30.0f * !SupportsBackoff();
-	inactivityTimeout += 60.0f * CNetwork::Get()->GetExternalSocketIOManager().HasPendingData();
-	inactivityTimeout += 60.0f * (int)backingOff;
+	inactivityTimeout += 30 * !SupportsBackoff();
+	inactivityTimeout += 60 * CNetwork::Get()->GetExternalSocketIOManager().HasPendingData();
+	inactivityTimeout += 60 * (int)backingOff;
 	return inactivityTimeout;
 }
 
@@ -762,27 +763,27 @@ void CNetChannel::Update(bool finalUpdate, CTimeValue nTime)
 		// If CryLobby is available, it will deal with timeouts and disconnects
 		CTimeValue backoffTime;
 		bool backingOff = m_ctpEndpoint.GetBackoffTime(backoffTime, true);
-		if (CNetCVars::Get().BackoffTimeout && backingOff && backoffTime.GetSeconds() > CNetCVars::Get().BackoffTimeout)
+		if (CNetCVars::Get().BackoffTimeout != 0 && backingOff && backoffTime > CNetCVars::Get().BackoffTimeout)
 		{
-			float idleTime = backoffTime.GetSeconds();
+			CTimeValue idleTime = backoffTime;
 			char buf[256];
-			cry_sprintf(buf, "Zombie kicked; remote machine was backing off for %.1f seconds", idleTime);
+			cry_sprintf(buf, "Zombie kicked; remote machine was backing off for %.1f seconds", (float)idleTime.GetSeconds());
 			Disconnect(eDC_Timeout, buf);
 		}
 
-		if (m_nKeepAliveTimer != CTimeValue(0.0f) && !IsLocal())
+		if (m_nKeepAliveTimer != CTimeValue(0) && !IsLocal())
 		{
 			CTimeValue idleTime = nTime - m_nKeepAliveTimer;
 			if ((idleTime > GetInactivityTimeout(backingOff)))
 			{
 				char buf[256];
-				cry_sprintf(buf, "Timeout occurred; no packet for %.1f seconds", idleTime.GetSeconds());
+				cry_sprintf(buf, "Timeout occurred; no packet for %.1f seconds", (float)idleTime.GetSeconds());
 				Disconnect(eDC_Timeout, buf);
 			}
 		}
 	}
 
-	if (m_nKeepAliveTimer != CTimeValue(0.0f) && nTime > m_nKeepAlivePingTimer + CNetCVars::Get().KeepAliveTime && !IsLocal())
+	if (m_nKeepAliveTimer != 0 && nTime > m_nKeepAlivePingTimer + CNetCVars::Get().KeepAliveTime && !IsLocal())
 	{
 		SendSimplePacket(eH_KeepAlive);
 		m_nKeepAlivePingTimer = nTime;
@@ -825,7 +826,7 @@ void CNetChannel::UpdateTimer(CTimeValue time, bool forceUpdate)
 			CTimeValue latency(time - g_time);
 	#if USE_ACCURATE_NET_TIMERS
 		#if LOCK_NETWORK_FREQUENCY == 0
-			const float LOCAL_MIN_SLEEP_TIME = CNetCVars::Get().channelLocalSleepTime;
+			const CTimeValue LOCAL_MIN_SLEEP_TIME = CNetCVars::Get().channelLocalSleepTime;
 			localSleepTime += LOCAL_MIN_SLEEP_TIME;
 		#endif // #if LOCK_NETWORK_FREQUENCY == 0
 	#endif   // USE_ACCURATE_NET_TIMERS
@@ -1394,7 +1395,7 @@ void CNetChannel::OnEndpointEvent(const SCTPEndpointEvent& evt)
 		OnChangedIdle();
 		break;
 	case eCEE_BackoffTooLong:
-		if (m_nKeepAliveTimer != CTimeValue(0.0f) && (g_time - m_nKeepAliveTimer2).GetSeconds() < 20.0f)
+		if (m_nKeepAliveTimer != 0 && (g_time - m_nKeepAliveTimer2).GetSeconds() < 20)
 			GotPacket(eGPT_Fake);
 		break;
 	}
@@ -1593,7 +1594,7 @@ bool CNetChannel::IsMigratingChannel() const
 
 #if ENABLE_RMI_BENCHMARK
 
-void CNetChannel::LogRMIBenchmark(ERMIBenchmarkAction action, const SRMIBenchmarkParams& params, void (* pCallback)(ERMIBenchmarkLogPoint point0, ERMIBenchmarkLogPoint point1, int64 delay, void* pUserData), void* pUserData)
+void CNetChannel::LogRMIBenchmark(ERMIBenchmarkAction action, const SRMIBenchmarkParams& params, void (* pCallback)(ERMIBenchmarkLogPoint point0, ERMIBenchmarkLogPoint point1, CTimeValue delay, void* pUserData), void* pUserData)
 {
 	SRMIBenchmarkRecord& record = m_RMIBenchmarkRecords[params.seq];
 	uint32 point = (params.message << 2) | action;
@@ -1613,7 +1614,7 @@ void CNetChannel::LogRMIBenchmark(ERMIBenchmarkAction action, const SRMIBenchmar
 		}
 
 		record.eventBits = (record.eventBits & (BIT(point + 1) - 1)) | BIT(point);
-		record.eventTimes[point] = gEnv->pTimer->GetAsyncTime();
+		record.eventTimes[point] = GetGTimer()->GetAsyncTime();
 
 		if (record.pCallback)
 		{
@@ -1653,8 +1654,8 @@ void CNetChannel::LogRMIBenchmark(ERMIBenchmarkAction action, const SRMIBenchmar
 
 void CNetChannel::LogRMIBenchmarkInvokeCallback(SRMIBenchmarkRecord record)
 {
-	int64 firstTime;
-	int64 lastTime;
+	CTimeValue firstTime;
+	CTimeValue lastTime;
 	ERMIBenchmarkLogPoint firstPoint;
 	ERMIBenchmarkLogPoint lastPoint;
 	bool haveFirst = false;
@@ -1664,7 +1665,7 @@ void CNetChannel::LogRMIBenchmarkInvokeCallback(SRMIBenchmarkRecord record)
 	{
 		if (record.eventBits & BIT(thisPoint))
 		{
-			int64 thisTime = record.eventTimes[thisPoint].GetMilliSecondsAsInt64();
+			CTimeValue thisTime = record.eventTimes[thisPoint];
 
 			if (!haveFirst)
 			{

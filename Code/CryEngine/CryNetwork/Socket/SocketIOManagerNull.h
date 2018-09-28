@@ -8,7 +8,7 @@ class CSocketIOManagerNull : public ISocketIOManager
 public:
 	CSocketIOManagerNull() : ISocketIOManager(0) {}
 
-	virtual bool        PollWait(uint32 waitTime) override                                                                     { return false; }
+	virtual bool        PollWait(const CTimeValue& waitTime) override                                                          { return false; }
 	virtual int         PollWork(bool& performedWork) override                                                                 { performedWork = false; return eSM_COMPLETEDIO; }
 	virtual const char* GetName() override                                                                                     { return "null"; }
 

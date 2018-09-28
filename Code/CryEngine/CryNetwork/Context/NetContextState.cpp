@@ -72,7 +72,7 @@ CNetContextState::CNetContextState(CNetContext* pContext, int token, CNetContext
 	m_bInCleanup = false;
 	m_bInGame = false;
 	m_cleanupMember = 0;
-	m_localPhysicsTime = m_pGameContext ? m_pGameContext->GetPhysicsTime() : 0.0f;
+	m_localPhysicsTime = m_pGameContext ? m_pGameContext->GetPhysicsTime() : 0;
 	m_spawnedObjectId = 0;
 
 	if (pPrev && pPrev->m_vObjects.size())
@@ -455,7 +455,7 @@ void CNetContextState::FetchAndPropogateChangesFromGame(bool allowFetch)
 
 	if (psr != 0)
 	{
-		int64 currentPacketSendTime = (gEnv->pTimer->GetAsyncTime().GetMilliSecondsAsInt64() / (1000 / psr));
+		int64 currentPacketSendTime = (GetGTimer()->GetAsyncTime().GetMilliSecondsAsInt64() / (1000 / psr));
 
 		if (m_lastPacketSendRate != psr)
 		{
@@ -854,7 +854,7 @@ public:
 class CChannelAndTimeTracker
 {
 public:
-	CChannelAndTimeTracker(IGameContext* pGameContext) : m_pGameContext(pGameContext), m_pChannel(), m_frameTime(0.0f)
+	CChannelAndTimeTracker(IGameContext* pGameContext) : m_pGameContext(pGameContext), m_pChannel(), m_frameTime(0)
 	{
 	}
 
@@ -882,7 +882,7 @@ public:
 
 #if LOG_BUFFER_UPDATES
 		if (CNetCVars::Get().LogBufferUpdates)
-			NetLog("[sync] channel frame time is %f", frameTime.GetMilliSeconds());
+			NetLog("[sync] channel frame time is %f", (float)frameTime.GetMilliSeconds());
 #endif
 
 		return true;
@@ -895,7 +895,7 @@ public:
 			m_pGameContext->EndUpdateObjects();
 			m_pChannel = 0;
 		}
-		m_frameTime = 0.0f;
+		m_frameTime.SetSeconds(0);
 	}
 
 	void ReadTimeFromStream(CByteInputStream& in)
@@ -903,11 +903,11 @@ public:
 		CTimeValue when = in.GetTyped<CTimeValue>(); // skip time value for now
 #if LOG_BUFFER_UPDATES
 		if (CNetCVars::Get().LogBufferUpdates)
-			NetLog("[sync] aspect time is %f", when.GetMilliSeconds());
+			NetLog("[sync] aspect time is %f", (float)when.GetMilliSeconds());
 #endif
 #if ENABLE_DEBUG_KIT
 		if (when != m_frameTime)
-			NetQuickLog(true, 1, "Physics update commit %fms late", (when - m_frameTime).GetMilliSeconds());
+			NetQuickLog(true, 1, "Physics update commit %fms late", (float)(when - m_frameTime).GetMilliSeconds());
 #endif
 	}
 

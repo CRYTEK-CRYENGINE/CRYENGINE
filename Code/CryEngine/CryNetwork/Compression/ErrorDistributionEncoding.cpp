@@ -115,11 +115,11 @@ void CErrorDistributionTest::Write()
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
 CTimeValue CErrorDistribution::m_lastOpEnd;
 
-int64 CErrorDistribution::m_totalTime[CErrorDistribution::eOpType_Num] = { 0 };
+CTimeValue CErrorDistribution::m_totalTime[CErrorDistribution::eOpType_Num] = { 0 };
 
 CErrorDistribution::CErrorDistribution()
 {
-	m_lastOpEnd = gEnv->pTimer->GetAsyncTime();
+	m_lastOpEnd = GetGTimer()->GetAsyncTime();
 
 	m_debugSymSize = 0xffffffff;
 	m_debugTotalSize = 0xffffffff;
@@ -142,24 +142,24 @@ CErrorDistribution::CErrorDistribution()
 
 void CErrorDistribution::LogPerformance()
 {
-	int64 total = 1; //in case of div by 0
+	CTimeValue total = 1; // In case of div by 0
 	for (auto t : m_totalTime)
 		total += t;
 
-	float wt = (float)m_totalTime[eOpType_Write] / (float)total;
-	float rt = (float)m_totalTime[eOpType_Read] / (float)total;
+	nTime wt = m_totalTime[eOpType_Write] / total;
+	nTime rt = m_totalTime[eOpType_Read] / total;
 
-	NetLogAlways("Distribution times - w: %f r: %f", wt, rt);
+	NetLogAlways("Distribution times - w: %f r: %f", (float)wt, (float)rt);
 
 	for (auto& t : m_totalTime)
-		t = 0;
+		t.SetSeconds(0);
 }
 
 void CErrorDistribution::OnOpEnd(EOpType type) const
 {
-	CTimeValue now = gEnv->pTimer->GetAsyncTime();
+	CTimeValue now = GetGTimer()->GetAsyncTime();
 
-	int64 diff = now.GetMicroSecondsAsInt64() - m_lastOpEnd.GetMicroSecondsAsInt64();
+	CTimeValue diff = now - m_lastOpEnd;
 	m_lastOpEnd = now;
 
 	m_totalTime[type] += diff;

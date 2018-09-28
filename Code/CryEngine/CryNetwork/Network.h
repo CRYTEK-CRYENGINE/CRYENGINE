@@ -506,7 +506,7 @@ private:
 	class CNetworkConnectivityDetection
 	{
 	public:
-		CNetworkConnectivityDetection() : m_hasNetworkConnectivity(true), m_lastCheck(0.0f), m_lastPacketReceived(0.0f) {}
+		CNetworkConnectivityDetection() : m_hasNetworkConnectivity(true), m_lastCheck(0), m_lastPacketReceived(0) {}
 
 		bool HasNetworkConnectivity();
 		void ReportGotPacket() { m_lastPacketReceived = std::max(g_time, m_lastPacketReceived); }
@@ -532,7 +532,7 @@ private:
 #ifdef NET_THREAD_TIMING
 	CTimeValue m_threadTimeCur;
 	int        m_threadTimeDepth;
-	float      m_threadTime;
+	CTimeValue m_threadTime;
 #endif
 };
 

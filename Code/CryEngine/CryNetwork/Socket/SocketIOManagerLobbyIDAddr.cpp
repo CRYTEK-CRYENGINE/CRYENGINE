@@ -22,7 +22,7 @@ bool CSocketIOManagerLobbyIDAddr::Init()
 	return true;
 }
 
-bool CSocketIOManagerLobbyIDAddr::PollWait(uint32 waitTime)
+bool CSocketIOManagerLobbyIDAddr::PollWait(const CTimeValue& waitTime)
 {
 	bool haveData = false;
 	m_recvSize = 0;

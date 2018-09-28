@@ -53,7 +53,7 @@ CCompressionManager::CCompressionManager()
 {
 	m_manageIntervalSeconds = 0;
 
-	m_timeValue = gEnv->pTimer->GetAsyncTime();
+	m_timeValue = GetGTimer()->GetAsyncTime();
 
 	m_pDefaultPolicy = 0;
 	m_pTemporaryChunk = new CSerializationChunk;
@@ -256,7 +256,7 @@ void CCompressionManager::ThreadEntry()
 {
 	while (!m_threadRequestQuit)
 	{
-		CrySleep(60);
+		CryLowLatencySleep("0.06");
 
 		ManagePolicies();
 	}
@@ -267,9 +267,9 @@ void CCompressionManager::ManagePolicies()
 	if (m_manageIntervalSeconds == 0)
 		return;
 
-	CTimeValue val = gEnv->pTimer->GetAsyncTime();
+	CTimeValue val = GetGTimer()->GetAsyncTime();
 
-	if (val.GetDifferenceInSeconds(m_timeValue) < m_manageIntervalSeconds)
+	if (val - m_timeValue < m_manageIntervalSeconds)
 		return;
 
 	CErrorDistribution::LogPerformance();

@@ -25,8 +25,8 @@
 #include <CryMemory/STLGlobalAllocator.h>
 #include <CryLobby/CommonICryMatchMaking.h>
 
-static const float STATS_UPDATE_INTERVAL_NUB = 0.25f;
-static const float KESTIMEOUT = 30.0f;
+static const CTimeValue STATS_UPDATE_INTERVAL_NUB = "0.25";
+static const CTimeValue KESTIMEOUT = 30;
 static const int VERSION_SIZE = 6;
 
 void TraceUnrecognizedPacket(const char* inszTxt, const uint8* cBuf, size_t nCount, const TNetAddress& ip)
@@ -683,7 +683,7 @@ bool CNetNub::SendPendingConnect(SPendingConnection& pc)
 	}
 	if (pc.pChannel && pc.pChannel->IsConnectionEstablished())
 		return false;
-	if (pc.lastSend + 0.25f > g_time)
+	if (pc.lastSend + "0.25" > g_time)
 		return true;
 
 	if (pc.kes == eKES_SetupInitiated)
@@ -817,7 +817,7 @@ void CNetNub::PerformRegularCleanup()
 		TDisconnectMap::iterator next = iter;
 		++next;
 
-		if (iter->second.when + 60.0f < g_time)
+		if (iter->second.when + 60 < g_time)
 			m_disconnectMap.erase(iter->first);
 
 		iter = next;
@@ -1323,7 +1323,7 @@ void CNetNub::NetDump(ENetDumpType type, INetDumpLogger& logger)
 void CNetNub::SendDisconnect(const TNetAddress& to, SDisconnect& dis)
 {
 	CTimeValue now = g_time;
-	if (dis.lastNotify + 0.5f >= now)
+	if (dis.lastNotify + "0.5" >= now)
 		return;
 
 #if defined(_DEBUG)
@@ -1851,7 +1851,7 @@ uint32 CNetNub::GetTotalBandwidthShares() const
 void CNetNub::SendConnecting(const TNetAddress& to, SConnecting& con)
 {
 	CTimeValue now = g_time;
-	if (con.lastNotify + 0.5f >= now)
+	if (con.lastNotify + "0.5" >= now)
 		return;
 
 	SendTo(Frame_IDToHeader + eH_AlreadyConnecting, 1, to);
@@ -1871,7 +1871,7 @@ void CNetNub::AddDisconnectEntry(const TNetAddress& ip, CrySessionHandle session
 	{
 		SDisconnect dc;
 		dc.when = g_time;
-		dc.lastNotify = 0.0f;
+		dc.lastNotify.SetSeconds(0);
 		dc.infoLength = strlen(reason);
 		dc.cause = cause;
 		if (dc.infoLength > sizeof(dc.info))

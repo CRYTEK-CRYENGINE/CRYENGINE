@@ -186,10 +186,6 @@ L_continue:;
 		{
 			m_pOut->Put(name, value.c_str());
 		}
-		void Value(const char* name, const CTimeValue& value)
-		{
-			m_pOut->Put(name, value.GetSeconds());
-		}
 		void Value(const char* name, const ScriptAnyValue& value)
 		{
 		}
@@ -257,7 +253,7 @@ L_continue:;
 		virtual CrySessionHandle        GetSession() const                                              { return CrySessionInvalidHandle; }
 		virtual IGameChannel*           GetGameChannel()                                                { return m_pGameChannel; }
 		virtual CTimeValue              GetRemoteTime() const                                           { return g_time; }
-		virtual float                   GetPing(bool smoothed) const                                    { return 0.0f; }
+		virtual CTimeValue              GetPing(bool smoothed) const                                    { return 0; }
 		virtual bool                    IsSufferingHighLatency(CTimeValue nTime) const                  { return false; }
 		virtual CTimeValue              GetTimeSinceRecv() const                                        { return 0LL; }
 		virtual void                    DispatchRMI(IRMIMessageBodyPtr pBody);
@@ -303,7 +299,7 @@ L_continue:;
 		virtual bool IsMigratingChannel() const                                                    { return false; }
 
 	#if ENABLE_RMI_BENCHMARK
-		virtual void LogRMIBenchmark(ERMIBenchmarkAction action, const SRMIBenchmarkParams& params, void (* pCallback)(ERMIBenchmarkLogPoint point0, ERMIBenchmarkLogPoint point1, int64 delay, void* pUserData), void* pUserData) {}
+		virtual void LogRMIBenchmark(ERMIBenchmarkAction action, const SRMIBenchmarkParams& params, void (* pCallback)(ERMIBenchmarkLogPoint point0, ERMIBenchmarkLogPoint point1, CTimeValue delay, void* pUserData), void* pUserData) {}
 	#endif
 
 	private:

@@ -27,6 +27,16 @@ public:
 	void Put(const char* key, Quat value);
 	void Put(const char* key, SNetObjectID value);
 
+	MPOnly void Put(const char* key, const T& value) {
+		SStreamRecord rec(key);
+		cry_sprintf(rec.value, "%s", value.str());
+		Put(rec);
+	};
+	TVOnly void Put(const char* key, const T& value)
+	{
+		Put(key, value.GetSeconds());
+	}
+
 	void GetMemoryStatistics(ICrySizer* pSizer)
 	{
 		SIZER_COMPONENT_NAME(pSizer, "CSimpleOutputStream");

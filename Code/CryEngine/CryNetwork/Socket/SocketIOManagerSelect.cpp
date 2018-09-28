@@ -134,7 +134,7 @@ static CRYSOCKET smax(CRYSOCKET a, CRYSOCKET b)
 		return a;
 }
 
-bool CSocketIOManagerSelect::PollWait(uint32 waitTime)
+bool CSocketIOManagerSelect::PollWait(const CTimeValue& waitTime)
 {
 	bool haveData = false;
 
@@ -170,9 +170,12 @@ bool CSocketIOManagerSelect::PollWait(uint32 waitTime)
 
 	if (m_fdmax >= 0)
 	{
+		// WARNING: Float inaccuracy : Similar to other timeval declarations, have to review and possibly solve/simplify this!
+		// E.g. standerdized time -> timeval conversions!
+		// PERSONAL IMPROVE ^
 		timeval tv;
-		tv.tv_sec = waitTime / 1000;
-		tv.tv_usec = (waitTime - (tv.tv_sec * 1000)) * 1000;
+		tv.tv_sec = (long)waitTime.GetSeconds();
+		tv.tv_usec = long((waitTime.GetSeconds() - tv.tv_sec) * 1'000'000);
 		int r = (int)select((int)m_fdmax + 1, &m_read, &m_write, NULL, &tv);
 		switch (r)
 		{

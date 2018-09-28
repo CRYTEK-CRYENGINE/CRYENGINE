@@ -151,7 +151,7 @@ void CPacketRateCalculator::SentPacket(CTimeValue nTime, uint32 nSeq, uint16 nSi
 
 	m_pmtuDiscovery.SentPacket(nTime, nSeq, nSize);
 
-	// TODO: make sure nTime is the current time, otherwise we have to use gEnv->pTimer->GetAsyncTime()
+	// TODO: make sure nTime is the current time, otherwise we have to use GetGTimer()->GetAsyncTime()
 	//m_latencyLab[nSeq] = nTime;
 	m_latencyLab.CyclePush(nTime);
 	m_latencyLabHighestSequence = nSeq;
@@ -178,7 +178,7 @@ void CPacketRateCalculator::AckedPacket(CTimeValue nTime, uint32 nSeq, bool bAck
 
 	m_pmtuDiscovery.AckedPacket(nTime, nSeq, bAck);
 
-	// TODO: make sure nTime is the current time, otherwise we have to use gEnv->pTimer->GetAsyncTime()
+	// TODO: make sure nTime is the current time, otherwise we have to use GetGTimer()->GetAsyncTime()
 	if (bAck && !m_latencyLab.Empty())
 	{
 		uint32 sz = m_latencyLab.Size() - 1;
@@ -207,7 +207,7 @@ void CPacketRateCalculator::AckedPacket(CTimeValue nTime, uint32 nSeq, bool bAck
 
 void CPacketRateCalculator::UpdateLatencyLab(CTimeValue nTime)
 {
-	// TODO: make sure nTime is the current time, otherwise we need to use gEnv->pTimer->GetAsyncTime()
+	// TODO: make sure nTime is the current time, otherwise we need to use GetGTimer()->GetAsyncTime()
 	MiniQueue<CTimeValue, 127>::SIterator itor = m_latencyLab.Begin();
 	for (; itor != m_latencyLab.End(); ++itor)
 	{
@@ -437,7 +437,7 @@ float CPacketRateCalculator::GetTcpFriendlyBitRate()
 		const float sqrt2 = sqrt_tpl(3.0f / 8.0f);
 		float averageSegmentSize = m_bandwidthUsedAmount[eIO_Outgoing].GetAverage();
 		const float roundTripTime = m_rttEstimate;
-		const float lossEventRate = GetPacketLossPerPacketSent(gEnv->pTimer->GetAsyncTime());
+		const float lossEventRate = GetPacketLossPerPacketSent(GetGTimer()->GetAsyncTime());
 		const float lossEventRateSqr = lossEventRate * lossEventRate;
 		const float lossEventRateSqrt = sqrt_tpl(lossEventRate);
 		/*

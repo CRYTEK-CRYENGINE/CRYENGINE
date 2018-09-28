@@ -18,7 +18,7 @@ CNetTimer::CNetTimer() : m_curSlot(0)
 		m_timerCallbacks[i] = -1;
 
 #if TIMER_DEBUG
-	m_epoch = 0.0f;
+	m_epoch.SetSeconds(0);
 #endif
 }
 
@@ -76,8 +76,8 @@ NetTimerId CNetTimer::AddTimer(CTimeValue when, NetTimerCallback callback, void*
 	}
 
 #if TIMER_DEBUG
-	if (m_epoch != 0.0f)
-		NetLog("[timer] sched %d @ %f", id, (when - m_epoch).GetMilliSeconds());
+	if (m_epoch != 0)
+		NetLog("[timer] sched %d @ %s", id, (when - m_epoch).GetMilliSeconds().str());
 #endif
 
 	if (when < m_wakeup)
@@ -109,10 +109,10 @@ void* CNetTimer::CancelTimer(NetTimerId& id)
 CTimeValue CNetTimer::Update()
 {
 	ASSERT_GLOBAL_LOCK;
-	g_time = gEnv->pTimer->GetAsyncTime();
+	g_time = GetGTimer()->GetAsyncTime();
 
 #if TIMER_DEBUG
-	if (m_epoch == 0.0f)
+	if (m_epoch == 0)
 		m_epoch = g_time;
 #endif
 
@@ -125,12 +125,12 @@ CTimeValue CNetTimer::Update()
 		m_callbacks[cb] = SCallbackInfo();
 	}
 
-	float elapsed = (g_time - m_lastExec).GetSeconds();
+	CTimeValue elapsed = g_time - m_lastExec;
 	int advanceSlots;
 	if (elapsed > 60)
 		advanceSlots = TIMER_SLOTS - 1;
 	else
-		advanceSlots = (int)(elapsed * TIMER_HERTZ);
+		advanceSlots = (int)(elapsed.GetSeconds() * TIMER_HERTZ);
 #if TIMER_DEBUG
 	int oldAdvanceSlots = advanceSlots;
 #endif
@@ -170,11 +170,11 @@ CTimeValue CNetTimer::Update()
 		void* pUserData = m_callbacks[id].pUserData;
 		NetTimerCallback callback = m_callbacks[id].callback;
 
-		g_time = gEnv->pTimer->GetAsyncTime();
+		g_time = GetGTimer()->GetAsyncTime();
 #if TIMER_DEBUG
-		float delay = (g_time - m_callbacks[id].schedTime).GetMilliSeconds();
-		NET_ASSERT(delay < 1000.0f);
-		NetLog("[timer] exec %d @ %f (%fms late)", id, (g_time - m_epoch).GetMilliSeconds(), delay);
+		mpfloat delay = (g_time - m_callbacks[id].schedTime).GetMilliSeconds();
+		NET_ASSERT(delay < 1000);
+		NetLog("[timer] exec %d @ %s (%sms late)", id, (g_time - m_epoch).GetMilliSeconds().str(), delay.str());
 #endif
 		callback(id, pUserData, g_time);
 	}
@@ -191,17 +191,17 @@ CTimeValue CNetTimer::Update()
 			break;
 		}
 
-	g_time = gEnv->pTimer->GetAsyncTime();
+	g_time = GetGTimer()->GetAsyncTime();
 	if (foundFirst)
 	{
-		m_wakeup = g_time + float(first) / float(TIMER_HERTZ);
+		m_wakeup = g_time + CTimeValue(first / mpfloat(TIMER_HERTZ));
 		if (!m_slowCallbacks.empty() && m_slowCallbacks.begin()->first < m_wakeup)
 			m_wakeup = m_slowCallbacks.begin()->first;
 	}
 	else if (!m_slowCallbacks.empty())
 		m_wakeup = m_slowCallbacks.begin()->first;
 	else
-		m_wakeup = g_time + 30.0f;
+		m_wakeup = g_time + 30;
 
 	return m_wakeup;
 }
@@ -217,8 +217,7 @@ CTimeValue CNetTimer::Update()
 // Accurate net timers
 #define RESERVED_NETWORK_TIMERS      (128)
 //#define LOG_MAXIMUM_CALLBACKS
-#define MAXIMUM_MILLISECONDS_TO_WAIT (250)
-static CTimeValue g_MaxWaitTime(static_cast<float>(MAXIMUM_MILLISECONDS_TO_WAIT) / 1000.0f);
+static CTimeValue g_MaxWaitTime("0.25");
 
 CAccurateNetTimer::CAccurateNetTimer()
 {
@@ -304,7 +303,7 @@ void* CAccurateNetTimer::CancelTimer(NetTimerId& id)
 CTimeValue CAccurateNetTimer::Update()
 {
 	ASSERT_GLOBAL_LOCK;
-	g_time = gEnv->pTimer->GetAsyncTime();
+	g_time = GetGTimer()->GetAsyncTime();
 	m_nextUpdate = g_time + g_MaxWaitTime;
 #if TIMER_DEBUG
 	static CTimeValue lastUpdate = g_time;

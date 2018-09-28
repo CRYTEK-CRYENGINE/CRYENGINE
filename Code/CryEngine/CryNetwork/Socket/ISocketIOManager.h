@@ -179,7 +179,7 @@ struct ISocketIOManager
 
 	virtual const char* GetName() = 0;
 
-	virtual bool        PollWait(uint32 waitTime) = 0;
+	virtual bool        PollWait(const CTimeValue& waitTime) = 0;
 	virtual int         PollWork(bool& performedWork) = 0;
 
 	virtual SSocketID   RegisterSocket(CRYSOCKET sock, int protocol) = 0;

@@ -551,7 +551,7 @@ ESocketError CUDPDatagramSocket::Send(const uint8* pBuffer, size_t nLength, cons
 		if (nLength > ((FRAG_MAX_MTU_SIZE - fho_FragHeaderSize) * FRAG_MAX_FRAGMENTS))
 		{
 	#if SHOW_FRAGMENTATION_USAGE
-			NetQuickLog(true, 10.f, "[Fragmentation]: Packet too big for fragmentation buffer, Packet Size = %d", static_cast<int>(nLength));
+			NetQuickLog(true, 10, "[Fragmentation]: Packet too big for fragmentation buffer, Packet Size = %d", static_cast<int>(nLength));
 	#endif // SHOW_FRAGMENTATION_USAGE
 			return eSE_BufferTooSmall;
 		}
@@ -737,7 +737,7 @@ const uint8* CUDPDatagramSocket::ReceiveFragmented(const TNetAddress& from, cons
 		if (len <= fho_FragHeaderSize || len > FRAG_MAX_MTU_SIZE)        // http://revuln.com/files/ReVuln_Game_Engines_0days_tale.pdf  : Fix Vuln 11.3 & 11.2
 		{
 	#if SHOW_FRAGMENTATION_USAGE
-			NetQuickLog(true, 10.f, "[Fragmentation]: Illegal Fragmentation Packet Size (<HeaderSize || >FRAG_MAX_MTU_SIZE)");
+			NetQuickLog(true, 10, "[Fragmentation]: Illegal Fragmentation Packet Size (<HeaderSize || >FRAG_MAX_MTU_SIZE)");
 	#endif // SHOW_FRAGMENTATION_USAGE
 			return NULL;
 		}
@@ -747,7 +747,7 @@ const uint8* CUDPDatagramSocket::ReceiveFragmented(const TNetAddress& from, cons
 		if (bufferIndex == FRAG_NUM_PACKET_BUFFERS)
 		{
 	#if SHOW_FRAGMENTATION_USAGE
-			NetQuickLog(true, 10.f, "[Fragmentation]: Unable to find free buffer for id %d from '%s'", fragmentedPacketID, RESOLVER.ToString(from).c_str());
+			NetQuickLog(true, 10, "[Fragmentation]: Unable to find free buffer for id %d from '%s'", fragmentedPacketID, RESOLVER.ToString(from).c_str());
 	#endif // SHOW_FRAGMENTATION_USAGE
 			return NULL;
 		}
@@ -763,7 +763,7 @@ const uint8* CUDPDatagramSocket::ReceiveFragmented(const TNetAddress& from, cons
 		if ((seqStart + seqLength) > MAX_UDP_PACKET_SIZE)   // Prevent buffer overflow abuse due to abuse of sequence/len combination -- not seen in the wild -- yet!
 		{
 	#if SHOW_FRAGMENTATION_USAGE
-			NetQuickLog(true, 10.f, "[Fragmentation]: Illegal packet offset+length > MAX_UDP_PACKET_SIZE");
+			NetQuickLog(true, 10, "[Fragmentation]: Illegal packet offset+length > MAX_UDP_PACKET_SIZE");
 	#endif // SHOW_FRAGMENTATION_USAGE
 			return NULL;
 		}
@@ -771,7 +771,7 @@ const uint8* CUDPDatagramSocket::ReceiveFragmented(const TNetAddress& from, cons
 		if (m_pFragmentedPackets[bufferIndex].m_ReconstitutionMask & sequence)
 		{
 	#if SHOW_FRAGMENTATION_USAGE
-			NetQuickLog(true, 10.f, "[Fragmentation]: Received already reconstructed UPD fragment from %s, discarding old buffer", RESOLVER.ToString(from).c_str());
+			NetQuickLog(true, 10, "[Fragmentation]: Received already reconstructed UPD fragment from %s, discarding old buffer", RESOLVER.ToString(from).c_str());
 	#endif // SHOW_FRAGMENTATION_USAGE
 			ClearFragmentationEntry(bufferIndex, fragmentedPacketID, from);
 		}
@@ -779,7 +779,7 @@ const uint8* CUDPDatagramSocket::ReceiveFragmented(const TNetAddress& from, cons
 		m_pFragmentedPackets[bufferIndex].m_lastUpdate = g_time;
 		m_pFragmentedPackets[bufferIndex].m_ReconstitutionMask |= sequence;
 	#if SHOW_FRAGMENTATION_USAGE_VERBOSE
-		NetQuickLog(true, 10.f, "[Fragmentation]: received fragment %d, rseq %d, now have %x (expecting %x)", fragmentIndex + 1, rSeq, m_pFragmentedPackets[bufferIndex].m_ReconstitutionMask, expected);
+		NetQuickLog(true, 10, "[Fragmentation]: received fragment %d, rseq %d, now have %x (expecting %x)", fragmentIndex + 1, rSeq, m_pFragmentedPackets[bufferIndex].m_ReconstitutionMask, expected);
 	#endif // SHOW_FRAGMENTATION_USAGE_VERBOSE
 
 		memcpy(&m_pFragmentedPackets[bufferIndex].m_FragPackets[0 + seqStart], &pData[fho_FragHeaderSize], seqLength);
@@ -837,10 +837,10 @@ void CUDPDatagramSocket::DiscardStaleEntries()
 		if (!packet.m_inUse)
 			continue;
 
-		if (g_time.GetDifferenceInSeconds(packet.m_lastUpdate) > CNetCVars::Get().net_fragment_expiration_time)
+		if (g_time - packet.m_lastUpdate > CNetCVars::Get().net_fragment_expiration_time)
 		{
 	#if SHOW_FRAGMENTATION_USAGE
-			NetQuickLog(true, 10.f, "[Fragmentation]: reconstruction buffer %d from %s is stale (time) - REUSING", i, RESOLVER.ToString(packet.m_from).c_str());
+			NetQuickLog(true, 10, "[Fragmentation]: reconstruction buffer %d from %s is stale (time) - REUSING", i, RESOLVER.ToString(packet.m_from).c_str());
 	#endif // SHOW_FRAGMENTATION_USAGE
 			ClearFragmentationEntry(i, FRAGMENTED_RESET_ID, g_nullAddress);
 			continue;
@@ -881,7 +881,7 @@ void CUDPDatagramSocket::DiscardStaleEntries()
 		SFragmentedPacket& packet = m_pFragmentedPackets[idx];
 
 	#if SHOW_FRAGMENTATION_USAGE
-		NetQuickLog(true, 10.f, "[Fragmentation]: Dropping stale packet assembly buffer %d from %s, packet id %u", idx, RESOLVER.ToString(packet.m_from).c_str(), packet.m_Id);
+		NetQuickLog(true, 10, "[Fragmentation]: Dropping stale packet assembly buffer %d from %s, packet id %u", idx, RESOLVER.ToString(packet.m_from).c_str(), packet.m_Id);
 	#endif // SHOW_FRAGMENTATION_USAGE
 
 		ClearFragmentationEntry(idx, FRAGMENTED_RESET_ID, g_nullAddress);
@@ -913,14 +913,14 @@ uint8 CUDPDatagramSocket::FindBufferIndex(const TNetAddress& from, TFragPacketId
 	if (match != FRAG_NUM_PACKET_BUFFERS)
 	{
 	#if SHOW_FRAGMENTATION_USAGE_VERBOSE
-		NetQuickLog(true, 10.f, "[Fragmentation]: using EXISTING buffer %d for packet %d from %s", match, id, RESOLVER.ToString(from).c_str());
+		NetQuickLog(true, 10, "[Fragmentation]: using EXISTING buffer %d for packet %d from %s", match, id, RESOLVER.ToString(from).c_str());
 	#endif // SHOW_FRAGMENTATION_USAGE_VERBOSE
 		return match;
 	}
 	else if (unused != FRAG_NUM_PACKET_BUFFERS)
 	{
 	#if SHOW_FRAGMENTATION_USAGE_VERBOSE
-		NetQuickLog(true, 10.f, "[Fragmentation]: using NEW buffer %d for packet %d from %s", unused, id, RESOLVER.ToString(from).c_str());
+		NetQuickLog(true, 10, "[Fragmentation]: using NEW buffer %d for packet %d from %s", unused, id, RESOLVER.ToString(from).c_str());
 	#endif // SHOW_FRAGMENTATION_USAGE_VERBOSE
 		ClearFragmentationEntry(unused, id, from);
 		return unused;

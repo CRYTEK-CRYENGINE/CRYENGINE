@@ -33,7 +33,7 @@ public:
 	CSocketIOManagerSelect();
 	~CSocketIOManagerSelect();
 
-	virtual bool      PollWait(uint32 waitTime) override;
+	virtual bool      PollWait(const CTimeValue& waitTime) override;
 	virtual int       PollWork(bool& performedWork) override;
 
 	virtual SSocketID RegisterSocket(CRYSOCKET sock, int protocol) override;

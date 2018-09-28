@@ -161,8 +161,8 @@ bool CMessageQueue::CConfig::Read(XmlNodeRef n)
 		{
 			SAccountingGroupPolicy pol;
 			pol.maxBandwidth = -1;
-			pol.maxLatency = -1;
-			pol.discardLatency = -1;
+			pol.maxLatency.SetSeconds(-1);
+			pol.discardLatency.SetSeconds(-1);
 			pol.priority = 0;
 			pol.numPulses = 0;
 			pol.drawn = false;
@@ -701,7 +701,7 @@ ILINE void CMessageQueue::VerifyBlocking() const
 	#endif
 }
 
-CMessageQueue::ELatencyClass CMessageQueue::GetLatencyClassForGroup(float expectedTimeNow, float expectedTimeNext, SAccountingGroup* pGrp)
+CMessageQueue::ELatencyClass CMessageQueue::GetLatencyClassForGroup(const CTimeValue& expectedTimeNow, const CTimeValue& expectedTimeNext, SAccountingGroup* pGrp)
 {
 	NET_ASSERT(expectedTimeNow < expectedTimeNext);
 	if (!pGrp)
@@ -972,8 +972,8 @@ void CMessageQueue::CalculatePerFrameData(const SSchedulingParams& params)
 	{
 		SMsgSlot& ent = *pEnt;
 		// latencyClass
-		float expectedTimeNow = (params.now - ent.msg.inserted).GetSeconds() + params.transportLatency;
-		float expectedTimeNext = (params.next - ent.msg.inserted).GetSeconds() + params.transportLatency;
+		CTimeValue expectedTimeNow  = (params.now - ent.msg.inserted)  + params.transportLatency;
+		CTimeValue expectedTimeNext = (params.next - ent.msg.inserted) + params.transportLatency;
 		ent.ordering.latencyClass = GetLatencyClassForGroup(expectedTimeNow, expectedTimeNext, ent.pAG);
 
 		// bandwidthExceeded
@@ -1027,7 +1027,7 @@ void CMessageQueue::CalculatePerFrameData(const SSchedulingParams& params)
 						pP1++;
 					else
 					{
-						priority += pP1->scaler.GetBump((params.now - pP0->tm).GetSeconds());
+						priority += pP1->scaler.GetBump((params.now - pP0->tm).BADGetSeconds());
 						pP0++;
 						pP1++;
 					}
@@ -1344,8 +1344,8 @@ struct SNetMessageProfileLogger
 
 	void OnWriteMessages(CTimeValue t, CNetChannel* pNC)
 	{
-		float timeDifference = (t - lastDump).GetSeconds();
-		if (timeDifference > 1.0f)
+		CTimeValue timeDifference = t - lastDump;
+		if (timeDifference > 1)
 		{
 			Dump();
 			lastDump = t;
@@ -1356,7 +1356,7 @@ struct SNetMessageProfileLogger
 		TChannelInfoMap::iterator it = channel_info.find(pNC);
 		if (it == channel_info.end())
 		{
-			channel_info[pNC] = string().Format("Channel %u %s %.1f", pNC->GetLocalChannelID(), pNC->GetName(), 1000.0f * pNC->GetPing(true));
+			channel_info[pNC] = string().Format("Channel %u %s %.1f", pNC->GetLocalChannelID(), pNC->GetName(), (float)pNC->GetPing(true).GetMilliSeconds());
 		}
 	}
 
@@ -1732,7 +1732,7 @@ void CMessageQueue::WriteMessages(IMessageOutput* pOut, const SSchedulingParams&
 	#if ENABLE_DEBUG_KIT
 			if (CVARS.NetInspector)
 			{
-				NET_INSPECTOR.AddMessage(pEntSend->msg.pSendable ? pEntSend->msg.pSendable->GetDescription() : "<null>", (sizeAfter - sizeBefore) / 8.0f, (g_time - pEntSend->msg.inserted).GetMilliSeconds());
+				NET_INSPECTOR.AddMessage(pEntSend->msg.pSendable ? pEntSend->msg.pSendable->GetDescription() : "<null>", (sizeAfter - sizeBefore) / 8.0f, (g_time - pEntSend->msg.inserted));
 			}
 	#endif
 
@@ -2067,7 +2067,7 @@ void CMessageQueue::RegularCleanup(const SSchedulingParams& params)
 {
 	CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 
-	CTimeValue oldTime = params.now - 0.5f;
+	CTimeValue oldTime = params.now - "0.5";
 
 	int curVersion = CNetwork::Get()->GetMessageQueueConfigVersion();
 	if (m_version != curVersion)
@@ -2319,7 +2319,7 @@ void CMessageQueue::GetBandwidthStatistics(uint32 channelIndex, SBandwidthStats*
 		stats.m_bandwidthUsed = accountingGroup.GetBandwidthUsed(g_time);
 		stats.m_totalBandwidthUsed = accountingGroup.totBandwidthUsed;
 		stats.m_priority = static_cast<uint32>(accountingGroup.policy.priority);
-		stats.m_maxLatency = accountingGroup.policy.maxLatency;
+		stats.m_maxLatency     = accountingGroup.policy.maxLatency;
 		stats.m_discardLatency = accountingGroup.policy.discardLatency;
 
 		accountingGroupIndex++;
@@ -2378,7 +2378,7 @@ void CMessageQueue::DebugDrawAccountingGroups(const SSchedulingParams& params)
 		float maxBandwidth = pAG->policy.maxBandwidth;
 		float bandwidthUsed = pAG->GetBandwidthUsed(params.now);
 		float percentage = bandwidthUsed / maxBandwidth;
-		bool flash = ((static_cast<int32>(params.now.GetSeconds() * 4.0f)) & 0x01);
+		bool flash = ((static_cast<int32>(params.now.GetSeconds() * 4)) & 0x01);
 		if (maxBandwidth < 0.0f)
 		{
 			percentage = 0.0f;
@@ -2493,7 +2493,7 @@ void CMessageQueue::DebugDrawAccountingGroups(const SSchedulingParams& params)
 						pP1++;
 					else
 					{
-						bump += pP1->scaler.GetBump((params.now - pP0->tm).GetSeconds());
+						bump += pP1->scaler.GetBump((params.now - pP0->tm).BADGetSeconds());
 						pP0++;
 						pP1++;
 					}

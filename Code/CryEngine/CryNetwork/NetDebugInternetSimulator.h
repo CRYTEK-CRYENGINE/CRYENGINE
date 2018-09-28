@@ -27,8 +27,8 @@ private:
 	float                 m_packetLossRate;
 	uint32                m_packetSends;
 	uint32                m_packetDrops;
-	uint32                m_packetLagMin;
-	uint32                m_packetLagMax;
+	CTimeValue            m_packetLagMin;
+	CTimeValue            m_packetLagMax;
 };
 
 #endif // ENABLE_NET_DEBUG_INFO

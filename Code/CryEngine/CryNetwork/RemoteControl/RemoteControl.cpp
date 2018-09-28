@@ -234,7 +234,7 @@ void CRemoteControlServerInternal::OnConnectionAccepted(IStreamSocketPtr pStream
 			*(uint32*)(m_challenge.challenge + i * sizeof(uint32)) = r.GenerateUint32();
 		m_pSocketSession->Send((uint8*)&m_challenge, sizeof(m_challenge));
 		m_sessionState = eSS_ChallengeSent;
-		m_authenticationTimeoutTimer = TIMER.ADDTIMER(g_time + 2.0f, AuthenticationTimeoutTimer, this, "CRemoteControlServerInternal::OnConnectionAccepted() m_authenticationTimeoutTimer");
+		m_authenticationTimeoutTimer = TIMER.ADDTIMER(g_time + 2, AuthenticationTimeoutTimer, this, "CRemoteControlServerInternal::OnConnectionAccepted() m_authenticationTimeoutTimer");
 	}
 }
 

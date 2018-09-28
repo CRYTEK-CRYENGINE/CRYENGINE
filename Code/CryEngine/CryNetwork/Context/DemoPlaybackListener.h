@@ -82,7 +82,7 @@ private:
 	};
 
 	SStreamRecord                m_buffer;
-	float                        m_startTime;
+	CTimeValue                   m_startTime;
 	CTimeValue                   m_initTime;
 
 	std::map<EntityId, EntityId> m_recIdToPlayId;

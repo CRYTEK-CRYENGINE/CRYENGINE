@@ -24,7 +24,7 @@ struct SAuthenticationSalt : public ISerializable
 	SAuthenticationSalt();
 	void           SerializeWith(TSerialize ser);
 	CWhirlpoolHash Hash(const string& password) const;
-	float  fTime;
+	CTimeValue fTime;
 	uint32 nRand;
 };
 

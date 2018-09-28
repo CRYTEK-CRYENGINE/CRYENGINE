@@ -24,8 +24,8 @@ static const uint16 LikelyPMTUs[] = {
 
 static const int NumLikelyPMTUs = sizeof(LikelyPMTUs) / sizeof(*LikelyPMTUs);
 
-static const CTimeValue SHORT_TIMEOUT = 15.0f;
-static const CTimeValue LONG_TIMEOUT = (10.0f * 60.0f); // ten minutes
+static const CTimeValue SHORT_TIMEOUT = 15;
+static const CTimeValue LONG_TIMEOUT  = (10 * 60); // ten minutes
 
 static int MTUIndexForSize(uint16 size)
 {
@@ -34,7 +34,7 @@ static int MTUIndexForSize(uint16 size)
 	return index - (size < LikelyPMTUs[index]); // size <= LikelyPMTUs[index]
 }
 
-CPMTUDiscovery::CPMTUDiscovery() : m_pmtu(1300), m_peak(0), m_last(0), m_lastExperiment(0.0f), m_lastExperimentRequest(0.0f), m_bInExperiment(true)
+CPMTUDiscovery::CPMTUDiscovery() : m_pmtu(1300), m_peak(0), m_last(0), m_lastExperiment(0), m_lastExperimentRequest(0), m_bInExperiment(true)
 {
 }
 
@@ -89,7 +89,7 @@ void CPMTUDiscovery::SentPacket(CTimeValue curTime, uint32 seq, uint16 sz)
 		m_lastExperiment = curTime;
 	}
 
-	while (!m_experiments.empty() && (g_time - m_experiments.begin()->second.when).GetSeconds() > 1.0f)
+	while (!m_experiments.empty() && (g_time - m_experiments.begin()->second.when).GetSeconds() > 1)
 	{
 		AckedPacket(g_time, m_experiments.begin()->first, false);
 	}

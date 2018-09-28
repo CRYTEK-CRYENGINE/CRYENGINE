@@ -364,7 +364,7 @@ public:
 	void       ProcessPacket(CTimeValue nTime, CAutoFreeHandle& hdl, bool allowQueueing, bool inSync);
 	void       GetMemoryStatistics(ICrySizer* pSizer, bool countingThis = false);
 	void       MarkNotUserSink(INetMessageSink* pSink);
-	float      GetPing(bool smoothed) const                   { return m_PacketRateCalculator.GetPing(smoothed); }
+	CTimeValue GetPing(bool smoothed) const                   { return m_PacketRateCalculator.GetPing(smoothed); }
 	bool       IsSufferingHighLatency(CTimeValue nTime) const { return m_PacketRateCalculator.IsSufferingHighLatency(nTime); }
 	CTimeValue GetRemoteTime() const                          { return m_PacketRateCalculator.GetRemoteTime(); }
 	bool       IsTimeReady() const                            { return m_PacketRateCalculator.IsTimeReady(); }

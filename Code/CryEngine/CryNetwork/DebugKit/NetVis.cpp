@@ -155,7 +155,7 @@ void CNetVis::Update()
 	}
 
 	float avMid = (avMax + avMin) * 0.5f;
-	float g = gEnv->pTimer->GetFrameTime() / 4;
+	float g = GetGTimer()->GetFrameTime() / 4;
 	avMax = (1 - g) * avMax + g * avMid;
 	avMin = (1 - g) * avMin + g * avMid;
 }

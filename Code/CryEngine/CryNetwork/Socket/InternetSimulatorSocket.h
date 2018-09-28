@@ -68,8 +68,8 @@ private:
 	{
 		float fLossMin;
 		float fLossMax;
-		float fLagMin;
-		float fLagMax;
+		CTimeValue fLagMin;
+		CTimeValue fLagMax;
 	};
 
 	IDatagramSocketPtr    m_pChild;

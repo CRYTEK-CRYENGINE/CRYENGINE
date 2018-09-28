@@ -12,10 +12,10 @@
 class CEnsureRealtime
 {
 public:
-	CEnsureRealtime() : m_begin(gEnv->pTimer->GetAsyncTime()) {}
+	CEnsureRealtime() : m_begin(GetGTimer()->GetAsyncTime()) {}
 	~CEnsureRealtime()
 	{
-		if ((gEnv->pTimer->GetAsyncTime() - m_begin).GetSeconds() > 1.0f)
+		if ((GetGTimer()->GetAsyncTime() - m_begin).GetSeconds() > 1)
 			Failed();
 	}
 

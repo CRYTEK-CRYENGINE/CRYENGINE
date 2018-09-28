@@ -134,7 +134,7 @@ bool CMementoHistory::SendCurrentValue(const SSendContext& ctx, CSyncContext* pS
 		CTimeValue curTimeValue = ctx.pView->ContextState()->GetLocalPhysicsTime();
 		if (curTimeValue != timeValueStorage)
 		{
-			NetQuickLog(true, 1, "Physics update sent %fms late", (curTimeValue - timeValueStorage).GetMilliSeconds());
+			NetQuickLog(true, 1, "Physics update sent %fms late", (float)(curTimeValue - timeValueStorage).GetMilliSeconds());
 		}
 	}
 #endif
@@ -180,7 +180,7 @@ bool CMementoHistory::ReadCurrentValue(const SReceiveContext& ctx, bool commit)
 		pTimeValue = &timeValueStorage;
 #if LOG_BUFFER_UPDATES
 		if (CNetCVars::Get().LogBufferUpdates)
-			NetLog("[sync] memento history frame time is %f", timeValueStorage.GetMilliSeconds());
+			NetLog("[sync] memento history frame time is %f", (float)timeValueStorage.GetMilliSeconds());
 #endif
 	}
 
@@ -201,7 +201,7 @@ bool CMementoHistory::ReadCurrentValue(const SReceiveContext& ctx, bool commit)
 #if LOG_BUFFER_UPDATES
 	if (CNetCVars::Get().LogBufferUpdates && pTimeValue)
 	{
-		NetLog("[sync] memento history reads time %f", pTimeValue->GetMilliSeconds());
+		NetLog("[sync] memento history reads time %f", (float)pTimeValue->GetMilliSeconds());
 	}
 #endif
 

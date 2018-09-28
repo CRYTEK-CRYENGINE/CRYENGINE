@@ -337,7 +337,7 @@ void CDemoRecordListener::OnObjectEvent(CNetContextState* pState, SNetObjectEven
 		break;
 	case eNOE_InGame:
 		m_bInGame   = true;
-		m_startTime = gEnv->pTimer->GetFrameStartTime();
+		m_startTime = GetGTimer()->GetFrameStartTime();
 		break;
 	}
 }
@@ -374,7 +374,7 @@ void CDemoRecordListener::DoUpdate()
 	//}
 
 	// write frame header
-	m_output->Put("BeginFrame", (gEnv->pTimer->GetFrameStartTime() - m_startTime).GetSeconds());
+	m_output->Put("BeginFrame", (GetGTimer()->GetFrameStartTime() - m_startTime).GetSeconds());
 	m_output->Sync();
 
 	//static std::vector<TChangedObjects::iterator> collections;

@@ -35,7 +35,7 @@ struct SSocketBandwidth
 	#if INTERNET_SIMULATOR
 	uint32 simPacketSends;
 	uint32 simPacketDrops;
-	uint32 simLastPacketLag;
+	CTimeValue simLastPacketLag;
 	#endif
 };
 
