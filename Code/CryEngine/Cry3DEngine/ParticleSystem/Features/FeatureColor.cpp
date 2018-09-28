@@ -250,7 +250,7 @@ public:
 	{
 		for (uint i = 0; i < samplePoints; ++i)
 		{
-			const float point = (float) i / samplePoints;
+			const mpfloat point = (mpfloat) i / samplePoints;
 			Vec3 color0 = samples[i];
 			ColorF curve = m_spline.Interpolate(point);
 			Vec3 color1(color0.x * curve.r, color0.y * curve.g, color0.z * curve.b);

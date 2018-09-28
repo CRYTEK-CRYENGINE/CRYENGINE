@@ -64,9 +64,9 @@ void CDecalRenderNode::CreatePlanarDecal()
 	// default for all other
 	decalInfo.pIStatObj = NULL;
 	decalInfo.ownerInfo.pRenderNode = NULL;
-	decalInfo.fLifeTime = 1.0f; // default life time for rendering, decal won't grow older as we don't update it
+	decalInfo.fLifeTime.SetSeconds(1); // default life time for rendering, decal won't grow older as we don't update it
 	decalInfo.vHitDirection = Vec3(0, 0, 0);
-	decalInfo.fGrowTime = 0;
+	decalInfo.fGrowTime.SetSeconds(0);
 	decalInfo.preventDecalOnGround = true;
 	decalInfo.fAngle = 0;
 
@@ -122,8 +122,8 @@ void CDecalRenderNode::CreateDecalOnStaticObjects()
 
 		// default for all other
 		decalInfo.pIStatObj = NULL;
-		decalInfo.fLifeTime = 1.0f; // default life time for rendering, decal won't grow older as we don't update it
-		decalInfo.fGrowTime = 0;
+		decalInfo.fLifeTime.SetSeconds(1); // default life time for rendering, decal won't grow older as we don't update it
+		decalInfo.fGrowTime.SetSeconds(0);
 		decalInfo.preventDecalOnGround = false;
 		decalInfo.fAngle = 0;
 
@@ -195,8 +195,8 @@ void CDecalRenderNode::CreateDecalOnTerrain()
 		// default for all other
 		decalInfo.pIStatObj = NULL;
 		decalInfo.ownerInfo.pRenderNode = 0;
-		decalInfo.fLifeTime = 1.0f; // default life time for rendering, decal won't grow older as we don't update it
-		decalInfo.fGrowTime = 0;
+		decalInfo.fLifeTime.SetSeconds(1); // default life time for rendering, decal won't grow older as we don't update it
+		decalInfo.fGrowTime.SetSeconds(0);
 		decalInfo.preventDecalOnGround = false;
 		decalInfo.fAngle = 0;
 

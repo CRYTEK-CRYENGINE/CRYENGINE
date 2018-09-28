@@ -108,7 +108,7 @@
 #define MMRM_PLASTICITY_TIME (10000)
 
 // The fixed timestep for the simulator
-#define MMRM_FIXED_STEP (0.035f)
+#define MMRM_FIXED_STEP (CTimeValue("0.035"))
 
 // The enable debug visualization of the clusters
 #define MMRM_CLUSTER_VISUALIZATION 1
@@ -585,7 +585,7 @@ struct SProjectile
 	Vec3             current_pos;
 	Vec3             initial_pos;
 	Vec3             direction;
-	float            lifetime;
+	CTimeValue       lifetime;
 	float            size;
 	IPhysicalEntity* entity;
 

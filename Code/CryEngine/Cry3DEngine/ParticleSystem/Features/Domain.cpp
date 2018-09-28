@@ -135,7 +135,7 @@ float CDomain::GetGlobalValue(EDomainGlobal source) const
 	switch (source)
 	{
 	case EDomainGlobal::TimeOfDay:
-		return gEnv->p3DEngine->GetTimeOfDay()->GetTime() / 24.0f;
+		return gEnv->p3DEngine->GetTimeOfDay()->GetTime().BADGetSeconds() / 24.0f;
 	case EDomainGlobal::ExposureValue:
 	{
 		Vec3 exposure;

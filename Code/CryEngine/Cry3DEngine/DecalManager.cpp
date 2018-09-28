@@ -364,17 +364,17 @@ bool CDecalManager::Spawn(CryEngineDecalInfo DecalInfo, CDecal* pCallerManagedDe
 	// update lifetime for near decals under control by the decal manager
 	if (!pCallerManagedDecal)
 	{
-		if (DecalInfo.fSize > 1 && GetCVars()->e_DecalsNeighborMaxLifeTime)
+		if (DecalInfo.fSize > 1 && GetCVars()->e_DecalsNeighborMaxLifeTime != 0)
 		{
 			// force near decals to fade faster
-			float fCurrTime = GetTimer()->GetCurrTime();
+			CTimeValue fCurrTime = GTimer(render)->GetFrameStartTime();
 			for (int i = 0; i < DECAL_COUNT; i++)
 				if (m_arrbActiveDecals[i] && m_arrDecals[i].m_nGroupId != DecalInfo.nGroupId)
 				{
 					if (m_arrDecals[i].m_vWSPos.GetSquaredDistance(DecalInfo.vPos) < sqr(m_arrDecals[i].m_fWSSize / 1.5f + DecalInfo.fSize / 2.0f))
-						if ((m_arrDecals[i]).m_fLifeBeginTime < fCurrTime - 0.1f)
+						if ((m_arrDecals[i]).m_fLifeBeginTime < fCurrTime - "0.1")
 							if (m_arrDecals[i].m_fLifeTime > GetCVars()->e_DecalsNeighborMaxLifeTime)
-								if (m_arrDecals[i].m_fLifeTime < 10000) // decals spawn by cut scenes need to stay
+								if (m_arrDecals[i].m_fLifeTime.GetSeconds() < 10000) // decals spawn by cut scenes need to stay
 									m_arrDecals[i].m_fLifeTime = GetCVars()->e_DecalsNeighborMaxLifeTime;
 				}
 		}
@@ -742,7 +742,7 @@ bool CDecalManager::Spawn(CryEngineDecalInfo DecalInfo, CDecal* pCallerManagedDe
 
 	newDecal.m_fGrowTime = DecalInfo.fGrowTime;
 	newDecal.m_fGrowTimeAlpha = DecalInfo.fGrowTimeAlpha;
-	newDecal.m_fLifeBeginTime = GetTimer()->GetCurrTime();
+	newDecal.m_fLifeBeginTime = GTimer(render)->GetFrameStartTime();
 
 	if (DecalInfo.pIStatObj && !pCallerManagedDecal)
 	{
@@ -774,7 +774,7 @@ bool CDecalManager::Spawn(CryEngineDecalInfo DecalInfo, CDecal* pCallerManagedDe
 	return true;
 }
 
-void CDecalManager::Update(const float fFrameTime)
+void CDecalManager::Update(const CTimeValue& frameTime)
 {
 	CryPrefetch(&m_arrbActiveDecals[0]);
 	CryPrefetch(&m_arrbActiveDecals[128]);
@@ -786,7 +786,7 @@ void CDecalManager::Update(const float fFrameTime)
 		if (m_arrbActiveDecals[i])
 		{
 			IRenderNode* pRenderNode = m_arrDecals[i].m_ownerInfo.pRenderNode;
-			if (m_arrDecals[i].Update(m_arrbActiveDecals[i], fFrameTime))
+			if (m_arrDecals[i].Update(m_arrbActiveDecals[i], frameTime))
 				if (pRenderNode && m_arrTempUpdatedOwners.Find(pRenderNode) < 0)
 					m_arrTempUpdatedOwners.Add(pRenderNode);
 		}
@@ -807,7 +807,7 @@ void CDecalManager::Render(const SRenderingPassInfo& passInfo)
 	if (!passInfo.RenderDecals() || !GetObjManager())
 		return;
 
-	float fCurrTime = GetTimer()->GetCurrTime();
+	CTimeValue fCurrTime = GTimer(render)->GetFrameStartTime();
 	float fZoom = passInfo.GetZoomFactor();
 	float fWaterLevel = m_p3DEngine->GetWaterLevel();
 

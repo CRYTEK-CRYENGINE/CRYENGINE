@@ -240,16 +240,16 @@ void DisplayParticleStats(Vec2& displayLocation, float lineHeight, cstr name, TS
 
 void CParticleSystem::DisplayStats(Vec2& location, float lineHeight)
 {
-	float blendTime = GetTimer()->GetCurrTime();
+	CTimeValue blendTime = GTimer(render)->GetFrameStartTime();
 	int blendMode = 0;
-	float blendCur = GetTimer()->GetProfileFrameBlending(&blendTime, &blendMode);
+	mpfloat blendCur = GTimer(render)->GetProfileFrameBlending(&blendTime, &blendMode);
 
 	static TParticleStats<float> statsCPUAvg, statsGPUAvg;
 	TParticleStats<float> statsCPUCur, statsGPUCur; 
 	statsCPUCur.Set(GetSumData().statsCPU);
-	statsCPUAvg = Lerp(statsCPUAvg, statsCPUCur, blendCur);
+	statsCPUAvg = Lerp(statsCPUAvg, statsCPUCur, BADF blendCur);
 	statsGPUCur.Set(GetSumData().statsGPU);
-	statsGPUAvg = Lerp(statsGPUAvg, statsGPUCur, blendCur);
+	statsGPUAvg = Lerp(statsGPUAvg, statsGPUCur, BADF blendCur);
 
 	if (!statsCPUAvg.emitters.IsZero())
 		DisplayParticleStats(location, lineHeight, "Wavicle CPU", statsCPUAvg);
@@ -257,7 +257,7 @@ void CParticleSystem::DisplayStats(Vec2& location, float lineHeight)
 	static TElementCounts<float> statsSyncAvg;
 	TElementCounts<float> statsSyncCur;
 	statsSyncCur.Set(GetSumData().statsSync);
-	statsSyncAvg = Lerp(statsSyncAvg, statsSyncCur, blendCur);
+	statsSyncAvg = Lerp(statsSyncAvg, statsSyncCur, BADF blendCur);
 	DisplayElementStats(location, lineHeight, "Comp Sync", statsSyncAvg);
 
 	if (!statsGPUAvg.components.IsZero())
@@ -268,7 +268,7 @@ void CParticleSystem::DisplayStats(Vec2& location, float lineHeight)
 		static SParticleCounts countsAvg;
 		SParticleCounts counts;
 		m_pPartManager->GetCounts(counts);
-		countsAvg = Lerp(countsAvg, counts, blendCur);
+		countsAvg = Lerp(countsAvg, counts, BADF blendCur);
 
 		if (!countsAvg.emitters.IsZero())
 			DisplayParticleStats(location, lineHeight, "Particles V1", countsAvg);

@@ -514,7 +514,7 @@ struct SMMRMInstanceContext
 	float               maxViewDistSq;
 	float               lodRatioSq;
 	float               diameterSq;
-	float               dt, dtscale, abstime;
+	CTimeValue          dt, dtscale, abstime;
 	float               zRotation;
 	Vec3                rotationOrigin;
 	Vec3                min, max, centre;
@@ -3286,7 +3286,8 @@ static void MergeInstanceList(SMMRMInstanceContext& context)
 	const float fExtents = c_MergedMeshesExtent;
 	const aVec3 origin = context.min;
 	int iter = 0, max_iter = context.max_iter, frame_id = update->frame_count;
-	float c = 0, d = 0, iwsum = 0, dt = 0.f, dtcur = 0.f, dttot = context.dt, dtscale = context.dtscale, abstime = context.abstime
+	CTimeValue dt(0), dtcur(0), dttot = context.dt, dtscale = context.dtscale, abstime = context.abstime;
+	float c = 0, d = 0, iwsum = 0
 	, airResistance = update->group->physConfig.airResistance
 	, damping = update->group->physConfig.fDamping
 	, w[3] = { 0 }
@@ -3296,8 +3297,8 @@ static void MergeInstanceList(SMMRMInstanceContext& context)
 	, var = 0.f
 	, variance = update->group->physConfig.variance
 	, fScale
-	, rScale
-	, rdt;
+	, rScale;
+	rTime rdt;
 	aVec3 sample_pos, geom_ctr = geom->aabb.GetCenter();
 	Vec3 its[2];
 	Vec3A ctr, offs, disp, ndisp, dw, dw0, dir[2], dirO[2], bending[3];
@@ -3392,7 +3393,7 @@ static void MergeInstanceList(SMMRMInstanceContext& context)
 #endif
 				// update plasticity
 				plasticity = (MMRM_PLASTICITY_TIME - spines[base + off + 0].vel.x) / (float)MMRM_PLASTICITY_TIME;
-				dtcur = dttot + static_cast<float>(spines[base + off + 0].vel.y) * (1.f / 1000.f);
+				dtcur = dttot + BADTIME(static_cast<float>(spines[base + off + 0].vel.y) * (1.f / 1000.f));
 				spines[base + off + 0].vel.y = 0;
 				for (i = 1; i < (int)geomSpineInfo[j].nSpineVtx; ++i)
 				{
@@ -3411,11 +3412,11 @@ static void MergeInstanceList(SMMRMInstanceContext& context)
 				while (dtcur > MMRM_FIXED_STEP)
 				{
 					dtcur -= (dt = MMRM_FIXED_STEP);
-					rdt = 1.f / dt;
+					rdt = 1 / dt;
 
 					kL = 1.f / (float)(max_iter = context.max_iter);
 #if MMRM_USE_VECTORIZED_SSE_INSTRUCTIONS
-					const vec4 vDT = NVMath::Vec4(dt), vRDT = NVMath::Vec4(rdt), vPlasticity = NVMath::Vec4(plasticity);
+					const vec4 vDT = NVMath::Vec4(dt.BADGetSeconds()), vRDT = NVMath::Vec4(BADF rdt), vPlasticity = NVMath::Vec4(plasticity);
 					const vec4 vkhkl = NVMath::Vec4(kH * kL);
 #endif
 					// Advance the spine's vertices depending on simulation state
@@ -3459,8 +3460,8 @@ static void MergeInstanceList(SMMRMInstanceContext& context)
 						dir[1] *= (float)isqrt_tpl(max(dir[1].len2(), sqr(FLT_EPSILON)));
 						dw0 = dw * (fabs_tpl(1.f - (dw * dir[0]))) * 0.5f;
 						dw0 += dw * (fabs_tpl(1.f - dw * dir[1])) * 0.5f;
-						const Vec3& new_vel = (nvel[off + i] * plasticity + (dw0 * airResistance + Vec3(0, 0, -9.81f)) * dt) * __fsel(i_f, 1.f, 0.f) * (1.f - (damping * dt));
-						npt[off + i] = opt[off + i] + new_vel * dt;
+						const Vec3& new_vel = (nvel[off + i] * plasticity + (dw0 * airResistance + Vec3(0, 0, -9.81f)) * dt.BADGetSeconds()) * __fsel(i_f, 1.f, 0.f) * (1.f - (damping * dt.BADGetSeconds()));
+						npt[off + i] = opt[off + i] + new_vel * dt.BADGetSeconds();
 						nvel[off + i] = new_vel;
 #endif
 					}
@@ -3830,7 +3831,7 @@ static void MergeInstanceList(SMMRMInstanceContext& context)
 						_mm_store_ps(&nvel[off + i].x, vnvel);
 						_mm_store_ps(&opt[off + i].x, vnpt);
 #else
-						nvel[off + i] = (((npt[off + i] - opt[off + i]) * rdt));
+						nvel[off + i] = (((npt[off + i] - opt[off + i]) * BADF rdt));
 						opt[off + i] = npt[off + i];
 #endif
 					}
@@ -3838,7 +3839,7 @@ static void MergeInstanceList(SMMRMInstanceContext& context)
 				// ... and convert back to fp16
 				opt[off + 0] = ((iwmat * opt[off + 0]) * rScale);
 #if MMRM_SIMULATION_USES_FP32
-				spines[base + off + 0].vel.y += clamp_tpl(dtcur, 0.0f, MMRM_FIXED_STEP + (1.f / 1000.f)) * 1000.f;
+				spines[base + off + 0].vel.y += BADF CLAMP(dtcur, 0, MMRM_FIXED_STEP + "0.001").GetMilliSeconds();
 				spines[base + off + 0].vel.x = max(spines[base + off + 0].vel.x - spines[base + off + 0].vel.y, 0.f);
 #else
 				spines[base + off + 0].vel.y += static_cast<int16>(clamp_tpl(dtcur, 0.0f, MMRM_FIXED_STEP + (1.f / 1000.f)) * 1000.f);
@@ -3967,21 +3968,22 @@ static inline void MergeInstanceListDeform(SMMRMInstanceContext& context)
 	const float fExtents = c_MergedMeshesExtent;
 	const Vec3 origin = context.min;
 	Quat qr;
-	float c = 0, d = 0, w[3] = { 0 }, iwsum = 0, dt = 0.0f, dtcur = 0.f, dttot = context.dt, abstime = context.abstime
+	CTimeValue dt(0), dtcur(0), dttot = context.dt, abstime = context.abstime;
+	float c = 0, d = 0, w[3] = { 0 }, iwsum = 0
 	, airResistance = update->group->physConfig.airResistance
 	, airModulation = update->group->physConfig.airModulation
 	, airFrequency = update->group->physConfig.airFrequency
-	, cairFrequency = sqr(cosf(airFrequency * abstime))
+	, cairFrequency = sqr(cosf(airFrequency * abstime.BADGetSeconds()))
 	, damping = update->group->physConfig.fDamping
 	, kH = update->group->physConfig.kH
 	, kL = 1.f
 	, var = 0.f
 	, variance = update->group->physConfig.variance
-	, i_step = 1.f / (float)deform->nvertices, i_f = (deform->nvertices * (context.frame_count & 0xffff)) * i_step
-	, rdt;
+	, i_step = 1.f / (float)deform->nvertices, i_f = (deform->nvertices * (context.frame_count & 0xffff)) * i_step;
+	rTime rdt;
 	int iter = 0, max_iter = update->group->physConfig.max_iter;
 	dttot += update->dtscale;
-	update->dtscale = 0.f;
+	update->dtscale.SetSeconds(0);
 	for (k = 0; k < (int)context.amount && context.wind; ++k)
 	{
 		const SMMRMInstance& sample = context.samples[k];
@@ -3998,7 +4000,7 @@ static inline void MergeInstanceListDeform(SMMRMInstanceContext& context)
 		while (dtcur > MMRM_FIXED_STEP)
 		{
 			dtcur -= (dt = min(MMRM_FIXED_STEP, dtcur));
-			rdt = 1.f / dt;
+			rdt = 1 / dt;
 			for (i = 0; i < (int)deform->nvertices; ++i, i_f += i_step)
 			{
 				ctr = deform_vertices[off + i].pos[0];
@@ -4010,8 +4012,8 @@ static inline void MergeInstanceListDeform(SMMRMInstanceContext& context)
 				var = sqrt_tpl(dw.len2() * sqr(variance));
 				dw += Vec3(cry_random(0.0f, var), cry_random(0.0f, var), cry_random(0.0f, var));
 				Vec3 wind = dw * airResistance * (sqr(cosf(airModulation * i_f)) * 0.5f + cairFrequency * 0.5f);
-				(deform_vertices[off + i].vel += deform->invmass[i] * (wind + Vec3(0, 0, -9.81f)) * dt) *= (1.f - (damping * dt));
-				deform_vertices[off + i].pos[1] = deform_vertices[off + i].pos[0] + deform_vertices[off + i].vel * dt;
+				(deform_vertices[off + i].vel += deform->invmass[i] * (wind + Vec3(0, 0, -9.81f)) * dt.BADGetSeconds()) *= (1.f - (damping * dt.BADGetSeconds()));
+				deform_vertices[off + i].pos[1] = deform_vertices[off + i].pos[0] + deform_vertices[off + i].vel * dt.BADGetSeconds();
 #if MMRM_RENDER_DEBUG && MMRM_VISUALIZE_FORCES
 				gEnv->pRenderer->GetIRenderAuxGeom()->DrawLine(deform_vertices[off + i].pos[1], Col_Blue, deform_vertices[off + i].pos[1] + deform_vertices[off + i].vel, Col_Red);
 #endif
@@ -4106,7 +4108,7 @@ static inline void MergeInstanceListDeform(SMMRMInstanceContext& context)
 									ndisp = disp * (float)isqrt_tpl(max(disp.len2(), FLT_EPSILON));
 									ctr = ls0;
 								}
-								deform_vertices[off + i].pos[1] = ctr + (ndisp - (ndisp * lnormal) * lnormal) * 1.f * dt;
+								deform_vertices[off + i].pos[1] = ctr + (ndisp - (ndisp * lnormal) * lnormal) * 1.f * dt.BADGetSeconds();
 								mmrm_assert((deform_vertices[off + i].pos[1] - deform_vertices[off + i].pos[0]).len() < 50.f);
 							default:
 								break;
@@ -4120,7 +4122,7 @@ static inline void MergeInstanceListDeform(SMMRMInstanceContext& context)
 						float radiusSq = sqr(projectile.r), t0, t1, distanceSq;
 						if ((distanceSq = Distance::Lineseg_LinesegSq(ls, pl, &t0, &t1)) > radiusSq)
 							continue;
-						deform_vertices[off + i].pos[1] += projectile.dir * sqr((1.f - (distanceSq / radiusSq))) * 0.25f * dt;
+						deform_vertices[off + i].pos[1] += projectile.dir * sqr((1.f - (distanceSq / radiusSq))) * 0.25f * dt.BADGetSeconds();
 						mmrm_assert((deform_vertices[off + i].pos[1] - deform_vertices[off + i].pos[0]).len() < 50.f);
 						mmrm_assert(deform_vertices[off + i].pos[1].IsValid());
 					}
@@ -4129,7 +4131,7 @@ static inline void MergeInstanceListDeform(SMMRMInstanceContext& context)
 			while (++iter < max_iter);
 			for (i = 0; i < (int)deform->nvertices; ++i)
 			{
-				deform_vertices[off + i].vel = ((deform_vertices[off + i].pos[1] - deform_vertices[off + i].pos[0]) * rdt);
+				deform_vertices[off + i].vel = ((deform_vertices[off + i].pos[1] - deform_vertices[off + i].pos[0]) * BADF rdt);
 				deform_vertices[off + i].pos[0] = deform_vertices[off + i].pos[1];
 #if MMRM_RENDER_DEBUG && MMRM_VISUALIZE_FORCES
 				gEnv->pRenderer->GetIRenderAuxGeom()->DrawLine(deform_vertices[off + i].pos[0], Col_Blue, deform_vertices[off + i].pos[0] + deform_vertices[off + i].vel, Col_Pink);
@@ -4137,7 +4139,7 @@ static inline void MergeInstanceListDeform(SMMRMInstanceContext& context)
 				mmrm_assert(deform_vertices[off + i].pos[0].IsValid());
 			}
 		}
-		update->dtscale += clamp_tpl(dtcur, 0.0f, MMRM_FIXED_STEP + (1.f / 1000.f));
+		update->dtscale += CLAMP(dtcur, 0, MMRM_FIXED_STEP + "0.001");
 
 		// Skip if not visible
 		int nLod = sample.lastLod;
@@ -4239,8 +4241,8 @@ void SMMRMUpdateContext::MergeInstanceMeshesSpines(
 	ctx.ncolliders = ncolliders;
 	ctx.projectiles = projectiles;
 	ctx.nprojectiles = nprojectiles;
-	ctx.dt = min(max(dt, 0.f), 0.080f);
-	ctx.dtscale = 0.f;
+	ctx.dt = CLAMP(dt, 0, "0.08");
+	ctx.dtscale.SetSeconds(0);
 	ctx.abstime = abstime;
 	ctx.wind = wind;
 	ctx.zRotation = zRotation;
@@ -4304,8 +4306,8 @@ void SMMRMUpdateContext::MergeInstanceMeshesDeform(
 	ctx.ncolliders = ncolliders;
 	ctx.projectiles = projectiles;
 	ctx.nprojectiles = nprojectiles;
-	ctx.dt = min(max(dt, 0.f), 0.080f);
-	ctx.dtscale = 0.f;
+	ctx.dt = CLAMP(dt, 0, "0.08");
+	ctx.dtscale.SetSeconds(0);
 	ctx.abstime = abstime;
 	ctx.wind = wind;
 	ctx.rotationOrigin = Vec3(ZERO);

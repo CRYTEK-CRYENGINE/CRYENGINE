@@ -56,7 +56,7 @@ void CSvoEnv::AllocateRootNode()
 
 int CSvoEnv::ExportSvo(ICryArchive* pArchive)
 {
-	float timeStart = GetCurAsyncTimeSec();
+	CTimeValue timeStart = GetGTimer()->GetAsyncTime();
 
 	PrintMessage("======= Compiling SVO for entire level (press and keep ESC key to abort) =======");
 
@@ -71,7 +71,7 @@ int CSvoEnv::ExportSvo(ICryArchive* pArchive)
 		PodArray<byte> dummyArray;
 		m_pSvoRoot->SaveNode(dummyArray, dummyCounter, pArchive, totalSizeCounter);
 
-		PrintMessage("======= Finished SVO data export: %.1f MB in %1.1f sec =======", (float)totalSizeCounter / 1024.f / 1024.f, GetCurAsyncTimeSec() - timeStart);
+		PrintMessage("======= Finished SVO data export: %.1f MB in %1.1f sec =======", (float)totalSizeCounter / 1024.f / 1024.f, (float)(GetGTimer()->GetAsyncTime() - timeStart).GetSeconds());
 	}
 
 	return m_pSvoRoot ? 1 : 0;
@@ -169,13 +169,14 @@ bool CSvoEnv::Render()
 
 		static Vec3 arrLastCamPos[16];
 		static Vec3 arrLastCamDir[16];
-		static float arrLastUpdateTime[16];
+		static CTimeValue arrLastUpdateTime[16];
 		int poolId = max(0, userId);
 		PodArray<SVF_P3F_C4B_T2F>& arrVertsOut = m_arrSvoProxyVertices;//arrVertsOutPool[nPoolId];
 
-		if (fabs(arrLastUpdateTime[poolId] - GetCurTimeSec()) > (/*bMultiUserMode ? 0.125f : 0.125f/64*/ 0.125f) || GetCVars()->e_svoEnabled >= 2 || (m_streamingStartTime >= 0) || (GetCVars()->e_svoDVR != 10))
+		if (abs((arrLastUpdateTime[poolId] - GetGTimer()->GetFrameStartTime())) > (/*bMultiUserMode ? 0.125f : 0.125f/64*/ CTimeValue("0.125")) || 
+				GetCVars()->e_svoEnabled >= 2 || (m_streamingStartTime >= 0) || (GetCVars()->e_svoDVR != 10))
 		{
-			arrLastUpdateTime[poolId] = GetCurTimeSec();
+			arrLastUpdateTime[poolId] = GetGTimer()->GetFrameStartTime();
 			arrLastCamPos[poolId] = CVoxelSegment::m_voxCam.GetPosition();
 			arrLastCamDir[poolId] = CVoxelSegment::m_voxCam.GetViewdir();
 
@@ -714,7 +715,7 @@ void CSvoNode::Render(PodArray<struct SPvsItem>* pSortedPVS, uint64 nodeKey, int
 			if (m_ppChilds[childId] && m_ppChilds[childId]->m_bForceRecreate && !m_ppChilds[childId]->IsStreamingInProgress())
 			{
 				SAFE_DELETE(m_ppChilds[childId]);
-				gSvoEnv->m_svoFreezeTime = gEnv->pTimer->GetAsyncCurTime();
+				gSvoEnv->m_svoFreezeTime = GetGTimer()->GetAsyncCurTime();
 				ZeroStruct(gSvoEnv->m_arrVoxelizeMeshesCounter);
 			}
 		}
@@ -933,7 +934,7 @@ CSvoEnv::CSvoEnv(const AABB& worldBox)
 	m_texNodePoolId = 0;
 
 	m_prevCheckVal = -1000000;
-	m_streamingStartTime = 0;
+	m_streamingStartTime.SetSeconds(0);
 	m_nodeCounter = 0;
 	m_dynNodeCounter_DYNL = m_dynNodeCounter = 0;
 
@@ -950,7 +951,7 @@ CSvoEnv::CSvoEnv(const AABB& worldBox)
 	AllocateRootNode();
 
 	m_pGlobalEnvProbe = nullptr;
-	m_svoFreezeTime = -1;
+	m_svoFreezeTime.SetSeconds(-1);
 	ZeroStruct(gSvoEnv->m_arrVoxelizeMeshesCounter);
 	GetRenderer()->GetISvoRenderer(); // allocate SVO sub-system in renderer
 	m_bFirst_SvoFreezeTime = m_bFirst_StartStreaming = true;
@@ -1099,7 +1100,7 @@ uint32 CSvoNode::SaveNode(PodArray<byte>& rS, uint32& nodesCounterRec, ICryArchi
 					arrSvoData.PreAllocate(32 * 1024 * 1024);
 
 					uint32 nodesCounter = 0;
-					float startTime = Cry3DEngineBase::GetTimer()->GetAsyncCurTime();
+					CTimeValue startTime = GTimer(render)->GetAsyncCurTime();
 
 					AABB terrainBox = AABB(Vec3(0, 0, 0), Vec3((float)gEnv->p3DEngine->GetTerrainSize(), (float)gEnv->p3DEngine->GetTerrainSize(), (float)gEnv->p3DEngine->GetTerrainSize()));
 					terrainBox.Expand(-Vec3(Cry3DEngineBase::GetCVars()->e_svoTI_VoxelizationMapBorder + 1.f, Cry3DEngineBase::GetCVars()->e_svoTI_VoxelizationMapBorder + 1.f, 0));
@@ -1122,7 +1123,7 @@ uint32 CSvoNode::SaveNode(PodArray<byte>& rS, uint32& nodesCounterRec, ICryArchi
 						Cry3DEngineBase::PrintMessage("Exported segment %s, Progress = %d %%", szFileName, int(100.f * float(CVoxelSegment::m_exportVisitedAreasCounter) / float(areaGridDim * areaGridDim * areaGridDim)));
 
 						Cry3DEngineBase::PrintMessage("%d KB stored in %.1f sec (%d nodes, total size = %.1f MB)",
-						                              arrSvoData.Count() / 1024, Cry3DEngineBase::GetTimer()->GetAsyncCurTime() - startTime,
+						                              arrSvoData.Count() / 1024, (float)(GTimer(render)->GetAsyncCurTime() - startTime).GetSeconds(),
 						                              nodesCounter, (float)totalSizeCounter / 1024.f / 1024.f);
 					}
 					else
@@ -1796,7 +1797,7 @@ void CSvoEnv::GetSvoBricksForUpdate(PodArray<I3DEngine::SSvoNodeInfo>& arrNodeIn
 			if ((gSvoEnv->m_svoFreezeTime <= 0) && !s_prevFlagAsync)
 			{
 				bSyncAll = true;
-				gSvoEnv->m_svoFreezeTime = -1;
+				gSvoEnv->m_svoFreezeTime.SetSeconds(-1);
 			}
 			s_prevFlagAsync = (gSvoEnv->m_svoFreezeTime <= 0);
 		}
@@ -1812,8 +1813,8 @@ void CSvoEnv::GetSvoBricksForUpdate(PodArray<I3DEngine::SSvoNodeInfo>& arrNodeIn
 		{
 			int autoUpdateVoxNum = 0;
 
-			int maxVox = GetCVars()->e_svoTI_Reflect_Vox_Max * (int)30 / (int)max(30.f, gEnv->pTimer->GetFrameRate());
-			int maxVoxEdit = GetCVars()->e_svoTI_Reflect_Vox_MaxEdit * (int)30 / (int)max(30.f, gEnv->pTimer->GetFrameRate());
+			int maxVox = GetCVars()->e_svoTI_Reflect_Vox_Max * (int)30 / (int)max(30.f, BADF GetGTimer()->GetFrameRate());
+			int maxVoxEdit = GetCVars()->e_svoTI_Reflect_Vox_MaxEdit * (int)30 / (int)max(30.f, BADF GetGTimer()->GetFrameRate());
 
 			for (uint n = 0; n < numBlocks; n++)
 			{
@@ -2074,30 +2075,30 @@ void CSvoEnv::StartupStreamingTimeTest(bool bDone)
 	if (m_svoFreezeTime > 0 && bDone && m_bStreamingDonePrev)
 	{
 		PrintMessage("SVO update finished in %.1f sec (%d / %d nodes, %d K tris)",
-		             gEnv->pTimer->GetAsyncCurTime() - m_svoFreezeTime, m_arrVoxelizeMeshesCounter[0], m_arrVoxelizeMeshesCounter[1], CVoxelSegment::m_voxTrisCounter / 1000);
-		m_svoFreezeTime = 0;
+		             (float)(GetGTimer()->GetAsyncCurTime() - m_svoFreezeTime).GetSeconds(), m_arrVoxelizeMeshesCounter[0], m_arrVoxelizeMeshesCounter[1], CVoxelSegment::m_voxTrisCounter / 1000);
+		m_svoFreezeTime.SetSeconds(0);
 
 		if (GetCVars()->e_svoDebug)
 		{
 			AUTO_MODIFYLOCK(CVoxelSegment::m_cgfTimeStatsLock);
 			PrintMessage("Voxelization time spend per CFG:");
 			for (auto it = CVoxelSegment::m_cgfTimeStats.begin(); it != CVoxelSegment::m_cgfTimeStats.end(); ++it)
-				if (it->second > 1.f)
+				if (it->second.GetSeconds() > 1)
 					PrintMessage("  %4.1f sec %s", it->second, it->first->GetFilePath());
 		}
 	}
 
 	if (m_streamingStartTime == 0)
 	{
-		m_streamingStartTime = Cry3DEngineBase::GetTimer()->GetAsyncCurTime();
+		m_streamingStartTime = GTimer(render)->GetAsyncCurTime();
 	}
 	else if (m_streamingStartTime > 0 && bDone && m_bStreamingDonePrev)
 	{
-		//		float time = Cry3DEngineBase::GetTimer()->GetAsyncCurTime();
+		//		float time = GTimer(render)->GetAsyncCurTime();
 		//		PrintMessage("SVO initialization finished in %.1f sec (%d K tris)",
 		//		time - m_fStreamingStartTime, CVoxelSegment::m_voxTrisCounter/1000);
 
-		m_streamingStartTime = -1;
+		m_streamingStartTime.SetSeconds(-1);
 
 		OnLevelGeometryChanged();
 

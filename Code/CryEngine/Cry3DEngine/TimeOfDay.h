@@ -48,21 +48,21 @@ public:
 	virtual bool  GetVariableInfo(int nIndex, SVariableInfo& varInfo) override;
 	virtual void  SetVariableValue(int nIndex, float fValue[3]) override;
 
-	virtual bool  InterpolateVarInRange(int nIndex, float fMin, float fMax, unsigned int nCount, Vec3* resultArray) const override;
+	virtual bool  InterpolateVarInRange(int nIndex, const CTimeValue& fMin, const CTimeValue& fMax, unsigned int nCount, Vec3* resultArray) const override;
 	virtual uint  GetSplineKeysCount(int nIndex, int nSpline) const override;
 	virtual bool  GetSplineKeysForVar(int nIndex, int nSpline, SBezierKey* keysArray, unsigned int keysArraySize) const override;
 	virtual bool  SetSplineKeysForVar(int nIndex, int nSpline, const SBezierKey* keysArray, unsigned int keysArraySize) override;
-	virtual bool  UpdateSplineKeyForVar(int nIndex, int nSpline, float fTime, float newValue) override;
-	virtual float GetAnimTimeSecondsIn24h() override;
+	virtual bool  UpdateSplineKeyForVar(int nIndex, int nSpline, const CTimeValue& fTime, float newValue) override;
+	virtual int   GetAnimTimeSecondsIn24h() override;
 
 	virtual void  ResetVariables() override;
 
 	// Time of day is specified in hours.
-	virtual void  SetTime(float fHour, bool bForceUpdate = false) override;
+	virtual void  SetTime(const CTimeValue& fHour, bool bForceUpdate = false) override;
 	virtual void  SetSunPos(float longitude, float latitude) override;
 	virtual float GetSunLatitude() override      { return m_sunRotationLatitude; }
 	virtual float GetSunLongitude() override     { return m_sunRotationLongitude; }
-	virtual float GetTime() override             { return m_fTime; };
+	virtual const CTimeValue& GetTime() override { return m_fTime; };
 
 	virtual void  SetPaused(bool paused) override { m_bPaused = paused; }
 
@@ -76,9 +76,7 @@ public:
 	virtual void  Serialize(XmlNodeRef& node, bool bLoading) override;
 	virtual void  Serialize(TSerialize ser) override;
 
-	virtual void  SetTimer(ITimer* pTimer) override;
-
-	virtual void  NetSerialize(TSerialize ser, float lag, uint32 flags) override;
+	virtual void  NetSerialize(TSerialize ser, const CTimeValue&  lag, uint32 flags) override;
 
 	virtual void  Tick() override;
 
@@ -117,7 +115,7 @@ private:
 
 	SVariableInfo       m_vars[ITimeOfDay::PARAM_TOTAL];
 
-	float               m_fTime;
+	CTimeValue          m_fTime; // In hours, so GetSeconds() = GetHours() in this case...
 	float               m_sunRotationLatitude;
 	float               m_sunRotationLongitude;
 
@@ -126,7 +124,6 @@ private:
 	bool                m_bSunLinkedToTOD;
 
 	SAdvancedInfo       m_advancedInfo;
-	ITimer*             m_pTimer;
 	float               m_fHDRMultiplier;
 	ICVar*              m_pTimeOfDaySpeedCVar;
 	CryAudio::ControlId m_timeOfDayRtpcId;

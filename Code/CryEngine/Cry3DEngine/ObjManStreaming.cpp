@@ -233,13 +233,10 @@ void CObjManager::UpdateObjectsStreamingPriority(bool bSyncLoad, const SRenderin
 		{
 			// Time-sliced scene streaming priority update
 			// Update scene faster if in zoom and if camera moving fast
-			float fMaxTimeToSpendMS = GetCVars()->e_StreamPredictionUpdateTimeSlice * max(Get3DEngine()->GetAverageCameraSpeed() * .5f, 1.f) / max(passInfo.GetZoomFactor(), 0.1f);
-			fMaxTimeToSpendMS = min(fMaxTimeToSpendMS, GetCVars()->e_StreamPredictionUpdateTimeSlice * 2.f);
+			CTimeValue maxTimeToSpend = GetCVars()->e_StreamPredictionUpdateTimeSlice * BADMP(max(Get3DEngine()->GetAverageCameraSpeed() * .5f, 1.f) / max(passInfo.GetZoomFactor(), 0.1f));
+			maxTimeToSpend = min(maxTimeToSpend, GetCVars()->e_StreamPredictionUpdateTimeSlice * 2);
 
-			CTimeValue maxTimeToSpend;
-			maxTimeToSpend.SetSeconds(fMaxTimeToSpendMS * 0.001f);
-
-			const CTimeValue startTime = GetTimer()->GetAsyncTime();
+			const CTimeValue startTime = GTimer(render)->GetAsyncTime();
 
 			const float fMinDist = GetFloatCVar(e_StreamPredictionMinFarZoneDistance);
 			const float fMaxViewDistance = Get3DEngine()->GetMaxViewDistance();
@@ -254,7 +251,7 @@ void CObjManager::UpdateObjectsStreamingPriority(bool bSyncLoad, const SRenderin
 
 					pLast->UpdateStreamingPriority(m_arrStreamingNodeStack, fMinDist, fMaxViewDistance, false, &m_vStreamPreCacheCameras[0], nPrecachePoints, passInfo);
 
-					if (!bSyncLoad && (GetTimer()->GetAsyncTime() - startTime) > maxTimeToSpend)
+					if (!bSyncLoad && (GTimer(render)->GetAsyncTime() - startTime) > maxTimeToSpend)
 						break;
 				}
 			}
@@ -491,7 +488,7 @@ void CObjManager::ProcessObjectsStreaming(const SRenderingPassInfo& passInfo)
 
 	const CCamera& rCamera = passInfo.GetCamera();
 
-	float fTimeStart = GetTimer()->GetAsyncCurTime();
+	CTimeValue fTimeStart = GTimer(render)->GetAsyncCurTime();
 
 	bool bSyncLoad = Get3DEngine()->IsStatObjSyncLoad();
 
@@ -526,7 +523,7 @@ void CObjManager::ProcessObjectsStreaming(const SRenderingPassInfo& passInfo)
 	else if (bSyncLoad)
 		PrintMessage("Pre-caching render meshes for camera position");
 
-	CTimeValue currentTime = gEnv->pTimer->GetAsyncTime();
+	CTimeValue currentTime = GetGTimer()->GetAsyncTime();
 
 	bool bSyncLoadPoints = m_bCameraPrecacheOverridden || Get3DEngine()->IsContentPrecacheRequested() || bSyncLoad || (GetCVars()->e_StreamCgf == 3) || (GetCVars()->e_StreamCgfDebugHeatMap != 0);
 	UpdateObjectsStreamingPriority(bSyncLoadPoints, passInfo);
@@ -536,11 +533,11 @@ void CObjManager::ProcessObjectsStreaming(const SRenderingPassInfo& passInfo)
 	size_t ppWriteIdx = 0;
 	for (size_t ppIdx = 0, ppCount = m_vStreamPreCachePointDefs.size(); ppIdx != ppCount; ++ppIdx)
 	{
-		SObjManPrecachePoint& pp = m_vStreamPreCachePointDefs[ppIdx];
+		SObjManPrecachePoint& pp = *m_vStreamPreCachePointDefs[ppIdx];
 
 		if (ppIdx == 0 || currentTime < pp.expireTime)
 		{
-			m_vStreamPreCachePointDefs[ppWriteIdx] = pp;
+			m_vStreamPreCachePointDefs[ppWriteIdx] = &pp;
 			m_vStreamPreCacheCameras[ppWriteIdx] = m_vStreamPreCacheCameras[ppIdx];
 			++ppWriteIdx;
 		}
@@ -564,9 +561,9 @@ void CObjManager::ProcessObjectsStreaming(const SRenderingPassInfo& passInfo)
 
 	if (bSyncLoad)
 	{
-		float t = GetTimer()->GetAsyncCurTime() - fTimeStart;
-		if (t > (1.0f / 15.0f))
-			PrintMessage("Finished pre-caching in %.1f sec", t);
+		CTimeValue t = GTimer(render)->GetAsyncCurTime() - fTimeStart;
+		if ( t.GetSeconds() > (1 / mpfloat(15)) )
+			PrintMessage("Finished pre-caching in %.1f sec", (float)t.GetSeconds());
 	}
 }
 
@@ -584,11 +581,11 @@ void CObjManager::ProcessObjectsStreaming_Sort(bool bSyncLoad, const SRenderingP
 {
 	int nNumStreamableObjects = m_arrStreamableObjects.Count();
 
-	static float fLastTime = 0;
-	const float fTime = GetTimer()->GetAsyncCurTime();
+	static CTimeValue fLastTime;
+	const CTimeValue fTime = GTimer(render)->GetAsyncCurTime();
 
 	// call sort only every 100 ms
-	if (nNumStreamableObjects && ((fTime > fLastTime + 0.1f) || bSyncLoad))
+	if (nNumStreamableObjects && (fTime - fLastTime > "0.1") || bSyncLoad)
 	{
 		CRY_PROFILE_REGION(PROFILE_3DENGINE, "ProcessObjectsStreaming_Sort");
 

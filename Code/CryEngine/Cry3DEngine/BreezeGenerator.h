@@ -28,7 +28,7 @@ class CBreezeGenerator : public Cry3DEngineBase
 	float m_radius;
 
 	// The max. life of each breeze
-	float m_lifetime;
+	CTimeValue m_lifetime;
 
 	// The random variance of each breeze in respect to it's other attributes
 	float m_variance;

@@ -198,8 +198,8 @@ void CTerrainNode::StartSectorTexturesStreaming(bool bFinishNow)
 
 	params.dwUserData = (DWORD_PTR) new float[nUserDataSize];
 	params.nSize = nSectorDataSize;
-	params.nLoadTime = 1000;
-	params.nMaxLoadTime = 0;
+	params.nLoadTime.SetSeconds(1);
+	params.nMaxLoadTime.SetSeconds(0);
 	params.nOffset = nFileOffset;
 	if (bFinishNow)
 		params.ePriority = estpUrgent;

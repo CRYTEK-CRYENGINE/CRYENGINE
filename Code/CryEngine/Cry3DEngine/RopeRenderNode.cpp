@@ -234,8 +234,8 @@ void TubeSurface::ComputeSinCos()
 //----------------------------------------------------------------------------
 void TubeSurface::ComputeVertices(Vec3* akVertex)
 {
-	float fTMin = m_pSpline->GetRangeStart();
-	float fTRange = m_pSpline->GetRangeEnd() - fTMin;
+	mpfloat fTMin = m_pSpline->GetRangeStart();
+	mpfloat fTRange = m_pSpline->GetRangeEnd() - fTMin;
 
 	// sampling by arc length requires the total length of the curve
 	/*	float fTotalLength;
@@ -254,16 +254,16 @@ void TubeSurface::ComputeVertices(Vec3* akVertex)
 	}
 
 	// vertex construction requires a normalized time (uses a division)
-	float fDenom;
+	mpfloat fDenom;
 	if (m_bClosed)
-		fDenom = 1.0f / (float)m_iMedialSamples;
+		fDenom = 1 / (mpfloat)m_iMedialSamples;
 	else
-		fDenom = 1.0f / (float)(m_iMedialSamples - 1);
+		fDenom = 1 / (mpfloat)(m_iMedialSamples - 1);
 
 	Vec3 kT_Prev = Vec3(1.0f, 0, 0), kB = m_kUpVector;
 	for (int iM = 0, iV = 0; iM < m_iMedialSamples; iM++)
 	{
-		float fT = fTMin + iM * fTRange * fDenom;
+		mpfloat fT = fTMin + fTRange * iM * fDenom;
 
 		float fRadius = m_fRadius;
 
@@ -283,12 +283,12 @@ void TubeSurface::ComputeVertices(Vec3* akVertex)
 			if (iM < m_iMedialSamples - 1)
 			{
 				m_pSpline->interpolate(fT, kP);
-				m_pSpline->interpolate(fT + 0.01f, kP1);
+				m_pSpline->interpolate(fT + "0.01", kP1);
 				kT = (kP1 - kP);
 			}
 			else
 			{
-				m_pSpline->interpolate(fT - 0.01f, kP1);
+				m_pSpline->interpolate(fT - "0.01", kP1);
 				m_pSpline->interpolate(fT, kP);
 				kT = (kP - kP1);
 			}
@@ -747,7 +747,7 @@ CRopeRenderNode::CRopeRenderNode()
 
 	memset(&m_params, 0, sizeof(m_params));
 	m_params.nMaxIters = 650;
-	m_params.maxTimeStep = 0.02f;
+	m_params.maxTimeStep.SetSeconds("0.02");
 	m_params.stiffness = 10.0f;
 	m_params.damping = 0.2f;
 	m_params.sleepSpeed = 0.04f;
@@ -1262,7 +1262,7 @@ void CRopeRenderNode::Physicalize(bool bInstant)
 		for (int pnt = 0; pnt < numSplinePoints; pnt++)
 		{
 			m_spline.key(pnt).flags = 0;
-			m_spline.time(pnt) = (float)pnt / (numSplinePoints - 1);
+			m_spline.time(pnt) = pnt / mpfloat(numSplinePoints - 1);
 			m_spline.value(pnt) = m_points[pnt];
 		}
 
@@ -1275,7 +1275,7 @@ void CRopeRenderNode::Physicalize(bool bInstant)
 
 		for (i = 1; i < nLengthSamples; i++)
 		{
-			m_spline.interpolate((float)i / (nLengthSamples - 1), p1);
+			m_spline.interpolate(i / mpfloat(nLengthSamples - 1), p1);
 			caps.axis = p1 - p0;
 			caps.axis /= (caps.hh = caps.axis.len());
 			caps.hh *= 0.5f;

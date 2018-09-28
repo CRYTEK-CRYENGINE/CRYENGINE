@@ -14,7 +14,7 @@
 // Constants
 #define DEFAULT_MAX_VIEW_DIST       1000.0f
 #define GLASS_IMPACT_BOUNDARY       0.01f
-#define LOOSE_FRAG_LIFETIME         4.5f
+#define LOOSE_FRAG_LIFETIME         CTimeValue("4.5")
 #define PHYS_FRAG_SHATTER_SIZE      0.65f
 
 #define PHYSEVENT_COLLIDER          0
@@ -302,7 +302,7 @@ void CBreakableGlassRenderNode::DephysicalizeGlassFragment(SGlassPhysFragment& p
 	}
 
 	// Zero lifetime as now dead
-	physFrag.m_lifetime = 0.0f;
+	physFrag.m_lifetime.SetSeconds(0);
 }//-------------------------------------------------------------------------------------------------
 
 //--------------------------------------------------------------------------------------------------
@@ -384,7 +384,7 @@ void CBreakableGlassRenderNode::Update(SBreakableGlassUpdateParams& params)
 		}
 
 		// Update existing loose glass fragments
-		const float frametime = params.m_frametime;
+		const CTimeValue frametime = params.m_frametime;
 
 		for (int i = 0; i < GLASSCFG_MAX_NUM_PHYS_FRAGMENTS; ++i)
 		{
@@ -394,7 +394,7 @@ void CBreakableGlassRenderNode::Update(SBreakableGlassUpdateParams& params)
 			{
 				fragsActive = true;
 
-				if (physFrag.m_lifetime > 0.0f)
+				if (physFrag.m_lifetime > 0)
 				{
 					// Age
 					physFrag.m_lifetime -= frametime;
@@ -1025,7 +1025,7 @@ void CBreakableGlassRenderNode::Render(const SRendParams& renderParams, const SR
 			{
 				// Calculate distance and fragment alpha
 				const float dist = (cameraPos - physFrag.m_matrix.GetTranslation()).GetLengthFast();
-				const float alpha = min(physFrag.m_lifetime * physFrag.m_lifetime, 1.0f);
+				const float alpha = BADF min(physFrag.m_lifetime * physFrag.m_lifetime, mpfloat(1));
 
 				// Submit render object for full fragment
 				if (CRenderObject* pRenderObject = passInfo.GetIRenderView()->AllocateTemporaryRenderObject())

@@ -108,7 +108,7 @@ CFogVolumeRenderNode::CFogVolumeRenderNode()
 	, m_rampParams(0, 1, 0)
 	, m_updateFrameID(0)
 	, m_windInfluence(1)
-	, m_noiseElapsedTime(-5000.0f)
+	, m_noiseElapsedTime(-5000)
 	, m_densityNoiseScale(0)
 	, m_densityNoiseOffset(0)
 	, m_densityNoiseTimeFrequency(0)
@@ -270,7 +270,7 @@ void CFogVolumeRenderNode::SetMatrix(const Matrix34& mat)
 	ForceTraceableAreaUpdate();
 }
 
-void CFogVolumeRenderNode::FadeGlobalDensity(float fadeTime, float newGlobalDensity)
+void CFogVolumeRenderNode::FadeGlobalDensity(const CTimeValue& fadeTime, float newGlobalDensity)
 {
 	if (newGlobalDensity >= 0)
 	{
@@ -281,7 +281,7 @@ void CFogVolumeRenderNode::FadeGlobalDensity(float fadeTime, float newGlobalDens
 		}
 		else if (fadeTime > 0)
 		{
-			float curFrameTime(gEnv->pTimer->GetCurrTime());
+			CTimeValue curFrameTime = GetGTimer()->GetFrameStartTime();
 			m_globalDensityFader.Set(curFrameTime, curFrameTime + fadeTime, m_globalDensity, newGlobalDensity);
 		}
 	}
@@ -383,7 +383,7 @@ void CFogVolumeRenderNode::Render(const SRendParams& rParam, const SRenderingPas
 
 	if (m_globalDensityFader.IsValid())
 	{
-		float curFrameTime(gEnv->pTimer->GetCurrTime());
+		CTimeValue curFrameTime = GetGTimer()->GetFrameStartTime();
 		m_globalDensity = m_globalDensityFader.GetValue(curFrameTime);
 		if (!m_globalDensityFader.IsTimeInRange(curFrameTime))
 			m_globalDensityFader.SetInvalid();
@@ -401,17 +401,17 @@ void CFogVolumeRenderNode::Render(const SRendParams& rParam, const SRenderingPas
 
 	// reset elapsed time for noise when FogVolume stayed out of viewport for 30 frames.
 	// this prevents the time from being too large number.
-	if ((m_updateFrameID + 30) < passInfo.GetMainFrameID() && m_noiseElapsedTime > 5000.0f)
+	if ((m_updateFrameID + 30) < passInfo.GetMainFrameID() && m_noiseElapsedTime.GetSeconds() > 5000)
 	{
-		m_noiseElapsedTime = -5000.0f;
+		m_noiseElapsedTime.SetSeconds(-5000);
 	}
 
 	if (bVolFog && m_densityNoiseScale > 0.0f && m_updateFrameID != passInfo.GetMainFrameID())
 	{
 		Vec3 wind = Get3DEngine()->GetGlobalWind(false);
-		const float elapsedTime = gEnv->pTimer->GetFrameTime();
+		const CTimeValue elapsedTime = GetGTimer()->GetFrameTime();
 
-		m_windOffset = ((-m_windInfluence * elapsedTime) * wind) + m_windOffset;
+		m_windOffset = ((-m_windInfluence * elapsedTime.BADGetSeconds()) * wind) + m_windOffset;
 
 		const float windOffsetSpan = 1000.0f;// it should match the constant value in FogVolume.cfx
 		m_windOffset.x = m_windOffset.x - floor(m_windOffset.x / windOffsetSpan) * windOffsetSpan;

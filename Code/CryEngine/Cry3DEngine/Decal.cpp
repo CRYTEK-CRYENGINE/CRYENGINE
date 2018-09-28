@@ -26,7 +26,7 @@ void CDecal::ResetStaticData()
 	SAFE_RELEASE(s_pSphere);
 }
 
-int CDecal::Update(bool& active, const float fFrameTime)
+int CDecal::Update(bool& active, const CTimeValue& fFrameTime)
 {
 	// process life time and disable decal when needed
 	m_fLifeTime -= fFrameTime;
@@ -65,7 +65,7 @@ Vec3 CDecal::GetWorldPosition()
 	return vPos;
 }
 
-void CDecal::Render(const float fCurTime, int nAfterWater, float fDistanceFading, float fDistance, const SRenderingPassInfo& passInfo)
+void CDecal::Render(const CTimeValue& fCurTime, int nAfterWater, float fDistanceFading, float fDistance, const SRenderingPassInfo& passInfo)
 {
 	FUNCTION_PROFILER_3DENGINE;
 
@@ -73,7 +73,7 @@ void CDecal::Render(const float fCurTime, int nAfterWater, float fDistanceFading
 		return; // shader not supported for decals
 
 	// Get decal alpha from life time
-	float fAlpha = m_fLifeTime * 2;
+	float fAlpha = m_fLifeTime.BADGetSeconds() * 2;
 
 	if (fAlpha > 1.f)
 		fAlpha = 1.f;
@@ -83,14 +83,14 @@ void CDecal::Render(const float fCurTime, int nAfterWater, float fDistanceFading
 	fAlpha *= fDistanceFading;
 
 	float fSizeK;
-	if (m_fGrowTime)
-		fSizeK = min(1.f, sqrt_tpl((fCurTime - m_fLifeBeginTime) / m_fGrowTime));
+	if (m_fGrowTime != 0)
+		fSizeK = min(1.f, sqrt_tpl( BADF((fCurTime - m_fLifeBeginTime) / m_fGrowTime) ));
 	else
 		fSizeK = 1.f;
 
 	float fSizeAlphaK;
-	if (m_fGrowTimeAlpha)
-		fSizeAlphaK = min(1.f, sqrt_tpl((fCurTime - m_fLifeBeginTime) / m_fGrowTimeAlpha));
+	if (m_fGrowTimeAlpha != 0)
+		fSizeAlphaK = min(1.f, sqrt_tpl( BADF((fCurTime - m_fLifeBeginTime) / m_fGrowTimeAlpha) ));
 	else
 		fSizeAlphaK = 1.f;
 
@@ -125,7 +125,7 @@ void CDecal::Render(const float fCurTime, int nAfterWater, float fDistanceFading
 		newItem.projMatrix.SetRotation33(matRotation);
 		newItem.projMatrix.SetTranslation(m_vWSPos + vNorm * .1f * m_fWSSize);
 
-		if (m_fGrowTimeAlpha)
+		if (m_fGrowTimeAlpha != 0)
 			newItem.fGrowAlphaRef = max(.02f, 1.f - fSizeAlphaK);
 		else
 			newItem.fGrowAlphaRef = 0;

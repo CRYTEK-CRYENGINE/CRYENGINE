@@ -2015,7 +2015,7 @@ void CLightEntity::Render(const SRendParams& rParams, const SRenderingPassInfo& 
 			if (GetCVars()->e_DynamicLights == 2)
 			{
 				SRenderLight* pL = &m_light;
-				float fSize = 0.05f * (sinf(GetCurTimeSec() * 10.f) + 2.0f);
+				float fSize = 0.05f * (sinf(GetGTimer()->GetFrameStartTime().BADGetSeconds() * 10.f) + 2.0f);
 				DrawSphere(pL->m_Origin, fSize, pL->m_Color);
 				IRenderAuxText::DrawLabelF(pL->m_Origin, 1.3f, "id=%d, rad=%.1f, vdr=%d", pL->m_Id, pL->m_fRadius, (int)m_ucViewDistRatio);
 			}

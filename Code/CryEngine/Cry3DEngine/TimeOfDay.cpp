@@ -262,7 +262,7 @@ void ReadCTimeOfDayVariableFromXmlNode(CTimeOfDayVariable* pVar, XmlNodeRef varN
 		pSpline->Resize(nKeyCount);
 		for (int k = 0; k < nKeyCount; ++k)
 		{
-			const float fKeyTime = floatSpline.GetKeyTime(k) * CEnvironmentPreset::GetAnimTimeSecondsIn24h();
+			const mpfloat fKeyTime = floatSpline.GetKeyTime(k) * CEnvironmentPreset::GetAnimTimeSecondsIn24h();
 
 			ISplineInterpolator::ZeroValue(fValue);
 			floatSpline.GetKeyValue(k, fValue);
@@ -277,7 +277,7 @@ void ReadCTimeOfDayVariableFromXmlNode(CTimeOfDayVariable* pVar, XmlNodeRef varN
 
 			SBezierKey& key = pSpline->GetKey(k);
 			key.m_controlPoint.m_value = fValue[0];
-			key.m_time = SAnimTime(fKeyTime);
+			key.m_time = CTimeValue(fKeyTime);
 			key.m_controlPoint.m_inTangentType = ESplineKeyTangentTypeToETangentType(inTangentType);
 			key.m_controlPoint.m_inTangent = Vec2(fTangentsIn[0], fTangentsIn[1]);
 			key.m_controlPoint.m_outTangentType = ESplineKeyTangentTypeToETangentType(outTangentType);
@@ -298,7 +298,7 @@ void ReadCTimeOfDayVariableFromXmlNode(CTimeOfDayVariable* pVar, XmlNodeRef varN
 		var.GetSpline(2)->Resize(nKeyCount);
 		for (int k = 0; k < nKeyCount; ++k)
 		{
-			float fKeyTime = colorSpline.GetKeyTime(k) * CEnvironmentPreset::GetAnimTimeSecondsIn24h();
+			mpfloat fKeyTime = colorSpline.GetKeyTime(k) * CEnvironmentPreset::GetAnimTimeSecondsIn24h();
 
 			ISplineInterpolator::ZeroValue(fValue);
 			colorSpline.GetKeyValue(k, fValue);
@@ -312,7 +312,7 @@ void ReadCTimeOfDayVariableFromXmlNode(CTimeOfDayVariable* pVar, XmlNodeRef varN
 			ESplineKeyTangentType outTangentType = ESplineKeyTangentType((nKeyFlags & SPLINE_KEY_TANGENT_OUT_MASK) >> SPLINE_KEY_TANGENT_OUT_SHIFT);
 
 			SBezierKey key;
-			key.m_time = SAnimTime(fKeyTime);
+			key.m_time = CTimeValue(fKeyTime);
 			key.m_controlPoint.m_inTangentType = ESplineKeyTangentTypeToETangentType(inTangentType);
 			key.m_controlPoint.m_inTangent = Vec2(fTangentsIn[0], fTangentsIn[1]);
 			key.m_controlPoint.m_outTangentType = ESplineKeyTangentTypeToETangentType(outTangentType);
@@ -360,15 +360,14 @@ void MigrateLegacyData(CEnvironmentPreset& preset, bool bSunIntensity)
 		for (int key = 0; key < numKeys; ++key)
 		{
 			SBezierKey& varSunMultKey = varSunMultSpline->GetKey(key);
-			SAnimTime anim_time = varSunMultKey.m_time;
-			float time = anim_time.ToFloat();
+			CTimeValue anim_time = varSunMultKey.m_time;
 			float sunMult = varSunMultKey.m_controlPoint.m_value;
 
-			float sunColorR = varSunColor->GetSpline(0)->Evaluate(time);
-			float sunColorG = varSunColor->GetSpline(1)->Evaluate(time);
-			float sunColorB = varSunColor->GetSpline(2)->Evaluate(time);
+			float sunColorR = varSunColor->GetSpline(0)->Evaluate(anim_time);
+			float sunColorG = varSunColor->GetSpline(1)->Evaluate(anim_time);
+			float sunColorB = varSunColor->GetSpline(2)->Evaluate(anim_time);
 
-			float hdrPower = varHDRPower->GetSpline(0)->Evaluate(time);
+			float hdrPower = varHDRPower->GetSpline(0)->Evaluate(anim_time);
 
 			float hdrMult = powf(HDRDynamicMultiplier, hdrPower);
 			float sunColorLum = sunColorR * 0.2126f + sunColorG * 0.7152f + sunColorB * 0.0722f;
@@ -472,13 +471,12 @@ CTimeOfDay::CTimeOfDay()
 	: m_timeOfDayRtpcId(CryAudio::InvalidControlId)
 	, m_listeners(16)
 {
-	m_pTimer = 0;
-	SetTimer(gEnv->pTimer);
-	m_fTime = 12;
+	SetGTimer(GetGTimer(), GTimers::TOD);
+	m_fTime.SetSeconds(12);
 	m_bEditMode = false;
 	m_advancedInfo.fAnimSpeed = 0;
-	m_advancedInfo.fStartTime = 0;
-	m_advancedInfo.fEndTime = 24;
+	m_advancedInfo.fStartTime.SetSeconds(0);
+	m_advancedInfo.fEndTime.SetSeconds(24);
 	m_fHDRMultiplier = 1.f;
 	m_pTimeOfDaySpeedCVar = gEnv->pConsole->GetCVar("e_TimeOfDaySpeed");
 	m_sunRotationLatitude = 0;
@@ -526,15 +524,6 @@ CTimeOfDay::CTimeOfDay()
 CTimeOfDay::~CTimeOfDay()
 {
 	//delete m_pCurrentPreset;
-}
-
-void CTimeOfDay::SetTimer(ITimer* pTimer)
-{
-	assert(pTimer);
-	m_pTimer = pTimer;
-
-	// Update timer for ocean also - Craig
-	COcean::SetTimer(pTimer);
 }
 
 ITimeOfDay::SVariableInfo& CTimeOfDay::GetVar(ETimeOfDayParamID id)
@@ -747,7 +736,7 @@ void CTimeOfDay::SetVariableValue(int nIndex, float fValue[3])
 }
 //////////////////////////////////////////////////////////////////////////
 
-bool CTimeOfDay::InterpolateVarInRange(int nIndex, float fMin, float fMax, unsigned int nCount, Vec3* resultArray) const
+bool CTimeOfDay::InterpolateVarInRange(int nIndex, const CTimeValue& fMin, const CTimeValue& fMax, unsigned int nCount, Vec3* resultArray) const
 {
 	if (nIndex >= 0 && nIndex < ITimeOfDay::PARAM_TOTAL && m_pCurrentPreset)
 	{
@@ -790,7 +779,7 @@ bool CTimeOfDay::SetSplineKeysForVar(int nIndex, int nSpline, const SBezierKey* 
 	return false;
 }
 
-bool CTimeOfDay::UpdateSplineKeyForVar(int nIndex, int nSpline, float fTime, float newValue)
+bool CTimeOfDay::UpdateSplineKeyForVar(int nIndex, int nSpline, const CTimeValue& fTime, float newValue)
 {
 	if (nIndex >= 0 && nIndex < ITimeOfDay::PARAM_TOTAL && m_pCurrentPreset)
 	{
@@ -801,7 +790,7 @@ bool CTimeOfDay::UpdateSplineKeyForVar(int nIndex, int nSpline, float fTime, flo
 	return false;
 }
 
-float CTimeOfDay::GetAnimTimeSecondsIn24h()
+int CTimeOfDay::GetAnimTimeSecondsIn24h()
 {
 	return CEnvironmentPreset::GetAnimTimeSecondsIn24h();
 }
@@ -854,8 +843,8 @@ void CTimeOfDay::SetEnvironmentSettings(const SEnvironmentInfo& envInfo)
 //////////////////////////////////////////////////////////////////////////
 void CTimeOfDay::SaveInternalState(struct IDataWriteStream& writer)
 {
-	// current time
-	writer.WriteFloat(GetTime());
+	// Current time (In hours, not in seconds...)
+	writer.WriteTime(GetTime());
 
 	// TOD data
 	string todXML;
@@ -871,7 +860,7 @@ void CTimeOfDay::SaveInternalState(struct IDataWriteStream& writer)
 void CTimeOfDay::LoadInternalState(struct IDataReadStream& reader)
 {
 	// Load time data
-	const float timeOfDay = reader.ReadFloat();
+	const CTimeValue timeOfDay = reader.ReadTime();
 
 	// Load TOD data
 	std::vector<int8> timeOfDatXML;
@@ -901,7 +890,7 @@ void CTimeOfDay::UnRegisterListenerImpl(IListener* const pListener)
 
 //////////////////////////////////////////////////////////////////////////
 // Time of day is specified in hours.
-void CTimeOfDay::SetTime(float fHour, bool bForceUpdate)
+void CTimeOfDay::SetTime(const CTimeValue& fHour, bool bForceUpdate)
 {
 	// set new time
 	m_fTime = fHour;
@@ -914,7 +903,7 @@ void CTimeOfDay::SetTime(float fHour, bool bForceUpdate)
 	// Inform audio of this change.
 	if (m_timeOfDayRtpcId != CryAudio::InvalidControlId)
 	{
-		gEnv->pAudioSystem->SetParameter(m_timeOfDayRtpcId, m_fTime);
+		gEnv->pAudioSystem->SetParameter(m_timeOfDayRtpcId, m_fTime.BADGetSeconds());
 	}
 
 	gEnv->pSystem->GetISystemEventDispatcher()->OnSystemEvent(ESYSTEM_EVENT_TIME_OF_DAY_SET, 0, 0);
@@ -935,7 +924,7 @@ void CTimeOfDay::Update(bool bInterpolate, bool bForceUpdate)
 	if (bInterpolate)
 	{
 		// normalized time for interpolation
-		float t = m_fTime / 24.0f;
+		CTimeValue t = m_fTime / 24;
 
 		if (m_pCurrentPreset)
 		{
@@ -1032,7 +1021,7 @@ void CTimeOfDay::UpdateEnvLighting(bool forceUpdate)
 
 	if (m_bSunLinkedToTOD)
 	{
-		float timeAng(((m_fTime + 12.0f) / 24.0f) * gf_PI * 2.0f);
+		float timeAng(((m_fTime.BADGetSeconds() + 12.0f) / 24.0f) * gf_PI * 2.0f);
 		float sunRot = gf_PI * (-m_sunRotationLatitude) / 180.0f;
 		float longitude = 0.5f * gf_PI - gf_PI * m_sunRotationLongitude / 180.0f;
 
@@ -1081,11 +1070,11 @@ void CTimeOfDay::UpdateEnvLighting(bool forceUpdate)
 	{
 		// dawn
 		assert(p3DEngine->m_dawnStart < p3DEngine->m_dawnEnd);
-		float b(0.5f * (p3DEngine->m_dawnStart + p3DEngine->m_dawnEnd));
+		CTimeValue b("0.5" * (p3DEngine->m_dawnStart + p3DEngine->m_dawnEnd));
 		if (m_fTime < b)
 		{
 			// fade out moon
-			sunMultiplier *= (b - m_fTime) / (b - p3DEngine->m_dawnStart);
+			sunMultiplier *= float( (b - m_fTime) / (b - p3DEngine->m_dawnStart) );
 			sunIntensityMultiplier = 0.0;
 			p3DEngine->GetGlobalParameter(E3DPARAM_NIGHSKY_MOON_DIRECTION, sunPos);
 		}
@@ -1097,7 +1086,8 @@ void CTimeOfDay::UpdateEnvLighting(bool forceUpdate)
 			sunIntensityMultiplier = t;
 		}
 
-		dayNightIndicator = (m_fTime - p3DEngine->m_dawnStart) / (p3DEngine->m_dawnEnd - p3DEngine->m_dawnStart);
+		// Float inaccuracy is fine, approximation day/time.
+		dayNightIndicator = (float)((m_fTime - p3DEngine->m_dawnStart) / (p3DEngine->m_dawnEnd - p3DEngine->m_dawnStart));
 	}
 	else if (m_fTime < p3DEngine->m_duskStart)
 	{
@@ -1108,7 +1098,7 @@ void CTimeOfDay::UpdateEnvLighting(bool forceUpdate)
 	{
 		// dusk
 		assert(p3DEngine->m_duskStart < p3DEngine->m_duskEnd);
-		float b(0.5f * (p3DEngine->m_duskStart + p3DEngine->m_duskEnd));
+		CTimeValue b("0.5" * (p3DEngine->m_duskStart + p3DEngine->m_duskEnd));
 		if (m_fTime < b)
 		{
 			// fade out sun
@@ -1119,12 +1109,13 @@ void CTimeOfDay::UpdateEnvLighting(bool forceUpdate)
 		else
 		{
 			// fade in moon
-			sunMultiplier *= (m_fTime - b) / (p3DEngine->m_duskEnd - b);
+			sunMultiplier *= float((m_fTime - b) / (p3DEngine->m_duskEnd - b));
 			sunIntensityMultiplier = 0.0;
 			p3DEngine->GetGlobalParameter(E3DPARAM_NIGHSKY_MOON_DIRECTION, sunPos);
 		}
 
-		dayNightIndicator = (p3DEngine->m_duskEnd - m_fTime) / (p3DEngine->m_duskEnd - p3DEngine->m_duskStart);
+		// Float inaccuracy is fine, approximation day/time.
+		dayNightIndicator = (float)((p3DEngine->m_duskEnd - m_fTime) / (p3DEngine->m_duskEnd - p3DEngine->m_duskStart));
 	}
 	sunIntensityMultiplier = max(GetVar(PARAM_SKYLIGHT_SUN_INTENSITY_MULTIPLIER).fValue[0], 0.0f);
 	p3DEngine->SetGlobalParameter(E3DPARAM_DAY_NIGHT_INDICATOR, Vec3(dayNightIndicator, 0, 0));
@@ -1353,7 +1344,7 @@ void CTimeOfDay::UpdateEnvLighting(bool forceUpdate)
 void CTimeOfDay::SetAdvancedInfo(const SAdvancedInfo& advInfo)
 {
 	m_advancedInfo = advInfo;
-	if (m_pTimeOfDaySpeedCVar->GetFVal() != m_advancedInfo.fAnimSpeed)
+	if (m_pTimeOfDaySpeedCVar->GetMPVal() != m_advancedInfo.fAnimSpeed)
 		m_pTimeOfDaySpeedCVar->Set(m_advancedInfo.fAnimSpeed);
 }
 
@@ -1374,7 +1365,7 @@ void CTimeOfDay::Serialize(XmlNodeRef& node, bool bLoading)
 		node->getAttr("TimeEnd", m_advancedInfo.fEndTime);
 		node->getAttr("TimeAnimSpeed", m_advancedInfo.fAnimSpeed);
 
-		if (m_pTimeOfDaySpeedCVar->GetFVal() != m_advancedInfo.fAnimSpeed)
+		if (m_pTimeOfDaySpeedCVar->GetMPVal() != m_advancedInfo.fAnimSpeed)
 			m_pTimeOfDaySpeedCVar->Set(m_advancedInfo.fAnimSpeed);
 
 		m_pCurrentPreset = NULL;
@@ -1510,37 +1501,37 @@ void CTimeOfDay::Serialize(TSerialize ser)
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CTimeOfDay::NetSerialize(TSerialize ser, float lag, uint32 flags)
+void CTimeOfDay::NetSerialize(TSerialize ser, const CTimeValue&  lag, uint32 flags)
 {
 	if (0 == (flags & NETSER_STATICPROPS))
 	{
 		if (ser.IsWriting())
 		{
-			ser.Value("time", m_fTime, 'tod');
+			ser.Value("time", m_fTime, 'tod'); // PERSONAL DEBUG: Check if 'tod' breaks mpfloat/timevalue serialization. And if time net-serialization works!
 		}
 		else
 		{
-			float serializedTime;
+			CTimeValue serializedTime;
 			ser.Value("time", serializedTime, 'tod');
-			float remoteTime = serializedTime + ((flags & NETSER_COMPENSATELAG) != 0) * m_advancedInfo.fAnimSpeed * lag;
-			float setTime = remoteTime;
+			CTimeValue remoteTime = serializedTime + ((flags & NETSER_COMPENSATELAG) != 0) * m_advancedInfo.fAnimSpeed * lag;
+			CTimeValue setTime = remoteTime;
 			if (0 == (flags & NETSER_FORCESET))
 			{
-				const float adjustmentFactor = 0.05f;
-				const float wraparoundGuardHours = 2.0f;
+				const mpfloat adjustmentFactor("0.05");
+				const int wraparoundGuardHours = 2;
 
-				float localTime = m_fTime;
+				CTimeValue localTime = m_fTime;
 				// handle wraparound
-				if (localTime < wraparoundGuardHours && remoteTime > (24.0f - wraparoundGuardHours))
-					localTime += 24.0f;
-				else if (remoteTime < wraparoundGuardHours && localTime > (24.0f - wraparoundGuardHours))
-					remoteTime += 24.0f;
+				if (localTime < wraparoundGuardHours && remoteTime > (24 - wraparoundGuardHours))
+					localTime += 24;
+				else if (remoteTime < wraparoundGuardHours && localTime > (24 - wraparoundGuardHours))
+					remoteTime += 24;
 				// don't blend times if they're very different
-				if (fabsf(remoteTime - localTime) < 1.0f)
+				if (abs(remoteTime - localTime) < 1)
 				{
-					setTime = adjustmentFactor * remoteTime + (1.0f - adjustmentFactor) * m_fTime;
-					if (setTime > 24.0f)
-						setTime -= 24.0f;
+					setTime = adjustmentFactor * remoteTime + (1 - adjustmentFactor) * m_fTime;
+					if (setTime > 24)
+						setTime -= 24;
 				}
 			}
 			SetTime(setTime, (flags & NETSER_FORCESET) != 0);
@@ -1559,25 +1550,24 @@ void CTimeOfDay::Tick()
 	//		return;
 	if (!m_bEditMode && !m_bPaused)
 	{
-		if (fabs(m_advancedInfo.fAnimSpeed) > 0.0001f)
+		if (abs(m_advancedInfo.fAnimSpeed) > "0.0001") // MP_EPSILON
 		{
 			// advance (forward or backward)
-			float fTime = m_fTime + m_advancedInfo.fAnimSpeed * m_pTimer->GetFrameTime();
+			CTimeValue fTime = m_fTime + m_advancedInfo.fAnimSpeed * GTimer(TOD)->GetFrameTime();
 
-			// full cycle mode
-			if (m_advancedInfo.fStartTime <= 0.05f && m_advancedInfo.fEndTime >= 23.5f)
+			if (m_advancedInfo.fStartTime <= "0.05" && m_advancedInfo.fEndTime >= "23.5")
 			{
 				if (fTime > m_advancedInfo.fEndTime)
 					fTime = m_advancedInfo.fStartTime;
 				if (fTime < m_advancedInfo.fStartTime)
 					fTime = m_advancedInfo.fEndTime;
 			}
-			else if (fabs(m_advancedInfo.fStartTime - m_advancedInfo.fEndTime) <= 0.05f)//full cycle mode
+			else if (abs(m_advancedInfo.fStartTime - m_advancedInfo.fEndTime) <= "0.05")//full cycle mode
 			{
-				if (fTime > 24.0f)
-					fTime -= 24.0f;
-				else if (fTime < 0.0f)
-					fTime += 24.0f;
+				if (fTime > 24)
+					fTime -= 24;
+				else if (fTime < 0)
+					fTime += 24;
 			}
 			else
 			{

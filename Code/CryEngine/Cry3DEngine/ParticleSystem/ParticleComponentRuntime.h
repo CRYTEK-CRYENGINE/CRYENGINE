@@ -83,7 +83,7 @@ public:
 	const SComponentParams&   ComponentParams() const { return m_pComponent->GetComponentParams(); }
 
 	static TParticleHeap&     MemHeap();
-	float                     DeltaTime() const;
+	float		                 DeltaTime() const;
 
 private:
 	void AddParticles();

@@ -55,13 +55,6 @@ protected:
 	Counter m_nRefCounter;
 };
 
-extern ITimer* g_pParticleTimer;
-
-ILINE ITimer* GetParticleTimer()
-{
-	return g_pParticleTimer;
-}
-
 //////////////////////////////////////////////////////////////////////////
 // 3D helper functions
 

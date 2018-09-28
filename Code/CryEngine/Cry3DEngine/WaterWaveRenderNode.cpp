@@ -235,7 +235,7 @@ void CWaterWaveRenderNode::Spawn()
 {
 
 	m_pWorldTM.SetTranslation(m_pOrigPos + Vec3(sfrand(), sfrand(), sfrand()) * m_pParams.m_fPosVar);
-	m_pParams.m_fCurrLifetime = max(m_pParams.m_fLifetime + m_pParams.m_fLifetimeVar * sfrand(), 0.5f);
+	m_pParams.m_fCurrLifetime = max(m_pParams.m_fLifetime + m_pParams.m_fLifetimeVar * cry_random(mpfloat(-1), mpfloat(1)), CTimeValue("0.5"));
 	m_pParams.m_fCurrSpeed = max(m_pParams.m_fSpeed + m_pParams.m_fSpeedVar * sfrand(), 1.0f);
 	m_pParams.m_fCurrHeight = max(m_pParams.m_fHeight + m_pParams.m_fHeightVar * sfrand(), 0.0f);
 	m_pParams.m_fCurrFrameLifetime = m_pParams.m_fCurrLifetime;
@@ -258,7 +258,7 @@ void CWaterWaveRenderNode::Update(float fDistanceToCamera)
 	Vec3 pDirection(m_pWorldTM.GetColumn1());
 	Vec3 pPos(m_pWorldTM.GetTranslation());
 
-	float fDelta(m_pParams.m_fCurrSpeed * GetTimer()->GetFrameTime());
+	float fDelta(m_pParams.m_fCurrSpeed * GTimer(render)->GetFrameTime().BADGetSeconds());
 	pPos += pDirection * fDelta * fDepthAttenuation;
 
 	// Always set Z to water level
@@ -271,18 +271,18 @@ void CWaterWaveRenderNode::Update(float fDistanceToCamera)
 	UpdateBoundingBox();
 
 	// Update lifetime
-	m_pParams.m_fCurrFrameLifetime -= GetTimer()->GetFrameTime();
+	m_pParams.m_fCurrFrameLifetime -= GTimer(render)->GetFrameTime();
 
 	// Spawn new wave
-	if (m_pParams.m_fCurrFrameLifetime <= 0.0f || m_fCurrTerrainDepth == 0.0f)
+	if (m_pParams.m_fCurrFrameLifetime <= 0 || m_fCurrTerrainDepth == 0.0f)
 		Spawn();
 
 	//////////////////////////////////////////////////////////////////////////////////////////////////
 	// Set custom render data
-	m_fRECustomData[8] = clamp_tpl<float>(m_pParams.m_fCurrFrameLifetime, 0.0f, 1.0f);
+	m_fRECustomData[8] = clamp_tpl<float>(m_pParams.m_fCurrFrameLifetime.BADGetSeconds(), 0.0f, 1.0f);
 	m_fRECustomData[8] *= m_fRECustomData[8] * (3.0f - 2.0f * m_fRECustomData[8]);
 
-	m_fRECustomData[9] = clamp_tpl<float>(m_pParams.m_fCurrFrameLifetime / m_pParams.m_fCurrLifetime, 0.0f, 1.0f);
+	m_fRECustomData[9] = BADF CLAMP(m_pParams.m_fCurrFrameLifetime / m_pParams.m_fCurrLifetime, 0, 1);
 
 	m_fRECustomData[10] = min(m_fCurrTerrainDepth, 1.0f);
 	m_fRECustomData[11] = min(1.0f, 1.0f - (fDistanceToCamera / GetMaxViewDist()));

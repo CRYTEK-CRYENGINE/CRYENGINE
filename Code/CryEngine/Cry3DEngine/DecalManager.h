@@ -41,12 +41,12 @@ public:
 	float m_fWSSize;                                // Decal size (world coordinates) from DecalInfo.fSize
 
 	// life style
-	float           m_fLifeTime;                    // relative time left till decal should die
+	CTimeValue      m_fLifeTime;                    // relative time left till decal should die
 	Vec3            m_vAmbient;                     // ambient color
 	SDecalOwnerInfo m_ownerInfo;
 	EDecal_Type     m_eDecalType;
-	float           m_fGrowTime, m_fGrowTimeAlpha;  // e.g. growing blood pools
-	float           m_fLifeBeginTime;               //
+	CTimeValue      m_fGrowTime, m_fGrowTimeAlpha;  // e.g. growing blood pools
+	CTimeValue      m_fLifeBeginTime;               //
 
 	uint8           m_iAssembleSize;                // of how many decals has this decal be assembled, 0 if not to assemble
 	uint8           m_sortPrio;
@@ -95,8 +95,8 @@ public:
 		FreeRenderData();
 	}
 
-	void        Render(const float fFrameTime, int nAfterWater, float fDistanceFading, float fDiatance, const SRenderingPassInfo& passInfo);
-	int         Update(bool& active, const float fFrameTime);
+	void        Render(const CTimeValue& fFrameTime, int nAfterWater, float fDistanceFading, float fDiatance, const SRenderingPassInfo& passInfo);
+	int         Update(bool& active, const CTimeValue& fFrameTime);
 	void        RenderBigDecalOnTerrain(float fAlpha, float fScale, const SRenderingPassInfo& passInfo);
 	void        FreeRenderData();
 	static void ResetStaticData();
@@ -139,7 +139,7 @@ public: // ---------------------------------------------------------------
 	~CDecalManager();
 	bool Spawn(CryEngineDecalInfo Decal, CDecal* pCallerManagedDecal = 0);
 	// once per frame
-	void Update(const float fFrameTime);
+	void Update(const CTimeValue& frameTime);
 	// maybe multiple times per frame
 	void Render(const SRenderingPassInfo& passInfo);
 	void OnEntityDeleted(IRenderNode* pEnt);

@@ -184,16 +184,16 @@ struct SWaterWaveChunk : public SRenderNodeChunk
 	f32 m_fSpeed;
 	f32 m_fSpeedVar;
 
-	f32 m_fLifetime;
-	f32 m_fLifetimeVar;
+	CTimeValue m_fLifetime;
+	CTimeValue m_fLifetimeVar;
 
 	f32 m_fPosVar;
 
 	f32 m_fHeight;
 	f32 m_fHeightVar;
 
-	f32 m_fCurrLifetime;
-	f32 m_fCurrFrameLifetime;
+	CTimeValue m_fCurrLifetime;
+	CTimeValue m_fCurrFrameLifetime;
 	f32 m_fCurrSpeed;
 	f32 m_fCurrHeight;
 

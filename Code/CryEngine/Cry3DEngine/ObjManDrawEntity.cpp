@@ -141,7 +141,7 @@ void CObjManager::RenderVegetation(CVegetation* pEnt, PodArray<SRenderLight*>* p
 
 	if (passCullMask & kPassCullMainMask)
 	{
-		if (GetCVars()->e_LodTransitionTime && passInfo.IsGeneralPass())
+		if (GetCVars()->e_LodTransitionTime != 0 && passInfo.IsGeneralPass())
 		{
 			// Render current lod and (if needed) previous lod and perform time based lod transition using dissolve
 
@@ -359,7 +359,7 @@ void CObjManager::RenderObject(IRenderNode* pEnt, PodArray<SRenderLight*>* pAffe
 
 	if (passCullMask & kPassCullMainMask)
 	{
-		if (GetCVars()->e_LodTransitionTime && passInfo.IsGeneralPass() && pEnt->GetRenderNodeType() == eERType_MovableBrush)
+		if (GetCVars()->e_LodTransitionTime != 0 && passInfo.IsGeneralPass() && pEnt->GetRenderNodeType() == eERType_MovableBrush)
 		{
 			// Render current lod and (if needed) previous lod and perform time based lod transition using dissolve
 

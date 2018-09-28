@@ -88,7 +88,6 @@ struct CVars : public Cry3DEngineBase
 #define e_MinMassDistanceCheckRenderMeshCollisionDefault   (0.5f)
 #define e_GsmRangeStepExtendedDefault                      (8.f)
 #define e_TerrainDetailMaterialsViewDistXYDefault          (2048.f)
-#define e_SunAngleSnapSecDefault                           (0.1f)
 #define e_SunAngleSnapDotDefault                           (0.999999f)
 #define e_OcclusionVolumesViewDistRatioDefault             (0.05f)
 #define e_FoliageStiffnessDefault                          (3.2f)
@@ -143,7 +142,7 @@ struct CVars : public Cry3DEngineBase
 	DeclareConstFloatCVar(e_DecalsDeferredDynamicMinSize);
 	DeclareConstIntCVar(e_Objects, 1);
 	float e_ViewDistRatioCustom;
-	float e_StreamPredictionUpdateTimeSlice;
+	CTimeValue e_StreamPredictionUpdateTimeSlice;
 	DeclareConstIntCVar(e_DisplayMemoryUsageIcon, e_DisplayMemoryUsageIconDefault);
 	int   e_ScreenShotWidth;
 	int   e_ScreenShotDebug;
@@ -188,7 +187,7 @@ struct CVars : public Cry3DEngineBase
 	DeclareConstFloatCVar(e_OcclusionVolumesViewDistRatio);
 	DeclareConstFloatCVar(e_SunAngleSnapDot);
 	int   e_PreloadDecals;
-	float e_DecalsLifeTimeScale;
+	mpfloat e_DecalsLifeTimeScale;
 	int   e_DecalsForceDeferred;
 	DeclareConstIntCVar(e_CoverageBufferDebugFreeze, 0);
 	DeclareConstIntCVar(e_TerrainOcclusionCulling, 1);
@@ -230,7 +229,7 @@ struct CVars : public Cry3DEngineBase
 	DeclareConstIntCVar(e_GsmStats, 0);
 	DeclareConstIntCVar(e_DynamicLightsForceDeferred, 1);
 	DeclareConstIntCVar(e_Fog, 1);
-	float e_TimeOfDay;
+	CTimeValue e_TimeOfDay;
 	int   e_Terrain;
 	int   e_TerrainAutoGenerateBaseTexture;
 	float e_TerrainAutoGenerateBaseTextureTiling;
@@ -239,7 +238,7 @@ struct CVars : public Cry3DEngineBase
 	DeclareConstIntCVar(e_SkyBox, 1);
 	float e_CoverageBufferAABBExpand;
 	int   e_CoverageBufferEarlyOut;
-	float e_CoverageBufferEarlyOutDelay;
+	CTimeValue e_CoverageBufferEarlyOutDelay;
 	float e_CoverageBufferTerrainExpand;
 	DeclareConstIntCVar(e_WaterWaves, 0);
 	int   e_GsmCastFromTerrain;
@@ -280,7 +279,7 @@ struct CVars : public Cry3DEngineBase
 	DeclareConstFloatCVar(e_WindBendingDistRatio);
 	float  e_WindBendingStrength;
 	float  e_WindBendingAreaStrength;
-	float  e_SQTestDelay;
+	CTimeValue e_SQTestDelay;
 	int    e_PhysMinCellSize;
 	int    e_StreamCgfMaxTasksInProgress;
 	int    e_StreamCgfMaxNewTasksPerUpdate;
@@ -321,7 +320,7 @@ struct CVars : public Cry3DEngineBase
 	float e_TerrainDetailMaterialsViewDistXY;
 	int   e_ParticlesQuality;
 	DeclareConstIntCVar(e_DebugDrawShowOnlyCompound, 0);
-	DeclareConstFloatCVar(e_SunAngleSnapSec);
+	CTimeValue e_SunAngleSnapSec;
 	float e_GsmRangeStep;
 	int   e_ParticlesGI;
 	int   e_ParticlesSoftIntersect;
@@ -329,10 +328,10 @@ struct CVars : public Cry3DEngineBase
 	int   e_ParticlesShadows;
 	int   e_ParticlesAudio;
 	int   e_ParticleShadowsNumGSMs;
-	float e_FoliageBranchesTimeout;
+	CTimeValue e_FoliageBranchesTimeout;
 	DeclareConstFloatCVar(e_TerrainOcclusionCullingStepSizeDelta);
 	float e_LodRatio;
-	float e_LodTransitionTime;
+	CTimeValue e_LodTransitionTime;
 	float e_LodFaceAreaTargetSize;
 	float e_ObjectsTreeNodeMinSize;
 	float e_ObjectsTreeNodeSizeRatio;
@@ -378,7 +377,7 @@ struct CVars : public Cry3DEngineBase
 	float e_ParticlesLod;
 	DeclareConstIntCVar(e_BBoxes, 0);
 	int   e_Vegetation;
-	float e_TimeOfDaySpeed;
+	mpfloat e_TimeOfDaySpeed;
 	int   e_LodMax;
 	DeclareConstFloatCVar(e_ViewDistCompMaxSize);
 	DeclareConstFloatCVar(e_TerrainTextureLodRatio);
@@ -423,7 +422,7 @@ struct CVars : public Cry3DEngineBase
 	float e_ShadowsPerObjectResolutionScale;
 	int   e_ObjShadowCastSpec;
 	DeclareConstFloatCVar(e_JointStrengthScale);
-	float e_DecalsNeighborMaxLifeTime;
+	CTimeValue e_DecalsNeighborMaxLifeTime;
 	DeclareConstFloatCVar(e_StreamCgfVisObjPriority);
 	int   e_ObjectLayersActivation;
 	float e_VegetationSpritesDistanceCustomRatioMin;
@@ -460,7 +459,7 @@ struct CVars : public Cry3DEngineBase
 	DeclareConstFloatCVar(e_LodCompMaxSize);
 	float e_ViewDistRatioDetail;
 	DeclareConstIntCVar(e_TerrainDetailMaterialsDebug, 0);
-	DeclareConstIntCVar(e_Sleep, 0);
+	CTimeValue e_Sleep;
 	DeclareConstIntCVar(e_TerrainOcclusionCullingStepSize, 4);
 	int   e_Wind;
 	int   e_SQTestMip;
@@ -527,7 +526,7 @@ struct CVars : public Cry3DEngineBase
 	int    e_MergedMeshesUseSpines;
 	float  e_MergedMeshesBulletSpeedFactor;
 	float  e_MergedMeshesBulletScale;
-	float  e_MergedMeshesBulletLifetime;
+	CTimeValue e_MergedMeshesBulletLifetime;
 	int    e_MergedMeshesOutdoorOnly;
 	int    e_MergedMeshesMaxTriangles;
 	int    e_CheckOctreeObjectsBoxSize;
@@ -535,9 +534,9 @@ struct CVars : public Cry3DEngineBase
 	int    e_GeomCacheBufferSize;
 	int    e_GeomCacheMaxPlaybackFromMemorySize;
 	int    e_GeomCachePreferredDiskRequestSize;
-	float  e_GeomCacheMinBufferAheadTime;
-	float  e_GeomCacheMaxBufferAheadTime;
-	float  e_GeomCacheDecodeAheadTime;
+	CTimeValue  e_GeomCacheMinBufferAheadTime;
+	CTimeValue  e_GeomCacheMaxBufferAheadTime;
+	CTimeValue  e_GeomCacheDecodeAheadTime;
 	DeclareConstIntCVar(e_GeomCacheDebug, 0);
 	ICVar* e_GeomCacheDebugFilter;
 	DeclareConstIntCVar(e_GeomCacheDebugDrawMode, 0);

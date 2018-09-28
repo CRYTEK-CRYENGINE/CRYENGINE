@@ -108,7 +108,7 @@ foundbox:
 			{
 				SEntInFoliage eif;
 				eif.id = gEnv->pPhysicalWorld->GetPhysicalEntityId(pOverlap->pEntity[0]);
-				eif.timeIdle = 0;
+				eif.timeIdle.SetSeconds(0);
 				pEngine->m_arrEntsInFoliage.push_back(eif);
 				MARK_UNUSED pfd.pForeignData, pfd.iForeignData, pfd.iForeignFlags;
 				pfd.iForeignFlagsOR = (i + 1) << 8;
@@ -116,7 +116,7 @@ foundbox:
 			}
 		}
 		else if (i < (int)pEngine->m_arrEntsInFoliage.size())
-			pEngine->m_arrEntsInFoliage[i].timeIdle = 0;
+			pEngine->m_arrEntsInFoliage[i].timeIdle.SetSeconds(0);
 
 		IRenderNode* pVeg = GetRenderNodeFromPhys(pOverlap->pForeignData[1], pOverlap->iForeignData[1]);
 		const CCamera& cam = gEnv->pSystem->GetViewCamera();
@@ -349,7 +349,7 @@ void CDeferredCollisionEventOnPhysCollision::UpdateFoliage()
 
 	if (pCollision->iForeignData[1] == PHYS_FOREIGN_ID_FOLIAGE)
 	{
-		((CStatObjFoliage*)pCollision->pForeignData[1])->m_timeIdle = 0;
+		((CStatObjFoliage*)pCollision->pForeignData[1])->m_timeIdle.SetSeconds(0);
 		((CStatObjFoliage*)pCollision->pForeignData[1])->OnHit(pCollision);
 	}
 }
@@ -513,7 +513,7 @@ void CDeferredCollisionEventOnPhysCollision::TestCollisionWithRenderMesh()
 		}
 		else
 		{
-			ptlim = pCollisionEvent->pt + dir * (GetCVars()->e_RenderMeshCollisionTolerance + dir * pCollisionEvent->vloc[0] * (GetTimer()->GetFrameTime() * 1.1f));
+			ptlim = pCollisionEvent->pt + dir * (GetCVars()->e_RenderMeshCollisionTolerance + dir * pCollisionEvent->vloc[0] * (GTimer(render)->GetFrameTime().BADGetSeconds() * 1.1f));
 		}
 		m_HitInfo.fMaxHitDistance = (worldTM_Inverted * ptlim - m_HitInfo.inRay.origin) * m_HitInfo.inRay.direction;
 	}
@@ -754,7 +754,7 @@ void CDeferredCollisionEventOnPhysCollision::Sync()
 	// in normal execution case, m_bTaskRunning should always be false when we are here
 	while (m_bTaskRunning)
 	{
-		CrySleep(1); // yield
+		CryLowLatencySleep("0.001"); // yield
 	}
 }
 

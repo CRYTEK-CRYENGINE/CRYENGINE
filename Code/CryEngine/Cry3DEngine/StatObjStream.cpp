@@ -31,7 +31,7 @@ extern const char* stristr(const char* szString, const char* szSubstring);
 extern void        TransformMesh(CMesh& mesh, Matrix34 tm);
 
 #if !defined (_RELEASE) || defined(ENABLE_STATOSCOPE_RELEASE)
-float CStatObj::s_fStreamingTime = 0.0f;
+CTimeValue CStatObj::s_fStreamingTime;
 int CStatObj::s_nBandwidth = 0;
 #endif
 
@@ -53,10 +53,10 @@ void CStatObj::StreamAsyncOnComplete(IReadStream* pStream, unsigned nError)
 	else
 	{
 #if !defined (_RELEASE)
-		float timeinseconds = (gEnv->pTimer->GetCurrTime() - m_fStreamingStart);
+		CTimeValue timeinseconds = (GetGTimer()->GetFrameStartTime() - m_fStreamingStart);
 		s_nBandwidth += pStream->GetBytesRead();
 		s_fStreamingTime += timeinseconds;
-		m_fStreamingStart = 0.0f;
+		m_fStreamingStart.SetSeconds(0);
 #endif
 
 		if (!LoadStreamRenderMeshes(0, pStream->GetBuffer(), pStream->GetBytesRead(), strstr(m_szFileName.c_str(), "_lod") != NULL))
@@ -152,8 +152,8 @@ void CStatObj::StartStreaming(bool bFinishNow, IReadStream_AutoPtr* ppStream)
 	params.dwUserData = 0;
 	params.nSize = 0;
 	params.pBuffer = NULL;
-	params.nLoadTime = 10000;
-	params.nMaxLoadTime = 10000;
+	params.nLoadTime.SetSeconds(10);
+	params.nMaxLoadTime.SetSeconds(10);
 	if (bFinishNow)
 	{
 		params.ePriority = estpUrgent;
@@ -168,7 +168,7 @@ void CStatObj::StartStreaming(bool bFinishNow, IReadStream_AutoPtr* ppStream)
 	}
 
 #if !defined (_RELEASE)
-	m_fStreamingStart = gEnv->pTimer->GetCurrTime();
+	m_fStreamingStart = GetGTimer()->GetFrameStartTime();
 #endif //!defined (_RELEASE)
 	const char* path = m_szFileName.c_str();
 

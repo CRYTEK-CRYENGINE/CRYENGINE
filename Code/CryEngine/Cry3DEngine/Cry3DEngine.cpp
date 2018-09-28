@@ -180,11 +180,6 @@ void Cry3DEngineBase::PrintMessagePlus(const char* szText, ...)
 	GetLog()->UpdateLoadingScreen(0);
 }
 
-float Cry3DEngineBase::GetCurTimeSec()
-{ return (gEnv->pTimer->GetCurrTime()); }
-
-float Cry3DEngineBase::GetCurAsyncTimeSec()
-{ return (gEnv->pTimer->GetAsyncTime().GetSeconds()); }
 
 //////////////////////////////////////////////////////////////////////////
 void Cry3DEngineBase::Warning(const char* format, ...)

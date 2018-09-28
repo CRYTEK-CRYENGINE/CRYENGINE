@@ -543,11 +543,11 @@ bool CGeomCache::ReadNodesStaticDataRec(CGeomCacheStreamReader& reader)
 	return true;
 }
 
-float CGeomCache::GetDuration() const
+const CTimeValue CGeomCache::GetDuration() const
 {
 	if (m_frameInfos.empty())
 	{
-		return 0.0f;
+		return 0;
 	}
 	else
 	{
@@ -605,7 +605,7 @@ IGeomCache::SStatistics CGeomCache::GetStatistics() const
 	stats.m_staticDataSize += static_cast<uint>(m_frameInfos.size() * sizeof(SFrameInfo));
 
 	stats.m_bPlaybackFromMemory = m_bPlaybackFromMemory;
-	stats.m_averageAnimationDataRate = (float(m_compressedAnimationDataSize) / 1024.0f / 1024.0f) / float(GetDuration());
+	stats.m_averageAnimationDataRate = (mpfloat(m_compressedAnimationDataSize) / 1024 / 1024) / GetDuration();
 	stats.m_numMaterials = static_cast<uint>(materialIds.size());
 	stats.m_diskAnimationDataSize = static_cast<uint>(m_compressedAnimationDataSize);
 	stats.m_memoryAnimationDataSize = static_cast<uint>(m_animationData.size());
@@ -719,19 +719,19 @@ AABB CGeomCache::GetAABB() const
 	return m_aabb;
 }
 
-uint CGeomCache::GetFloorFrameIndex(const float time) const
+uint CGeomCache::GetFloorFrameIndex(const CTimeValue& time) const
 {
 	if (m_frameInfos.empty())
 	{
 		return 0;
 	}
 
-	const float duration = GetDuration();
-	float timeInCycle = fmod(time, duration);
+	const CTimeValue duration = GetDuration();
+	CTimeValue timeInCycle = time % duration;
 	uint numLoops = static_cast<uint>(floor(time / duration));
 
 	// Make sure that exactly at wrap around we still refer to last frame
-	if (timeInCycle == 0.0f && time > 0.0f)
+	if (timeInCycle == 0 && time > 0)
 	{
 		timeInCycle = duration;
 		numLoops -= 1;
@@ -761,19 +761,19 @@ uint CGeomCache::GetFloorFrameIndex(const float time) const
 	return frameInCycle + numPreviousCycleFrames;
 }
 
-uint CGeomCache::GetCeilFrameIndex(const float time) const
+uint CGeomCache::GetCeilFrameIndex(const CTimeValue& time) const
 {
 	if (m_frameInfos.empty())
 	{
 		return 0;
 	}
 
-	const float duration = GetDuration();
-	float timeInCycle = fmod(time, duration);
+	const CTimeValue duration = GetDuration();
+	CTimeValue timeInCycle = time % duration;
 	uint numLoops = static_cast<uint>(floor(time / duration));
 
 	// Make sure that exactly at wrap around we still refer to last frame
-	if (timeInCycle == 0.0f && time > 0.0f)
+	if (timeInCycle == 0 && time > 0)
 	{
 		timeInCycle = duration;
 		numLoops -= 1;
@@ -817,11 +817,11 @@ uint32 CGeomCache::GetFrameSize(const uint frameIndex) const
 	return m_frameInfos[frameIndex % numFrames].m_frameSize;
 }
 
-float CGeomCache::GetFrameTime(const uint frameIndex) const
+const CTimeValue CGeomCache::GetFrameTime(const uint frameIndex) const
 {
 	const uint numFrames = m_frameInfos.size();
 	const uint numLoops = frameIndex / numFrames;
-	const float duration = GetDuration();
+	const CTimeValue duration = GetDuration();
 	return (duration * numLoops) + m_frameInfos[frameIndex % numFrames].m_frameTime;
 }
 
@@ -910,8 +910,8 @@ void CGeomCache::StartStreaming(bool bFinishNow, IReadStream_AutoPtr* ppStream)
 	params.nOffset = static_cast<uint>(m_staticMeshDataOffset);
 	params.nSize = sizeof(GeomCacheFile::SCompressedBlockHeader) + m_staticDataHeader.m_compressedSize;
 	params.pBuffer = NULL;
-	params.nLoadTime = 10000;
-	params.nMaxLoadTime = 10000;
+	params.nLoadTime.SetSeconds(10);
+	params.nMaxLoadTime.SetSeconds(10);
 
 	if (m_bPlaybackFromMemory)
 	{

@@ -188,7 +188,7 @@ public:
 		m_bbWorld.Reset();
 		for (auto& c : m_Containers)
 		{
-			float fStableTime = c.InvalidateStaticBounds();
+			CTimeValue fStableTime = c.InvalidateStaticBounds();
 			m_fBoundsStableAge = max(m_fBoundsStableAge, fStableTime);
 		}
 	}
@@ -202,7 +202,7 @@ public:
 	{
 		return IsIndependent() && !m_pTopEffect->IsTemporary();
 	}
-	float TimeNotRendered() const
+	CTimeValue TimeNotRendered() const
 	{
 		return GetAge() - m_fAgeLastRendered;
 	}
@@ -217,7 +217,7 @@ public:
 			counts.emitters.alive += 1.f;
 			counts.emitters.updated += 1.f;
 		}
-		if (TimeNotRendered() == 0.f)
+		if (TimeNotRendered() == 0)
 			counts.emitters.rendered += 1.f;
 
 		for (const auto& c : m_Containers)
@@ -310,11 +310,11 @@ private:
 
 	AABB           m_bbWorld;                         // World bbox.
 
-	float          m_fAgeLastRendered;
-	float          m_fBoundsStableAge;                // Next age at which bounds stable.
-	float          m_fResetAge;                       // Age to purge unseen particles.
-	float          m_fStateChangeAge;                 // Next age at which a container's state changes.
-	float          m_fDeathAge;                       // Age when all containers (particles) dead.
+	CTimeValue     m_fAgeLastRendered;
+	CTimeValue     m_fBoundsStableAge;                // Next age at which bounds stable.
+	CTimeValue     m_fResetAge;                       // Age to purge unseen particles.
+	CTimeValue     m_fStateChangeAge;                 // Next age at which a container's state changes.
+	CTimeValue     m_fDeathAge;                       // Age when all containers (particles) dead.
 
 	// Entity connection params.
 	int          m_nEntitySlot;
@@ -328,7 +328,7 @@ private:
 	void                ResetUnseen();
 	void                AllocEmitters();
 	void                UpdateContainers();
-	void                UpdateTimes(float fAgeAdjust = 0.f);
+	void                UpdateTimes(const CTimeValue& fAgeAdjust = 0);
 
 	void                AddEffect(CParticleContainer* pParentContainer, CParticleEffect const* pEffect, bool bUpdate = true);
 	CParticleContainer* AddContainer(CParticleContainer* pParentContainer, const CParticleEffect* pEffect);

@@ -485,8 +485,9 @@ bool CStatObj::RenderDebugInfo(CRenderObject* pObj, const SRenderingPassInfo& pa
 					}
 					else
 					{
+						// Float inaccuracy is fine, debug/profiling
 						clr = ColorB(255, 0, 0, 255);
-						float fAngle = gEnv->pTimer->GetFrameStartTime().GetPeriodicFraction(1.0f) * gf_PI2;
+						float fAngle = (float)GetGTimer()->GetFrameStartTime().GetPeriodicFraction(1) * gf_PI2;
 						clr.g = 127 + (int)(sinf(fAngle) * 120);  // flashing color
 					}
 				}

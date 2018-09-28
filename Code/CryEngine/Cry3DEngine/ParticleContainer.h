@@ -31,7 +31,7 @@ typedef ParticleList<CParticle>::Node TParticleElem;
 //////////////////////////////////////////////////////////////////////////
 struct CRY_ALIGN(16) SParticleUpdateContext
 {
-	float fUpdateTime;
+	CTimeValue fUpdateTime;
 	uint32 nEnvFlags;
 	Vec3 vEmitBox;
 	Vec3 vEmitScale;
@@ -40,8 +40,8 @@ struct CRY_ALIGN(16) SParticleUpdateContext
 
 	// Iteration support.
 	float fMaxLinearDeviation;
-	float fMaxLinearStepTime;
-	float fMinStepTime;
+	CTimeValue fMaxLinearStepTime;
+	CTimeValue fMinStepTime;
 
 	// Sorting support.
 	Vec3 vMainCamPos;
@@ -104,7 +104,7 @@ public:
 		return *m_pParams;
 	}
 
-	float      GetAge() const;
+	const CTimeValue&	GetAge() const;
 
 	ILINE bool IsIndirect() const
 	{
@@ -141,7 +141,7 @@ public:
 		return m_nEmitterSequence++;
 	}
 	void  UpdateEffects();
-	float InvalidateStaticBounds();
+	CTimeValue InvalidateStaticBounds();
 	void  Render(SRendParams const& RenParams, SPartRenderParams const& PRParams, const SRenderingPassInfo& passInfo);
 	void  RenderGeometry(const SRendParams& RenParams, const SRenderingPassInfo& passInfo);
 	void  RenderDecals(const SRenderingPassInfo& passInfo);
@@ -190,15 +190,15 @@ public:
 		return m_nChildFlags;
 	}
 
-	float GetContainerLife() const
+	const CTimeValue& GetContainerLife() const
 	{
 		return m_fContainerLife;
 	}
-	void  UpdateContainerLife(float fAgeAdjust = 0.f);
+	void  UpdateContainerLife(const CTimeValue& fAgeAdjust = 0);
 
 	bool  GetTarget(ParticleTarget& target, const CParticleSubEmitter* pSubEmitter) const;
 
-	float GetTimeToUpdate() const
+	CTimeValue GetTimeToUpdate() const
 	{
 		return GetAge() - m_fAgeLastUpdate;
 	}
@@ -222,14 +222,14 @@ public:
 	{
 		return GetEnvironmentFlags() & ENV_COLLIDE_INFO;
 	}
-	float GetMaxParticleFullLife() const
+	const CTimeValue& GetMaxParticleFullLife() const
 	{
 		return m_fMaxParticleFullLife;
 	}
 
 	void OnEffectChange();
 
-	void ComputeUpdateContext(SParticleUpdateContext& context, float fUpdateTime);
+	void ComputeUpdateContext(SParticleUpdateContext& context, const CTimeValue& fUpdateTime);
 
 	// Stat/profile functions.
 	SContainerCounts& GetCounts()
@@ -299,9 +299,9 @@ private:
 	CRenderObject*                     m_pRecursiveRO[RT_COMMAND_BUF_COUNT];
 
 	// Last time when emitter updated, and static bounds validated.
-	float m_fAgeLastUpdate;
-	float m_fAgeStaticBoundsStable;
-	float m_fContainerLife;
+	CTimeValue m_fAgeLastUpdate;
+	CTimeValue m_fAgeStaticBoundsStable;
+	CTimeValue m_fContainerLife;
 
 	// Final bounding volume for rendering. Also separate static & dynamic volumes for sub-computation.
 	AABB  m_bbWorld, m_bbWorldStat, m_bbWorldDyn;
@@ -313,13 +313,13 @@ private:
 	// Associated structures.
 	CParticleContainer* m_pParentContainer;                     // Parent container, if indirect.
 	CParticleEmitter*   m_pMainEmitter;                         // Emitter owning this container.
-	float               m_fMaxParticleFullLife;                 // Cached value indicating max update time necessary.
+	CTimeValue          m_fMaxParticleFullLife;						// Cached value indicating max update time necessary.
 
 	SContainerCounts    m_Counts;                               // Counts for stats.
 
-	void  ComputeStaticBounds(AABB& bb, bool bWithSize = true, float fMaxLife = fHUGE);
+	void  ComputeStaticBounds(AABB& bb, bool bWithSize = true, const CTimeValue& fMaxLife = tHUGE);
 
-	float GetEmitterLife() const;
+	CTimeValue GetEmitterLife() const;
 	float GetMaxParticleScale() const;
 	int   GetMaxParticleCount(const SParticleUpdateContext& context) const;
 	void  UpdateParticleStates(SParticleUpdateContext& context);

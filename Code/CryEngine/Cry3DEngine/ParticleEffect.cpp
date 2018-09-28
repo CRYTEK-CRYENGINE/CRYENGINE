@@ -135,12 +135,13 @@ struct SEmitParams
 
 namespace Travel
 {
-float TravelDistanceApprox(const Vec3& vVel0, float fTime, const SForceParams& forces)
+float TravelDistanceApprox(const Vec3& vVel0, const CTimeValue& fTimeIn, const SForceParams& forces)
 {
-	if (fTime <= 0.f)
-		return 0.f;
+	if (fTimeIn <= 0)
+		return 0;
 
 	Vec3 vVel = vVel0;
+	float fTime = fTimeIn.BADGetSeconds();
 
 	// Check if trajectory has a speed minimum
 	float dt[3] = { fTime, 0.f, 0.f };
@@ -226,7 +227,7 @@ float TravelVolume(const AABB& bbSource, const AABB& bbTravel, float fDist, floa
 	return V.x * V.y * V.z + V.x * V.y * T.z + V.x * T.y * V.z + T.x * V.y * V.z;
 }
 
-void AddTravelVec(AABB& bb, Vec3 vVel, SForceParams const& force, float fTime)
+void AddTravelVec(AABB& bb, Vec3 vVel, SForceParams const& force, const CTimeValue& fTime)
 {
 	Vec3 vTravel(ZERO);
 	Travel(vTravel, vVel, fTime, force);
@@ -234,7 +235,7 @@ void AddTravelVec(AABB& bb, Vec3 vVel, SForceParams const& force, float fTime)
 	bb.Add(vTravel);
 }
 
-void AddTravel(AABB& bb, Vec3 const& vVel, SForceParams const& force, float fTime, int nAxes)
+void AddTravel(AABB& bb, Vec3 const& vVel, SForceParams const& force, const CTimeValue& fTime, int nAxes)
 {
 	if (force.fStretch != 0.f)
 	{
@@ -265,8 +266,8 @@ void AddTravel(AABB& bb, Vec3 const& vVel, SForceParams const& force, float fTim
 				if (fVT * d > 0.f)
 				{
 					float fT = -logf(fVT / d) * fInvDrag;
-					if (fT > 0.f && fT < fTime)
-						AddTravelVec(bb, vVel, force, fT);
+					if (fT > 0.f && fT < fTime.BADGetSeconds())
+						AddTravelVec(bb, vVel, force, BADTIME(fT));
 				}
 			}
 		}
@@ -286,8 +287,8 @@ void AddTravel(AABB& bb, Vec3 const& vVel, SForceParams const& force, float fTim
 					//		= v0 + a (t+s)
 					// t = -v0/a - s
 					float fT = -vVel[i] / force.vAccel[i] - force.fStretch;
-					if (fT > 0.f && fT < fTime)
-						AddTravelVec(bb, vVel, force, fT);
+					if (fT > 0.f && fT < fTime.BADGetSeconds())
+						AddTravelVec(bb, vVel, force, BADTIME(fT));
 				}
 			}
 		}
@@ -315,7 +316,7 @@ Vec3 GetExtremeEmitVec(Vec3 const& vRefDir, SEmitParams const& emit)
 	}
 }
 
-void AddEmitDirs(AABB& bb, Vec3 const& vRefDir, SEmitParams const& emit, SForceParams const& force, float fTime, int nAxes)
+void AddEmitDirs(AABB& bb, Vec3 const& vRefDir, SEmitParams const& emit, SForceParams const& force, const CTimeValue& fTime, int nAxes)
 {
 	Vec3 vEmit = GetExtremeEmitVec(vRefDir, emit);
 	AddTravel(bb, vEmit, force, fTime, nAxes);
@@ -334,7 +335,7 @@ inline float MaxComponent(Vec3 const& v)
 }
 
 // Compute bounds of a cone of emission, with applied gravity.
-void TravelBB(AABB& bb, SEmitParams const& emit, SForceParams const& force, float fTime, int nAxes)
+void TravelBB(AABB& bb, SEmitParams const& emit, SForceParams const& force, const CTimeValue& fTime, int nAxes)
 {
 	if (emit.fSpeedMax == 0.f)
 	{
@@ -474,8 +475,8 @@ void ResourceParticleParams::GetEmitParams(SEmitParams& emit, const QuatTS& loc,
 
 void ResourceParticleParams::GetMaxTravelBounds(AABB& bbResult, const QuatTS& loc, const SPhysForces& forces, const FStaticBounds& opts) const
 {
-	float fTime = min(+opts.fMaxLife, GetMaxParticleLife());
-	if (fTime <= 0.f)
+	CTimeValue fTime = min(opts.fMaxLife, GetMaxParticleLife());
+	if (fTime <= 0)
 		return;
 
 	// Emission direction.
@@ -502,7 +503,7 @@ void ResourceParticleParams::GetMaxTravelBounds(AABB& bbResult, const QuatTS& lo
 	if (fTurbulence3DSpeed)
 	{
 		// Expansion from 3D turbulence.	a = T t^-/2;  d = a/2 t^2 = T/2 t^(3/2)
-		float fAccel = fTurbulence3DSpeed(VMAX) * isqrt_tpl(fTime) * (1.f + fTRAVEL_SAFETY);
+		float fAccel = fTurbulence3DSpeed(VMAX) * isqrt_tpl(fTime.BADGetSeconds()) * (1.f + fTRAVEL_SAFETY);
 		SForceParams forcesTurb;
 		forcesTurb.vAccel = Vec3(fAccel);
 		forcesTurb.vWind.zero();
@@ -523,9 +524,9 @@ void ResourceParticleParams::GetMaxTravelBounds(AABB& bbResult, const QuatTS& lo
 
 float ResourceParticleParams::GetTravelBounds(AABB& bbResult, const QuatTS& loc, const SForceParams& forces, const FStaticBounds& opts, const FEmitterFixed& var) const
 {
-	float fTime = min(+opts.fMaxLife, GetMaxParticleLife());
-	if (fTime <= 0.f)
-		return 0.f;
+	CTimeValue fTime = min(opts.fMaxLife, GetMaxParticleLife());
+	if (fTime <= 0)
+		return 0;
 
 	// Emission direction
 	SEmitParams emit;
@@ -1091,7 +1092,7 @@ void CompatibilityParticleParams::Correct(CParticleEffect* pEffect)
 		if ((nVersion == 23 || nVersion >= 22 && sSandboxVersion >= "3.5.1" && sSandboxVersion < "3.5.7") && eSpawnIndirection && pEffect->GetParent())
 		{
 			// Print diagnostics when any corrections made.
-			float fParentSize = pEffect->GetParent()->GetParticleParams().fSize.GetValueFromMod(1.f, 0.f);
+			float fParentSize = pEffect->GetParent()->GetParticleParams().fSize.GetValueFromMod(1.f, 0);
 			if (fParentSize != 1.f)
 			{
 				if (fSpeed)
@@ -1853,24 +1854,24 @@ CParticleEffect* CParticleEffect::GetIndirectParent() const
 	return 0;
 }
 
-float CParticleEffect::Get(FMaxEffectLife const& opts) const
+CTimeValue CParticleEffect::Get(FMaxEffectLife const& opts) const
 {
-	float fLife = 0.f;
+	CTimeValue fLife;
 	if (IsActive())
 	{
 		const ResourceParticleParams& params = GetParams();
-		if (opts.fEmitterMaxLife() > 0.f)
+		if (opts.fEmitterMaxLife() > 0)
 		{
-			fLife = params.fPulsePeriod ? fHUGE : params.GetMaxEmitterLife();
+			fLife = params.fPulsePeriod != 0 ? tHUGE : params.GetMaxEmitterLife();
 			if (const CParticleEffect* pParent = GetIndirectParent())
 			{
-				float fParentLife = pParent->GetParams().GetMaxParticleLife();
+				CTimeValue fParentLife = pParent->GetParams().GetMaxParticleLife();
 				fLife = min(fLife, fParentLife);
 			}
 			fLife = min(fLife, opts.fEmitterMaxLife());
 
 			if (opts.bParticleLife())
-				fLife += params.fParticleLifeTime.GetMaxValue();
+				fLife += BADTIME(params.fParticleLifeTime.GetMaxValue());
 		}
 		else if (opts.bParticleLife())
 			fLife += params.GetMaxParticleLife();
@@ -1889,13 +1890,13 @@ float CParticleEffect::Get(FMaxEffectLife const& opts) const
 	return fLife;
 }
 
-float CParticleEffect::GetEquilibriumAge(bool bAll) const
+CTimeValue CParticleEffect::GetEquilibriumAge(bool bAll) const
 {
-	float fEquilibriumAge = 0.f;
+	CTimeValue fEquilibriumAge;
 	bool bHasEquilibrium = IsActive() && GetParams().HasEquilibrium();
 	if (bHasEquilibrium)
 	{
-		fEquilibriumAge = GetParams().fSpawnDelay.GetMaxValue() + GetMaxParticleFullLife();
+		fEquilibriumAge = BADTIME(GetParams().fSpawnDelay.GetMaxValue()) + GetMaxParticleFullLife();
 		if (const CParticleEffect* pParent = GetIndirectParent())
 			fEquilibriumAge += pParent->GetEquilibriumAge(false);
 	}

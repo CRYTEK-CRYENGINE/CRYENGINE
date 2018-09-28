@@ -674,7 +674,7 @@ void C3DEngine::DebugDraw_Draw()
 	if (m_DebugDrawListMgr.IsEnabled())
 		m_DebugDrawListMgr.Update();
 
-	CTimeValue CurrentTime = gEnv->pTimer->GetFrameStartTime();
+	CTimeValue CurrentTime = GetGTimer()->GetFrameStartTime();
 
 	IRenderAuxGeom* pAux = IRenderAuxGeom::GetAux();
 
@@ -690,7 +690,8 @@ void C3DEngine::DebugDraw_Draw()
 	{
 		SDebugFrustrum& ref = *it;
 
-		float fRatio = (CurrentTime - ref.m_TimeStamp).GetSeconds() * 2.0f;
+		// Float inaccuracy is fine, debug/profiling
+		float fRatio = (float)(CurrentTime - ref.m_TimeStamp).GetSeconds() * 2;
 
 		if (fRatio > 1.0f)
 		{
@@ -1018,11 +1019,11 @@ void C3DEngine::PreWorldStreamUpdate(const CCamera& cam)
 
 		if (m_vPrevMainFrameCamPos != Vec3(-1000000.f, -1000000.f, -1000000.f))
 		{
-			m_vAverageCameraMoveDir = m_vAverageCameraMoveDir * .75f + (cam.GetPosition() - m_vPrevMainFrameCamPos) / max(0.01f, GetTimer()->GetFrameTime()) * .25f;
+			m_vAverageCameraMoveDir = m_vAverageCameraMoveDir * .75f + (cam.GetPosition() - m_vPrevMainFrameCamPos) / max(0.01f, GTimer(render)->GetFrameTime().BADGetSeconds()) * .25f;
 			if (m_vAverageCameraMoveDir.GetLength() > 10.f)
 				m_vAverageCameraMoveDir.SetLength(10.f);
 
-			float fNewSpeed = fDistance / max(0.001f, gEnv->pTimer->GetFrameTime());
+			float fNewSpeed = fDistance / max(0.001f, GetGTimer()->GetFrameTime().BADGetSeconds());
 			if (fNewSpeed > m_fAverageCameraSpeed)
 				m_fAverageCameraSpeed = fNewSpeed * .20f + m_fAverageCameraSpeed * .80f;
 			else
@@ -1075,10 +1076,10 @@ void C3DEngine::WorldStreamUpdate()
 	}
 #endif
 
-	static float fTestStartTime = 0;
+	static CTimeValue fTestStartTime = 0;
 	if (m_nStreamingFramesSinceLevelStart == 1)
 	{
-		fTestStartTime = GetCurAsyncTimeSec();
+		fTestStartTime = GetGTimer()->GetAsyncTime();
 		gEnv->pSystem->GetISystemEventDispatcher()->OnSystemEvent(ESYSTEM_EVENT_LEVEL_PRECACHE_FIRST_FRAME, 0, 0);
 	}
 
@@ -1094,7 +1095,7 @@ void C3DEngine::WorldStreamUpdate()
 			  (openStats.nOpenRequestCountByType[eStreamTaskTypeTexture] > 0) ||
 			  (openStats.nOpenRequestCountByType[eStreamTaskTypeGeometry] > 0);
 
-			float fTime = GetCurAsyncTimeSec() - fTestStartTime;
+			CTimeValue fTime = GetGTimer()->GetAsyncTime() - fTestStartTime;
 
 			switch (m_nStreamingFramesSinceLevelStart)
 			{
@@ -1120,19 +1121,19 @@ void C3DEngine::WorldStreamUpdate()
 				gEnv->pSystem->SetSystemGlobalState(ESYSTEM_GLOBAL_STATE_LEVEL_LOAD_ENDING);
 			}
 
-			if (nGlobalSystemState == ESYSTEM_GLOBAL_STATE_LEVEL_LOAD_ENDING && (!bStarted || fTime >= 10.0f) && m_nStreamingFramesSinceLevelStart > 16)
+			if (nGlobalSystemState == ESYSTEM_GLOBAL_STATE_LEVEL_LOAD_ENDING && (!bStarted || fTime.GetSeconds() >= 10) && m_nStreamingFramesSinceLevelStart > 16)
 			{
 				gEnv->pSystem->SetSystemGlobalState(ESYSTEM_GLOBAL_STATE_LEVEL_LOAD_COMPLETE);
 
 				if (!bStarted)
-					PrintMessage("Textures startup streaming finished in %.1f sec", fTime);
+					PrintMessage("Textures startup streaming finished in %.1f sec", (float)fTime.GetSeconds());
 				else
-					PrintMessage("Textures startup streaming timed out after %.1f sec", fTime);
+					PrintMessage("Textures startup streaming timed out after %.1f sec", (float)fTime.GetSeconds());
 
 				m_fTimeStateStarted = fTime;
 			}
 
-			if (nGlobalSystemState == ESYSTEM_GLOBAL_STATE_LEVEL_LOAD_COMPLETE && (fTime - m_fTimeStateStarted) > 0.4f)
+			if (nGlobalSystemState == ESYSTEM_GLOBAL_STATE_LEVEL_LOAD_COMPLETE && (fTime - m_fTimeStateStarted).GetSeconds() > "0.4")
 			{
 				pSE->PauseStreaming(false, (1 << eStreamTaskTypeTexture) | (1 << eStreamTaskTypeGeometry));
 
@@ -1140,7 +1141,7 @@ void C3DEngine::WorldStreamUpdate()
 				gEnv->pSystem->SetSystemGlobalState(ESYSTEM_GLOBAL_STATE_RUNNING);
 				gEnv->pSystem->GetISystemEventDispatcher()->OnSystemEvent(ESYSTEM_EVENT_LEVEL_PRECACHE_END, 0, 0);
 
-				fTestStartTime = 0.f;
+				fTestStartTime.SetSeconds(0);
 
 #if defined(STREAMENGINE_ENABLE_STATS)
 				SStreamEngineStatistics& fullStats = pSE->GetStreamingStatistics();
@@ -1153,7 +1154,7 @@ void C3DEngine::WorldStreamUpdate()
 				float fReadBandwidthMB = (float)fullStats.nTotalSessionReadBandwidth / (1024 * 1024);
 
 				PrintMessage("Average block size: %d KB, Average throughput: %.1f MB/sec, Jobs processed: %d (%.1f MB), File IO Bandwidth: %.2fMB/s",
-				             (nBlockSize) / 1024, (float)(nOverallFileReadKB / max(fTime, 1.f)) / 1024.f,
+				             (nBlockSize) / 1024, (float)(nOverallFileReadKB / max((float)fTime.GetSeconds(), 1.f)) / 1024.f,
 				             nOverallFileReadNum, (float)nOverallFileReadKB / 1024.f,
 				             fReadBandwidthMB);
 
@@ -1178,7 +1179,7 @@ void C3DEngine::WorldStreamUpdate()
 						        "</phase>\n",
 						        fTime,
 						        (nOverallFileReadKB / nOverallFileReadNum),
-						        (float)nOverallFileReadKB / max(fTime, 1.f) / 1024.f,
+						        (float)nOverallFileReadKB / max((float)fTime.GetSeconds(), 1.f) / 1024.f,
 						        nOverallFileReadNum,
 						        (float)nOverallFileReadKB / 1024.f);
 
@@ -1263,7 +1264,9 @@ void C3DEngine::PrintDebugInfo(const SRenderingPassInfo& passInfo)
 
 				int nDiff = SATURATEB(int(float(nKB - GetCVars()->e_StreamCgfDebugMinObjSize) / max(1, (int)GetCVars()->e_StreamCgfDebugMinObjSize) * 255));
 				ColorB col(nDiff, 255 - nDiff, 0, 255);
-				if (nSel && (1 & (int)(GetCurTimeSec() * 5.f)))
+
+				// Float inaccuracy is fine, debug/profiling
+				if (nSel && (1 & (int)(GetGTimer()->GetFrameStartTime().GetSeconds() * 5)))
 					col = Col_Yellow;
 				ColorF fColor(col[0] / 255.f, col[1] / 255.f, col[2] / 255.f, col[3] / 255.f);
 
@@ -1284,7 +1287,7 @@ void C3DEngine::PrintDebugInfo(const SRenderingPassInfo& passInfo)
 
 	if (m_arrProcessStreamingLatencyTestResults.Count())
 	{
-		float fAverTime = 0;
+		CTimeValue fAverTime = 0;
 		for (int i = 0; i < m_arrProcessStreamingLatencyTestResults.Count(); i++)
 			fAverTime += m_arrProcessStreamingLatencyTestResults[i];
 		fAverTime /= m_arrProcessStreamingLatencyTestResults.Count();
@@ -1294,7 +1297,7 @@ void C3DEngine::PrintDebugInfo(const SRenderingPassInfo& passInfo)
 			nAverTexNum += m_arrProcessStreamingLatencyTexNum[i];
 		nAverTexNum /= m_arrProcessStreamingLatencyTexNum.Count();
 
-		DrawTextLeftAligned(fTextPosX, fTextPosY += fTextStepY, DISPLAY_INFO_SCALE, Col_Yellow, "------ SQT Average Time = %.1f, TexNum = %d ------", fAverTime, nAverTexNum);
+		DrawTextLeftAligned(fTextPosX, fTextPosY += fTextStepY, DISPLAY_INFO_SCALE, Col_Yellow, "------ SQT Average Time = %.1f, TexNum = %d ------", (float)fAverTime.GetSeconds(), nAverTexNum);
 
 		for (int i = 0; i < m_arrProcessStreamingLatencyTestResults.Count(); i++)
 			DrawTextLeftAligned(fTextPosX, fTextPosY += fTextStepY, DISPLAY_INFO_SCALE, Col_Yellow, "Run %d: Time = %.1f, TexNum = %d",
@@ -1395,7 +1398,7 @@ void C3DEngine::RenderInternal(const int nRenderFlags, const SRenderingPassInfo&
 
 	//Cache for later use
 	if (m_pObjManager)
-		m_pObjManager->SetCurrentTime(gEnv->pTimer->GetCurrTime());
+		m_pObjManager->SetCurrentTime(GetGTimer()->GetFrameStartTime());
 
 	// test if recursion causes problems
 	if (passInfo.IsRecursivePass() && !GetCVars()->e_Recursion)
@@ -1433,7 +1436,8 @@ void C3DEngine::RenderInternal(const int nRenderFlags, const SRenderingPassInfo&
 			GetGlobalParameter(E3DPARAM_VOLCLOUD_WIND_ATMOSPHERIC, cloudParams);
 			const float windInfluence = cloudParams.x;
 			Vec3 wind = GetGlobalWind(false);
-			const float elapsedTime = windInfluence * gEnv->pTimer->GetFrameTime();
+
+			const float elapsedTime = windInfluence * GetGTimer()->GetFrameTime().BADGetSeconds();
 
 			// move E3DPARAM_VOLCLOUD_TILING_OFFSET with global wind.
 			m_vVolCloudTilingOffset.x -= wind.x * elapsedTime;
@@ -1567,7 +1571,7 @@ void C3DEngine::RenderScene(const int nRenderFlags, const SRenderingPassInfo& pa
 
 	if (GetCVars()->e_Sleep > 0)
 	{
-		CrySleep(GetCVars()->e_Sleep);
+		CryLowLatencySleep(GetCVars()->e_Sleep);
 	}
 
 	////////////////////////////////////////////////////////////////////////////////////////
@@ -2166,14 +2170,16 @@ void C3DEngine::DisplayInfo(float& fTextPosX, float& fTextPosY, float& fTextStep
 	static int frameCounter = 0;
 	#endif
 
+	// Float inaccuracy is fine, debug/profiling
 	// If stat averaging is on, compute blend amount for current stats.
-	float fFPS = GetTimer()->GetFrameRate();
+	float fFPS = (float)GTimer(render)->GetFrameRate();
 
 	arrFPSforSaveLevelStats.push_back(SATURATEB((int)fFPS));
 
-	float fBlendTime = GetTimer()->GetCurrTime();
+	CTimeValue fBlendTime = GTimer(render)->GetFrameStartTime();
 	int iBlendMode = 0;
-	float fBlendCur = GetTimer()->GetProfileFrameBlending(&fBlendTime, &iBlendMode);
+	// Float inaccuracy is fine, debug/profiling
+	float fBlendCur = (float)GTimer(render)->GetProfileFrameBlending(&fBlendTime, &iBlendMode);
 
 	fTextPosY = -10;
 	fTextStepY = 13;
@@ -2181,9 +2187,10 @@ void C3DEngine::DisplayInfo(float& fTextPosX, float& fTextPosY, float& fTextStep
 
 	if (displayInfoVal == 3 || displayInfoVal == 4)
 	{
+		// Float inaccuracy is fine, debug/profiling
 		static float fCurrentFPS, fCurrentFrameTime;
 		Blend(fCurrentFPS, fFPS, fBlendCur);
-		Blend(fCurrentFrameTime, GetTimer()->GetRealFrameTime() * 1000.0f, fBlendCur);
+		Blend(fCurrentFrameTime, (float)GTimer(render)->GetRealFrameTime().GetMilliSeconds(), fBlendCur);
 		DrawTextRightAligned(fTextPosX, fTextPosY += fTextStepY, 1.5f, ColorF(1.0f, 1.0f, 0.5f, 1.0f),
 		                     "FPS %.1f - %.1fms", fCurrentFPS, fCurrentFrameTime);
 
@@ -2444,8 +2451,8 @@ void C3DEngine::DisplayInfo(float& fTextPosX, float& fTextPosY, float& fTextStep
 	}
 
 	//
-	static float m_lastAverageDPTime = -FLT_MAX;
-	float curTime = gEnv->pTimer->GetAsyncCurTime();
+	static CTimeValue m_lastAverageDPTime = CTimeValue::Min();
+	CTimeValue curTime = GetGTimer()->GetAsyncCurTime();
 	static int lastDrawCalls = 0;
 	static int lastShadowGenDrawCalls = 0;
 	static int avgPolys = 0;
@@ -2457,7 +2464,7 @@ void C3DEngine::DisplayInfo(float& fTextPosX, float& fTextPosY, float& fTextStep
 	{
 		m_lastAverageDPTime = curTime;
 	}
-	if (curTime - m_lastAverageDPTime > 1.0f)
+	if ((curTime - m_lastAverageDPTime).GetSeconds() > 1)
 	{
 		lastDrawCalls = nDrawCalls;
 		lastShadowGenDrawCalls = nShadowGenDrawCalls;
@@ -2585,7 +2592,7 @@ void C3DEngine::DisplayInfo(float& fTextPosX, float& fTextPosY, float& fTextStep
 		static uint32 nTexCount = 0;
 		static uint32 nTexSize = 0;
 
-		float fTexBandwidthRequired = 0.f;
+		rTime fTexBandwidthRequired = 0;
 		m_pRenderer->GetBandwidthStats(&fTexBandwidthRequired);
 
 		if (!(GetRenderer()->GetFrameID(false) % 30) || !szTexStreaming[0])
@@ -2700,12 +2707,12 @@ void C3DEngine::DisplayInfo(float& fTextPosX, float& fTextPosY, float& fTextStep
 				if (displayInfoVal == 2)
 				{
 					cry_sprintf(szStreaming, "Streaming IO: ACT: %3umsec, Jobs:%2d Total:%5u",
-					            (uint32)stats.fAverageCompletionTime, openStats.nOpenRequestCount, stats.nTotalStreamingRequestCount);
+					            (uint32)stats.fAverageCompletionTime.GetMilliSeconds(), openStats.nOpenRequestCount, stats.nTotalStreamingRequestCount);
 				}
 				else
 				{
 					cry_sprintf(szStreaming, "Streaming IO: ACT: %3umsec, Jobs:%2d",
-					            (uint32)stats.fAverageCompletionTime, openStats.nOpenRequestCount);
+					            (uint32)stats.fAverageCompletionTime.GetMilliSeconds(), openStats.nOpenRequestCount);
 				}
 			}
 			DrawTextRightAligned(fTextPosX, fTextPosY += fTextStepY, "%s", szStreaming);
@@ -2871,17 +2878,18 @@ void C3DEngine::DisplayInfo(float& fTextPosX, float& fTextPosY, float& fTextStep
 			if (GetCVars()->e_levelStartupFrameNum)
 			{
 				static float startupAvgFPS = 0.f;
-				static float levelStartupTime = 0;
+				static CTimeValue levelStartupTime;
 				static int levelStartupFrameEnd = GetCVars()->e_levelStartupFrameNum + GetCVars()->e_levelStartupFrameDelay;
 				int curFrameID = GetRenderer()->GetFrameID(false);
 
 				if (curFrameID >= GetCVars()->e_levelStartupFrameDelay)
 				{
 					if (curFrameID == GetCVars()->e_levelStartupFrameDelay)
-						levelStartupTime = gEnv->pTimer->GetAsyncCurTime();
+						levelStartupTime = GetGTimer()->GetAsyncCurTime();
 					if (curFrameID == levelStartupFrameEnd)
 					{
-						startupAvgFPS = (float)GetCVars()->e_levelStartupFrameNum / (gEnv->pTimer->GetAsyncCurTime() - levelStartupTime);
+						// Float inaccuracy is fine, debug/profiling
+						startupAvgFPS = (float)GetCVars()->e_levelStartupFrameNum / (float)(GetGTimer()->GetAsyncCurTime() - levelStartupTime).GetSeconds();
 					}
 					if (curFrameID >= levelStartupFrameEnd)
 					{
@@ -2915,7 +2923,8 @@ void C3DEngine::DisplayInfo(float& fTextPosX, float& fTextPosY, float& fTextStep
 	{
 	#define CONVX(x)       (((x) / (float)gUpdateTimesNum))
 	#define CONVY(y)       (1.f - ((y) / 720.f))
-	#define TICKS_TO_MS(t) (1000.f * gEnv->pTimer->TicksToSeconds(t))
+	// Float inaccuracy is fine, debug/profiling
+	#define TICKS_TO_MS(t) (float)(GetGTimer()->TicksToTime(t).GetMilliSeconds())
 	#define MAX_PHYS_TIME 32.f
 	#define MAX_PLE_TIME  4.f
 		uint32 gUpdateTimeIdx = 0, gUpdateTimesNum = 0;
@@ -2989,8 +2998,8 @@ void C3DEngine::DisplayInfo(float& fTextPosX, float& fTextPosY, float& fTextStep
 	#else
 			const float maxVal = 50.f;
 	#endif
-			partTicks = 1000.0f * gEnv->pTimer->TicksToSeconds(pPartMan->GetLightProfileCounts().NumFrameTicks());
-			float fTimeSyncMS = 1000.0f * gEnv->pTimer->TicksToSeconds(pPartMan->GetLightProfileCounts().NumFrameSyncTicks());
+			partTicks = TICKS_TO_MS(pPartMan->GetLightProfileCounts().NumFrameTicks());
+			float fTimeSyncMS = TICKS_TO_MS(pPartMan->GetLightProfileCounts().NumFrameSyncTicks());
 
 			DrawTextRightAligned(fTextPosX, fTextPosY += (fTextStepY - STEP_SMALL_DIFF),
 			                     DISPLAY_INFO_SCALE_SMALL, partTicks > maxVal ? Col_Red : Col_White, "%.2f(%.2f) ms	      Part", partTicks, fTimeSyncMS);
@@ -3015,8 +3024,8 @@ void C3DEngine::DisplayInfo(float& fTextPosX, float& fTextPosY, float& fTextStep
 			const float maxVal = 50.f;
 	#endif
 			uint32 nNumCharacters = pCharManager->NumCharacters();
-			float fTimeMS = 1000.0f * gEnv->pTimer->TicksToSeconds(pCharManager->NumFrameTicks());
-			float fTimeSyncMS = 1000.0f * gEnv->pTimer->TicksToSeconds(pCharManager->NumFrameSyncTicks());
+			float fTimeMS = TICKS_TO_MS(pCharManager->NumFrameTicks());
+			float fTimeSyncMS = TICKS_TO_MS(pCharManager->NumFrameSyncTicks());
 			DrawTextRightAligned(fTextPosX, fTextPosY += (fTextStepY - STEP_SMALL_DIFF),
 			                     DISPLAY_INFO_SCALE_SMALL, fTimeMS > maxVal ? Col_Red : Col_White, "%.2f(%.2f) ms(%2d)      Anim", fTimeMS, fTimeSyncMS, nNumCharacters);
 		}
@@ -3029,7 +3038,7 @@ void C3DEngine::DisplayInfo(float& fTextPosX, float& fTextPosY, float& fTextStep
 	#else
 			const float maxVal = 50.f;
 	#endif
-			float fTimeMS = 1000.0f * gEnv->pTimer->TicksToSeconds(pAISystem->NumFrameTicks());
+			float fTimeMS = TICKS_TO_MS(pAISystem->NumFrameTicks());
 			DrawTextRightAligned(fTextPosX, fTextPosY += (fTextStepY - STEP_SMALL_DIFF),
 			                     DISPLAY_INFO_SCALE_SMALL, fTimeMS > maxVal ? Col_Red : Col_White, "%.2f ms        AI", fTimeMS);
 		}
@@ -3041,7 +3050,7 @@ void C3DEngine::DisplayInfo(float& fTextPosX, float& fTextPosY, float& fTextStep
 	#else
 			const float maxVal = 50.f;
 	#endif
-			float fTimeMS = 1000.0f * gEnv->pTimer->TicksToSeconds(gEnv->pGameFramework->GetPreUpdateTicks());
+			float fTimeMS = TICKS_TO_MS(gEnv->pGameFramework->GetPreUpdateTicks());
 			DrawTextRightAligned(fTextPosX, fTextPosY += (fTextStepY - STEP_SMALL_DIFF),
 			                     DISPLAY_INFO_SCALE_SMALL, fTimeMS > maxVal ? Col_Red : Col_White, "%.2f ms    Action", fTimeMS);
 		}
@@ -3089,7 +3098,7 @@ void C3DEngine::DisplayInfo(float& fTextPosX, float& fTextPosY, float& fTextStep
 		{
 			SStreamEngineStatistics stat = gEnv->pSystem->GetStreamEngine()->GetStreamingStatistics();
 
-			float fTimeMS = 1000.0f * gEnv->pTimer->TicksToSeconds(stat.nMainStreamingThreadWait);
+			float fTimeMS = TICKS_TO_MS(stat.nMainStreamingThreadWait);
 			DrawTextRightAligned(fTextPosX, fTextPosY += (fTextStepY - STEP_SMALL_DIFF),
 			                     DISPLAY_INFO_SCALE_SMALL, Col_White, "%3.1f ms     StreamFin", fTimeMS);
 
@@ -3099,7 +3108,7 @@ void C3DEngine::DisplayInfo(float& fTextPosX, float& fTextPosY, float& fTextStep
 			SNetworkPerformance stat;
 			gEnv->pNetwork->GetPerformanceStatistics(&stat);
 
-			float fTimeMS = 1000.0f * gEnv->pTimer->TicksToSeconds(stat.m_nNetworkSync);
+			float fTimeMS = TICKS_TO_MS(stat.m_nNetworkSync);
 			DrawTextRightAligned(fTextPosX, fTextPosY += (fTextStepY - STEP_SMALL_DIFF),
 			                     DISPLAY_INFO_SCALE_SMALL, Col_White, "%3.1f ms     NetworkSync", fTimeMS);
 		}
@@ -3145,7 +3154,7 @@ void C3DEngine::DisplayInfo(float& fTextPosX, float& fTextPosY, float& fTextStep
 		}
 		DrawTextRightAligned(fTextPosX, fTextPosY += fTextStepY, 1.5f, ColorF(1.0f, 1.0f, 0.5f, 1.0f),
 		                     "FPS %.1f [%.0f..%.0f], %s over %.1f s",
-		                     m_fAverageFPS, m_fMinFPS, m_fMaxFPS, sMode, fBlendTime);
+		                     m_fAverageFPS, m_fMinFPS, m_fMaxFPS, sMode, (float)fBlendTime.GetSeconds());
 	}
 	else
 	{
@@ -3156,7 +3165,8 @@ void C3DEngine::DisplayInfo(float& fTextPosX, float& fTextPosY, float& fTextStep
 		nFrameId++;
 		int nSlotId = nFrameId % nHistorySize;
 		assert(nSlotId >= 0 && nSlotId < nHistorySize);
-		arrfFrameRateHistory[nSlotId] = min(9999.f, GetTimer()->GetFrameRate());
+		// Float inaccuracy is fine, debug/profiling
+		arrfFrameRateHistory[nSlotId] = min(9999.f, (float)GTimer(render)->GetFrameRate());
 
 		float fMinFPS = 9999.0f;
 		float fMaxFPS = 0;
@@ -3182,18 +3192,19 @@ void C3DEngine::DisplayInfo(float& fTextPosX, float& fTextPosY, float& fTextStep
 		m_fMinFPS = m_fMinFPSDecay = fMinFPS;
 		m_fMaxFPS = m_fMaxFPSDecay = fMaxFPS;
 
+		// Float inaccuracy is fine, debug/profiling
 		//only difference to r_DisplayInfo 1, need ms for GPU time
-		float fMax = (int(GetCurTimeSec() * 2) & 1) ? 999.f : 888.f;
+		float fMax = (int(GetGTimer()->GetFrameStartTime().GetSeconds() * 2) & 1) ? 999.f : 888.f;
 		if (bEnhanced)
 		{
 			const RPProfilerStats* pFrameRPPStats = GetRenderer()->GetRPPStats(eRPPSTATS_OverallFrame);
-			float gpuTime = pFrameRPPStats ? pFrameRPPStats->gpuTime : 0.0f;
-			static float sGPUTime = 0.f;
-			if (gpuTime < 1000.f && gpuTime > 0.01f) sGPUTime = gpuTime;//catch sporadic jumps
-			if (sGPUTime > 0.01f)
-				DrawTextRightAligned(fTextPosX, fTextPosY += fTextStepY, DISPLAY_INFO_SCALE_SMALL, (gpuTime >= 40.f) ? Col_Red : Col_White, "%3.1f ms       GPU", sGPUTime);
+			CTimeValue gpuTime = pFrameRPPStats ? pFrameRPPStats->gpuTime : 0;
+			static CTimeValue sGPUTime = 0;
+			if (gpuTime < 1 && gpuTime.GetMilliSeconds() > "0.01") sGPUTime = gpuTime;//catch sporadic jumps
+			if (sGPUTime.GetMilliSeconds() > "0.01")
+				DrawTextRightAligned(fTextPosX, fTextPosY += fTextStepY, DISPLAY_INFO_SCALE_SMALL, (gpuTime.GetMilliSeconds() >= 40) ? Col_Red : Col_White, "%3.1f ms       GPU", sGPUTime);
 			DrawTextRightAligned(fTextPosX, fTextPosY += fTextStepY, 1.4f, ColorF(1.0f, 1.0f, 0.2f, 1.0f), "FPS %5.1f (%3d..%3d)(%3.1f ms)",
-			                     min(fMax, fFrameRate), (int)min(fMax, fMinFPS), (int)min(fMax, fMaxFPS), GetTimer()->GetFrameTime() * 1000.0f);
+			                     min(fMax, fFrameRate), (int)min(fMax, fMinFPS), (int)min(fMax, fMaxFPS), (float)GTimer(render)->GetFrameTime().GetMilliSeconds());
 		}
 		else
 		{

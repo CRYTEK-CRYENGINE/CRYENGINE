@@ -34,10 +34,10 @@ CParticleEmitter::CParticleEmitter(CParticleEffect* pEffect, uint emitterId)
 	, m_entityOwner(nullptr)
 	, m_entitySlot(-1)
 	, m_emitterGeometrySlot(-1)
-	, m_time(0.0f)
-	, m_timeCreated(0.0f)
-	, m_timeUpdated(0.0f)
-	, m_timeStable(0.0f)
+	, m_time(0)
+	, m_timeCreated(0)
+	, m_timeUpdated(0)
+	, m_timeStable(0)
 	, m_initialSeed(0)
 	, m_emitterId(emitterId)
 	, m_unrendered(0)
@@ -162,7 +162,7 @@ void CParticleEmitter::Update()
 		// Update only for last frame, even if update skipped for longer
 		m_timeUpdated = m_time;
 
-	const float frameTime = gEnv->pTimer->GetFrameTime() * GetTimeScale();
+	const CTimeValue frameTime = GetGTimer()->GetFrameTime() * GetTimeScale();
 	m_time += frameTime;
 	++m_currentSeed;
 	m_unrendered++;
@@ -408,17 +408,17 @@ void CParticleEmitter::InitSeed()
 	if (m_spawnParams.nSeed != -1)
 	{
 		m_initialSeed = uint32(m_spawnParams.nSeed);
-		m_time = 0.0f;
+		m_time.SetSeconds(0);
 	}
 	else if (forcedSeed != 0)
 	{
 		m_initialSeed = forcedSeed;
-		m_time = 0.0f;
+		m_time.SetSeconds(0);
 	}
 	else
 	{
 		m_initialSeed = cry_random_uint32();
-		m_time = gEnv->pTimer->GetCurrTime();
+		m_time = GetGTimer()->GetFrameStartTime();
 	}
 	m_timeCreated = m_time;
 	m_currentSeed = m_initialSeed;
@@ -436,7 +436,7 @@ void CParticleEmitter::Activate(bool activate)
 		InitSeed();
 		m_timeUpdated = m_time;
 		m_timeStable = m_time + timings.m_equilibriumTime;
-		m_timeDeath = m_time + timings.m_maxTotalLIfe;
+		m_timeDeath = m_time + timings.m_maxTotalLife;
 		m_bounds = m_realBounds = m_nextBounds = AABB::RESET;
 		m_alive = true;
 
@@ -501,8 +501,8 @@ void CParticleEmitter::SetLocation(const QuatTS& loc)
 
 	if (m_registered)
 	{
-		const float deltaTime = gEnv->pTimer->GetFrameTime();
-		const float invDeltaTime = abs(deltaTime) > FLT_EPSILON ? rcp_fast(deltaTime) : 0.0f;
+		const CTimeValue deltaTime = GetGTimer()->GetFrameTime();
+		const float invDeltaTime = abs(deltaTime).BADGetSeconds() > FLT_EPSILON ? rcp_fast(deltaTime.BADGetSeconds()) : 0.0f;
 		const Vec3 velocity0 = m_parentContainer.GetIOVec3Stream(EPVF_Velocity).Load(0);
 		const Vec3 angularVelocity0 = m_parentContainer.GetIOVec3Stream(EPVF_AngularVelocity).Load(0);
 

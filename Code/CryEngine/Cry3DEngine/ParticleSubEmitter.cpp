@@ -5,7 +5,7 @@
 #include "ParticleEmitter.h"
 #include <CryAudio/IObject.h>
 
-static const float fMIN_PULSE_PERIOD = 0.1f;
+static const CTimeValue fMIN_PULSE_PERIOD("0.1");
 
 //////////////////////////////////////////////////////////////////////////
 // CParticleSubEmitter implementation.
@@ -27,8 +27,8 @@ CParticleSubEmitter::CParticleSubEmitter(CParticleSource* pSource, CParticleCont
 	assert(pCont);
 	assert(pSource);
 	SetLastLoc();
-	m_fActivateAge = m_fLastEmitAge = -fHUGE;
-	m_fStartAge = m_fStopAge = m_fRepeatAge = fHUGE;
+	m_fActivateAge = m_fLastEmitAge = -tHUGE;
+	m_fStartAge = m_fStopAge = m_fRepeatAge = tHUGE;
 	m_pForce = NULL;
 }
 
@@ -38,7 +38,7 @@ CParticleSubEmitter::~CParticleSubEmitter()
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CParticleSubEmitter::Initialize(float fAge)
+void CParticleSubEmitter::Initialize(const CTimeValue& fAge)
 {
 	const ResourceParticleParams& params = GetParams();
 
@@ -51,26 +51,27 @@ void CParticleSubEmitter::Initialize(float fAge)
 	m_fActivateAge = fAge;
 
 	// Compute lifetime params.
-	m_fStartAge = m_fStopAge = m_fActivateAge + params.fSpawnDelay(VRANDOM);
-	m_fLastEmitAge = -fHUGE;
+	// Float inaccuracy is fine, randomization
+	m_fStartAge = m_fStopAge = m_fActivateAge + mpfloat().lossy(params.fSpawnDelay(VRANDOM));
+	m_fLastEmitAge = -tHUGE;
 	if (params.bContinuous)
 	{
-		if (params.fEmitterLifeTime)
-			m_fStopAge += params.fEmitterLifeTime(VRANDOM);
+		if (params.fEmitterLifeTime != 0)
+			m_fStopAge += mpfloat().lossy(params.fEmitterLifeTime(VRANDOM));
 		else
-			m_fStopAge = fHUGE;
+			m_fStopAge = tHUGE;
 	}
 
 	// Compute next repeat age.
-	if (params.fPulsePeriod)
+	if (params.fPulsePeriod != 0)
 	{
-		float fRepeat = params.fPulsePeriod(VRANDOM);
+		CTimeValue fRepeat = mpfloat().lossy(params.fPulsePeriod(VRANDOM));
 		fRepeat = max(fRepeat, fMIN_PULSE_PERIOD);
 		m_fRepeatAge = m_fActivateAge + fRepeat;
 		m_fStopAge = min(m_fStopAge, m_fRepeatAge);
 	}
 	else
-		m_fRepeatAge = fHUGE;
+		m_fRepeatAge = tHUGE;
 
 	m_bExecuteAudioTrigger = true;
 }
@@ -88,25 +89,25 @@ void CParticleSubEmitter::Deactivate()
 	}
 }
 
-void CParticleSubEmitter::UpdateState(float fAgeAdjust)
+void CParticleSubEmitter::UpdateState(const CTimeValue& fAgeAdjust)
 {
 	// Evolve emitter state.
 	m_fActivateAge += fAgeAdjust;
 	m_fLastEmitAge += fAgeAdjust;
 
-	float fAge = GetAge();
+	CTimeValue fAge = GetAge();
 
 	ParticleParams::ESpawn eSpawn = GetParams().eSpawnIndirection;
-	float fActivateAge = eSpawn == eSpawn.ParentCollide ? GetSource().GetCollideAge()
+	CTimeValue fActivateAge = eSpawn == eSpawn.ParentCollide ? GetSource().GetCollideAge()
 	                     : eSpawn == eSpawn.ParentDeath ? GetSource().GetStopAge()
-	                     : 0.f;
+	                     : CTimeValue(0);
 	if (fActivateAge > m_fActivateAge && fAge >= fActivateAge)
 		Initialize(fActivateAge);
 
 	m_fStopAge = min(m_fStopAge, GetSource().GetStopAge());
 }
 
-float CParticleSubEmitter::GetStopAge(ParticleParams::ESoundControlTime eControl) const
+CTimeValue CParticleSubEmitter::GetStopAge(ParticleParams::ESoundControlTime eControl) const
 {
 	switch (eControl)
 	{
@@ -120,16 +121,17 @@ float CParticleSubEmitter::GetStopAge(ParticleParams::ESoundControlTime eControl
 	}
 }
 
-float CParticleSubEmitter::GetAgeRelativeTo(float fStopAge, float fAgeAdjust) const
+// Based on how this is used, not as a 'time' value but for ratios etc. returns seconds.
+mpfloat CParticleSubEmitter::GetAgeRelativeTo(const CTimeValue& fStopAge, const CTimeValue& fAgeAdjust) const
 {
-	float fAge = GetAge() + fAgeAdjust;
+	CTimeValue fAge = GetAge() + fAgeAdjust;
 	if (min(fAge, fStopAge) <= m_fStartAge)
-		return 0.f;
+		return 0;
 
-	return div_min(fAge - m_fStartAge, fStopAge - m_fStartAge, 1.f);
+	return div_min(fAge - m_fStartAge, fStopAge - m_fStartAge, 1).GetSeconds();
 }
 
-float CParticleSubEmitter::GetStrength(float fAgeAdjust /* = 0.f */, ParticleParams::ESoundControlTime const eControl /* = EmitterLifeTime */) const
+mpfloat CParticleSubEmitter::GetStrength(const CTimeValue& fAgeAdjust /* = 0.f */, ParticleParams::ESoundControlTime const eControl /* = EmitterLifeTime */) const
 {
 	float fStrength = GetMain().GetSpawnParams().fStrength;
 	if (fStrength < 0.f)
@@ -137,10 +139,10 @@ float CParticleSubEmitter::GetStrength(float fAgeAdjust /* = 0.f */, ParticlePar
 		if (GetParams().bContinuous)
 			return GetRelativeAge(eControl, fAgeAdjust);
 		else
-			return div_min((float)m_nEmitIndex, GetParams().fCount.GetMaxValue(), 1.f);
+			return BADMP(div_min((float)m_nEmitIndex, GetParams().fCount.GetMaxValue(), 1.f));
 	}
 	else
-		return min(fStrength, 1.f);
+		return BADMP(min(fStrength, 1.f));
 }
 
 void CParticleSubEmitter::EmitParticles(SParticleUpdateContext& context)
@@ -149,49 +151,50 @@ void CParticleSubEmitter::EmitParticles(SParticleUpdateContext& context)
 
 	context.fDensityAdjust = 1.f;
 
-	float fAge = GetAge();
-	const float fFullLife = GetContainer().GetMaxParticleFullLife() + GetParticleTimer()->GetFrameTime() * 2;
+	CTimeValue fAge = GetAge();
+	const CTimeValue fFullLife = GetContainer().GetMaxParticleFullLife() + GTimer(particle)->GetFrameTime() * 2;
 
 	// Iterate through one or more pulse periods
 	// Compute max possible pulses as an extra check to avoid infinite looping
 	int nMaxPulses = 1;
-	if (params.fPulsePeriod)
+	if (params.fPulsePeriod != 0)
 	{
-		const float fMinPulsePeriod = max(params.fPulsePeriod(VMIN), fMIN_PULSE_PERIOD);
-		nMaxPulses += int_ceil(context.fUpdateTime / fMinPulsePeriod);
+		const CTimeValue fMinPulsePeriod = max(BADTIME(params.fPulsePeriod(VMIN)), fMIN_PULSE_PERIOD);
+		nMaxPulses += (int)int_ceil(context.fUpdateTime / fMinPulsePeriod);
 	}
 
 	while (nMaxPulses-- > 0)
 	{
 		// Determine time window to update.
-		float fAge0 = max(m_fLastEmitAge, m_fStartAge);
-		float fAge1 = min(fAge, m_fStopAge);
+		CTimeValue fAge0 = max(m_fLastEmitAge, m_fStartAge);
+		CTimeValue fAge1 = min(fAge, m_fStopAge);
 
 		// Skip time before emitted particles would still be alive.
 		fAge0 = max(fAge0, fAge - fFullLife);
 
 		if (fAge1 > m_fLastEmitAge && fAge0 <= fAge1)
 		{
-			const float fStrength = GetStrength((fAge0 + fAge1) * 0.5f - fAge);
+			const mpfloat fStrength = GetStrength((fAge0 + fAge1) * "0.5" - fAge);
 			float fCount = params.fCount(VRANDOM, fStrength);
 			if (!GetContainer().GetParent())
 				fCount *= GetMain().GetEmitCountScale();
 			if (fCount > 0.f)
 			{
-				const float fEmitterLife = m_fStopAge - m_fStartAge;
-				float fParticleLife = params.fParticleLifeTime(VMAX, fStrength);
-				if (fParticleLife == 0.f)
+				const CTimeValue fEmitterLife = m_fStopAge - m_fStartAge;
+				CTimeValue fParticleLife = BADTIME(params.fParticleLifeTime(VMAX, fStrength));
+				if (fParticleLife == 0)
 					fParticleLife = fEmitterLife;
 
-				if (fParticleLife > 0.f)
+				if (fParticleLife > 0)
 				{
 					EmitParticleData data;
 					data.Location = GetSource().GetLocation();
 
-					if (params.bContinuous && fEmitterLife > 0.f)
+					if (params.bContinuous && fEmitterLife > 0)
 					{
+						// PERSONAL DEBUG: Why use 'float' for particle count?
 						// Continuous emission rate which maintains fCount particles
-						float fAgeIncrement = min(fParticleLife, fEmitterLife) / fCount;
+						CTimeValue fAgeIncrement = min(fParticleLife, fEmitterLife) / BADMP(fCount);
 
 						// Set up location interpolation.
 						const QuatTS& locA = GetSource().GetLocation();
@@ -202,14 +205,14 @@ void CParticleSubEmitter::EmitParticles(SParticleUpdateContext& context)
 							bool  bInterp;
 							bool  bSlerp;
 							float fInterp;
-							float fInterpInc;
+							CTimeValue fInterpInc;
 							Vec3  vArc;
 							float fA;
 							float fCosA;
 							float fInvSinA;
 						} Interp;
 
-						Interp.bInterp = context.fUpdateTime > 0.f && !params.bMoveRelativeEmitter
+						Interp.bInterp = context.fUpdateTime > 0 && !params.bMoveRelativeEmitter
 						                 && m_LastLoc.s >= 0.f && !IsEquivalent(locA, locB, 0.0045f, 1e-5f);
 
 						if (params.fMaintainDensity && (Interp.bInterp || params.nEnvFlags & ENV_PHYS_AREA))
@@ -219,7 +222,7 @@ void CParticleSubEmitter::EmitParticles(SParticleUpdateContext& context)
 							{
 								fAdjust = Lerp(1.f, fAdjust, params.fMaintainDensity);
 								float fInvAdjust = 1.f / fAdjust;
-								fAgeIncrement *= fInvAdjust;
+								fAgeIncrement *= BADMP(fInvAdjust);
 								context.fDensityAdjust = Lerp(1.f, fInvAdjust, params.fMaintainDensity.fReduceAlpha);
 							}
 						}
@@ -227,8 +230,8 @@ void CParticleSubEmitter::EmitParticles(SParticleUpdateContext& context)
 						if (Interp.bInterp)
 						{
 							Interp.bSlerp = false;
-							Interp.fInterp = div_min(fAge - fAge0, context.fUpdateTime, 1.f);
-							Interp.fInterpInc = -div_min(fAgeIncrement, context.fUpdateTime, 1.f);
+							Interp.fInterp = div_min(fAge - fAge0, context.fUpdateTime, 1).BADGetSeconds();
+							Interp.fInterpInc = -div_min(fAgeIncrement, context.fUpdateTime, 1);
 
 							if (!(GetCVars()->e_ParticlesDebug & AlphaBit('q')))
 							{
@@ -246,7 +249,7 @@ void CParticleSubEmitter::EmitParticles(SParticleUpdateContext& context)
 								 */
 
 								Vec3 vVelB = GetSource().GetVelocity().vLin;
-								Vec3 vDeltaAdjusted = locB.t - locA.t - vVelB * context.fUpdateTime;
+								Vec3 vDeltaAdjusted = locB.t - locA.t - vVelB * context.fUpdateTime.BADGetSeconds();
 								if (!vDeltaAdjusted.IsZero())
 								{
 									Quat qDelta = locB.q * locA.q.GetInverted();
@@ -269,7 +272,7 @@ void CParticleSubEmitter::EmitParticles(SParticleUpdateContext& context)
 						if (params.Connection.bConnectToOrigin)
 							fAge -= fAgeIncrement;
 
-						float fPast = fAge - fAge0, fMinPast = fAge - fAge1;
+						CTimeValue fPast = fAge - fAge0, fMinPast = fAge - fAge1;
 						for (; fPast > fMinPast; fPast -= fAgeIncrement)
 						{
 							if (Interp.bInterp)
@@ -292,12 +295,12 @@ void CParticleSubEmitter::EmitParticles(SParticleUpdateContext& context)
 								{
 									data.Location.t.SetLerp(locA.t, locB.t, Interp.fInterp);
 								}
-								Interp.fInterp += Interp.fInterpInc;
+								Interp.fInterp += Interp.fInterpInc.BADGetSeconds();
 							}
 
 							if (!EmitParticle(context, data, fPast))
 							{
-								GetContainer().GetCounts().particles.reject += (fPast - fMinPast) / fAgeIncrement;
+								GetContainer().GetCounts().particles.reject += BADF((fPast - fMinPast) / fAgeIncrement);
 								break;
 							}
 						}
@@ -373,7 +376,7 @@ void CParticleSubEmitter::UpdateForce()
 
 	// Set or clear physical force.
 
-	float fAge = GetAge();
+	CTimeValue fAge = GetAge();
 	if (fAge >= m_fStartAge && fAge <= GetParticleStopAge())
 	{
 		struct SForceGeom
@@ -390,7 +393,7 @@ void CParticleSubEmitter::UpdateForce()
 
 		const ResourceParticleParams& params = GetParams();
 
-		float fStrength = GetStrength();
+		mpfloat fStrength = GetStrength();
 		SPhysEnviron const& PhysEnv = GetMain().GetPhysEnviron();
 
 		// Location.
@@ -421,22 +424,40 @@ void CParticleSubEmitter::UpdateForce()
 		bbTrav.Add(Vec3(ZERO));
 
 		// Force magnitude: speed times relative particle density.
-		float fPLife = params.fParticleLifeTime(0.5f, fStrength);
-		float fTime = fAge - m_fStartAge;
+		CTimeValue fPLife = BADTIME(params.fParticleLifeTime("0.5", fStrength));
+		CTimeValue fTime = fAge - m_fStartAge;
 
-		float fSpeed = params.fSpeed(0.5f, fStrength) * GetMain().GetSpawnParams().fSpeedScale;
-		float fDist = Travel::TravelDistance(abs(fSpeed), params.fAirResistance(0.5f, fStrength, 0.5f), min(fTime, fPLife));
-		fSpeed = Travel::TravelSpeed(abs(fSpeed), params.fAirResistance(0.5f, fStrength, 0.5f), min(fTime, fPLife));
-		float fForce = fSpeed * params.fAlpha(0.5f, fStrength, 0.5f) * force.qpLoc.s;
+		/*
+			PERSONAL CRYTEK: & PERSONAL NOTE:
+				Currently fStrength and relativeParticleAge are used as 'Time' values during interpolation.
 
-		if (params.bContinuous && fPLife > 0.f)
+				Splines interpolate between 2 sets of values, not necessarrily time.
+					- E.g. Air Resistance vs Strength, given strength get air resistance with interp X and Y
+					  Bad logic to use 'CTimeValue' there, BUT mpfloat should an option as the storage type/etc!
+				
+				Unfortunately, to allow for mpfloat storage/use etc. for better accuracy; Large rewrites would have to be done.
+				e.g.
+					Storage types updated to support Spline<CTimeValue> 
+					SFloat, UFloat, UnitFloat8 and UnitFloat replacements....
+					Plenty to do with loading/saving/converting spline key times/values and so on.
+
+					Since data types optimized, just like ParticleUpdate/etc., changes mostly reverted due to scope of work and lack of experience with CE Req's/etc.
+					Quite a few still remain, can be removed or improved.
+		*/
+
+		float fSpeed = params.fSpeed("0.5", fStrength) * GetMain().GetSpawnParams().fSpeedScale;
+		float fDist = Travel::TravelDistance(abs(fSpeed), params.fAirResistance("0.5", fStrength, "0.5"), min(fTime, fPLife));
+		fSpeed = Travel::TravelSpeed(abs(fSpeed), params.fAirResistance("0.5", fStrength, "0.5"), min(fTime, fPLife));
+		float fForce = fSpeed * params.fAlpha("0.5", fStrength, "0.5") * force.qpLoc.s;
+
+		if (params.bContinuous && fPLife > 0)
 		{
 			// Ramp up/down over particle life.
-			float fStopAge = GetStopAge();
+			CTimeValue fStopAge = GetStopAge();
 			if (fTime < fPLife)
-				fForce *= fTime / fPLife;
+				fForce *= BADF(fTime / fPLife);
 			else if (fTime > fStopAge)
-				fForce *= 1.f - (fTime - fStopAge) / fPLife;
+				fForce *= BADF(1 - (fTime - fStopAge) / fPLife);
 		}
 
 		// Force direction.
@@ -453,7 +474,7 @@ void CParticleSubEmitter::UpdateForce()
 		force.bbOuter.Augment(bbTrav);
 
 		// Expand by size.
-		float fSize = params.fSize(0.5f, fStrength, VMAX);
+		float fSize = params.fSize("0.5", fStrength, VMAX);
 		force.bbOuter.Expand(Vec3(fSize));
 
 		// Scale: Normalise box size, so we can handle some geom changes through scaling.
@@ -592,7 +613,7 @@ void CParticleSubEmitter::UpdateAudio()
 		{
 			if (m_audioParameterId != CryAudio::InvalidControlId && params.fSoundFXParam(VMAX, VMIN) < 1.0f)
 			{
-				float const value = params.fSoundFXParam(m_ChaosKey, GetStrength(0.0f, params.eSoundControlTime));
+				float const value = params.fSoundFXParam(m_ChaosKey, GetStrength(0, params.eSoundControlTime));
 				m_pIAudioObject->SetParameter(m_audioParameterId, value);
 			}
 
@@ -612,9 +633,9 @@ void CParticleSubEmitter::UpdateAudio()
 		}
 		else if (m_bExecuteAudioTrigger)
 		{
-			float fAge = GetAge();
-			float fAge0 = m_fStartAge;
-			float fAge1 = m_fStopAge + GetParticleTimer()->GetFrameTime();
+			CTimeValue fAge = GetAge();
+			CTimeValue fAge0 = m_fStartAge;
+			CTimeValue fAge1 = m_fStopAge + GTimer(particle)->GetFrameTime();
 			if (fAge >= fAge0 && fAge <= fAge1)
 			{
 				if (!params.sStartTrigger.empty())
@@ -636,7 +657,7 @@ void CParticleSubEmitter::UpdateAudio()
 					if (!spawnParams.audioRtpc.empty())
 					{
 						m_audioParameterId = CryAudio::StringToId(spawnParams.audioRtpc.c_str());
-						float const value = params.fSoundFXParam(m_ChaosKey, GetStrength(0.0f, params.eSoundControlTime));
+						float const value = params.fSoundFXParam(m_ChaosKey, GetStrength(0, params.eSoundControlTime));
 						m_pIAudioObject->SetParameter(m_audioParameterId, value);
 					}
 
@@ -657,7 +678,7 @@ void CParticleSubEmitter::UpdateAudio()
 	m_bExecuteAudioTrigger = false;
 }
 
-int CParticleSubEmitter::EmitParticle(SParticleUpdateContext& context, const EmitParticleData& data_in, float fAge, QuatTS* plocPreTransform)
+int CParticleSubEmitter::EmitParticle(SParticleUpdateContext& context, const EmitParticleData& data_in, const CTimeValue& fAge, QuatTS* plocPreTransform)
 {
 	const ResourceParticleParams& params = GetParams();
 
@@ -729,7 +750,7 @@ int CParticleSubEmitter::EmitParticle(SParticleUpdateContext& context, const Emi
 	return 1;
 }
 
-Vec3 CParticleSubEmitter::GetEmitFocusDir(const QuatTS& loc, float fStrength, Quat* pRot) const
+Vec3 CParticleSubEmitter::GetEmitFocusDir(const QuatTS& loc, const mpfloat& fStrength, Quat* pRot) const
 {
 	const ParticleParams& params = GetParams();
 
@@ -777,7 +798,7 @@ void CParticleSubEmitter::DeactivateAudio()
 		if (m_audioParameterId != CryAudio::InvalidControlId)
 		{
 			ResourceParticleParams const& params = GetParams();
-			float const value = params.fSoundFXParam(m_ChaosKey, GetStrength(0.0f, params.eSoundControlTime));
+			float const value = params.fSoundFXParam(m_ChaosKey, GetStrength(0, params.eSoundControlTime));
 			m_pIAudioObject->SetParameter(m_audioParameterId, value);
 		}
 
@@ -800,7 +821,7 @@ void CParticleSubEmitter::DeactivateAudio()
 	}
 }
 
-float CParticleSubEmitter::ComputeDensityIncrease(float fStrength, float fParticleLife, const QuatTS& locA, const QuatTS* plocB) const
+float CParticleSubEmitter::ComputeDensityIncrease(const mpfloat& fStrength, const CTimeValue& fParticleLife, const QuatTS& locA, const QuatTS* plocB) const
 {
 	// Increase emission rate to compensate for moving emitter and non-uniform forces.
 	const ResourceParticleParams& params = GetParams();
@@ -813,15 +834,15 @@ float CParticleSubEmitter::ComputeDensityIncrease(float fStrength, float fPartic
 	opts.fMaxLife = fParticleLife;
 
 	FEmitterFixed fixed = { m_ChaosKey, fStrength };
-	float fSize = params.fSize(0.5f, fStrength, VMAX) * 2.f;
-	float fGravityScale = params.fGravityScale(0.5f, fStrength, 0.5f);
+	float fSize = params.fSize("0.5", fStrength, VMAX) * 2.f;
+	float fGravityScale = params.fGravityScale("0.5", fStrength, "0.5");
 
 	// Get emission volume for default orientation and forces
 	SForceParams forces;
 	static_cast<SPhysForces&>(forces) = PhysEnv.m_UniformForces;
 	forces.vAccel = forces.vAccel * fGravityScale + params.vAcceleration;
 	forces.vWind.zero();
-	forces.fDrag = params.fAirResistance(0.5f, fStrength, 0.5f);
+	forces.fDrag = params.fAirResistance("0.5", fStrength, "0.5");
 	forces.fStretch = 0.f;
 
 	AABB bbTravel(AABB::RESET);

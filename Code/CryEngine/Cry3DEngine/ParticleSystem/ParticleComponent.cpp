@@ -120,7 +120,7 @@ void SComponentParams::GetMaxParticleCounts(int& total, int& perFrame, float min
 {
 	total = m_maxParticlesBurst;
 	const float rate = m_maxParticleRate + m_maxParticlesPerFrame * maxFPS;
-	const float extendedLife = m_maxParticleLife + rcp(minFPS); // Particles stay 1 frame after death
+	const float extendedLife = m_maxParticleLife.BADGetSeconds() + rcp(minFPS); // Particles stay 1 frame after death
 	if (rate > 0.0f && std::isfinite(extendedLife))
 		total += int_ceil(rate * extendedLife);
 	perFrame = int(m_maxParticlesBurst + m_maxParticlesPerFrame) + int_ceil(m_maxParticleRate / minFPS);
@@ -243,25 +243,25 @@ void CParticleComponent::UpdateTimings()
 {
 	// Adjust parent lifetimes to include child lifetimes
 	STimingParams params {};
-	float maxChildEq = 0.0f, maxChildLife = 0.0f;
+	CTimeValue maxChildEq = 0, maxChildLife = 0;
 	for (auto& pChild : m_children)
 	{
 		pChild->UpdateTimings();
 		const STimingParams& timingsChild = pChild->ComponentParams();
 		SetMax(maxChildEq, timingsChild.m_equilibriumTime);
-		SetMax(maxChildLife, timingsChild.m_maxTotalLIfe);
+		SetMax(maxChildLife, timingsChild.m_maxTotalLife);
 	}
 
-	const float moreEq = maxChildEq - FiniteOr(m_Params.m_maxParticleLife, 0.0f);
-	if (moreEq > 0.0f)
+	const CTimeValue moreEq = maxChildEq - (IsValid(m_Params.m_maxParticleLife) ? m_Params.m_maxParticleLife : 0);
+	if (moreEq > 0)
 	{
 		m_Params.m_stableTime      += moreEq ;
 		m_Params.m_equilibriumTime += moreEq ;
 	}
-	const float moreLife = maxChildLife - FiniteOr(m_Params.m_maxParticleLife, 0.0f);
-	if (moreLife > 0.0f)
+	const CTimeValue moreLife = maxChildLife - (IsValid(m_Params.m_maxParticleLife) ? m_Params.m_maxParticleLife : 0);
+	if (moreLife > 0)
 	{
-		m_Params.m_maxTotalLIfe += moreLife;
+		m_Params.m_maxTotalLife += moreLife;
 	}
 }
 

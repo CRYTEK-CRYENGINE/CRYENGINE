@@ -23,8 +23,8 @@
 
 #include <CryThreading/IJobManager_JobDelegator.h>
 
-static const float fUNSEEN_EMITTER_RESET_TIME = 5.f;    // Max time to wait before freeing unseen emitter resources
-static const float fVELOCITY_SMOOTHING_TIME = 0.125f;   // Interval to smooth computed entity velocity
+static const CTimeValue fUNSEEN_EMITTER_RESET_TIME = 5;			// Max time to wait before freeing unseen emitter resources
+static const CTimeValue fVELOCITY_SMOOTHING_TIME   = "0.125";  // Interval to smooth computed entity velocity
 
 /*
    Scheme for Emitter updating & bounding volume computation.
@@ -120,11 +120,11 @@ bool CParticleEmitter::IsAlive() const
 	if (m_fAge <= m_fDeathAge)
 		return true;
 
-	if (GetSpawnParams().fPulsePeriod > 0.f)
+	if (GetSpawnParams().fPulsePeriod > 0)
 		// Between pulses.
 		return true;
 
-	if (m_fAge < 0.f)
+	if (m_fAge < 0)
 		// Emitter paused.
 		return true;
 
@@ -158,7 +158,7 @@ void CParticleEmitter::UpdateState()
 	bool bUpdateState = (GetRndFlags()&ERF_HIDDEN)==0 && (bUpdateBounds || m_fAge >= m_fStateChangeAge);
 	if (bUpdateState)
 	{
-		m_fStateChangeAge = fHUGE;
+		m_fStateChangeAge = tHUGE;
 
 		// Update states and bounds.
 		if (!m_Containers.empty())
@@ -180,9 +180,9 @@ void CParticleEmitter::UpdateState()
 
 void CParticleEmitter::Activate(bool bActive)
 {
-	float fPrevAge = m_fAge;
+	CTimeValue fPrevAge = m_fAge;
 	if (bActive)
-		Start(min(-m_fAge, 0.f));
+		Start(min(-m_fAge, CTimeValue(0)));
 	else
 		Stop();
 	UpdateTimes(m_fAge - fPrevAge);
@@ -190,12 +190,12 @@ void CParticleEmitter::Activate(bool bActive)
 
 void CParticleEmitter::Restart()
 {
-	float fPrevAge = m_fAge;
+	CTimeValue fPrevAge = m_fAge;
 	Start();
 	UpdateTimes(m_fAge - fPrevAge);
 }
 
-void CParticleEmitter::UpdateTimes(float fAgeAdjust)
+void CParticleEmitter::UpdateTimes(const CTimeValue& fAgeAdjust)
 {
 	if (m_Containers.empty() && m_pTopEffect)
 	{
@@ -205,8 +205,8 @@ void CParticleEmitter::UpdateTimes(float fAgeAdjust)
 	}
 	else
 	{
-		m_fDeathAge = 0.f;
-		m_fStateChangeAge = fHUGE;
+		m_fDeathAge.SetSeconds(0);
+		m_fStateChangeAge = tHUGE;
 
 		// Update subemitter timings, and compute exact death age.
 		for (auto& c : m_Containers)
@@ -223,10 +223,10 @@ void CParticleEmitter::UpdateTimes(float fAgeAdjust)
 
 void CParticleEmitter::Kill()
 {
-	if (m_fDeathAge >= 0.f)
+	if (m_fDeathAge >= 0)
 	{
 		CParticleSource::Kill();
-		m_fDeathAge = -fHUGE;
+		m_fDeathAge = -tHUGE;
 	}
 }
 
@@ -261,11 +261,11 @@ CParticleEmitter::CParticleEmitter(const IParticleEffect* pEffect, const QuatTS&
 	: m_fMaxParticleSize(0.f)
 	, m_fEmitCountScale(1.f)
 	, m_fViewDistRatio(1.f)
-	, m_timeLastUpdate(GetParticleTimer()->GetFrameStartTime())
-	, m_fDeathAge(0.f)
-	, m_fStateChangeAge(0.f)
-	, m_fAgeLastRendered(0.f)
-	, m_fBoundsStableAge(0.f)
+	, m_timeLastUpdate(GTimer(particle)->GetFrameStartTime())
+	, m_fDeathAge(0)
+	, m_fStateChangeAge(0)
+	, m_fAgeLastRendered(0)
+	, m_fBoundsStableAge(0)
 	, m_fResetAge(fUNSEEN_EMITTER_RESET_TIME)
 	, m_pUpdateParticlesJobState(NULL)
 {
@@ -285,7 +285,7 @@ CParticleEmitter::CParticleEmitter(const IParticleEffect* pEffect, const QuatTS&
 	SetEffect(pEffect);
 
 	// Set active
-	float fStartAge = 0.f;
+	CTimeValue fStartAge;
 	if (m_SpawnParams.bPrime)
 		fStartAge = m_pTopEffect->GetEquilibriumAge(true);
 	Start(-fStartAge);
@@ -475,8 +475,8 @@ void CParticleEmitter::RefreshEffect()
 	m_PhysEnviron.Clear();
 
 	// Force state update.
-	m_fStateChangeAge = -fHUGE;
-	m_fDeathAge = fHUGE;
+	m_fStateChangeAge = -tHUGE;
+	m_fDeathAge = tHUGE;
 	m_nEmitterFlags |= ePEF_NeedsEntityUpdate;
 
 	m_Vel = ZERO;
@@ -518,10 +518,11 @@ void CParticleEmitter::SetLocation(const QuatTS& loc)
 	if (!(m_nEmitterFlags & ePEF_HasPhysics))
 	{
 		// Infer velocity from movement, smoothing over time.
-		if (float fStep = GetParticleTimer()->GetFrameTime())
+		CTimeValue fStep = GTimer(particle)->GetFrameTime();
+		if (fStep != 0)
 		{
 			Velocity3 vv;
-			vv.FromDelta(QuatT(GetLocation().q, GetLocation().t), QuatT(loc.q, loc.t), max(fStep, fVELOCITY_SMOOTHING_TIME));
+			vv.FromDelta(QuatT(GetLocation().q, GetLocation().t), QuatT(loc.q, loc.t), max(fStep, fVELOCITY_SMOOTHING_TIME).BADGetSeconds());
 			m_Vel += vv;
 		}
 	}
@@ -561,11 +562,11 @@ void CParticleEmitter::UpdateContainers()
 {
 	AABB bbPrev = m_bbWorld;
 	m_bbWorld.Reset();
-	m_fDeathAge = 0.f;
+	m_fDeathAge.SetSeconds(0);
 	for (auto& c : m_Containers)
 	{
 		c.UpdateState();
-		float fContainerLife = c.GetContainerLife();
+		CTimeValue fContainerLife = c.GetContainerLife();
 		m_fDeathAge = max(m_fDeathAge, fContainerLife);
 		if (fContainerLife > m_fAge)
 			m_fStateChangeAge = min(m_fStateChangeAge, fContainerLife);
@@ -573,7 +574,7 @@ void CParticleEmitter::UpdateContainers()
 		if (c.GetEnvironmentFlags() & REN_ANY)
 			m_bbWorld.Add(c.GetBounds());
 
-		if (IsIndependent() && fContainerLife >= fHUGE * 0.5f)
+		if (IsIndependent() && fContainerLife >= tHUGE * "0.5")
 			Warning("Immortal independent effect spawned: %s", c.GetEffect()->GetFullName().c_str());
 	}
 	if (!IsEquivalent(bbPrev, m_bbWorld))
@@ -599,7 +600,7 @@ void CParticleEmitter::SetEmitGeom(GeomRef const& geom)
 
 void CParticleEmitter::SetSpawnParams(SpawnParams const& spawnParams)
 {
-	if (ZeroIsHuge(spawnParams.fPulsePeriod) < 0.1f)
+	if (ZeroIsHuge(spawnParams.fPulsePeriod) < "0.1")
 		Warning("Particle emitter (effect %s) PulsePeriod %g too low to be useful",
 		        GetName(), spawnParams.fPulsePeriod);
 	if (spawnParams.eAttachType != m_SpawnParams.eAttachType ||
@@ -610,7 +611,7 @@ void CParticleEmitter::SetSpawnParams(SpawnParams const& spawnParams)
 	}
 	if (spawnParams.bPrime > m_SpawnParams.bPrime)
 	{
-		float fStartAge = m_pTopEffect->GetEquilibriumAge(true);
+		CTimeValue fStartAge = m_pTopEffect->GetEquilibriumAge(true);
 		if (fStartAge > m_fAge)
 		{
 			Start(-fStartAge);
@@ -739,15 +740,15 @@ void CParticleEmitter::Update()
 {
 	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 
-	m_fAge += (GetParticleTimer()->GetFrameStartTime() - m_timeLastUpdate).GetSeconds() * m_SpawnParams.fTimeScale;
-	m_timeLastUpdate = GetParticleTimer()->GetFrameStartTime();
+	m_fAge += (GTimer(particle)->GetFrameStartTime() - m_timeLastUpdate) * m_SpawnParams.fTimeScale;
+	m_timeLastUpdate = GTimer(particle)->GetFrameStartTime();
 
-	if (m_SpawnParams.fPulsePeriod > 0.f && m_fAge < m_fStopAge)
+	if (m_SpawnParams.fPulsePeriod > 0 && m_fAge < m_fStopAge)
 	{
 		// Apply external pulsing (restart).
 		if (m_fAge >= m_SpawnParams.fPulsePeriod)
 		{
-			float fPulseAge = m_fAge - fmodf(m_fAge, m_SpawnParams.fPulsePeriod);
+			CTimeValue fPulseAge = m_fAge - (m_fAge % m_SpawnParams.fPulsePeriod);
 			m_fAge -= fPulseAge;
 			m_fStopAge -= fPulseAge;
 			UpdateTimes(-fPulseAge);
@@ -765,7 +766,7 @@ void CParticleEmitter::Update()
 	if (m_fAge > m_fResetAge)
 	{
 		ResetUnseen();
-		m_fResetAge = fHUGE;
+		m_fResetAge = tHUGE;
 	}
 
 	// Update velocity
@@ -778,7 +779,7 @@ void CParticleEmitter::Update()
 	else
 	{
 		// Decay velocity, using approx exponential decay, so we reach zero soon.
-		float fDecay = max(1.f - GetParticleTimer()->GetFrameTime() / fVELOCITY_SMOOTHING_TIME, 0.f);
+		float fDecay = BADF max(1 - GTimer(particle)->GetFrameTime() / fVELOCITY_SMOOTHING_TIME, nTime(0));
 		m_Vel *= fDecay;
 	}
 
@@ -1027,7 +1028,7 @@ float CParticleEmitter::GetNearestDistance(const Vec3& vPos, float fBoundsScale)
 
 void CParticleEmitter::RenderDebugInfo()
 {
-	if (TimeNotRendered() < 0.25f)
+	if (TimeNotRendered() < "0.25")
 	{
 		bool bSelected = IsEditSelected();
 		if (bSelected || (GetCVars()->e_ParticlesDebug & AlphaBit('b')))
@@ -1211,7 +1212,7 @@ void CParticleEmitter::SerializeState(TSerialize ser)
 	if (ser.IsReading())
 	{
 		UpdateTimes();
-		m_timeLastUpdate = GetParticleTimer()->GetFrameStartTime();
+		m_timeLastUpdate = GTimer(particle)->GetFrameStartTime();
 	}
 
 	// Spawn params.

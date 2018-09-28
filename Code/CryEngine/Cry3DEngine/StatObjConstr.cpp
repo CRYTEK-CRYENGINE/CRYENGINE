@@ -142,7 +142,7 @@ void CStatObj::Init()
 	m_nInitialSubObjHideMask = 0;
 
 #if !defined (_RELEASE)
-	m_fStreamingStart = 0.0f;
+	m_fStreamingStart.SetSeconds(0);
 #endif
 
 #ifdef OBJMAN_STREAM_STATS

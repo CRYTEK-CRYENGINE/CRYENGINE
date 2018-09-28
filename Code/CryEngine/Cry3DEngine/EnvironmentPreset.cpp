@@ -14,9 +14,9 @@
 namespace
 {
 static const unsigned int sCurrentPresetVersion = 2;
-static const float sAnimTimeSecondsIn24h = 24.0f;   // 24 hours = (sAnimTimeSecondsIn24h * SAnimTime::numTicksPerSecond) ticks
+static const int sAnimTimeSecondsIn24h = 24;   // 24 hours = (sAnimTimeSecondsIn24h * SAnimTime::numTicksPerSecond) ticks
 
-static const float sBezierSplineKeyValueEpsilon = 0.001f;
+static const mpfloat sBezierSplineKeyValueEpsilon = "0.001";
 }
 
 CBezierSpline::CBezierSpline()
@@ -32,19 +32,17 @@ CBezierSpline::~CBezierSpline()
 void CBezierSpline::Init(float fDefaultValue)
 {
 	m_keys.clear();
-	InsertKey(SAnimTime(0.0f), fDefaultValue);
-	InsertKey(SAnimTime(sAnimTimeSecondsIn24h), fDefaultValue);
+	InsertKey(0, fDefaultValue);
+	InsertKey(sAnimTimeSecondsIn24h, fDefaultValue);
 }
 
-float CBezierSpline::Evaluate(float t) const
+float CBezierSpline::Evaluate(const CTimeValue& time) const
 {
 	if (m_keys.size() == 0)
 		return 0.0f;
 
 	if (m_keys.size() == 1)
 		return m_keys.front().m_controlPoint.m_value;
-
-	const SAnimTime time(t);
 
 	if (time <= m_keys.front().m_time)
 	{
@@ -68,27 +66,27 @@ float CBezierSpline::Evaluate(float t) const
 		return startIt->m_controlPoint.m_value;
 	}
 
-	const SAnimTime deltaTime = it->m_time - startIt->m_time;
+	const CTimeValue deltaTime = it->m_time - startIt->m_time;
 
-	if (deltaTime == SAnimTime(0))
+	if (deltaTime == 0)
 	{
 		return startIt->m_controlPoint.m_value;
 	}
 
-	const float timeInSegment = (time - startIt->m_time).ToFloat();
+	const CTimeValue timeInSegment = time - startIt->m_time;
 
 	const SBezierKey* pKeyLeftOfSegment = (startIt != m_keys.begin()) ? &*(startIt - 1) : NULL;
 	const SBezierKey* pKeyRightOfSegment = (startIt != (m_keys.end() - 2)) ? &*(startIt + 2) : NULL;
 	const SBezierKey segmentStart = Bezier::ApplyOutTangent(*startIt, pKeyLeftOfSegment, *(startIt + 1));
 	const SBezierKey segmentEnd = Bezier::ApplyInTangent(*(startIt + 1), *startIt, pKeyRightOfSegment);
 
-	const float factor = Bezier::InterpolationFactorFromX(timeInSegment, deltaTime.ToFloat(), segmentStart.m_controlPoint, segmentEnd.m_controlPoint);
+	const float factor = Bezier::InterpolationFactorFromX(timeInSegment.BADGetSeconds(), deltaTime.BADGetSeconds(), segmentStart.m_controlPoint, segmentEnd.m_controlPoint);
 	const float fResult = Bezier::EvaluateY(factor, segmentStart.m_controlPoint, segmentEnd.m_controlPoint);
 
 	return fResult;
 }
 
-void CBezierSpline::InsertKey(SAnimTime time, float value)
+void CBezierSpline::InsertKey(const CTimeValue& time, float value)
 {
 	SBezierKey key;
 	key.m_time = time;
@@ -107,21 +105,19 @@ void CBezierSpline::InsertKey(SAnimTime time, float value)
 	m_keys.push_back(key);
 }
 
-void CBezierSpline::UpdateKeyForTime(float fTime, float value)
+void CBezierSpline::UpdateKeyForTime(const CTimeValue& fTime, float value)
 {
-	const SAnimTime time(fTime);
-
 	const size_t nKeyNum = m_keys.size();
 	for (size_t i = 0; i < nKeyNum; ++i)
 	{
-		if (fabs(m_keys[i].m_time.ToFloat() - fTime) < sBezierSplineKeyValueEpsilon)
+		if (abs(m_keys[i].m_time - fTime).GetSeconds() < sBezierSplineKeyValueEpsilon)
 		{
 			m_keys[i].m_controlPoint.m_value = value;
 			return;
 		}
 	}
 
-	InsertKey(time, value);
+	InsertKey(fTime, value);
 }
 
 void CBezierSpline::Serialize(Serialization::IArchive& ar)
@@ -173,12 +169,12 @@ void CTimeOfDayVariable::Init(const char* group, const char* displayName, const 
 	}
 }
 
-void CTimeOfDayVariable::Update(float time)
+void CTimeOfDayVariable::Update(const CTimeValue& time)
 {
 	m_value = GetInterpolatedAt(time);
 }
 
-Vec3 CTimeOfDayVariable::GetInterpolatedAt(float t) const
+Vec3 CTimeOfDayVariable::GetInterpolatedAt(const CTimeValue& t) const
 {
 	Vec3 result;
 	result.x = clamp_tpl(m_spline[0].Evaluate(t), m_minValue, m_maxValue);
@@ -219,7 +215,7 @@ bool CTimeOfDayVariable::SetSplineKeys(int nSpline, const SBezierKey* keysArray,
 	return false;
 }
 
-bool CTimeOfDayVariable::UpdateSplineKeyForTime(int nSpline, float fTime, float newKey)
+bool CTimeOfDayVariable::UpdateSplineKeyForTime(int nSpline, const CTimeValue& fTime, float newKey)
 {
 	if (CBezierSpline* pSpline = GetSpline(nSpline))
 	{
@@ -484,8 +480,9 @@ void CEnvironmentPreset::Serialize(Serialization::IArchive& ar)
 	}
 }
 
-void CEnvironmentPreset::Update(float t)
+void CEnvironmentPreset::Update(const CTimeValue& tIn)
 {
+	CTimeValue t = tIn;
 	t *= sAnimTimeSecondsIn24h;
 	for (size_t i = 0; i < ITimeOfDay::PARAM_TOTAL; ++i)
 	{
@@ -505,13 +502,13 @@ CTimeOfDayVariable* CEnvironmentPreset::GetVar(const char* varName)
 	return NULL;
 }
 
-bool CEnvironmentPreset::InterpolateVarInRange(ITimeOfDay::ETimeOfDayParamID id, float fMin, float fMax, unsigned int nCount, Vec3* resultArray) const
+bool CEnvironmentPreset::InterpolateVarInRange(ITimeOfDay::ETimeOfDayParamID id, const CTimeValue& fMin, const CTimeValue& fMax, unsigned int nCount, Vec3* resultArray) const
 {
-	const float fdx = 1.0f / float(nCount);
-	float normX = 0.0f;
+	const mpfloat fdx( 1 / mpfloat(nCount ));
+	mpfloat normX;
 	for (unsigned int i = 0; i < nCount; ++i)
 	{
-		const float time = Lerp(fMin, fMax, normX);
+		const CTimeValue time = Lerp(fMin, fMax, normX);
 		resultArray[i] = m_vars[id].GetInterpolatedAt(time);
 		normX += fdx;
 	}
@@ -519,7 +516,7 @@ bool CEnvironmentPreset::InterpolateVarInRange(ITimeOfDay::ETimeOfDayParamID id,
 	return true;
 }
 
-float CEnvironmentPreset::GetAnimTimeSecondsIn24h()
+int CEnvironmentPreset::GetAnimTimeSecondsIn24h()
 {
 	return sAnimTimeSecondsIn24h;
 }

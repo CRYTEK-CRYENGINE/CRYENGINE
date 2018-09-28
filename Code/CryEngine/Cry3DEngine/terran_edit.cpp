@@ -167,7 +167,6 @@ void CTerrain::SetTerrainElevation(int X1, int Y1, int nSizeX, int nSizeY, float
 	//LOADING_TIME_PROFILE_SECTION;
 	FUNCTION_PROFILER_3DENGINE;
 
-	float fStartTime = GetCurAsyncTimeSec();
 	float unitSize = CTerrain::GetHeightMapUnitSize();
 	int nHmapSize = int(CTerrain::GetTerrainSize() / unitSize);
 

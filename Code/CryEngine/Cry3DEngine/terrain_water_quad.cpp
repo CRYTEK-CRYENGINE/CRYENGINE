@@ -213,7 +213,6 @@ std::tuple<uint32, uint32> GenerateOceanSurfaceVertices(
 }
 }
 
-ITimer* COcean::m_pOceanTimer = 0;
 CREWaterOcean* COcean::m_pOceanRE = 0;
 uint32 COcean::m_nVisiblePixelsCount = ~0;
 
@@ -226,7 +225,7 @@ COcean::COcean(IMaterial* pMat)
 
 	m_pMaterial = pMat;
 	m_fLastFov = 0;
-	m_fLastVisibleFrameTime = 0.0f;
+	m_fLastVisibleFrameTime.SetSeconds(0);
 
 	m_pShaderOcclusionQuery = GetRenderer() ?
 	                          GetRenderer()->EF_LoadShader("OcclusionTest", 0) : nullptr;
@@ -764,21 +763,15 @@ void COcean::RenderFog(const SRenderingPassInfo& passInfo)
 bool COcean::IsVisible(const SRenderingPassInfo& passInfo)
 {
 	if (abs(m_nLastVisibleFrameId - passInfo.GetFrameID()) <= 2)
-		m_fLastVisibleFrameTime = 0.0f;
+		m_fLastVisibleFrameTime.SetSeconds(0);
 
-	ITimer* pTimer(gEnv->pTimer);
-	m_fLastVisibleFrameTime += gEnv->pTimer->GetFrameTime();
+	ITimer* pTimer(GetGTimer());
+	m_fLastVisibleFrameTime += GetGTimer()->GetFrameTime();
 
-	if (m_fLastVisibleFrameTime > 2.0f)                                 // at least 2 seconds
+	if (m_fLastVisibleFrameTime > 2)													// at least 2 seconds
 		return (abs(m_nLastVisibleFrameId - passInfo.GetFrameID()) < 64); // and at least 64 frames
 
 	return true; // keep water visible for a couple frames - or at least 1 second - minimizes popping during fast camera movement
-}
-
-void COcean::SetTimer(ITimer* pTimer)
-{
-	assert(pTimer);
-	m_pOceanTimer = pTimer;
 }
 
 float COcean::GetWave(const Vec3& pPos, int32 nFrameID)
@@ -791,7 +784,7 @@ float COcean::GetWave(const Vec3& pPos, int32 nFrameID)
 
 	EShaderQuality nShaderQuality = pRenderer->EF_GetShaderQuality(eST_Water);
 
-	if (!m_pOceanTimer || nShaderQuality < eSQ_High)
+	if (!GTimer(ocean) || nShaderQuality < eSQ_High)
 		return 0.0f;
 
 	// Return height - matching computation on GPU
@@ -871,7 +864,7 @@ float COcean::GetWave(const Vec3& pPos, int32 nFrameID)
 	float fPhase = sqrt_tpl(pPos.x * pPos.x + pPos.y * pPos.y);
 	Vec4 vCosPhase = vPhases * (fPhase + pPos.x);
 
-	Vec4 vWaveFreq = vFrequencies * m_pOceanTimer->GetCurrTime();
+	Vec4 vWaveFreq = vFrequencies * GTimer(ocean)->GetFrameStartTime().BADGetSeconds();
 
 	Vec4 vCosWave = Vec4(cos_tpl(vWaveFreq.x * vFlowDir.x + vCosPhase.x),
 	                     cos_tpl(vWaveFreq.y * vFlowDir.x + vCosPhase.y),

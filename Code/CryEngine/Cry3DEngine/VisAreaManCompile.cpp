@@ -22,7 +22,7 @@ bool CVisAreaManager::GetCompiledData(byte* pData, int nDataSize, std::vector<st
 	CryFatalError("serialization code removed, please enable 3DENGINE_ENABLE_COMPILATION in Cry3DEngine/StdAfx.h");
 	return false;
 #else
-	float fStartTime = GetCurAsyncTimeSec();
+	CTimeValue fStartTime = GetGTimer()->GetAsyncTime();
 
 	bool bHMap(!pExportInfo || pExportInfo->nHeigtmap);
 	bool bObjs(!pExportInfo || pExportInfo->nObjTypeMask);
@@ -60,7 +60,7 @@ bool CVisAreaManager::GetCompiledData(byte* pData, int nDataSize, std::vector<st
 	SAFE_DELETE(*ppStatInstGroupTable);
 
 	if (!pExportInfo)
-		PrintMessagePlus(" done in %.2f sec", GetCurAsyncTimeSec() - fStartTime);
+		PrintMessagePlus(" done in %.2f sec", (float)(GetGTimer()->GetAsyncTime() - fStartTime).GetSeconds());
 
 	assert(nDataSize == 0);
 	return nDataSize == 0;

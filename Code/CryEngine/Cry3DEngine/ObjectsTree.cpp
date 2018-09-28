@@ -3469,7 +3469,7 @@ void CObjManager::RenderBrush(CBrush* pEnt, PodArray<SRenderLight*>* pAffectingL
 
 	if (passCullMask & kPassCullMainMask)
 	{
-		if (GetCVars()->e_LodTransitionTime && passInfo.IsGeneralPass())
+		if (GetCVars()->e_LodTransitionTime != 0 && passInfo.IsGeneralPass())
 		{
 			// Render current lod and (if needed) previous lod and perform time based lod transition using dissolve
 

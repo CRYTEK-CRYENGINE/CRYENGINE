@@ -302,7 +302,7 @@ public:
 	static SRenderingPassInfo*                           m_pCurrPassInfo;
 	static CLockedMap<ITexture*, _smart_ptr<ITexture>>   m_arrLockedTextures;
 	static CLockedMap<IMaterial*, _smart_ptr<IMaterial>> m_arrLockedMaterials;
-	static std::map<CStatObj*, float>                    m_cgfTimeStats;
+	static std::map<CStatObj*, CTimeValue>               m_cgfTimeStats;
 	static CryReadModifyLock                             m_cgfTimeStatsLock;
 	static bool                                          m_bExportMode;
 	static bool                                          m_bExportAbortRequested;

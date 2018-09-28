@@ -77,7 +77,7 @@ public:
 		: deltaTime(ToFloatv(runtime.DeltaTime()))
 		, ages(runtime.GetContainer(domain).GetIFStream(EPDT_NormalAge))
 		, lifeTimes(runtime.GetContainer(domain).GetIFStream(EPDT_LifeTime))
-		, levelTime(ToFloatv(runtime.GetEmitter()->GetTime()))
+		, levelTime(ToFloatv(runtime.GetEmitter()->GetTime().BADGetSeconds()))
 	{}
 	ILINE floatv Sample(TParticleGroupId particleId) const
 	{

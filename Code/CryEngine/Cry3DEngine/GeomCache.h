@@ -123,14 +123,14 @@ public:
 	AABB GetAABB() const;
 
 	// Returns frame for specific time. Rounds to ceil or floor
-	uint GetFloorFrameIndex(const float time) const;
-	uint GetCeilFrameIndex(const float time) const;
+	uint GetFloorFrameIndex(const CTimeValue& time) const;
+	uint GetCeilFrameIndex(const CTimeValue& time) const;
 
 	// Frame infos
 	GeomCacheFile::EFrameType GetFrameType(const uint frameIndex) const;
 	uint64                    GetFrameOffset(const uint frameIndex) const;
 	uint32                    GetFrameSize(const uint frameIndex) const;
-	float                     GetFrameTime(const uint frameIndex) const;
+	const CTimeValue          GetFrameTime(const uint frameIndex) const;
 	uint                      GetPrevIFrame(const uint frameIndex) const;
 	uint                      GetNextIFrame(const uint frameIndex) const;
 
@@ -172,7 +172,7 @@ public:
 
 	virtual const char*                 GetFilePath() const;
 
-	virtual float                       GetDuration() const;
+	virtual const CTimeValue            GetDuration() const;
 
 	virtual IGeomCache::SStatistics     GetStatistics() const;
 
@@ -197,7 +197,7 @@ public:
 private:
 	struct SFrameInfo
 	{
-		float  m_frameTime;
+		CTimeValue  m_frameTime;
 		uint32 m_frameType;
 		uint32 m_frameSize;
 		uint32 m_prevIFrame;

@@ -59,7 +59,6 @@ struct Cry3DEngineBase
 #else
 	static IRenderer* const         m_pRenderer;
 #endif
-	static ITimer*                  m_pTimer;
 	static ILog*                    m_pLog;
 	static IPhysicalWorld*          m_pPhysicalWorld;
 	static IConsole*                m_pConsole;
@@ -103,7 +102,6 @@ struct Cry3DEngineBase
 	// components access
 	ILINE static ISystem*            GetSystem()                 { return m_pSystem; }
 	ILINE static IRenderer*          GetRenderer()               { return m_pRenderer; }
-	ILINE static ITimer*             GetTimer()                  { return m_pTimer; }
 	ILINE static ILog*               GetLog()                    { return m_pLog; }
 
 	inline static IPhysicalWorld*    GetPhysicalWorld()          { return m_pPhysicalWorld; }
@@ -126,9 +124,6 @@ struct Cry3DEngineBase
 	inline static int GetMergedMeshesPoolSize()                               { return m_mergedMeshesPoolSize; }
 	ILINE static bool IsRenderNodeTypeEnabled(EERType rnType)                 { return m_bRenderTypeEnabled[(int)rnType]; }
 	ILINE static void SetRenderNodeTypeEnabled(EERType rnType, bool bEnabled) { m_bRenderTypeEnabled[(int)rnType] = bEnabled; }
-
-	static float      GetCurTimeSec();
-	static float      GetCurAsyncTimeSec();
 
 	static void       PrintMessage(const char* szText, ...) PRINTF_PARAMS(1, 2);
 	static void       PrintMessagePlus(const char* szText, ...) PRINTF_PARAMS(1, 2);

@@ -33,7 +33,7 @@ public:
 
 	virtual CParticleFeature* ResolveDependency(CParticleComponent* pComponent) override
 	{
-		float maxLifetime = m_lifeTime.GetValueRange().end;
+		CTimeValue maxLifetime = BADTIME(m_lifeTime.GetValueRange().end);
 		if (m_killOnParentDeath)
 		{
 			if (CParticleComponent* pParent = pComponent->GetParentComponent())
@@ -47,7 +47,7 @@ public:
 	{
 		m_lifeTime.AddToComponent(pComponent, this, EPDT_LifeTime);
 		pComponent->PreInitParticles.add(this);
-		pParams->m_maxParticleLife = m_lifeTime.GetValueRange().end;
+		pParams->m_maxParticleLife = BADTIME(m_lifeTime.GetValueRange().end);
 
 		if (m_killOnParentDeath)
 			pComponent->PostUpdateParticles.add(this);
@@ -108,7 +108,7 @@ public:
 
 	virtual void UpdateGPUParams(CParticleComponentRuntime& runtime, gpu_pfx2::SUpdateParams& params) override
 	{
-		params.lifeTime = m_lifeTime.GetValueRange(runtime)(0.5f);
+		params.lifeTime = m_lifeTime.GetValueRange(runtime)("0.5");
 	}
 
 protected:

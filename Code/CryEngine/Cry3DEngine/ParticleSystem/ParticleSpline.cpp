@@ -28,11 +28,11 @@ namespace pfx2
 	void CParticleSpline::MakeLinear(float v0, float v1)
 	{
 		Resize(2);
-		m_keys[0].time     = 0.0f;
-		m_keys[1].time     = 1.0f;
+		m_keys[0].time     = 0;
+		m_keys[1].time     = 1;
 		m_keys[0].value    = v0;
 		m_keys[1].value    = v1;
-		m_keys[0].timeMult = 1.0f;
+		m_keys[0].timeMult = 1;
 		m_keys[0].coeff0   = m_keys[0].coeff1 = 0.0f;
 
 		m_valueRange = Range(Range::EMPTY) | v0 | v1;
@@ -85,8 +85,8 @@ namespace pfx2
 			}
 			for (size_t i = 0; i < subNKeys; ++i)
 			{
-				const float t0 = m_keys[i].time;
-				const float t1 = max(t0 + FLT_EPSILON, m_keys[i + 1].time);
+				const mpfloat t0 = m_keys[i].time;
+				const mpfloat t1 = max(t0 + MP_EPSILON, m_keys[i + 1].time);
 				const float v0 = m_keys[i].value;
 				const float v1 = m_keys[i + 1].value;
 				source.GetKey(i, key);
@@ -95,7 +95,7 @@ namespace pfx2
 				const float s1 = key.ds[0];
 				const float dv = v1 - v0;
 
-				m_keys[i].timeMult = 1.0f / (t1 - t0);
+				m_keys[i].timeMult = 1 / (t1 - t0);
 				m_keys[i].coeff0   = s0 - dv;
 				m_keys[i].coeff1   = dv - s1;
 
@@ -115,7 +115,7 @@ namespace pfx2
 					const float t = roots[nRoots];
 					if (t > 0.0f && t < 1.0f)
 					{
-						const float v = Interpolate(::Lerp(t0, t1, t));
+						const float v = Interpolate(::Lerp(t0, t1, BADMP(t)));
 						m_valueRange |= v;
 					}
 				}

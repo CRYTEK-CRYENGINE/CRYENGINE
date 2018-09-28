@@ -468,11 +468,11 @@ void CCullThread::RasterizeZBuffer(uint32 PolyLimit)
 	//__SetHWThreadPriorityHigh();
 
 	const bool EarlyOut = GetCVars()->e_CoverageBufferEarlyOut == 1;
-	const int64 MaxEarlyOutDelay = (int64)(GetCVars()->e_CoverageBufferEarlyOutDelay * 1000.0f);
+	const CTimeValue MaxEarlyOutDelay = GetCVars()->e_CoverageBufferEarlyOutDelay;
 	LastDist = -1.f;
 
-	ITimer* pTimer = gEnv->pTimer;
-	int64 StartTime = -1;
+	ITimer* pTimer = GetGTimer();
+	CTimeValue StartTime(-1);
 
 	for (size_t a = 0; a < m_OCMInstCount && (PolyLimit == 0 || Poly < PolyLimit); a++)
 	{
@@ -480,9 +480,9 @@ void CCullThread::RasterizeZBuffer(uint32 PolyLimit)
 		if (EarlyOut && *const_cast<volatile int*>(&m_bCheckOcclusionRequested))
 		{
 			if (StartTime < 0)
-				StartTime = pTimer->GetAsyncTime().GetMicroSecondsAsInt64();
+				StartTime = pTimer->GetAsyncTime();
 
-			int64 CurTime = pTimer->GetAsyncTime().GetMicroSecondsAsInt64();
+			CTimeValue CurTime = pTimer->GetAsyncTime();
 			if (CurTime - StartTime > MaxEarlyOutDelay)
 				break;
 		}

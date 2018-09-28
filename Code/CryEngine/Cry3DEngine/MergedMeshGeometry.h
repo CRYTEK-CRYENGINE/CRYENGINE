@@ -628,7 +628,7 @@ struct SMMRMUpdateContext
 	SMMRMProjectile*            projectiles;
 	int                         nprojectiles;
 	int                         max_iter;
-	float                       dt, dtscale, abstime;
+	CTimeValue                  dt, abstime, dtscale; // PERSONAL CRYTEK: dtscale is not used to scale time, but rather increment. dt + dtscale.
 	float                       zRotation;
 	Vec3                        rotationOrigin;
 	Vec3                        _max, _min;
@@ -655,7 +655,7 @@ struct SMMRMUpdateContext
 		, nprojectiles()
 		, max_iter()
 		, dt()
-		, dtscale(1.f)
+		, dtscale(1)
 		, abstime()
 		, zRotation()
 		, rotationOrigin()

@@ -35,7 +35,7 @@ class CWaterRippleManager;
 struct SEntInFoliage
 {
 	int   id;
-	float timeIdle;
+	CTimeValue timeIdle;
 
 	void  GetMemoryUsage(ICrySizer* pSizer) const { /*nothing*/ }
 };
@@ -474,7 +474,7 @@ public:
 
 	virtual void                           SetRenderNodeMaterialAtPosition(EERType eNodeType, const Vec3& vPos, IMaterial* pMat);
 	virtual void                           OverrideCameraPrecachePoint(const Vec3& vPos);
-	virtual int                            AddPrecachePoint(const Vec3& vPos, const Vec3& vDir, float fTimeOut = 3.f, float fImportanceFactor = 1.0f);
+	virtual int                            AddPrecachePoint(const Vec3& vPos, const Vec3& vDir, const CTimeValue& fTimeOut = 3, float fImportanceFactor = 1.0f);
 	virtual void                           ClearPrecachePoint(int id);
 	virtual void                           ClearAllPrecachePoints();
 	virtual void                           GetPrecacheRoundIds(int pRoundIds[MAX_STREAM_PREDICTION_ZONES]);
@@ -669,7 +669,7 @@ public:
 		m_nFramesSinceLevelStart = 0;
 		m_nStreamingFramesSinceLevelStart = 0;
 		m_bPreCacheEndEventSent = false;
-		m_fTimeStateStarted = 0.0f;
+		m_fTimeStateStarted.SetSeconds(0);
 	}
 
 	virtual const CCamera& GetRenderingCamera() const { return m_RenderingCamera; }
@@ -776,7 +776,7 @@ public:
 	Vec3                  m_vDefFogColor;
 	Vec3                  m_vSunDir;
 	Vec3                  m_vSunDirNormalized;
-	float                 m_fSunDirUpdateTime;
+	CTimeValue            m_fSunDirUpdateTime;
 	Vec3                  m_vSunDirRealtime;
 	Vec3                  m_vWindSpeed;
 
@@ -858,10 +858,10 @@ public:
 	float                 m_oceanWavesAmount;
 	float                 m_oceanWavesSize;
 
-	float                 m_dawnStart;
-	float                 m_dawnEnd;
-	float                 m_duskStart;
-	float                 m_duskEnd;
+	CTimeValue            m_dawnStart;
+	CTimeValue            m_dawnEnd;
+	CTimeValue            m_duskStart;
+	CTimeValue            m_duskEnd;
 
 	// film characteristic curve tweakables
 	Vec4  m_vHDRFilmCurveParams;
@@ -1181,7 +1181,7 @@ private:
 	class CLightEntity* m_pSun;
 
 	std::vector<byte>   arrFPSforSaveLevelStats;
-	PodArray<float>     m_arrProcessStreamingLatencyTestResults;
+	PodArray<CTimeValue>m_arrProcessStreamingLatencyTestResults;
 	PodArray<int>       m_arrProcessStreamingLatencyTexNum;
 
 	// fields which are used by SRenderingPass to store over frame information
@@ -1254,7 +1254,7 @@ private:
 	int                            m_nFramesSinceLevelStart;
 	int                            m_nStreamingFramesSinceLevelStart;
 	bool                           m_bPreCacheEndEventSent;
-	float                          m_fTimeStateStarted;
+	CTimeValue                     m_fTimeStateStarted;
 	uint32                         m_nRenderWorldUSecs;
 	SFrameLodInfo                  m_frameLodInfo;
 

@@ -539,7 +539,7 @@ void CVegetation::Physicalize(bool bInstant)
 	if (m_pPhysEnt)
 		Dephysicalize();
 
-	m_pPhysEnt = GetSystem()->GetIPhysicalWorld()->CreatePhysicalEntity(PE_STATIC, (1 - bNoOnDemand) * 5.0f, &pp,
+	m_pPhysEnt = GetSystem()->GetIPhysicalWorld()->CreatePhysicalEntity(PE_STATIC, (1 - bNoOnDemand) * 5, &pp,
 	                                                                    (IRenderNode*)this, PHYS_FOREIGN_ID_STATIC);
 	if (!m_pPhysEnt)
 		return;

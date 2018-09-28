@@ -835,9 +835,9 @@ struct SMergedMeshGlobals
 	CRY_ALIGN(16) CCamera camera;
 	Vec3   lastFramesCamPos;
 	uint32 frameId;
-	float  dt;
-	float  dtscale;
-	float  abstime;
+	CTimeValue  dt;
+	CTimeValue  dtscale;
+	CTimeValue  abstime;
 };
 static CRY_ALIGN(128) SMergedMeshGlobals s_mmrm_globals;
 
@@ -1732,7 +1732,7 @@ void CGeometryManager::PrepareGeometry(SMMRMGeometry* geometry)
 		success &= PrepareLOD(geometry, statObj, i, bResubmit);
 		IF (bResubmit, 0)
 		{
-			CrySleep(10);
+			CryLowLatencySleep("0.01");
 			TPVRNPrepGeomJob job(geometry);
 			job.SetClassInstance(this);
 			job.RegisterJobState(&geometry->geomPrepareState);
@@ -2734,9 +2734,9 @@ void CMergedMeshRenderNode::Render(const struct SRendParams& EntDrawParams, cons
 	{
 		s_mmrm_globals.lastFramesCamPos = s_mmrm_globals.camera.GetPosition();
 		s_mmrm_globals.camera = currentCam;
-		s_mmrm_globals.dt = gEnv->pTimer->GetFrameTime();
-		s_mmrm_globals.dtscale = gEnv->pTimer->GetTimeScale();
-		s_mmrm_globals.abstime = gEnv->pTimer->GetCurrTime();
+		s_mmrm_globals.dt = GetGTimer()->GetFrameTime();
+		s_mmrm_globals.dtscale.SetSeconds(GetGTimer()->GetTimeScale());
+		s_mmrm_globals.abstime = GetGTimer()->GetFrameStartTime();
 		s_mmrm_globals.frameId = frameId;
 	}
 
@@ -2813,7 +2813,7 @@ void CMergedMeshRenderNode::Render(const struct SRendParams& EntDrawParams, cons
 			case DYNAMIC:
 				if (pass == RUT_STATIC)
 					goto static_fallthrough;
-				if (!(s_mmrm_globals.dt > 0.f))
+				if (!(s_mmrm_globals.dt > 0))
 				{
 					RenderRenderMesh(
 					  RUT_DYNAMIC
@@ -2856,7 +2856,7 @@ void CMergedMeshRenderNode::Render(const struct SRendParams& EntDrawParams, cons
 static_fallthrough:
 			case INSTANCED:
 				nLod = (int)min(max(sqDistanceToBox / (max(GetCVars()->e_MergedMeshesLodRatio * sqDiagonal, 0.001f)), 0.f), ((float)MAX_STATOBJ_LODS_NUM - 1.f));
-				if ((nLod != m_nLod || (pass == RUT_DYNAMIC && (frameId - m_LastUpdateFrame) > (uint32)(lodFrequency[nLod & 3]))) && s_mmrm_globals.dt > 0.f)
+				if ((nLod != m_nLod || (pass == RUT_DYNAMIC && (frameId - m_LastUpdateFrame) > (uint32)(lodFrequency[nLod & 3]))) && s_mmrm_globals.dt > 0)
 				{
 					bool dispatched = false;
 					DeleteRenderMesh((RENDERMESH_UPDATE_TYPE)pass);
@@ -4323,7 +4323,7 @@ void CMergedMeshesManager::Update(const SRenderingPassInfo& passInfo)
 	, maxStreamRequests = 16u;
 	const int e_MergedMeshesDebug = GetCVars()->e_MergedMeshesDebug;
 
-	const float dt = gEnv->pTimer->GetFrameTime();
+	const CTimeValue dt = GetGTimer()->GetFrameTime();
 	const float sqDiagonalInternal = sqr(c_MergedMeshesExtent) * 1.25f;
 
 	uint32 frameId = passInfo.GetMainFrameID();
@@ -4355,7 +4355,7 @@ void CMergedMeshesManager::Update(const SRenderingPassInfo& passInfo)
 		while (pi < pe)
 		{
 			SProjectile& p = m_Projectiles[pi];
-			if ((p.lifetime -= dt) <= 0.f)
+			if ((p.lifetime -= dt) <= 0)
 			{
 				std::swap(m_Projectiles[pi], m_Projectiles[pe - 1]);
 				--pe;
@@ -4600,7 +4600,7 @@ int CMergedMeshesManager::OnPhysPostStep(const EventPhys* event)
 
 	projectile.entity = entity;
 	projectile.current_pos = pos.pos;
-	projectile.initial_pos = pos.pos - particles.heading * particles.velocity * poststep->dt;
+	projectile.initial_pos = pos.pos - particles.heading * particles.velocity * poststep->dt.BADGetSeconds();
 	projectile.direction = (projectile.current_pos - projectile.initial_pos).GetNormalized();
 	projectile.size = (pos.BBox[0] - pos.BBox[1]).len() * Cry3DEngineBase::GetCVars()->e_MergedMeshesBulletScale; //roughly a bullet I'ld say
 	projectile.size = max(min(projectile.size, 8.5f), 1.f);
@@ -4880,8 +4880,8 @@ void CDeformableNode::UpdateInternalDeform(
 		update->projectiles = m_Projectiles;
 		update->nprojectiles = m_nProjectiles;
 		update->max_iter = 2;
-		update->dt = gEnv->pTimer->GetFrameTime();
-		update->abstime = gEnv->pTimer->GetCurrTime();
+		update->dt = GetGTimer()->GetFrameTime();
+		update->abstime = GetGTimer()->GetFrameStartTime();
 		update->_min = bbox.min;
 		update->_max = bbox.max;
 		update->wind = m_wind;

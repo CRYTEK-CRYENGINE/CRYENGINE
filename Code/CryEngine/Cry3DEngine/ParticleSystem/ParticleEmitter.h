@@ -102,12 +102,12 @@ public:
 	TParticleFeatures&        GetFeatures()                { return m_emitterFeatures; }
 	const ParticleTarget&     GetTarget() const            { return m_target; }
 	float                     GetViewDistRatio() const     { return m_viewDistRatio; }
-	float                     GetTimeScale() const         { return Cry3DEngineBase::GetCVars()->e_ParticlesDebug & AlphaBit('z') ? 0.0f : m_spawnParams.fTimeScale; }
+	mpfloat                   GetTimeScale() const         { return Cry3DEngineBase::GetCVars()->e_ParticlesDebug & AlphaBit('z') ? 0 : m_spawnParams.fTimeScale; }
 	CRenderObject*            GetRenderObject(uint threadId, uint renderObjectIdx);
 	void                      SetRenderObject(CRenderObject* pRenderObject, _smart_ptr<IMaterial>&& material, uint threadId, uint renderObjectIdx);
-	float                     GetDeltaTime() const         { return m_time - m_timeUpdated; }
-	float                     GetTime() const              { return m_time; }
-	float                     GetAge() const               { return m_time - m_timeCreated; }
+	const CTimeValue          GetDeltaTime() const         { return m_time - m_timeUpdated; }
+	const CTimeValue&         GetTime() const              { return m_time; }
+	const CTimeValue          GetAge() const               { return m_time - m_timeCreated; }
 	bool                      WasRenderedLastFrame() const { return m_unrendered <= 1 && !(GetRndFlags() & ERF_HIDDEN); }
 	uint32                    GetInitialSeed() const       { return m_initialSeed; }
 	uint32                    GetCurrentSeed() const       { return m_currentSeed; }
@@ -162,11 +162,11 @@ private:
 	int                                    m_emitterGeometrySlot;
 	ColorF                                 m_profilerColor;
 	float                                  m_viewDistRatio;
-	float                                  m_time;
-	float                                  m_timeCreated;
-	float                                  m_timeStable;
-	float                                  m_timeUpdated;
-	float                                  m_timeDeath;
+	CTimeValue                             m_time;
+	CTimeValue                             m_timeCreated;
+	CTimeValue                             m_timeStable;
+	CTimeValue                             m_timeUpdated;
+	CTimeValue                             m_timeDeath;
 	int                                    m_emitterEditVersion;
 	int                                    m_effectEditVersion;
 	uint                                   m_initialSeed;

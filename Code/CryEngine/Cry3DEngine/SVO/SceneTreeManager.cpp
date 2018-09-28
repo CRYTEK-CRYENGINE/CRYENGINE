@@ -69,9 +69,9 @@ char* CSvoManager::GetStatusString(int lineId)
 		            s_briUpdatesInProgressLast, s_texUpdatesInProgressLast, SVO_VOX_BRICK_MAX_SIZE,
 		            gSvoEnv->m_dynNodeCounter, gSvoEnv->m_dynNodeCounter_DYNL);
 
-		float curTime = Cry3DEngineBase::Get3DEngine()->GetCurTimeSec();
-		static float s_lastTime = Cry3DEngineBase::Get3DEngine()->GetCurTimeSec();
-		if (curTime > s_lastTime + 0.1f)
+		CTimeValue curTime = GetGTimer()->GetFrameStartTime();
+		static CTimeValue s_lastTime = GetGTimer()->GetFrameStartTime();
+		if (curTime > s_lastTime + "0.1")
 		{
 			if (s_texUpdatesInProgressLast)
 				s_texUpdatesInProgressLast -= 4;
@@ -212,10 +212,10 @@ void CSvoManager::Render(bool bSyncUpdate)
 		if (gSvoEnv && !CVoxelSegment::m_bExportMode)
 		{
 			if (bSyncUpdate)
-				gSvoEnv->m_svoFreezeTime = gEnv->pTimer->GetAsyncCurTime();
+				gSvoEnv->m_svoFreezeTime = GetGTimer()->GetAsyncCurTime();
 
 			if (gSvoEnv->m_bFirst_SvoFreezeTime)
-				gSvoEnv->m_svoFreezeTime = gEnv->pTimer->GetAsyncCurTime();
+				gSvoEnv->m_svoFreezeTime = GetGTimer()->GetAsyncCurTime();
 			gSvoEnv->m_bFirst_SvoFreezeTime = false;
 
 			if (gSvoEnv->m_svoFreezeTime > 0)
@@ -226,16 +226,16 @@ void CSvoManager::Render(bool bSyncUpdate)
 					gSvoEnv->Render();
 					gEnv->pSystem->GetStreamEngine()->Update();
 
-					if ((gEnv->pTimer->GetAsyncCurTime() - gSvoEnv->m_svoFreezeTime) > GetCVars()->e_svoTI_MaxSyncUpdateTime)
+					if ((GetGTimer()->GetAsyncCurTime() - gSvoEnv->m_svoFreezeTime) > GetCVars()->e_svoTI_MaxSyncUpdateTime)
 					{
 						// prevent possible freeze in case of SVO pool overflow
 						break;
 					}
 
-					CrySleep(5);
+					CryLowLatencySleep("0.005");
 				}
 
-				gSvoEnv->m_svoFreezeTime = -1;
+				gSvoEnv->m_svoFreezeTime.SetSeconds(-1);
 			}
 			else
 			{

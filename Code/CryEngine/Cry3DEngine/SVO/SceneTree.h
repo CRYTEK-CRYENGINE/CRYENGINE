@@ -168,8 +168,8 @@ public:
 	int                       m_dynNodeCounter_DYNL;
 	PodArray<CVoxelSegment*>  m_arrForBrickUpdate[16];
 	CryCriticalSection        m_csLockTree;
-	float                     m_streamingStartTime;
-	float                     m_svoFreezeTime;
+	CTimeValue                m_streamingStartTime;
+	CTimeValue                m_svoFreezeTime;
 	int                       m_arrVoxelizeMeshesCounter[2];
 	AABB                      m_worldBox;
 	PodArray<SVF_P3F_C4B_T2F> m_arrSvoProxyVertices;

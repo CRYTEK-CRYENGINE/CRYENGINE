@@ -3440,7 +3440,7 @@ foundtri:
 #endif
 }
 
-int CStatObj::PhysicalizeFoliage(IPhysicalEntity* pTrunk, const Matrix34& mtxWorld, IFoliage*& pIRes, float lifeTime, int iSource)
+int CStatObj::PhysicalizeFoliage(IPhysicalEntity* pTrunk, const Matrix34& mtxWorld, IFoliage*& pIRes, const CTimeValue& lifeTime, int iSource)
 {
 	if (gEnv->IsDedicated() || !m_pSpines || GetCVars()->e_PhysFoliage < 1 + (pTrunk && pTrunk->GetType() == PE_STATIC))
 		return 0;
@@ -3451,7 +3451,7 @@ int CStatObj::PhysicalizeFoliage(IPhysicalEntity* pTrunk, const Matrix34& mtxWor
 
 	if (pIRes)
 	{
-		pRes->m_timeIdle = 0;
+		pRes->m_timeIdle.SetSeconds(0);
 		if (iSource & 4)
 		{
 			pf.flagsAND = ~pef_ignore_areas;
@@ -3491,8 +3491,8 @@ int CStatObj::PhysicalizeFoliage(IPhysicalEntity* pTrunk, const Matrix34& mtxWor
 	pRes->m_pTrunk = pTrunk;
 	pRes->m_pRopes = new IPhysicalEntity*[m_nSpines];
 	memset(pRes->m_pRopes, 0, m_nSpines * sizeof(pRes->m_pRopes[0]));
-	for (i = 0, pRes->m_pRopesActiveTime = new float[m_nSpines]; i < m_nSpines; i++)
-		pRes->m_pRopesActiveTime[i] = -1.0f;
+	for (i = 0, pRes->m_pRopesActiveTime = new CTimeValue[m_nSpines]; i < m_nSpines; i++)
+		pRes->m_pRopesActiveTime[i].SetSeconds(-1);
 	pRes->m_nRopes = m_nSpines;
 
 	pe_params_pos pp;
@@ -3525,13 +3525,13 @@ int CStatObj::PhysicalizeFoliage(IPhysicalEntity* pTrunk, const Matrix34& mtxWor
 	pf.flagsOR = rope_collides & j | rope_target_vtx_rel0 | rope_ignore_attachments | pef_traceable;
 	if (pTrunk && pTrunk->GetType() != PE_STATIC)
 	{
-		sp.maxTimeStep = 0.05f; // 0.02f
+		sp.maxTimeStep.SetSeconds("0.05"); // 0.02f
 		pf.flagsOR |= rope_collides_with_terrain & j;
 		pr.dampingAnim = GetFloatCVar(e_FoliageBrokenBranchesDamping);
 	}
 	else
 	{
-		sp.maxTimeStep = 0.05f;
+		sp.maxTimeStep.SetSeconds("0.05");
 		if (GetCVars()->e_PhysFoliage < 3)
 			pf.flagsOR |= pef_ignore_areas, sp.gravity.zero();
 		pr.dampingAnim = GetFloatCVar(e_FoliageBranchesDamping);
@@ -3543,7 +3543,7 @@ int CStatObj::PhysicalizeFoliage(IPhysicalEntity* pTrunk, const Matrix34& mtxWor
 	pfd.pForeignData = pRes;
 	pto.maxTimeIdle = GetCVars()->e_FoliageBranchesTimeout;
 	if (const char* timeout = strstr(m_szProperties, "timeout"))
-		pto.maxTimeIdle = atof(timeout + 7);
+		pto.maxTimeIdle.SetSeconds(mpfloat(timeout) + 7);
 	AABB bbox(AABB::RESET);
 	for (i = 0; i < m_nSpines; i++)
 		if (m_pSpines[i].bActive)
@@ -3905,7 +3905,7 @@ SSkinningData* CStatObjFoliage::GetSkinningData(const Matrix34& RenderMat34, con
 	return pSkinningData;
 }
 
-void CStatObjFoliage::Update(float dt, const CCamera& rCamera)
+void CStatObjFoliage::Update(const CTimeValue& dt, const CCamera& rCamera)
 {
 	if (!*m_ppThis && !m_bDelete)
 		m_bDelete = 2;
@@ -3974,7 +3974,7 @@ void CStatObjFoliage::Update(float dt, const CCamera& rCamera)
 	int bEnable = bVisible & isneg(((rCamera.GetPosition() - bbox.GetCenter()).len2() - sqr(clipDist)) * clipDist - 0.0001f);
 	if (!bEnable)
 	{
-		if (inrange(m_timeInvisible += dt, 6.0f, 8.0f))
+		if (inrange((m_timeInvisible += dt).BADGetSeconds(), 6.0f, 8.0f))
 			bEnable = 1;
 		else if (m_pTrunk && bVisible)
 		{
@@ -3984,7 +3984,7 @@ void CStatObjFoliage::Update(float dt, const CCamera& rCamera)
 
 	}
 	else
-		m_timeInvisible = 0;
+		m_timeInvisible.SetSeconds(0);
 	if (m_bEnabled != bEnable)
 	{
 		pe_params_flags pf;
@@ -4005,7 +4005,7 @@ void CStatObjFoliage::Update(float dt, const CCamera& rCamera)
 				m_pRopes[i]->SetParams(&sp);
 
 	if (nColl && (m_iActivationSource & 2 || bVisible))
-		m_timeIdle = 0;
+		m_timeIdle.SetSeconds(0);
 	if (!bHasBrokenRopes && m_lifeTime > 0 && (m_timeIdle += dt) > m_lifeTime)
 	{
 		*m_ppThis = 0;
@@ -4152,7 +4152,7 @@ int CStatObjFoliage::Serialize(TSerialize ser)
 				m_pStatObj->GetPhysicalWorld()->DestroyPhysicalEntity(m_pRopes[i]), m_pRopes[i] = 0;
 			else if (m_pRopes[i])
 				m_pRopes[i]->SetStateFromSnapshot(ser);
-			m_pRopesActiveTime[i] = -1;
+			m_pRopesActiveTime[i].SetSeconds(-1);
 			ser.EndGroup();
 		}
 	}

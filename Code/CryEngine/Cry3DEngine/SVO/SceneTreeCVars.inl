@@ -53,7 +53,7 @@ REGISTER_CVAR_AUTO(float, e_svoTI_AnalyticalOccludersSoftness, 0.5f, VF_NULL, "S
 REGISTER_CVAR_AUTO(int, e_svoRootless, !gEnv->IsEditor(), VF_NULL, "Limits the area covered by SVO. Limits number of tree levels and speedup the tracing.");
 REGISTER_CVAR_AUTO(float, e_svoTI_DistantSsaoAmount, 0.5f, VF_NULL, "Large scale SSAO intensity in the distance");
 REGISTER_CVAR_AUTO(float, e_svoTI_PointLightsMaxDistance, 20.f, VF_NULL, "Maximum distance at which point lights produce light bounces");
-REGISTER_CVAR_AUTO(float, e_svoTI_MaxSyncUpdateTime, 2.f, VF_NULL, "Limit the time (in seconds) allowed for synchronous voxelization (usually happens on level start)");
+REGISTER_CVAR_AUTO(CTimeValue, e_svoTI_MaxSyncUpdateTime, CTimeValue(2), VF_NULL, "Limit the time (in seconds) allowed for synchronous voxelization (usually happens on level start)");
 
 #ifdef CVAR_CPP
 m_arrVars.Clear();

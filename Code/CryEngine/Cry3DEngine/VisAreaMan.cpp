@@ -494,7 +494,7 @@ void CVisAreaManager::PortalsDrawDebug()
 	    for(int p=0; p<m_pCurArea->m_lstConnections.Count(); p++)
 	    {
 	      CVisArea * pPortal = m_pCurArea->m_lstConnections[p];
-	      float fBlink = gEnv->pTimer->GetFrameStartTime().GetPeriodicFraction(1.0f)>0.5f ? 1.0f : 0.0f;
+	      float fBlink = GetGTimer()->GetFrameStartTime().GetPeriodicFraction(1.0f)>0.5f ? 1.0f : 0.0f;
 	      float fError = pPortal->IsPortalValid() ? 1.0f : fBlink;
 	      GetRenderer()->SetMaterialColor(fError,fError*(pPortal->m_lstConnections.Count()<2),0,0.25f);
 	      DrawBBox(pPortal->m_boxArea.min, pPortal->m_boxArea.max, DPRIM_SOLID_BOX);
@@ -518,7 +518,7 @@ void CVisAreaManager::PortalsDrawDebug()
 		{
 			CVisArea* pPortal = m_lstPortals[v];
 
-			float fBlink = gEnv->pTimer->GetFrameStartTime().GetPeriodicFraction(1.0f) > 0.5f ? 1.0f : 0.0f;
+			float fBlink = GetGTimer()->GetFrameStartTime().GetPeriodicFraction(1) > "0.5" ? 1.0f : 0.0f;
 			float fError = pPortal->IsPortalValid() ? 1.f : fBlink;
 
 			ColorB col(
@@ -1476,7 +1476,7 @@ void CVisAreaManager::PrecacheLevel(bool bPrecacheAllVisAreas, Vec3* pPrecachePo
 	CryLog("Precaching the level ...");
 	//  gEnv->pLog->UpdateLoadingScreen(0);
 
-	float fPrecacheTimeStart = GetTimer()->GetAsyncCurTime();
+	CTimeValue fPrecacheTimeStart = GTimer(render)->GetAsyncCurTime();
 
 	GetRenderer()->EnableSwapBuffers((GetCVars()->e_PrecacheLevel >= 2) ? true : false);
 
@@ -1569,8 +1569,8 @@ void CVisAreaManager::PrecacheLevel(bool bPrecacheAllVisAreas, Vec3* pPrecachePo
 
 	GetRenderer()->EnableSwapBuffers(true);
 
-	float fPrecacheTime = GetTimer()->GetAsyncCurTime() - fPrecacheTimeStart;
-	CryLog("Level Precache finished in %.2f seconds", fPrecacheTime);
+	CTimeValue fPrecacheTime = GTimer(render)->GetAsyncCurTime() - fPrecacheTimeStart;
+	CryLog("Level Precache finished in %.2f seconds", (float)fPrecacheTime.GetSeconds());
 }
 
 void CVisAreaManager::GetObjectsAround(Vec3 vExploPos, float fExploRadius, PodArray<SRNInfo>* pEntList, bool bSkip_ERF_NO_DECALNODE_DECALS, bool bSkipDynamicObjects)

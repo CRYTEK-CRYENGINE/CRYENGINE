@@ -405,7 +405,7 @@ bool CParticle::RenderGeometry(SRendParams& RenParamsShared, SParticleVertexCont
 		return false;
 
 	ResourceParticleParams const& params = Context.m_Params;
-	float fRelativeAge = GetRelativeAge();
+	mpfloat fRelativeAge = GetRelativeAge();
 	float fRadius = m_pMeshObj->GetRadius();
 
 	SParticleRenderData RenderData;
@@ -419,7 +419,7 @@ bool CParticle::RenderGeometry(SRendParams& RenParamsShared, SParticleVertexCont
 	if (cColor.a < Context.m_fMinAlphaMod)
 		return false;
 
-	cColor.a *= RenParamsShared.fAlpha * params.GetAlphaFromMod(cColor.a);
+	cColor.a *= RenParamsShared.fAlpha * params.GetAlphaFromMod(BADMP(cColor.a));
 
 	if (passInfo.IsShadowPass())
 	{
@@ -528,7 +528,7 @@ void CParticle::GetTextureRect(RectF& rectTex, Vec3& vTexBlend) const
 
 	if (params.TextureTiling.nAnimFramesCount > 1)
 	{
-		float fAnimPos = params.TextureTiling.GetAnimPos(m_fAge, GetRelativeAge());
+		float fAnimPos = BADF params.TextureTiling.GetAnimPos(m_fAge, GetRelativeAge());
 		fAnimPos *= params.TextureTiling.GetAnimPosScale();
 		fFrame += fAnimPos;
 
@@ -546,7 +546,7 @@ void CParticle::GetTextureRect(RectF& rectTex, Vec3& vTexBlend) const
 
 		fFrame = floor(fFrame);
 	}
-
+	
 	rectTex.x = fFrame * rectTex.w;
 	rectTex.y = floor(rectTex.x) * rectTex.h;
 	rectTex.x -= floor(rectTex.x);
@@ -582,7 +582,7 @@ void CParticleContainer::RenderDecals(const SRenderingPassInfo& passInfo)
 
 		Vec3 vTexBlend;
 		part.GetTextureRect(decal.rectTexture, vTexBlend);
-		float fAlphaMod = part.GetAlphaMod();
+		mpfloat fAlphaMod = part.GetAlphaMod();
 		float fAlphaScale = params.GetAlphaFromMod(fAlphaMod);
 		decal.fAlpha = fAlphaScale * (1.f - vTexBlend.z);
 		decal.fGrowAlphaRef = div_min(params.AlphaClip.fSourceMin.Interp(fAlphaMod), fAlphaScale, 1.f);
@@ -608,7 +608,7 @@ void CParticle::AddLight(const SRendParams& RenParams, const SRenderingPassInfo&
 	ParticleParams const& params = GetParams();
 	CCamera const& cam = passInfo.GetCamera();
 
-	float fRelativeAge = GetRelativeAge();
+	mpfloat fRelativeAge = GetRelativeAge();
 	const float fLightIntensity = params.LightSource.fIntensity.GetValueFromMod(m_BaseMods.LightSourceIntensity, fRelativeAge);
 	const float fLightRadius = params.LightSource.fRadius.GetValueFromMod(m_BaseMods.LightSourceRadius, fRelativeAge);
 
@@ -652,7 +652,7 @@ void CParticleContainer::RenderLights(const SRendParams& RenParams, const SRende
 void CParticle::GetRenderMatrix(Vec3& vX, Vec3& vY, Vec3& vZ, Vec3& vT, const QuatTS& loc, const SParticleRenderData& RenderData, const SParticleVertexContext& Context) const
 {
 	ResourceParticleParams const& params = Context.m_Params;
-	float fRelativeAge = GetRelativeAge();
+	mpfloat fRelativeAge = GetRelativeAge();
 
 	vT = loc.t + Context.m_vRenderOffset;
 
@@ -715,8 +715,8 @@ void CParticle::GetRenderMatrix(Vec3& vX, Vec3& vY, Vec3& vZ, Vec3& vT, const Qu
 	{
 		// Disallow stretching further back than starting position.
 		float fStretch = params.fStretch.GetValueFromMod(m_BaseMods.StretchOrTail, fRelativeAge);
-		if (fStretch * (1.f - params.fStretch.fOffsetRatio) > m_fAge)
-			fStretch = m_fAge / (1.f - params.fStretch.fOffsetRatio);
+		if (fStretch * (1.f - params.fStretch.fOffsetRatio) > m_fAge.BADGetSeconds())
+			fStretch = m_fAge.BADGetSeconds() / (1.f - params.fStretch.fOffsetRatio);
 
 		Vec3 vStretch = m_Vel.vLin * fStretch;
 		fStretch = vStretch.GetLengthFast();
@@ -795,7 +795,7 @@ void CParticle::ComputeRenderData(SParticleRenderData& RenderData, const SPartic
 
 static const float fMIN_OCCLUSION_CULL_PIX = 64.f;
 
-float CParticle::ComputeRenderAlpha(const SParticleRenderData& RenderData, float fRelativeAge, SParticleVertexContext& Context) const
+float CParticle::ComputeRenderAlpha(const SParticleRenderData& RenderData, const mpfloat& fRelativeAge, SParticleVertexContext& Context) const
 {
 	ResourceParticleParams const& params = Context.m_Params;
 
@@ -852,7 +852,7 @@ float CParticle::ComputeRenderAlpha(const SParticleRenderData& RenderData, float
 	}
 
 	// Get particle alpha, adjusted for screen fill limit.
-	float fAlpha = params.fAlpha.GetValueFromBase(m_BaseMods.Alpha, fRelativeAge);
+	float fAlpha = BADF params.fAlpha.GetValueFromBase(m_BaseMods.Alpha, fRelativeAge);
 
 	// Fade near size limits.
 	fAlpha *=
@@ -941,7 +941,7 @@ void CParticle::SetVertices(SLocalRenderVertices& alloc, SParticleVertexContext&
 {
 	ResourceParticleParams const& params = Context.m_Params;
 
-	float fRelativeAge = GetRelativeAge();
+	mpfloat fRelativeAge = GetRelativeAge();
 
 	SParticleRenderData RenderData;
 	ComputeRenderData(RenderData, Context);
@@ -963,9 +963,9 @@ void CParticle::SetVertices(SLocalRenderVertices& alloc, SParticleVertexContext&
 	if (params.TextureTiling.nAnimFramesCount > 1)
 	{
 		// Select anim frame based on particle or emitter age.
-		float fAnimPos = params.Connection ?
+		float fAnimPos = BADF( params.Connection ?
 		                 params.TextureTiling.GetAnimPos(GetEmitter()->GetAge(), GetEmitter()->GetRelativeAge()) :
-		                 params.TextureTiling.GetAnimPos(m_fAge, fRelativeAge);
+		                 params.TextureTiling.GetAnimPos(m_fAge, fRelativeAge) );
 
 		// z = integer tile, w = blend fraction
 		fAnimPos *= Context.m_fAnimPosScale;
@@ -979,16 +979,22 @@ void CParticle::SetVertices(SLocalRenderVertices& alloc, SParticleVertexContext&
 		float fTexY;
 		if (params.Connection.eTextureMapping == params.Connection.eTextureMapping.PerStream)
 		{
-			float fEmitterAge = GetEmitter()->GetAge();
-			float fAgeAdjust = max(fEmitterAge - GetEmitter()->GetStopAge(), 0.f);
-			fTexY = div_min(max(m_fAge, 0.f) - fAgeAdjust, min(m_fStopAge - fAgeAdjust, fEmitterAge - GetEmitter()->GetStartAge()), 1.f);
+			CTimeValue fEmitterAge = GetEmitter()->GetAge();
+			CTimeValue fAgeAdjust = max(fEmitterAge - GetEmitter()->GetStopAge(), CTimeValue(0));
+			
+			fTexY = div_min(
+							max(m_fAge, CTimeValue(0)) - fAgeAdjust, 
+							min(m_fStopAge - fAgeAdjust, fEmitterAge - GetEmitter()->GetStartAge()), 
+							1
+						).BADGetSeconds();
 		}
 		else
 		{
 			int nIndex = Context.m_nPrevSequence == GetEmitterSequence() ? Context.m_nSequenceParticles : -1;
 			if (GetEmitter()->GetSequence() == GetEmitterSequence())
 				nIndex -= GetEmitter()->GetEmitIndex() - 1;
-			fTexY = float(nIndex) + params.fCount.GetMaxValue() - min(m_fAge, 0.f) / m_fStopAge * params.fCount.GetMaxValue();
+
+			fTexY = float(nIndex) + params.fCount.GetMaxValue() - BADF(min(m_fAge, CTimeValue(0)) / m_fStopAge) * params.fCount.GetMaxValue();
 		}
 
 		fTexY = params.Connection.bTextureMirror ? fabs(fmod(fTexY, 2.f) - 1.f) : fmod(fTexY, 1.f);
@@ -1063,8 +1069,8 @@ void CParticle::SetTailVertices(const SVF_Particle& BaseVert, SParticleRenderDat
 
 	TailVert.xyz = BaseVert.xyz;
 
-	float fRelativeAge = GetRelativeAge();
-	float fTailLength = min(Context.m_Params.fTailLength.GetValueFromMod(m_BaseMods.StretchOrTail, fRelativeAge), m_fAge);
+	mpfloat fRelativeAge = GetRelativeAge();
+	float fTailLength = min(Context.m_Params.fTailLength.GetValueFromMod(m_BaseMods.StretchOrTail, fRelativeAge), m_fAge.BADGetSeconds());
 
 	int nPos = GetContainer().GetHistorySteps() - 1;
 	for (; nPos >= 0; nPos--)
@@ -1097,16 +1103,16 @@ void CParticle::SetTailVertices(const SVF_Particle& BaseVert, SParticleRenderDat
 	{
 		QuatTS qtsLoc = m_aPosHistory[nPos].Loc;
 
-		float fAgeDelta = m_fAge - m_aPosHistory[nPos].fAge;
-		if (fAgeDelta > fTailLength)
+		CTimeValue fAgeDelta = m_fAge - m_aPosHistory[nPos].fAge;
+		if (fAgeDelta.BADGetSeconds() > fTailLength)
 		{
 			// Interpolate oldest 2 locations if necessary.
-			if (m_fAge - fTailLength > m_aPosHistory[nPos + 1].fAge)
+			if (m_fAge - BADTIME(fTailLength) > m_aPosHistory[nPos + 1].fAge)
 				break;
-			float fT = (m_fAge - fTailLength - m_aPosHistory[nPos].fAge) / (m_aPosHistory[nPos + 1].fAge - m_aPosHistory[nPos].fAge);
+			float fT = BADF((m_fAge - BADTIME(fTailLength) - m_aPosHistory[nPos].fAge) / (m_aPosHistory[nPos + 1].fAge - m_aPosHistory[nPos].fAge));
 			if (fT > 0.f)
 				qtsLoc.SetNLerp(qtsLoc, m_aPosHistory[nPos + 1].Loc, fT);
-			fAgeDelta = fTailLength;
+			fAgeDelta = BADTIME(fTailLength);
 		}
 
 		RenderData.vOffsetCam = qtsLoc.t - Context.m_vCamPos;
@@ -1121,7 +1127,7 @@ void CParticle::SetTailVertices(const SVF_Particle& BaseVert, SParticleRenderDat
 			vPrevPos = m_aPosHistory[nPos].Loc.t;
 		}
 
-		float fTexY = fTexEnd + fTexTimeGradient * fAgeDelta;
+		float fTexY = fTexEnd + fTexTimeGradient * fAgeDelta.BADGetSeconds();
 		TailVert.st.y = float_to_ufrac8(fTexY);
 		alloc.AddDualVertices(TailVert);
 		nVerts += 2;
@@ -1281,7 +1287,7 @@ void SParticleVertexContext::Init(float fMaxContainerPixels, CParticleContainer*
 	m_fDistFuncCoefs[1] = m_fDistFuncCoefs[2] = 0.f;
 
 	// Minimum alpha mod value to render, based on param alpha scaling
-	m_fMinAlphaMod = params.Connection ? 0.f : div_min(cvars.e_ParticlesMinDrawAlpha, params.fAlpha.GetMaxValue() * params.AlphaClip.fScale.Max, 1.f);
+	m_fMinAlphaMod = params.Connection ? 0.f : div_min(cvars.e_ParticlesMinDrawAlpha, BADF params.fAlpha.GetMaxValue() * params.AlphaClip.fScale.Max, 1.f);
 
 	// Size = Pix/2 * Dist / AngularRes
 	const float fMinPixels = max(+params.fMinPixels, float(params.Connection) * 0.125f);

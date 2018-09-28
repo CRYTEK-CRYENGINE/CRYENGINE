@@ -76,8 +76,8 @@ public:
 
 	virtual void UpdateGPUParams(CParticleComponentRuntime& runtime, gpu_pfx2::SUpdateParams& params) override
 	{
-		params.angle = m_angle.GetValueRange(runtime)(0.5f);
-		params.velocity = m_velocity.GetValueRange(runtime)(0.5f);
+		params.angle = m_angle.GetValueRange(runtime)("0.5");
+		params.velocity = m_velocity.GetValueRange(runtime)("0.5");
 		params.initFlags |= gpu_pfx2::eFeatureInitializationFlags_VelocityCone;
 	}
 
@@ -142,7 +142,7 @@ public:
 	virtual void UpdateGPUParams(CParticleComponentRuntime& runtime, gpu_pfx2::SUpdateParams& params) override
 	{
 		params.direction = m_direction;
-		params.directionScale = m_scale.GetValueRange(runtime)(0.5f);
+		params.directionScale = m_scale.GetValueRange(runtime)("0.5");
 		params.initFlags |= gpu_pfx2::eFeatureInitializationFlags_VelocityDirectional;
 	}
 
@@ -198,7 +198,7 @@ public:
 
 	virtual void UpdateGPUParams(CParticleComponentRuntime& runtime, gpu_pfx2::SUpdateParams& params) override
 	{
-		params.velocity = m_velocity.GetValueRange(runtime)(0.5f);
+		params.velocity = m_velocity.GetValueRange(runtime)("0.5");
 		params.initFlags |= gpu_pfx2::eFeatureInitializationFlags_VelocityOmniDirectional;
 	}
 
@@ -278,7 +278,7 @@ public:
 
 	virtual void UpdateGPUParams(CParticleComponentRuntime& runtime, gpu_pfx2::SUpdateParams& params) override
 	{
-		params.velocityScale = m_scale.GetValueRange(runtime)(0.5f);
+		params.velocityScale = m_scale.GetValueRange(runtime)("0.5");
 	}
 
 private:

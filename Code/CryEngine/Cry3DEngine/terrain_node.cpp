@@ -344,8 +344,8 @@ void CTerrainNode::Init(int x1, int y1, int nNodeSize, CTerrainNode* pParent, bo
 	m_eTextureEditingState = m_eElevTexEditingState = eTES_SectorIsUnmodified;
 #endif // _RELEASE
 
-	m_nOriginX = m_nOriginY = 0; // sector origin
-	m_nLastTimeUsed = 0;         // basically last time rendered
+	m_nOriginX = m_nOriginY = 0;   // sector origin
+	m_nLastTimeUsed.SetSeconds(0); // basically last time rendered
 
 	uint8 m_cNodeNewTexMML = m_cNodeNewTexMML_Min = 0;
 
@@ -363,7 +363,7 @@ void CTerrainNode::Init(int x1, int y1, int nNodeSize, CTerrainNode* pParent, bo
 	m_pParent = NULL;
 	//m_nSetupTexGensFrameId=0;
 
-	m_nLastTimeUsed = (int)GetCurTimeSec() + 20;
+	m_nLastTimeUsed = GetGTimer()->GetFrameStartTime() + 20;
 
 	m_cNodeNewTexMML = 100;
 	m_pParent = NULL;
@@ -422,7 +422,7 @@ void CTerrainNode::Init(int x1, int y1, int nNodeSize, CTerrainNode* pParent, bo
 		if (m_arrfDistance[0] < 0)
 			m_arrfDistance[0] = 0;
 
-		m_nLastTimeUsed = ~0;//GetCurTimeSec() + 100;
+		m_nLastTimeUsed.SetSeconds(-1);//GetCurTimeSec() + 100;
 	}
 
 	int nSectorSize = CTerrain::GetSectorSize() << m_nTreeLevel;
@@ -594,7 +594,7 @@ void CTerrainNode::CheckNodeGeomUnload(const SRenderingPassInfo& passInfo)
 
 	float fDistanse = GetPointToBoxDistance(passInfo.GetCamera().GetPosition(), GetBBox()) * passInfo.GetZoomFactor();
 
-	int nTime = fastftol_positive(GetCurTimeSec());
+	CTimeValue nTime = GetGTimer()->GetFrameStartTime();
 
 	// support timer reset
 	m_nLastTimeUsed = min(m_nLastTimeUsed, nTime);
@@ -633,7 +633,7 @@ void CTerrainNode::RenderNodeHeightmap(const SRenderingPassInfo& passInfo, uint3
 	FUNCTION_PROFILER_3DENGINE;
 	bool bMeshIsUpToDate = true; // actually bUpdateNOTRequired
 
-	m_nLastTimeUsed = fastftol_positive(GetCurTimeSec());
+	m_nLastTimeUsed = GetGTimer()->GetFrameStartTime();
 
 	assert(GetVisAreaManager()->IsOutdoorAreasVisible());
 
@@ -1364,7 +1364,7 @@ void CTerrainNode::Render(const SRendParams& RendParams, const SRenderingPassInf
 			m_pTerrain->m_pTerrainUpdateDispatcher->QueueJob(this, passInfo);
 	}
 
-	m_nLastTimeUsed = fastftol_positive(GetCurTimeSec());
+	m_nLastTimeUsed = GetGTimer()->GetFrameStartTime();
 }
 
 /*bool CTerrainNode::CheckUpdateLightMap()

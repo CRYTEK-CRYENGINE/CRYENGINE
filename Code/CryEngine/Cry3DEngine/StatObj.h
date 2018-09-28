@@ -73,14 +73,14 @@ public:
 	{
 		m_next = 0;
 		m_prev = 0;
-		m_lifeTime = 0;
+		m_lifeTime.SetSeconds(0);
 		m_ppThis = 0;
 		m_pStatObj = 0;
 		m_pRopes = 0;
 		m_pRopesActiveTime = 0;
 		m_nRopes = 0;
 		m_nRefCount = 1;
-		m_timeIdle = 0;
+		m_timeIdle.SetSeconds(0);
 		m_pVegInst = 0;
 		m_pTrunk = 0;
 		m_pSkinningTransformations[0] = 0;
@@ -89,7 +89,7 @@ public:
 		m_flags = 0;
 		m_bGeomRemoved = 0;
 		m_bEnabled = 1;
-		m_timeInvisible = 0;
+		m_timeInvisible.SetSeconds(0);
 		m_bDelete = 0;
 		m_pRenderObject = 0;
 		m_minEnergy = 0.0f;
@@ -118,7 +118,7 @@ public:
 	void                     ComputeSkinningTransformations(uint32 nList);
 
 	void                     OnHit(struct EventPhysCollision* pHit);
-	void                     Update(float dt, const CCamera& rCamera);
+	void                     Update(const CTimeValue& dt, const CCamera& rCamera);
 	void                     BreakBranch(int idx);
 
 	CStatObjFoliage*  m_next, * m_prev;
@@ -126,18 +126,18 @@ public:
 	int               m_flags;
 	CStatObj*         m_pStatObj;
 	IPhysicalEntity** m_pRopes;
-	float*            m_pRopesActiveTime;
+	CTimeValue*       m_pRopesActiveTime;
 	IPhysicalEntity*  m_pTrunk;
 	int16             m_nRopes;
 	int16             m_bEnabled;
-	float             m_timeIdle, m_lifeTime;
+	CTimeValue        m_timeIdle, m_lifeTime;
 	IFoliage**        m_ppThis;
 	QuatTS*           m_pSkinningTransformations[2];
 	int               m_iActivationSource;
 	int               m_bGeomRemoved;
 	IRenderNode*      m_pVegInst;
 	CRenderObject*    m_pRenderObject;
-	float             m_timeInvisible;
+	CTimeValue        m_timeInvisible;
 	float             m_minEnergy;
 	float             m_stiffness;
 	int               m_bDelete;
@@ -361,9 +361,9 @@ public:
 	uint32 m_nModificationId; // used to detect the cases when dependent permanent render objects have to be updated
 
 #if !defined (_RELEASE) || defined(ENABLE_STATOSCOPE_RELEASE)
-	static float s_fStreamingTime;
+	static CTimeValue s_fStreamingTime;
 	static int s_nBandwidth;
-	float m_fStreamingStart;
+	CTimeValue m_fStreamingStart;
 #endif
 
 #ifdef OBJMAN_STREAM_STATS
@@ -565,7 +565,7 @@ public:
 	void AnalyzeFoliage(IRenderMesh * pRenderMesh, CContentCGF * pCGF);
 	void FreeFoliageData();
 	virtual void CopyFoliageData(IStatObj * pObjDst, bool bMove = false, IFoliage * pSrcFoliage = 0, int* pVtxMap = 0, primitives::box * pMoveBoxes = 0, int nMovedBoxes = -1) final;
-	virtual int PhysicalizeFoliage(IPhysicalEntity * pTrunk, const Matrix34 &mtxWorld, IFoliage * &pRes, float lifeTime = 0.0f, int iSource = 0) final;
+	virtual int PhysicalizeFoliage(IPhysicalEntity * pTrunk, const Matrix34 &mtxWorld, IFoliage * &pRes, const CTimeValue& lifeTime = 0, int iSource = 0) final;
 	int SerializeFoliage(TSerialize ser, IFoliage * pFoliage);
 
 	virtual IStatObj* UpdateVertices(strided_pointer<Vec3> pVtx, strided_pointer<Vec3> pNormals, int iVtx0, int nVtx, int* pVtxMap = 0, float rscale = 1.f) final;

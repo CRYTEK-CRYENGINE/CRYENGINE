@@ -42,7 +42,7 @@ void CTerrain::BuildSectorsTree(bool bBuildErrorsTable)
 
 	m_SSurfaceType.PreAllocate(SRangeInfo::e_max_surface_types, SRangeInfo::e_max_surface_types);
 
-	float fStartTime = GetCurAsyncTimeSec();
+	CTimeValue fStartTime = GetGTimer()->GetAsyncTime();
 
 	// Log() to use LogPlus() later
 	PrintMessage(bBuildErrorsTable ? "Compiling %d terrain nodes (%.1f MB) " : "Constructing %d terrain nodes (%.1f MB) ",
@@ -94,7 +94,7 @@ void CTerrain::BuildSectorsTree(bool bBuildErrorsTable)
 	assert(nCount == GetTerrainNodesAmount());
 
 #ifndef SW_STRIP_LOADING_MSG
-	PrintMessagePlus(" done in %.2f sec", GetCurAsyncTimeSec() - fStartTime);
+	PrintMessagePlus(" done in %.2f sec", (float)(GetGTimer()->GetAsyncTime() - fStartTime).GetSeconds());
 #endif
 }
 

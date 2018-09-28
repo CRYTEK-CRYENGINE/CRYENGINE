@@ -180,7 +180,7 @@ bool CRenderMeshUtils::RayIntersectionImpl(SIntersectionData* pIntersectionRMDat
 
 	FUNCTION_PROFILER_3DENGINE;
 
-	//CTimeValue t0 = gEnv->pTimer->GetAsyncTime();
+	//CTimeValue t0 = GetGTimer()->GetAsyncTime();
 
 	float fMaxDist2 = hitInfo.fMaxHitDistance * hitInfo.fMaxHitDistance;
 
@@ -224,7 +224,7 @@ bool CRenderMeshUtils::RayIntersectionImpl(SIntersectionData* pIntersectionRMDat
 						hitInfo.vTri1 = last_hits[i].tri[1];
 						hitInfo.vTri2 = last_hits[i].tri[2];
 					}
-					//CTimeValue t1 = gEnv->pTimer->GetAsyncTime();
+					//CTimeValue t1 = GetGTimer()->GetAsyncTime();
 					//CryLogAlways( "TestTime :%.2f", (t1-t0).GetMilliSeconds() );
 					//static int nCount = 0; CryLogAlways( "Cached Hit %d",++nCount );
 					hitInfo.pRenderMesh = rIntersectionRMData.pRenderMesh;
@@ -419,7 +419,7 @@ AnyHit:
 		}
 
 	}
-	//CTimeValue t1 = gEnv->pTimer->GetAsyncTime();
+	//CTimeValue t1 = GetGTimer()->GetAsyncTime();
 	//CryLogAlways( "TestTime :%.2f", (t1-t0).GetMilliSeconds() );
 
 	rIntersectionRMData.bResult = bAnyHit;
@@ -631,7 +631,7 @@ bool CRenderMeshUtils::RayIntersectionFastImpl(SIntersectionData& rIntersectionR
 		}
 	}
 
-	//CTimeValue t1 = gEnv->pTimer->GetAsyncTime();
+	//CTimeValue t1 = GetGTimer()->GetAsyncTime();
 	//CryLogAlways( "TestTime :%.2f", (t1-t0).GetMilliSeconds() );
 
 	return bAnyHit;

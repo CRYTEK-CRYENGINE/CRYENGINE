@@ -96,7 +96,7 @@ public:
 	virtual void UpdateGPUParams(CParticleComponentRuntime& runtime, gpu_pfx2::SUpdateParams& params) override
 	{
 		params.offset = m_offset;
-		params.scale.x = m_scale.GetValueRange(runtime)(0.5f);
+		params.scale.x = m_scale.GetValueRange(runtime)("0.5");
 		params.initFlags |= gpu_pfx2::eFeatureInitializationFlags_LocationOffset;
 	}
 
@@ -177,7 +177,7 @@ public:
 	virtual void UpdateGPUParams(CParticleComponentRuntime& runtime, gpu_pfx2::SUpdateParams& params) override
 	{
 		params.box = m_box;
-		params.scale.x = m_scale.GetValueRange(runtime)(0.5f);
+		params.scale.x = m_scale.GetValueRange(runtime)("0.5");
 		params.initFlags |= gpu_pfx2::eFeatureInitializationFlags_LocationBox;
 	}
 
@@ -238,8 +238,8 @@ public:
 	virtual void UpdateGPUParams(CParticleComponentRuntime& runtime, gpu_pfx2::SUpdateParams& params) override
 	{
 		params.scale = m_axisScale;
-		params.radius = m_radius.GetValueRange(runtime)(0.5f);
-		params.velocity = m_velocity.GetValueRange(runtime)(0.5f);
+		params.radius = m_radius.GetValueRange(runtime)("0.5");
+		params.velocity = m_velocity.GetValueRange(runtime)("0.5");
 		params.initFlags |= gpu_pfx2::eFeatureInitializationFlags_LocationSphere;
 	}
 
@@ -354,8 +354,8 @@ public:
 	{
 		params.scale.x = m_axisScale.x;
 		params.scale.y = m_axisScale.y;
-		params.radius = m_radius.GetValueRange(runtime)(0.5f);
-		params.velocity = m_velocity.GetValueRange(runtime)(0.5f);
+		params.radius = m_radius.GetValueRange(runtime)("0.5");
+		params.velocity = m_velocity.GetValueRange(runtime)("0.5");
 		params.initFlags |= gpu_pfx2::eFeatureInitializationFlags_LocationCircle;
 	}
 
@@ -731,7 +731,7 @@ public:
 		const float maxSize = (float)(1 << 12);
 		const float minSize = rcp_fast(maxSize); // small enough and prevents SIMD exceptions
 		const float invSize = rcp_fast(max(minSize, +m_size));
-		const float time = mod(runtime.GetEmitter()->GetTime() * m_rate * minSize, 1.0f) * maxSize;
+		const float time = mod(runtime.GetEmitter()->GetTime().BADGetSeconds() * m_rate * minSize, 1.0f) * maxSize;
 		const float delta = m_rate * runtime.DeltaTime();
 		CParticleContainer& container = runtime.GetContainer();
 		const IFStream ages = container.GetIFStream(EPDT_NormalAge);
@@ -759,7 +759,7 @@ public:
 
 	virtual void UpdateGPUParams(CParticleComponentRuntime& runtime, gpu_pfx2::SUpdateParams& params) override
 	{
-		params.amplitude = m_amplitude.GetValueRange(runtime)(0.5f);
+		params.amplitude = m_amplitude.GetValueRange(runtime)("0.5");
 		params.noiseSize = m_size;
 		params.rate = m_rate;
 		params.octaves = m_octaves;

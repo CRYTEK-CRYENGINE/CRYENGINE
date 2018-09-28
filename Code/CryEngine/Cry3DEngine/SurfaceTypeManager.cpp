@@ -448,7 +448,7 @@ void CSurfaceTypeManager::LoadSurfaceTypes()
 			physNode->getAttr("hit_points", physParams.hit_points = 0);
 			physNode->getAttr("hit_radius", physParams.hit_radius = 10000.0f);
 			physNode->getAttr("hit_maxdmg", physParams.hit_maxdmg = 1000);
-			physNode->getAttr("hit_lifetime", physParams.hit_lifetime = 10.0f);
+			physNode->getAttr("hit_lifetime", physParams.hit_lifetime = CTimeValue(10));
 			physNode->getAttr("hole_size", physParams.hole_size);
 			physNode->getAttr("hole_size_explosion", physParams.hole_size_explosion = 0.0f);
 			physNode->getAttr("breakable_2d", nBreakable2d);
@@ -530,7 +530,7 @@ void CSurfaceTypeManager::LoadSurfaceTypes()
 				break2dParams.blast_radius_first = break2dParams.blast_radius;
 			break2dNode->getAttr("vert_size_spread", break2dParams.vert_size_spread = 0.0f);
 			break2dNode->getAttr("rigid_body", break2dParams.rigid_body = 0);
-			break2dNode->getAttr("lifetime", break2dParams.life_time = 4.0f);
+			break2dNode->getAttr("lifetime", break2dParams.life_time = CTimeValue(4));
 			break2dParams.particle_effect = break2dNode->getAttr("particle_effect");
 
 			break2dNode->getAttr("cell_size", break2dParams.cell_size = 0.1f);
@@ -548,8 +548,8 @@ void CSurfaceTypeManager::LoadSurfaceTypes()
 			break2dParams.broken_mtl = break2dNode->getAttr("broken_mtl");
 			if (break2dParams.broken_mtl.length())
 				gEnv->p3DEngine->GetMaterialManager()->LoadMaterial(break2dParams.broken_mtl, false);
-			break2dNode->getAttr("destroy_timeout", break2dParams.destroy_timeout = 0);
-			break2dNode->getAttr("destroy_timeout_spread", break2dParams.destroy_timeout_spread = 0);
+			break2dNode->getAttr("destroy_timeout", break2dParams.destroy_timeout = CTimeValue(0));
+			break2dNode->getAttr("destroy_timeout_spread", break2dParams.destroy_timeout_spread = CTimeValue(0));
 
 			SAFE_DELETE(pSurfaceType->m_pBreakable2DParams);
 			pSurfaceType->m_pBreakable2DParams = new ISurfaceType::SBreakable2DParams;

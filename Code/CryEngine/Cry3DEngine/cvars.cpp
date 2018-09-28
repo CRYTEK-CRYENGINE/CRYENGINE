@@ -189,7 +189,7 @@ void CVars::Init()
 	                     "Max view distance of terrain Z materials");
 	REGISTER_CVAR(e_TerrainDetailMaterialsViewDistXY, e_TerrainDetailMaterialsViewDistXYDefault, VF_NULL,
 	                     "Max view distance of terrain XY materials");
-	DefineConstFloatCVar(e_SunAngleSnapSec, VF_NULL,
+	REGISTER_CVAR(e_SunAngleSnapSec, CTimeValue("0.1"), VF_NULL,
 	                     "Sun dir snap control");
 	DefineConstFloatCVar(e_SunAngleSnapDot, VF_NULL,
 	                     "Sun dir snap control");
@@ -313,9 +313,9 @@ void CVars::Init()
 	                     "Less precision for decals outside this range");
 	DefineConstFloatCVar(e_MinMassDistanceCheckRenderMeshCollision, VF_NULL,
 	                     "Minimum mass to check for e_DecalsRange as distance in a RenderMesh Collision check");
-	REGISTER_CVAR(e_DecalsLifeTimeScale, 1.f, VF_NULL,
+	REGISTER_CVAR(e_DecalsLifeTimeScale, mpfloat("1"), VF_NULL,
 	              "Allows to increase or reduce decals life time for different specs");
-	REGISTER_CVAR(e_DecalsNeighborMaxLifeTime, 4.f, VF_NULL,
+	REGISTER_CVAR(e_DecalsNeighborMaxLifeTime, CTimeValue(4), VF_NULL,
 	              "If not zero - new decals will force old decals to fade in X seconds");
 	REGISTER_CVAR(e_DecalsOverlapping, 0, VF_NULL,
 	              "If zero - new decals will not be spawned if the distance to nearest decals less than X");
@@ -511,8 +511,8 @@ void CVars::Init()
 	              "Smaller values produce less draw calls and less polygons for terrain shadow map generation");
 	REGISTER_CVAR(e_TerrainMeshInstancingShadowBias, 0.5f, VF_NULL,
 	              "During shadow map generation render distant terrain sectors little lower for less problems with terrain self-shadowing");
-	REGISTER_CVAR(e_StreamPredictionUpdateTimeSlice, 0.3f, VF_NULL,
-	              "Maximum amount of time to spend for scene streaming priority update in milliseconds");
+	REGISTER_CVAR(e_StreamPredictionUpdateTimeSlice, CTimeValue().SetMilliSeconds("0.3"), VF_NULL,
+	              "Maximum amount of time to spend for scene streaming priority update");
 	REGISTER_CVAR(e_StreamAutoMipFactorSpeedThreshold, 0.f, VF_NULL,
 	              "Debug");
 	REGISTER_CVAR(e_StreamAutoMipFactorMin, 0.5f, VF_NULL,
@@ -573,8 +573,8 @@ void CVars::Init()
 	              "expanding the AABB's of the objects to test to avoid z-fighting issues in the Coverage buffer");
 	REGISTER_CVAR(e_CoverageBufferEarlyOut, 1, VF_NULL,
 	              "preempting occluder rasterization to avoid stalling in the main thread if rendering is faster");
-	REGISTER_CVAR(e_CoverageBufferEarlyOutDelay, 3.0f, VF_NULL,
-	              "Time in ms that rasterizer is allowed to continue working after early out request");
+	REGISTER_CVAR(e_CoverageBufferEarlyOutDelay, CTimeValue().SetMilliSeconds(3), VF_NULL,
+	              "Time that rasterizer is allowed to continue working after early out request");
 	REGISTER_CVAR(e_CoverageBufferTerrainExpand, 0.025f, VF_NULL,
 	              "expanding the AABB Z axis of terrain to avoid flat terrain flickering");
 
@@ -754,8 +754,8 @@ void CVars::Init()
 	              "Turns on on-demand physicalization (0=off, 1=vegetation only[default], 2=brushes only, 3=brushes&vegetation");
 	REGISTER_CVAR(e_OnDemandMaxSize, 20.0f, VF_NULL,
 	              "Specifies the maximum size of vegetation objects that are physicalized on-demand");
-	DefineConstIntCVar(e_Sleep, 0, VF_CHEAT,
-	                   "Sleep X in C3DEngine::Draw");
+	REGISTER_CVAR(e_Sleep, CTimeValue(0), VF_CHEAT,
+	                   "Sleep X seconds in C3DEngine::Draw");
 	REGISTER_CVAR(e_ObjectLayersActivation, (m_bEditor ? 0 : 1), VF_CHEAT, "Allow game to activate/deactivate object layers");
 	DefineConstIntCVar(e_ObjectLayersActivationPhysics, 1, VF_CHEAT,
 	                   "Allow game to create/free physics of objects: 0: Disable; 1: All; 2: Water only.");
@@ -813,7 +813,7 @@ void CVars::Init()
 	DefineConstIntCVar(e_LodsForceUse, 1, VF_NULL,
 	                   "Force using LODs even if triangle count do not suit");
 
-	REGISTER_CVAR(e_SQTestDelay, 5.f, VF_NULL,
+	REGISTER_CVAR(e_SQTestDelay, CTimeValue(5), VF_NULL,
 	              "Time to stabilize the system before camera movements");
 
 	REGISTER_CVAR(e_ProcVegetation, 1, VF_NULL,
@@ -849,7 +849,7 @@ void CVars::Init()
 
 	REGISTER_CVAR(e_LodRatio, 6.0f, VF_NULL,
 	              "LOD distance ratio for objects");
-	REGISTER_CVAR(e_LodTransitionTime, 0.5f, VF_NULL,
+	REGISTER_CVAR(e_LodTransitionTime, CTimeValue("0.5"), VF_NULL,
 	              "If non 0 - use dissolve for smooth LOD transition");
 	REGISTER_CVAR(e_LodFaceAreaTargetSize, 0.005f, VF_NULL,
 	              "Threshold used for LOD computation.");
@@ -912,7 +912,7 @@ void CVars::Init()
 	                     "Damping of branch ropes");
 	DefineConstFloatCVar(e_FoliageBrokenBranchesDamping, VF_NULL,
 	                     "Damping of branch ropes of broken vegetation");
-	REGISTER_CVAR(e_FoliageBranchesTimeout, 4.f, VF_NULL,
+	REGISTER_CVAR(e_FoliageBranchesTimeout, CTimeValue(4), VF_NULL,
 	              "Maximum lifetime of branch ropes (if there are no collisions)");
 	REGISTER_CVAR(e_FoliageWindActivationDist, 0, VF_NULL,
 	              "If the wind is sufficiently strong, visible foliage in this view dist will be forcefully activated");
@@ -1108,8 +1108,8 @@ void CVars::Init()
 	e_DebugDrawFilter = REGISTER_STRING("e_DebugDrawFilter", "", VF_NULL,
 	                                    "Show a specified text on DebugDraw");
 
-	REGISTER_CVAR_CB(e_TimeOfDay, 0.0f, VF_CHEAT | VF_CHEAT_NOCHECK, "Current Time of Day", OnTimeOfDayVarChange);
-	REGISTER_CVAR_CB(e_TimeOfDaySpeed, 0.0f, VF_CHEAT | VF_CHEAT_NOCHECK, "Time of Day change speed", OnTimeOfDaySpeedVarChange);
+	REGISTER_CVAR_CB(e_TimeOfDay, CTimeValue(0), VF_CHEAT | VF_CHEAT_NOCHECK, "Current Time of Day in Hours", OnTimeOfDayVarChange);
+	REGISTER_CVAR_CB(e_TimeOfDaySpeed, mpfloat(0), VF_CHEAT | VF_CHEAT_NOCHECK, "Time of Day change speed", OnTimeOfDaySpeedVarChange);
 	DefineConstIntCVar(e_TimeOfDayDebug, 0, VF_NULL,
 	                   "Display time of day current values on screen");
 
@@ -1177,7 +1177,7 @@ void CVars::Init()
 	REGISTER_CVAR(e_MergedMeshesUseSpines, 1, VF_NULL, "MergedMeshes use touchbending");
 	REGISTER_CVAR(e_MergedMeshesBulletSpeedFactor, 0.05f, VF_NULL, "MergedMesh Bullet approximations speed factor");
 	REGISTER_CVAR(e_MergedMeshesBulletScale, 35.f, VF_NULL, "MergedMesh Bullet approximations size scale");
-	REGISTER_CVAR(e_MergedMeshesBulletLifetime, 0.15f, VF_NULL, "MergedMesh Bullet approximations lifetime");
+	REGISTER_CVAR(e_MergedMeshesBulletLifetime, CTimeValue("0.15"), VF_NULL, "MergedMesh Bullet approximations lifetime");
 	REGISTER_CVAR(e_MergedMeshesOutdoorOnly, 0, VF_NULL, "MergedMeshes will recieve ERF_OUTDOORONLY by default");
 	REGISTER_CVAR(e_MergedMeshesMaxTriangles, 600, VF_NULL, "Do not merge meshes containing too many triangles. It's more efficient to render them without merging");
 	REGISTER_CVAR(e_CheckOctreeObjectsBoxSize, 1, VF_NULL, "CryWarning for crazy sized COctreeNode m_objectsBoxes");
@@ -1188,11 +1188,11 @@ void CVars::Init()
 	              "Maximum size of geometry cache animated data in MB before always streaming from disk ignoring the memory playback flag. Default: 16");
 	REGISTER_CVAR(e_GeomCachePreferredDiskRequestSize, 1024, VF_CHEAT,
 	              "Preferred disk request size for geometry cache streaming in KB. Default: 1024");
-	REGISTER_CVAR(e_GeomCacheMinBufferAheadTime, 2.0f, VF_CHEAT,
+	REGISTER_CVAR(e_GeomCacheMinBufferAheadTime, CTimeValue(2), VF_CHEAT,
 	              "Time in seconds minimum that data will be buffered ahead for geom cache streaming. Default: 2.0");
-	REGISTER_CVAR(e_GeomCacheMaxBufferAheadTime, 5.0f, VF_CHEAT,
+	REGISTER_CVAR(e_GeomCacheMaxBufferAheadTime, CTimeValue(5), VF_CHEAT,
 	              "Time in seconds maximum that data will be buffered ahead for geom cache streaming. Default: 5.0");
-	REGISTER_CVAR(e_GeomCacheDecodeAheadTime, 0.5f, VF_CHEAT,
+	REGISTER_CVAR(e_GeomCacheDecodeAheadTime, CTimeValue("0.5"), VF_CHEAT,
 	              "Time in seconds that data will be decoded ahead for geom cache streaming. Default: 0.5");
 #ifndef _RELEASE
 	DefineConstIntCVar(e_GeomCacheDebug, 0, VF_CHEAT, "Show geometry cache debug overlay. Default: 0");

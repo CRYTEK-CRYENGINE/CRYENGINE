@@ -146,7 +146,7 @@ private:
 		IOVec3Stream positions = container.GetIOVec3Stream(EPVF_Position);
 		const float maxSize = (float)(1 << 12);
 		const float minSize = rcp_fast(maxSize); // small enough and prevents SIMD exceptions
-		const floatv time = ToFloatv(fmodf(runtime.GetEmitter()->GetTime() * m_rate * minSize, 1.0f) * maxSize);
+		const floatv time = ToFloatv(fmodf(runtime.GetEmitter()->GetTime().BADGetSeconds() * m_rate * minSize, 1.0f) * maxSize);
 		const floatv invSize = ToFloatv(rcp_fast(std::max(minSize, float(m_size))));
 		const floatv speed = ToFloatv(m_speed);
 		const floatv delta = ToFloatv(m_rate * runtime.DeltaTime());

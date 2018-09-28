@@ -500,21 +500,21 @@ void CGeomCacheRenderNode::Clear(bool bWaitForStreamingJobs)
 	m_pRenderElements.clear();
 }
 
-void CGeomCacheRenderNode::SetPlaybackTime(const float time)
+void CGeomCacheRenderNode::SetPlaybackTime(const CTimeValue& time)
 {
 	if (m_pGeomCache)
 	{
-		const float duration = m_pGeomCache->GetDuration();
-		const bool bInsideTimeRange = (time >= 0.0f && (m_bLooping || time <= duration));
+		const CTimeValue duration = m_pGeomCache->GetDuration();
+		const bool bInsideTimeRange = (time >= 0 && (m_bLooping || time <= duration));
 
-		float clampedTime = time < 0.0f ? 0.0f : time;
+		CTimeValue clampedTime = time < 0 ? 0 : time;
 		if (!m_bLooping)
 		{
 			clampedTime = time > duration ? duration : time;
 		}
 
-		m_playbackTime = clampedTime;
-		m_streamingTime = clampedTime;
+		m_playbackTime = clampedTime.BADGetSeconds();
+		m_streamingTime = clampedTime.BADGetSeconds();
 
 		if (m_pGeomCache && bInsideTimeRange)
 		{
@@ -526,11 +526,11 @@ void CGeomCacheRenderNode::SetPlaybackTime(const float time)
 	StopStreaming();
 }
 
-void CGeomCacheRenderNode::StartStreaming(const float time)
+void CGeomCacheRenderNode::StartStreaming(const CTimeValue& time)
 {
-	if (m_pGeomCache && time >= 0.0f && (m_bLooping || time <= m_pGeomCache->GetDuration()))
+	if (m_pGeomCache && time >= 0 && (m_bLooping || time <= m_pGeomCache->GetDuration()))
 	{
-		m_streamingTime = time;
+		m_streamingTime = time.BADGetSeconds();
 		m_bIsStreaming = true;
 	}
 }
@@ -555,7 +555,7 @@ bool CGeomCacheRenderNode::IsStreaming() const
 	return m_bIsStreaming && m_pGeomCache && !m_pGeomCache->PlaybackFromMemory();
 }
 
-float CGeomCacheRenderNode::GetPrecachedTime() const
+const CTimeValue CGeomCacheRenderNode::GetPrecachedTime() const
 {
 	return GetGeomCacheManager()->GetPrecachedTime(this);
 }
@@ -1048,8 +1048,8 @@ void CGeomCacheRenderNode::SetStreamInDistance(const float distance)
 
 CGeomCacheRenderNode::EStandInType CGeomCacheRenderNode::SelectStandIn() const
 {
-	const bool bFirstFrame = m_playbackTime == 0.0f;
-	const bool bLastFrame = !m_bLooping && (m_pGeomCache ? (m_playbackTime >= m_pGeomCache->GetDuration()) : false);
+	const bool bFirstFrame = m_playbackTime == 0;
+	const bool bLastFrame = !m_bLooping && (m_pGeomCache ? (BADTIME(m_playbackTime) >= m_pGeomCache->GetDuration()) : false);
 
 	if (bFirstFrame && m_pFirstFrameStandIn && m_pFirstFrameStandIn->GetRenderMesh())
 	{

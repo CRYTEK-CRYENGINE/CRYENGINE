@@ -49,29 +49,29 @@ public:
 	void Deactivate();
 
 	// Timing.
-	float GetAge() const
+	const CTimeValue& GetAge() const
 	{ return GetSource().GetAge(); }
-	float GetStartAge() const
+	const CTimeValue& GetStartAge() const
 	{ return m_fStartAge; }
-	float GetRepeatAge() const
+	const CTimeValue& GetRepeatAge() const
 	{ return m_fRepeatAge; }
-	float GetStopAge() const
+	const CTimeValue& GetStopAge() const
 	{ return m_fStopAge; }
-	float GetParticleStopAge() const
+	CTimeValue GetParticleStopAge() const
 	{ return GetStopAge() + GetParams().GetMaxParticleLife(); }
-	float GetRelativeAge(float fAgeAdjust = 0.f) const
+	mpfloat GetRelativeAge(const CTimeValue& fAgeAdjust = 0) const
 	{ return GetAgeRelativeTo(m_fStopAge, fAgeAdjust); }
 
-	float GetStopAge(ParticleParams::ESoundControlTime eControl) const;
-	float GetRelativeAge(ParticleParams::ESoundControlTime eControl, float fAgeAdjust = 0.f) const
+	CTimeValue GetStopAge(ParticleParams::ESoundControlTime eControl) const;
+	mpfloat GetRelativeAge(ParticleParams::ESoundControlTime eControl, const CTimeValue& fAgeAdjust = 0) const
 	{ return GetAgeRelativeTo(min(GetStopAge(eControl), m_fRepeatAge), fAgeAdjust); }
 
-	float GetStrength(float fAgeAdjust = 0.f, ParticleParams::ESoundControlTime eControl = ParticleParams::ESoundControlTime::EmitterLifeTime) const;
+	mpfloat GetStrength(const CTimeValue& fAgeAdjust = 0, ParticleParams::ESoundControlTime eControl = ParticleParams::ESoundControlTime::EmitterLifeTime) const;
 
-	Vec3 GetEmitFocusDir(const QuatTS &loc, float fStrength, Quat * pRot = 0) const;
+	Vec3 GetEmitFocusDir(const QuatTS &loc, const mpfloat& fStrength, Quat * pRot = 0) const;
 
 	// Actions.
-	void UpdateState(float fAgeAdjust = 0.f);
+	void UpdateState(const CTimeValue& fAgeAdjust = 0);
 	void UpdateAudio();
 	void ResetLoc()
 	{ m_LastLoc.s = -1.f; }
@@ -84,7 +84,7 @@ public:
 	bool HasForce() const
 	{ return (m_pForce != 0); }
 
-	int EmitParticle(SParticleUpdateContext & context, const EmitParticleData &data, float fAge = 0.f, QuatTS * plocPreTransform = NULL);
+	int EmitParticle(SParticleUpdateContext & context, const EmitParticleData &data, const CTimeValue& fAge = 0, QuatTS * plocPreTransform = NULL);
 	void EmitParticles(SParticleUpdateContext & context);
 
 	uint32    GetEmitIndex() const
@@ -116,11 +116,11 @@ private:
 	bool m_bExecuteAudioTrigger;
 
 	// State.
-	float m_fStartAge;              // Relative age when scheduled to start (default 0).
-	float m_fStopAge;               // Relative age when scheduled to end (fHUGE if never).
-	float m_fRepeatAge;             // Relative age when scheduled to repeat (fHUGE if never).
-	float m_fLastEmitAge;           // Age of emission of last particle.
-	float m_fActivateAge;           // Cached age for last activation mode.
+	CTimeValue m_fStartAge;              // Relative age when scheduled to start (default 0).
+	CTimeValue m_fStopAge;               // Relative age when scheduled to end (tHUGE if never).
+	CTimeValue m_fRepeatAge;             // Relative age when scheduled to repeat (tHUGE if never).
+	CTimeValue m_fLastEmitAge;           // Age of emission of last particle.
+	CTimeValue m_fActivateAge;           // Cached age for last activation mode.
 
 	CChaosKey m_ChaosKey;           // Seed for randomising; inited every pulse.
 	QuatTS m_LastLoc;               // Location at time of last update.
@@ -132,10 +132,10 @@ private:
 	IPhysicalEntity* m_pForce;
 
 	// Methods.
-	void Initialize(float fAge);
-	float GetAgeRelativeTo(float fStopAge, float fAgeAdjust = 0.f) const;
+	void Initialize(const CTimeValue& fAge);
+	mpfloat GetAgeRelativeTo(const CTimeValue& fStopAge, const CTimeValue& fAgeAdjust = 0) const;
 	void DeactivateAudio();
-	float ComputeDensityIncrease(float fStrength, float fParticleLife, const QuatTS &locA, const QuatTS * plocB) const;
+	float ComputeDensityIncrease(const mpfloat& fStrength, const CTimeValue& fParticleLife, const QuatTS &locA, const QuatTS * plocB) const;
 	Matrix34 GetEmitTM() const;
 
 };

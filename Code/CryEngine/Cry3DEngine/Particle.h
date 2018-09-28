@@ -29,38 +29,38 @@ struct STargetForces;
 struct STimeState
 {
 protected:
-	float m_fAge;                       // Current age.
-	float m_fStopAge;                   // Age of death.
-	float m_fCollideAge;                // Age of first collision (for SpawnOnCollision children).
+	CTimeValue m_fAge;                       // Current age.
+	CTimeValue m_fStopAge;                   // Age of death.
+	CTimeValue m_fCollideAge;                // Age of first collision (for SpawnOnCollision children).
 
 public:
 	STimeState()
-		: m_fAge(0.f), m_fStopAge(0.f), m_fCollideAge(fHUGE) {}
+		: m_fAge(0), m_fStopAge(0), m_fCollideAge(tHUGE) {}
 
-	float GetAge() const
+	const CTimeValue& GetAge() const
 	{ return m_fAge; }
-	float GetStopAge() const
+	const CTimeValue& GetStopAge() const
 	{ return m_fStopAge; }
-	float GetCollideAge() const
+	const CTimeValue& GetCollideAge() const
 	{ return m_fCollideAge; }
 
-	float GetRelativeAge(float fAgeAdjust = 0.f) const
+	mpfloat GetRelativeAge(const CTimeValue& fAgeAdjust = 0) const
 	{
-		float fRelativeAge = div_min(max(m_fAge + fAgeAdjust, 0.f), m_fStopAge, 1.f);
-		assert(fRelativeAge >= 0.f && fRelativeAge <= 1.f);
+		mpfloat fRelativeAge = div_min(max(m_fAge + fAgeAdjust, CTimeValue(0)), m_fStopAge, 1).GetSeconds();
+		assert(fRelativeAge >= 0 && fRelativeAge <= 1);
 		return fRelativeAge;
 	}
-	bool IsAlive(float fAgeAdjust = 0.f) const
+	bool IsAlive(const CTimeValue& fAgeAdjust = 0) const
 	{ return m_fAge + fAgeAdjust < m_fStopAge; }
 
-	void Start(float fAgeAdjust = 0.f)
-	{ m_fAge = -fAgeAdjust; m_fStopAge = m_fCollideAge = fHUGE; }
-	void Stop(float fAgeAdjust = 0.f)
+	void Start(const CTimeValue& fAgeAdjust = 0)
+	{ m_fAge = -fAgeAdjust; m_fStopAge = m_fCollideAge = tHUGE; }
+	void Stop(const CTimeValue& fAgeAdjust = 0)
 	{ m_fStopAge = min(m_fStopAge, m_fAge + fAgeAdjust); }
-	void Collide(float fAgeAdjust = 0.f)
+	void Collide(const CTimeValue& fAgeAdjust = 0)
 	{ m_fCollideAge = m_fAge + fAgeAdjust; }
 	void Kill()
-	{ m_fStopAge = -fHUGE; }
+	{ m_fStopAge = -tHUGE; }
 };
 
 struct SMoveState
@@ -134,8 +134,8 @@ public:
 
 	~CParticle();
 
-	void Init(SParticleUpdateContext const & context, float fAge, CParticleSubEmitter * pEmitter, const EmitParticleData &data);
-	void Update(SParticleUpdateContext const & context, float fUpdateTime, bool bNew = false);
+	void Init(SParticleUpdateContext const & context, const CTimeValue& fAge, CParticleSubEmitter * pEmitter, const EmitParticleData &data);
+	void Update(SParticleUpdateContext const & context, const CTimeValue& fUpdateTime, bool bNew = false);
 	void GetPhysicsState();
 
 	float GetMinDist(Vec3 const& vP) const
@@ -144,9 +144,11 @@ public:
 		return (m_Loc.t - vP).GetLengthFast() - m_Loc.s * fSizeFactor;
 	}
 
-	float GetAlphaMod() const
+	mpfloat GetAlphaMod() const
 	{
-		return GetParams().fAlpha.GetValueFromBase(m_BaseMods.Alpha, GetRelativeAge());
+		return BADMP(
+					GetParams().fAlpha.GetValueFromBase(m_BaseMods.Alpha, GetRelativeAge())
+				);
 	}
 
 	ILINE uint16 GetEmitterSequence() const
@@ -167,7 +169,7 @@ public:
 	}
 	void OffsetPosition(const Vec3 &delta);
 
-	Vec3 GetVisualVelocity(SParticleState const & state, float fTime = 0.f) const;
+	Vec3 GetVisualVelocity(SParticleState const & state, const CTimeValue& fTime = 0) const;
 
 	// Associated structures.
 	CParticleContainer&           GetContainer() const
@@ -182,7 +184,7 @@ public:
 	void SetVertices(SLocalRenderVertices & alloc, SParticleVertexContext & context, uint8 uAlpha) const;
 	void GetTextureRect(RectF & rectTex, Vec3 & vTexBlend) const;
 	void ComputeRenderData(SParticleRenderData & RenderData, const SParticleVertexContext &context, float fObjectSize = 1.f) const;
-	float ComputeRenderAlpha(const SParticleRenderData &RenderData, float fRelativeAge, SParticleVertexContext & context) const;
+	float ComputeRenderAlpha(const SParticleRenderData &RenderData, const mpfloat& fRelativeAge, SParticleVertexContext & context) const;
 	void GetRenderMatrix(Vec3 & vX, Vec3 & vY, Vec3 & vZ, Vec3 & vT, const QuatTS &loc, const SParticleRenderData &RenderData, const SParticleVertexContext &context) const;
 	void GetRenderMatrix(Matrix34& mat, const QuatTS& loc, const SParticleRenderData& RenderData, const SParticleVertexContext& context) const
 	{
@@ -208,11 +210,11 @@ private:
 	// For particles with tail, keeps history of previous locations.
 	struct CRY_ALIGN(16) SParticleHistory
 	{
-		float fAge;
+		CTimeValue fAge;
 		QuatTS Loc;
 
-		bool IsUsed() const { return fAge >= 0.f; }
-		void SetUnused()    { fAge = -1.f; }
+		bool IsUsed() const { return fAge >= 0; }
+		void SetUnused()    { fAge.SetSeconds(-1); }
 	};
 
 	// Track sliding state.
@@ -222,7 +224,7 @@ private:
 		      pEntity;              // Physical entity hit.
 		Vec3  vNormal;              // Normal of sliding surface.
 		float fFriction;            // Sliding friction, proportional to normal force.
-		float fSlidingTime;         // Cumulative amount of time sliding.
+		CTimeValue fSlidingTime;    // Cumulative amount of time sliding.
 
 		SSlideInfo()
 		{ Clear(); }
@@ -232,7 +234,7 @@ private:
 		{
 			pEntity = 0;
 			fFriction = 0;
-			fSlidingTime = -1.f;
+			fSlidingTime.SetSeconds(-1);
 			vNormal = vNormal_;
 		}
 		void SetSliding(IPhysicalEntity* pEntity_, const Vec3& vNormal_, float fFriction_)
@@ -240,10 +242,10 @@ private:
 			pEntity = pEntity_;
 			vNormal = vNormal_;
 			fFriction = fFriction_;
-			fSlidingTime = 0.f;
+			fSlidingTime.SetSeconds(0);
 		}
 		bool IsSliding() const
-		{ return fSlidingTime >= 0.f; }
+		{ return fSlidingTime >= 0; }
 	};
 
 	// Track predicted collisions.
@@ -370,18 +372,18 @@ private:
 	float       GetPhysicalRadius() const             { return GetVisibleRadius() * GetParams().fThickness; }
 	inline Vec3 GetNormal() const                     { return m_Loc.q.GetColumn1(); }
 
-	void InitPos(SParticleUpdateContext const & context, QuatTS const & loc, float fEmissionRelAge);
+	void InitPos(SParticleUpdateContext const & context, QuatTS const & loc, const mpfloat& fEmissionStrength);
 	Vec3 GenerateOffset(SParticleUpdateContext const & context);
 
 	void AddPosHistory(SParticleState const & stateNew);
 	void AlignTo(SParticleState & state, const Vec3 &vNormal) const;
-	float UpdateAlignment(SParticleState & state, SParticleUpdateContext const & context, Plane const & plWater, float fTime = 0.f) const;
-	Vec3 VortexRotation(SParticleState const & state, bool bVelocity, float fTime = 0.f) const;
-	void TargetMovement(ParticleTarget const & target, SParticleState & state, float fTime, float fRelativeAge) const;
-	float TravelSlide(SParticleState & state, SSlideInfo & sliding, float fTime, const Vec3 &vExtAccel, float fMaxSlide, float fMinStepTime) const;
-	void Move(SParticleState & state, float fTime, STargetForces const & forces) const;
-	float MoveLinear(SParticleState & state, SCollisionInfo & coll, float fTime, STargetForces const & forces, float fMaxLinearDev, float fMaxSlideDev, float fMinStepTime) const;
-	bool CheckCollision(ray_hit & hit, float fTime, SParticleUpdateContext const & context, const STargetForces &forces, const SParticleState &stateNew, SCollisionInfo & collNew);
+	const CTimeValue& UpdateAlignment(SParticleState & state, SParticleUpdateContext const & context, Plane const & plWater, const CTimeValue& fTime = 0) const;
+	Vec3 VortexRotation(SParticleState const & state, bool bVelocity, const CTimeValue& fTime = 0) const;
+	void TargetMovement(ParticleTarget const & target, SParticleState & state, const CTimeValue& fTime, const mpfloat& fRelativeAge) const;
+	CTimeValue TravelSlide(SParticleState & state, SSlideInfo & sliding, const CTimeValue& fTime, const Vec3 &vExtAccel, float fMaxSlide, const CTimeValue& fMinStepTime) const;
+	void Move(SParticleState & state, const CTimeValue& fTime, STargetForces const & forces) const;
+	CTimeValue MoveLinear(SParticleState & state, SCollisionInfo & coll, const CTimeValue& fTime, STargetForces const & forces, float fMaxLinearDev, float fMaxSlideDev, const CTimeValue& fMinStepTime) const;
+	bool CheckCollision(ray_hit & hit, const CTimeValue& fTime, SParticleUpdateContext const & context, const STargetForces &forces, const SParticleState &stateNew, SCollisionInfo & collNew);
 
 	void Physicalize();
 	int GetSurfaceIndex() const;

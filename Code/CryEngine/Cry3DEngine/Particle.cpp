@@ -25,8 +25,8 @@ CRY_PFX2_DBG
 #define fMAX_NONUNIFORM_TRAVEL 0.25f
 #define fCOLLIDE_BUFFER_DIST   0.001f
 #define fATTACH_BUFFER_DIST    0.01f
-#define fMIN_TEST_AHEAD_MULT   2.5f
-#define fSLIDE_TEST_AHEAD_TIME 0.01f
+#define fMIN_TEST_AHEAD_MULT   mpfloat("2.5")
+#define fSLIDE_TEST_AHEAD_TIME CTimeValue("0.01")
 
 namespace
 {
@@ -74,10 +74,11 @@ ResourceParticleParams const& CParticle::GetParams() const
 { return GetContainer().GetParams(); }
 
 //////////////////////////////////////////////////////////////////////////
-float CParticle::TravelSlide(SParticleState& state, SSlideInfo& sliding, float fTime, const Vec3& vExtAccel, float fMaxSlide, float fMinStepTime) const
+CTimeValue CParticle::TravelSlide(SParticleState& state, SSlideInfo& sliding, const CTimeValue& fTimeIn, const Vec3& vExtAccel, float fMaxSlide, const CTimeValue& fMinStepTime) const
 {
-	float fTravelTime = 0.f;
-	while (fTime > 0.f)
+	CTimeValue fTravelTime;
+	CTimeValue fTime = fTimeIn;
+	while (fTime > 0)
 	{
 		// Convert wind drag to acceleration.
 		float fPenAccel = vExtAccel * sliding.vNormal;
@@ -114,30 +115,30 @@ float CParticle::TravelSlide(SParticleState& state, SSlideInfo& sliding, float f
 			vAccel += state.m_Vel.vLin * (isqrt_tpl(fVV) * fFrictionAccel);
 
 		// Clamp based on estimated slide deviation.
-		float fStepTime = fTime;
-		float fMaxSlideTime = sqrt_fast_tpl(-2.f * fMaxSlide / fPenAccel);
-		float fMaxTime = max(fMaxSlideTime - sliding.fSlidingTime, fMinStepTime);
-		if (fMaxTime > FLT_EPSILON)
+		CTimeValue fStepTime = fTime;
+		CTimeValue fMaxSlideTime( BADMP(sqrt_fast_tpl(-2.f * fMaxSlide / fPenAccel)) );
+		CTimeValue fMaxTime = max(fMaxSlideTime - sliding.fSlidingTime, fMinStepTime);
+		if (fMaxTime > TV_EPSILON)
 		{
 			fStepTime = min(fStepTime, fMaxTime);
 
 			// Detect slide stoppage, and limit travel time.
 			float fVA = state.m_Vel.vLin * vAccel;
-			if (fVV < -fVA * fStepTime)
+			if (fVV < -fVA * fStepTime.BADGetSeconds())
 			{
 				// Stopped.
-				fStepTime = -fVV / fVA;
-				state.m_Loc.t += state.m_Vel.vLin * fStepTime + vAccel * (fStepTime * fStepTime * 0.5f);
+				fStepTime = BADTIME(-fVV / fVA);
+				state.m_Loc.t += state.m_Vel.vLin * fStepTime.BADGetSeconds() + vAccel * BADF(fStepTime * fStepTime * "0.5");
 				state.m_Vel.vLin.zero();
 				state.m_Vel.vRot.zero();
 				fTravelTime += fTime;
-				fTime = 0.f;
+				fTime.SetSeconds(0);
 			}
 			else
 			{
-				state.m_Loc.t += state.m_Vel.vLin * fStepTime - vAccel * (fStepTime * fStepTime * 0.5f);
-				state.m_Vel.vLin += vAccel * fStepTime;
-				state.m_Vel.vRot *= fStepTime * div_min(-fVA, fVV, 1.f);
+				state.m_Loc.t += state.m_Vel.vLin * fStepTime.BADGetSeconds() - vAccel * BADF(fStepTime * fStepTime * "0.5");
+				state.m_Vel.vLin += vAccel * fStepTime.BADGetSeconds();
+				state.m_Vel.vRot *= fStepTime.BADGetSeconds() * div_min(-fVA, fVV, 1.f);
 				fTravelTime += fStepTime;
 				fTime -= fStepTime;
 			}
@@ -145,7 +146,7 @@ float CParticle::TravelSlide(SParticleState& state, SSlideInfo& sliding, float f
 			sliding.fSlidingTime += fStepTime;
 		}
 
-		if (sliding.fSlidingTime >= fMaxSlideTime - 1e-6f)
+		if (-1e-6f >= (fMaxSlideTime - sliding.fSlidingTime).BADGetSeconds())
 		{
 			// Require retest against entity.
 			ray_hit hit;
@@ -162,7 +163,7 @@ float CParticle::TravelSlide(SParticleState& state, SSlideInfo& sliding, float f
 			if (fPenPos < 0.f)
 				state.m_Loc.t -= fPenPos * hit.n;
 			sliding.vNormal = hit.n;
-			sliding.fSlidingTime = 0.f;
+			sliding.fSlidingTime.SetSeconds(0);
 			float fBounce_;
 			GetCollisionParams(hit.surface_idx, fBounce_, sliding.fFriction);
 		}
@@ -171,13 +172,13 @@ float CParticle::TravelSlide(SParticleState& state, SSlideInfo& sliding, float f
 	return fTravelTime;
 }
 
-void CParticle::Move(SParticleState& state, float fTime, STargetForces const& forces_ext) const
+void CParticle::Move(SParticleState& state, const CTimeValue& fTime, STargetForces const& forces_ext) const
 {
 	GetContainer().GetCounts().particles.reiterate += 1.f;
 
 	ResourceParticleParams const& params = GetParams();
 
-	float fRelativeAge = GetRelativeAge(fTime * 0.5f);
+	mpfloat fRelativeAge = GetRelativeAge(fTime * "0.5");
 
 	SForceParams forces;
 	forces.vAccel = params.vAcceleration + forces_ext.vAccel * params.fGravityScale.GetValueFromMod(m_BaseMods.GravityScale, fRelativeAge);
@@ -200,7 +201,7 @@ void CParticle::Move(SParticleState& state, float fTime, STargetForces const& fo
 		 */
 
 		float fTurb = params.fTurbulence3DSpeed.GetValueFromMod(m_BaseMods.Turbulence3DSpeed, fRelativeAge);
-		fTurb *= isqrt_tpl(fTime);
+		fTurb *= isqrt_tpl(fTime.BADGetSeconds());
 
 		Vec3 vTurbulence;
 		for (int a = 0; a < 3; a++)
@@ -237,7 +238,7 @@ void CParticle::Move(SParticleState& state, float fTime, STargetForces const& fo
 
 	if (forces.fDrag * params.fAirResistance.fRotationalDragScale > 0.f)
 	{
-		state.m_Vel.vRot *= expf(-forces.fDrag * params.fAirResistance.fRotationalDragScale * fTime);
+		state.m_Vel.vRot *= expf(-forces.fDrag * params.fAirResistance.fRotationalDragScale * fTime.BADGetSeconds());
 		if (state.m_Vel.vRot.GetLengthSquared() == 0.f)
 			state.m_Vel.vRot.zero();
 	}
@@ -271,9 +272,11 @@ void CParticle::DebugBounds(SParticleState const& state) const
 //
 // Limit travel time to avoid excessive curvature.
 //
-float CParticle::MoveLinear(SParticleState& state, SCollisionInfo& coll, float fTime, STargetForces const& forces, float fMaxLinearDev, float fMaxSlideDev, float fMinStepTime) const
+CTimeValue CParticle::MoveLinear(SParticleState& state, SCollisionInfo& coll, const CTimeValue& fTimeIn, STargetForces const& forces, float fMaxLinearDev, float fMaxSlideDev, const CTimeValue& fMinStepTime) const
 {
 	// Clamp time based on turbulence params.
+
+	CTimeValue fTime = fTimeIn;
 
 	if (coll.Sliding.IsSliding())
 	{
@@ -281,11 +284,11 @@ float CParticle::MoveLinear(SParticleState& state, SCollisionInfo& coll, float f
 		SParticleState stateTest = state;
 		Move(stateTest, fSLIDE_TEST_AHEAD_TIME, forces);
 
-		Vec3 vExtAccel = (stateTest.m_Vel.vLin - state.m_Vel.vLin) / fSLIDE_TEST_AHEAD_TIME;
-		float fSlideTime = TravelSlide(state, coll.Sliding, fTime, vExtAccel, fMaxSlideDev, fMinStepTime);
+		Vec3 vExtAccel = (stateTest.m_Vel.vLin - state.m_Vel.vLin) / fSLIDE_TEST_AHEAD_TIME.BADGetSeconds();
+		CTimeValue fSlideTime = TravelSlide(state, coll.Sliding, fTime, vExtAccel, fMaxSlideDev, fMinStepTime);
 		if (!coll.Sliding.IsSliding())
 			coll.Hit.Clear();
-		if (fSlideTime > 0.f)
+		if (fSlideTime > 0)
 			return fSlideTime;
 	}
 
@@ -302,7 +305,7 @@ float CParticle::MoveLinear(SParticleState& state, SCollisionInfo& coll, float f
 		{
 			// Stop just after inflection point -- increase threshold for further tests.
 			float fCorrect = abs(fNV0 / (fNV0 - fNV1));
-			fTime *= min(fCorrect + 0.1f, 0.9f);
+			fTime *= BADMP(min(fCorrect + 0.1f, 0.9f));
 			stateNew = state;
 			Move(stateNew, fTime, forces);
 		}
@@ -312,13 +315,13 @@ float CParticle::MoveLinear(SParticleState& state, SCollisionInfo& coll, float f
 			Vec3 vDVel = stateNew.m_Vel.vLin - state.m_Vel.vLin;
 			Vec3 vDPos = stateNew.m_Loc.t - state.m_Loc.t;
 			float fDistSqr = vDPos.len2();
-			float fDevSqrN = (vDVel.len2() * fDistSqr - sqr(vDVel * vDPos)) * sqr(fTime * 0.125f);
+			float fDevSqrN = (vDVel.len2() * fDistSqr - sqr(vDVel * vDPos)) * sqr(fTime.BADGetSeconds() * 0.125f);
 			if (fDevSqrN > fDistSqr * sqr(fMaxLinearDev))
 			{
 				// Exceeds linear threshold. Deviation proportional to t
 				float fCorrect = fMaxLinearDev * isqrt_fast_tpl(fDevSqrN / fDistSqr);
-				float fNewTime = max(fTime * fCorrect * 0.75f, fMinStepTime);
-				if (fNewTime < fTime * 0.99f)
+				CTimeValue fNewTime = max(fTime * BADMP(fCorrect) * "0.75", fMinStepTime);
+				if (fNewTime < fTime * "0.99")
 				{
 					stateNew = state;
 					fTime = fNewTime;
@@ -410,7 +413,7 @@ bool CParticle::SHitInfo::TestHit(ray_hit& hit, const Vec3& vPos0, const Vec3& v
 	return false;
 }
 
-bool CParticle::CheckCollision(ray_hit& hit, float fStepTime, SParticleUpdateContext const& context, STargetForces const& forces, const SParticleState& stateNew, SCollisionInfo& collNew)
+bool CParticle::CheckCollision(ray_hit& hit, const CTimeValue& fStepTime, SParticleUpdateContext const& context, STargetForces const& forces, const SParticleState& stateNew, SCollisionInfo& collNew)
 {
 	hit.dist = 1.f;
 	uint32 nCollideFlags = context.nEnvFlags & ENV_COLLIDE_ANY;
@@ -424,7 +427,7 @@ bool CParticle::CheckCollision(ray_hit& hit, float fStepTime, SParticleUpdateCon
 			// Path does not match cache.
 			// Require new check.
 			collNew.Hit.Clear();
-			float fTestTime = min((m_fStopAge - m_fAge) * 1.1f, context.fMaxLinearStepTime);
+			CTimeValue fTestTime = min((m_fStopAge - m_fAge) * "1.1", context.fMaxLinearStepTime);
 			if (fTestTime >= fStepTime * fMIN_TEST_AHEAD_MULT)
 			{
 				// Predict travel ahead, ignoring random movement params.
@@ -477,7 +480,7 @@ bool CParticle::CheckCollision(ray_hit& hit, float fStepTime, SParticleUpdateCon
 	return hit.dist < 1.f;
 }
 
-void CParticle::Init(SParticleUpdateContext const& context, float fAge, CParticleSubEmitter* pEmitter, const EmitParticleData& data)
+void CParticle::Init(SParticleUpdateContext const& context, const CTimeValue& fAge, CParticleSubEmitter* pEmitter, const EmitParticleData& data)
 {
 	assert(pEmitter);
 	PREFAST_ASSUME(pEmitter);
@@ -519,14 +522,14 @@ void CParticle::Init(SParticleUpdateContext const& context, float fAge, CParticl
 		}
 	}
 
-	// Init all base values.
-	float fEmissionStrength = pEmitter->GetStrength(-fAge);
-
-	m_fAge = 0.f;
+	// Init all base values. 
+	mpfloat fEmissionStrength = BADMP(pEmitter->GetStrength(-fAge));
+	
+	m_fAge.SetSeconds(0);
 	if (!params.fParticleLifeTime)
-		m_fStopAge = max(pEmitter->GetStopAge() - GetSource().GetAge(), 0.f);
+		m_fStopAge = max(pEmitter->GetStopAge() - GetSource().GetAge(), CTimeValue(0));
 	else
-		m_fStopAge = params.fParticleLifeTime(VRANDOM, fEmissionStrength) * Adjust(context.fDensityAdjust, params.fMaintainDensity.fReduceLifeTime);
+		m_fStopAge = BADTIME(params.fParticleLifeTime(VRANDOM, fEmissionStrength) * Adjust(context.fDensityAdjust, params.fMaintainDensity.fReduceLifeTime));
 
 	// Init base mods.
 	m_BaseMods.Size = params.fSize.GetVarMod(fEmissionStrength) * Adjust(context.fDensityAdjust, params.fMaintainDensity.fReduceSize);
@@ -613,7 +616,7 @@ void CParticle::Init(SParticleUpdateContext const& context, float fAge, CParticl
 }
 
 ////////////////////////////////////////////////////////////////////////////
-void CParticle::InitPos(SParticleUpdateContext const& context, QuatTS const& loc, float fEmissionStrength)
+void CParticle::InitPos(SParticleUpdateContext const& context, QuatTS const& loc, const mpfloat& fEmissionStrength)
 {
 	ResourceParticleParams const& params = GetParams();
 	SpawnParams const& spawnParams = GetMain().GetSpawnParams();
@@ -698,7 +701,7 @@ void CParticle::InitPos(SParticleUpdateContext const& context, QuatTS const& loc
 		m_Vel.vLin += rSource.GetVelocityAt(m_Loc.t) * params.fInheritVelocity;
 
 	// Size.
-	m_Loc.s *= params.fSize.GetValueFromMod(m_BaseMods.Size, 0.f);
+	m_Loc.s *= params.fSize.GetValueFromMod(m_BaseMods.Size, 0);
 
 	// Initial orientation.
 	if (context.b3DRotation)
@@ -807,7 +810,7 @@ void CParticle::OffsetPosition(const Vec3& delta)
 	}
 }
 
-Vec3 CParticle::GetVisualVelocity(SParticleState const& state, float fTime) const
+Vec3 CParticle::GetVisualVelocity(SParticleState const& state, const CTimeValue& fTime) const
 {
 	const ParticleParams& params = GetParams();
 	if (params.fTurbulenceSize * params.fTurbulenceSpeed != 0.f)
@@ -825,7 +828,7 @@ void CParticle::UpdateAllocations(int nPrevHistorySteps)
 		if ((m_aPosHistory = (SParticleHistory*) ParticleObjectAllocator().Allocate(sizeof(SParticleHistory) * nNewSteps)))
 		{
 			if (aPrevHist)
-				memcpy(m_aPosHistory, aPrevHist, min(nPrevHistorySteps, nNewSteps) * sizeof(*aPrevHist));
+				std::copy(aPrevHist, aPrevHist + min(nPrevHistorySteps, nNewSteps), m_aPosHistory);
 			for (int n = nPrevHistorySteps; n < nNewSteps; n++)
 				m_aPosHistory[n].SetUnused();
 		}
@@ -848,7 +851,7 @@ void CParticle::UpdateAllocations(int nPrevHistorySteps)
 void CParticle::AddPosHistory(SParticleState const& stateNew)
 {
 	// Possibly store current position in history. Check significance against previous positions and stateNew.
-	float fRelativeAge = GetRelativeAge();
+	mpfloat fRelativeAge = GetRelativeAge();
 	float fTailLength = GetParams().fTailLength.GetValueFromMod(m_BaseMods.StretchOrTail, fRelativeAge);
 
 	int nCount = GetContainer().GetHistorySteps();
@@ -856,7 +859,7 @@ void CParticle::AddPosHistory(SParticleState const& stateNew)
 		nCount--;
 
 	// Clear out old entries.
-	float fMinAge = m_fAge - fTailLength;
+	CTimeValue fMinAge = m_fAge - BADTIME(fTailLength);
 	int nStart = 0;
 	while (nStart + 1 < nCount && m_aPosHistory[nStart + 1].fAge < fMinAge)
 		nStart++;
@@ -914,22 +917,24 @@ void CParticle::AddPosHistory(SParticleState const& stateNew)
 	}
 }
 
-void CParticle::Update(SParticleUpdateContext const& context, float fFrameTime, bool bNew)
+void CParticle::Update(SParticleUpdateContext const& context, const CTimeValue& fFrameTimeIn, bool bNew)
 {
 	CParticleContainer& rContainer = GetContainer();
 	SPhysEnviron const& PhysEnv = GetMain().GetPhysEnviron();
 	ResourceParticleParams const& params = rContainer.GetParams();
 
+	CTimeValue fFrameTime = fFrameTimeIn;
+
 	// Process only up to lifetime of particle, and handle negative initial age.
-	if (m_fAge + fFrameTime <= 0.f)
+	if (m_fAge + fFrameTime <= 0)
 	{
 		m_fAge += fFrameTime;
-		fFrameTime = 0.f;
+		fFrameTime.SetSeconds(0);
 	}
-	else if (m_fAge < 0.f)
+	else if (m_fAge < 0)
 	{
 		fFrameTime += m_fAge;
-		m_fAge = 0.f;
+		m_fAge.SetSeconds(0);
 	}
 	if (!params.bRemainWhileVisible)
 	{
@@ -940,7 +945,7 @@ void CParticle::Update(SParticleUpdateContext const& context, float fFrameTime, 
 	if (m_pCollisionInfo && m_pCollisionInfo->Stopped())
 	{
 		// Particle is stopped
-		m_fAge += max(fFrameTime, 0.f);
+		m_fAge += max(fFrameTime, CTimeValue(0));
 		return;
 	}
 
@@ -984,7 +989,7 @@ void CParticle::Update(SParticleUpdateContext const& context, float fFrameTime, 
 	{
 		uint32 nFlags = context.nEnvFlags & ENV_PHYS_AREA;
 		uint32 nCollideFlags = m_pCollisionInfo ? context.nEnvFlags & ENV_COLLIDE_ANY : 0;
-		float fMaxStepTime = fFrameTime;
+		CTimeValue fMaxStepTime = fFrameTime;
 
 		// Transform emitter-relative particles by emitter movement; unless just emitted, then already current.
 		if (params.bMoveRelativeEmitter && GetEmitter() && !bNew)
@@ -1015,10 +1020,10 @@ void CParticle::Update(SParticleUpdateContext const& context, float fFrameTime, 
 		if (context.bHasTarget)
 			GetContainer().GetTarget(forces.target, GetEmitter());
 
-		while (fFrameTime > 0.f)
+		while (fFrameTime > 0)
 		{
 			// Apply previously computed MaxStepTime.
-			float fStepTime = min(fFrameTime, fMaxStepTime);
+			CTimeValue fStepTime = min(fFrameTime, fMaxStepTime);
 			fMaxStepTime = fFrameTime;
 
 			if (nFlags)
@@ -1050,17 +1055,17 @@ void CParticle::Update(SParticleUpdateContext const& context, float fFrameTime, 
 					Vec3 vErrorEst = forces2.vAccel - forces.vAccel;
 					if (nFlags & ENV_WIND)
 					{
-						float fDrag = params.fAirResistance.GetValueFromMod(m_BaseMods.AirResistance, GetRelativeAge(fStepTime * 0.5f));
+						float fDrag = params.fAirResistance.GetValueFromMod(m_BaseMods.AirResistance, GetRelativeAge(fStepTime * mpfloat("0.5")));
 						vErrorEst += (forces2.vWind - forces.vWind) * (params.fAirResistance.fWindScale * fDrag);
 					}
 
-					float fDevSqr = vErrorEst.GetLengthSquared() * sqr(sqr(fStepTime) * 0.5f);
+					float fDevSqr = vErrorEst.GetLengthSquared() * sqr(sqr(fStepTime.BADGetSeconds()) * 0.5f);
 					if (fDevSqr > sqr(0.75f * fMAX_NONUNIFORM_TRAVEL))
 					{
 						float fShorten = 0.75f * fMAX_NONUNIFORM_TRAVEL * isqrt_tpl(fDevSqr);
 						fShorten = min(fShorten, 0.75f);
-						fMaxStepTime = max(fStepTime * fShorten, context.fMinStepTime);
-						if (fMaxStepTime < fStepTime * 0.99f)
+						fMaxStepTime = max(fStepTime * BADMP(fShorten), context.fMinStepTime);
+						if (fMaxStepTime < fStepTime * "0.99")
 							continue;
 					}
 				}
@@ -1106,7 +1111,7 @@ void CParticle::Update(SParticleUpdateContext const& context, float fFrameTime, 
 					stateNew.m_Vel.vLin.SetLerp(m_Vel.vLin, stateNew.m_Vel.vLin, hit.dist);
 					stateNew.m_Loc.t = hit.pt;
 
-					fStepTime = max(fStepTime * hit.dist, context.fMinStepTime);
+					fStepTime = max(fStepTime * BADMP(hit.dist), context.fMinStepTime);
 
 					// Rotate to surface normal.
 					RotateTo(stateNew.m_Loc.q, hit.n);
@@ -1149,7 +1154,7 @@ void CParticle::Update(SParticleUpdateContext const& context, float fFrameTime, 
 								AddPosHistory(stateNew);
 								SetState(stateNew);
 								fFrameTime -= fStepTime;
-								fStepTime = 0.f;
+								fStepTime.SetSeconds(0);
 							}
 
 							stateNew.m_Vel.vLin -= hit.n * fVelPerp;
@@ -1213,26 +1218,26 @@ void CParticle::Update(SParticleUpdateContext const& context, float fFrameTime, 
 		rContainer.GetCounts().particles.reiterate -= 1.f;
 	}
 
-	m_fAge += max(fFrameTime, 0.f);
+	m_fAge += max(fFrameTime, CTimeValue(0));
 
 	// Update dynamic bounds if required.
 	if (context.pbbDynamicBounds)
 		UpdateBounds(*context.pbbDynamicBounds);
 }
 
-float CParticle::UpdateAlignment(SParticleState& state, SParticleUpdateContext const& context, Plane const& plWater, float fStepTime) const
+const CTimeValue& CParticle::UpdateAlignment(SParticleState& state, SParticleUpdateContext const& context, Plane const& plWater, const CTimeValue& fStepTime) const
 {
 	ResourceParticleParams const& params = GetParams();
 
 	// Apply rotation velocity.
-	if (fStepTime != 0.f)
+	if (fStepTime != 0)
 	{
 		if (context.b3DRotation)
 			// 3D rotation.
-			state.m_Loc.q = Quat::exp(state.m_Vel.vRot * (fStepTime * 0.5f)) * state.m_Loc.q;
+			state.m_Loc.q = Quat::exp(state.m_Vel.vRot * (fStepTime.BADGetSeconds() * 0.5f)) * state.m_Loc.q;
 		else
 			// Just angle.
-			state.m_fAngle += m_Vel.vRot.y * fStepTime;
+			state.m_fAngle += m_Vel.vRot.y * fStepTime.BADGetSeconds();
 	}
 
 	Vec3 vNormal(ZERO);
@@ -1360,15 +1365,15 @@ void CParticle::AlignTo(SParticleState& state, const Vec3& vNormal) const
 		RotateTo(state.m_Loc.q, vNormal);
 }
 
-Vec3 CParticle::VortexRotation(SParticleState const& state, bool bVelocity, float fTime) const
+Vec3 CParticle::VortexRotation(SParticleState const& state, bool bVelocity, const CTimeValue& fTime) const
 {
 	// Compute vortex rotational offset at current age.
 	// p(t) = TSize e^(i TSpeed t) (t max 1)
 	const ParticleParams& params = GetParams();
-
-	float fRelativeAge = state.GetRelativeAge(fTime);
+	
+	mpfloat fRelativeAge = state.GetRelativeAge(fTime);
 	float fVortexSpeed = DEG2RAD(params.fTurbulenceSpeed.GetValueFromMod(m_BaseMods.TurbulenceSpeed, fRelativeAge));
-	float fAngle = fVortexSpeed * (state.m_fAge + fTime);
+	float fAngle = fVortexSpeed * (state.m_fAge + fTime).BADGetSeconds();
 	float fVortexSize = params.fTurbulenceSize.GetValueFromMod(m_BaseMods.TurbulenceSize, fRelativeAge) * GetMain().GetParticleScale();
 	if (bVelocity)
 	{
@@ -1392,14 +1397,14 @@ Vec3 CParticle::VortexRotation(SParticleState const& state, bool bVelocity, floa
 	return vX.GetNormalized(vRot.x) + vY.GetNormalized(vRot.y);
 }
 
-void CParticle::TargetMovement(ParticleTarget const& target, SParticleState& state, float fTime, float fRelativeAge) const
+void CParticle::TargetMovement(ParticleTarget const& target, SParticleState& state, const CTimeValue& fTime, const mpfloat& fRelativeAge) const
 {
 	const ParticleParams& params = GetParams();
 
 	float fTargetRadius = max(params.TargetAttraction.fRadius.GetValueFromMod(m_BaseMods.fTargetRadius, fRelativeAge) + target.fRadius, 0.f);
 	bool bOrbiting = params.TargetAttraction.bOrbit && fTargetRadius > 0.f;
 
-	state.m_Loc.t -= state.m_Vel.vLin * fTime;
+	state.m_Loc.t -= state.m_Vel.vLin * fTime.BADGetSeconds();
 
 	// Decompose current velocity into radial+angular components.
 	Vec3 vPos = state.m_Loc.t - target.vTarget;
@@ -1419,28 +1424,28 @@ void CParticle::TargetMovement(ParticleTarget const& target, SParticleState& sta
 		fArrivalTime = fHUGE;
 
 	// Goal is to reach target radius in a quarter revolution over particle's life.
-	float fLife = max(state.m_fStopAge - state.m_fAge, 0.0f);
-	fArrivalTime = div_min(gf_PI * 0.5f * fDist * fLife, fOrbitalVel * state.m_fStopAge, fArrivalTime);
+	CTimeValue fLife = max(state.m_fStopAge - state.m_fAge, CTimeValue(0));
+	fArrivalTime = div_min(gf_PI * 0.5f * fDist * fLife.BADGetSeconds(), fOrbitalVel * state.m_fStopAge.BADGetSeconds(), fArrivalTime);
 
-	if (fArrivalTime > fLife)
+	if (fArrivalTime > fLife.BADGetSeconds())
 	{
 		if (params.TargetAttraction.bExtendSpeed)
-			fArrivalTime = fLife;
+			fArrivalTime = fLife.BADGetSeconds();
 	}
 	else if (!bOrbiting)
 	{
 		// Age particle prematurely based on target time.
-		state.m_fStopAge = state.m_fAge + fArrivalTime;
+		state.m_fStopAge = state.m_fAge + BADTIME(fArrivalTime);
 	}
 
 	// Execute the orbit.
 	float fNewDist;
-	if (fArrivalTime > fTime)
+	if (fArrivalTime > fTime.BADGetSeconds())
 	{
 		// Change particle direction, maintaining speed.
 		fRadialVel = (fTargetRadius - fDist) / fArrivalTime;
 		fOrbitalVel = sqrt_tpl(max(0.f, sqr(fVel) - sqr(fRadialVel)));
-		fNewDist = fDist + fRadialVel * fTime;
+		fNewDist = fDist + fRadialVel * fTime.BADGetSeconds();
 	}
 	else
 	{
@@ -1457,7 +1462,7 @@ void CParticle::TargetMovement(ParticleTarget const& target, SParticleState& sta
 		float fAngularVel = fDist > fTargetRadius ?
 		                    fOrbitalVel* isqrt_tpl(fDist* fNewDist) :
 		                    fOrbitalVel / ((fDist + fNewDist) * 0.5f);
-		float fVelAngle = fAngularVel * fTime;
+		float fVelAngle = fAngularVel * fTime.BADGetSeconds();
 
 		float fCos, fSin;
 		sincos_tpl(fVelAngle, &fSin, &fCos);

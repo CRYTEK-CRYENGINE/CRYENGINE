@@ -22,8 +22,8 @@
 #define fMAX_RELATIVE_TAIL_DEVIATION 0.1f
 
 #define nMAX_ITERATIONS              8
-#define fMAX_FRAME_LIMIT_TIME        0.25f    // Max frame time at which to enforce iteration limit
-#define fMAX_LINEAR_STEP_TIME        4.f      // Max time to test ahead
+#define fMAX_FRAME_LIMIT_TIME        CTimeValue("0.25") // Max frame time at which to enforce iteration limit
+#define fMAX_LINEAR_STEP_TIME        CTimeValue(4)      // Max time to test ahead
 
 template<class T>
 inline void move_raw_array_elem(T* pDest, T* pSrc)
@@ -41,9 +41,9 @@ CParticleContainer::CParticleContainer(CParticleContainer* pParent, CParticleEmi
 	: m_pEffect(&non_const(*pEffect))
 	, m_nEmitterSequence(0)
 	, m_pMainEmitter(pMain)
-	, m_fAgeLastUpdate(0.f)
-	, m_fAgeStaticBoundsStable(0.f)
-	, m_fContainerLife(0.f)
+	, m_fAgeLastUpdate(0)
+	, m_fAgeStaticBoundsStable(0)
+	, m_fContainerLife(0)
 {
 	ZeroStruct(m_pBeforeWaterRO);
 	ZeroStruct(m_pAfterWaterRO);
@@ -263,7 +263,7 @@ void CParticleContainer::EmitParticle(const EmitParticleData* pData)
 	}
 }
 
-void CParticleContainer::ComputeStaticBounds(AABB& bb, bool bWithSize, float fMaxLife)
+void CParticleContainer::ComputeStaticBounds(AABB& bb, bool bWithSize, const CTimeValue& fMaxLife)
 {
 	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 
@@ -278,13 +278,13 @@ void CParticleContainer::ComputeStaticBounds(AABB& bb, bool bWithSize, float fMa
 	{
 		// Expand by parent spawn volume.
 		bool bParentSize = params.eAttachType != GeomType_None;
-		float fMaxParentLife = params.GetMaxSpawnDelay();
+		CTimeValue fMaxParentLife = params.GetMaxSpawnDelay();
 		if (params.bContinuous || params.bMoveRelativeEmitter)
 		{
-			if (params.fEmitterLifeTime)
-				fMaxParentLife += params.fEmitterLifeTime.GetMaxValue();
+			if (params.fEmitterLifeTime != 0)
+				fMaxParentLife += BADTIME(params.fEmitterLifeTime.GetMaxValue());
 			else
-				fMaxParentLife = fHUGE;
+				fMaxParentLife = tHUGE;
 		}
 		m_pParentContainer->ComputeStaticBounds(bbSpawn, bParentSize, fMaxParentLife);
 		loc.t = bbSpawn.GetCenter();
@@ -353,7 +353,7 @@ void CParticleContainer::UpdateState()
 }
 
 // To do: Add flags for movement/gravity/wind.
-float CParticleContainer::InvalidateStaticBounds()
+CTimeValue CParticleContainer::InvalidateStaticBounds()
 {
 	if (!NeedsDynamicBounds())
 	{
@@ -361,7 +361,7 @@ float CParticleContainer::InvalidateStaticBounds()
 		if (m_pParams->NeedsExtendedBounds() && !m_Particles.empty())
 			return m_fAgeStaticBoundsStable = GetAge() + m_pParams->GetMaxParticleLife();
 	}
-	return 0.f;
+	return 0;
 }
 
 bool CParticleContainer::GetTarget(ParticleTarget& target, const CParticleSubEmitter* pSubEmitter) const
@@ -382,7 +382,7 @@ bool CParticleContainer::GetTarget(ParticleTarget& target, const CParticleSubEmi
 	return target.bTarget;
 }
 
-void CParticleContainer::ComputeUpdateContext(SParticleUpdateContext& context, float fUpdateTime)
+void CParticleContainer::ComputeUpdateContext(SParticleUpdateContext& context, const CTimeValue& fUpdateTime)
 {
 	const ResourceParticleParams& params = GetParams();
 
@@ -456,14 +456,14 @@ void CParticleContainer::ComputeUpdateContext(SParticleUpdateContext& context, f
 	context.bHasTarget = eTarget == eTarget.OwnEmitter
 	                     || (eTarget == eTarget.External && GetMain().GetTarget().bTarget);
 
-	context.fMinStepTime = min(fUpdateTime, fMAX_FRAME_LIMIT_TIME) / float(nMAX_ITERATIONS);
+	context.fMinStepTime = min(fUpdateTime, fMAX_FRAME_LIMIT_TIME) / nMAX_ITERATIONS;
 
 	// Compute time and distance limits in certain situations.
 	context.fMaxLinearDeviation = fHUGE;
 	if (GetHistorySteps() > 0)
 	{
 		context.fMaxLinearDeviation = fMAX_RELATIVE_TAIL_DEVIATION * params.fSize.GetMaxValue();
-		context.fMinStepTime = min(context.fMinStepTime, params.fTailLength.GetMaxValue() * 0.5f / GetHistorySteps());
+		context.fMinStepTime = min(context.fMinStepTime, BADTIME(params.fTailLength.GetMaxValue() * 0.5f / GetHistorySteps()) );
 	}
 	if (context.nEnvFlags & ENV_COLLIDE_ANY)
 	{
@@ -475,7 +475,7 @@ void CParticleContainer::ComputeUpdateContext(SParticleUpdateContext& context, f
 	// t = (2 Dev/Turb)^(2/3)
 	if (params.fTurbulence3DSpeed)
 	{
-		context.fMaxLinearStepTime = min(context.fMaxLinearStepTime, powf(2.f * context.fMaxLinearDeviation / params.fTurbulence3DSpeed, 0.666f));
+		context.fMaxLinearStepTime = min(context.fMaxLinearStepTime, BADTIME(powf(2.f * context.fMaxLinearDeviation / params.fTurbulence3DSpeed, 0.666f)));
 	}
 
 	// If vortex turbulence enabled, find max rotation angle for allowed deviation.
@@ -486,7 +486,7 @@ void CParticleContainer::ComputeUpdateContext(SParticleUpdateContext& context, f
 		// cos(a) = 2 (1 - dev/r)^2 - 1
 		float fCos = sqr(1.f - context.fMaxLinearDeviation / fVortexRadius) * 2.f - 1.f;
 		float fAngle = RAD2DEG(acos(clamp_tpl(fCos, -1.f, 1.f)));
-		context.fMaxLinearStepTime = div_min(fAngle, fabs(params.fTurbulenceSpeed.GetMaxValue()), context.fMaxLinearStepTime);
+		context.fMaxLinearStepTime = BADTIME( div_min(fAngle, fabs(params.fTurbulenceSpeed.GetMaxValue()), context.fMaxLinearStepTime.BADGetSeconds()) );
 	}
 
 	if (NeedsDynamicBounds() || !StaticBoundsStable()
@@ -509,9 +509,9 @@ void CParticleContainer::UpdateParticles()
 	if (m_nNeedJobUpdate > 0)
 		m_nNeedJobUpdate--;
 
-	float fAge = GetAge();
-	float fUpdateTime = fAge - m_fAgeLastUpdate;
-	if (fUpdateTime > 0.f || !m_DeferredEmitParticles.empty())
+	CTimeValue fAge = GetAge();
+	CTimeValue fUpdateTime = fAge - m_fAgeLastUpdate;
+	if (fUpdateTime > 0 || !m_DeferredEmitParticles.empty())
 	{
 		FUNCTION_PROFILER_CONTAINER(this);
 
@@ -543,7 +543,7 @@ void CParticleContainer::SyncUpdateParticles()
 void CParticleContainer::UpdateParticleStates(SParticleUpdateContext& context)
 {
 	const ResourceParticleParams& params = GetParams();
-	float fLifetimeCheck = params.bRemainWhileVisible ? -fHUGE : 0.f;
+	CTimeValue fLifetimeCheck = params.bRemainWhileVisible ? -tHUGE : 0;
 
 	// Emit new particles.
 	if ((context.nEnvFlags & REN_SORT) && context.nSortQuality > 0)
@@ -895,9 +895,9 @@ float CParticleContainer::GetMaxParticleScale() const
 	       * GetMain().GetParticleScale();
 }
 
-float CParticleContainer::GetEmitterLife() const
+CTimeValue CParticleContainer::GetEmitterLife() const
 {
-	float fEmitterLife = GetMain().GetStopAge();
+	CTimeValue fEmitterLife = GetMain().GetStopAge();
 	if (!m_pParentContainer)
 	{
 		if (!m_pParams->fPulsePeriod)
@@ -905,7 +905,7 @@ float CParticleContainer::GetEmitterLife() const
 			if (!m_Emitters.empty())
 				fEmitterLife = min(fEmitterLife, m_Emitters.front().GetStopAge());
 			else
-				fEmitterLife = 0.f;
+				fEmitterLife.SetSeconds(0);
 		}
 	}
 	else
@@ -935,50 +935,51 @@ int CParticleContainer::GetMaxParticleCount(const SParticleUpdateContext& contex
 		fEmitCount *= max(nPieces, 1);
 	}
 
-	float fEmitTime = min(context.fUpdateTime, GetMaxParticleFullLife());
+	CTimeValue fEmitTime = min(context.fUpdateTime, GetMaxParticleFullLife());
 
 	if (params.bContinuous)
 	{
 		// Compute emission rate
-		float fLifeTime = params.GetMaxParticleLife();
-		if (params.fEmitterLifeTime)
-			fLifeTime = min(fLifeTime, params.fEmitterLifeTime(VMIN));
+		CTimeValue fLifeTime = params.GetMaxParticleLife();
+		if (params.fEmitterLifeTime != 0)
+			fLifeTime = min(fLifeTime, BADTIME(params.fEmitterLifeTime(VMIN)));
 
 		// Determine time window to update.
+		// Float inaccuracy is fine, estimation
 		if (fEmitTime < fLifeTime)
-			fEmitCount *= fEmitTime / fLifeTime;
+			fEmitCount *= float(fEmitTime / fLifeTime);
 		if (params.fMaintainDensity)
 			fEmitCount *= fMAX_DENSITY_ADJUST;
 	}
 
 	// Account for pulsing
 	int nEmitCount = int_ceil(fEmitCount) * m_Emitters.size();
-	if (params.fPulsePeriod)
-		nEmitCount *= int_ceil(fEmitTime / max(params.fPulsePeriod(VMIN), 0.1f));
+	if (params.fPulsePeriod != 0)
+		nEmitCount *= (int)int_ceil( fEmitTime / max(BADTIME(params.fPulsePeriod(VMIN)), CTimeValue("0.1")) );
 	nCount += nEmitCount;
 
 	return nCount;
 }
 
-void CParticleContainer::UpdateContainerLife(float fAgeAdjust)
+void CParticleContainer::UpdateContainerLife(const CTimeValue& fAgeAdjust)
 {
 	m_fAgeLastUpdate += fAgeAdjust;
 	m_fAgeStaticBoundsStable += fAgeAdjust;
 
 	if (CParticleSubEmitter* pDirectEmitter = GetDirectEmitter())
 		pDirectEmitter->UpdateState(fAgeAdjust);
-	if (m_pParams->bRemainWhileVisible && GetMain().TimeNotRendered() < 0.5f)
-		m_fContainerLife = GetAge() + 0.5f;
+	if (m_pParams->bRemainWhileVisible && GetMain().TimeNotRendered().GetSeconds() < "0.5")
+		m_fContainerLife = GetAge() + "0.5";
 	else
 	{
-		m_fContainerLife = GetEmitterLife() + m_pParams->fParticleLifeTime.GetMaxValue();
+		m_fContainerLife = GetEmitterLife() + BADTIME(m_pParams->fParticleLifeTime.GetMaxValue());
 		if (!m_pParams->fParticleLifeTime && m_pParentContainer)
 			// Zero particle life implies particles live as long as parent emitter lives.
 			m_fContainerLife += m_pParentContainer->m_fContainerLife;
 	}
 }
 
-float CParticleContainer::GetAge() const
+const CTimeValue& CParticleContainer::GetAge() const
 {
 	return GetMain().GetAge();
 }
@@ -989,7 +990,7 @@ void CParticleContainer::Reset()
 	m_Particles.clear();
 	if (IsIndirect())
 		m_Emitters.clear();
-	m_fAgeLastUpdate = 0.f;
+	m_fAgeLastUpdate.SetSeconds(0);
 	m_bbWorldDyn.Reset();
 }
 
@@ -1001,7 +1002,7 @@ void CParticleContainer::GetCounts(SParticleCounts& counts) const
 	counts.particles.alloc += m_Particles.size();
 	counts.particles.alive += m_Particles.size();
 
-	if (GetTimeToUpdate() == 0.f)
+	if (GetTimeToUpdate() == 0)
 	{
 		// Was updated this frame.
 		reinterpret_cast<SContainerCounts&>(counts) += m_Counts;

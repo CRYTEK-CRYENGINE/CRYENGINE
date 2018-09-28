@@ -180,8 +180,8 @@ void CGeomCacheManager::RegisterForStreaming(CGeomCacheRenderNode* pRenderNode)
 	const uint preferredDiskRequestSize = (size_t)std::max(0, GetCVars()->e_GeomCachePreferredDiskRequestSize * 1024);
 	const uint64 compressedAnimationDataSize = pGeomCache->GetCompressedAnimationDataSize();
 
-	const float maxBufferAheadTime = std::max(1.0f, GetCVars()->e_GeomCacheMaxBufferAheadTime);
-	const float duration = pGeomCache->GetDuration();
+	const CTimeValue maxBufferAheadTime = std::max(CTimeValue(1), GetCVars()->e_GeomCacheMaxBufferAheadTime);
+	const CTimeValue duration = pGeomCache->GetDuration();
 
 	const bool bNeedDoubleFrameData = (compressedAnimationDataSize < (preferredDiskRequestSize * 2)) || (duration < (maxBufferAheadTime * 2));
 
@@ -317,9 +317,9 @@ void CGeomCacheManager::StreamingUpdate()
 		// Update wanted playback frame
 		CGeomCacheRenderNode* pRenderNode = streamInfo.m_pRenderNode;
 		const CGeomCache* pGeomCache = streamInfo.m_pGeomCache;
-		streamInfo.m_wantedPlaybackTime = pRenderNode->GetPlaybackTime();
-		streamInfo.m_wantedFloorFrame = pGeomCache->GetFloorFrameIndex(streamInfo.m_wantedPlaybackTime);
-		streamInfo.m_wantedCeilFrame = pGeomCache->GetCeilFrameIndex(streamInfo.m_wantedPlaybackTime);
+		streamInfo.m_wantedPlaybackTime = pRenderNode->GetPlaybackTime().BADGetSeconds();
+		streamInfo.m_wantedFloorFrame = pGeomCache->GetFloorFrameIndex(BADTIME(streamInfo.m_wantedPlaybackTime));
+		streamInfo.m_wantedCeilFrame = pGeomCache->GetCeilFrameIndex(BADTIME(streamInfo.m_wantedPlaybackTime));
 		streamInfo.m_bLooping = streamInfo.m_pRenderNode->IsLooping();
 
 		if (!streamInfo.m_bLooping)
@@ -347,7 +347,7 @@ void CGeomCacheManager::StreamingUpdate()
 
 	if (bCachesActive)
 	{
-		const CTimeValue currentFrameTime = GetTimer()->GetFrameStartTime();
+		const CTimeValue currentFrameTime = GTimer(render)->GetFrameStartTime();
 		LaunchStreamingJobs(numStreams, currentFrameTime);
 	}
 
@@ -368,8 +368,8 @@ void CGeomCacheManager::StreamingUpdate()
 			const bool bIsStreaming = pRenderNode->IsStreaming();
 			const CGeomCache* pGeomCache = streamInfo.m_pGeomCache;
 			const bool bPlaybackFromMemory = pGeomCache->PlaybackFromMemory();
-			const float playbackFrame = streamInfo.m_wantedPlaybackTime;
-			const float displayedFrame = streamInfo.m_displayedFrameTime;
+			const CTimeValue playbackFrame = BADTIME(streamInfo.m_wantedPlaybackTime);
+			const CTimeValue displayedFrame = BADTIME(streamInfo.m_displayedFrameTime);
 
 			if (!bPlaybackFromMemory && (bIsStreaming || (displayedFrame != playbackFrame)))
 			{
@@ -413,8 +413,8 @@ void CGeomCacheManager::LaunchStreamingJobs(const uint numStreams, const CTimeVa
 		}
 
 		const bool bIsStreaming = pRenderNode->IsStreaming();
-		const float playbackFrameTime = pStreamInfo->m_wantedPlaybackTime;
-		const float displayedFrameTime = pStreamInfo->m_displayedFrameTime;
+		const CTimeValue playbackFrameTime = BADTIME(pStreamInfo->m_wantedPlaybackTime);
+		const CTimeValue displayedFrameTime = BADTIME(pStreamInfo->m_displayedFrameTime);
 
 		LaunchDecompressJobs(pStreamInfo, currentFrameTime);
 
@@ -478,8 +478,8 @@ void CGeomCacheManager::ValidateStream(SGeomCacheStreamInfo& streamInfo)
 
 	const CGeomCacheRenderNode* pRenderNode = streamInfo.m_pRenderNode;
 	const bool bIsStreaming = pRenderNode->IsStreaming();
-	const float wantedPlaybackTime = streamInfo.m_wantedPlaybackTime;
-	const float displayedFrameTime = streamInfo.m_displayedFrameTime;
+	const CTimeValue wantedPlaybackTime = BADTIME(streamInfo.m_wantedPlaybackTime);
+	const CTimeValue displayedFrameTime = BADTIME(streamInfo.m_displayedFrameTime);
 
 	if (!pRenderNode->IsStreaming() && (displayedFrameTime == wantedPlaybackTime) && streamInfo.m_sameFrameFillCount >= 2)
 	{
@@ -499,7 +499,7 @@ void CGeomCacheManager::ValidateStream(SGeomCacheStreamInfo& streamInfo)
 	}
 
 	const CGeomCache* pGeomCache = streamInfo.m_pGeomCache;
-	const float currentCacheStreamingTime = streamInfo.m_pRenderNode->GetStreamingTime();
+	const CTimeValue currentCacheStreamingTime = streamInfo.m_pRenderNode->GetStreamingTime();
 	const uint wantedFloorFrame = pGeomCache->GetFloorFrameIndex(currentCacheStreamingTime);
 
 	// Check if stream is invalid
@@ -696,13 +696,13 @@ bool CGeomCacheManager::IssueDiskReadRequest(SGeomCacheStreamInfo& streamInfo)
 	const CGeomCache* pGeomCache = streamInfo.m_pGeomCache;
 	const bool bIsStreaming = pRenderNode->IsStreaming();
 
-	const float currentCacheStreamingTime = streamInfo.m_pRenderNode->GetStreamingTime();
+	const CTimeValue currentCacheStreamingTime = streamInfo.m_pRenderNode->GetStreamingTime();
 	const uint wantedFloorFrame = pGeomCache->GetFloorFrameIndex(currentCacheStreamingTime);
 	const uint wantedCeilFrame = pGeomCache->GetCeilFrameIndex(currentCacheStreamingTime);
-	const float minBufferAheadTime = std::max(0.1f, GetCVars()->e_GeomCacheMinBufferAheadTime);
-	const float maxBufferAheadTime = std::max(1.0f, GetCVars()->e_GeomCacheMaxBufferAheadTime);
-	const float cacheMinBufferAhead = currentCacheStreamingTime + minBufferAheadTime;
-	const float cacheMaxBufferAhead = currentCacheStreamingTime + maxBufferAheadTime;
+	const CTimeValue minBufferAheadTime = std::max(CTimeValue("0.1"), GetCVars()->e_GeomCacheMinBufferAheadTime);
+	const CTimeValue maxBufferAheadTime = std::max(CTimeValue(1), GetCVars()->e_GeomCacheMaxBufferAheadTime);
+	const CTimeValue cacheMinBufferAhead = currentCacheStreamingTime + minBufferAheadTime;
+	const CTimeValue cacheMaxBufferAhead = currentCacheStreamingTime + maxBufferAheadTime;
 
 	const bool bLooping = streamInfo.m_bLooping;
 	const uint numFrames = streamInfo.m_numFrames;
@@ -748,7 +748,7 @@ bool CGeomCacheManager::IssueDiskReadRequest(SGeomCacheStreamInfo& streamInfo)
 			frameRangeBegin = streamEndFrame + 1;
 		}
 
-		const float frameRangeBeginTime = pGeomCache->GetFrameTime(frameRangeBegin);
+		const CTimeValue frameRangeBeginTime = pGeomCache->GetFrameTime(frameRangeBegin);
 		if (frameRangeBeginTime > cacheMinBufferAhead)
 		{
 			return false;
@@ -810,15 +810,15 @@ bool CGeomCacheManager::IssueDiskReadRequest(SGeomCacheStreamInfo& streamInfo)
 			streamInfo.m_pNewestReadRequestHandle = pRequestHandle;
 		}
 
-		const float timeLeft = std::max(pGeomCache->GetFrameTime(frameRangeBegin) - currentCacheStreamingTime
-		                                - static_cast<float>(GetCVars()->e_GeomCacheDecodeAheadTime), 0.0f);
+		const CTimeValue timeLeft = std::max(pGeomCache->GetFrameTime(frameRangeBegin) - currentCacheStreamingTime
+		                                - GetCVars()->e_GeomCacheDecodeAheadTime, CTimeValue(0));
 
 		// Fill read request params
 		params.nOffset = static_cast<uint>(pGeomCache->GetFrameOffset(frameRangeBegin));
 		params.nSize = requestSize;
 		params.pBuffer = pRequestHandle->m_pBuffer;
 		params.ePriority = estpAboveNormal;
-		params.nLoadTime = static_cast<uint>(timeLeft * 1000);
+		params.nLoadTime = timeLeft;
 		params.nPerceptualImportance = 255;
 		params.nFlags = IStreamEngine::FLAGS_NO_SYNC_CALLBACK;
 	}
@@ -849,7 +849,7 @@ void CGeomCacheManager::LaunchDecompressJobs(SGeomCacheStreamInfo* pStreamInfo, 
 	const CGeomCacheRenderNode* pRenderNode = pStreamInfo->m_pRenderNode;
 	const CGeomCache* pGeomCache = pStreamInfo->m_pGeomCache;
 	const GeomCacheFile::EBlockCompressionFormat blockCompressionFormat = pGeomCache->GetBlockCompressionFormat();
-	const float currentCacheStreamingTime = pStreamInfo->m_pRenderNode->GetStreamingTime();
+	const CTimeValue currentCacheStreamingTime = pStreamInfo->m_pRenderNode->GetStreamingTime();
 	const uint wantedFloorFrame = pGeomCache->GetFloorFrameIndex(currentCacheStreamingTime);
 	const uint numStreamFrames = pStreamInfo->m_numFrames;
 	const uint frameDataSize = pStreamInfo->m_frameData.size();
@@ -895,8 +895,8 @@ void CGeomCacheManager::LaunchDecompressJobs(SGeomCacheStreamInfo* pStreamInfo, 
 		}
 
 		// Stop decoding after e_GeomCacheDecodeAheadTime
-		const float blockDeltaFromPlaybackTime = (pGeomCache->GetFrameTime(pReadRequestHandle->m_startFrame) - currentCacheStreamingTime);
-		const float decodeAheadTime = GetCVars()->e_GeomCacheDecodeAheadTime;
+		const CTimeValue blockDeltaFromPlaybackTime = (pGeomCache->GetFrameTime(pReadRequestHandle->m_startFrame) - currentCacheStreamingTime);
+		const CTimeValue decodeAheadTime = GetCVars()->e_GeomCacheDecodeAheadTime;
 		if (blockDeltaFromPlaybackTime > decodeAheadTime)
 		{
 			return;
@@ -1261,22 +1261,22 @@ void CGeomCacheManager::FillRenderNodeAsync_JobEntry(SGeomCacheStreamInfo* pStre
 
 	if (pFloorFrameData && pCeilFrameData)
 	{
-		const float floorFrameTime = pGeomCache->GetFrameTime(floorPlaybackFrame);
-		const float ceilFrameTime = pGeomCache->GetFrameTime(ceilPlaybackFrame);
-		const float wantedPlaybackTime = pStreamInfo->m_wantedPlaybackTime;
+		const CTimeValue floorFrameTime = pGeomCache->GetFrameTime(floorPlaybackFrame);
+		const CTimeValue ceilFrameTime = pGeomCache->GetFrameTime(ceilPlaybackFrame);
+		const CTimeValue wantedPlaybackTime = BADTIME(pStreamInfo->m_wantedPlaybackTime);
 
 		assert(wantedPlaybackTime >= floorFrameTime && wantedPlaybackTime <= ceilFrameTime);
 
-		float lerpFactor = 0.0f;
+		nTime lerpFactor = 0;
 		if (ceilFrameTime != floorFrameTime)
 		{
 			lerpFactor = (wantedPlaybackTime - floorFrameTime) / (ceilFrameTime - floorFrameTime);
 		}
 
-		assert(lerpFactor >= 0.0f && lerpFactor <= 1.0f);
+		assert(lerpFactor >= 0 && lerpFactor <= 1);
 
 		// m_displayedFrameTime == -1.0f means uninitialized cache. Treat as same frame, because we only want to fill twice on load.
-		const bool bSameFrame = (pStreamInfo->m_displayedFrameTime == pStreamInfo->m_wantedPlaybackTime) || (pStreamInfo->m_displayedFrameTime == -1.0f);
+		const bool bSameFrame = (pStreamInfo->m_displayedFrameTime == pStreamInfo->m_wantedPlaybackTime) || (BADTIME(pStreamInfo->m_displayedFrameTime).GetSeconds() == -1);
 
 		if (bSameFrame)
 		{
@@ -1287,7 +1287,7 @@ void CGeomCacheManager::FillRenderNodeAsync_JobEntry(SGeomCacheStreamInfo* pStre
 			pStreamInfo->m_sameFrameFillCount = 0;
 		}
 
-		if (!pRenderNode->FillFrameAsync(pFloorFrameData, pCeilFrameData, lerpFactor))
+		if (!pRenderNode->FillFrameAsync(pFloorFrameData, pCeilFrameData, BADF lerpFactor))
 			pRenderNode->SkipFrameFill();
 
 		pStreamInfo->m_displayedFrameTime = pStreamInfo->m_wantedPlaybackTime;
@@ -1336,7 +1336,7 @@ template<class TBufferHandleType> TBufferHandleType* CGeomCacheManager::NewBuffe
 	*alias_cast<TBufferHandleType**>(pBlock) = pNewRequest;
 	pNewRequest->m_pBuffer = pBlock + pointerSize;
 	pNewRequest->m_bufferSize = size;
-	pNewRequest->m_frameTime = GetTimer()->GetFrameStartTime();
+	pNewRequest->m_frameTime = GTimer(render)->GetFrameStartTime();
 	pNewRequest->m_pStream = &streamInfo;
 
 	return pNewRequest;
@@ -1367,7 +1367,7 @@ void CGeomCacheManager::RetireHandles(SGeomCacheStreamInfo& streamInfo)
 
 	CGeomCacheRenderNode* pRenderNode = streamInfo.m_pRenderNode;
 	const CGeomCache* pGeomCache = streamInfo.m_pGeomCache;
-	const float currentCacheStreamingTime = streamInfo.m_pRenderNode->GetStreamingTime();
+	const CTimeValue currentCacheStreamingTime = streamInfo.m_pRenderNode->GetStreamingTime();
 	const uint wantedFloorFrame = pGeomCache->GetFloorFrameIndex(currentCacheStreamingTime);
 
 	SGeomCacheBufferHandle* pNextReadRequestHandle = streamInfo.m_pOldestReadRequestHandle;
@@ -1517,7 +1517,7 @@ template<class TBufferHandleType> void CGeomCacheManager::RetireBufferHandle(TBu
 	delete pHandle;
 }
 
-float CGeomCacheManager::GetPrecachedTime(const IGeomCacheRenderNode* pRenderNode)
+CTimeValue CGeomCacheManager::GetPrecachedTime(const IGeomCacheRenderNode* pRenderNode)
 {
 	assert(gEnv->mMainThreadId == CryGetCurrentThreadId());
 
@@ -1526,14 +1526,14 @@ float CGeomCacheManager::GetPrecachedTime(const IGeomCacheRenderNode* pRenderNod
 		SGeomCacheStreamInfo& streamInfo = *m_streamInfos[i];
 		if (streamInfo.m_pRenderNode == pRenderNode)
 		{
-			const float playbackTime = pRenderNode->GetPlaybackTime();
+			const CTimeValue playbackTime = pRenderNode->GetPlaybackTime();
 
 			if (streamInfo.m_pNewestDecompressHandle)
 			{
 				CGeomCache* pGeomCache = streamInfo.m_pGeomCache;
 
 				const uint frame = streamInfo.m_pNewestDecompressHandle->m_startFrame;
-				const float frameTime = pGeomCache->GetFrameTime(frame);
+				const CTimeValue frameTime = pGeomCache->GetFrameTime(frame);
 
 				if (playbackTime <= frameTime)
 				{
@@ -1545,7 +1545,7 @@ float CGeomCacheManager::GetPrecachedTime(const IGeomCacheRenderNode* pRenderNod
 		}
 	}
 
-	return 0.0f;
+	return CTimeValue(0);
 }
 
 SGeomCacheBufferHandle* CGeomCacheManager::GetFrameDecompressHandle(SGeomCacheStreamInfo* pStreamInfo, const uint frameIndex)
@@ -1716,7 +1716,7 @@ void CGeomCacheManager::DrawDebugInfo()
 			const float currentTop = streamInfosTop + streamInfoSpacing * 2.5f * numActiveStreams;
 			Draw2DBox(sideOffset, currentTop, streamInfoBoxSize, streamInfoBoxSize, color, screenHeight, screenWidth, pRenderAuxGeom);
 
-			const float wantedPlaybackTime = streamInfo.m_wantedPlaybackTime;
+			const CTimeValue wantedPlaybackTime = BADTIME(streamInfo.m_wantedPlaybackTime);
 			const uint wantedFloorFrame = streamInfo.m_wantedFloorFrame;
 			const uint wantedCeilFrame = streamInfo.m_wantedCeilFrame;
 			const int oldestDiskFrame = streamInfo.m_pOldestReadRequestHandle ? streamInfo.m_pOldestReadRequestHandle->m_startFrame : -1;
@@ -1737,10 +1737,10 @@ void CGeomCacheManager::DrawDebugInfo()
 			}
 
 			IRenderAuxText::Draw2dLabel(sideOffset + streamInfoSpacing, currentTop - 5.0f, 1.5f, Col_White, false, "%s - %.3gs %s- %.3g MiB/s - %s - %d frames missed",
-			                             streamInfo.m_pRenderNode->GetName(), pGeomCache->GetDuration(), streamInfo.m_bLooping ? "looping " : "", stats.m_averageAnimationDataRate, pCompressionMethod, streamInfo.m_numFramesMissed);
+			                             streamInfo.m_pRenderNode->GetName(), pGeomCache->GetDuration(), streamInfo.m_bLooping ? "looping " : "", (float)stats.m_averageAnimationDataRate, pCompressionMethod, streamInfo.m_numFramesMissed);
 			IRenderAuxText::Draw2dLabel(sideOffset + streamInfoSpacing, streamInfoSpacing + currentTop - 5.0f, 1.5f, Col_White, false,
 			                             "Frame: [%04u, %04u], Disk Frames: [%04u, %04u], Decompress Frames: [%04u, %04u], Playback time: %g", wantedFloorFrame, wantedCeilFrame,
-			                             oldestDiskFrame, newestDiskFrame, oldestDecompressFrame, newestDecompressFrame, wantedPlaybackTime);
+			                             oldestDiskFrame, newestDiskFrame, oldestDecompressFrame, newestDecompressFrame, (float)wantedPlaybackTime.GetSeconds());
 
 			++numActiveStreams;
 			++colorIndex;

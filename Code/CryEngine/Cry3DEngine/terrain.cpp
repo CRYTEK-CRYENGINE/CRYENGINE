@@ -131,7 +131,7 @@ void CTerrain::ActivateNodeTexture(CTerrainNode* pNode, const SRenderingPassInfo
 	if (pNode->m_nNodeTextureOffset < 0 || passInfo.IsRecursivePass())
 		return;
 
-	pNode->m_nNodeTextureLastUsedSec4 = (uint16)(GetCurTimeSec() / 4.f);
+	pNode->m_nNodeTextureLastUsedSec4 = (uint16)(GetGTimer()->GetFrameStartTime().GetSeconds() / 4);
 
 	if (m_lstActiveTextureNodes.Find(pNode) < 0)
 	{

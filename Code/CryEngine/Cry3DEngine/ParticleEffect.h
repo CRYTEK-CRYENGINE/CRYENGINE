@@ -111,10 +111,10 @@ struct FStaticBounds
 	float fAngMax;
 	float fSpeedScale;
 	bool  bWithSize;
-	float fMaxLife;
+	CTimeValue fMaxLife;
 
 	FStaticBounds()
-		: vSpawnSize(0), fAngMax(0), fSpeedScale(1), bWithSize(true), fMaxLife(fHUGE) {}
+		: vSpawnSize(0), fAngMax(0), fSpeedScale(1), bWithSize(true), fMaxLife(tHUGE) {}
 };
 
 struct FEmitterRandom
@@ -128,12 +128,12 @@ struct FEmitterRandom
 struct FEmitterFixed
 {
 	CChaosKey ChaosKey;
-	float     fStrength;
+	mpfloat     fStrength;
 
 	CChaosKey RMin() const { return ChaosKey; }
 	CChaosKey RMax() const { return ChaosKey; }
-	float     EMin() const { return fStrength; }
-	float     EMax() const { return fStrength; }
+	mpfloat   EMin() const { return fStrength; }
+	mpfloat   EMax() const { return fStrength; }
 };
 
 struct SEmitParams;
@@ -230,7 +230,7 @@ struct FMaxEffectLife
 	OPT_VAR(bool, bAllChildren)
 	OPT_VAR(bool, bIndirectChildren)
 	OPT_VAR(bool, bParticleLife)
-	OPT_VAR(float, fEmitterMaxLife)
+	OPT_VAR(CTimeValue, fEmitterMaxLife)
 };
 
 struct SEffectCounts
@@ -329,13 +329,13 @@ public:
 
 	CParticleEffect*       GetIndirectParent() const;
 
-	float                  Get(FMaxEffectLife const& opts) const;
-	float                  GetMaxParticleFullLife() const
+	CTimeValue             Get(FMaxEffectLife const& opts) const;
+	CTimeValue             GetMaxParticleFullLife() const
 	{
 		return Get(FMaxEffectLife().bParticleLife(1).bIndirectChildren(1));
 	}
 	float GetMaxParticleSize(bool bParent = false) const;
-	float GetEquilibriumAge(bool bAll) const;
+	CTimeValue GetEquilibriumAge(bool bAll) const;
 
 	void  GetEffectCounts(SEffectCounts& counts) const;
 
@@ -360,19 +360,19 @@ namespace Travel
 {
 #define fDRAG_APPROX_THRESHOLD 0.01f              // Max inaccuracy we allow in fast drag force approximation
 
-inline float TravelDistance(float fV, float fDrag, float fT)
+inline float TravelDistance(float fV, float fDrag, const CTimeValue& fT)
 {
-	float fDecay = fDrag * fT;
+	float fDecay = fDrag * fT.BADGetSeconds();
 	if (fDecay < fDRAG_APPROX_THRESHOLD)
-		return fV * fT * (1.f - fDecay);
+		return fV * fT.BADGetSeconds() * (1.f - fDecay);
 	else
 		// Compute accurate distance with drag.
 		return fV / fDrag * (1.f - expf(-fDecay));
 }
 
-inline float TravelSpeed(float fV, float fDrag, float fT)
+inline float TravelSpeed(float fV, float fDrag, const CTimeValue& fT)
 {
-	float fDecay = fDrag * fT;
+	float fDecay = fDrag * fT.BADGetSeconds();
 	if (fDecay < fDRAG_APPROX_THRESHOLD)
 		// Fast approx drag computation.
 		return fV * (1.f - fDecay);
@@ -380,8 +380,10 @@ inline float TravelSpeed(float fV, float fDrag, float fT)
 		return fV * expf(-fDecay);
 }
 
-inline void Travel(Vec3& vPos, Vec3& vVel, float fTime, const SForceParams& forces)
+inline void Travel(Vec3& vPos, Vec3& vVel, const CTimeValue& fTimeIn, const SForceParams& forces)
 {
+	float fTime = fTimeIn.BADGetSeconds();
+
 	// Analytically compute new velocity and position, accurate for any time step.
 	if (forces.fDrag * fTime >= fDRAG_APPROX_THRESHOLD)
 	{
