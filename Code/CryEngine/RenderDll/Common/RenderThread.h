@@ -135,8 +135,8 @@ struct CRY_ALIGN(128) SRenderThread
 	#endif
 	SDXGLDeviceContextThreadLocalHandle m_kDXGLDeviceContextHandle;
 #endif //CRY_RENDERER_OPENGL && !DXGL_FULL_EMULATION
-	float m_fTimeIdleDuringLoading;
-	float m_fTimeBusyDuringLoading;
+	CTimeValue m_fTimeIdleDuringLoading;
+	CTimeValue m_fTimeBusyDuringLoading;
 	TArray<byte> m_Commands[RT_COMMAND_BUF_COUNT]; // m_nCurThreadFill shows which commands are filled by main thread
 
 	// The below loading queue contains all commands that were submitted and require full device access during loading.
@@ -373,7 +373,7 @@ struct CRY_ALIGN(128) SRenderThread
 	void RC_ResumeDevice();
 #endif
 
-	void RC_PrecacheResource(ITexture * pTP, float fMipFactor, float fTimeToReady, int Flags, int nUpdateId, int nCounter = 1);
+	void RC_PrecacheResource(ITexture * pTP, float fMipFactor, const CTimeValue& fTimeToReady, int Flags, int nUpdateId, int nCounter = 1);
 
 	void RC_FlashRender(std::shared_ptr<IFlashPlayer_RenderProxy> &&pPlayer);
 	void RC_FlashRenderPlayer(std::shared_ptr<IFlashPlayer> &&pPlayer);

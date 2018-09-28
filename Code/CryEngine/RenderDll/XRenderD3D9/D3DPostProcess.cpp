@@ -158,7 +158,7 @@ void CD3D9Renderer::GetReprojectionMatrix(Matrix44A& matReproj,
 void CPostEffectsMgr::Begin()
 {
 	PostProcessUtils().Log("### POST-PROCESSING BEGINS ### ");
-	PostProcessUtils().m_pTimer = gEnv->pTimer;
+	SetGTimer(GetGTimer(), GTimers::peffects);
 	static EShaderQuality nPrevShaderQuality = eSQ_Low;
 	static ERenderQuality nPrevRenderQuality = eRQ_Low;
 

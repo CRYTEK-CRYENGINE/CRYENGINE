@@ -293,21 +293,21 @@ bool CD3D9Renderer::FX_DrawToRenderTarget(
 		float fDotView = camView * m_waterUpdateInfo.m_LastWaterViewdirUpdate;
 		float fDotUp   = camUp * m_waterUpdateInfo.m_LastWaterUpdirUpdate;
 		float fFOV     = passInfo.GetCamera().GetFov();
-		if (m_waterUpdateInfo.m_fLastWaterUpdate - 1.0f > animTime.GetSeconds())
-			m_waterUpdateInfo.m_fLastWaterUpdate = animTime.GetSeconds();
+		if (m_waterUpdateInfo.m_fLastWaterUpdate - 1 > animTime)
+			m_waterUpdateInfo.m_fLastWaterUpdate = animTime;
 
 		const float fMaxFovDiff = 0.1f;       // no exact test to prevent slowly changing fov causing per frame water reflection updates
 
 		static bool bUpdateReflection = true;
 		if (bMGPUAllowNextUpdate)
 		{
-			bUpdateReflection = animTime.GetSeconds() - m_waterUpdateInfo.m_fLastWaterUpdate >= fTimeUpd || fDistCam > fWaterUpdateDistance;
+			bUpdateReflection = animTime - m_waterUpdateInfo.m_fLastWaterUpdate >= BADTIME(fTimeUpd) || fDistCam > fWaterUpdateDistance;
 			bUpdateReflection = bUpdateReflection || fDotView<0.9f || fabs(fFOV - m_waterUpdateInfo.m_fLastWaterFOVUpdate)>fMaxFovDiff;
 		}
 
 		if (bUpdateReflection && bMGPUAllowNextUpdate)
 		{
-			m_waterUpdateInfo.m_fLastWaterUpdate       = animTime.GetSeconds();
+			m_waterUpdateInfo.m_fLastWaterUpdate       = animTime;
 			m_waterUpdateInfo.m_LastWaterViewdirUpdate = camView;
 			m_waterUpdateInfo.m_LastWaterUpdirUpdate   = camUp;
 			m_waterUpdateInfo.m_fLastWaterFOVUpdate    = fFOV;

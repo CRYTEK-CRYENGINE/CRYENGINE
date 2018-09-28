@@ -21,19 +21,20 @@ public:
 		return m_timeValues[timestamp];
 	}
 
-	float GetTimeMS(uint32 timestamp0, uint32 timestamp1)
+	CTimeValue GetTime(uint32 timestamp0, uint32 timestamp1)
 	{
 		timestamp0 -= m_groupIndex * kMaxTimestamps;
 		timestamp1 -= m_groupIndex * kMaxTimestamps;
 		
 		uint64 duration = std::max(m_timeValues[timestamp0], m_timeValues[timestamp1]) - std::min(m_timeValues[timestamp0], m_timeValues[timestamp1]);
-		return duration / (float)(m_frequency / 1000);
+		return CTimeValue(duration / (mpfloat)m_frequency);
 	}
 
 protected:
 	uint32                              m_numTimestamps;
 	uint32                              m_groupIndex;
 
+	// PERSONAL IMPROVE: Overcomplicated timestamp setup. Can perhaps be changed later.
 	DeviceFenceHandle                   m_fence;
 	UINT64                              m_frequency;
 	std::array<uint64, kMaxTimestamps>  m_timeValues;

@@ -157,7 +157,7 @@ void CHud3D::Reset(bool bOnSpecChange)
 	m_pChromaShift->ResetParam(0.0f);
 	m_pDofMultiplier->ResetParam(1.0f);
 	m_maxParallax = 0.0f;
-	m_interferenceRandTimer = 0.0f;
+	m_interferenceRandTimer.SetSeconds(0);
 	m_pOverideCacheDelay->ResetParam(0);
 
 	m_pInterference->ResetParam(0.0f);
@@ -461,7 +461,7 @@ void CHud3D::FlashUpdateRT(void)
 			{
 				// CV_r_PostProcessHUD3DCache>0 will skip flash asset advancing. Accumulate frame time of
 				//skipped frames and add it when we're actually advancing.
-				m_accumulatedFrameTime += gEnv->pTimer->GetFrameTime();
+				m_accumulatedFrameTime += GetGTimer()->GetFrameTime();
 
 				ReleaseFlashPlayerRef(nThreadID);
 				return;
@@ -489,7 +489,7 @@ void CHud3D::FlashUpdateRT(void)
 		rd->FX_PushRenderTarget(0, m_pHUD_RT, &rd->m_DepthBufferOrig);
 		rd->RT_SetViewport(0, 0, nViewportWidth, nViewportHeight);
 
-		float accumulatedDeltaTime = gEnv->pTimer->GetFrameTime() + m_accumulatedFrameTime;
+		float accumulatedDeltaTime = GetGTimer()->GetFrameTime() + m_accumulatedFrameTime;
 
 		for (uint32 r = 0; r < nRECount; ++r)
 		{
@@ -574,7 +574,7 @@ void CHud3D::RenderFinalPass()
 	bool bGameDof = pDofPostEffect->IsActive();
 
 	static float fDofBlend = 0.0f;
-	fDofBlend += ((bGameDof ? .6f : 0.0f) - fDofBlend) * gEnv->pTimer->GetFrameTime() * 10.0f;
+	fDofBlend += ((bGameDof ? .6f : 0.0f) - fDofBlend) * GetGTimer()->GetFrameTime() * 10.0f;
 	float dofMultiplier = clamp_tpl<float>(m_pDofMultiplier->GetParam(), 0.0f, 2.0f);
 	float fCurrentDofBlend = fDofBlend * dofMultiplier;
 
@@ -830,7 +830,7 @@ void CHud3D::Render()
 	}
 
 	// Update interference rand timer
-	m_interferenceRandTimer += gEnv->pTimer->GetFrameTime();
+	m_interferenceRandTimer += GetGTimer()->GetFrameTime();
 
 	// Render hud with projection offset or with same projection offset in MRT mode (a bit faster)
 	if (bPostProcStereoAndSequential)

@@ -19,7 +19,7 @@ static bool g_bCreatedGlobalResources = false;
 const float CFlareSoftOcclusionQuery::s_fSectorWidth = (float)s_nGatherEachSectorWidth / (float)s_nGatherTextureWidth;
 const float CFlareSoftOcclusionQuery::s_fSectorHeight = (float)s_nGatherEachSectorHeight / (float)s_nGatherTextureHeight;
 
-float CSoftOcclusionVisiblityFader::UpdateVisibility(const float newTargetVisibility, const float duration)
+float CSoftOcclusionVisiblityFader::UpdateVisibility(const float newTargetVisibility, const CTimeValue& duration)
 {
 	m_TimeLine.duration = duration;
 
@@ -40,11 +40,11 @@ float CSoftOcclusionVisiblityFader::UpdateVisibility(const float newTargetVisibi
 	}
 
 	// Fade in fixed time (in ms), fade out user controlled
-	const float fadeInTime = m_TimeLine.duration * (1.0f / 0.15f);
-	const float fadeOutTime = 1e3f;
-	float dt = (newTargetVisibility > m_fVisibilityFactor) ? fadeInTime : fadeOutTime;
+	const CTimeValue fadeInTime = m_TimeLine.duration * (1 / mpfloat("0.15"));
+	const CTimeValue fadeOutTime = 1;
+	CTimeValue dt = (newTargetVisibility > m_fVisibilityFactor) ? fadeInTime : fadeOutTime;
 
-	m_fVisibilityFactor = m_TimeLine.step(gEnv->pTimer->GetFrameTime() * dt); // interpolate
+	m_fVisibilityFactor = m_TimeLine.step(GetGTimer()->GetFrameTime() * dt); // interpolate
 
 	return m_fVisibilityFactor;
 }

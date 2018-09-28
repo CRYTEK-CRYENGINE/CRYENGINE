@@ -1228,8 +1228,8 @@ void CSceneForwardStage::ExecuteSky(CTexture* pColorTex, CTexture* pDepthTex)
 			m_starsPrimitive.GetConstantManager().SetNamedConstant(nameMoonDirSize, m_paramMoonDirSize, eHWSC_Vertex);
 
 			const float size = 5.0f * min(1.f, min(viewport.Width / 1280.f, viewport.Height / 720.f));
-			float flickerTime(gEnv->pTimer->GetCurrTime());
-			Vec4 paramStarSize(size / (float)viewport.Width, size / (float)viewport.Height, 0, flickerTime * 0.5f);
+			CTimeValue flickerTime = GetGTimer()->GetFrameStartTime();
+			Vec4 paramStarSize(size / (float)viewport.Width, size / (float)viewport.Height, 0, flickerTime.BADGetSeconds() * 0.5f);
 			m_starsPrimitive.GetConstantManager().SetNamedConstant(nameStarSize, paramStarSize, eHWSC_Vertex);
 			Vec4 paramStarIntensity(starIntensity * min(1.0f, size), 0, 0, 0);
 			m_starsPrimitive.GetConstantManager().SetNamedConstant(nameStarIntensity, paramStarIntensity, eHWSC_Pixel);

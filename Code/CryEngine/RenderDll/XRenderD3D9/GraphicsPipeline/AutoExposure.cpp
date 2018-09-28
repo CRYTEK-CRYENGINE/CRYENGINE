@@ -165,7 +165,7 @@ void CAutoExposureStage::AdjustExposure()
 
 	m_passAutoExposure.BeginConstantUpdate();
 
-	Vec4 param0(iTimer->GetFrameTime() * numTextures, 1, 1, 0);
+	Vec4 param0(GTimer(d3d)->GetFrameTime().BADGetSeconds() * numTextures, 1, 1, 0);
 	if (!RenderView()->GetCamera(CCamera::eEye_Left).IsJustActivated() && pRenderer->m_nDisableTemporalEffects == 0)
 	{
 		param0[1] = 1.0f - expf(-CRenderer::CV_r_HDREyeAdaptationSpeed * param0[0]);

@@ -67,11 +67,11 @@ void RootOpticsElement::Load(IXmlNode* pNode)
 		if (pGloabalSettingsNode->getAttr("EnableInvertFade", bInvertFade))
 			SetInvertFade(bInvertFade);
 
-		float fFlareTimelineDuration(m_fFlareTimelineDuration);
+		CTimeValue fFlareTimelineDuration(m_fFlareTimelineDuration);
 		if (pGloabalSettingsNode->getAttr("Flarefadetime", fFlareTimelineDuration))
 			SetFlareFadingDuration(fFlareTimelineDuration);
 
-		float fShaftTimelineDuration(m_fShaftTimelineDuration);
+		CTimeValue fShaftTimelineDuration(m_fShaftTimelineDuration);
 		if (pGloabalSettingsNode->getAttr("Flarefadetime", fShaftTimelineDuration))
 			SetShaftFadingDuration(fShaftTimelineDuration);
 

@@ -1507,7 +1507,7 @@ bool SDynTexture2::Update(int nNewWidth, int nNewHeight)
 							pPackBest = pNextPack;
 						}
 					}
-					if (!pPackBest || time.GetSeconds() + 0.5f > currentTime.GetSeconds())
+					if (!pPackBest || time + "0.5" > currentTime)
 					{
 						nStage = 5;
 						// Try to find most fragmented texture pool with less number of blocks

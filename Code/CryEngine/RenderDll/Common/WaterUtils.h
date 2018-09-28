@@ -33,7 +33,7 @@ public:
 	void SaveToDisk(const char* pszFileName);
 
 	// Update water simulation
-	void Update(int nFrameID, float fTime, bool bOnlyHeight = false, void* pRawPtr = NULL);
+	void Update(int nFrameID, const CTimeValue& fTime, bool bOnlyHeight = false, void* pRawPtr = NULL);
 
 	// Get water simulation data
 	Vec3      GetPositionAt(int x, int y) const;

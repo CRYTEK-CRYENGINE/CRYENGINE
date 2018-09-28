@@ -4089,7 +4089,7 @@ bool CRenderMesh::ClearStaleMemory(bool bAcquireLock, int threadId)
 		if (pRM->m_nThreadAccessCounter)
 		{
 #     if !defined(_RELEASE) && defined(RM_CATCH_EXCESSIVE_LOCKS)
-			if (gEnv->pTimer->GetAsyncTime().GetSeconds()-pRM->m_lockTime > 32.f)
+			if (GetGTimer()->GetAsyncTime().GetSeconds()-pRM->m_lockTime > 32.f)
 			{
 				CryError("data lock for mesh '%s:%s' held longer than 32 seconds", (pRM->m_sType?pRM->m_sType:"unknown"), (pRM->m_sSource?pRM->m_sSource:"unknown"));
 				if (CRenderer::CV_r_BreakOnError)
@@ -4424,7 +4424,7 @@ bool CRenderMesh::SyncAsyncUpdate(int threadID, bool block)
 		{
 			if (!block)
 				return false;
-			CrySleep(iter > 10 ? 1 : 0);
+			CryLowLatencySleep(iter > 10 ? "0.001" : "0");
 			++iter;
 		}
 		UnlockStream(VSF_GENERAL);
@@ -4661,7 +4661,7 @@ void CRenderMesh::LockForThreadAccess()
 	++m_nThreadAccessCounter; 
 
 # if !defined(_RELEASE) && defined(RM_CATCH_EXCESSIVE_LOCKS)
-	m_lockTime = (m_lockTime > 0.f) ? m_lockTime : gEnv->pTimer->GetAsyncTime().GetSeconds();
+	m_lockTime = (m_lockTime > 0.f) ? m_lockTime : GetGTimer()->GetAsyncTime().GetSeconds();
 # endif
 }
 void CRenderMesh::UnLockForThreadAccess() 

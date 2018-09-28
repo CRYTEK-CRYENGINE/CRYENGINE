@@ -100,12 +100,13 @@ bool CDeviceTimestampGroup::ResolveTimestamps()
 	return true;
 }
 
-float CDeviceTimestampGroup::GetTimeMS(uint32 timestamp0, uint32 timestamp1)
+// PERSONAL IMPROVE: Another timestamp setup
+CTimeValue CDeviceTimestampGroup::GetTime(uint32 timestamp0, uint32 timestamp1)
 {
 	const float ticksToNanoseconds = GetDevice()->GetPhysicalDeviceInfo()->deviceProperties.limits.timestampPeriod;
 
 	uint64 ticks = std::max(m_timestampData[timestamp0], m_timestampData[timestamp1]) - std::min(m_timestampData[timestamp0], m_timestampData[timestamp1]);
-	return ticks * ticksToNanoseconds / 1000000.0f;
+	return ticks * BADMP(ticksToNanoseconds) / 1000000;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

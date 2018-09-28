@@ -42,9 +42,9 @@ private:
 	struct SWaterRippleRecord
 	{
 		SWaterRippleInfo info;
-		float            lifetime;
+		CTimeValue       lifetime;
 
-		SWaterRippleRecord(const SWaterRippleInfo& srcInfo, float srcLifetime)
+		SWaterRippleRecord(const SWaterRippleInfo& srcInfo, const CTimeValue& srcLifetime)
 			: info(srcInfo)
 			, lifetime(srcLifetime)
 		{}
@@ -79,8 +79,8 @@ private:
 
 	int32                         m_frameID;
 
-	float                         m_lastSpawnTime;
-	float                         m_lastUpdateTime;
+	CTimeValue                    m_lastSpawnTime;
+	CTimeValue                    m_lastUpdateTime;
 
 	float                         m_simGridSnapRange;
 	Vec2                          m_simOrigin;

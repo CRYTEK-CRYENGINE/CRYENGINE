@@ -37,8 +37,8 @@ private:
 	bool                      m_bOcclusionEnabled : 1;
 	float                     m_fFlareVisibilityFactor;
 	float                     m_fShaftVisibilityFactor;
-	float                     m_fFlareTimelineDuration;
-	float                     m_fShaftTimelineDuration;
+	CTimeValue                m_fFlareTimelineDuration;
+	CTimeValue                m_fShaftTimelineDuration;
 	bool                      m_bEnableInvertFade : 1;
 	CFlareSoftOcclusionQuery* m_pOccQuery;
 
@@ -76,8 +76,8 @@ public:
 		m_bEnableInvertFade(false),
 		m_flareLight()
 	{
-		SetFlareFadingDuration(0.2f);
-		SetShaftFadingDuration(1.0f);
+		SetFlareFadingDuration("0.2");
+		SetShaftFadingDuration(1);
 		m_OcclusionSize = Vec2(0.02f, 0.02f);
 	}
 
@@ -138,11 +138,11 @@ public:
 
 	CTexture* GetOcclusionPattern();
 
-	float     GetFlareFadingDuration() const   { return m_fFlareTimelineDuration / 1e3f; }
-	void      SetFlareFadingDuration(float d)  { m_fFlareTimelineDuration = d * 1e3f; }
+	const CTimeValue& GetFlareFadingDuration() const		 { return m_fFlareTimelineDuration; }
+	void      SetFlareFadingDuration(const CTimeValue& d)  { m_fFlareTimelineDuration = d;    }
 
-	float     GetShaftFadingDuration() const   { return m_fShaftTimelineDuration / 1e3f; }
-	void      SetShaftFadingDuration(float d)  { m_fShaftTimelineDuration = d * 1e3f; }
+	const CTimeValue& GetShaftFadingDuration() const		 { return m_fShaftTimelineDuration; }
+	void      SetShaftFadingDuration(const CTimeValue& d)  { m_fShaftTimelineDuration = d;    }
 
 	bool      IsAffectedByLightColor() const   { return m_bAffectedByLightColor; }
 	void      SetAffectedByLightColor(bool b)  { m_bAffectedByLightColor = b; }

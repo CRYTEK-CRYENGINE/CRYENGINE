@@ -15,8 +15,8 @@
 // Statics
 CCryNameR CREBreakableGlass::s_ImpactDecalParamName("");
 const SBreakableGlassCVars* CREBreakableGlass::s_pCVars = NULL;
-float CREBreakableGlass::s_loosenTimer = 0.0f;
-float CREBreakableGlass::s_impactTimer = 0.0f;
+CTimeValue CREBreakableGlass::s_loosenTimer = 0;
+CTimeValue CREBreakableGlass::s_impactTimer = 0;
 
 // Forward declare constant "CBreakableGlassBuffer::NoBuffer"
 #define NO_BUFFER 0
@@ -256,7 +256,7 @@ void CREBreakableGlass::ReleaseRenderElement()
 void CREBreakableGlass::Update(SBreakableGlassUpdateParams& params)
 {
 	// Periodically loosen weakly-linked fragments
-	if (s_loosenTimer > 1.0f + GetRandF() && s_impactTimer > 1.0f && s_impactTimer < 2.0f)
+	if (s_loosenTimer > BADTIME(GetRandF()) + 1 && s_impactTimer > 1 && s_impactTimer < 2)
 	{
 		const uint32 activeState = m_fragsActive & ~m_fragsFree;
 		uint32 fragBit = 1;
@@ -796,8 +796,8 @@ void CREBreakableGlass::ApplyImpactToGlass(const SGlassImpactParams& params)
 				GenerateImpactGeom(currImpact);
 #endif
 				impactHit = true;
-				s_impactTimer = 0.0f;
-				s_loosenTimer = 0.0f;
+				s_impactTimer.SetSeconds(0);
+				s_loosenTimer.SetSeconds(0);
 
 				// Check if we still have any stable geometry left
 				const uint32 stableFrags = m_fragsActive & ~(m_fragsLoose | m_fragsFree);
@@ -2027,14 +2027,14 @@ void CREBreakableGlass::FindLooseFragments(TGlassPhysFragmentArray* pPhysFrags, 
 				dampenVelocity = true;
 			}
 			// Periodically loosen weakly-connected fragments
-			else if (s_loosenTimer > 1.0f + GetRandF() && s_impactTimer > 1.0f && s_impactTimer < 2.0f)
+			else if (s_loosenTimer > BADTIME(GetRandF()) + 1 && s_impactTimer > 1 && s_impactTimer < 2)
 			{
 				const SGlassFragment& frag = m_frags[i];
 				if (IsFragmentWeaklyLinked(frag))
 				{
 					m_fragsLoose |= fragBit;
 					noVelocity = true;
-					s_loosenTimer = 0.0f - GetRandF();
+					s_loosenTimer = BADTIME(0 - GetRandF());
 				}
 			}
 
@@ -2047,7 +2047,7 @@ void CREBreakableGlass::FindLooseFragments(TGlassPhysFragmentArray* pPhysFrags, 
 	}
 
 	// Reset loosen timer
-	s_loosenTimer = 0.0f;
+	s_loosenTimer.SetSeconds(0);
 
 	// No stable fragments means we should shatter
 	if (!stableFragsFound)

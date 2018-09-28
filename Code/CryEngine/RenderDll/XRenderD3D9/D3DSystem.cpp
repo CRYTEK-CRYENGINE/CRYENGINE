@@ -903,7 +903,6 @@ void CD3D9Renderer::ShutDown(bool bReInit)
 	{
 		iLog = NULL;
 		//iConsole = NULL;
-		iTimer = NULL;
 		iSystem = NULL;
 	}
 	

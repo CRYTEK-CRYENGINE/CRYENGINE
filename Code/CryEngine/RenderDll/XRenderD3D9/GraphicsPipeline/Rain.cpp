@@ -238,9 +238,9 @@ void CRainStage::ExecuteDeferredRainGBuffer()
 	if (!rd->m_bPauseTimer)
 	{
 		// flip rain ripple texture
-		const float elapsedTime = GetGraphicsPipeline().GetAnimationTime().GetSeconds();
-		CRY_ASSERT(elapsedTime >= 0.0f);
-		const float AnimTexFlipTime = 0.05f;
+		const mpfloat elapsedTime = GetGraphicsPipeline().GetAnimationTime().GetSeconds();
+		CRY_ASSERT(elapsedTime >= 0);
+		const mpfloat AnimTexFlipTime = "0.05";
 		m_rainRippleTexIndex = (uint32)(elapsedTime / AnimTexFlipTime) % m_pRainRippleTex.size();
 	}
 	CRY_ASSERT(m_rainRippleTexIndex < m_pRainRippleTex.size());
@@ -258,10 +258,10 @@ void CRainStage::ExecuteDeferredRainGBuffer()
 	Vec3 windVec = gEnv->p3DEngine->GetGlobalWind(false);
 
 	// Animated puddles
-	const float fTime = GetGraphicsPipeline().GetAnimationTime().GetSeconds() * 0.333f;
+	const CTimeValue fTime = GetGraphicsPipeline().GetAnimationTime() * "0.333";
 	const float puddleWindScale = -0.15f;
-	const float puddleOffsX = fTime * puddleWindScale * windVec.x;
-	const float puddleOffsY = fTime * puddleWindScale * windVec.y;
+	const float puddleOffsX = fTime.BADGetSeconds() * puddleWindScale * windVec.x;
+	const float puddleOffsY = fTime.BADGetSeconds() * puddleWindScale * windVec.y;
 
 	static CCryNameR puddleParamName0("g_RainPuddleParams0");
 	const Vec4 vPuddleParams0 = Vec4(puddleOffsX, puddleOffsY, rainVolParams.fPuddlesAmount * rainVolParams.fCurrentAmount, rainVolParams.fDiffuseDarkening);

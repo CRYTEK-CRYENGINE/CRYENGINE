@@ -119,15 +119,15 @@ void CMotionBlur::RenderObjectsVelocity()
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-float ComputeMotionScale()
+nTime ComputeMotionScale()
 {
 	// The length of the generated motion vectors is proportional to the current time step, so we need
 	// to rescale the motion vectors to simulate a constant camera exposure time
 
-	float exposureTime = 1.0f / std::max(CRenderer::CV_r_MotionBlurShutterSpeed, 1e-6f);
-	float timeStep = std::max(gEnv->pTimer->GetFrameTime(), 1e-6f);
+	CTimeValue exposureTime = BADTIME(1.0f / std::max(CRenderer::CV_r_MotionBlurShutterSpeed, 1e-6f));
+	CTimeValue timeStep = std::max(GetGTimer()->GetFrameTime(), CTimeValue("0.000001"));
 
-	exposureTime *= gEnv->pTimer->GetTimeScale();
+	exposureTime *= GetGTimer()->GetTimeScale();
 
 	return exposureTime / timeStep;
 }

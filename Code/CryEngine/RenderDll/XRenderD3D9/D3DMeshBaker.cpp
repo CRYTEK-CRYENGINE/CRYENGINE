@@ -207,7 +207,7 @@ bool CREBaker::mfDraw(CShader* ef, SShaderPass* sfm)
 				}
 			}
 
-			float textureBakeLoopTimer = gEnv->pTimer->GetAsyncCurTime();
+			float textureBakeLoopTimer = GetGTimer()->GetAsyncCurTime();
 			for (int i = 0; i < gRenDev->m_RP.m_RendNumIndices / 3; i++)
 			{
 				Vec4 triPos[3];
@@ -287,9 +287,9 @@ bool CREBaker::mfDraw(CShader* ef, SShaderPass* sfm)
 			}
 
 			// Print a message every now and then to show we are still working.
-			if (gEnv->pTimer->GetAsyncCurTime() - textureBakeLoopTimer > 20.0f)
+			if (GetGTimer()->GetAsyncCurTime() - textureBakeLoopTimer > 20.0f)
 			{
-				textureBakeLoopTimer = gEnv->pTimer->GetAsyncCurTime();
+				textureBakeLoopTimer = GetGTimer()->GetAsyncCurTime();
 				CryLog("LoD texture baker - Loop check\n");
 			}
 		}
@@ -662,7 +662,7 @@ bool CD3D9Renderer::BakeMesh(const SMeshBakingInputParams* pInputParams, SMeshBa
 		//		gEnv->p3DEngine->UpdateStreaming(SRenderingPassInfo::CreateGeneralPassRenderingInfo(gEnv->pSystem->GetViewCamera()));
 		for (std::vector<IMaterial*>::iterator it = pInputMaterial.begin(), end = pInputMaterial.end(); it != end; ++it)
 		{
-			float start = gEnv->pTimer->GetAsyncCurTime();
+			CTimeValue start = GetGTimer()->GetAsyncCurTime();
 			while (true)
 			{
 				int pRoundIds[MAX_STREAM_PREDICTION_ZONES] = { 0 };
@@ -674,7 +674,7 @@ bool CD3D9Renderer::BakeMesh(const SMeshBakingInputParams* pInputParams, SMeshBa
 				{
 					break;
 				}
-				if (gEnv->pTimer->GetAsyncCurTime() - start > 5.0f)
+				if (GetGTimer()->GetAsyncCurTime() - start > 5)
 				{
 					LogWarning("Time out waiting for textures to stream\n");
 					break;

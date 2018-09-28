@@ -1483,7 +1483,7 @@ NO_INLINE void sCausticsSmoothSunDirection(UFloat4* sData)
 		if (fDot < fSnapDot)
 			PF.vCausticsCurrSunDir = pRealtimeSunDirNormalized;
 
-		PF.vCausticsCurrSunDir += (pRealtimeSunDirNormalized - PF.vCausticsCurrSunDir) * 0.005f * gEnv->pTimer->GetFrameTime();
+		PF.vCausticsCurrSunDir += (pRealtimeSunDirNormalized - PF.vCausticsCurrSunDir) * 0.005f * GetGTimer()->GetFrameTime().BADGetSeconds();
 		PF.vCausticsCurrSunDir.Normalize();
 	}
 
@@ -1605,7 +1605,7 @@ void CRenderer::ReadPerFrameShaderConstants(const SRenderingPassInfo& passInfo, 
 	PF.pCloudShadingColorSky = cloudShadingSkyColor;
 
 	const int heightMapSize = p3DEngine->GetTerrainSize();
-	Vec3 cloudShadowOffset = m_cloudShadowSpeed * gEnv->pTimer->GetCurrTime();
+	Vec3 cloudShadowOffset = m_cloudShadowSpeed * GetGTimer()->GetFrameStartTime().BADGetSeconds();
 	cloudShadowOffset.x -= (int) cloudShadowOffset.x;
 	cloudShadowOffset.y -= (int) cloudShadowOffset.y;
 
@@ -2041,13 +2041,13 @@ void CHWShader_D3D::mfSetParameters(SCGParam* pParams, const int nINParams, EHWS
 
 			case ECGP_PB_Time:
 				//sData[0].f[nComp] = gRenDev->m_RP.m_ShaderCurrTime; //gRenDev->m_RP.m_RealTime;
-				sData[0].f[nComp] = gRenDev->GetFrameSyncTime().GetSeconds();
+				sData[0].f[nComp] = gRenDev->GetFrameSyncTime().BADGetSeconds();
 				assert(ParamBind->m_pData);
 				if (ParamBind->m_pData)
 					sData[0].f[nComp] *= ParamBind->m_pData->d.fData[nComp];
 				break;
 			case ECGP_PB_FrameTime:
-				sData[0].f[nComp] = 1.f / gEnv->pTimer->GetFrameTime();
+				sData[0].f[nComp] = 1.f / GetGTimer()->GetFrameTime().BADGetSeconds();
 				assert(ParamBind->m_pData);
 				if (ParamBind->m_pData)
 					sData[0].f[nComp] *= ParamBind->m_pData->d.fData[nComp];
@@ -2241,9 +2241,9 @@ void CHWShader::mfLazyUnload()
 	SResourceContainer* pRL = CBaseResource::GetResourcesForClass(Name);
 	uint32 i;
 	uint32 j;
-	float fTime = gRenDev->GetFrameSyncTime().GetSeconds();
+	CTimeValue fTime = gRenDev->GetFrameSyncTime();
 
-	float fThr = (float)CRenderer::CV_r_shaderslazyunload;
+	CTimeValue fThr = CRenderer::CV_r_shaderslazyunload;
 	if (pRL)
 	{
 		for (i = nLastScannedPS; i < pRL->m_RList.size(); i++)

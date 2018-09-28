@@ -144,7 +144,7 @@ CGraphicsDG::CGraphicsDG(CD3D9Renderer* pRenderer)
 	m_frameTimeHistory.reserve(GPU_HISTORY_LENGTH);
 
 	m_lastFrameScreenShotRequested = 0;
-	m_totFrameTime = 0.f;
+	m_totFrameTime.SetSeconds(0);
 
 	ResetGPUUsageHistory();
 
@@ -159,13 +159,13 @@ void CGraphicsDG::ResetGPUUsageHistory()
 	for (uint32 i = 0; i < GPU_HISTORY_LENGTH; i++)
 	{
 		m_gpuUsageHistory.push_back(0.f);
-		m_frameTimeHistory.push_back(0.f);
+		m_frameTimeHistory.push_back(0);
 	}
 	m_nFramesGPULmited = 0;
-	m_totFrameTime = 0;
+	m_totFrameTime.SetSeconds(0);
 }
 
-void CGraphicsDG::TrackGPUUsage(float gpuLoad, float frameTimeMs, int totalDPs)
+void CGraphicsDG::TrackGPUUsage(float gpuLoad, const CTimeValue& frameTimeMs, int totalDPs)
 {
 	float oldGPULoad = m_gpuUsageHistory[0];
 
@@ -181,7 +181,7 @@ void CGraphicsDG::TrackGPUUsage(float gpuLoad, float frameTimeMs, int totalDPs)
 	m_gpuUsageHistory.erase(m_gpuUsageHistory.begin());
 	m_gpuUsageHistory.push_back(gpuLoad);
 
-	float oldFrameTime = m_frameTimeHistory[0];
+	CTimeValue oldFrameTime = m_frameTimeHistory[0];
 
 	m_totFrameTime -= oldFrameTime;
 	m_totFrameTime += frameTimeMs;
@@ -194,7 +194,7 @@ void CGraphicsDG::TrackGPUUsage(float gpuLoad, float frameTimeMs, int totalDPs)
 	//Don't spam screen shots
 	bool bScreenShotAvaliable = (currentFrame >= (m_lastFrameScreenShotRequested + SCREEN_SHOT_FREQ));
 
-	bool bFrameTimeToHigh = ((m_totFrameTime / (float)GPU_HISTORY_LENGTH) > (float)GPU_TIME_THRESHOLD_MS);
+	bool bFrameTimeToHigh = ((m_totFrameTime.GetMilliSeconds() / GPU_HISTORY_LENGTH) > GPU_TIME_THRESHOLD_MS);
 	bool bGpuLimited = (m_nFramesGPULmited == GPU_HISTORY_LENGTH);
 
 	bool bDPLimited = (totalDPs > DP_THRESHOLD);
@@ -234,7 +234,7 @@ void CGraphicsDG::Write(IStatoscopeFrameRecord& fr)
 
 	float GPUUsageInPercent = 100.f - renderTimes.fTimeGPUIdlePercent;
 	fr.AddValue(GPUUsageInPercent);
-	fr.AddValue(GPUUsageInPercent * 0.01f * renderTimes.fTimeProcessedGPU * 1000.0f);
+	fr.AddValue(BADMP(GPUUsageInPercent * 0.01f) * renderTimes.fTimeProcessedGPU.GetMilliSeconds());
 
 	int numTris, numShadowVolPolys;
 	m_pRenderer->GetPolyCount(numTris, numShadowVolPolys);
@@ -280,7 +280,7 @@ void CGraphicsDG::Write(IStatoscopeFrameRecord& fr)
 
 	if (m_cvarScreenCapWhenGPULimited)
 	{
-		TrackGPUUsage(GPUUsageInPercent, gEnv->pTimer->GetRealFrameTime() * 1000.0f, numDrawCalls + numShadowDrawCalls);
+		TrackGPUUsage(GPUUsageInPercent, GetGTimer()->GetRealFrameTime(), numDrawCalls + numShadowDrawCalls);
 	}
 }
 
@@ -305,8 +305,7 @@ IStatoscopeDataGroup::SDescription CPerformanceOverviewDG::GetDescription() cons
 void CPerformanceOverviewDG::Write(IStatoscopeFrameRecord& fr)
 {
 	IFrameProfileSystem* pFrameProfileSystem = gEnv->pSystem->GetIProfileSystem();
-	const float frameLengthSec = gEnv->pTimer->GetRealFrameTime();
-	const float frameLengthMs = frameLengthSec * 1000.0f;
+	const CTimeValue frameLength = GetGTimer()->GetRealFrameTime();
 
 	IRenderer::SRenderTimes renderTimes;
 	gEnv->pRenderer->GetRenderTimes(renderTimes);
@@ -315,18 +314,18 @@ void CPerformanceOverviewDG::Write(IStatoscopeFrameRecord& fr)
 	if (gEnv->pNetwork)
 		gEnv->pNetwork->GetPerformanceStatistics(&netPerformance);
 	else
-		netPerformance.m_threadTime = 0.0f;
+		netPerformance.m_threadTime.SetSeconds(0);
 
 	int numDrawCalls, numShadowDrawCalls;
 	gEnv->pRenderer->GetCurrentNumberOfDrawCalls(numDrawCalls, numShadowDrawCalls);
 
-	fr.AddValue(frameLengthMs);
-	fr.AddValue(pFrameProfileSystem ? pFrameProfileSystem->GetLostFrameTimeMS() : -1.f);
-	fr.AddValue(frameLengthMs - (pFrameProfileSystem ? pFrameProfileSystem->GetLostFrameTimeMS() : 0.f));
-	fr.AddValue((frameLengthSec - renderTimes.fWaitForRender) * 1000.0f);
-	fr.AddValue((renderTimes.fTimeProcessedRT - renderTimes.fWaitForGPU) * 1000.f);
-	fr.AddValue(gEnv->pRenderer->GetGPUFrameTime() * 1000.0f);
-	fr.AddValue(netPerformance.m_threadTime * 1000.0f);
+	fr.AddValue(frameLength.GetMilliSeconds());
+	fr.AddValue((pFrameProfileSystem ? pFrameProfileSystem->GetLostFrameTime() : -1).GetMilliSeconds());
+	fr.AddValue((frameLength - (pFrameProfileSystem ? pFrameProfileSystem->GetLostFrameTime() : 0)).GetMilliSeconds());
+	fr.AddValue((frameLength - renderTimes.fWaitForRender).GetMilliSeconds());
+	fr.AddValue((renderTimes.fTimeProcessedRT - renderTimes.fWaitForGPU).GetMilliSeconds());
+	fr.AddValue(gEnv->pRenderer->GetGPUFrameTime().GetMilliSeconds());
+	fr.AddValue(netPerformance.m_threadTime.GetMilliSeconds());
 	fr.AddValue(numDrawCalls + numShadowDrawCalls);
 
 	Vec2 scale = Vec2(0.0f, 0.0f);

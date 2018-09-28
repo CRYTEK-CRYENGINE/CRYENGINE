@@ -10,7 +10,7 @@ CPowerOf2BlockPacker::CPowerOf2BlockPacker(const uint32 dwLogWidth, const uint32
 
 	m_nUsedBlocks = 0;
 	m_pTexture = NULL;
-	m_timeLastUsed = 0.0f;
+	m_timeLastUsed.SetSeconds(0);
 
 	m_BlockBitmap.resize(m_dwWidth * m_dwHeight, 0xffffffff);
 }

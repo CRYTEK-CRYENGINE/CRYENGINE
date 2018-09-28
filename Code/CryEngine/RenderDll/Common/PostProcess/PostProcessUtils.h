@@ -189,7 +189,6 @@ struct SPostEffectsUtils
 
 public:
 
-	static ITimer*        m_pTimer;
 	static int            m_iFrameCounter;
 	static int            m_nColorMatrixFrameID;
 
@@ -216,7 +215,6 @@ protected:
 		m_pViewProj.SetIdentity();
 		m_pColorMat.SetIdentity();
 
-		m_pTimer = NULL;
 		m_iFrameCounter = 0;
 		m_nColorMatrixFrameID = -1;
 

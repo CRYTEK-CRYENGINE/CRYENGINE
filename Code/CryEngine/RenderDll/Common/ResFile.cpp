@@ -374,8 +374,8 @@ int CResFile::mfLoadDir(SResStreamInfo* pStreamInfo)
 			StreamReadParams StrParams;
 			StrParams.nFlags = 0;
 			StrParams.dwUserData = (DWORD_PTR)pStreamInfo;
-			StrParams.nLoadTime = 1;
-			StrParams.nMaxLoadTime = 4;
+			StrParams.nLoadTime.SetMilliSeconds(1);
+			StrParams.nMaxLoadTime.SetMilliSeconds(4);
 			StrParams.pBuffer = &m_Dir[0];
 			StrParams.nOffset = m_nOffsDir;
 			StrParams.nSize = nSizeDir;
@@ -995,8 +995,8 @@ int CResFile::mfFileRead(CDirEntry* de)
 		StreamReadParams StrParams;
 		StrParams.nFlags = 0;
 		StrParams.dwUserData = (DWORD_PTR)pEntry;
-		StrParams.nLoadTime = 1;
-		StrParams.nMaxLoadTime = 4;
+		StrParams.nLoadTime.SetMilliSeconds(1);
+		StrParams.nMaxLoadTime.SetMilliSeconds(4);
 		//    StrParams.nPriority = 0;
 		StrParams.pBuffer = NULL;
 		StrParams.nOffset = de->offset;

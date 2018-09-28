@@ -15,7 +15,6 @@
 // class CMipmapGenPass;
 #include "../../XRenderD3D9/GraphicsPipeline/Common/UtilityPasses.h"
 
-ITimer* SPostEffectsUtils::m_pTimer;
 int SPostEffectsUtils::m_iFrameCounter = 0;
 CShader* SPostEffectsUtils::m_pCurrShader;
 int SPostEffectsUtils::m_nColorMatrixFrameID;

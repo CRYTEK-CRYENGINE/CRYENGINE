@@ -19,7 +19,7 @@ public:
 		return m_timestampData[timestamp];
 	}
 
-	float GetTimeMS(uint32 timestamp0, uint32 timestamp1);
+	CTimeValue GetTime(uint32 timestamp0, uint32 timestamp1);
 
 private:
 	uint32                              m_numTimestamps;

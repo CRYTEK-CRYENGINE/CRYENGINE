@@ -779,7 +779,7 @@ private:
 	struct SRainDrop
 	{
 		// set default data
-		SRainDrop() : m_pPos(0, 0, 0), m_fSize(5.0f), m_fSizeVar(2.5f), m_fSpawnTime(0.0f), m_fLifeTime(2.0f), m_fLifeTimeVar(1.0f),
+		SRainDrop() : m_pPos(0, 0, 0), m_fSize(5.0f), m_fSizeVar(2.5f), m_fSpawnTime(0), m_fLifeTime(2), m_fLifeTimeVar(1),
 			m_fWeight(1.0f), m_fWeightVar(0.25f)
 		{
 
@@ -790,9 +790,10 @@ private:
 		// Size and variation (bigger also means more weight)
 		float m_fSize, m_fSizeVar;
 		// Spawn time
-		float m_fSpawnTime;
+		CTimeValue m_fSpawnTime;
 		// Life time and variation
-		float m_fLifeTime, m_fLifeTimeVar;
+		CTimeValue m_fLifeTime;
+		mpfloat m_fLifeTimeVar;
 		// Weight and variation
 		float m_fWeight, m_fWeightVar;
 	};
@@ -1130,7 +1131,7 @@ public:
 		AddParamFloat("FlashBang_BlindAmount", m_pBlindAmount, 0.5f); // flashbang blind time (fraction of frashbang time)
 
 		m_pGhostImage = nullptr;
-		m_fSpawnTime = 0.0f;
+		m_fSpawnTime.SetSeconds(0);
 	}
 
 	virtual ~CFlashBang()
@@ -1152,7 +1153,7 @@ private:
 
 	SDynTexture* m_pGhostImage;
 
-	float        m_fSpawnTime;
+	CTimeValue   m_fSpawnTime;
 
 	// float, float
 	CEffectParam* m_pTime, * m_pDifractionAmount, * m_pBlindAmount;
@@ -1347,10 +1348,10 @@ public:
 		m_pHudOverrideColorMultParamName = "HudOverrideColorMult";
 
 		m_nFlashUpdateFrameID = -1;
-		m_accumulatedFrameTime = 0.0f;
+		m_accumulatedFrameTime.SetSeconds(0);
 
 		m_maxParallax = 0.0f;
-		m_interferenceRandTimer = 0.0f;
+		m_interferenceRandTimer.SetSeconds(0);
 
 		m_interferenceRandNums = Vec4(0.0f, 0.0f, 0.0f, 0.0f);
 
@@ -1405,7 +1406,7 @@ private:
 private:
 
 	Vec4  m_interferenceRandNums;
-	float m_interferenceRandTimer;
+	CTimeValue m_interferenceRandTimer;
 
 	// Vec4, float
 	CEffectParam* m_pOpacityMul;
@@ -1439,7 +1440,7 @@ private:
 
 	float         m_maxParallax;
 	int32         m_nFlashUpdateFrameID;
-	float         m_accumulatedFrameTime;
+	CTimeValue    m_accumulatedFrameTime;
 
 #ifndef _RELEASE
 	CCryNameTSCRC m_pTexToTexTechName;
@@ -1469,7 +1470,7 @@ public:
 		AddParamVec4("FilterKillCamera_ColorScale", m_pColorScale, Vec4(1.0f, 1.0f, 1.0f, 1.0f));
 		AddParamVec4("FilterKillCamera_Blindness", m_pBlindness, Vec4(0.5f, 0.5f, 1.0f, 0.7f)); // x = blind duration, y = blind fade out duration, z = blindness grey scale, w = blind noise min scale
 
-		m_blindTimer = 0.0f;
+		m_blindTimer.SetSeconds(0);
 		m_lastMode = 0;
 	}
 
@@ -1494,7 +1495,7 @@ private:
 	CEffectParam* m_pColorScale;
 	CEffectParam* m_pBlindness;
 	CEffectParam* m_pMode;
-	float         m_blindTimer;
+	CTimeValue    m_blindTimer;
 	int           m_lastMode;
 };
 

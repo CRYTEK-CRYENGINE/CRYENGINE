@@ -43,7 +43,7 @@ void CNightVision::Render()
 /*
 	gRenDev->m_cEF.mfRefreshSystemShader("PostEffectsRenderModes", CShaderMan::s_shPostEffectsRenderModes);
 
-	m_fActiveTime += ((m_bWasActive) ? 4.0f : -4.0f) * gEnv->pTimer->GetFrameTime();
+	m_fActiveTime += ((m_bWasActive) ? 4.0f : -4.0f) * GetGTimer()->GetFrameTime();
 	m_fActiveTime = clamp_tpl<float>(m_fActiveTime, 0.0f, 1.0f);
 
 	Vec4 vParamsPS = Vec4(1, 1, 0, m_fActiveTime);
@@ -137,7 +137,7 @@ REINST(Implement a ISoundSystemEventListener)
 //		SSonarHintsLstIter pEndIt = m_pSonarHints.end();
 //		while( pCurr != pEndIt /*; ++pCurr*/ )
 //		{
-//			if( (gEnv->pTimer->GetCurrTime() - pCurr->fTimeStarted) > pCurr->fLifetime )
+//			if( (GetGTimer()->GetFrameStartTime() - pCurr->fTimeStarted) > pCurr->fLifetime )
 //			{
 //				pCurr = m_pSonarHints.erase( pCurr );
 //			}
@@ -161,7 +161,7 @@ REINST(Implement a ISoundSystemEventListener)
 //			static const uint32 nSonarSoundSemantincs = (eSoundSemantic_Explosion|eSoundSemantic_Physics_Collision|eSoundSemantic_Physics_Footstep|eSoundSemantic_Vehicle|eSoundSemantic_Weapon);
 //		  if( pSound->GetSemantic() & nSonarSoundSemantincs )
 //			{
-//				const float fCurrTime = gEnv->pTimer->GetCurrTime();
+//				const float fCurrTime = GetGTimer()->GetFrameStartTime();
 //				if( (fCurrTime - m_fLastTimeHintsUpdate) < 1.0f / 30.0f)//m_fTimeUpdateThreshold)
 //					return;
 //
@@ -286,7 +286,7 @@ void CSonarVision::SoundHintsPass()
 
 	//	gcpRendD3D->FX_SetState(GS_NODEPTHTEST|GS_BLSRC_ONE | GS_BLDST_ONE);
 
-	//	vParamsPS = Vec4( pCurr->vPos.x, pCurr->vPos.y, pCurr->vPos.z, ((gEnv->pTimer->GetCurrTime() - pCurr->fTimeStarted) /pCurr->fLifetime) );
+	//	vParamsPS = Vec4( pCurr->vPos.x, pCurr->vPos.y, pCurr->vPos.z, ((GetGTimer()->GetFrameStartTime() - pCurr->fTimeStarted) /pCurr->fLifetime) );
 	//	CShaderMan::s_shPostEffectsRenderModes->FXSetPSFloat(m_pszParamNamePS, &vParamsPS, 1);
 
 	//	PostProcessUtils().SetTexture(CRendererResources::s_ptexZTarget, 0, FILTER_POINT);
@@ -325,7 +325,7 @@ void CSonarVision::GhostingPass()
 
 	PostProcessUtils().SetTexture(CRendererResources::s_ptexBackBufferScaled[0], 0, FILTER_POINT);
 
-	vParamsPS.w = gEnv->pTimer->GetFrameTime();
+	vParamsPS.w = GetGTimer()->GetFrameTime();
 	CShaderMan::s_shPostEffectsRenderModes->FXSetPSFloat(m_pszParamNamePS, &vParamsPS, 1);
 
 	SD3DPostEffectsUtils::DrawFullScreenTriWPOS(CRendererResources::s_ptexBackBuffer->GetWidth(), CRendererResources::s_ptexBackBuffer->GetHeight());
@@ -353,7 +353,7 @@ void CSonarVision::FinalComposePass()
 	PostProcessUtils().StretchRect(CRendererResources::s_ptexBackBuffer, CRendererResources::s_ptexBackBufferScaled[0]); // Todo: use msaa trickery for x360
 
 	// Clean up..
-	float fCurrTime = gEnv->pTimer->GetCurrTime() * 10.0f;
+	float fCurrTime = GetGTimer()->GetFrameStartTime() * 10.0f;
 	float fCurrAnim = 0.25f * fabs((ceil(fCurrTime * 0.05f) - fCurrTime * 0.05f)) * 2.0f - 1.0f + fabs((ceil(fCurrTime * 0.45f + 0.25f) - (fCurrTime * 0.45f + 0.25f)) * 2.0f - 1.0f);
 	PostProcessUtils().TexBlurDirectional(CRendererResources::s_ptexBackBufferScaled[0], Vec2(cry_random(0.0f, 0.125f), cry_random(2.0f, 3.0f)) * fCurrAnim * 4.0f, 1);
 
@@ -517,7 +517,7 @@ void CThermalVision::FinalComposePass()
 	CTexture* pPrevFrame = CRendererResources::s_ptexPrevFrameScaled; // on MGPU mode always read from first GPU updated RT
 
 	float fDstBlend = gcpRendD3D->IsCustomRenderModeEnabled(eRMF_NIGHTVISION) ? 1.0f : 0.0f;
-	m_fBlending += (fDstBlend - m_fBlending) * gEnv->pTimer->GetFrameTime() * 2.0f;
+	m_fBlending += (fDstBlend - m_fBlending) * GetGTimer()->GetFrameTime() * 2.0f;
 
 	// No transition if off-screen
 	if (m_bRenderOffscreen)

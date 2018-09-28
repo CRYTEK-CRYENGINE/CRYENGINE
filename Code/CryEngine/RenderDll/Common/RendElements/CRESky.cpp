@@ -244,7 +244,7 @@ void CStars::Render(bool bUseMoon)
 		int vpX(0), vpY(0), vpWidth(0), vpHeight(0);
 		rd->GetViewport(&vpX, &vpY, &vpWidth, &vpHeight);
 		const float size = 5.0f * min(1.f, min(vpWidth / 1280.f, vpHeight / 720.f));
-		float flickerTime(gEnv->pTimer->GetCurrTime());
+		float flickerTime(GetGTimer()->GetFrameStartTime());
 		static CCryNameR vspnStarSize("StarSize");
 		Vec4 paramStarSize(size / (float)vpWidth, size / (float)vpHeight, 0, flickerTime * 0.5f);
 		m_pShader->FXSetVSFloat(vspnStarSize, &paramStarSize, 1);

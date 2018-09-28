@@ -167,8 +167,8 @@ void SRenderThread::Init()
 	m_nMainThread = m_nRenderThread;
 	m_bSuccessful = true;
 	m_pThread = NULL;
-	m_fTimeIdleDuringLoading = 0;
-	m_fTimeBusyDuringLoading = 0;
+	m_fTimeIdleDuringLoading.SetSeconds(0);
+	m_fTimeBusyDuringLoading.SetSeconds(0);
 #if !defined(STRIP_RENDER_THREAD)
 	SSystemGlobalEnvironment* pEnv = iSystem->GetGlobalEnvironment();
 	//if (pEnv && !pEnv->bTesting && !pEnv->IsDedicated() && !pEnv->IsEditor() && pEnv->pi.numCoresAvailableToProcess > 1 && CRenderer::CV_r_multithreaded > 0)
@@ -194,10 +194,10 @@ void SRenderThread::Init()
 		m_Commands[i].Free();
 		m_Commands[i].Create(300 * 1024); // 300 to stop growing in MP levels
 		m_Commands[i].SetUse(0);
-		gRenDev->m_fTimeWaitForMain[i] = 0;
-		gRenDev->m_fTimeWaitForRender[i] = 0;
-		gRenDev->m_fTimeProcessedRT[i] = 0;
-		gRenDev->m_fTimeProcessedGPU[i] = 0;
+		gRenDev->m_fTimeWaitForMain[i].SetSeconds(0);
+		gRenDev->m_fTimeWaitForRender[i].SetSeconds(0);
+		gRenDev->m_fTimeProcessedRT[i].SetSeconds(0);
+		gRenDev->m_fTimeProcessedGPU[i].SetSeconds(0);
 	}
 	m_eVideoThreadMode = eVTM_Disabled;
 }
@@ -356,7 +356,7 @@ void SRenderThread::RC_EndFrame(bool bWait)
 	SyncMainWithRender();
 }
 
-void SRenderThread::RC_PrecacheResource(ITexture* pTP, float fMipFactor, float fTimeToReady, int Flags, int nUpdateId, int nCounter)
+void SRenderThread::RC_PrecacheResource(ITexture* pTP, float fMipFactor, const CTimeValue& fTimeToReady, int Flags, int nUpdateId, int nCounter)
 {
 	if (!pTP)
 		return;
@@ -455,9 +455,9 @@ void SRenderThread::RC_StopVideoThread()
 //===========================================================================================
 
 #ifdef DO_RENDERSTATS
-	#define START_PROFILE_RT Time = iTimer->GetAsyncTime();
-	#define END_PROFILE_PLUS_RT(Dst) Dst += iTimer->GetAsyncTime().GetDifferenceInSeconds(Time);
-	#define END_PROFILE_RT(Dst)      Dst = iTimer->GetAsyncTime().GetDifferenceInSeconds(Time);
+	#define START_PROFILE_RT Time = GTimer(d3d)->GetAsyncTime();
+	#define END_PROFILE_PLUS_RT(Dst) Dst += GTimer(d3d)->GetAsyncTime() - Time;
+	#define END_PROFILE_RT(Dst)      Dst = GTimer(d3d)->GetAsyncTime() - Time;
 #else
 	#define START_PROFILE_RT
 	#define END_PROFILE_PLUS_RT(Dst)
@@ -641,7 +641,7 @@ void SRenderThread::Process()
 	{
 		CRY_PROFILE_REGION(PROFILE_RENDERER, "Loop: RenderThread");
 
-		CTimeValue Time = iTimer->GetAsyncTime();
+		CTimeValue Time = GTimer(d3d)->GetAsyncTime();
 
 		WaitFlushCond();
 		const uint64 start = CryGetTicks();
@@ -652,24 +652,23 @@ void SRenderThread::Process()
 			break;//put it here to safely shut down
 		}
 
-		CTimeValue TimeAfterWait = iTimer->GetAsyncTime();
-		gRenDev->m_fTimeWaitForMain[m_nCurThreadProcess] += TimeAfterWait.GetDifferenceInSeconds(Time);
+		CTimeValue TimeAfterWait = GTimer(d3d)->GetAsyncTime();
+		gRenDev->m_fTimeWaitForMain[m_nCurThreadProcess] += TimeAfterWait - Time;
 		if (gRenDev->m_bStartLevelLoading)
-			m_fTimeIdleDuringLoading += TimeAfterWait.GetDifferenceInSeconds(Time);
+			m_fTimeIdleDuringLoading += TimeAfterWait - Time;
 
-		float fT = 0.f;
-
+		CTimeValue fT;
 		if (m_eVideoThreadMode == eVTM_Disabled)
 		{
 			//gRenDev->m_fRTTimeBeginFrame = 0;
 			//gRenDev->m_fRTTimeEndFrame = 0;
-			gRenDev->m_fRTTimeSceneRender = 0;
-			gRenDev->m_fRTTimeFlashRender = 0;
-			gRenDev->m_fRTTimeMiscRender = 0;
+			gRenDev->m_fRTTimeSceneRender.SetSeconds(0);
+			gRenDev->m_fRTTimeFlashRender.SetSeconds(0);
+			gRenDev->m_fRTTimeMiscRender.SetSeconds(0);
 			ProcessCommands();
 
-			CTimeValue TimeAfterProcess = iTimer->GetAsyncTime();
-			fT = TimeAfterProcess.GetDifferenceInSeconds(TimeAfterWait);
+			CTimeValue TimeAfterProcess = GTimer(d3d)->GetAsyncTime();
+			fT = TimeAfterProcess - TimeAfterWait;
 			gRenDev->m_fTimeProcessedRT[m_nCurThreadProcess] += fT;
 
 			if (m_eVideoThreadMode == eVTM_RequestStart)
@@ -693,7 +692,7 @@ void SRenderThread::Process()
 			SwitchMode(true);
 
 			{
-				CTimeValue lastTime = gEnv->pTimer->GetAsyncTime();
+				CTimeValue lastTime = GetGTimer()->GetAsyncTime();
 
 				while (m_eVideoThreadMode != eVTM_ProcessingStop)
 				{
@@ -719,8 +718,8 @@ void SRenderThread::Process()
 #endif
 
 					frameId += 1;
-					CTimeValue curTime = gEnv->pTimer->GetAsyncTime();
-					float deltaTime = max((curTime - lastTime).GetSeconds(), 0.0f);
+					CTimeValue curTime = GetGTimer()->GetAsyncTime();
+					CTimeValue deltaTime = max(curTime - lastTime, CTimeValue(0));
 					lastTime = curTime;
 					gRenDev->m_DevBufMan.Update(frameId, true);
 
@@ -742,7 +741,7 @@ void SRenderThread::Process()
 					}
 
 					// Make sure we aren't running with thousands of FPS with VSync disabled
-					gRenDev->LimitFramerate(120, true);
+					gRenDev->LimitFramerate(120);
 
 #if defined(SUPPORT_DEVICE_INFO_MSG_PROCESSING)
 					gcpRendD3D->DevInfo().ProcessSystemEventQueue();
@@ -783,20 +782,20 @@ void SRenderThread::ProcessLoading()
 {
 	while (true)
 	{
-		float fTime = iTimer->GetAsyncCurTime();
+		CTimeValue fTime = GTimer(d3d)->GetAsyncCurTime();
 		WaitFlushCond();
 		if (m_bQuitLoading)
 		{
 			SignalFlushFinishedCond();
 			break;//put it here to safely shut down
 		}
-		float fTimeAfterWait = iTimer->GetAsyncCurTime();
+		CTimeValue fTimeAfterWait = GTimer(d3d)->GetAsyncCurTime();
 		gRenDev->m_fTimeWaitForMain[m_nCurThreadProcess] += fTimeAfterWait - fTime;
 		if (gRenDev->m_bStartLevelLoading)
 			m_fTimeIdleDuringLoading += fTimeAfterWait - fTime;
 		ProcessCommands();
 		SignalFlushFinishedCond();
-		float fTimeAfterProcess = iTimer->GetAsyncCurTime();
+		CTimeValue fTimeAfterProcess = GTimer(d3d)->GetAsyncCurTime();
 		gRenDev->m_fTimeProcessedRT[m_nCurThreadProcess] += fTimeAfterProcess - fTimeAfterWait;
 		if (gRenDev->m_bStartLevelLoading)
 			m_fTimeBusyDuringLoading += fTimeAfterProcess - fTimeAfterWait;
@@ -845,14 +844,14 @@ void SRenderThread::SyncMainWithRender()
 	if (!IsMultithreaded())
 	{
 		gRenDev->SyncMainWithRender();
-		gRenDev->m_fTimeProcessedRT[m_nCurThreadProcess] = 0;
-		gRenDev->m_fTimeWaitForMain[m_nCurThreadProcess] = 0;
-		gRenDev->m_fTimeWaitForGPU[m_nCurThreadProcess] = 0;
+		gRenDev->m_fTimeProcessedRT[m_nCurThreadProcess].SetSeconds(0);
+		gRenDev->m_fTimeWaitForMain[m_nCurThreadProcess].SetSeconds(0);
+		gRenDev->m_fTimeWaitForGPU[m_nCurThreadProcess].SetSeconds(0);
 		return;
 	}
 #ifndef STRIP_RENDER_THREAD
 
-	CTimeValue time = iTimer->GetAsyncTime();
+	CTimeValue time = GTimer(d3d)->GetAsyncTime();
 	WaitFlushFinishedCond();
 
 	CPostEffectsMgr* pPostEffectMgr = PostEffectMgr();
@@ -864,7 +863,7 @@ void SRenderThread::SyncMainWithRender()
 
 	gRenDev->SyncMainWithRender();
 
-	gRenDev->m_fTimeWaitForRender[m_nCurThreadFill] = iTimer->GetAsyncTime().GetDifferenceInSeconds(time);
+	gRenDev->m_fTimeWaitForRender[m_nCurThreadFill] = GTimer(d3d)->GetAsyncTime() - time;
 	//	gRenDev->ToggleMainThreadAuxGeomCB();
 	gRenDev->m_nRenderThreadFrameID = gRenDev->GetMainFrameID();
 
@@ -873,9 +872,9 @@ void SRenderThread::SyncMainWithRender()
 	gRenDev->m_nProcessThreadID = threadID(m_nCurThreadProcess);
 	gRenDev->m_nFillThreadID = threadID(m_nCurThreadFill);
 	m_Commands[m_nCurThreadFill].SetUse(0);
-	gRenDev->m_fTimeProcessedRT[m_nCurThreadProcess] = 0;
-	gRenDev->m_fTimeWaitForMain[m_nCurThreadProcess] = 0;
-	gRenDev->m_fTimeWaitForGPU[m_nCurThreadProcess] = 0;
+	gRenDev->m_fTimeProcessedRT[m_nCurThreadProcess].SetSeconds(0);
+	gRenDev->m_fTimeWaitForMain[m_nCurThreadProcess].SetSeconds(0);
+	gRenDev->m_fTimeWaitForGPU[m_nCurThreadProcess].SetSeconds(0);
 
 	// Switches current command buffers in local thread storage.
 	g_systemThreadLocalStorage.currentCommandBuffer = m_nCurThreadFill;
@@ -999,7 +998,7 @@ bool CRenderer::ForceFlushRTCommands()
 void SRenderThread::WaitFlushFinishedCond()
 {
 
-	CTimeValue time = iTimer->GetAsyncTime();
+	CTimeValue time = GTimer(d3d)->GetAsyncTime();
 
 #ifdef USE_LOCKS_FOR_FLUSH_SYNC
 	m_LockFlushNotify.Lock();
@@ -1030,7 +1029,7 @@ void SRenderThread::WaitFlushCond()
 {
 	CRY_PROFILE_FUNCTION(PROFILE_RENDERER);
 
-	CTimeValue time = iTimer->GetAsyncTime();
+	CTimeValue time = GTimer(d3d)->GetAsyncTime();
 #ifdef USE_LOCKS_FOR_FLUSH_SYNC
 	m_LockFlushNotify.Lock();
 	while (!*(volatile int*)&m_nFlush)

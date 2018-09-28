@@ -118,9 +118,9 @@ template <class Impl> inline bool CDeviceTimestampGroup_Base<Impl>::ResolveTimes
 	return ((Impl*)this)->ResolveTimestamps();
 }
 
-template <class Impl> inline float CDeviceTimestampGroup_Base<Impl>::GetTimeMS(uint32 timestamp0, uint32 timestamp1)
+template <class Impl> inline CTimeValue CDeviceTimestampGroup_Base<Impl>::GetTime(uint32 timestamp0, uint32 timestamp1)
 {
-	return ((Impl*)this)->GetTimeMS(timestamp0, timestamp1);
+	return ((Impl*)this)->GetTime(timestamp0, timestamp1);
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////

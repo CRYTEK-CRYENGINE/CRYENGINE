@@ -12,17 +12,17 @@ public:
 
 protected:
 	T     prevYValue;
-	float prevXValue;
+	nTime prevXValue;
 
 public:
 	Interpolator<T>* pInterp;
 	T                startValue;
 	T                endValue;
 	LoopMode         loopMode;
-	float            duration;    // in milliseconds
-	float            currentTime; // in milliseconds
+	CTimeValue       duration;
+	CTimeValue       currentTime;
 
-	void init(T start, T end, float duration, Interpolator<T>* interp)
+	void init(T start, T end, const CTimeValue& duration, Interpolator<T>* interp)
 	{
 		SetInterpolationRange(start, end);
 		prevYValue = start;
@@ -34,28 +34,29 @@ public:
 	}
 
 protected:
-	float computeTimeStepping(float curTime, float elapsedMs)
+	CTimeValue computeTimeStepping(const CTimeValue& curTimeIn, const CTimeValue& elapsed)
 	{
+		CTimeValue curTime = curTimeIn;
 		switch (loopMode)
 		{
 		case NORMAL:
-			curTime += elapsedMs;
+			curTime += elapsed;
 			if (curTime > duration)
 				return duration;
 		case REVERSE:
-			curTime -= elapsedMs;
+			curTime -= elapsed;
 			if (curTime < 0)
 				return 0;
 		case LOOP:
-			curTime += elapsedMs;
+			curTime += elapsed;
 			if (curTime > duration)
-				return fmod(curTime, duration);
+				return curTime % duration;
 		}
 
 		return curTime;
 	}
 
-	void positCursorByRatio(float ratio)
+	void positCursorByRatio(const mpfloat& ratio)
 	{
 		switch (loopMode)
 		{
@@ -73,25 +74,25 @@ protected:
 public:
 
 	virtual ~Timeline() {}
-	Timeline(T start, T end, float duration, Interpolator<T>* interp)
+	Timeline(T start, T end, const CTimeValue& duration, Interpolator<T>* interp)
 	{
-		currentTime = 0;
+		currentTime.SetSeconds(0);
 		init(start, end, duration, interp);
 	}
 
 	Timeline(Interpolator<T>* interp)
 	{
-		currentTime = 0;
-		init(0, 1, 1000, interp);
+		currentTime.SetSeconds(0);
+		init(0, 1, 1, interp);
 	}
 
 	// Accumulate time and produce the interpolated value accordingly
-	virtual T step(float elapsedMs)
+	virtual T step(const CTimeValue& elapsed)
 	{
-		currentTime = computeTimeStepping(currentTime, elapsedMs);
+		currentTime = computeTimeStepping(currentTime, elapsed);
 		prevXValue = currentTime / duration;
 
-		prevYValue = pInterp->compute(startValue, endValue, prevXValue);
+		prevYValue = pInterp->compute(startValue, endValue, BADF prevXValue);
 		return prevYValue;
 	}
 
@@ -107,7 +108,7 @@ public:
 		endValue = end;
 	}
 
-	float GetPrevXValue() { return prevXValue; }
+	nTime GetPrevXValue() { return prevXValue; }
 	T     GetPrevYValue() { return prevYValue; }
 
 };
@@ -122,11 +123,11 @@ int tempInt1 = 1;
 class TimelineFloat : public Timeline<float>
 {
 public:
-	TimelineFloat() : Timeline<float>(0, 1, 1000, &InterpPredef::CUBIC_FLOAT) {}
+	TimelineFloat() : Timeline<float>(0, 1, 1, &InterpPredef::CUBIC_FLOAT) {}
 };
 
 class TimelineInt : public Timeline<int>
 {
 public:
-	TimelineInt() : Timeline<int>(0, 1, 1000, &InterpPredef::CUBIC_INT) {}
+	TimelineInt() : Timeline<int>(0, 1, 1, &InterpPredef::CUBIC_INT) {}
 };

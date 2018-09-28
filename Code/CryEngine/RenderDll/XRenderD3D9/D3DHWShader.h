@@ -439,7 +439,7 @@ class CHWShader_D3D : public CHWShader
 		std::vector<SCGTexture>    m_Textures;
 		std::vector<SCGBind>       m_pBindVars;
 		int                        m_nParams_Inst;
-		float                      m_fLastAccess;
+		CTimeValue                 m_fLastAccess;
 		int                        m_nUsed;
 		int                        m_nUsedFrame;
 		int                        m_nFrameSubmit;
@@ -471,7 +471,7 @@ class CHWShader_D3D : public CHWShader
 			, m_Handle()
 			, m_eClass(eHWSC_Num)
 			, m_nParams_Inst(-1)
-			, m_fLastAccess(0.0f)
+			, m_fLastAccess(0)
 			, m_nUsed(0)
 			, m_nUsedFrame(0)
 			, m_nFrameSubmit(0)

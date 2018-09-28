@@ -333,7 +333,7 @@ void CSmartGlassContext::SendInputEvents()
 
 	if (m_pFlashPlayer)
 	{
-		m_pFlashPlayer->Advance(gEnv->pTimer->GetFrameTime());
+		m_pFlashPlayer->Advance(GetGTimer()->GetFrameTime());
 	}
 }
 

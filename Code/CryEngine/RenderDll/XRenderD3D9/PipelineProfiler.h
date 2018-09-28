@@ -35,10 +35,10 @@ protected:
 	struct SProfilerSection
 	{
 		char            name[31]; 
-		float           gpuTime;
-		float           gpuTimeSmoothed;
-		float           cpuTime;
-		float           cpuTimeSmoothed;
+		CTimeValue      gpuTime;
+		CTimeValue      gpuTimeSmoothed;
+		CTimeValue      cpuTime;
+		CTimeValue      cpuTimeSmoothed;
 		CTimeValue      startTimeCPU, endTimeCPU;
 		uint32          startTimestamp, endTimestamp;
 		CCryNameTSCRC   path;
@@ -57,12 +57,12 @@ protected:
 		CDeviceTimestampGroup   m_timestampGroup;
 		bool                    m_updated;
 
-		float fTimeRealFrameTime;
-		float fTimeWaitForMain;
-		float fTimeWaitForRender;
-		float fTimeProcessedRT;
-		float fTimeProcessedGPU;
-		float fTimeWaitForGPU;
+		CTimeValue fTimeRealFrameTime;
+		CTimeValue fTimeWaitForMain;
+		CTimeValue fTimeWaitForRender;
+		CTimeValue fTimeProcessedRT;
+		CTimeValue fTimeProcessedGPU;
+		CTimeValue fTimeWaitForGPU;
 		float fTimeGPUIdlePercent;
 
 		// cppcheck-suppress uninitMemberVar
@@ -77,21 +77,21 @@ protected:
 
 	struct SThreadTimings
 	{
-		float waitForMain;
-		float waitForRender;
-		float waitForGPU;
+		CTimeValue waitForMain;
+		CTimeValue waitForRender;
+		CTimeValue waitForGPU;
 		float gpuIdlePerc;
-		float gpuFrameTime;
-		float frameTime;
-		float renderTime;
+		CTimeValue gpuFrameTime;
+		CTimeValue frameTime;
+		CTimeValue renderTime;
 
 		SThreadTimings()
 			: waitForMain(0)
 			, waitForRender(0)
 			, waitForGPU(0)
 			, gpuIdlePerc(0)
-			, gpuFrameTime(33.0f / 1000.0f)
-			, frameTime(33.0f / 1000.0f)
+			, gpuFrameTime("0.033")
+			, frameTime("0.033")
 			, renderTime(0)
 		{
 		}
@@ -137,7 +137,7 @@ protected:
 	uint32                            m_frameDataIndex;
 	SFrameData*                       m_frameDataRT;
 	SFrameData*                       m_frameDataLRU;
-	float                             m_avgFrameTime;
+	CTimeValue                        m_avgFrameTime;
 	bool                              m_enabled;
 	bool                              m_recordData;
 

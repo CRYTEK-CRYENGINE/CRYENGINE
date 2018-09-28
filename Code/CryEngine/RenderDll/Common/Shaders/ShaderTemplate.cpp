@@ -532,7 +532,7 @@ STexAnim* CShaderMan::mfReadTexSequence(const char* na, int Flags, bool bFindOnl
 		{
 			ta = new STexAnim;
 			ta->m_bLoop = true;
-			ta->m_Time = fSpeed;
+			ta->m_Time = BADTIME(fSpeed);
 		}
 
 		ITexture* pTex = (ITexture*)tp;

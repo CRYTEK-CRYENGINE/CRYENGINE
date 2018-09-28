@@ -35,7 +35,7 @@ bool CTexture::s_bPrecachePhase;
 bool CTexture::s_bInLevelPhase = false;
 bool CTexture::s_bPrestreamPhase;
 int CTexture::s_nStreamingThroughput = 0;
-float CTexture::s_nStreamingTotalTime = 0;
+CTimeValue CTexture::s_nStreamingTotalTime = 0;
 CTextureStreamPoolMgr* CTexture::s_pPoolMgr;
 std::set<string> CTexture::s_vTexReloadRequests;
 CryCriticalSection CTexture::s_xTexReloadLock;
@@ -877,7 +877,7 @@ void CTexture::RT_Precache()
 		}
 	}
 
-	CTimeValue t0 = gEnv->pTimer->GetAsyncTime();
+	CTimeValue t0 = GetGTimer()->GetAsyncTime();
 	CryLog("-- Precaching textures...");
 	iLog->UpdateLoadingScreen(0);
 
@@ -942,7 +942,7 @@ void CTexture::RT_Precache()
 		}
 
 		{
-			CTimeValue time0 = iTimer->GetAsyncTime();
+			CTimeValue time0 = GTimer(d3d)->GetAsyncTime();
 
 			while (s_StreamPrepTasks.GetNumLive())
 			{
@@ -956,10 +956,10 @@ void CTexture::RT_Precache()
 					StreamState_UpdatePrep();
 				}
 
-				CrySleep(1);
+				CryLowLatencySleep("0.001");
 			}
 
-			SRenderStatistics::Write().m_fTexUploadTime += (iTimer->GetAsyncTime() - time0).GetSeconds();
+			SRenderStatistics::Write().m_fTexUploadTime += (GTimer(d3d)->GetAsyncTime() - time0).GetSeconds();
 		}
 
 		// Trigger the texture(s)'s load without holding the resource-library lock to evade dead-locks
@@ -980,9 +980,9 @@ void CTexture::RT_Precache()
 	if (!gEnv->IsEditor())
 		CryLog("========================== Finished loading textures ============================");
 
-	CTimeValue t1 = gEnv->pTimer->GetAsyncTime();
-	float dt = (t1 - t0).GetSeconds();
-	CryLog("Precaching textures done in %.2f seconds", dt);
+	CTimeValue t1 = GetGTimer()->GetAsyncTime();
+	CTimeValue dt = t1 - t0;
+	CryLog("Precaching textures done in %.2f seconds", (float)dt.GetSeconds());
 
 	s_bPrecachePhase = false;
 
@@ -2572,13 +2572,13 @@ public:
 		SRenderThread* pRT = gRenDev->m_pRT;
 		if (!pRT || (pRT->IsMainThread() && pRT->m_eVideoThreadMode == SRenderThread::eVTM_Disabled))
 		{
-			CTimeValue curTime = gEnv->pTimer->GetAsyncTime();
+			CTimeValue curTime = GetGTimer()->GetAsyncTime();
 			const int frameID = gRenDev->GetMainFrameID();
 			if (ms_lastTickFrameID != frameID)
 			{
 				CryAutoCriticalSection lock(ms_lock);
 
-				const float deltaTime = gEnv->pTimer->GetFrameTime();
+				const CTimeValue deltaTime = GetGTimer()->GetFrameTime();
 				const bool isEditing = gEnv->IsEditing();
 				const bool isPaused = gEnv->pSystem->IsPaused();
 
@@ -2649,7 +2649,7 @@ void CFlashTextureSourceBase::AddToLightRenderList(const IDynTextureSource* pSrc
 	FlashTextureSourceSharedRT_AutoUpdate::AddToLightList((CFlashTextureSourceBase*)pSrc);
 }
 
-void CFlashTextureSourceBase::AutoUpdate(const CTimeValue& curTime, const float delta, const bool isEditing, const bool isPaused)
+void CFlashTextureSourceBase::AutoUpdate(const CTimeValue& curTime, const CTimeValue& delta, const bool isEditing, const bool isPaused)
 {
 	if (m_autoUpdate)
 	{
@@ -2658,7 +2658,7 @@ void CFlashTextureSourceBase::AutoUpdate(const CTimeValue& curTime, const float 
 		m_perFrameRendering &= !isEditing;
 #endif
 
-		if (m_perFrameRendering || (curTime - m_lastVisible).GetSeconds() < 1.0f)
+		if (m_perFrameRendering || (curTime - m_lastVisible).GetSeconds() < 1)
 		{
 			Advance(delta, isPaused);
 		}
@@ -2725,7 +2725,7 @@ void CFlashTextureSourceBase::CFlashPlayerInstanceWrapper::CreateInstance(CFlash
 #if defined(ENABLE_DYNTEXSRC_PROFILING)
 			m_pPlayer->LinkDynTextureSource(pSrc);
 #endif
-			m_pPlayer->Advance(0.0f);
+			m_pPlayer->Advance(0);
 			m_width = m_pPlayer->GetWidth();
 			m_height = m_pPlayer->GetHeight();
 		}
@@ -2737,7 +2737,7 @@ const char* CFlashTextureSourceBase::CFlashPlayerInstanceWrapper::GetSourceFileP
 	return m_pBootStrapper ? m_pBootStrapper->GetFilePath() : "UNDEFINED";
 }
 
-void CFlashTextureSourceBase::CFlashPlayerInstanceWrapper::Advance(float delta)
+void CFlashTextureSourceBase::CFlashPlayerInstanceWrapper::Advance(const CTimeValue& delta)
 {
 	if (m_pPlayer)
 		m_pPlayer->Advance(delta);
@@ -2810,7 +2810,7 @@ void CFlashTextureSourceBase::CFlashPlayerInstanceWrapperLayoutElement::CreateIn
 #if defined(ENABLE_DYNTEXSRC_PROFILING)
 					m_pPlayer->LinkDynTextureSource(pSrc);
 #endif
-					m_pPlayer->Advance(0.0f);
+					m_pPlayer->Advance(0);
 					m_width = m_pPlayer->GetWidth();
 					m_height = m_pPlayer->GetHeight();
 				}
@@ -2824,7 +2824,7 @@ const char* CFlashTextureSourceBase::CFlashPlayerInstanceWrapperLayoutElement::G
 	return m_pPlayer ? m_pPlayer->GetFilePath() : "UNDEFINED";
 }
 
-void CFlashTextureSourceBase::CFlashPlayerInstanceWrapperLayoutElement::Advance(float delta)
+void CFlashTextureSourceBase::CFlashPlayerInstanceWrapperLayoutElement::Advance(const CTimeValue& delta)
 {
 	if (m_pPlayer)
 		m_pPlayer->Advance(delta);

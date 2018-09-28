@@ -24,7 +24,7 @@ struct SUpdateContext
 	CGpuBuffer*                pReadbackBuffer;
 	CGpuBuffer*                pCounterBuffer;
 	CGpuBuffer*                pScratchBuffer;
-	float                      deltaTime;
+	CTimeValue                 deltaTime;
 };
 
 // this is the renderer-internal interface for GPU features

@@ -630,15 +630,15 @@ struct CRY_ALIGN(128) SRenderStatistics
 	size_t m_MeshUpdateBytes;
 	size_t m_DynMeshUpdateBytes;
 	float m_fOverdraw;
-	float m_fSkinningTime;
-	float m_fPreprocessTime;
-	float m_fSceneTimeMT;
-	float m_fTexUploadTime;
-	float m_fTexRestoreTime;
-	float m_fOcclusionTime;
-	float m_fRenderTime;
-	float m_fEnvCMapUpdateTime;
-	float m_fEnvTextUpdateTime;
+	CTimeValue m_fSkinningTime;
+	CTimeValue m_fPreprocessTime;
+	CTimeValue m_fSceneTimeMT;
+	CTimeValue m_fTexUploadTime;
+	CTimeValue m_fTexRestoreTime;
+	CTimeValue m_fOcclusionTime;
+	CTimeValue m_fRenderTime;
+	CTimeValue m_fEnvCMapUpdateTime;
+	CTimeValue m_fEnvTextUpdateTime;
 
 	float m_fRefractionPartialResolveEstimatedCost;
 	int m_refractionPartialResolveCount;
@@ -822,7 +822,7 @@ public:
 	virtual void         FillFrame(ColorF clearColor) override = 0;
 	virtual void         RenderDebug(bool bRenderStats = true) override = 0;
 	virtual void         EndFrame() override = 0;
-	virtual void         LimitFramerate(const int maxFPS, const bool bUseSleep) = 0;
+	virtual void         LimitFramerate(const int maxFPS) = 0;
 
 	virtual void         TryFlush() override = 0;
 
@@ -892,7 +892,7 @@ public:
 
 	virtual void     GetMemoryUsage(ICrySizer* Sizer) override;
 
-	virtual void     GetBandwidthStats(float* fBandwidthRequested) override;
+	virtual void     GetBandwidthStats(rTime* fBandwidthRequested) override;
 
 	virtual void     SetTextureStreamListener(ITextureStreamListener* pListener) override;
 
@@ -971,10 +971,10 @@ public:
 
 	virtual IOpticsElementBase* CreateOptics(EFlareType type) const override;
 
-	virtual bool                EF_PrecacheResource(IShader* pSH, float fMipFactor, float fTimeToReady, int Flags) override;
-	virtual bool                EF_PrecacheResource(ITexture* pTP, float fMipFactor, float fTimeToReady, int Flags, int nUpdateId, int nCounter) override = 0;
-	virtual bool                EF_PrecacheResource(IRenderMesh* pPB, IMaterial* pMaterial, float fMipFactor, float fTimeToReady, int Flags, int nUpdateId) override;
-	virtual bool                EF_PrecacheResource(SRenderLight* pLS, float fMipFactor, float fTimeToReady, int Flags, int nUpdateId) override;
+	virtual bool                EF_PrecacheResource(IShader* pSH, float fMipFactor, const CTimeValue& fTimeToReady, int Flags) override;
+	virtual bool                EF_PrecacheResource(ITexture* pTP, float fMipFactor, const CTimeValue& fTimeToReady, int Flags, int nUpdateId, int nCounter) override = 0;
+	virtual bool                EF_PrecacheResource(IRenderMesh* pPB, IMaterial* pMaterial, float fMipFactor, const CTimeValue& fTimeToReady, int Flags, int nUpdateId) override;
+	virtual bool                EF_PrecacheResource(SRenderLight* pLS, float fMipFactor, const CTimeValue& fTimeToReady, int Flags, int nUpdateId) override;
 
 	// functions for handling particle jobs which cull particles and generate their vertices/indices
 	virtual void EF_AddMultipleParticlesToScene(const SAddParticlesToSceneJob* jobs, size_t numJobs, const SRenderingPassInfo& passInfo) override;
@@ -1154,7 +1154,7 @@ public:
 	virtual void                                      SetDefaultMaterials(IMaterial* pDefMat, IMaterial* pTerrainDefMat) override                          { m_pDefaultMaterial = pDefMat; m_pTerrainDefaultMaterial = pTerrainDefMat; }
 	virtual byte*                                     GetTextureSubImageData32(byte* pData, int nDataSize, int nX, int nY, int nW, int nH, CTexture* pTex) { return 0; }
 
-	virtual void                                      PrecacheTexture(ITexture* pTP, float fMipFactor, float fTimeToReady, int Flags, int nUpdateId, int nCounter = 1);
+	virtual void                                      PrecacheTexture(ITexture* pTP, float fMipFactor, const CTimeValue& fTimeToReady, int Flags, int nUpdateId, int nCounter = 1);
 
 	virtual SSkinningData*                            EF_CreateSkinningData(IRenderView* pRenderView, uint32 nNumBones, bool bNeedJobSyncVar) override;
 	virtual SSkinningData*                            EF_CreateRemappedSkinningData(IRenderView* pRenderView, uint32 nNumBones, SSkinningData* pSourceSkinningData, uint32 nCustomDataSize, uint32 pairGuid) override;
@@ -1267,7 +1267,7 @@ public:
 	void             EnableSwapBuffers(bool bEnable) override { m_bSwapBuffers = bEnable; }
 	bool m_bSwapBuffers;
 
-	virtual bool StopRendererAtFrameEnd(uint timeoutMilliseconds) override;
+	virtual bool StopRendererAtFrameEnd(const CTimeValue& timeout) override;
 	virtual void ResumeRendererFromFrameEnd() override;
 	volatile bool m_bStopRendererAtFrameEnd;
 
@@ -1283,7 +1283,7 @@ public:
 	virtual void  RT_InsertGpuCallback(uint32 context, GpuCallbackFunc callback) override {}
 	virtual void  EnablePipelineProfiler(bool bEnable) override = 0;
 
-	virtual float GetGPUFrameTime() override;
+	virtual CTimeValue GetGPUFrameTime() override;
 	virtual void  GetRenderTimes(SRenderTimes& outTimes) override;
 	virtual void  LogShaderImportMiss(const CShader* pShader) {}
 
@@ -1373,17 +1373,17 @@ public:
 
 	CIntroMovieRenderer* m_pIntroMovieRenderer;
 
-	float                m_fTimeWaitForMain[RT_COMMAND_BUF_COUNT];
-	float                m_fTimeWaitForRender[RT_COMMAND_BUF_COUNT];
-	float                m_fTimeProcessedRT[RT_COMMAND_BUF_COUNT];
-	float                m_fTimeProcessedGPU[RT_COMMAND_BUF_COUNT];
-	float                m_fTimeWaitForGPU[RT_COMMAND_BUF_COUNT];
+	CTimeValue           m_fTimeWaitForMain[RT_COMMAND_BUF_COUNT];
+	CTimeValue           m_fTimeWaitForRender[RT_COMMAND_BUF_COUNT];
+	CTimeValue           m_fTimeProcessedRT[RT_COMMAND_BUF_COUNT];
+	CTimeValue           m_fTimeProcessedGPU[RT_COMMAND_BUF_COUNT];
+	CTimeValue           m_fTimeWaitForGPU[RT_COMMAND_BUF_COUNT];
 	float                m_fTimeGPUIdlePercent[RT_COMMAND_BUF_COUNT];
 
-	float                m_fRTTimeEndFrame;
-	float                m_fRTTimeFlashRender;
-	float                m_fRTTimeSceneRender;
-	float                m_fRTTimeMiscRender;
+	CTimeValue           m_fRTTimeEndFrame;
+	CTimeValue           m_fRTTimeFlashRender;
+	CTimeValue           m_fRTTimeSceneRender;
+	CTimeValue           m_fRTTimeMiscRender;
 
 	int                  m_CurVertBufferSize;
 	int                  m_CurIndexBufferSize;
@@ -1511,7 +1511,7 @@ public:
 
 	// Used for pausing timer related stuff (eg: for texture animations, and shader 'time' parameter)
 	bool  m_bPauseTimer;
-	float m_fPrevTime;
+	CTimeValue m_fPrevTime;
 	uint8 m_nUseZpass : 2;
 	bool  m_bCollectDrawCallsInfo;
 	bool  m_bCollectDrawCallsInfoPerNode;
@@ -1619,7 +1619,7 @@ protected:
 		Vec3  m_LastWaterViewdirUpdate;
 		Vec3  m_LastWaterUpdirUpdate;
 		Vec3  m_LastWaterPosUpdate;
-		float m_fLastWaterUpdate;
+		CTimeValue m_fLastWaterUpdate;
 		int   m_nLastWaterFrameID;
 	};
 	SWaterUpdateInfo m_waterUpdateInfo;

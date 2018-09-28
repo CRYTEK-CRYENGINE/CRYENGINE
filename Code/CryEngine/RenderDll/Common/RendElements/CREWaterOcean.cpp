@@ -354,7 +354,7 @@ void CREWaterOcean::FrameUpdate()
 	// Copy data..
 	if (CTexture::IsTextureExist(pTexture))
 	{
-		const float fUpdateTime = 0.125f * gEnv->pTimer->GetCurrTime();// / clamp_tpl<float>(pParams1.x, 0.55f, 1.0f);
+		const CTimeValue fUpdateTime = "0.125" * GetGTimer()->GetFrameStartTime();// / clamp_tpl<float>(pParams1.x, 0.55f, 1.0f);
 		int nFrameID = gRenDev->GetRenderFrameID();
 		void* pRawPtr = NULL;
 		WaterSimMgr()->Update(nFrameID, fUpdateTime, false, pRawPtr);

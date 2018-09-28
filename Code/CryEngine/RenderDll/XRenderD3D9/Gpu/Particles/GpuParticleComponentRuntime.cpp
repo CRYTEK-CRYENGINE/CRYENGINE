@@ -459,8 +459,8 @@ void CParticleComponentRuntime::Initialize()
 
 	m_parameters.CreateDeviceBuffer();
 
-	m_parameters->currentTime = 0.0f;
-	m_parameters->deltaTime = 0.016f;
+	m_parameters->currentTime.SetSeconds(0);
+	m_parameters->deltaTime.SetSeconds("0.016");
 	m_parameters->numNewBorns = 0;
 	m_parameters->numParticles = 0;
 	m_parameters->managerSlot = -1;

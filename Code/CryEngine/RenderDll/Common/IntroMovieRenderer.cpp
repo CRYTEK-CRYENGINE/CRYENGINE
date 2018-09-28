@@ -36,11 +36,11 @@ bool CIntroMovieRenderer::Initialize()
 	if (m_pFlashPlayer)
 	{
 		m_pFlashPlayer->Load("libs/ui/usm_player_intro.gfx");
-		m_pFlashPlayer->Advance(0.f);
+		m_pFlashPlayer->Advance(0);
 
 		m_pFlashPlayer->SetFSCommandHandler(this);
 		m_pFlashPlayer->SetBackgroundAlpha(0.0f);
-		m_pFlashPlayer->Advance(0.0f);
+		m_pFlashPlayer->Advance(0);
 
 		m_pFlashPlayer->SetVariable("showSubtitle", true);
 		m_pFlashPlayer->SetVariable("selectedSubtitle", GetSubtitleChannelForSystemLanguage());
@@ -89,7 +89,7 @@ void CIntroMovieRenderer::WaitForCompletion()
 			break;
 		}
 		gEnv->pLog->UpdateLoadingScreen(0);
-		CrySleep(1);
+		CryLowLatencySleep("0.001");
 	}
 }
 
@@ -115,7 +115,7 @@ int CIntroMovieRenderer::GetSubtitleChannelForSystemLanguage()
 
 //////////////////////////////////////////////////////////////////////////
 
-void CIntroMovieRenderer::LoadtimeUpdate(float deltaTime)
+void CIntroMovieRenderer::LoadtimeUpdate(const CTimeValue& deltaTime)
 {
 	auto pPlayer = m_pFlashPlayer;
 	if (pPlayer)

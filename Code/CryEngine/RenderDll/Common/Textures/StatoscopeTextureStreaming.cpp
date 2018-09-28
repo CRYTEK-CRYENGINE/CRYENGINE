@@ -90,9 +90,9 @@ void SStatoscopeTextureStreamingDG::Write(IStatoscopeFrameRecord& fr)
 float SStatoscopeTextureStreamingDG::GetTextureRequests()
 {
 	#if !defined (_RELEASE) || defined(ENABLE_STATOSCOPE_RELEASE)
-	const float time = gEnv->pTimer->GetAsyncCurTime() - CTexture::s_StreamingRequestsTime;
-	const float res = ((float)CTexture::s_StreamingRequestsCount / time);
-	CTexture::s_StreamingRequestsTime = gEnv->pTimer->GetAsyncCurTime();
+	const CTimeValue time = GetGTimer()->GetAsyncCurTime() - CTexture::s_StreamingRequestsTime;
+	const float res = BADF (CTexture::s_StreamingRequestsCount / time);
+	CTexture::s_StreamingRequestsTime = GetGTimer()->GetAsyncCurTime();
 	CTexture::s_StreamingRequestsCount = 0;
 	#else
 	const float res = 0.0f;
@@ -103,9 +103,9 @@ float SStatoscopeTextureStreamingDG::GetTextureRequests()
 float SStatoscopeTextureStreamingDG::GetTextureRenders()
 {
 	#if !defined (_RELEASE) || defined(ENABLE_STATOSCOPE_RELEASE)
-	const float time = gEnv->pTimer->GetAsyncCurTime() - CTexture::s_TextureUpdatedRenderedTime;
-	const float res = ((float)CTexture::s_TexturesUpdatedRendered / time);
-	CTexture::s_TextureUpdatedRenderedTime = gEnv->pTimer->GetAsyncCurTime();
+	const CTimeValue time = GetGTimer()->GetAsyncCurTime() - CTexture::s_TextureUpdatedRenderedTime;
+	const float res = BADF (CTexture::s_TexturesUpdatedRendered / time);
+	CTexture::s_TextureUpdatedRenderedTime = GetGTimer()->GetAsyncCurTime();
 	CTexture::s_TexturesUpdatedRendered = 0;
 	#else
 	const float res = 0.0f;
@@ -126,9 +126,9 @@ float SStatoscopeTextureStreamingDG::GetTexturePoolWanted()
 float SStatoscopeTextureStreamingDG::GetTextureUpdates()
 {
 	#if !defined (_RELEASE) || defined(ENABLE_STATOSCOPE_RELEASE)
-	const float time = gEnv->pTimer->GetAsyncCurTime() - CTexture::s_TextureUpdatesTime;
-	const float res = ((float)CTexture::s_TextureUpdates / time);
-	CTexture::s_TextureUpdatesTime = gEnv->pTimer->GetAsyncCurTime();
+	const CTimeValue time = GetGTimer()->GetAsyncCurTime() - CTexture::s_TextureUpdatesTime;
+	const float res = BADF(CTexture::s_TextureUpdates / time);
+	CTexture::s_TextureUpdatesTime = GetGTimer()->GetAsyncCurTime();
 	CTexture::s_TextureUpdates = 0;
 	#else
 	const float res = 0.0f;

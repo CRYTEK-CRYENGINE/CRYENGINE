@@ -1577,7 +1577,7 @@ void CShaderMan::AddRTCombinations(FXShaderCacheCombinations& CmbsMap, CHWShader
 
 void CShaderMan::_PrecacheShaderList(bool bStatsOnly)
 {
-	float t0 = gEnv->pTimer->GetAsyncCurTime();
+	CTimeValue t0 = GetGTimer()->GetAsyncCurTime();
 
 	if (!m_pGlobalExt)
 		return;
@@ -1860,8 +1860,8 @@ void CShaderMan::_PrecacheShaderList(bool bStatsOnly)
 
 	gRenDev->m_Features = nSaveFeatures;
 
-	float t1 = gEnv->pTimer->GetAsyncCurTime();
-	CryLogAlways("All shaders combinations compiled in %.2f seconds", (t1 - t0));
+	CTimeValue t1 = GetGTimer()->GetAsyncCurTime();
+	CryLogAlways("All shaders combinations compiled in %.2f seconds", (float)(t1 - t0).GetSeconds());
 	CryLogAlways("Combinations: (Material: %d, Processed: %d; Compiled: %d; Removed: %d)", nMaterialCombinations, nProcessed, nCompiled, nEmpty);
 	CryLogAlways("-- Shader cache overall stats: Entries: %d, Unique Entries: %d, Size: %d, Compressed Size: %d, Token data size: %d", Stats.nEntries, Stats.nUniqueEntries, Stats.nSizeUncompressed, Stats.nSizeCompressed, Stats.nTokenDataSize);
 

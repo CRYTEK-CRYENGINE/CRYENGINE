@@ -1342,7 +1342,7 @@ void CVolumetricCloudsStage::GenerateCloudShaderParam(::VCCloudRenderContext& co
 	const int32 height = CRendererResources::s_renderHeight;
 	const bool bStereo = rd->IsStereoEnabled();
 	const bool bReverseDepth = true;
-	const f32 time = GetGraphicsPipeline().GetAnimationTime().GetSeconds();
+	const f32 time = GetGraphicsPipeline().GetAnimationTime().BADGetSeconds();
 	const int32 curEye = static_cast<int32>(RenderView()->GetCurrentEye());
 	const int32 gpuCount = rd->GetActiveGPUCount();
 

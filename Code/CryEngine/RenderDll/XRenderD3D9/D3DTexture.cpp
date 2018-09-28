@@ -785,7 +785,7 @@ DynArray<std::uint16_t> CTexture::RenderEnvironmentCMHDR(std::size_t size, const
 
 #if CRY_PLATFORM_DESKTOP
 
-	float timeStart = gEnv->pTimer->GetAsyncTime().GetSeconds();
+	CTimeValue timeStart = GetGTimer()->GetAsyncTime();
 
 	iLog->Log("Start generating a cubemap (%d x %d) at position (%.1f, %.1f, %.1f)", size, size, Pos.x, Pos.y, Pos.z);
 
@@ -859,7 +859,7 @@ DynArray<std::uint16_t> CTexture::RenderEnvironmentCMHDR(std::size_t size, const
 				break;
 
 			// Update streaming engine
-			CrySleep(10);
+			CryLowLatencySleep("0.01");
 			gEnv->pSystem->GetStreamEngine()->Update(eStreamTaskTypeTerrain | eStreamTaskTypeTexture | eStreamTaskTypeGeometry);
 
 			// Flush and garbage collect
@@ -906,8 +906,8 @@ DynArray<std::uint16_t> CTexture::RenderEnvironmentCMHDR(std::size_t size, const
 	if (CRenderer::CV_r_HideSunInCubemaps)
 		gEnv->p3DEngine->SetSkyLightParameters(oldSunDir, oldSunStr, oldSkyKm, oldSkyKr, oldSkyG, oldSunRGB, true);
 
-	float timeUsed = gEnv->pTimer->GetAsyncTime().GetSeconds() - timeStart;
-	iLog->Log("Successfully finished generating a cubemap in %.1f sec", timeUsed);
+	CTimeValue timeUsed = GetGTimer()->GetAsyncTime() - timeStart;
+	iLog->Log("Successfully finished generating a cubemap in %.1f sec", (float)timeUsed.GetSeconds());
 #endif
 
 	return vecData;
@@ -1137,7 +1137,7 @@ void CD3D9Renderer::DrawAllDynTextures(const char* szFilter, const bool bLogName
 #endif
 }
 
-void CFlashTextureSourceBase::Advance(const float delta, bool isPaused)
+void CFlashTextureSourceBase::Advance(const CTimeValue& delta, bool isPaused)
 {
 	if (!m_pFlashPlayer)
 		return;
@@ -1183,7 +1183,7 @@ bool CFlashTextureSourceBase::Update()
 	pFlashPlayer->SetBackgroundAlpha(Clr_Transparent.a);
 	
 	m_lastVisibleFrameID = gRenDev->GetRenderFrameID();
-	m_lastVisible = gEnv->pTimer->GetAsyncTime();
+	m_lastVisible = GetGTimer()->GetAsyncTime();
 
 	{
 		PROFILE_LABEL_SCOPE("FlashDynTexture");
@@ -1281,7 +1281,7 @@ void CTexture::CopySliceChain(CDeviceTexture* const pDstDevTex, int nDstNumMips,
 		UINT64 fence = pDMA->InsertFence(D3D11_INSERT_FENCE_NO_KICKOFF);
 		pDMA->Submit();
 		while (gcpRendD3D->GetPerformanceDevice().IsFencePending(fence))
-			CrySleep(1);
+			CryLowLatencySleep("0.001");
 	}
 #endif
 	else

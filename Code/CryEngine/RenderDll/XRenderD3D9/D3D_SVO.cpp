@@ -1422,7 +1422,7 @@ void CSvoRenderer::DebugDrawStats(const RPProfilerStats* pBasicStats, float& ypo
 
 	#define SVO_Draw2dLabel(labelName)                                                                                                             \
 	  IRenderAuxText::Draw2dLabel(60, ypos += ystep, 2, &color.r, false, (const char*)(((const char*)( # labelName)) + 10));                       \
-	  if (pBasicStats[labelName].gpuTimeMax > 0.01)                                                                                                \
+	  if (pBasicStats[labelName].gpuTimeMax > "0.01")                                                                                                \
 	    IRenderAuxText::Draw2dLabelEx(xposms, ypos, 2, color, txtFlags, "%5.2f Aver=%5.2f Max=%5.2f",                                              \
 	                                  pBasicStats[labelName].gpuTime, pBasicStats[labelName].gpuTimeSmoothed, pBasicStats[labelName].gpuTimeMax);  \
 	  else                                                                                                                                         \

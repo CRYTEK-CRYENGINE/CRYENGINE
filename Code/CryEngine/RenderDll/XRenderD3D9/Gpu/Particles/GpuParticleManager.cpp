@@ -70,7 +70,7 @@ void CManager::RenderThreadUpdate(CRenderView* pRenderView)
 		context.pCounterBuffer = &m_counter.GetBuffer();
 		context.pScratchBuffer = &m_scratch.GetBuffer();
 		context.pReadbackBuffer = &m_readback.GetBuffer();
-		context.deltaTime = gEnv->pTimer->GetFrameTime();
+		context.deltaTime = GetGTimer()->GetFrameTime();
 
 		{
 			for (auto& pRuntime : GetReadRuntimes())

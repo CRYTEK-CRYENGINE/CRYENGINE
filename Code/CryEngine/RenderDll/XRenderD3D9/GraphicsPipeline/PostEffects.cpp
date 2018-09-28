@@ -333,11 +333,11 @@ bool CPostEffectStage::Execute()
 			for (uint32 i = 0, nNumEffects = activeEffects.size(); i < nNumEffects; ++i)
 			{
 				SPostEffectsDebugInfo& debugInfo = activeEffects[i];
-				if (debugInfo.fTimeOut > 0.0f)
+				if (debugInfo.fTimeOut > 0)
 				{
 					IRenderAuxText::Draw2dText(30.0f, nPosY += 10.0f, Vec3(1), debugInfo.pEffect->GetName());
 				}
-				debugInfo.fTimeOut -= gEnv->pTimer->GetFrameTime();
+				debugInfo.fTimeOut -= GetGTimer()->GetFrameTime();
 			}
 		}
 
@@ -374,13 +374,13 @@ bool CPostEffectStage::Execute()
 				for (uint32 p = 0, nNumParams = activeParams.size(); p < nNumParams; ++p)
 				{
 					SPostEffectsDebugInfo& debugInfo = activeParams[p];
-					if (debugInfo.fTimeOut > 0.0f)
+					if (debugInfo.fTimeOut > 0)
 					{
 						char pNameAndValue[128];
 						cry_sprintf(pNameAndValue, "%s: %.4f\n", debugInfo.szParamName.c_str(), debugInfo.fParamVal);
 						IRenderAuxText::Draw2dText(nPosX, nPosY += 10.0f, Vec3(1), pNameAndValue);
 					}
-					debugInfo.fTimeOut -= gEnv->pTimer->GetFrameTime();
+					debugInfo.fTimeOut -= GetGTimer()->GetFrameTime();
 				}
 			}
 		}
@@ -899,13 +899,13 @@ void CFlashBangPass::Execute(const CPostEffectContext& context)
 
 		auto& postEffect = *static_cast<CFlashBang*>(pPostEffect);
 
-		const float fTimeDuration = postEffect.m_pTime->GetParam();
+		const CTimeValue fTimeDuration = BADTIME(postEffect.m_pTime->GetParam());
 		const float fDifractionAmount = postEffect.m_pDifractionAmount->GetParam();
 		const float fBlindTime = postEffect.m_pBlindAmount->GetParam();
 
-		if (!postEffect.m_fSpawnTime)
+		if (postEffect.m_fSpawnTime == 0)
 		{
-			postEffect.m_fSpawnTime = gEnv->pTimer->GetCurrTime();
+			postEffect.m_fSpawnTime = GetGTimer()->GetFrameStartTime();
 
 			// Create temporary ghost image and capture screen
 			SAFE_DELETE(postEffect.m_pGhostImage);
@@ -921,12 +921,12 @@ void CFlashBangPass::Execute(const CPostEffectContext& context)
 		}
 
 		// Update current time
-		const float fCurrTime = (gEnv->pTimer->GetCurrTime() - postEffect.m_fSpawnTime) / fTimeDuration;
+		const nTime fCurrTime = (GetGTimer()->GetFrameStartTime() - postEffect.m_fSpawnTime) / fTimeDuration;
 
 		// Effect finished
-		if (fCurrTime > 1.0f)
+		if (fCurrTime > 1)
 		{
-			postEffect.m_fSpawnTime = 0.0f;
+			postEffect.m_fSpawnTime.SetSeconds(0);
 			postEffect.m_pActive->SetParam(0.0f);
 
 			SAFE_DELETE(postEffect.m_pGhostImage);
@@ -968,7 +968,7 @@ void CFlashBangPass::Execute(const CPostEffectContext& context)
 
 		pass.BeginConstantUpdate();
 
-		const float fLuminance = 1.0f - fCurrTime;  //PostProcessUtils().InterpolateCubic(0.0f, 1.0f, 0.0f, 1.0f, fCurrTime);
+		const float fLuminance = 1.0f - BADF fCurrTime;  //PostProcessUtils().InterpolateCubic(0.0f, 1.0f, 0.0f, 1.0f, fCurrTime);
 		Vec4 vParams = Vec4(fLuminance, fLuminance * fDifractionAmount, 3.0f * fLuminance * fBlindTime, fLuminance);
 		static CCryNameR pParamName("vFlashBangParams");
 		pass.SetConstant(pParamName, vParams);
@@ -1170,23 +1170,23 @@ void CKillCameraPass::Execute(const CPostEffectContext& context)
 
 			// Blindness
 			Vec4 blindness = pe.m_pBlindness->GetParamVec4(); // x = blind duration, y = blind fade out duration, z = blindness grey scale, w = blind noise min scale
-			float blindDuration = max(blindness.x, 0.0f);
-			float blindFadeOutDuration = max(blindness.y, 0.0f);
+			CTimeValue blindDuration = BADTIME(max(blindness.x, 0.0f));
+			CTimeValue blindFadeOutDuration = BADTIME(max(blindness.y, 0.0f));
 			float blindGreyScale = clamp_tpl<float>(blindness.z, 0.0f, 1.0f);
 			float blindNoiseMinScale = clamp_tpl<float>(blindness.w, 0.0f, 10.0f);
 			float blindNoiseVignetteScale = clamp_tpl<float>(vignette.w, 0.0f, 10.0f);
 
-			float blindAmount = 0.0f;
+			nTime blindAmount = 0;
 			if (pe.m_blindTimer < blindDuration)
 			{
-				blindAmount = 1.0f;
+				blindAmount = 1;
 			}
 			else
 			{
-				float blindFadeOutTimer = pe.m_blindTimer - blindDuration;
+				CTimeValue blindFadeOutTimer = pe.m_blindTimer - blindDuration;
 				if (blindFadeOutTimer < blindFadeOutDuration)
 				{
-					blindAmount = 1.0f - (blindFadeOutTimer / blindFadeOutDuration);
+					blindAmount = 1 - (blindFadeOutTimer / blindFadeOutDuration);
 				}
 			}
 
@@ -1220,7 +1220,7 @@ void CKillCameraPass::Execute(const CPostEffectContext& context)
 			pParams[2] = chromaShift;
 
 			// psParams[3] - x = blindAmount, y = blind grey scale, z = blindNoiseVignetteScale, w = blindNoiseMinScale
-			pParams[3].x = blindAmount;
+			pParams[3].x = BADF blindAmount;
 			pParams[3].y = blindGreyScale;
 			pParams[3].z = blindNoiseVignetteScale;
 			pParams[3].w = blindNoiseMinScale;
@@ -1525,7 +1525,7 @@ void CHud3DPass::Execute(const CPostEffectContext& context)
 		CD3DStereoRenderer& pS3DRend = rd->GetS3DRend();
 
 		// Update interference rand timer
-		hud3d.m_interferenceRandTimer += gEnv->pTimer->GetFrameTime();
+		hud3d.m_interferenceRandTimer += GetGTimer()->GetFrameTime();
 
 		CTexture* pDstTex = context.GetDstBackBufferTexture();
 		CTexture* pDepthS = context.GetDstDepthStencilTexture();
@@ -1565,7 +1565,7 @@ void CHud3DPass::ExecuteFlashUpdate(const CPostEffectContext& context, CHud3D& h
 			{
 				// CV_r_PostProcessHUD3DCache>0 will skip flash asset advancing. Accumulate frame time of
 				//skipped frames and add it when we're actually advancing.
-				hud3d.m_accumulatedFrameTime += gEnv->pTimer->GetFrameTime();
+				hud3d.m_accumulatedFrameTime += GetGTimer()->GetFrameTime();
 
 				hud3d.ReleaseFlashPlayerRef(nThreadID);
 
@@ -1587,7 +1587,7 @@ void CHud3DPass::ExecuteFlashUpdate(const CPostEffectContext& context, CHud3D& h
 		const int rtWidth  = std::min<int>(SHudData::s_nFlashWidthMax , hud3d.m_pHUD_RT->GetWidth());
 		const int rtHeight = std::min<int>(SHudData::s_nFlashHeightMax, hud3d.m_pHUD_RT->GetHeight());
 
-		const float accumulatedDeltaTime = gEnv->pTimer->GetFrameTime() + hud3d.m_accumulatedFrameTime;
+		const CTimeValue accumulatedDeltaTime = GetGTimer()->GetFrameTime() + hud3d.m_accumulatedFrameTime;
 
 		SEfResTexture* pDiffuse = nullptr;
 		SEfResTexture* pPrevDiffuse = nullptr;
@@ -1626,7 +1626,7 @@ void CHud3DPass::ExecuteFlashUpdate(const CPostEffectContext& context, CHud3D& h
 			}
 		}
 
-		hud3d.m_accumulatedFrameTime = 0.0f;
+		hud3d.m_accumulatedFrameTime.SetSeconds(0);
 		hud3d.ReleaseFlashPlayerRef(nThreadID);
 
 		// Downsample/blur hud into half res target _1 time only_ - we'll use this for Bloom/Dof
@@ -1885,14 +1885,14 @@ void CHud3DPass::ExecuteFinalPass(const CPostEffectContext& context, CTexture* p
 		Limit(vInterferenceParams.y, 0.0f, 1.0f);
 		Limit(vInterferenceParams.z, 0.0f, 1.0f);
 
-		float interferenceRandFrequency = max(vInterferenceParams.y, 0.0f);
+		CTimeValue interferenceRandFrequency = BADTIME(max(vInterferenceParams.y, 0.0f));
 		if (hud3d.m_interferenceRandTimer >= interferenceRandFrequency)
 		{
 			hud3d.m_interferenceRandNums.x = cry_random(-1.0f, 1.0f);
 			hud3d.m_interferenceRandNums.y = cry_random(-1.0f, 1.0f);
 			hud3d.m_interferenceRandNums.z = cry_random(0.0f, 1.0f);
 			hud3d.m_interferenceRandNums.w = cry_random(-1.0f, 1.0f);
-			hud3d.m_interferenceRandTimer = 0.0f;
+			hud3d.m_interferenceRandTimer.SetSeconds(0);
 		}
 
 		// x = randomGrainStrengthScale, y= randomFadeStrengthScale, z= chromaShiftStrength, w= chromaShiftDist
@@ -1934,7 +1934,7 @@ void CHud3DPass::ExecuteFinalPass(const CPostEffectContext& context, CTexture* p
 	const bool bGameDof = pDofPostEffect->IsActive();
 
 	static float fDofBlend = 0.0f;
-	fDofBlend += ((bGameDof ? .6f : 0.0f) - fDofBlend) * gEnv->pTimer->GetFrameTime() * 10.0f;
+	fDofBlend += ((bGameDof ? .6f : 0.0f) - fDofBlend) * GetGTimer()->GetFrameTime().BADGetSeconds() * 10.0f;
 	float dofMultiplier = clamp_tpl<float>(hud3d.m_pDofMultiplier->GetParam(), 0.0f, 2.0f);
 	float fCurrentDofBlend = fDofBlend * dofMultiplier;
 

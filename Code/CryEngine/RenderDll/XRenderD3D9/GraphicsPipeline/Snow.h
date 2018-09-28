@@ -30,9 +30,9 @@ private:
 		SSnowCluster()
 			: m_pPos(0, 0, 0)
 			, m_pPosPrev(0, 0, 0)
-			, m_fSpawnTime(0.0f)
-			, m_fLifeTime(4.0f)
-			, m_fLifeTimeVar(2.5f)
+			, m_fSpawnTime(0)
+			, m_fLifeTime(4)
+			, m_fLifeTimeVar("2.5")
 			, m_fWeight(0.3f)
 			, m_fWeightVar(0.1f)
 		{
@@ -45,11 +45,11 @@ private:
 		Vec3 m_pPosPrev;
 
 		// Spawn time
-		float m_fSpawnTime;
+		CTimeValue m_fSpawnTime;
 
 		// Life time and variation
-		float m_fLifeTime;
-		float m_fLifeTimeVar;
+		CTimeValue m_fLifeTime;
+		CTimeValue m_fLifeTimeVar;
 
 		// Weight and variation
 		float m_fWeight;

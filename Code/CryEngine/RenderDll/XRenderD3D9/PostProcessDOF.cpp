@@ -44,7 +44,7 @@ SDepthOfFieldParams CDepthOfField::GetParams()
 	float fUserFocusRange = m_pUserFocusRange->GetParam();
 	float fUserFocusDistance = m_pUserFocusDistance->GetParam();
 	float fUserBlurAmount = m_pUserBlurAmount->GetParam();
-	float fFrameTime = clamp_tpl<float>(gEnv->pTimer->GetFrameTime() * 3.0f, 0.0f, 1.0f);
+	float fFrameTime = CLAMP(GetGTimer()->GetFrameTime() * 3, 0, 1).BADGetSeconds();
 
 	if (bGameDof)
 		fUserFocusRange = fUserFocusDistance = fUserBlurAmount = 0.0f;

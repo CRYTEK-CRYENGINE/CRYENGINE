@@ -20,7 +20,7 @@ public:
 	uint32 IssueTimestamp();
 	bool   ResolveTimestamps();
 
-	float  GetTimeMS(uint32 timestamp0, uint32 timestamp1);
+	CTimeValue  GetTime(uint32 timestamp0, uint32 timestamp1);
 };
 
 ////////////////////////////////////////////////////////////////////////////

@@ -520,7 +520,7 @@ void CSnowStage::Execute()
 		return;
 	}
 
-	if (!PostProcessUtils().m_pTimer)
+	if (!GTimer(peffects))
 	{
 		return;
 	}
@@ -636,8 +636,8 @@ void CSnowStage::UpdateSnowClusters()
 
 	bool bAllowSpawn(rd->m_bDeferredSnowEnabled && snowVolParams.m_fSnowFallBrightness > 0.005f);
 
-	const float fCurrFrameTime = gEnv->pTimer->GetFrameTime();
-	const float fGravity = fCurrFrameTime * snowVolParams.m_fSnowFallGravityScale;
+	const CTimeValue fCurrFrameTime = GetGTimer()->GetFrameTime();
+	const float fGravity = fCurrFrameTime.BADGetSeconds() * snowVolParams.m_fSnowFallGravityScale;
 	const float fWind = snowVolParams.m_fSnowFallWindScale;
 
 	m_nAliveClusters = 0;
@@ -646,11 +646,11 @@ void CSnowStage::UpdateSnowClusters()
 
 	for (auto& cluster : m_snowClusterArray)
 	{
-		float fCurrLifeTime = cluster.m_fLifeTime > 0.0f ? (PostProcessUtils().m_pTimer->GetCurrTime() - cluster.m_fSpawnTime) / cluster.m_fLifeTime : 0.0f;
+		nTime fCurrLifeTime = cluster.m_fLifeTime > 0 ? (GTimer(peffects)->GetFrameStartTime() - cluster.m_fSpawnTime) / cluster.m_fLifeTime : 0;
 		float fClusterDist = cluster.m_pPos.GetDistance(vCameraPos);
 
 		// Cluster is too small, died or is out of range, respawn.
-		if (fabs(fCurrLifeTime) > 1.0f || cluster.m_fLifeTime < 0 || fClusterDist > 30.0f)
+		if (abs(fCurrLifeTime) > 1 || cluster.m_fLifeTime < 0 || fClusterDist > 30.0f)
 		{
 			if (bAllowSpawn)
 			{
@@ -663,16 +663,16 @@ void CSnowStage::UpdateSnowClusters()
 				cluster.m_pPos.z += cry_random(-1.0f, 1.0f) * 5.0f + 4.0f;
 
 				cluster.m_pPosPrev = cluster.m_pPos;
-				cluster.m_fLifeTime = (pNewDrop.m_fLifeTime / std::max(1.0f, m_SnowVolParams.m_fSnowFallGravityScale) + pNewDrop.m_fLifeTimeVar * cry_random(-1.0f, 1.0f));
+				cluster.m_fLifeTime = (pNewDrop.m_fLifeTime / BADMP(std::max(1.0f, m_SnowVolParams.m_fSnowFallGravityScale)) + pNewDrop.m_fLifeTimeVar * cry_random<mpfloat>(-1, 1));
 
 				// Increase/decrease weight randomly
 				cluster.m_fWeight = clamp_tpl<float>(pNewDrop.m_fWeight + pNewDrop.m_fWeightVar * cry_random(-1.0f, 1.0f), 0.1f, 1.0f);
 
-				cluster.m_fSpawnTime = PostProcessUtils().m_pTimer->GetCurrTime();
+				cluster.m_fSpawnTime = GTimer(peffects)->GetFrameStartTime();
 			}
 			else
 			{
-				cluster.m_fLifeTime = -1.0f;
+				cluster.m_fLifeTime.SetSeconds(-1);
 				continue;
 			}
 		}
@@ -763,7 +763,7 @@ void CSnowStage::RenderSnowClusters()
 
 	for (auto& cluster : m_snowClusterArray)
 	{
-		if (cluster.m_fLifeTime < 0.0f)
+		if (cluster.m_fLifeTime < 0)
 		{
 			continue;
 		}

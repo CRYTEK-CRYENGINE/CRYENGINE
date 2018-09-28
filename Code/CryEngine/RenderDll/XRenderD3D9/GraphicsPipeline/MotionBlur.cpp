@@ -5,15 +5,15 @@
 #include "DriverD3D.h"
 #include "D3DPostProcess.h"
 
-float CMotionBlurStage::ComputeMotionScale()
+nTime CMotionBlurStage::ComputeMotionScale()
 {
 	// The length of the generated motion vectors is proportional to the current time step, so we need
 	// to rescale the motion vectors to simulate a constant camera exposure time
 
-	float exposureTime = 1.0f / std::max(CRenderer::CV_r_MotionBlurShutterSpeed, 1e-6f);
-	float timeStep = std::max(gEnv->pTimer->GetFrameTime(), 1e-6f);
+	CTimeValue exposureTime = BADTIME(1.0f / std::max(CRenderer::CV_r_MotionBlurShutterSpeed, 1e-6f));
+	CTimeValue timeStep = std::max(GetGTimer()->GetFrameTime(), CTimeValue("0.000001"));
 
-	exposureTime *= gEnv->pTimer->GetTimeScale();
+	exposureTime *= GetGTimer()->GetTimeScale();
 
 	return exposureTime / timeStep;
 }
@@ -88,7 +88,7 @@ void CMotionBlurStage::Execute()
 		m_passPacking.SetConstant(dirBlurName, dirBlurParam, eHWSC_Pixel);
 		m_passPacking.SetConstant(radBlurName, radBlurParam, eHWSC_Pixel);
 		m_passPacking.SetConstant(motionBlurParamName,
-			Vec4(ComputeMotionScale(), 1.0f / tileCountX, 1.0f / tileCountX * CRenderer::CV_r_MotionBlurCameraMotionScale, 0), eHWSC_Pixel);
+			Vec4(BADF ComputeMotionScale(), 1.0f / tileCountX, 1.0f / tileCountX * CRenderer::CV_r_MotionBlurCameraMotionScale, 0), eHWSC_Pixel);
 
 		m_passPacking.Execute();
 	}

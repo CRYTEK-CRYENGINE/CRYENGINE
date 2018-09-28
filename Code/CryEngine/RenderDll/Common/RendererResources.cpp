@@ -1556,7 +1556,7 @@ Ang3 sDeltAngles(Ang3& Ang0, Ang3& Ang1)
 SEnvTexture* CRendererResources::FindSuitableEnvTex(Vec3& Pos, Ang3& Angs, bool bMustExist, int RendFlags, bool bUseExistingREs, CShader* pSH, CShaderResources* pRes, CRenderObject* pObj, bool bReflect, CRenderElement* pRE, bool* bMustUpdate, const SRenderingPassInfo* pPassInfo)
 {
 	SEnvTexture* cm = NULL;
-	float time0 = iTimer->GetAsyncCurTime();
+	CTimeValue time0 = GTimer(d3d)->GetAsyncCurTime();
 
 	int i;
 	float distO = 999999;
@@ -1614,10 +1614,10 @@ SEnvTexture* CRendererResources::FindSuitableEnvTex(Vec3& Pos, Ang3& Angs, bool 
 	if (bReflect)
 		dist = distO;
 
-	float curTime = iTimer->GetCurrTime();
+	CTimeValue curTime = GTimer(d3d)->GetFrameStartTime();
 	int nUpdate = -2;
-	float fTimeInterval = dist * CRenderer::CV_r_envtexupdateinterval + CRenderer::CV_r_envtexupdateinterval * 0.5f;
-	float fDelta = curTime - s_EnvTexts[firstForUse].m_TimeLastUpdated;
+	CTimeValue fTimeInterval = BADMP(dist) * CRenderer::CV_r_envtexupdateinterval + CRenderer::CV_r_envtexupdateinterval * "0.5";
+	CTimeValue fDelta = curTime - s_EnvTexts[firstForUse].m_TimeLastUpdated;
 	if (bMustExist)
 		nUpdate = -2;
 	else if (dist > MAX_ENVTEXSCANDIST)
@@ -1638,7 +1638,7 @@ SEnvTexture* CRendererResources::FindSuitableEnvTex(Vec3& Pos, Ang3& Angs, bool 
 		return NULL;
 	if (nUpdate >= 0)
 	{
-		if (!s_EnvTexts[nUpdate].m_pTex->m_pTexture || SRenderStatistics::Write().m_fEnvTextUpdateTime < 0.1f)
+		if (!s_EnvTexts[nUpdate].m_pTex->m_pTexture || SRenderStatistics::Write().m_fEnvTextUpdateTime < "0.1")
 		{
 			int n = nUpdate;
 			s_EnvTexts[n].m_TimeLastUpdated = curTime;
@@ -1649,18 +1649,18 @@ SEnvTexture* CRendererResources::FindSuitableEnvTex(Vec3& Pos, Ang3& Angs, bool 
 			if (bMustUpdate)
 				*bMustUpdate = true;
 		}
-		SRenderStatistics::Write().m_fEnvTextUpdateTime += iTimer->GetAsyncCurTime() - time0;
+		SRenderStatistics::Write().m_fEnvTextUpdateTime += GTimer(d3d)->GetAsyncCurTime() - time0;
 		return &s_EnvTexts[nUpdate];
 	}
 
-	dist = 0;
+	CTimeValue dur = 0;
 	firstForUse = -1;
 	for (i = 0; i < MAX_ENVTEXTURES; i++)
 	{
 		SEnvTexture* cur = &s_EnvTexts[i];
-		if (dist < curTime - cur->m_TimeLastUpdated && !cur->m_bInprogress)
+		if (dur < curTime - cur->m_TimeLastUpdated && !cur->m_bInprogress)
 		{
-			dist = curTime - cur->m_TimeLastUpdated;
+			dur = curTime - cur->m_TimeLastUpdated;
 			firstForUse = i;
 		}
 	}
@@ -1677,7 +1677,7 @@ SEnvTexture* CRendererResources::FindSuitableEnvTex(Vec3& Pos, Ang3& Angs, bool 
 	if (bMustUpdate)
 		*bMustUpdate = true;
 
-	SRenderStatistics::Write().m_fEnvTextUpdateTime += iTimer->GetAsyncCurTime() - time0;
+	SRenderStatistics::Write().m_fEnvTextUpdateTime += GTimer(d3d)->GetAsyncCurTime() - time0;
 	return &s_EnvTexts[n];
 
 }

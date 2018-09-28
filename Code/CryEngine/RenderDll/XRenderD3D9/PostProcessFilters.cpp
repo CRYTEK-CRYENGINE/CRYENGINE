@@ -349,7 +349,7 @@ void CImageGhosting::Render()
 	gcpRendD3D->FX_SetState(GS_NODEPTHTEST | GS_BLSRC_SRCALPHA | GS_BLDST_ONEMINUSSRCALPHA);
 
 	static CCryNameR pParamNamePS("ImageGhostingParamsPS");
-	Vec4 vParamsPS = Vec4(1, 1, max(0.0f, 1 - m_pAmount->GetParam()), gEnv->pTimer->GetFrameTime());
+	Vec4 vParamsPS = Vec4(1, 1, max(0.0f, 1 - m_pAmount->GetParam()), GetGTimer()->GetFrameTime());
 	CShaderMan::s_shPostEffects->FXSetPSFloat(pParamNamePS, &vParamsPS, 1);
 
 	GetUtils().SetTexture(pPrevFrameRead, 0, FILTER_LINEAR);

@@ -649,7 +649,7 @@ void CFlashBang::Reset(bool bOnSpecChange)
 	m_pTime->ResetParam(2.0f);
 	m_pDifractionAmount->ResetParam(1.0f);
 	m_pBlindAmount->ResetParam(0.5f);
-	m_fSpawnTime = 0.0f;
+	m_fSpawnTime.SetSeconds(0);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -704,18 +704,18 @@ bool CFilterKillCamera::Preprocess(const SRenderViewInfo& viewInfo)
 		const int mode = int_round(m_pMode->GetParam());
 		if (mode != m_lastMode)
 		{
-			m_blindTimer = 0.0f;
+			m_blindTimer.SetSeconds(0);
 			m_lastMode = mode;
 		}
 
 		// Update time
-		float frameTime = gEnv->pTimer->GetFrameTime();
+		CTimeValue frameTime = GetGTimer()->GetFrameTime();
 		m_blindTimer += frameTime;
 
 		return true;
 	}
 
-	m_blindTimer = 0.0f;
+	m_blindTimer.SetSeconds(0);
 
 	return false;
 }

@@ -40,7 +40,7 @@ void DrawCompiledRenderItemsToCommandList(
 	if (gcpRendD3D->m_pPipelineProfiler)
 	{
 		gcpRendD3D->m_pPipelineProfiler->UpdateMultithreadedSection(passContext.profilerSectionIndex, true, 0, 0, shouldIssueStartTimeStamp, deltaTimestamp, commandList);
-		deltaTimestamp = gEnv->pTimer->GetAsyncTime();
+		deltaTimestamp = GetGTimer()->GetAsyncTime();
 	}
 
 	commandList->BeginProfilingSection();
@@ -157,7 +157,7 @@ void DrawCompiledRenderItemsToCommandList(
 #if defined(ENABLE_PROFILING_CODE)
 	if (gcpRendD3D->m_pPipelineProfiler)
 	{
-		deltaTimestamp = gEnv->pTimer->GetAsyncTime() - deltaTimestamp;
+		deltaTimestamp = GetGTimer()->GetAsyncTime() - deltaTimestamp;
 		gcpRendD3D->m_pPipelineProfiler->UpdateMultithreadedSection(passContext.profilerSectionIndex, false, commandList->EndProfilingSection().numDIPs,
 			commandList->EndProfilingSection().numPolygons, shouldIssueEndTimeStamp, deltaTimestamp, commandList);
 	}

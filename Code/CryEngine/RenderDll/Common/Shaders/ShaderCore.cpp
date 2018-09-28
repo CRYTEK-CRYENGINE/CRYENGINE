@@ -1966,7 +1966,7 @@ void SEfResTexture::UpdateWithModifier(int nTSlot, uint32& nMDMask)
 		m_Ext.m_nUpdateFlags |= HWMD_TEXCOORD_MATRIX;
 	}
 
-	float currentTime = gRenDev->GetAnimationTime().GetSeconds();
+	CTimeValue currentTime = gRenDev->GetAnimationTime();
 
 	if (pMod->m_eMoveType[0] != ETMM_NoChange ||
 	    pMod->m_eMoveType[1] != ETMM_NoChange ||
@@ -1977,7 +1977,7 @@ void SEfResTexture::UpdateWithModifier(int nTSlot, uint32& nMDMask)
 	    pMod->m_Tiling[1] != 1.0f)
 	{
 		pMod->m_TexMatrix.SetIdentity();
-		float fTime = currentTime;
+		float fTime = currentTime.BADGetSeconds();
 
 		bTr = true;
 
@@ -2065,8 +2065,8 @@ void SEfResTexture::UpdateWithModifier(int nTSlot, uint32& nMDMask)
 			break;
 		}
 
-		float Su = currentTime * pMod->m_OscRate[0];
-		float Sv = currentTime * pMod->m_OscRate[1];
+		float Su = fTime * pMod->m_OscRate[0];
+		float Sv = fTime * pMod->m_OscRate[1];
 		switch (pMod->m_eMoveType[0])
 		{
 		case ETMM_Pan:
@@ -2268,11 +2268,11 @@ float CShaderMan::EvalWaveForm(SWaveForm* wf)
 	float Phase;
 	float Level;
 
-	float animationTime = gRenDev->GetAnimationTime().GetSeconds();
+	CTimeValue animationTime = gRenDev->GetAnimationTime();
 
 	if (wf->m_Flags & WFF_LERP)
 	{
-		val = (int)(animationTime * 597.0f);
+		val = (int)(animationTime.GetSeconds() * 597);
 		val &= SStaticSinusTable::sSinTableCount - 1;
 		float fLerp = SStaticSinusTable::m_tSinTable[val] * 0.5f + 0.5f;
 
@@ -2313,7 +2313,7 @@ float CShaderMan::EvalWaveForm(SWaveForm* wf)
 		break;
 
 	case eWF_Sin:
-		val = (int)((animationTime * Freq + Phase) * (float)SStaticSinusTable::sSinTableCount);
+		val = (int)((animationTime.BADGetSeconds() * Freq + Phase) * (float)SStaticSinusTable::sSinTableCount);
 		return Amp * SStaticSinusTable::m_tSinTable[val & (SStaticSinusTable::sSinTableCount - 1)] + Level;
 
 	// Other wave types aren't supported anymore
@@ -2370,7 +2370,7 @@ float CShaderMan::EvalWaveForm(SWaveForm2* wf)
 
 	const char *sShaderName = "Unknown"; //gRenDev->m_RP.m_pShader->GetName();
 
-	float animationTime = gRenDev->GetAnimationTime().GetSeconds();
+	CTimeValue animationTime = gRenDev->GetAnimationTime();
 
 	switch (wf->m_eWFType)
 	{
@@ -2379,7 +2379,7 @@ float CShaderMan::EvalWaveForm(SWaveForm2* wf)
 		break;
 
 	case eWF_Sin:
-		val = (int)((animationTime * wf->m_Freq + wf->m_Phase) * (float)SStaticSinusTable::sSinTableCount);
+		val = (int)((animationTime.BADGetSeconds() * wf->m_Freq + wf->m_Phase) * (float)SStaticSinusTable::sSinTableCount);
 		return wf->m_Amp * SStaticSinusTable::m_tSinTable[val & (SStaticSinusTable::sSinTableCount - 1)] + wf->m_Level;
 
 	// Other wave types aren't supported anymore
@@ -2881,9 +2881,9 @@ void CShaderMan::mfSortResources()
 
 //---------------------------------------------------------------------------
 
-void CLightStyle::mfUpdate(float fTime)
+void CLightStyle::mfUpdate(const CTimeValue& fTime)
 {
-	float m = fTime * m_TimeIncr;
+	CTimeValue m = fTime * m_TimeIncr;
 	//    if (m != m_LastTime)
 	{
 		m_LastTime = m;
@@ -2895,9 +2895,9 @@ void CLightStyle::mfUpdate(float fTime)
 			}
 			else
 			{
-				int first = (int)QInt(m);
+				int first = (int)m.GetSeconds();
 				int second = (first + 1);
-				float fLerp = m - (float)first;
+				float fLerp = (m - first).BADGetSeconds();
 
 				// Interpolate between key-frames
 				// todo: try different interpolation method

@@ -489,9 +489,9 @@ bool CShaderSerialize::ExportShader(CShader* pSH, CShaderManBin& binShaderMgr)
 	return bRes;
 }
 
-float g_fTime0;
-float g_fTime1;
-float g_fTime2;
+CTimeValue g_fTime0;
+CTimeValue g_fTime1;
+CTimeValue g_fTime2;
 
 bool CShaderSerialize::CheckFXBExists(CShader* pSH)
 {
@@ -532,7 +532,7 @@ bool CShaderSerialize::ImportShader(CShader* pSH, CShaderManBin& binShaderMgr)
 		CryFatalError("CShaderSerialize - cross platform import not supported");
 	}
 
-	float fTime0 = iTimer->GetAsyncCurTime();
+	CTimeValue fTime0 = GTimer(d3d)->GetAsyncCurTime();
 
 	bool bRes = true;
 	SSShaderRes* pSR = NULL;
@@ -591,9 +591,9 @@ bool CShaderSerialize::ImportShader(CShader* pSH, CShaderManBin& binShaderMgr)
 	//printf("[CShaderSerialize] Import Shader: %s flags: 0x%llx mdvFlags: 0x%x from %s cache %s\n", pSH->GetName(), pSH->m_nMaskGenFX, pSH->m_nMDV, bLoadedFromLevel ? "LEVEL" : "GLOBAL", pSR->m_pRes[i]->mfGetFileName());
 
 	byte* pSrc = pData;
-	g_fTime0 += iTimer->GetAsyncCurTime() - fTime0;
+	g_fTime0 += GTimer(d3d)->GetAsyncCurTime() - fTime0;
 
-	float fTime1 = iTimer->GetAsyncCurTime();
+	CTimeValue fTime1 = GTimer(d3d)->GetAsyncCurTime();
 
 	SShaderFXParams& fxParams = binShaderMgr.mfGetFXParams(pSH);
 
@@ -730,9 +730,9 @@ bool CShaderSerialize::ImportShader(CShader* pSH, CShaderManBin& binShaderMgr)
 
 	pRes->mfFileClose(pDE->GetName(), pDE->GetFlags());
 
-	g_fTime1 += iTimer->GetAsyncCurTime() - fTime1;
+	g_fTime1 += GTimer(d3d)->GetAsyncCurTime() - fTime1;
 
-	float fTime2 = iTimer->GetAsyncCurTime();
+	CTimeValue fTime2 = GTimer(d3d)->GetAsyncCurTime();
 
 	pSH->m_eSHDType = SC.SSR.m_eSHDType;
 
@@ -840,7 +840,7 @@ bool CShaderSerialize::ImportShader(CShader* pSH, CShaderManBin& binShaderMgr)
 		pSH->m_HWTechniques.AddElem(pT);
 	}
 
-	g_fTime2 += iTimer->GetAsyncCurTime() - fTime2;
+	g_fTime2 += GTimer(d3d)->GetAsyncCurTime() - fTime2;
 
 	return bRes;
 }

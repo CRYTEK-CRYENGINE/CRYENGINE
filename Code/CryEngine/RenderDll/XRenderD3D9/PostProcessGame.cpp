@@ -275,20 +275,20 @@ bool CRainDrops::Preprocess(const SRenderViewInfo& viewInfo)
 
 bool CRainDrops::IsActiveRain()
 {
-	static float s_fLastSpawnTime = -1.0f;
+	static CTimeValue s_fLastSpawnTime = -1;
 
 	if (m_pAmount->GetParam() > 0.09f || m_nAliveDrops)
 	{
-		s_fLastSpawnTime = 0.0f;
+		s_fLastSpawnTime.SetSeconds(0);
 		return true;
 	}
 
-	if (s_fLastSpawnTime == 0.0f)
+	if (s_fLastSpawnTime == 0)
 	{
-		s_fLastSpawnTime = PostProcessUtils().m_pTimer->GetCurrTime();
+		s_fLastSpawnTime = GTimer(peffects)->GetFrameStartTime();
 	}
 
-	if (fabs(PostProcessUtils().m_pTimer->GetCurrTime() - s_fLastSpawnTime) < 1.0f)
+	if (abs(GTimer(peffects)->GetFrameStartTime() - s_fLastSpawnTime) < 1)
 	{
 		return true;
 	}
@@ -299,17 +299,17 @@ void CRainDrops::SpawnParticle(SRainDrop*& pParticle, int iRTWidth, int iRTHeigh
 {
 	static SRainDrop pNewDrop;
 
-	static float fLastSpawnTime = 0.0f;
+	static CTimeValue fLastSpawnTime;
 
 	float fUserSize = 5.0f;//m_pSize->GetParam();
 	float fUserSizeVar = 2.5f;//m_pSizeVar->GetParam();
 
-	if (cry_random(0.0f, 1.0f) > 0.5f && fabs(PostProcessUtils().m_pTimer->GetCurrTime() - fLastSpawnTime) > m_pSpawnTimeDistance->GetParam())
+	if (cry_random(0.0f, 1.0f) > 0.5f && abs(GTimer(peffects)->GetFrameStartTime() - fLastSpawnTime) > BADTIME(m_pSpawnTimeDistance->GetParam()))
 	{
 		pParticle->m_pPos.x = cry_random(0.0f, 1.0f);
 		pParticle->m_pPos.y = cry_random(0.0f, 1.0f);
 
-		pParticle->m_fLifeTime = pNewDrop.m_fLifeTime + pNewDrop.m_fLifeTimeVar * cry_random(-1.0f, 1.0f);
+		pParticle->m_fLifeTime = pNewDrop.m_fLifeTime + pNewDrop.m_fLifeTimeVar * cry_random(CTimeValue(-1), CTimeValue(1));
 		//pParticle->m_fSize = (pNewDrop.m_fSize + pNewDrop.m_fSizeVar * cry_random(-1.0f, 1.0f)) * 2.5f;
 		//pNewDrop.m_fSize + pNewDrop.m_fSizeVar
 		pParticle->m_fSize = 1.0f / (10.0f * (fUserSize + 0.5f * fUserSizeVar * cry_random(-1.0f, 1.0f)));
@@ -317,10 +317,10 @@ void CRainDrops::SpawnParticle(SRainDrop*& pParticle, int iRTWidth, int iRTHeigh
 		pParticle->m_pPos.x -= pParticle->m_fSize / (float)iRTWidth;
 		pParticle->m_pPos.y -= pParticle->m_fSize / (float)iRTHeight;
 
-		pParticle->m_fSpawnTime = PostProcessUtils().m_pTimer->GetCurrTime();
+		pParticle->m_fSpawnTime = GTimer(peffects)->GetFrameStartTime();
 		pParticle->m_fWeight = 0.0f; // default weight to force rain drop to be stopped for a while
 
-		fLastSpawnTime = PostProcessUtils().m_pTimer->GetCurrTime();
+		fLastSpawnTime = GTimer(peffects)->GetFrameStartTime();
 	}
 	else
 	{
@@ -340,7 +340,7 @@ void CRainDrops::UpdateParticles(int iRTWidth, int iRTHeight)
 	float fDot = vz.Dot(Vec3(0, 0, -1.0f));
 	float fGravity = 1.0f - fabs(fDot);
 
-	float fCurrFrameTime = 10.0f * gEnv->pTimer->GetFrameTime();
+	float fCurrFrameTime = 10.0f * GetGTimer()->GetFrameTime();
 
 	bool bAllowSpawn(m_pAmount->GetParam() > 0.005f);
 
@@ -351,7 +351,7 @@ void CRainDrops::UpdateParticles(int iRTWidth, int iRTHeight)
 	{
 		SRainDrop* pCurr = (*pItor);
 
-		float fCurrLifeTime = (PostProcessUtils().m_pTimer->GetCurrTime() - pCurr->m_fSpawnTime) / pCurr->m_fLifeTime;
+		float fCurrLifeTime = (GTimer(peffects)->GetFrameStartTime() - pCurr->m_fSpawnTime) / pCurr->m_fLifeTime;
 
 		// particle died, spawn new
 		if (fabs(fCurrLifeTime) > 1.0f || pCurr->m_fSize < 0.01f)
@@ -401,7 +401,7 @@ Matrix44 CRainDrops::ComputeCurrentView(int iViewportWidth, int iViewportHeight)
 	Matrix33 pLerpedView;
 	pLerpedView.SetIdentity();
 
-	float fCurrFrameTime = gEnv->pTimer->GetFrameTime();
+	float fCurrFrameTime = GetGTimer()->GetFrameTime();
 	// scale down speed a bit
 	float fAlpha = iszero(fCurrFrameTime) ? 0.0f : .0005f / (fCurrFrameTime);
 
@@ -539,7 +539,7 @@ void CRainDrops::DrawRaindrops(int iViewportWidth, int iViewportHeight, int iRTW
 			float x1 = (pCurr->m_pPos.x + pCurr->m_fSize * (fScreenH / fScreenW)) * fScreenW;
 			float y1 = (pCurr->m_pPos.y + pCurr->m_fSize) * fScreenH;
 
-			float fCurrLifeTime = (PostProcessUtils().m_pTimer->GetCurrTime() - pCurr->m_fSpawnTime) / pCurr->m_fLifeTime;
+			float fCurrLifeTime = (GTimer(peffects)->GetFrameStartTime() - pCurr->m_fSpawnTime) / pCurr->m_fLifeTime;
 			Vec4 vRainParams = Vec4(1.0f, 1.0f, 1.0f, 1.0f - fCurrLifeTime);
 
 			static CCryNameR pParam0Name("vRainParams");
@@ -577,7 +577,7 @@ void CRainDrops::ApplyExtinction(CTexture*& rptexPrevRT, int iViewportWidth, int
 		Vec3 vz = gRenDev->GetCamera().GetRenderVectorZ();    // front vec
 		float fDot = vz.Dot(Vec3(0, 0, -1.0f));
 		float fGravity = (1.0f - fabs(fDot));
-		float fFrameScale = 4.0f * gEnv->pTimer->GetFrameTime();
+		float fFrameScale = 4.0f * GetGTimer()->GetFrameTime();
 		Vec4 vRainNormalMapParams = Vec4(m_pVelocityProj.x * ((float)iViewportWidth), 0, fFrameScale * fGravity, fFrameScale * 1.0f + m_pVelocityProj.y * ((float)iViewportHeight)) * 0.25f;
 
 		//texture to restore
@@ -646,9 +646,9 @@ bool CFlashBang::Preprocess(const SRenderViewInfo& viewInfo)
 {
 
 	float fActive = m_pActive->GetParam();
-	if (fActive || m_fSpawnTime)	{
+	if (fActive || m_fSpawnTime != 0)	{
 		if (fActive)
-			m_fSpawnTime = 0.0f;
+			m_fSpawnTime.SetSeconds(0);
 
 		m_pActive->SetParam(0.0f);
 
@@ -668,7 +668,7 @@ void CFlashBang::Render()
 
 	if (!m_fSpawnTime)
 	{
-		m_fSpawnTime = PostProcessUtils().m_pTimer->GetCurrTime();
+		m_fSpawnTime = GTimer(peffects)->GetFrameStartTime();
 
 		// Create temporary ghost image and capture screen
 		SAFE_DELETE(m_pGhostImage);
@@ -683,7 +683,7 @@ void CFlashBang::Render()
 	}
 
 	// Update current time
-	float fCurrTime = (PostProcessUtils().m_pTimer->GetCurrTime() - m_fSpawnTime) / fTimeDuration;
+	float fCurrTime = (GTimer(peffects)->GetFrameStartTime() - m_fSpawnTime) / fTimeDuration;
 
 	// Effect finished
 	if (fCurrTime > 1.0f)

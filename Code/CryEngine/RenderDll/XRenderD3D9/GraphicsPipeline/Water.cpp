@@ -507,7 +507,7 @@ void CWaterStage::ExecuteDeferredOceanCaustics()
 			PF.vCausticsCurrSunDir = pRealtimeSunDirNormalized;
 
 		const float factor = 0.005f;
-		PF.vCausticsCurrSunDir += (pRealtimeSunDirNormalized - PF.vCausticsCurrSunDir) * factor * gEnv->pTimer->GetFrameTime();
+		PF.vCausticsCurrSunDir += (pRealtimeSunDirNormalized - PF.vCausticsCurrSunDir) * factor * GetGTimer()->GetFrameTime().BADGetSeconds();
 		PF.vCausticsCurrSunDir.Normalize();
 	}
 
@@ -679,7 +679,7 @@ void CWaterStage::ExecuteDeferredOceanCaustics()
 		static CCryNameR nameCausticParams("vCausticParams");
 		pass.SetConstant(nameCausticParams, pCausticsParams);
 
-		float fTime = 0.125f * GetGraphicsPipeline().GetAnimationTime().GetSeconds();
+		float fTime = 0.125f * GetGraphicsPipeline().GetAnimationTime().BADGetSeconds();
 		Vec4 vAnimParams(0.06f * fTime, 0.05f * fTime, 0.1f * fTime, -0.11f * fTime);
 
 		static CCryNameR nameAnimParams("vAnimParams");
@@ -930,9 +930,9 @@ bool CWaterStage::PrepareDefaultPerInstanceResources()
 		if (!pRenderer->m_bPauseTimer)
 		{
 			// flip rain ripple texture
-			const float elapsedTime = GetGraphicsPipeline().GetAnimationTime().GetSeconds();
-			CRY_ASSERT(elapsedTime >= 0.0f);
-			const float AnimTexFlipTime = 0.05f;
+			const CTimeValue elapsedTime = GetGraphicsPipeline().GetAnimationTime();
+			CRY_ASSERT(elapsedTime >= 0);
+			const CTimeValue AnimTexFlipTime = "0.05";
 			m_rainRippleTexIndex = (uint32)(elapsedTime / AnimTexFlipTime) % m_pRainRippleTex.size();
 		}
 
@@ -1250,8 +1250,8 @@ void CWaterStage::ExecuteWaterNormalGen()
 			// Copy data..
 			if (CTexture::IsTextureExist(pTexture))
 			{
-				//const float fUpdateTime = 2.f*0.125f*gEnv->pTimer->GetCurrTime();
-				const float fUpdateTime = 0.125f * gEnv->pTimer->GetCurrTime();// / clamp_tpl<float>(pParams1.x, 0.55f, 1.0f);
+				//const CTimeValue fUpdateTime = 2*"0.125"*GetGTimer()->GetFrameStartTime();
+				const CTimeValue fUpdateTime = "0.125" * GetGTimer()->GetFrameStartTime();// / clamp_tpl<float>(pParams1.x, 0.55f, 1.0f);
 
 				void* pRawPtr = nullptr;
 				WaterSimMgr()->Update((int)nCurFrameID, fUpdateTime, true, pRawPtr);
