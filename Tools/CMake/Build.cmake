@@ -154,9 +154,11 @@ if (OPTION_PHYSDBGR)
 	add_subdirectory(Code/Tools/PhysDebugger)
 endif()
 
-
 set(CMAKE_INSTALL_MESSAGE LAZY)
 install(FILES "${TOOLS_CMAKE_DIR}/modules/CryCommonConfig.cmake" DESTINATION share/cmake)
 install(FILES "${TOOLS_CMAKE_DIR}/modules/CryActionConfig.cmake" DESTINATION share/cmake)
+
+## For static/trackable build options outside of the usual setup.
+include("${TOOLS_CMAKE_DIR}/OVERRIDE.cmake") 
 
 copy_binary_files_to_target()

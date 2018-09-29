@@ -108,4 +108,4 @@ CryEngine edits:
 
 	Copy libgcc_s_seh-1.dll and libwinpthread-1.dll from mingw64/bin to /CRYENGINE/Code/SDKs/MPFR/lib. That's it!
 	
-	If ya want you can view the reqired library appends/etc. in Tools/CMake/Configure.cmake and Tools/RC/CmakeLists.txt (duplicate)
+	If ya want you can view the reqired library appends/etc. in Tools/CMake/Configure.cmake and Tools/RC/CmakeLists.txt

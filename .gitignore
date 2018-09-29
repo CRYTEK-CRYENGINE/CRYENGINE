@@ -2,10 +2,14 @@
 *.pak
 *.caf
 
+# Ain't that many files to ignore, easier to handle through github for now.
+!GameSampleFPS/**
+GameSampleFPS/Animations/editor/*
+
 # Config files
-/user.cfg
-/system.cfg
-/editor.cfg
+#/user.cfg
+#/system.cfg
+#/editor.cfg
 /.bootstrap*.*
 
 # Temporary files.
@@ -31,6 +35,8 @@ _WAF_/user_settings.options
 /[Ll]og[Bb]ackups
 /[Uu]ser*/
 __pycache__/*
+/Editor/ResourceCache/*
+/Editor/Tmp/*
 
 # Might contain a license key, so don't add it to a repo.
 /Code/Tools/waf-1.7.13/recode.lic
@@ -38,3 +44,20 @@ __pycache__/*
 
 # These are handled elsewhere.
 /Code/SDKs/*
+
+##
+## As a just-in-case + record keeping. SDK zip installation will override this and should match!
+##
+!/Code/SDKs/SDK_LIST_EDITS.txt
+!/Code/SDKs/LICENSE_NOTES.txt
+
+# .gitignore workarounds xd
+!/Code/SDKs/boost
+/Code/SDKs/boost/*
+!/Code/SDKs/boost/boost
+/Code/SDKs/boost/boost/*
+!/Code/SDKs/boost/boost/multiprecision/
+/Code/SDKs/boost/boost/multiprecision/*
+
+!/Code/SDKs/boost/boost/multiprecision/gmp.hpp
+!/Code/SDKs/boost/boost/multiprecision/mpfr.hpp

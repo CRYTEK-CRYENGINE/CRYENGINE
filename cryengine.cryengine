@@ -1,7 +1,7 @@
 {
     "info": {
-        "id": "engine-5.5",
-        "name": "CRYENGINE 5.5",
+        "id": "engine-5.5-personal",
+        "name": "CRYENGINE 5.5-personal",
         "version": "5.5.0"
     },
     "dependencies": [

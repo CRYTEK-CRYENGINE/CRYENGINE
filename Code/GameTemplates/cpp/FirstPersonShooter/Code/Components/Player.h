@@ -106,10 +106,10 @@ public:
 	void Revive();
 
 protected:
-	void UpdateMovementRequest(float frameTime);
-	void UpdateLookDirectionRequest(float frameTime);
-	void UpdateAnimation(float frameTime);
-	void UpdateCamera(float frameTime);
+	void UpdateMovementRequest(const CTimeValue& frameTime);
+	void UpdateLookDirectionRequest(const CTimeValue& frameTime);
+	void UpdateAnimation(const CTimeValue& frameTime);
+	void UpdateCamera(const CTimeValue& frameTime);
 
 	void SpawnAtSpawnPoint();
 

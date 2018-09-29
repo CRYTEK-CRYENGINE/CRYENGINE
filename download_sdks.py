@@ -22,8 +22,7 @@ def read_chunks(url, block_sz=8192 * 8):
                 return
 
 
-BASE_URL = 'https://github.com/CRYTEK/CRYENGINE/releases/download/5.5.0/CRYENGINE_v5.5.0_SDKs'
-
+BASE_URL = 'https://github.com/Personwithhat/CRYENGINE/releases/download/5.5.0_PLUS/CRYENGINE_v5.5.0_SDKs'
 
 def main():
     # use ZIP on windows and tar on other platforms

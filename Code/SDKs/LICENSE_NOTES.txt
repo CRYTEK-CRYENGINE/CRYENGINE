@@ -1,0 +1,9 @@
+FMOD:
+	According to FMOD, you can actually redistribute the required files more or less. Needs a bit more clarification but here's what I got.
+	"We allow people to redistribute our dll, just not the whole contents of the FMOD SDK installer. If you can dynamically link to FMOD’s dll you should be able to distribute it and not have to include any other files."
+	
+FBX:
+	http://help.autodesk.com/view/FBX/2019/ENU/?guid=FBX_Developer_Help_welcome_to_the_fbx_sdk_technical_support_html
+	https://creativecommons.org/licenses/by-nc-sa/3.0/
+	tl;dr I can use it just have to credit them and say if I've made changes! (Which ofc I haven't.)
+	

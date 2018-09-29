@@ -140,51 +140,52 @@ void CPlayerComponent::ProcessEvent(const SEntityEvent& event)
 	}
 }
 
-void CPlayerComponent::UpdateMovementRequest(float frameTime)
+void CPlayerComponent::UpdateMovementRequest(const CTimeValue& frameTime)
 {
 	// Don't handle input if we are in air
 	if (!m_pCharacterController->IsOnGround())
 		return;
 
 	Vec3 velocity = ZERO;
+	float fSeconds = frameTime.BADGetSeconds();
 
 	const float moveSpeed = 20.5f;
-
+	
 	if (m_inputFlags & (TInputFlags)EInputFlag::MoveLeft)
 	{
-		velocity.x -= moveSpeed * frameTime;
+		velocity.x -= moveSpeed * fSeconds;
 	}
 	if (m_inputFlags & (TInputFlags)EInputFlag::MoveRight)
 	{
-		velocity.x += moveSpeed * frameTime;
+		velocity.x += moveSpeed * fSeconds;
 	}
 	if (m_inputFlags & (TInputFlags)EInputFlag::MoveForward)
 	{
-		velocity.y += moveSpeed * frameTime;
+		velocity.y += moveSpeed * fSeconds;
 	}
 	if (m_inputFlags & (TInputFlags)EInputFlag::MoveBack)
 	{
-		velocity.y -= moveSpeed * frameTime;
+		velocity.y -= moveSpeed * fSeconds;
 	}
 
 	m_pCharacterController->AddVelocity(GetEntity()->GetWorldRotation() * velocity);
 }
 
-void CPlayerComponent::UpdateLookDirectionRequest(float frameTime)
+void CPlayerComponent::UpdateLookDirectionRequest(const CTimeValue& frameTime)
 {
 	const float rotationSpeed = 0.002f;
 	const float rotationLimitsMinPitch = -0.84f;
 	const float rotationLimitsMaxPitch = 1.5f;
 
-	if (m_mouseDeltaRotation.IsEquivalent(ZERO, MOUSE_DELTA_TRESHOLD))
-		return;
-
 	// Apply smoothing filter to the mouse input
 	m_mouseDeltaRotation = m_mouseDeltaSmoothingFilter.Push(m_mouseDeltaRotation).Get();
 
 	// Update angular velocity metrics
-	m_horizontalAngularVelocity = (m_mouseDeltaRotation.x * rotationSpeed) / frameTime;
+	m_horizontalAngularVelocity = (m_mouseDeltaRotation.x * rotationSpeed) / frameTime.BADGetSeconds();
 	m_averagedHorizontalAngularVelocity.Push(m_horizontalAngularVelocity);
+
+	if (m_mouseDeltaRotation.IsEquivalent(ZERO, MOUSE_DELTA_TRESHOLD))
+		return;
 
 	// Start with updating look orientation from the latest input
 	Ang3 ypr = CCamera::CreateAnglesYPR(Matrix33(m_lookOrientation));
@@ -205,7 +206,7 @@ void CPlayerComponent::UpdateLookDirectionRequest(float frameTime)
 	m_mouseDeltaRotation = ZERO;
 }
 
-void CPlayerComponent::UpdateAnimation(float frameTime)
+void CPlayerComponent::UpdateAnimation(const CTimeValue& frameTime)
 {
 	const float angularVelocityTurningThreshold = 0.174; // [rad/s]
 
@@ -240,7 +241,7 @@ void CPlayerComponent::UpdateAnimation(float frameTime)
 	GetEntity()->SetPosRotScale(GetEntity()->GetWorldPos(), correctedOrientation, Vec3(1, 1, 1));
 }
 
-void CPlayerComponent::UpdateCamera(float frameTime)
+void CPlayerComponent::UpdateCamera(const CTimeValue& frameTime)
 {
 	// Start with updating look orientation from the latest input
 	Ang3 ypr = CCamera::CreateAnglesYPR(Matrix33(m_lookOrientation));
