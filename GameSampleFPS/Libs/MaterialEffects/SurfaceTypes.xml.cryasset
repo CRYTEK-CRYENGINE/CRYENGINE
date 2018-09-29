@@ -1,0 +1,8 @@
+<AssetMetadata version="0" type="Xml" guid="b2405fe1-eb3b-bb68-8ba2-83986ce5a43a">
+ <Files>
+  <File path="SurfaceTypes.xml"/>
+ </Files>
+ <Details>
+  <Detail name="rootTag">SurfaceTypes</Detail>
+ </Details>
+</AssetMetadata>

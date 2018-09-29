@@ -1,0 +1,8 @@
+<AssetMetadata version="0" type="Xml" guid="738e62ab-448c-09c6-da92-f58d06b3f9fb">
+ <Files>
+  <File path="test.xml"/>
+ </Files>
+ <Details>
+  <Detail name="rootTag">History</Detail>
+ </Details>
+</AssetMetadata>

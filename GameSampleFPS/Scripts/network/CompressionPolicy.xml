@@ -1,0 +1,451 @@
+<CompressionPolicy>
+	<!-- Network -->
+	<Policy name="tnet" impl="Time">
+		<Params stream="Network"/>
+	</Policy>
+	<!-- remote time -->
+	<Policy name="trem" impl="Time">
+		<Params stream="Remote"/>
+	</Policy>
+	<!-- ping time -->
+	<Policy name="ping" impl="Time">
+		<Params stream="Ping"/>
+	</Policy>
+	<!-- pong time -->
+	<Policy name="pong" impl="Time">
+		<Params stream="Pong"/>
+	</Policy>
+	<!-- pong elapsed time -->
+	<Policy name="pelp" impl="Time">
+		<Params stream="PongElapsed"/>
+	</Policy>
+	<!-- physics time -->
+	<Policy name="tPhy" impl="Time">
+		<Params stream="Physics"/>
+	</Policy>
+	<!-- entity id's -->
+	<Policy name="eid" impl="EntityId"/>
+	<!-- string table (for strings that are sent repeatedly) -->
+	<Policy name="stab" impl="StringTable"/>
+
+	<Policy name="wrld" impl="QuantizedVec3">
+		<XParams min="0" max="4096.0" nbits="27"/>
+		<YParams min="0" max="4096.0" nbits="27"/>
+		<ZParams min="0" max="1023.0" nbits="18"/>
+	</Policy>
+	<!-- combined local and world space -->
+	<Policy name="lwld" impl="QuantizedVec3">
+		<XParams min="-20" max="4096.0" nbits="27"/>
+		<YParams min="-20" max="4096.0" nbits="27"/>
+		<ZParams min="-20" max="1023.0" nbits="18"/>
+	</Policy>
+	<Policy name="wrl2" impl="AdaptiveVec3">
+		<XParams 
+			min="0" 
+			max="4095" 
+			nbits="24" 
+			probHeight="1024" 
+			minRange="0.0312" 
+			maxRange="1"
+			quantization="RoundLeft"
+			inRange="85"/>
+		<YParams 
+			min="0" 
+			max="4095" 
+			nbits="24" 
+			probHeight="1024" 
+			minRange="0.0312" 
+			maxRange="1"
+			quantization="RoundLeft"
+			inRange="85"/>
+		<ZParams 
+			min="0" 
+			max="2047" 
+			nbits="24" 
+			probHeight="1024" 
+			minRange="0.0312" 
+			maxRange="1"
+			quantization="NeverLower"
+			inRange="85"/>
+	</Policy>
+	<Policy name="wrl3" impl="AdaptiveVec3"><!-- for positions that can be out of terrain range usually "target destination" -->
+		<XParams 
+			min="-2045" 
+			max="6145" 
+			nbits="30" 
+			probHeight="1024" 
+			minRange="0.0312" 
+			maxRange="1"
+			quantization="RoundLeft"
+			inRange="85"/>
+		<YParams 
+			min="-2045" 
+			max="6145" 
+			nbits="30" 
+			probHeight="1024" 
+			minRange="0.0312" 
+			maxRange="1"
+			quantization="RoundLeft"
+			inRange="85"/>
+		<ZParams 
+			min="-2095" 
+			max="6145" 
+			nbits="28" 
+			probHeight="1024" 
+			minRange="0.0312" 
+			maxRange="1"
+			quantization="NeverLower"
+			inRange="85"/>
+	</Policy>
+	<Policy name="frad" impl="FloatAsInt">
+		<Params min="-4" max="4" nbits="12"/>
+	</Policy>
+	<!-- relative position -->
+	<Policy name="rpos" impl="QuantizedVec3">
+		<XParams min="-10.0" max="+10.0" nbits="10" quantization="RoundLeftWithMidpoint" />
+		<YParams min="-10.0" max="+10.0" nbits="10" quantization="RoundLeftWithMidpoint" />
+		<ZParams min="-10.0" max="+10.0" nbits="10" quantization="RoundLeftWithMidpoint" />
+	</Policy>
+	
+	<!-- small float -->
+	<Policy name="smal" impl="FloatAsInt">
+		<Params min="0" max="16" nbits="8"/>
+	</Policy>
+	
+	<!-- small float -->
+	<Policy name="sone" impl="FloatAsInt">
+		<Params min="-1" max="1" nbits="10"/>
+	</Policy>
+
+	<!-- time of day -->
+	<Policy name="tod" impl="AdaptiveFloat">
+		<Params min="0" max="24" nbits="11"/>
+	</Policy>
+	<Policy name="colr" impl="QuantizedVec3" >
+		<XParams min="0" max="1" nbits="5" quantization="TruncateLeft"/>
+		<YParams min="0" max="1" nbits="5" quantization="TruncateLeft"/>
+		<ZParams min="0" max="1" nbits="5" quantization="TruncateLeft"/>
+	</Policy>
+	<Policy name="dMov" impl="QuantizedVec3" >
+		<XParams min="-1" max="1" nbits="5" quantization="TruncateLeft"/>
+		<YParams min="-1" max="1" nbits="5" quantization="TruncateLeft"/>
+		<ZParams min="-1" max="1" nbits="4" quantization="RoundLeftWithMidpoint"/> <!-- need to replicate zero -->
+	</Policy>
+	<Policy name="pMov" impl="AdaptiveVec3" samplingWeight="0.5">
+		<XParams min="-2" max="2" nbits="6" quantization="TruncateLeft"/>
+		<YParams min="-2" max="2" nbits="6" quantization="TruncateLeft"/>
+		<ZParams min="-2" max="2" nbits="5" quantization="TruncateLeft"/>
+	</Policy>
+	<Policy name="vHPs" impl="AdaptiveVec3">
+		<XParams min="-40" max="40" nbits="10"/>
+		<YParams min="-40" max="40" nbits="10"/>
+		<ZParams min="-40" max="40" nbits="10"/>
+	</Policy>
+	<Policy name="jmpv" impl="QuantizedVec3" >
+		<XParams min="-10" max="10" nbits="8" quantization="TruncateLeft"/>
+		<YParams min="-10" max="10" nbits="8" quantization="TruncateLeft"/>
+		<ZParams min="-10" max="10" nbits="8" quantization="TruncateLeft"/>
+	</Policy>
+	<Policy name="team" impl="RangedInt">
+		<Range min="0" max="3"/>
+	</Policy>
+	<!-- int: spectator mode -->
+	<Policy name="spec" impl="RangedInt">
+		<Range min="0" max="7"/>
+	</Policy>
+	<Alias name="fmod" is="ui3"/>
+	<Policy name="i8" impl="RangedInt">
+		<Range min="-128" max="127"/>
+	</Policy>
+	<Policy name="i16" impl="RangedInt">
+		<Range min="-32768" max="32767"/>
+	</Policy>
+	<Policy name="i32" impl="RangedInt">
+		<Range min="-2147483647" max="2147483647"/>
+	</Policy>
+	
+	<Policy name="ui2" impl="RangedUnsignedInt">
+		<Range min="0" max="3"/>
+	</Policy>
+
+	<Policy name="ui3" impl="RangedUnsignedInt">
+		<Range min="0" max="7"/>
+	</Policy>
+
+	<Policy name="ui4" impl="RangedUnsignedInt">
+		<Range min="0" max="15"/>
+	</Policy>
+
+	<Policy name="ui5" impl="RangedUnsignedInt">
+		<Range min="0" max="31"/>
+	</Policy>
+
+	<Policy name="ui6" impl="RangedUnsignedInt">
+		<Range min="0" max="63"/>
+	</Policy>
+
+	<Policy name="ui8" impl="RangedUnsignedInt">
+		<Range min="0" max="255"/>
+	</Policy>
+  <Policy name="ui9" impl="RangedUnsignedInt">
+    <Range min="0" max="511"/>
+  </Policy>
+	<Policy name="ui10" impl="RangedUnsignedInt">
+		<Range min="0" max="1023"/>
+	</Policy>
+	<Policy name="ui16" impl="RangedUnsignedInt">
+		<Range min="0" max="65535"/>
+	</Policy>
+	<Policy name="ui32" impl="RangedUnsignedInt">
+		<Range min="0" max="4294967294"/>
+	</Policy>
+	<!-- prediction handle -->
+	<Policy name="phdl" impl="RangedUnsignedInt">
+		<Range min="0" max="4294967294"/>
+	</Policy>
+	<!-- breakable id -->
+	<!-- note this cannot be changed without changing MAX_BREAK_STREAMS in CryNetwork/ContextView.h -->
+	<Policy name="brId" impl="RangedInt">
+		<Range min="0" max="6"/>
+	</Policy>
+  <Policy name="cmbo" impl="RangedInt">
+    <Range min="-1" max="3"/>
+  </Policy>
+	<Policy name="stnc" impl="RangedInt">
+		<Range min="0" max="6"/>
+	</Policy>
+
+	<Policy name="bdst" impl="RangedInt">
+		<Range min="-1" max="15"/>
+	</Policy>
+
+	<Policy name="sSts" impl="RangedInt">
+		<Range min="0" max="7"/>
+	</Policy>
+	<Policy name="ammo" impl="RangedInt">
+		<Range min="0" max="1023"/>
+	</Policy>
+  <Alias name="clip" is="ui9"/>
+	<Policy name="clas" impl="RangedInt">
+		<Range min="0" max="1023"/>
+	</Policy>
+	
+	<Policy name="bool" impl="AdaptiveBool"/>
+	<Policy name="ori1" impl="AdaptiveOrientation">
+		<Params min="-1" max="1" nbits="8"/>
+	</Policy>
+	<Policy name="ori3" impl="AdaptiveOrientation">
+		<Params min="-1" max="1" nbits="12"/>
+	</Policy>
+	<Alias name="ori0" is="ori1"/>
+	<Alias name="ori2" is="ori3"/>
+	<Policy name="dir0" impl="AdaptiveUnitVec3">
+		<Params min="-1" max="1" nbits="10"/>
+	</Policy>
+	<Policy name="dir1" impl="AdaptiveUnitVec3">
+		<Params min="-1" max="1" nbits="12"/>
+	</Policy>
+	<Policy name="dir2" impl="AdaptiveUnitVec3">
+		<Params min="-1" max="1" nbits="16"/>
+	</Policy>
+	<Policy name="dir3" impl="AdaptiveUnitVec3">
+		<Params min="-1" max="1" nbits="24"/>
+	</Policy>
+	<Policy name="mat" impl="RangedInt">
+		<Range min="-1" max="255"/>
+	</Policy>
+  <Policy name="part" impl="RangedInt">
+    <Range min="-1" max="1023"/>
+  </Policy> 
+	<Policy name="iScl" impl="FloatAsInt">
+		<Params min="1" max="50" nbits="10"/>
+	</Policy>
+	<Policy name="iii" impl="FloatAsInt">
+		<Params min="0" max="2048" nbits="12"/>
+	</Policy>
+	<Policy name="kImp" impl="QuantizedVec3">
+		<XParams min="-1" max="1" nbits="10"/>
+		<YParams min="-1" max="1" nbits="10"/>
+		<ZParams min="-1" max="1" nbits="10"/>
+	</Policy>
+	<Policy name="dmg" impl="FloatAsInt">
+		<Params min="0" max="511" nbits="9"/>
+	</Policy>
+  <Policy name="vdmg" impl="FloatAsInt">
+    <Params min="0" max="8191" nbits="13"/>
+  </Policy>
+  <Policy name="edmg" impl="FloatAsInt">
+    <Params min="-57344" max="8191" nbits="14"/>
+  </Policy>
+  <Policy name="xdmg" impl="FloatAsInt">
+    <Params min="0" max="16777216" nbits="24"/>
+  </Policy>
+  <Policy name="impS" impl="FloatAsInt">
+    	<Params min="0" max="8191" nbits="9"/>
+  </Policy>
+	<Policy name="sHit" impl="QuantizedVec3">
+		<XParams min="-8192" max="8191" nbits="26"/>
+		<YParams min="-8192" max="8191" nbits="26"/>
+		<ZParams min="-8192" max="8191" nbits="26"/>
+	</Policy>
+	<Policy name="hit0" impl="QuantizedVec3">
+		<XParams min="0.000" max="1.999" nbits="13"/>
+		<YParams min="0.000" max="1.999" nbits="13"/>
+		<ZParams min="0.000" max="1.999" nbits="13"/>
+	</Policy>
+	<Policy name="hit1" impl="QuantizedVec3">
+		<XParams min="0.000" max="15.999" nbits="16"/>
+		<YParams min="0.000" max="15.999" nbits="16"/>
+		<ZParams min="0.000" max="15.999" nbits="16"/>
+	</Policy>
+	<Policy name="pHAn" impl="QuantizedVec3">
+		<XParams min="-3.14593" max="3.14593" nbits="12"/>
+		<YParams min="-3.14593" max="3.14593" nbits="12"/>
+		<ZParams min="-3.14593" max="3.14593" nbits="12"/>
+	</Policy>
+	<Policy name="vel0" impl="Velocity">
+		<Params min="-80" max="80" nbits="10"/>
+	</Policy>
+	<Policy name="hTyp" impl="RangedInt">
+		<Range min="0" max="63"/>
+	</Policy>
+	<Policy name="hVal" impl="AdaptiveFloat">
+		<Params min="0" max="1" nbits="7" height="4"/>
+	</Policy>
+	<Policy name="hRad" impl="FloatAsInt">
+		<Params min="0" max="127" nbits="7"/>
+	</Policy>
+	<Policy name="hAng" impl="FloatAsInt">
+		<Params min="0" max="6.283186" nbits="9"/>
+	</Policy>
+	<Policy name="hPrs" impl="FloatAsInt">
+		<Params min="0" max="10000" nbits="16"/>
+	</Policy>
+	<Policy name="hHSz" impl="FloatAsInt">
+		<Params min="0" max="50" nbits="12"/>
+	</Policy>
+	<Policy name="hESc" impl="FloatAsInt">
+		<Params min="0" max="10" nbits="8"/>
+	</Policy>
+	<Policy name="vPed" impl="AdaptiveFloat">
+		<Params min="-1" max="1" nbits="5" height="4048" minRange="4" quantization="RoundLeftWithMidpoint"/>
+	</Policy>
+	<Alias name="vStr" is="vPed"/>
+	<Alias name="vPow" is="vPed"/>
+	<Alias name="vAng" is="vPed"/>
+	<Policy name="vUse" impl="RangedInt">
+		<Range min="0" max="2047"/>
+	</Policy>
+	<Policy name="vSit" impl="RangedInt">
+		<Range min="0" max="5"/>
+	</Policy>
+	<Policy name="seat" impl="RangedInt">
+		<Range min="0" max="31"/>
+	</Policy>
+	<Policy name="vNWp" impl="RangedInt">
+		<Range min="0" max="200"/>
+	</Policy>
+	<Alias name="hSts" is="ui3"/>
+	<Policy name="nNRG" impl="AdaptiveFloat">
+		<Params min="0" max="100" nbits="7"/>
+	</Policy>
+	<Policy name="vHRd" impl="AdaptiveFloat">
+		<Params min="0" max="400" nbits="12"/>
+	</Policy>
+	<Policy name="vWFr" impl="AdaptiveFloat">
+		<Params min="0" max="10" nbits="9"/>
+	</Policy>
+	<Policy name="vLok" impl="AdaptiveFloat">
+		<Params min="0" max="200" nbits="12" usual="0"/>
+	</Policy>
+	<Policy name="ssk" impl="RangedInt">
+		<Range min="0" max="32768" />
+	</Policy>
+	<Policy name="ssi" impl="RangedInt">
+		<Range min="-16777216" max="16777216"/>
+	</Policy>
+	<Policy name="ssfl" impl="FloatAsInt">
+		<Params min="-16384" max="16384" nbits="24"/>
+	</Policy>
+	<Policy name="aMas" impl="FloatAsInt">
+		<Params min="0" max="256" nbits="12"/>
+	</Policy>
+	<Policy name="hlth" impl="AdaptiveFloat">
+		<Params min="-1" max="150" nbits="8" height="4"/>
+	</Policy>
+	<Policy name="skip" impl="NoSend"/>
+	<Policy name="pSus" impl="AdaptiveFloat">
+		<Params min="-127" max="127" nbits="9" quantization="RoundLeftWithMidpoint"/>
+	</Policy>
+	<Alias name="pPed" is="vPed"/>
+	<Alias name="pStr" is="vPed"/>
+	<Policy name="pClt" impl="Jumpy">
+		<Params min="0" max="1" nbits="7"/>
+	</Policy>
+	<Policy name="pWEn" impl="AdaptiveFloat">
+		<Params min="0" max="511" nbits="6"/>
+	</Policy>
+	<Policy name="pGr" impl="RangedInt">
+		<Range min="0" max="7"/>
+	</Policy>
+	<Policy name="pHVl" impl="Velocity">
+		<Params min="-600" max="600" nbits="16"/>
+	</Policy>
+	<Policy name="pPVl" impl="Velocity">
+		<Params min="-300" max="300" nbits="12"/>
+	</Policy>
+	<Policy name="pLVl" impl="Velocity">
+		<Params min="-200" max="200" nbits="16"/>
+	</Policy>
+	<Policy name="pLVr" impl="Velocity">
+		<Params min="-200" max="200" nbits="9"/>
+	</Policy>
+  <Policy name="pLVt" impl="Velocity">
+    <Params min="-100" max="100" nbits="8"/>
+  </Policy>
+	<Policy name="pLFl" impl="AdaptiveFloat">
+		<Params min="0" max="1000" nbits="16"/>
+	</Policy>
+	<Policy name="pLMF" impl="Jumpy">
+		<Params min="0" max="1" nbits="5"/>
+	</Policy>
+	<Policy name="pRVl" impl="Velocity">
+		<Params min="-128" max="128" nbits="16" quantization="RoundLeftWithMidpoint"/>
+	</Policy>
+	<Policy name="pRAV" impl="Velocity">
+		<Params min="-128" max="128" nbits="16" quantization="RoundLeftWithMidpoint"/>
+	</Policy>
+	<Policy name="pAVl" impl="Velocity">
+		<Params min="-20" max="20" nbits="10"/>
+	</Policy>
+	<!-- float: time in seconds -->
+	<Policy name="fsec" impl="FloatAsInt"> 
+		<Params min="0" max="1000" nbits="16"/>
+	</Policy>
+	<!-- float: 0..1 -->
+	<Policy name="unit" impl="FloatAsInt"> 
+		<Params min="0" max="1" nbits="8"/>
+	</Policy>
+	<Policy name="reld" impl="RangedInt">
+		<Range min="0" max="3" />
+	</Policy>
+	<!-- float: player speed -->
+	<Policy name="plSp" impl="FloatAsInt"> 
+		<Params min="0" max="10" nbits="7"/>
+	</Policy>
+	<!-- float: player yaw and elev, note that quantisation exactly replicates zero and range end points  -->
+	<Policy name="pYaw" impl="FloatAsInt"> 
+		<Params min="-3.1416" max="+3.1416" nbits="8" quantization="RoundLeftWithMidpoint" />
+	</Policy>
+	<Policy name="pElv" impl="FloatAsInt"> 
+		<Params min="-1.5708" max="+1.5708" nbits="7" quantization="RoundLeftWithMidpoint" />
+	</Policy>
+	<!-- float: generic radius values -->
+	<Policy name="rad0" impl="AdaptiveFloat">
+		<Params min="7" max="15" nbits="8"/>
+	</Policy>
+	<Policy name="pLoc" impl="FloatAsInt">
+		<Params min="0" max="127" nbits="16"/>
+	</Policy>  
+</CompressionPolicy>
+

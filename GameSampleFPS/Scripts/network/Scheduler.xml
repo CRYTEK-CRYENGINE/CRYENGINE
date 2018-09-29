@@ -1,0 +1,44 @@
+<Scheduler>
+	<!-- hashing of mementos -->
+	<Group name="hash" priority="2" bandwidth="8192" normalDistance="50" drawn="1" close="1" far="1.5" foi="90" front="1" back="1"/>
+	<!-- partial update resolution -->
+	<Group name="pupd" priority="14" normalDistance="100" drawn="1" close="1" far="2" foi="90" front="0.5" back="2"/>
+	<!-- ping/pong -->
+	<Group name="ping" priority="14" bandwidth="128"/>
+	<Group name="pong" priority="16" latency="0.1"/>
+	<!-- authentication queries -->
+	<Group name="auth" priority="15" latency="2"/>
+	<!-- voice communications -->
+	<Group name="talk" priority="10" latency="0.05" discardLatency="0.2"/>
+	<!-- synced storage -->
+	<Group name="stor" priority="4" latency="0.5" bandwidth="2048"/>
+	<!-- anti-cheat -->
+	<Group name="chk" priority="8" latency="1" bandwidth="1024"/>
+	<Group name="CHK" priority="0" bandwidth="1024"/>
+	<!-- cvar sync -->
+	<Group name="cvar" priority="12" latency="1"/>
+	<!-- class synchronization -->
+	<Group name="clas" priority="12"/>
+	<!-- gamerules -->
+	<Group name="rule" priority="16"/>
+	<!-- owned object -->
+	<Group name="own" priority="16"/>
+	<!-- players -->
+	<Group name="player" priority="8" drawn="1" normalDistance="100" close="2" far="2" foi="90" front="1" back="1">
+		<Pulse name="bump" bump="3" decayTime="2"/>
+		<Pulse name="bang" bump="4" decayTime="0.65"/> <!-- is about bump=2 after 1 second -->
+	</Group>
+	
+	<!-- projectiles -->
+	<Group name="proj" priority="12" drawn="0" normalDistance="100" close="2" far="1" foi="120" front="1" back="2">
+		<Pulse name="bump" bump="3" decayTime="2"/>
+	</Group>
+
+	<!-- physicalized objects -->
+	<Group name="phys" priority="6" drawn="1" normalDistance="40" close="3" far="1" foi="60" front="3" back="2">
+		<Pulse name="bump" bump="2" decayTime="2"/>
+	</Group>
+	
+	<!-- basic object configuration -->
+	<Group name="obj" priority="0"/>
+</Scheduler>

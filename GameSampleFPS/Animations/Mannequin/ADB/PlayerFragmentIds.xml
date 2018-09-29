@@ -1,0 +1,6 @@
+<TagDefinition version="2">
+ <Tags>
+  <Tag name="Idle"/>
+  <Tag name="Walk" subTagDef="Animations/Mannequin/ADB/PlayerTags.xml"/>
+ </Tags>
+</TagDefinition>

@@ -1,0 +1,30 @@
+<ParaGroup>
+ <Dimensions>
+  <Param Name="MoveSpeed" Min="0.2" Max="2.5" Cells="9"/>
+  <Param Name="TravelAngle" Min="-3.1400001" Max="3.1400001" Cells="29"/>
+ </Dimensions>
+ <ExampleList>
+  <Example SetPara1="-3.1470001" AName="walk_bck_3p" PlaybackScale="0.15000001"/>
+  <Example AName="walkcross_bck_rgt_3p" PlaybackScale="0.15000001"/>
+  <Example AName="walkstrafe_rgt_3p" PlaybackScale="0.15000001"/>
+  <Example AName="walk_fwd_3p" PlaybackScale="0.15000001"/>
+  <Example AName="walkcross_fwd_lft_3p" PlaybackScale="0.15000001"/>
+  <Example AName="walkstrafe_lft_3p" PlaybackScale="0.15000001"/>
+  <Example SetPara1="3.1470001" AName="walk_bck_3p" PlaybackScale="0.15000001"/>
+  <Example SetPara1="-3.1470001" AName="walk_bck_3p" PlaybackScale="4.5"/>
+  <Example AName="walkcross_bck_rgt_3p" PlaybackScale="6"/>
+  <Example AName="walkstrafe_rgt_3p" PlaybackScale="3.5"/>
+  <Example AName="walk_fwd_3p" PlaybackScale="3.4000001"/>
+  <Example AName="walkcross_fwd_lft_3p" PlaybackScale="4.4000001"/>
+  <Example AName="walkstrafe_lft_3p" PlaybackScale="4.4000001"/>
+  <Example SetPara1="3.1470001" AName="walk_bck_3p" PlaybackScale="4.4000001"/>
+ </ExampleList>
+ <Blendable>
+  <Face p0="6" p1="5" p2="12" p3="13"/>
+  <Face p0="5" p1="4" p2="11" p3="12"/>
+  <Face p0="4" p1="3" p2="10" p3="11"/>
+  <Face p0="3" p1="2" p2="9" p3="10"/>
+  <Face p0="2" p1="1" p2="8" p3="9"/>
+  <Face p0="1" p1="0" p2="7" p3="8"/>
+ </Blendable>
+</ParaGroup>

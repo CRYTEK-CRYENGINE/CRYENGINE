@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="754c5e98-0f86-9861-7ea7-95d5f13b06ba" source="half_moon.tif">
+ <Files>
+  <File path="half_moon.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">1024</Detail>
+  <Detail name="height">1024</Detail>
+  <Detail name="mipCount">9</Detail>
+ </Details>
+</AssetMetadata>

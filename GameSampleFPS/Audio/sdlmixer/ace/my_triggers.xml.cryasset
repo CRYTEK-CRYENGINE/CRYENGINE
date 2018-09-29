@@ -1,0 +1,8 @@
+<AssetMetadata version="0" type="Xml" guid="182f7d9c-6292-4b59-c084-7b6850756de9">
+ <Files>
+  <File path="my_triggers.xml"/>
+ </Files>
+ <Details>
+  <Detail name="rootTag">AudioSystemData</Detail>
+ </Details>
+</AssetMetadata>

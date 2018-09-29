@@ -1,0 +1,15 @@
+<AssetMetadata version="0" type="SkinnedMesh" guid="18627522-21b9-f439-2236-1b6ae86af30e">
+ <Files>
+  <File path="motusBody.skin"/>
+ </Files>
+ <Details>
+  <Detail name="materialCount">4</Detail>
+  <Detail name="triangleCount">19442</Detail>
+  <Detail name="vertexCount">15683</Detail>
+  <Detail name="16BitPrecision">false</Detail>
+  <Detail name="bonesCount">80</Detail>
+ </Details>
+ <Dependencies>
+  <Path usageCount="1">./motusBodyMAT.mtl</Path>
+ </Dependencies>
+</AssetMetadata>

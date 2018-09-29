@@ -1,0 +1,32 @@
+<ParaGroup>
+ <Dimensions>
+  <Param Name="MoveSpeed" Min="0.2" Max="2.5" Cells="9"/>
+  <Param Name="TravelAngle" Min="-3.1400001" Max="3.1400001" Cells="29"/>
+ </Dimensions>
+ <ExampleList>
+  <Example SetPara1="-3.1470001" AName="rifleWalkAim_bwd_3p" PlaybackScale="0.15000001"/>
+  <Example AName="walkcrossRifleAim_bck_lft_3p" PlaybackScale="0.15000001"/>
+  <Example AName="walkstrafeRifleAim_rgt_3p" PlaybackScale="0.15000001"/>
+  <Example AName="rifleWalkAim_fwd_3p" PlaybackScale="0.15000001"/>
+  <Example AName="walkcrossRifleAim_fwd_lft_3p" PlaybackScale="0.15000001"/>
+  <Example AName="walkstrafeRifleAim_lft_3p" PlaybackScale="0.15000001"/>
+  <Example SetPara1="3.1470001" AName="rifleWalkAim_bwd_3p" PlaybackScale="0.15000001"/>
+  <Example SetPara1="-3.1470001" AName="rifleWalkAim_bwd_3p" PlaybackScale="4.5"/>
+  <Example AName="walkcrossRifleAim_bck_lft_3p" PlaybackScale="6"/>
+  <Example AName="walkstrafeRifleAim_rgt_3p" PlaybackScale="3.5"/>
+  <Example AName="rifleWalkAim_fwd_3p" PlaybackScale="3.4000001"/>
+  <Example AName="walkcrossRifleAim_fwd_lft_3p" PlaybackScale="4.4000001"/>
+  <Example AName="walkstrafeRifleAim_lft_3p" PlaybackScale="4.4000001"/>
+  <Example SetPara1="3.1470001" AName="rifleWalkAim_bwd_3p" PlaybackScale="4.4000001"/>
+ </ExampleList>
+ <Blendable>
+  <Face p0="0" p1="7" p2="9" p3="2"/>
+  <Face p0="2" p1="9" p2="10" p3="3"/>
+  <Face p0="3" p1="10" p2="11" p3="4"/>
+  <Face p0="4" p1="11" p2="12" p3="5"/>
+  <Face p0="5" p1="12" p2="8" p3="1"/>
+  <Face p0="1" p1="8" p2="13" p3="6"/>
+  <Face p0="7" p1="11" p2="10" p3="9"/>
+  <Face p0="11" p1="8" p2="12"/>
+ </Blendable>
+</ParaGroup>

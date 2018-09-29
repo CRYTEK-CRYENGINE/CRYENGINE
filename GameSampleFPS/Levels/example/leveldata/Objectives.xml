@@ -1,0 +1,6 @@
+<Root>
+ <Level Name="fps_demo">
+  <Mission_01 Name="Example Primary Mission" Description="Description of Example Primary Mission."/>
+  <Mission_01b Name="Example Secondary Mission" Description="Description of Example Secondary Mission." Secondary="true"/>
+ </Level>
+</Root>
