@@ -2768,7 +2768,7 @@ void CCryAction::PreFinalizeCamera(CEnumFlags<ESystemUpdateFlags> updateFlags)
 	const bool useDeferredViewSystemUpdate = m_pViewSystem->UseDeferredViewSystemUpdate();
 	if (useDeferredViewSystemUpdate)
 	{
-		m_pViewSystem->Update(min(delta, CTimeValue("0.1"))); // PERSONAL TODO: More incorrect nonsense? Very hard to trace!
+		m_pViewSystem->Update(min(delta, CTimeValue("0.1")));  // PERSONAL CRYTEK: Clamping time
 	}
 }
 

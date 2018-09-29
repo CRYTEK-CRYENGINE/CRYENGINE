@@ -3127,7 +3127,7 @@ CTimeValue CRigidEntity::GetMaxTimeStep(const CTimeValue& time_intervalIn)
 			bSkipSpeedCheck = false;*/
 
 	if (!bSkipSpeedCheck && time_interval.BADGetSeconds()*fabsf(vloc[i])>size[i]*0.7f)
-		time_interval = BADTIME(max(0.005f,size[i]*1.7f/fabsf(vloc[i]))); // PERSONAL TODO: More clamping
+		time_interval = BADTIME(max(0.005f,size[i]*1.7f/fabsf(vloc[i])));  // PERSONAL CRYTEK: Clamping time
 
 	int bDegradeQuality = -m_pWorld->m_threadData[iCaller].bGroupInvisible & ~(1-m_nColliders>>31);
 	return min(min(m_timeStepFull-m_timeStepPerformed,m_maxAllowedStep*(1-bDegradeQuality*mpfloat("0.5"))),time_interval);

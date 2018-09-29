@@ -43,8 +43,6 @@ static const int MARGIN_FOR_MAGNET_SNAPPING = 10;
 IMPLEMENT_DYNAMIC(CSequencerDopeSheetBase, CWnd)
 
 /*
-PERSONAL DEBUG: This looks like it has some bugs on pasting keys, drag&drop, etc.
-
 PERSONAL NOTE:
 	Time in seconds * Tickstep = Number Ticks!!!
 	Seconds = 1/TickStep  ==> 1 tick's worth of time
@@ -306,7 +304,8 @@ void CSequencerDopeSheetBase::ComputeFrameSteps(const TRange<CTimeValue>& VisRan
 
 	int nBIntermediateTicks = 5;
 
-	// PERSONAL NOTE: In the case that fNbFrames == 0 then i == 4.....which is undefined. Would be negative, hence <=1....Why would CryTek do this workaround? >.>
+	// PERSONAL CRYTEK: In the case that fNbFrames == 0 then i == 4.....which is undefined. Would be negative, hence <=1
+	// Undefined behavior removed.
 	if(fNbFrames == 0 && i == 4){
 		m_fFrameLabelStep.SetSeconds(1);
 	}else{
@@ -3067,8 +3066,10 @@ bool CSequencerDopeSheetBase::PasteKeys(CSequencerNode* pAnimNode, CSequencerTra
 
 		if (nPasteToItem >= 0)
 		{
-			// PERSONAL DEBUG:  How do you copy from a fragment track to other tracks? Won't let me copy to preview, or transition! Both 'fail' weirdly/silently. Something wrong with serialization?
-			// PERSONAL CRYTEK: m_startDragMouseOverItemID may be invalid. E.g. go in, copy-paste from fragment to a new empty sequence track. Would die here but I added a messy-ish check! :\
+			// PERSONAL DEBUG:  How do you copy from a fragment track to other tracks? Won't let me copy to preview, or transition! Both 'fail' silently.
+			// PERSONAL CRYTEK: m_startDragMouseOverItemID sometimes invalid. 
+			// Reproduction: Copy-paste from fragment track to a new empty sequence track. Would die here but I added a messy-ish check!
+			// (Don't drag or click anything before doing so. For best effect, right-click for menu options instead of dragging.)
 
 			// If actual valid item cannot be used for dropping, use default item where dragging has been started
 			Item const* itemTemp = &GetItem(nPasteToItem);

@@ -1225,7 +1225,6 @@ bool TextIArchive::operator()(CTimeValue& value, const char* name, const char* l
 	return (*this)(value.m_lValue, name, label);
 }
 
-// PERSONAL DEBUG: That this reads/writes properly. Perhaps implement StringInterface method of setup although escaping/unescaping & adding \" is pointless.....
 #define MP_FUNCTION(T)\
 bool TextIArchive::operator()(T& value, const char* name, const char* label)\
 {\

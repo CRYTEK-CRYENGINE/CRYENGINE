@@ -431,7 +431,7 @@ struct SEntityEvent
 	intptr_t     nParam[4]; //!< Event parameters.
 	float        fParam[3];
 	Vec3         vec;
-	CTimeValue   tVal; // PERSONAL IMPROVE: There's gotta be some neater way of passing a time-value, what if someone wants to pass more? Etc.
+	CTimeValue   tVal;
 };
 
 enum EEntityXFormFlags

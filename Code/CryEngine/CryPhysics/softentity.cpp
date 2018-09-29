@@ -1479,7 +1479,7 @@ int CSoftEntity::Step(const CTimeValue& time_intervalIn)
 	}
 	if (m_flags & sef_volumetric && time_interval<m_maxAllowedStep*"0.95" && m_timeStepFull>m_maxAllowedStep)
 		if ((m_timeStepSurplus+=time_interval) > m_maxAllowedStep) {
-			m_timeStepSurplus-=m_maxAllowedStep; time_interval = m_maxAllowedStep; // PERSONAL TODO: More random clamping
+			m_timeStepSurplus-=m_maxAllowedStep; time_interval = m_maxAllowedStep; // PERSONAL CRYTEK: Clamping time
 		}	else
 			return 1;
 	if (m_timeStepPerformed>m_timeStepFull-"0.001")

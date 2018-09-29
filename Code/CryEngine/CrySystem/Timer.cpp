@@ -102,7 +102,6 @@ void CTimer::ResetTimer()
 
 	m_fFrameTime.SetSeconds(0);
 	m_fRealFrameTime.SetSeconds(0);
-	m_realStartTime.SetSeconds(0);
 	m_replicationTime.SetSeconds(0);
 
 	RefreshGameTime(0);
@@ -175,9 +174,6 @@ void CTimer::UpdateOnFrameStart()
 	RefreshUITime(m_lLastTime);
 	return;
 #endif
-	
-	// Enforce any frame-rate caps needed before caching times.
-	CheckSleeps();
 
 	const int64 now = CryGetTicks();
 	assert(now + 1 >= m_lBaseTime && "Invalid base time"); //+1 margin because QPC may be one off across cores
@@ -187,6 +183,12 @@ void CTimer::UpdateOnFrameStart()
 	m_fRealFrameTime = TicksToTime(realTicks);
 
 	// PERSONAL CRYTEK: What is the point of clamping? And why do this BEFORE time scaling in default Timer.cpp ?
+	// Seriously need a discussion on timer related stuff.
+	// Clamping should not be done on a by-system basis, needs to be centralized.
+	// Physics is especially an offender there.
+		// Ideally frameTime would have NO 'minimum' frame-time, and clamping should ONLY happen in CTimer, perhaps stored static macro's/values.
+		// Or, at least, be trackable through CTimer rather than 'somewhere in the code somehow durh'
+
 	// Simulation time = clamp'd & scaled real time.
 	// If defined, use fixed-time-step as a base instead of real time.
 	CTimeValue tmp = (m_fixed_time_step != 0 ? m_fixed_time_step : m_fRealFrameTime);
@@ -238,7 +240,6 @@ void CTimer::UpdateOnFrameStart()
 		m_replicationTime += m_fFrameTime;
 	}
 	m_lLastTime = currentTime;
-	m_realStartTime = TicksToTime(now);
 
 	// DEBUG: Update profile-blending
 	UpdateBlending();
@@ -538,97 +539,6 @@ void CTimer::UpdateAverageFrameTime()
 	AverageFrameTime /= FrameAmount;
 
 	m_prevAvgFrameTime = AverageFrameTime;
-}
-/////////////////////////////////////////////////////
-void CTimer::CheckSleeps(){
-//**
-//** Server CPU Throttle, VSync, and system cvar for maximum FPS.
-//** 
-	static ICVar * pSysMaxFPS = NULL;
-	static ICVar* pVSync = NULL;
-
-	if (pSysMaxFPS == NULL && gEnv && gEnv->pConsole)
-		pSysMaxFPS = gEnv->pConsole->GetCVar("sys_MaxFPS");
-	if (pVSync == NULL && gEnv && gEnv->pConsole)
-		pVSync = gEnv->pConsole->GetCVar("r_Vsync");
-
-	mpfloat maxFPS = mpfloat::Max();
-	if (gEnv->IsDedicated())
-	{
-		maxFPS = gEnv->pSystem->GetDedicatedMaxRate()->GetMPVal();
-	}
-	else
-	{
-		if (pSysMaxFPS && pVSync)
-		{
-			uint32 vSync = pVSync->GetIVal();
-			if (vSync == 0)
-			{
-				maxFPS = pSysMaxFPS->GetIVal();
-				if (maxFPS == 0)
-				{
-					const bool bInLoading = (ESYSTEM_GLOBAL_STATE_RUNNING != gEnv->pSystem->GetSystemGlobalState());
-					if (bInLoading || gEnv->pSystem->IsPaused())
-					{
-						maxFPS = 60;
-					}
-				}
-			}
-		}
-	}
-
-//**
-//** Limit FPS when window's inactive
-//**
-#if CRY_PLATFORM_WINDOWS
-	// Disable throttling, when various Profilers are in use
-	bool skip = false;
-	#if !defined(_RELEASE) || defined(PERFORMANCE_BUILD)
-		#if defined(CRY_PROFILE_MARKERS_USE_GPA)
-		skip = true;
-		#endif
-		#if ALLOW_BROFILER
-		if (::Profiler::IsActive()) { skip = true; }
-		#endif
-		if (gEnv->pConsole->GetCVar("e_StatoscopeEnabled")->GetIVal()) { skip = true; }
-	#endif
-
-	// ProcessSleep()
-	if (gEnv->IsDedicated() || gEnv->IsEditor() || gEnv->bMultiplayer || (gEnv->pGameFramework && gEnv->pGameFramework->IsInTimeDemo()))
-		skip = true;
-
-	if (!skip && gEnv->pSystem->GetIRenderer())
-	{
-		WIN_HWND hRendWnd = gEnv->pSystem->GetIRenderer()->GetHWND();
-		if (hRendWnd && ::GetActiveWindow() != hRendWnd)
-			maxFPS = min(mpfloat(15), maxFPS);	// Limiting to 15fps atm, perhaps convert to CVar.
-	}
-#endif
-
-//**
-//** Actually enforce the frame cap
-//**
-	CTimeValue target = 0;
-
-	// If fixed CVar is negative, cap frames to timestep.
-	if (m_fixed_time_step < 0) { target = abs(m_fixed_time_step); }
-
-	if(maxFPS != mpfloat::Max()) {
-		target = max(CTimeValue(1/maxFPS), target);
-	}
-
-	if(target > 0){
-		// Time left = Target timestep - (CurTime - StartTime)
-		CTimeValue tLeft = target - (GetAsyncTime() - GetRealStartTime());
-		if(tLeft > 0){
-			CryLowLatencySleep(tLeft);
-		}else{
-			CryWarning(VALIDATOR_MODULE_SYSTEM, VALIDATOR_WARNING, 
-					"CTimer: Took longer than frame cap [%.2fms] %.2fms %.2fms", 
-					(float)target.GetMilliSeconds(), (float)(target - tLeft).GetMilliSeconds(), (float)abs(tLeft.GetMilliSeconds())
-			);
-		};
-	}
 }
 
 /////////////////////////////////////////////////////

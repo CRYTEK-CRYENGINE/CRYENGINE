@@ -705,7 +705,7 @@ bool CBaseInput::ShouldBlockInputEventPosting(const EKeyId keyId, const EInputDe
 
 void CBaseInput::UpdateBlockingInputs()
 {
-	const CTimeValue fElapsedTime = GetGTimer()->GetFrameTime(ITimer::ETIMER_UI);
+	const CTimeValue fElapsedTime = GetGTimer()->GetFrameTime(true);
 
 	TInputBlockData::iterator iter = m_inputBlockData.begin();
 	TInputBlockData::iterator iterEnd = m_inputBlockData.end();

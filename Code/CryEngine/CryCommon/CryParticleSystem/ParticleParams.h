@@ -28,7 +28,7 @@ BASIC_TYPE_INFO(CCryName);
 //! 1e9 s > 30 years, 1e9 m > earth-moon distance.
 //! Convertible to int32.
 #define fHUGE 1e9f
-#define tHUGE (CTimeValue(1'000'000'000))
+#define tHUGE (CTimeValue(1'000'000'000)) //MP_SCIFI
 
 //! Convert certain parameters where zero denotes an essentially infinite value.
 ILINE float ZeroIsHuge(float f)
@@ -349,9 +349,8 @@ struct TVarParam : S
 		T operator()(type_min) const
 		{ return T(1) - T(Range()); }
 
-		// PERSONAL NOTE: For color's floatv, vector * mpfloat doesn't work.... Considering this is random it probably doesn't matter.
 		T operator()(const mpfloat& fInterp) const
-		{ return T(1) + T(Range() * BADF(fInterp - 1)); }
+		{ return T(1) + T(Range() * (float)(fInterp - 1)); }
 
 		T operator()(CChaosKey key) const
 		{

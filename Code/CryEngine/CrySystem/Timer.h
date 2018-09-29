@@ -38,7 +38,6 @@ public:
 			 CTimeValue GetRealFrameTime() const;
 
 			 const CTimeValue& GetFrameStartTime(ETimer which = ETIMER_GAME) const { return m_CurrTime[(int)which]; }
-			 const CTimeValue& GetRealStartTime()    const { return m_realStartTime; }
 			 const CTimeValue& GetAverageFrameTime() const { return m_prevAvgFrameTime; }
 			 const CTimeValue& GetReplicationTime()  const { return m_replicationTime; };
 			 const CTimeValue GetServerTime() const;
@@ -78,9 +77,6 @@ private:
 	// The argument is the new number of ticks since the last Reset().
 	void SetOffsetToMatchGameTime(int64 ticks);
 
-	// Check any frame-limiting sleeps 
-	void CheckSleeps();
-
 private:
 
 	enum
@@ -92,7 +88,6 @@ private:
 	// Dynamic state, reset by ResetTimer()
 	//////////////////////////////////////////////////////////////////////////
 	CTimeValue m_CurrTime[ETIMER_LAST]; // Real (UI) and Simulation (Game) time since last Reset().
-	CTimeValue m_realStartTime;			// Absolute real-time at last Update()
 	
 	int64      m_lBaseTime;   // Absolute real-time (in ticks) at last Reset().
 	int64      m_lLastTime;   // Absolute real-time (in ticks) since last Reset(). This is the base for UI time.

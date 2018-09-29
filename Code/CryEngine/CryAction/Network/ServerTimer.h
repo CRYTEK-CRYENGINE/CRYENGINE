@@ -34,7 +34,6 @@ public:
 			 CTimeValue GetRealFrameTime() const { CRY_ASSERT(false); return bogusTime; }
 
 			 const CTimeValue& GetFrameStartTime(ETimer which = ETIMER_GAME) const { return m_remoteFrameStartTime; } //<<
-			 const CTimeValue& GetRealStartTime()    const { assert(false); return bogusTime; }
 			 const CTimeValue& GetAverageFrameTime() const { assert(false); return bogusTime; }
 			 const CTimeValue& GetReplicationTime()  const { return m_replicationTime; };						//<<
 			 const CTimeValue  GetServerTime()		  const { assert(false); return bogusTime; }

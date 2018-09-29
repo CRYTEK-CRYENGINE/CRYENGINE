@@ -1963,7 +1963,7 @@ int CRopeEntity::Step(const CTimeValue& time_intervalIn)
 		if (m_timeStepPerformed>m_timeStepFull-"0.001" || m_timeStepPerformed>0 && (m_flags & pef_invisible))
 			return 1;
 	}	else if (time_interval>0)
-		time_interval = max(CTimeValue("0.001"), min(m_timeStepFull-m_timeStepPerformed, time_interval)); // PERSONAL TODO: More random clamping up/down
+		time_interval = max(CTimeValue("0.001"), min(m_timeStepFull-m_timeStepPerformed, time_interval));  // PERSONAL CRYTEK: Clamping time
 	else
 		return 1;
 

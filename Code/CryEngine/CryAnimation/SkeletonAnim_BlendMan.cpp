@@ -253,7 +253,7 @@ void CSkeletonAnim::UpdateParameters(CAnimation* arrAnimFiFo, uint32 nMaxActiveI
 				int32 segcount = pParametric->m_nSegmentCounter[0][i];
 				CTimeValue fSegDuration = rCAF.GetSegmentDuration(segcount);
 				fSegDuration = max(fSegDuration, ANIMATION_FSTEP);
-				fTWDuration += pParametric->m_fBlendWeight[i] * fSegDuration; // PERSONAL NOTE: This is why blend-weights are mpfloats. weight*time.
+				fTWDuration += pParametric->m_fBlendWeight[i] * fSegDuration;
 
 				const uint32 totSegs = rCAF.GetTotalSegments();
 				for (uint32 s = 0; s < totSegs; s++)
@@ -267,7 +267,7 @@ void CSkeletonAnim::UpdateParameters(CAnimation* arrAnimFiFo, uint32 nMaxActiveI
 			{
 				totalTime *= (fFrameDeltaTime / (rCurAnim.m_fCurrentDeltaTime.conv<mpfloat>() * fTWDuration)).conv<mpfloat>();
 			}
-			const CTimeValue expectedSegmentDuration = max(CTimeValue("0.0001"), fTWDuration); // PERSONAL TODO: Moar clamping
+			const CTimeValue expectedSegmentDuration = max(CTimeValue("0.0001"), fTWDuration);  // PERSONAL CRYTEK: Clamping time
 			rCurAnim.SetCurrentSegmentExpectedDuration(expectedSegmentDuration);
 			const CTimeValue expectedTotalDuration = max(CTimeValue("0.0001"), totalTime);
 			rCurAnim.SetExpectedTotalDuration(expectedTotalDuration);

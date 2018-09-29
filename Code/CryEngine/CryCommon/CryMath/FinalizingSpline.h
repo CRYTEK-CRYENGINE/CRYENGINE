@@ -7,6 +7,27 @@
 
 //! \cond INTERNAL
 
+/*
+	PERSONAL NOTE:
+		Currently fStrength and relativeParticleAge are used as 'Time' values during interpolation.
+
+		Splines interpolate between 2 sets of values, not necessarrily time.
+			- E.g. Air Resistance vs Strength, given strength get air resistance with interp X and Y
+			  Bad logic to use 'CTimeValue' there, BUT mpfloat should be an option as the storage type/etc!
+				
+	PERSONAL CRYTEK:
+		Unfortunately, to allow for mpfloat storage/use etc. for better accuracy; Large rewrites would have to be done.
+		e.g.
+			Storage types updated to support Spline<CTimeValue> 
+			SFloat, UFloat, UnitFloat8 and UnitFloat replacements....
+			Plenty to do with loading/saving/converting spline key times/values and so on.
+
+			Since data types optimized, just like ParticleUpdate/etc., changes mostly reverted due to scope of work and lack of experience with CE Req's/etc.
+			Quite a few still remain, can be removed or improved.
+
+			It was a lot harder for me to trace/change than if ya want to revert :P
+*/
+
 namespace spline
 {
 
@@ -332,7 +353,7 @@ protected:
 				PERSONAL NOTE:
 				They go about creating a value here in a weird way. e.g. accessing a non-existant index in aElem (has 1 value, but they access [1])
 									m_pSpline->aElems[i].set_key(source.time(i), source.value(i));
-				This creates mpfloat but its contents are bogus. Have to force intialization.
+				This creates mpfloat but its contents are bogus. Have to force intialization due to Undef-behavior.
 			*/
 			st.memHACK();
 			st = t;

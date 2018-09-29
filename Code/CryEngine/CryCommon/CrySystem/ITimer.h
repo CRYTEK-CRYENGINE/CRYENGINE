@@ -79,19 +79,21 @@ public: //** Time Getters
 	//! Returns real-time since the last UpdateOnFrameStart(), no dilation/smoothing/clamping etc
 	virtual CTimeValue GetRealFrameTime() const = 0;
 
+	// PERSONAL IMPROVE: The lack of a 'real start time' thats not relative to Reset() might be an issue, can easily be added in.
+	// Resets are finicky.
+
 	//! Returns Real (UI) or Simulation (Game) time since last timer Reset().
 	//! UI time is monotonic, it always moves forward at a constant rate until the timer is Reset().
 	//! Game time can be affected by loading, pausing, time smoothing, time dilation and time clamping, as well as SetTimer(). 
+	//! UI time = real-start time
 	//! PERSONAL CRYTEK: NOPE! See comments in timer.cpp on ACTUAL game-time, not just game-frame-time...
 	virtual const CTimeValue& GetFrameStartTime(ETimer which = ETIMER_GAME) const = 0;
-
-	//! Get the absolute real-time at the last UpdateOnFrameStart() call.
-	virtual const CTimeValue& GetRealStartTime() const = 0;
 
 	//! Returns sum of simulation frame-time's. Used for networking.
 	virtual const CTimeValue& GetReplicationTime() const = 0;
 
 	//! Returns the (synched) absolute real-time of the server at moment of call. (So use this for timed events, such as MP round times)
+	//! Not to be confused with CServerTimer
 	virtual const CTimeValue GetServerTime() const = 0;
 
 	//! Returns recent simulation frame-time's averaged over a time period (e.g. 0.25 seconds)
@@ -107,7 +109,6 @@ public: //** Time Getters
 public: //** Timescales
 
 	// PERSONAL CRYTEK: As noted elsewhere, only affects simulation-frame-time!!!! and also replication time.... 
-	// Have to review all timer comments AGAIN after that's fixed.
 	//! Returns the time scale applied on simulation time.
 	virtual mpfloat GetTimeScale() const = 0;
 

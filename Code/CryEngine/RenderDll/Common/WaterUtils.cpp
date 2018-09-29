@@ -41,7 +41,7 @@ struct SWaterUpdateThreadInfo
 	bool  bOnlyHeight;
 };
 
-// PERSONAL NOTE: Job creation depends on POD-type parameter's. Hence update cant handle CTimeValue and needs to have float passed in/out!!
+// PERSONAL NOTE: Job creation depends on POD-type parameter's. Hence update can't handle CTimeValue and needs to have float passed in/out!!
 void WaterAsyncUpdate(CWaterSim*, int, float, bool, void*);
 DECLARE_JOB("WaterUpdate", TWaterUpdateJob, WaterAsyncUpdate);
 

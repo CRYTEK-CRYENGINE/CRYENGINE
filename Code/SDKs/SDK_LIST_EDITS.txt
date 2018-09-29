@@ -28,9 +28,10 @@ Boost:
 			Due to memset(0)'s selective usefulness.
 			Only for assignment. No asserts added.
 	
+PERSONAL IMPROVE:  
+	- Perhaps use this https://github.com/BrianGladman/mpfr , although it works now just fine.
+	- Convert GMP/MPFR to 'library' + SDK format. For easier RC/etc. inclusion and so on.
 	
-PERSONAL IMPROVE:  Perhaps use this https://github.com/BrianGladman/mpfr , although it works now just fine.
-
 -------------------------
 ## Compiling GMP and MPFR ##
 -------------------------

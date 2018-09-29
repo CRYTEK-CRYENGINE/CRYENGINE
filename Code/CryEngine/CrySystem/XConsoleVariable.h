@@ -591,7 +591,6 @@ private: // --------------------------------------------------------------------
 	float& m_fValue;                                  //!<
 };
 
-// PERSONAL DEBUG: That for CVar's registration/setting/getting etc. works as expected.
 template<class mpType>
 class CXConsoleVariableMPFloatRef : public CXConsoleVariableBase
 {

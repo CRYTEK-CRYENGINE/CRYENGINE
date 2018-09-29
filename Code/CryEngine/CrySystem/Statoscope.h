@@ -569,7 +569,7 @@ public:
 	{
 		m_eventStreamLock.Lock();
 		CTimeValue tv = GetGTimer()->GetAsyncTime();
-		uint64 timeStamp = (uint64)tv.GetMicroSeconds(); // WARNING: Float Inaccuracy
+		uint64 timeStamp = (uint64)tv.GetMicroSeconds();
 		if (timeStamp < m_lastTimestampUs)
 			__debugbreak();
 		m_lastTimestampUs = timeStamp;

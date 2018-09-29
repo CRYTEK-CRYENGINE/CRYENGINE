@@ -524,6 +524,9 @@ private:
 	// Release all resources.
 	void ShutDown();
 
+	// Check any frame-limiting sleeps 
+	void CheckSleeps();
+
 	//! @name Initialization routines
 	//@{
 

@@ -5,30 +5,7 @@
 #include "MPFloat.h"	 //! MPfloat definitions
 #include "XML\IXml.h" //! For serialization
 
-/* PERSONAL TODO: 
-		2) Add ILINE after profiling/testing etc.
-		3) Increase/decrease standard mpfloat precision (ATM 50 digits)
-			
-	Edit Fixes:
-		1) Double check any int64() round/conversions in edits.
-			If done in mpfloat mod would cause errors, e.g. 3/2 => int64(1.5) = 2 1.5 - 2 = -.5 which is wrong!
-		2) Make sure all 'bad' casts use BADF etc.
-		3) Fix any abs() usage, abs(CTimeValue) works as expected now.
-		4) Function params should take and return by const-reference both mpfloats & CTimeValue's. (Where applicable/possible)
-		5) Normalized time, and other 'time' values that can't be viewed in Seconds/etc., should be stored as the strong-typedef'd mpfloats.
-			See below, rTime, nTime, kTime etc.
-		6) Does min(max(dt, 0), "0.08") differ from CLAMP(dt, 0, "0.08")?
-		7) All CTimeValue(int) need to have units verified as in 'seconds'. Before rewrite, you could do CTimeValue(int milliseconds).
-			Also: GetMilliSeconds() usage is wrong typically, causes inaccurate results etc.!!!
-			Used a lot in AI to sync events....which, for AI simulation (especially when it can run several steps/frame too) is very inaccurate.
-			E.g. pathfinding, aggro change/accuracy, ugh. Same with GetMicroseconds/etc., atm it's used as a 'more accurate value' when MPFloat is better.
-				Heck, review all the .Get() and .Set() usage in all the code. Most of it should be self-explanatory.....
-		8) Need to update comparisons from CTimeValue > CTimeValue("0.2") to CTimeValue > "0.2" (for readability)
-		9) cry_random should use the below CTimeValue() setup, if accuracy is needed later on this can be changed but abstraction is better.
-		10) FPS, X per Seconds etc. should be an rTime value!!!
-		11) Don't forget to update CrySleep/etc. usage everywhere!!!! nearly missed some in AI!!!!
-		12) Cleanup const CTimeValue& t = CTimeValue() in default function param's, not needed! can just do = 0 etc.
-
+/* PERSONAL IMPROVE: 			
 	Tests:
 		Need operator/conversion tests for CTimeValue (as with mpfloat). Need to also update mpfloat tests.
 		Every operator/function needs to have associated tests alogn with stuff that 'should not be allowed'.
@@ -46,7 +23,7 @@ class CTimeValue;
 #define limit2(x, y) template <class T, class T2, typename boost::enable_if_c<boost::is_same<T, x>::value && boost::is_same<T2, y>::value>::type* = 0>
 
 /*
-	Animation time data for frames and what not.
+	Animation time data for frames.
 */
 struct SAnimData {
 public:
@@ -93,7 +70,7 @@ public:
 
 public:
 	// Harcoded animation update-value. 
-	// PERSONAL DEBUG: Does this HAVE to be 6000?? Why not use CPU ticks per second here from CTimer???
+	// PERSONAL CRYTEK: Does this HAVE to be 6000? Why not use CPU ticks per second here from CTimer?
 	static const int32 numTicksPerSecond = 6000;
 
 	// Enum to int or string value
@@ -156,9 +133,6 @@ public:
 //**
 //** Setters
 //** 
-	//#define rMilli mpfloat("0.001")	  // 1/1'000 
-	//#define rMicro mpfloat("0.000001")  // 1/1'000'000
-
 	CTimeValue& SetSeconds(const mpfloat& infSec) { m_lValue = infSec; return *this; }
 	CTimeValue& SetMilliSeconds(const mpfloat& indwMilliSec) { m_lValue = indwMilliSec * mpfloat("0.001");    return *this; }
 	CTimeValue& SetMicroSeconds(const mpfloat& indwMicroSec) { m_lValue = indwMicroSec * mpfloat("0.000001"); return *this; }
@@ -170,7 +144,7 @@ public:
 //** Getters
 //** 
 	// Ideally, anything with precision loss uses this to fetch seconds. (Or other 'BAD' nomenclature)
-	float BADGetSeconds() const { return (float)m_lValue; }
+	float BADGetSeconds()	  const { return (float)m_lValue; }
 
 	mpfloat GetSeconds()		  const { return m_lValue; }
 	mpfloat GetMilliSeconds() const { return m_lValue * 1'000; }
@@ -178,7 +152,7 @@ public:
 
 	string str()				  const { return m_lValue.str(); }
 
-	// NOTE: Returns 'lowest' not 'min()'
+	// NOTE: Returns 'Lowest' not 'Min()'
 	static CTimeValue Min() { return CTimeValue(mpfloat::Min()); }
 	static CTimeValue Max() { return CTimeValue(mpfloat::Max()); }
 
@@ -262,8 +236,8 @@ public:
 //** Miscellaneous other functions.
 //**
 	// PERSONAL IMPROVE: Memory usage should probably be tracked for optimizing mpfloat size/etc.
-	void GetMemoryUsage(class ICrySizer* pSizer)		  const { /*Nothing*/ }
-	void GetMemoryStatistics(class ICrySizer* pSizer) const { /*Nothing*/ }
+	void GetMemoryUsage(class ICrySizer* pSizer)		  const { /*todo*/ }
+	void GetMemoryStatistics(class ICrySizer* pSizer) const { /*todo*/ }
 
 	// See mpfloat func description
 	void memHACK(){ m_lValue.memHACK(); }
@@ -320,8 +294,6 @@ public:
 
 	AcceptOnly(rTime) ILINE rTime operator*(const nTime& inLhs, const T& inRhs) { nTime ret; ret = inLhs * inRhs.conv<nTime>(); return ret.conv<rTime>(); }
 	AcceptOnly(nTime) ILINE rTime operator*(const rTime& inLhs, const T& inRhs) { nTime ret; ret = inLhs.conv<nTime>() * inRhs; return ret.conv<rTime>(); }
-
-	// limit2(nTime, CTimeValue) friend CTimeValue operator*(const T& inLhs, const T2& inRhs) { CTimeValue ret; ret.m_lValue = inLhs.conv<mpfloat>() * inRhs.m_lValue; return ret; }
 
 //**
 //**	Various math functions

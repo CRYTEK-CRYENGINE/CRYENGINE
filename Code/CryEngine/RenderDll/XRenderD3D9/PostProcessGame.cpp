@@ -973,7 +973,7 @@ void CNanoGlass::RenderPass(bool bDebugPass, bool bIsHudRendering)
 	Vec2 vignetteScreenScale(max(vignette.x, 0.0f), max(vignette.y, 0.0f));
 
 	// Update time (Use UI time as this is animated during menu)
-	float frameTime = GetUtils().m_pTimer->GetFrameTime(ITimer::ETIMER_UI);
+	float frameTime = GetUtils().m_pTimer->GetFrameTime(true);
 	m_noiseTime += frameTime * movement1.z;
 	m_time += frameTime * movement0.x;
 

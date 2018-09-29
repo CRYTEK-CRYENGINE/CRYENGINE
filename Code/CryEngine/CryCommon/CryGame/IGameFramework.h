@@ -645,7 +645,7 @@ struct IGameFramework
 
 	//! Pauses the game
 	//! \param pause true if the game is pausing, false otherwise.
-	//! \param nFadeOutIn: SFX and Voice will be faded out over this time period. PERSONAL NOTE: FADE-OUT NOT USED/IMPLEMENTED
+	//! \param nFadeOutIn: SFX and Voice will be faded out over this time period. PERSONAL NOTE: Fade-out wasn't used or implemented.
 	virtual void PauseGame(bool pause, bool force) = 0;
 
 	//! Returns the pause status

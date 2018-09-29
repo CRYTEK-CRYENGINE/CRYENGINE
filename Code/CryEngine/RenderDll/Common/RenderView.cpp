@@ -321,6 +321,7 @@ void CRenderView::CalculateViewInfo()
 			/* PERSONAL CRYTEK: HACK
 				Should not impact anything. Edge case of when (maybe) Renderer thread is killed, and cam's are zeroed out while here. Causes invalid camera (0,0,0,0 everything) + crash
 				Easily reproducable with CE's sample FPS!
+				Said 'crash' happens randomly while in game, time/action independent.
 			*/
 			if (cam.GetFov() == 0) { continue; }
 

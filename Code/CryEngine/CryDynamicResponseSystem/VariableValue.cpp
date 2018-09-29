@@ -8,6 +8,10 @@
 
 using namespace CryDRS;
 
+const VariableValueData CVariableValue::NEG_INFINITE = INT_MIN;
+const VariableValueData CVariableValue::POS_INFINITE = INT_MAX;
+const VariableValueData CVariableValue::DEFAULT_VALUE = 0;  //remark: the default value is 0, so a variable which was never set to anything will have the value 0
+
 SERIALIZATION_ENUM_BEGIN(EDynamicResponseVariableType, "Attachment Type")
 SERIALIZATION_ENUM(eDRVT_None, "none", "None")
 SERIALIZATION_ENUM(eDRVT_Int, "int", "Int")
@@ -89,7 +93,7 @@ float CVariableValue::GetValueAsFloat() const
 		DrsLogWarning((string("Tried to get value as a FLOAT from a non-float variable, type of the variable is actually: ") + GetTypeAsString()).c_str());
 	}
 #endif
-	return (float)m_value;
+	return (float)m_value / 100.0f;
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -113,7 +117,7 @@ mpfloat CVariableValue::GetValueAsMP() const
 		DrsLogWarning((string("Tried to get value as a MPFLOAT from a non-mpfloat variable, type of the variable is actually: ") + GetTypeAsString()).c_str());
 	}
 #endif
-	return m_value;
+	return (mpfloat)m_value / 100;
 
 }
 
@@ -126,7 +130,7 @@ CTimeValue CVariableValue::GetValueAsTime() const
 		DrsLogWarning((string("Tried to get value as a CTIMEVALUE from a non-timevalue variable, type of the variable is actually: ") + GetTypeAsString()).c_str());
 	}
 #endif
-	return CTimeValue(m_value);
+	return (mpfloat)m_value / 100;
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -181,11 +185,15 @@ string CVariableValue::GetValueAsString() const //should be used for debug outpu
 	case eDRVT_Int:
 		return CryStringUtils::toString(m_value);
 	case eDRVT_Float:
-		return CryStringUtils::toString(m_value);
+		return CryStringUtils::toString(m_value / 100.0f);
 	case eDRVT_String:
 		return m_hashedText;
 	case eDRVT_Boolean:
 		return (m_value != 0) ? "TRUE" : "FALSE";
+	case eDRVT_MPFloat:
+		return CryStringUtils::toString((mpfloat)m_value / 100);
+	case eDRVT_Time:
+		return CryStringUtils::toString((mpfloat)m_value / 100);
 	}
 #endif
 	return CryStringUtils::toString(m_value);
@@ -254,7 +262,7 @@ void CVariableValue::Serialize(Serialization::IArchive& ar)
 			}
 			else if (type == eDRVT_Float)
 			{
-				float temp = (float)m_value;
+				float temp = m_value / 100.0f;
 				ar(temp, "value", "^>110>");
 			}
 			else if (type == eDRVT_Boolean)
@@ -273,7 +281,6 @@ void CVariableValue::Serialize(Serialization::IArchive& ar)
 			}
 			else
 			{
-				// PERSONAL DEBUG: As usual, make sure saving/reading of CTimeValue/MPFloat's is proper.
 				string valueAsString;
 				valueAsString = GetValueAsString();
 				ar(valueAsString, "value", "^>130>");

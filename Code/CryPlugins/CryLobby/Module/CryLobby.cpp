@@ -1746,7 +1746,7 @@ void CCryLobby::UpdateConnectionPing(CryLobbyConnectionID connectionID, const CT
 #if USE_LOBBY_REMOTE_CONNECTIONS
 	SConnection* pConnection = &m_connection[connectionID];
 
-	// PERSONAL DEBUG: Why use time as an index here??
+	// PERSONAL CRYTEK: Why use time as an index here??
 	//pConnection->ping.times[pConnection->ping.currentTime] = ping;
 	pConnection->ping.times[(uint16)pConnection->ping.currentTime.GetMilliSeconds()] = ping;
 	pConnection->ping.currentTime = (pConnection->ping.currentTime + 1) % NUM_LOBBY_PINGS;

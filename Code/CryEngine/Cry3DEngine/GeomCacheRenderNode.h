@@ -228,7 +228,7 @@ private:
 	Matrix34 m_matrix;
 
 	// PERSONAL IMPROVE: Setting up Volatile CTimeValue() => MPFloat is not volatile compatible.
-	// Tricky to implement....postponed for now but threading won't work properly otherwise!
+	// Tricky to implement....postponed for now but threading won't work accurately otherwise!
 	// Playback
 	volatile float m_playbackTime;
 

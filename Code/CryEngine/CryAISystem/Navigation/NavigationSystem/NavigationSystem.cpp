@@ -5468,9 +5468,6 @@ void NavigationSystemBackgroundUpdate::Thread::ThreadEntry()
 			m_navigationSystem.UpdateMeshes("0.0333", false, true, true);
 
 			const CTimeValue elapsedTime = GetGTimer()->GetAsyncTime() - startedUpdate;
-
-			// PERSONAL CRYTEK: This nonsense would always end up with 10ms of sleep-time. Should've been min(max())
-			//	const unsigned int sleepTime = max(10u, min(0u, 33u - (unsigned int)lastUpdateTime.GetMilliSeconds()));
 			const mpfloat sleepMS = CLAMP(33 - elapsedTime.GetMilliSeconds(), 0, 10);
 			CryLowLatencySleep(CTimeValue().SetMilliSeconds(sleepMS));
 		}

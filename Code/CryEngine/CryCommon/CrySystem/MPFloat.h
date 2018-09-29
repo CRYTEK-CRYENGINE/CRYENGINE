@@ -1,5 +1,9 @@
 // Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
 
+// PERSONAL IMPROVE: Syntax in this file, to be cleaner and so on. Hard to balance comments out with formatting.
+// Tried as much as I could for now, can definitely do with streamlining and so on.
+// CTimeValue for example, to me, looks pretty neat.
+
 #ifndef MPFLOAT
 	#define MPFLOAT
 	#pragma once
@@ -10,11 +14,6 @@ void CryFatalError(const char*, ...);
 
 // Boost wrapper around MPFR. A floating-point multi-precision library in radix 2, not decimal!
 #include <boost/multiprecision/mpfr.hpp>
-
-/* PERSONAL IMPROVE & PERSONAL DEBUG:
-	1) To prevent ambiguous sets, at the moment mpfloat does not accept 'string' as input, only const char*. Try it out, maybe it'll work?
-	2) Improve readability + macro's, cleanup canonical values, convert inline to ILINE etc.
-*/
 
 class ICrySizer;
 namespace boost{
@@ -34,41 +33,20 @@ namespace boost { namespace multiprecision {
 template<class rType>
 class newNum {
 public:
+	// Allocated locally + precision of 50 digits after decimal point.
 	typedef mpfr_float_backend<50, allocate_stack> Backend;
-	typedef std::numeric_limits<number<Backend>> limits;		// PERSONAL IMPROVE: ATM Using number's limits, can implement custom numeric limits later. Would be cleaner.
-	#define this static_cast<rType*>(this)
+
+	// PERSONAL IMPROVE: ATM Using number's limits, can implement custom numeric limits later. Would be cleaner.
+	typedef std::numeric_limits<number<Backend>> limits;
 
 	// Current check for legitimate operations/comparisons on e.g. integers but no floats
 	template <class V> using valid_check = is_compatible_arithmetic_type<V, rType>;
+	#define this static_cast<rType*>(this)
 
-	// PERSONAL IMPROVE : .conv usage
-	/*
-		 time/time = nTime but used as mpfloat e.g. 'Scale', a new time value, etc. (pretty frequent)
-
-		 nTime *=mpfloat -> mpfloat used as 'nTime'
- 
-		 mpfloat * int ANIMATION_HZ -> converted to kTime
- 
-		 kTime converted to mpfloat for interpolation
- 
-		 X conversion during a ? AA : BB statement with different strong-type results.
-			e.g. blah = time2 > 0 ? time/time2 : time;
-
-		Basically the use of nTime is questionable(but ofc need something to tell apart literal time and animation time!! hrm :\)
-		kTime needs a better trigger, and rTime/CTimeValue/mpfloat are fine as they are.
-	*/
-	// For explicit conversion across strong-types
-	template <class T, typename boost::enable_if_c<
-		std::is_base_of<newNum<T>, T>::value //&& !boost::is_same<rType, T>::value
-	>::type* = 0> 
-	T conv() const { return T(backend()); }
-
-	// Impercise set
-	template <typename T> rType& lossy(const T& inRhs) { backend() = canonical_value(inRhs); return *this; }
-
-	// PERSONAL IMPROVE: Memory usage should probably be tracked for optimizing mpfloat size/etc.
-	void GetMemoryUsage(class ::ICrySizer* pSizer)		  const { /*nothing*/ };
-	void GetMemoryStatistics(class ::ICrySizer* pSizer)  const { /*nothing*/ };
+public: // Misc.
+	// PERSONAL IMPROVE: Memory usage should be tracked for optimizing mpfloat size, increase/decrease standard mpfloat precision (ATM 50 digits).
+	void GetMemoryUsage(class ::ICrySizer* pSizer)		  const { /*todo*/ };
+	void GetMemoryStatistics(class ::ICrySizer* pSizer)  const { /*todo*/ };
 
 	// WARNING: memset, in general, does not work with mpfloats!
 	// Exception is memset(0) which causes m_data to be nullptr => crashes if comparison/etc. is done before an assignment happens.
@@ -78,15 +56,9 @@ public:
 		This is a 'fix' for un-initialized mpfloat heap and is_unused() checks.
 		Possible memory leak for allocate_dynamically MPFR and regular GMP. Stack is zero'd out for allocate_stack MPFR.
 	*/
-	// PERSONAL TODO: With allocate_stack MPFR, will memcpy work properly???? Probably not :<
 	void memHACK(){ memset(&backend(), 0, sizeof(Backend)); }
 
-	// Check if this var was memset/etc. and zero'd out.
-	bool valid() const { return backend().valid(); }
-
-	// Check if this value is NaN
-	bool IsNaN() const { return mpfr_nan_p(backend().data()); }
-
+public: // Constructors and assignment operators
 	// PERSONAL NOTE: Previous attempts at overloads/etc.
 	/*
 		// Float implicitly converted to numBackend, so this bypasses the rest of the setup.
@@ -108,13 +80,13 @@ public:
 			}
 		*/
 
-public: // Constructors and assignment operators
 	ILINE constexpr newNum() {};
 	ILINE constexpr newNum(const Backend& n) : m_backend(n) {};
 
 	// Allows implicit conversion (0 can become newNum(0) etc.) but only for matches, 
 	//	e.g. newNum(float), float won't implicitly convert to int and become a 'valid' constructor.
 	//	(Integer-type || a string e.g. char*) etc.
+	// To prevent ambiguous sets, at the moment mpfloat does not accept 'string' as input, only const char*.
 	template <class V, typename enable_if_c< is_integral<V>::value >::type* = 0>
 	ILINE newNum(const V& v)
 	{
@@ -145,6 +117,9 @@ public: // Constructors and assignment operators
 		backend() = canonical_value(v);
 		return *this;
 	}
+
+	// Impercise set
+	template <typename T> rType& lossy(const T& inRhs) { backend() = canonical_value(inRhs); return *this; }
 
 public: // Math operations
 	#define Operation(op, name)\
@@ -189,8 +164,9 @@ public: // Math operations
 public: // Comparisons
 
 	// WARNING: Comparing NaN == XX, will always return true! Use 'IsNaN()' instead and avoid comparing with NaN values!
-	// PERSONAL TODO: Somehow get MPFR_FLAGS_ERANGE() and maybe MPFR_FLAGS_OVERFLOW to throw global exceptions to avoid above warning!!
+	// PERSONAL IMPROVE: Somehow get MPFR_FLAGS_ERANGE() and maybe MPFR_FLAGS_OVERFLOW to throw global exceptions to avoid above issue.
 	// Plus, maybe MPFR_FLAGS_INEXACT as a warning in debug mode?
+
 	/*rType ?? rType*/
 		#define check if (detail::is_unordered_comparison(*this, inRhs)) return false;
 		bool operator==(const rType& inRhs) const { check return  (backend().compare(inRhs.backend()) == 0); }
@@ -222,31 +198,57 @@ public: // Comparisons
 		#undef check
 		#undef boiler 
 
-public: // Other re-implimented number<> functions
+public: // Other re-implimented boost::number<> functions and helpers.
+	ILINE bool valid()	const { return backend().valid(); } 			  // Check if this var was memset/etc. and zero'd out.
+	ILINE bool IsNaN()	const { return mpfr_nan_p(backend().data()); } // Check if this value is NaN
 	ILINE bool is_zero() const { using default_ops::eval_is_zero;  return eval_is_zero(m_backend); }
-	ILINE int sign()	   const { using default_ops::eval_get_sign; return eval_get_sign(m_backend); }
+	ILINE int  sign()	   const { using default_ops::eval_get_sign; return eval_get_sign(m_backend); }
 
 	// Backend()
-	ILINE Backend& backend() noexcept							  { return m_backend; }
-	ILINE constexpr const Backend& backend() const noexcept { return m_backend; }
+	ILINE Backend& backend() 							   { return m_backend; }
+	ILINE constexpr const Backend& backend() const  { return m_backend; }
 
 	// Canonical_value
-	static ILINE constexpr const Backend& canonical_value(const rType& v) noexcept { return v.m_backend; }
-	//static ILINE typename detail::canonical<std::string, Backend>::type canonical_value(const std::string& v) noexcept { return v.c_str(); }
+	static ILINE constexpr const Backend& canonical_value(const rType& v)  { return v.m_backend; }
+	static ILINE typename detail::canonical<string, Backend>::type canonical_value(const string& v)  { return v.c_str(); }
 	template <class V>
-	static ILINE constexpr typename boost::disable_if<is_same<typename detail::canonical<V, Backend>::type, V>, typename detail::canonical<V, Backend>::type>::type
-		canonical_value(const V& v) noexcept { return static_cast<typename detail::canonical<V, Backend>::type>(v); }
-	template <class V>
-	static ILINE constexpr typename boost::enable_if<is_same<typename detail::canonical<V, Backend>::type, V>, const V&>::type
-		canonical_value(const V& v) noexcept { return v; }
+	static ILINE constexpr typename 
+	boost::disable_if<is_same<typename detail::canonical<V, Backend>::type, V>, typename detail::canonical<V, Backend>::type>::type
+		canonical_value(const V& v)  { return static_cast<typename detail::canonical<V, Backend>::type>(v); }
+	template <class V> static ILINE constexpr typename 
+	boost::enable_if<is_same<typename detail::canonical<V, Backend>::type, V>, const V&>::type
+		canonical_value(const V& v)  { return v; }
 
-	// Conversion operator & to-string conversions
+	// Conversion operators
 	ILINE explicit operator bool()			  const { return !is_zero(); }
 	ILINE explicit operator rType()			  const { return *static_cast<const rType*>(this); }
-	template <class T, typename boost::enable_if_c< 
-		boost::is_arithmetic<T>::value || is_string<T>::value // Convert only to string/float/int
+	template <class T, typename boost::enable_if_c<
+		boost::is_arithmetic<T>::value || is_string<T>::value // Convert only to string/float/int etc.
 	>::type* = 0> explicit operator T() const { return this->template convert_to<T>(); }
 
+	// PERSONAL IMPROVE : .conv usage
+	/*
+		 time/time = nTime but used as mpfloat e.g. 'Scale', a new time value, etc. (pretty frequent)
+
+		 nTime *=mpfloat -> mpfloat used as 'nTime'
+ 
+		 mpfloat * int ANIMATION_HZ -> converted to kTime
+ 
+		 kTime converted to mpfloat for interpolation
+ 
+		 X conversion during a ? AA : BB statement with different strong-type results.
+			e.g. blah = time2 > 0 ? time/time2 : time;
+
+		Basically the use of nTime is questionable(but ofc need something to tell apart literal time and animation time!! hrm :\)
+		kTime needs a better trigger, and rTime/CTimeValue/mpfloat are fine as they are.
+	*/
+	// For explicit conversion across strong-types
+	template <class T, typename boost::enable_if_c<
+		std::is_base_of<newNum<T>, T>::value //&& !boost::is_same<rType, T>::value
+	>::type* = 0> 
+	T conv() const { return T(backend()); }
+
+public: // To string conversion
 	/* STR conversion test: PERSONAL DEBUG, ofc implement a unit test system for this with mpfloat and what not!
 
 		// New string function
@@ -430,7 +432,7 @@ public: // Other re-implimented number<> functions
 	}
 
 	// Near-copy of Boosts's implementation. Uses CryTek's string instead of std::string with an extra skipZero flag convenience.
-   string str(std::streamsize digits = 0, std::ios_base::fmtflags f = 0)const
+   string str(std::streamsize digits = 0, std::ios_base::fmtflags f = 0) const
    {
 		auto m_data = backend().data();
       BOOST_ASSERT(m_data[0]._mpfr_d);
@@ -544,12 +546,14 @@ public: // Other re-implimented number<> functions
 	std::string debugStr() const { return std::string(str(0, 0)); }
 
 private:
-	// Conversion implementation.
+	// Conversion operator implementation.
 	template <class T> T convert_to()	const { T result; convert_to_imp(&result); return result; }
 	template <class T>
 	void convert_to_imp(T* result)		const { using default_ops::eval_convert_to; eval_convert_to(result, m_backend); }
 	void convert_to_imp(string* result)	const { *result = this->str(); }
 
+	// Backend, can be changed (with a few small edits) to a different base. 
+	// Was gmp_float, now mpfr_float_backend. Can be 'double' at worst....
 	Backend m_backend;
 };
 
@@ -604,7 +608,7 @@ private:
 }} // END boost::multiprecision namespaces
 
 // String buffer size for MPFloats, used for sscanf() etc. PERSONAL DEBUG & PERSONAL IMPROVE!!!
-#define MP_SIZE 256u
+#define MP_SIZE 255u
 
 // Is-mpfloat-type test
 #define isMP   std::is_base_of<boost::multiprecision::newNum<T>, T>::value
@@ -637,6 +641,7 @@ namespace boost { namespace multiprecision {\
 		\
 	   const CTypeInfo& TypeInfo() const { static MPInfo<name> Info(#name); return Info; }\
 		\
+		/* NOTE: Returns 'Lowest' not 'Min()' */\
 		static name Min() { return limits::lowest().backend(); }\
 		static name Max() { return limits::max().backend(); }\
 	};\
@@ -730,6 +735,11 @@ static std::string(name::*IgnoreThis_MPSTUFF_##name)() const = &name::debugStr;
 // Any precision-losing casts should be done like this.
 #define BADF       (float)
 #define BADMP(x)   mpfloat().lossy(x)
-#define MP_EPSILON BADMP(FLT_EPSILON)  // PERSONAL IMPROVE: Epsilons in relation to mpfloat/ctimevalue are probably not needed in most cases. Hard to remove for now without debugging.
+#define MP_EPSILON BADMP(FLT_EPSILON)
+
+// PERSONAL IMPROVE:
+	// Check every "MP_EPSILON" comment/macro for usefullness etc.
+	// Epsilons in relation to mpfloat/ctimevalue are probably not needed in most cases. Hard to remove for now without debugging.
+	// Also, every "MP_SCIFI" should probably be converted to whatever MPFR allows for scientific notation.
 
 #endif // MPFLOAT

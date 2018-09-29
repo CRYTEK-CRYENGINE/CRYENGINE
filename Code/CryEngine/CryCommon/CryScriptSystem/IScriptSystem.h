@@ -1249,14 +1249,6 @@ inline ScriptAnyValue::ScriptAnyValue(const ScriptAnyValue& rhs)
 }
 inline void ScriptAnyValue::Swap(ScriptAnyValue& value)
 {
-	// PERSONAL IMPROVE: Wait a sec, Vector's != pod type right?? How did memcpy work here before??
-	/*
-		char temp[sizeof(ScriptAnyValue)];
-		memcpy(temp, this, sizeof(ScriptAnyValue));
-		memcpy(this, &value, sizeof(ScriptAnyValue));
-		memcpy(&value, temp, sizeof(ScriptAnyValue));
-	*/
-
 	ScriptAnyValue tmp = value; // PERSONAL NOTE: mpfloat != POD type -> can't memcpy it around.
 	value = this;
 	*this = tmp;

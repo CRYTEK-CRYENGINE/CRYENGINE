@@ -625,7 +625,7 @@ bool BinIArchive::operator()(CTimeValue& value, const char* name, const char* la
 	return (*this)(value.m_lValue, name, label);
 }
 
-// Non-POD type, read and write as string. PERSONAL IMPROVE: Convert to StringSTL handling? Unfortunately not a str so reference won't work.
+// PERSONAL NOTE: Non-POD type, read and write as string.
 #define MP_FUNCTION(T)\
 bool BinIArchive::operator()(T& value, const char* name, const char* label)\
 {\

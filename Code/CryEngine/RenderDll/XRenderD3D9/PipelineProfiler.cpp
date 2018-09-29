@@ -270,7 +270,7 @@ void CRenderPipelineProfiler::UpdateMultithreadedSection(uint32 index, bool bSec
 		CryInterlockedAdd(&section.numPolys, numPolys);
 #endif
 
-		// PERSONAL IMPROVE: I can't do multi-threading.....
+		// PERSONAL IMPROVE: I can't do multi-threading or volatile XX edits xd
 		// section.endTimeCPU.AddValueThreadSafe(deltaTimestamp);
 
 		if (bIssueTimestamp)

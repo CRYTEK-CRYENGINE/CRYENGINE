@@ -719,7 +719,8 @@ NET_IMPLEMENT_IMMEDIATE_MESSAGE(CNetChannel, Pong, eNRT_UnreliableUnordered, 0)
 	while (!found && !m_pings.empty())
 	{
 		mpfloat millis = (m_pings.top() - when).GetMilliSeconds();
-		// PERSONAL CRYTEK: PERSONAL DEBUG: 1 < millis < 2 generally. Is it that much slower or is it more accurate? Or inaccurate!?? Default time setup has the value going ~0.2->1......
+		// PERSONAL CRYTEK: 1 < millis < 2 generally. Is it that much slower or is it more accurate? Or inaccurate!?? 
+		// Stock engine has the value going ~0.2->1, hard to tell.
 		if (millis > 2)
 			break;
 		else if (millis > -1)

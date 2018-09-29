@@ -186,7 +186,7 @@ bool CAppDomain::Reload()
 
 	GetMonoRuntime()->OnPluginLibrariesDeserialized();
 
-	CryLogAlways("Total de-serialization time: %f ms", (1000.f * gEnv->pTimer->TicksToSeconds(m_serializationTicks)));
+	CryLogAlways("Total de-serialization time: %f ms", (1000.f * GetGTimer()->TicksToSeconds(m_serializationTicks)));
 
 	// Notify the framework so that internal listeners etc. can be added again.
 	if (std::shared_ptr<CMonoMethod> pMethod = pEngineClass->FindMethod("OnReloadDone").lock())
@@ -244,7 +244,7 @@ void CAppDomain::SerializeDomainData(std::vector<char>& serializedData)
 
 		memcpy(serializedData.data(), arrayBuffer, serializedData.size());
 
-		CryLogAlways("Total serialization time: %f ms, %iMB used", (1000.f * gEnv->pTimer->TicksToSeconds(m_serializationTicks)), serializedData.size() / (1024 * 1024));
+		CryLogAlways("Total serialization time: %f ms, %iMB used", (1000.f * GetGTimer()->TicksToSeconds(m_serializationTicks)), serializedData.size() / (1024 * 1024));
 	}
 	else
 	{

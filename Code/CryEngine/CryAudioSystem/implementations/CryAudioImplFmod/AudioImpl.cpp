@@ -1132,8 +1132,6 @@ void CImpl::GetFileData(char const* const szName, SFileData& fileData) const
 
 	if (pSound != nullptr)
 	{
-		// WARNING: Float inaccuracy
-		// Perhaps Fmod has more accurate length control somewhere?
 		unsigned int length = 0;
 		pSound->getLength(&length, FMOD_TIMEUNIT_MS);
 		fileData.duration.SetMilliSeconds(length);

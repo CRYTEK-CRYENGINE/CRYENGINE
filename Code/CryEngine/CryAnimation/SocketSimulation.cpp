@@ -86,7 +86,7 @@ void CSimulation::UpdatePendulumSimulation(const CAttachmentManager* pAttachment
 	const mpfloat fIPlaybackScale = pSkelInstance->GetPlaybackScale();
 	const mpfloat fLPlaybackScale = pSkelInstance->m_SkeletonAnim.GetLayerPlaybackScale(0);
 	const CTimeValue fAverageFrameTime = (g_AverageFrameTime * fIPlaybackScale * fLPlaybackScale != 0) ? g_AverageFrameTime * fIPlaybackScale * fLPlaybackScale : g_AverageFrameTime;
-	const CTimeValue ps = abs(fAverageFrameTime) > CTimeValue("0.00001") ? CLAMP(fAverageFrameTime, "0.001", "0.1") : 0; // PERSONAL TODO: More clamping
+	const CTimeValue ps = abs(fAverageFrameTime) > CTimeValue("0.00001") ? CLAMP(fAverageFrameTime, "0.001", "0.1") : 0;  // PERSONAL CRYTEK: Clamping time
 	const CTimeValue fTS = CLAMP(ceil(ps * m_nSimFPS), 1, 15);
 	const nTime dt = ps / fTS;  //delta-time per time-step;
 
@@ -433,7 +433,7 @@ void CSimulation::UpdateSpringSimulation(const CAttachmentManager* pAttachmentMa
 	const mpfloat fIPlaybackScale = pSkelInstance->GetPlaybackScale();
 	const mpfloat fLPlaybackScale = pSkelInstance->m_SkeletonAnim.GetLayerPlaybackScale(0);
 	const CTimeValue fAverageFrameTime = (g_AverageFrameTime * fIPlaybackScale * fLPlaybackScale != 0)? g_AverageFrameTime * fIPlaybackScale * fLPlaybackScale : g_AverageFrameTime;
-	const CTimeValue ps = abs(fAverageFrameTime) > CTimeValue("0.00001") ? CLAMP(fAverageFrameTime, "0.001", "0.1") : 0; // PERSONAL TODO: Moar clamping
+	const CTimeValue ps = abs(fAverageFrameTime) > CTimeValue("0.00001") ? CLAMP(fAverageFrameTime, "0.001", "0.1") : 0;  // PERSONAL CRYTEK: Clamping time
 	const CTimeValue fTS = CLAMP(ceil(ps * m_nSimFPS), 1, 15);
 	const nTime dt = ps / fTS;  //delta-time per time-step;
 

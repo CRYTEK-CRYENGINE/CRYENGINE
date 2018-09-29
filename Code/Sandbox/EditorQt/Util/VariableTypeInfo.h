@@ -102,7 +102,7 @@ public:
 	virtual EType GetType() const { return m_eType; }
 	virtual int   GetSize() const { return m_pTypeInfo->Size; }
 
-	/* PERSONAL IMPROVE: Not to clear on how typeinfo works to begin with. >.>
+	/* PERSONAL CRYTEK: Not too clear on how typeinfo works to begin with. >.>
 
 	virtual void  GetLimits(float& fMin, float& fMax, float& fStep, bool& bHardMin, bool& bHardMax)
 	{

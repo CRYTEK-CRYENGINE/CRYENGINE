@@ -174,7 +174,8 @@ public:
 		ar(softLimit_.max, "softMax", "SoftMax");
 	}
 
-public: // Conversions PERSONAL IMPROVE: Perhaps in rewrites implement this as a cleaner workaround?
+public: // Conversions 
+	// PERSONAL IMPROVE: Perhaps in future nested-class rewrites implement this as a cleaner workaround to store both MP and non-mp values?
 
 	// Convert from mpfloat TO lossy/other-strong types.
 	template <class T = Type, typename boost::enable_if_c<isMP>::type* = 0>

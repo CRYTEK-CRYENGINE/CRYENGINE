@@ -170,9 +170,8 @@ bool CSocketIOManagerSelect::PollWait(const CTimeValue& waitTime)
 
 	if (m_fdmax >= 0)
 	{
-		// WARNING: Float inaccuracy : Similar to other timeval declarations, have to review and possibly solve/simplify this!
+		// PERSONAL IMPROVE : Similar to other timeval declarations, have to review and possibly solve/simplify this!
 		// E.g. standerdized time -> timeval conversions!
-		// PERSONAL IMPROVE ^
 		timeval tv;
 		tv.tv_sec = (long)waitTime.GetSeconds();
 		tv.tv_usec = long((waitTime.GetSeconds() - tv.tv_sec) * 1'000'000);

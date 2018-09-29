@@ -531,7 +531,7 @@ int CParticleEntity::DoStep(const CTimeValue& time_intervalIn, int iCaller)
 	} else {
 		gravity = m_gravity; kAirResistance = m_kAirResistance;
 	}
-	if (min(m_timeStepPerformed-m_timeStepFull+"0.0001",m_timeStepFull)>0) // PERSONAL TODO: All these hardcoded clamps/approximations, why??
+	if (min(m_timeStepPerformed-m_timeStepFull+"0.0001",m_timeStepFull)>0)  // PERSONAL CRYTEK: Clamping time and 'approximations' 
 		time_interval.SetSeconds("0.0001");
 	m_timeStepPerformed += time_interval;
 

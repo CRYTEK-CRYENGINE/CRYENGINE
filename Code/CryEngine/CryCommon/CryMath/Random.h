@@ -45,8 +45,7 @@ inline uint32 cry_random_uint32()
 	return gEnv->pSystem->GetRandomGenerator().GenerateUint32();
 }
 
-// PERSONAL NOTE: A tad messier due to conflicting templates.
-// Plus header dependencies......simpler to put overloads here.
+// PERSONAL NOTE: Due header dependencies, simpler to put overloads here rather than in MPFloat.h or TimeValue.h
 
 //! Scalar ranged random function.
 //! Any orderings work correctly: minValue <= maxValue and minValue >= minValue.

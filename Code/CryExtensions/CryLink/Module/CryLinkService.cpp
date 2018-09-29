@@ -209,7 +209,7 @@ namespace CryLinkService
 		{
 			if(command == "challenge")
 			{
-				const int64 time = gEnv->pTimer->GetAsyncTime().GetValue();
+				const int64 time = GetGTimer()->GetAsyncTime().GetValue();
 				connectionInfo.challange.Format("%d", time);
 
 				response.response = time;

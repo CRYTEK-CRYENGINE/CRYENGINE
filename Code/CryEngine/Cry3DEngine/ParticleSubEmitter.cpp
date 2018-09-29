@@ -192,7 +192,7 @@ void CParticleSubEmitter::EmitParticles(SParticleUpdateContext& context)
 
 					if (params.bContinuous && fEmitterLife > 0)
 					{
-						// PERSONAL DEBUG: Why use 'float' for particle count?
+						// PERSONAL CRYTEK: Why use 'float' for particle count? Large #'s?
 						// Continuous emission rate which maintains fCount particles
 						CTimeValue fAgeIncrement = min(fParticleLife, fEmitterLife) / BADMP(fCount);
 
@@ -426,24 +426,6 @@ void CParticleSubEmitter::UpdateForce()
 		// Force magnitude: speed times relative particle density.
 		CTimeValue fPLife = BADTIME(params.fParticleLifeTime("0.5", fStrength));
 		CTimeValue fTime = fAge - m_fStartAge;
-
-		/*
-			PERSONAL CRYTEK: & PERSONAL NOTE:
-				Currently fStrength and relativeParticleAge are used as 'Time' values during interpolation.
-
-				Splines interpolate between 2 sets of values, not necessarrily time.
-					- E.g. Air Resistance vs Strength, given strength get air resistance with interp X and Y
-					  Bad logic to use 'CTimeValue' there, BUT mpfloat should an option as the storage type/etc!
-				
-				Unfortunately, to allow for mpfloat storage/use etc. for better accuracy; Large rewrites would have to be done.
-				e.g.
-					Storage types updated to support Spline<CTimeValue> 
-					SFloat, UFloat, UnitFloat8 and UnitFloat replacements....
-					Plenty to do with loading/saving/converting spline key times/values and so on.
-
-					Since data types optimized, just like ParticleUpdate/etc., changes mostly reverted due to scope of work and lack of experience with CE Req's/etc.
-					Quite a few still remain, can be removed or improved.
-		*/
 
 		float fSpeed = params.fSpeed("0.5", fStrength) * GetMain().GetSpawnParams().fSpeedScale;
 		float fDist = Travel::TravelDistance(abs(fSpeed), params.fAirResistance("0.5", fStrength, "0.5"), min(fTime, fPLife));

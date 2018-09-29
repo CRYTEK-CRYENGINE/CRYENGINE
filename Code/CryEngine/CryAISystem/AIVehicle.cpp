@@ -81,7 +81,7 @@ void CAIVehicle::Update(EUpdateType type)
 
 		CTimeValue fCurrentTime = GetAISystem()->GetFrameStartTime();
 		if (m_fLastUpdateTime > 0)
-			m_fTimePassed = min(CTimeValue("0.5"), fCurrentTime - m_fLastUpdateTime); // PERSONAL TODO: More minimum frame-time BS
+			m_fTimePassed = min(CTimeValue("0.5"), fCurrentTime - m_fLastUpdateTime);  // PERSONAL CRYTEK: Clamping time
 		else
 			m_fTimePassed.SetSeconds(0);
 

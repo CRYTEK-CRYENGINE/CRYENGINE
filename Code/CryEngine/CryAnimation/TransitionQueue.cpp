@@ -446,7 +446,6 @@ void CTransitionQueue::UpdateTransitionTime(uint numAnims, const CTimeValue& fDe
 		if (trackViewExclusive)
 			ttime = originalDeltaTime / fTransTime;
 
-		// PERSONAL NOTE: This is why priority = mpfloat, based on time.
 		// update transition time
 		mpfloat newPriority = min(rCurAnimation.GetTransitionPriority() + ttime.conv<mpfloat>(), mpfloat(1));
 		rCurAnimation.m_fTransitionPriority = newPriority;

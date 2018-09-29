@@ -280,8 +280,7 @@ int CDialogLoader::LoadFromTable(XmlNodeRef tableNode, const string& groupName, 
 					{
 						scriptLine.facial.assign(szContent, n);
 						float w = 0.5f;
-						char tmp[MP_SIZE];
-						tmp = "0.5";
+						char tmp[MP_SIZE] = "0.5";
 						int nGood = sscanf(szContent + n + 1, "%f%*[:; ]%s", &w, &tmp);
 						if (nGood != 1 && nGood != 2)
 						{

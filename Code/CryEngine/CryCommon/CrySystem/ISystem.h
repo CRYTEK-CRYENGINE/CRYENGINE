@@ -812,7 +812,7 @@ union UAsyncDipState
 };
 //! \endcond
 
-// PERSONAL IMPROVE: Could get better syntax here, hard to come up with an ideal method. This is 'simplest' though.
+// PERSONAL IMPROVE: Could get better syntax here, hard to come up with an ideal method. This is 'simple' though.
 // Definitely keep all timers listed here for debug/tracing purposes!
 // Perhaps add CServerTimer() here as well.
 namespace GTimers {
@@ -1361,7 +1361,6 @@ struct ISystem
 	virtual void DumpWinHeaps() = 0;
 	virtual int  DumpMMStats(bool log) = 0;
 
-	// PERSONAL IMPROVE: Convert to global static function perhaps?
 	//! \return Current system timer resolution, in units of 100nanoseconds. 5,000 = 0.5 milliseconds (ms)
 	virtual ULONG GetTimeResolution() const = 0;
 

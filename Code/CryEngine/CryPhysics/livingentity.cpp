@@ -1282,7 +1282,7 @@ int CLivingEntity::Step(const CTimeValue& time_intervalIN)
 		return 1;
 	CTimeValue dt = m_timeStepFull-m_timeStepPerformed;
 	time_interval = m_pWorld->m_bWorldStep==2 ? min(time_interval, dt) : dt;
-	time_interval = max(time_interval, CTimeValue("0.001")); // PERSONAL TODO: Moar clamps!
+	time_interval = max(time_interval, CTimeValue("0.001")); // PERSONAL CRYTEK: Clamping time
 	const float tSeconds = time_interval.BADGetSeconds();
 
 	const int iCaller = get_iCaller_int();

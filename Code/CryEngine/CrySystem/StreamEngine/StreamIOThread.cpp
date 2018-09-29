@@ -129,7 +129,6 @@ void CStreamingIOThread::ThreadEntry()
 				CTimeValue deltaT = t1 - t0;
 				if (deltaT < 1)
 				{
-					// WARNING: Float inaccuracy + WaitForSingleObject() isn't implemented anyway???
 					bWaiting = !m_awakeEvent.Wait((uint32)(CTimeValue(1) - deltaT).GetMilliSeconds());
 				}
 

@@ -11,7 +11,7 @@
 //--------------------------------------------------------------------------------
 // IsValid() overloads for basic types
 
-// PERSONAL IMPROVE: Honestly IsValid() and IsUnused() should be merged.
+// PERSONAL IMPROVE: IsValid() and IsUnused() should probably be merged.
 namespace ValidNumber
 {
 template<typename T, bool Converted> struct Float

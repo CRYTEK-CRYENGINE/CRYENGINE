@@ -362,7 +362,6 @@ public:
 
 	virtual void TimeStep(const CTimeValue& time_interval, int flags=ent_all|ent_deleted);
 	virtual const CTimeValue& GetPhysicsTime() { return m_timePhysics; }
-	// PERSONAL NOTE : As with time - granularity, this is all not needed anymore. CTimeValue has a standerdized accuracy across the entire engine.
 	virtual void SetPhysicsTime(const CTimeValue& time) {
 		m_timePhysics = time;
 	}

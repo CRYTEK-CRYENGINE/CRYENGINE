@@ -106,6 +106,7 @@ public:
 	YASLI_INLINE bool operator()(i64& value, const char* name, const char* label) override;
 	YASLI_INLINE bool operator()(u64& value, const char* name, const char* label) override;
 
+
 	YASLI_INLINE bool operator()(StringInterface& value, const char* name, const char* label) override;
 	YASLI_INLINE bool operator()(WStringInterface& value, const char* name, const char* label) override;
 	YASLI_INLINE bool operator()(const Serializer& ser, const char* name, const char* label) override;

@@ -900,7 +900,7 @@ void CPhonemesCtrl::InsertPhoneme(CPoint point, int phonemeId)
 
 		ClearSelection();
 
-		CTimeValue endTime = time + "0.1";		// PERSONAL DEBUG: Make sure to double check units on all these times. Marker/etc. was in 'milliseconds'!??
+		CTimeValue endTime = time + "0.1";		// PERSONAL DEBUG: Make sure to double check units on all these times.
 		// Find phoneme after this time.
 		int i;
 		for (i = 0; i < GetPhonemeCount(sentenceIndex); i++)

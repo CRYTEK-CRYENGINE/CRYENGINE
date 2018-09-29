@@ -209,7 +209,7 @@ public:
 	// Returns the current time (seconds since game began) that AI should be working with -
 	// This may be different from the system so that we can support multiple updates per
 	// game loop/update.
-	// PERSONAL IMPROVE: Have a separate AI timer for this instead.....
+	// PERSONAL IMPROVE: Have a separate AI timer for this instead, amongst the other global timers.
 	ILINE const CTimeValue& GetFrameStartTime() const
 	{
 		return m_frameStartTime;

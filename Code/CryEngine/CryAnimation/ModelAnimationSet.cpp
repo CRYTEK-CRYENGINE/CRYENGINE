@@ -1002,7 +1002,7 @@ bool CAnimationSet::GetAnimationDCCWorldSpaceLocation(const CAnimation* pAnim, Q
 	{
 	if (!NumberValid(ntime))
 		{
-			static mpfloat lastntime = 0;
+			static nTime lastntime = 0;
 			lastntime = ntime;
 			CryFatalError("CAnimationSet::GetAnimationDCCWorldSpaceLocation: Invalid nTime");
 		}

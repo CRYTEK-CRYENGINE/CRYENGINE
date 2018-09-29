@@ -591,13 +591,8 @@ struct ICVar
 	virtual float GetFVal() const = 0;
 
 	/*
-		PERSONAL NOTE: CVar's are some of the messiest implementations regarding multi-strongtype setups.
+		PERSONAL IMPROVE: CVar's are some of the messiest implementations regarding multi-strongtype setups.
 		Honestly all the multi-data type serialization/etc. systems should be cleaned up/standerdized.
-
-		Due to CVar setups e.g. GetMP()....those won't work!
-		Can't overload by return-type only, and can't use templates.....
-		So preferably just Register() (e.g. with a &rtime) and have a mpfloat/rTime/etc. value update automatically via console -> string -> variable.
-		Most of CE does this already.
 	*/
 	//! \return The MPFloat value of the variable.
 	virtual mpfloat GetMPVal()   const { assert(false && "Invalid get!"); return 0;} 

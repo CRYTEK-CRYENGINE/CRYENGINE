@@ -439,6 +439,34 @@ void CXmlNode::setAttr( const char *key,const Quat &value )
 	sprintf( str,"%g,%g,%g,%g",value.w,value.v.x,value.v.y,value.v.z );
 	setAttr( key,str );
 }
+//////////////////////////////////////////////////////////////////////////
+void CXmlNode::setAttr(const char *key, const CTimeValue& value)
+{
+	setAttr(key, value.m_lValue);
+}
+
+#define MP_FUNCTION(T)\
+void CXmlNode::setAttr(const char *key, const T& value)\
+{\
+	setAttr(key, value.str().c_str());\
+}
+#include "CrySystem\mpfloat.types"
+#undef MP_FUNCTION
+
+bool CXmlNode::getAttr(const char *key, CTimeValue& value) const
+{
+	return getAttr(key, value.m_lValue);
+}
+
+#define MP_FUNCTION(T)\
+bool CXmlNode::getAttr(const char *key, T& value) const\
+{\
+	const char *svalue = GetValue(key);\
+	value = svalue;\
+	return true;\
+}
+#include "CrySystem\mpfloat.types"
+#undef MP_FUNCTION
 
 //////////////////////////////////////////////////////////////////////////
 bool CXmlNode::getAttr( const char *key,int &value ) const

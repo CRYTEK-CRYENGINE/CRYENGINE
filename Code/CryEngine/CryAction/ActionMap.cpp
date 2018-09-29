@@ -798,6 +798,7 @@ bool CActionMap::CanProcessInput(const SInputEvent& inputEvent, CActionMap* pAct
 
 	// PERSONAL CRYTEK: UI-time doesn't clamp/scale as well.......wouldn't clamped input time => non-clamped time matter?
 	// Shouldn't Input be using UI-time by default since it should be calculating from a player's perspective, in 'real' time?
+	// Changed to UI time as default here, for now.....
 	CTimeValue fCurrTime = GetGTimer()->GetFrameStartTime(ITimer::ETIMER_UI);
 	IGameFramework* pGameFramework = gEnv->pGameFramework;
 

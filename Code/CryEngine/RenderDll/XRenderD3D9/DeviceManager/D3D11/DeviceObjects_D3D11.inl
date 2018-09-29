@@ -37,7 +37,7 @@ protected:
 	std::array<ID3D11Query*, kMaxTimestamps>  m_timestampQueries;
 	ID3D11Query*                              m_pDisjointQuery;
 
-	// PERSONAL IMPROVE: Overcomplicated timestamp setup. Can perhaps be changed later.
+	// PERSONAL IMPROVE: Overcomplicated timestamp setup. Can perhaps be improved later.
 	UINT64                                    m_frequency;
 	std::array<uint64, kMaxTimestamps>        m_timeValues;
 

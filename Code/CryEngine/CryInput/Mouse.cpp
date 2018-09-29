@@ -255,8 +255,8 @@ void CMouse::Update(bool bFocus)
 	// mouse inertia
 	if (inertia > 0)
 	{
-		CTimeValue dt = GetGTimer()->GetFrameTime(ITimer::ETIMER_UI);
-		if (dt > "0.1") dt.SetSeconds("0.1"); // PERSONAL TODO: Moar clamping
+		CTimeValue dt = GetGTimer()->GetFrameTime(true);
+		if (dt > "0.1") dt.SetSeconds("0.1");  // PERSONAL CRYTEK: Clamping time
 		m_deltas = (m_deltasInertia += (m_deltas - m_deltasInertia) * inertia * dt.BADGetSeconds());
 	}
 }
@@ -342,7 +342,7 @@ void CMouse::SmoothDeltas(float accel, float decel)
 	else//mouse smooth with acceleration
 	{
 		// PERSONAL DEBUG: Should this be in UI or Game time? Hard to tell.
-		float dt = min(GetGTimer()->GetFrameTime(ITimer::ETIMER_UI), CTimeValue("0.1")).BADGetSeconds();
+		float dt = min(GetGTimer()->GetFrameTime(true), CTimeValue("0.1")).BADGetSeconds();
 
 		Vec2 delta;
 

@@ -737,7 +737,7 @@ public:
 	virtual void Kick(const CryUserID* pUserID, EDisconnectionCause cause) = 0;
 
 	//! \param pUserID Pointer to the CryUserID of the user to ban.
-	//! \param timeout Ban timeout in minutes. PERSONAL NOTE: Since in minutes...kept as float for now.
+	//! \param timeout Ban timeout in minutes. PERSONAL NOTE: Since in minutes, kept as float.
 	virtual void Ban(const CryUserID* pUserID, float timeout) = 0;
 
 	//! Retrieve the user name from a matchmaking connection.

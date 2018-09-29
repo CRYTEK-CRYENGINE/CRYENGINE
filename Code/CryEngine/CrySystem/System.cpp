@@ -1070,7 +1070,7 @@ public:
 					gEnv->pPhysicalWorld->TracePendingRays();
 					if (kSlowdown != 1)
 					{
-						//step = max(1, FtoI(step * kSlowdown * 50 - " 0.5")) * 0.02f; PERSONAL CRYTEK: This is just for approximation?
+						//step = max(1, FtoI(step * kSlowdown * 50 - " 0.5")) * 0.02f; PERSONAL DEBUG: This is just for approximation?
 						step = step * kSlowdown;
 						pVars->timeScalePlayers = 1 / max(kSlowdown, mpfloat("0.2"));
 					}
@@ -1581,6 +1581,101 @@ bool CSystem::DoFrame(const SDisplayContextKey& displayContextKey, CEnumFlags<ES
 	return continueRunning;
 }
 
+/////////////////////////////////////////////////////
+void CSystem::CheckSleeps(){
+//**
+//** Server CPU Throttle, VSync, and system cvar for maximum FPS.
+//** 
+	static ICVar * pSysMaxFPS = NULL;
+	static ICVar* pVSync = NULL;
+	static ICVar* pFixed = NULL;
+
+	if (pSysMaxFPS == NULL && gEnv && gEnv->pConsole)
+		pSysMaxFPS = gEnv->pConsole->GetCVar("sys_MaxFPS");
+	if (pVSync == NULL && gEnv && gEnv->pConsole)
+		pVSync = gEnv->pConsole->GetCVar("r_Vsync");
+	if (pFixed == NULL && gEnv && gEnv->pConsole)
+		pFixed = gEnv->pConsole->GetCVar("t_FixedStep"); // DEBUG ONLY
+
+	mpfloat maxFPS = mpfloat::Max();
+	if (gEnv->IsDedicated())
+	{
+		maxFPS = GetDedicatedMaxRate()->GetMPVal();
+	}
+	else
+	{
+		if (pSysMaxFPS && pVSync)
+		{
+			uint32 vSync = pVSync->GetIVal();
+			if (vSync == 0)
+			{
+				maxFPS = pSysMaxFPS->GetIVal();
+				if (maxFPS == 0)
+				{
+					const bool bInLoading = (ESYSTEM_GLOBAL_STATE_RUNNING != GetSystemGlobalState());
+					if (bInLoading || IsPaused())
+					{
+						maxFPS = 60;
+					}
+				}
+			}
+		}
+	}
+
+//**
+//** Limit FPS when window's inactive
+//**
+#if CRY_PLATFORM_WINDOWS
+	// Disable throttling, when various Profilers are in use
+	bool skip = false;
+	#if !defined(_RELEASE) || defined(PERFORMANCE_BUILD)
+		#if defined(CRY_PROFILE_MARKERS_USE_GPA)
+		skip = true;
+		#endif
+		#if ALLOW_BROFILER
+		if (::Profiler::IsActive()) { skip = true; }
+		#endif
+		if (gEnv->pConsole->GetCVar("e_StatoscopeEnabled")->GetIVal()) { skip = true; }
+	#endif
+
+	// ProcessSleep()
+	if (gEnv->IsDedicated() || gEnv->IsEditor() || gEnv->bMultiplayer || (gEnv->pGameFramework && gEnv->pGameFramework->IsInTimeDemo()))
+		skip = true;
+
+	if (!skip && GetIRenderer())
+	{
+		WIN_HWND hRendWnd = GetIRenderer()->GetHWND();
+		if (hRendWnd && ::GetActiveWindow() != hRendWnd)
+			maxFPS = min(mpfloat(15), maxFPS);	// Limiting to 15fps atm, perhaps convert to CVar.
+	}
+#endif
+
+//**
+//** DEBUG ONLY: If fixed CVar is negative, cap frames to timestep.
+//**
+	CTimeValue target = 0;
+	if (pFixed->GetTime() < 0) { target = abs(pFixed->GetTime()); }
+
+//**
+//** Actually enforce the frame cap
+//**
+	if(maxFPS != mpfloat::Max()) {
+		target = max(CTimeValue(1/maxFPS), target);
+	}
+
+	if(target > 0){
+		// Time left = Target timestep - (CurTime - real-StartTime)
+		CTimeValue tLeft = target - (m_Time.GetAsyncCurTime() - m_Time.GetFrameStartTime(ITimer::ETIMER_UI));
+		if(tLeft > 0){
+			CryLowLatencySleep(tLeft);
+		}else{
+			CryWarning(VALIDATOR_MODULE_SYSTEM, VALIDATOR_WARNING, 
+					"CTimer: Took longer than frame cap [%.2fms] %.2fms %.2fms", 
+					(float)target.GetMilliSeconds(), (float)(target - tLeft).GetMilliSeconds(), (float)abs(tLeft.GetMilliSeconds())
+			);
+		};
+	}
+}
 //////////////////////////////////////////////////////////////////////
 bool CSystem::Update(CEnumFlags<ESystemUpdateFlags> updateFlags, int nPauseMode)
 {
@@ -1758,10 +1853,11 @@ bool CSystem::Update(CEnumFlags<ESystemUpdateFlags> updateFlags, int nPauseMode)
 		return true;
 #endif //EXCLUDE_UPDATE_ON_CONSOLE
 
-	/*
-		PERSONAL NOTE: Moved here since char manager depends on frame time.
-		Now handles ALL main-thread frame-capping/etc. sleeps.
-	*/
+	// Enforce any frame-rate caps needed before caching times.
+	// Handles ALL main-thread frame-capping/etc. sleeps.
+	CheckSleeps();
+
+	// PERSONAL NOTE: Moved here since char manager depends on frame time.
 	// Update time subsystem 
 	m_Time.UpdateOnFrameStart();
 

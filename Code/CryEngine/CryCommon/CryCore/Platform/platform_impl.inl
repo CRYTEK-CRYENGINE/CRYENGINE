@@ -280,20 +280,11 @@ void CryLowLatencySleep(const CTimeValue& sleepTime, bool check)
 				Even though a thread becomes active, scheduling and enabling it takes a bit and depends on the priority/setup of other threads.
 				This can lead to delays of 1ms or more depending on system usage! Alt-tabbing easily reproduces this.
 
-			PERSONAL IMPROVE:
-				There's a ton more issues. Recommendation would be to use the windows timestamp project.
+			PERSONAL CRYTEK: & PERSONAL IMPROVE:
+				There are a ton more issues. Recommendation would be to use the windows timestamp project.
 				Would significantly alleviate QueryPerformanceCounter() etc. inaccuraccies.
 				http://www.windowstimestamp.com/
 		*/
-
-		/*	
-			Sleep(1) sleeps ~1ms with an error of up to TimePrecision.
-				TimePrecision(1) = > Sleep(1) sleeps up to 1.99ms 
-		*/
-		// Sleep as much as possible until at risk of err
-		const int safe = (int)(sleepTime.GetMilliSeconds() - (mpfloat)gEnv->pSystem->GetTimeResolution() / 10'000);
-		if (safe > 0)
-			Sleep(safe);
 
 		// Get ticks per sec
 		LARGE_INTEGER TTicksPerSec;
@@ -304,6 +295,15 @@ void CryLowLatencySleep(const CTimeValue& sleepTime, bool check)
 		LARGE_INTEGER t;
 		QueryPerformanceCounter(&t);
 		const mpfloat minTicks = (sleepTime.GetSeconds() * lTicksPerSec) + t.QuadPart;
+
+		/*	
+			Sleep(1) sleeps ~1ms with an error of up to TimePrecision.
+				TimePrecision(1) = > Sleep(1) sleeps up to 1.99ms 
+		*/
+		// Sleep as much as possible until at risk of err
+		const int safe = (int)(sleepTime.GetMilliSeconds() - (mpfloat)gEnv->pSystem->GetTimeResolution() / 10'000);
+		if (safe > 0)
+			Sleep(safe);
 
 		// Sleep remainder away
 		for (;;)
