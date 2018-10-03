@@ -222,7 +222,7 @@ namespace Schematyc2
 		void OnAddAbstractInterfaceFunction(CPoint point, const CBrowserCtrlItemPtr& pItem);
 		void OnAddAbstractInterfaceTask(CPoint point, const CBrowserCtrlItemPtr& pItem);
 		void OnAddClass(CPoint point, const CBrowserCtrlItemPtr& pItem);
-		void OnAddStateMachine(CPoint point, const CBrowserCtrlItemPtr& pItem, EScriptStateMachineLifetime lifetime);
+		void OnAddStateMachine(CPoint point, const CBrowserCtrlItemPtr& pItem, EStateMachineLifetime lifetime);
 		void OnAddState(CPoint point, const CBrowserCtrlItemPtr& pItem);
 		void OnAddVariable(CPoint point, const CBrowserCtrlItemPtr& pItem);
 		void OnAddProperty(CPoint point, const CBrowserCtrlItemPtr& pItem);

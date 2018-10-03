@@ -1116,12 +1116,12 @@ namespace Schematyc2
 					}
 				case ContextMenuItem::ADD_PERSISTENT_STATE_MACHINE:
 					{
-						OnAddStateMachine(point, pItem, EScriptStateMachineLifetime::Persistent);
+						OnAddStateMachine(point, pItem, EStateMachineLifetime::Persistent);
 						break;
 					}
 				case ContextMenuItem::ADD_TASK_STATE_MACHINE:
 					{
-						OnAddStateMachine(point, pItem, EScriptStateMachineLifetime::Task);
+						OnAddStateMachine(point, pItem, EStateMachineLifetime::Task);
 						break;
 					}
 				case ContextMenuItem::ADD_STATE:
@@ -1816,7 +1816,7 @@ namespace Schematyc2
 								const IScriptStateMachine* pStateMachine = GetItemScriptStateMachine(*pParentItem);
 								if(pStateMachine)
 								{
-									if(pStateMachine->GetLifetime() == EScriptStateMachineLifetime::Task)
+									if(pStateMachine->GetLifetime() == EStateMachineLifetime::Task)
 									{
 										pAddContextMenu->GetMenu().AppendMenu(MF_STRING, ContextMenuItem::ADD_PROPERTY, "Property");
 									}
@@ -2015,7 +2015,7 @@ namespace Schematyc2
 					pAddContextMenu->GetMenu().AppendMenu(MF_STRING, ContextMenuItem::ADD_STATE, "State");
 					pAddContextMenu->GetMenu().AppendMenu(MF_STRING, ContextMenuItem::ADD_VARIABLE, "Variable");
 					const IScriptStateMachine* pStateMachine = GetItemScriptStateMachine(*pItem);
-					if(pStateMachine && (pStateMachine->GetLifetime() == EScriptStateMachineLifetime::Task))
+					if(pStateMachine && (pStateMachine->GetLifetime() == EStateMachineLifetime::Task))
 					{
 						pAddContextMenu->GetMenu().AppendMenu(MF_STRING, ContextMenuItem::ADD_PROPERTY, "Property");
 					}
@@ -2529,7 +2529,7 @@ namespace Schematyc2
 	}
 
 	//////////////////////////////////////////////////////////////////////////
-	void CBrowserCtrl::OnAddStateMachine(CPoint point, const CBrowserCtrlItemPtr& pItem, EScriptStateMachineLifetime lifetime)
+	void CBrowserCtrl::OnAddStateMachine(CPoint point, const CBrowserCtrlItemPtr& pItem, EStateMachineLifetime lifetime)
 	{
 		SCHEMATYC2_SYSTEM_ASSERT(pItem);
 		if(pItem)

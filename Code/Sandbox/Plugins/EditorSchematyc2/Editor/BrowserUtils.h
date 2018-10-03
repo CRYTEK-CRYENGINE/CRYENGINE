@@ -18,7 +18,7 @@ namespace Schematyc2
 		IScriptAbstractInterfaceFunction* AddAbstractInterfaceFunction(CWnd* pWnd, CPoint point, TScriptFile& scriptFile, const SGUID& scopeGUID);
 		IScriptAbstractInterfaceTask* AddAbstractInterfaceTask(CWnd* pWnd, CPoint point, TScriptFile& scriptFile, const SGUID& scopeGUID);
 		IScriptClass* AddClass(CWnd* pWnd, CPoint point, TScriptFile& scriptFile, const SGUID& scopeGUID);
-		IScriptStateMachine* AddStateMachine(CWnd* pWnd, CPoint point, TScriptFile& scriptFile, const SGUID& scopeGUID, EScriptStateMachineLifetime lifeTime);
+		IScriptStateMachine* AddStateMachine(CWnd* pWnd, CPoint point, TScriptFile& scriptFile, const SGUID& scopeGUID, EStateMachineLifetime lifeTime);
 		IScriptVariable* AddVariable(CWnd* pWnd, CPoint point, TScriptFile& scriptFile, const SGUID& scopeGUID);
 		IScriptProperty* AddProperty(CWnd* pWnd, CPoint point, TScriptFile& scriptFile, const SGUID& scopeGUID);
 		IScriptTimer* AddTimer(CWnd* pWnd, CPoint point, TScriptFile& scriptFile, const SGUID& scopeGUID);

@@ -90,7 +90,7 @@ struct IScriptFile
 	virtual Schematyc2::EVisitStatus VisitClassBases(const Schematyc2::ScriptClassBaseVisitor& visitor, const Schematyc2::SGUID& scopeGUID, bool bRecurseHierarchy) = 0;
 	virtual Schematyc2::EVisitStatus VisitClassBases(const Schematyc2::ScriptClassBaseConstVisitor& visitor, const Schematyc2::SGUID& scopeGUID, bool bRecurseHierarchy) const = 0;
 
-	virtual Schematyc2::IScriptStateMachine* AddStateMachine(const Schematyc2::SGUID& scopeGUID, const char* szName, Schematyc2::EScriptStateMachineLifetime lifetime, const Schematyc2::SGUID& contextGUID, const Schematyc2::SGUID& partnerGUID) = 0;
+	virtual Schematyc2::IScriptStateMachine* AddStateMachine(const Schematyc2::SGUID& scopeGUID, const char* szName, Schematyc2::EStateMachineLifetime lifetime, const Schematyc2::SGUID& contextGUID, const Schematyc2::SGUID& partnerGUID) = 0;
 	virtual Schematyc2::IScriptStateMachine* GetStateMachine(const Schematyc2::SGUID& guid) = 0;
 	virtual const Schematyc2::IScriptStateMachine* GetStateMachine(const Schematyc2::SGUID& guid) const = 0;
 

@@ -29,7 +29,7 @@ QVariant CLegacyOpenDlgEntry::GetColumnValue(int32 columnIndex) const
 	return QVariant();
 }
 
-QString  CLegacyOpenDlgEntry::GetToolTip() const
+QString  CLegacyOpenDlgEntry::GetToolTip(int32 columnIndex) const
 {
 	return m_description;
 }

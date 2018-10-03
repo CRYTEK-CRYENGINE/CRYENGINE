@@ -52,7 +52,7 @@ const CAbstractDictionaryEntry* CGenericWidgetDictionaryEntry::GetParentEntry() 
 }
 
 //////////////////////////////////////////////////////////////////////////
-QString  CGenericWidgetDictionaryEntry::GetToolTip() const
+QString  CGenericWidgetDictionaryEntry::GetToolTip(int32 columnIndex) const
 {
 	return m_description;
 }
@@ -212,9 +212,9 @@ CGenericWidgetDictionaryEntry* CGenericWidgetDictionaryModel::GetEntryByGUID(con
 
 const CItemModelAttribute* CGenericWidgetDictionaryModel::GetColumnAttributeInternal(int column)
 {
-	static CItemModelAttribute Name("Name", eAttributeType_String);
-	static CItemModelAttribute Type("Type", eAttributeType_String);
-	static CItemModelAttribute None("    ", eAttributeType_String);
+	static CItemModelAttribute Name("Name", &Attributes::s_stringAttributeType);
+	static CItemModelAttribute Type("Type", &Attributes::s_stringAttributeType);
+	static CItemModelAttribute None("    ", &Attributes::s_stringAttributeType);
 
 	switch (column)
 	{

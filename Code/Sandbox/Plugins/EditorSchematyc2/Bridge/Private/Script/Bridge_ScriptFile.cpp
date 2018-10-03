@@ -355,7 +355,7 @@ Schematyc2::EVisitStatus CScriptFile::VisitClassBases(const Schematyc2::ScriptCl
 }
 
 //////////////////////////////////////////////////////////////////////////
-Schematyc2::IScriptStateMachine* CScriptFile::AddStateMachine(const Schematyc2::SGUID& scopeGUID, const char* szName, Schematyc2::EScriptStateMachineLifetime lifetime, const Schematyc2::SGUID& contextGUID, const Schematyc2::SGUID& partnerGUID)
+Schematyc2::IScriptStateMachine* CScriptFile::AddStateMachine(const Schematyc2::SGUID& scopeGUID, const char* szName, Schematyc2::EStateMachineLifetime lifetime, const Schematyc2::SGUID& contextGUID, const Schematyc2::SGUID& partnerGUID)
 {
 	return m_delegate->AddStateMachine(scopeGUID, szName, lifetime, contextGUID, partnerGUID);
 }

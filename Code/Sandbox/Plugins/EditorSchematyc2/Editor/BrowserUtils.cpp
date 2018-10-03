@@ -717,7 +717,7 @@ namespace Schematyc2
 			return nullptr;
 		}
 
-		IScriptStateMachine* AddStateMachine(CWnd* pWnd, CPoint point, TScriptFile& scriptFile, const SGUID& scopeGUID, EScriptStateMachineLifetime lifeTime)
+		IScriptStateMachine* AddStateMachine(CWnd* pWnd, CPoint point, TScriptFile& scriptFile, const SGUID& scopeGUID, EStateMachineLifetime lifeTime)
 		{
 			SET_LOCAL_RESOURCE_SCOPE
 
@@ -725,7 +725,7 @@ namespace Schematyc2
 			{
 				return PluginUtils::ValidateScriptElementName(hWnd, scriptFile, scopeGUID, szName, displayErrorMessages);
 			};
-			CNameDlg nameDlg(pWnd, point, "Name", lifeTime == EScriptStateMachineLifetime::Persistent ? "StateMachine" : "", ENameDlgTextCase::MixedCase, nameValidator);
+			CNameDlg nameDlg(pWnd, point, "Name", lifeTime == EStateMachineLifetime::Persistent ? "StateMachine" : "", ENameDlgTextCase::MixedCase, nameValidator);
 			if(nameDlg.DoModal() == IDOK)
 			{
 				return scriptFile.AddStateMachine(scopeGUID, nameDlg.GetResult(), lifeTime, SGUID(), SGUID());

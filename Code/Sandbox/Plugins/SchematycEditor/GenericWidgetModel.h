@@ -34,7 +34,7 @@ public:
 	virtual const     CAbstractDictionaryEntry* GetChildEntry(int32 index) const override;
 	virtual const     CAbstractDictionaryEntry* GetParentEntry() const override;
 	virtual QVariant  GetColumnValue(int32 columnIndex) const override;
-	virtual QString   GetToolTip() const override;
+	virtual QString   GetToolTip(int32 columnIndex) const override;
 	// ~CAbstractDictionaryEntry
 
 	QString GetName() const;

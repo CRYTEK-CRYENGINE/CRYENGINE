@@ -69,6 +69,11 @@ CSchematycPlugin::CSchematycPlugin()
 
 }
 
+CSchematycPlugin::~CSchematycPlugin()
+{
+
+}
+
 int32 CSchematycPlugin::GetPluginVersion()
 {
 	return g_pluginVersion;
