@@ -484,10 +484,12 @@ target_compile_options(${THIS_PROJECT} PRIVATE ${DISABLE_WARNINGS} ) # Disable w
 target_compile_definitions(${THIS_PROJECT} PRIVATE -D__STDC_VERSION__=199901L )
 target_link_libraries( ${THIS_PROJECT} PRIVATE zlib)
 if (HAVE_SZIP)
-	message(STATUS "Using SZIP")
+	message(STATUS "Enabled SZLib, increased performance.")
 	target_link_libraries( ${THIS_PROJECT} PRIVATE szip )
 	target_compile_definitions(${THIS_PROJECT} PRIVATE -DH5_HAVE_SZLIB_H=1 )
 	target_compile_definitions(${THIS_PROJECT} PRIVATE -DH5_HAVE_FILTER_SZIP=1 )
+else()
+	message(STATUS "Disabled SZLib. WARNING: Slower performance.")	
 endif()
 target_include_directories(${THIS_PROJECT} INTERFACE 
 	"${CMAKE_CURRENT_SOURCE_DIR}" # For the configuration files.

@@ -106,8 +106,12 @@
 /* Define if support for deflate (zlib) filter is enabled */
 #define H5_HAVE_FILTER_DEFLATE 1
 
+/* PERSONAL CRYTEK: Now handled by the library CMake configuration file instead of harcoded here.*/
 /* Define if support for szip filter is enabled */
-#define H5_HAVE_FILTER_SZIP 1
+//#define H5_HAVE_FILTER_SZIP 1
+
+/* Define to 1 if you have the <szlib.h> header file. */
+//#define H5_HAVE_SZLIB_H 1
 
 /* Define to 1 if you have the `fork' function. */
 /* #undef H5_HAVE_FORK */
@@ -352,9 +356,6 @@
 
 /* Define to 1 if you have the <sys/types.h> header file. */
 #define H5_HAVE_SYS_TYPES_H 1
-
-/* Define to 1 if you have the <szlib.h> header file. */
-#define H5_HAVE_SZLIB_H 1
 
 /* Define if we have thread safe support */
 /* #undef H5_HAVE_THREADSAFE */
