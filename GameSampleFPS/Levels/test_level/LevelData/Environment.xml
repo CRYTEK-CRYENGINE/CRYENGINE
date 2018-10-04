@@ -1,0 +1,11 @@
+<Environment>
+ <Fog ViewDistance="8000" ViewDistanceLowSpec="1000" LDRGlobalDensMult="1.0"/>
+ <Terrain DetailLayersViewDistRatio="1.0" HeightMapAO="0" IntegrateObjects="0" AutoGenerateBaseTexture="0" SupportOfflineProceduralVegetation="0"/>
+ <EnvState ConsoleMergedMeshesPool="2750" ShowTerrainSurface="1" SunShadowsMinSpec="1" SunShadowsAdditionalCascadeMinSpec="0" SunShadowsClipPlaneRange="256.0f" SunShadowsClipPlaneRangeShift="0.0f" SunShadowsFromTerrain="0" UseLayersActivation="0" SunLinkedToTOD="1"/>
+ <VolFogShadows Enable="0" EnableForClouds="0"/>
+ <VolumetricCloud HorizonHeight="-1000.0" MaxViewableDistance="100000.0" MaxRayMarchDistance="20000.0" ShadingLOD="0.7" ShadowTilingSize="16000" MaxGlobalCloudDensity="0.04" GlobalCloudNoiseVolumeTexture="" GlobalCloudNoiseScale="3,3,5" EdgeTurbulenceNoiseVolumeTexture="" EdgeTurbulenceNoiseScale="1,1,1" EdgeTurbulenceNoiseErode="1" EdgeTurbulenceNoiseAbsolute="1" CloudVolumeTexture="" TilingSize="64000,64000,4000" TilingOffset="0,0,0" RemapCloudDensityMin="0.0" RemapCloudDensityMax="1.0" AdditionalNoiseIntensity="0.2"/>
+ <SkyBox Material="%ENGINE%/EngineAssets/Materials/Sky/Sky" MaterialLowSpec="%ENGINE%/EngineAssets/Materials/Sky/Sky" Angle="0" Stretching="0.5"/>
+ <Ocean Material="%ENGINE%/EngineAssets/Materials/Water/Ocean_default" CausticDepth="8.0" CausticIntensity="1.0" CausticsTilling="1.0"/>
+ <OceanAnimation WindDirection="1.0" WindSpeed="4.0" WavesAmount="1.5" WavesSize="0.4"/>
+ <DynTexSource Width="256" Height="256"/>
+</Environment>

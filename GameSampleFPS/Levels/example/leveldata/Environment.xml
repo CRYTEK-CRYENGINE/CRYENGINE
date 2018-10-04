@@ -1,0 +1,14 @@
+<Environment>
+ <Fog ViewDistance="8000" ViewDistanceLowSpec="1000" LDRGlobalDensMult="1"/>
+ <Terrain DetailLayersViewDistRatio="1" HeightMapAO="0" IntegrateObjects="0" AutoGenerateBaseTexture="0"/>
+ <EnvState WindVector="1,0,0" BreezeGeneration="0" BreezeStrength="1" BreezeMovementSpeed="8" BreezeVariation="1" BreezeLifeTime="15" BreezeCount="4" BreezeSpawnRadius="25" BreezeSpread="0.f" BreezeRadius="5" BreezeAwakeThreshold="0" ConsoleMergedMeshesPool="2750" ShowTerrainSurface="1" SunShadowsMinSpec="1" SunShadowsAdditionalCascadeMinSpec="0" SunShadowsClipPlaneRange="256" SunShadowsClipPlaneRangeShift="0.0f" SunShadowsFromTerrain="0" UseLayersActivation="0" SunLinkedToTOD="1"/>
+ <VolFogShadows Enable="0" EnableForClouds="0"/>
+ <CloudShadows CloudShadowTexture="" CloudShadowSpeed="0,0,0" CloudShadowTiling="1" CloudShadowBrightness="1" CloudShadowInvert="0"/>
+ <VolumetricCloud HorizonHeight="-1000" MaxViewableDistance="100000" MaxRayMarchDistance="20000" ShadingLOD="0.7" ShadowTilingSize="16000" MaxGlobalCloudDensity="0.04" GlobalCloudNoiseVolumeTexture="" GlobalCloudNoiseScale="3,3,5" EdgeTurbulenceNoiseVolumeTexture="" EdgeTurbulenceNoiseScale="1,1,1" EdgeTurbulenceNoiseErode="1" EdgeTurbulenceNoiseAbsolute="1" CloudVolumeTexture="" TilingSize="64000,64000,4000" TilingOffset="0,0,0" RemapCloudDensityMin="0.0" RemapCloudDensityMax="1" AdditionalNoiseIntensity="0.2"/>
+ <SkyBox Material="EngineAssets/Materials/Sky/Sky" MaterialLowSpec="EngineAssets/Materials/Sky/Sky" Angle="0" Stretching="0.5"/>
+ <Ocean Material="EngineAssets/Materials/Water/Ocean_default" CausticDepth="8" CausticIntensity="1" CausticsTilling="1"/>
+ <OceanAnimation WindDirection="1" WindSpeed="4" WavesAmount="1.5" WavesSize="0.4"/>
+ <Moon Latitude="240" Longitude="45" Size="0.5" Texture="EngineAssets/Textures/Skys/Night/half_moon.dds"/>
+ <DynTexSource Width="256" Height="256"/>
+ <Total_Illumination_v2 Active="0" IntegrationMode="0" InjectionMultiplier="1" SkyColorMultiplier="1" UseTODSkyColor="0.5" PortalsDeform="0" PortalsInject="0" DiffuseAmplifier="1.0" SpecularAmplifier="0" SpecularFromDiffuse="0" NumberOfBounces="1" Saturation="0.8" PropagationBooster="1.5" DiffuseBias="0.05" PointLightsBias="0.2" DiffuseConeWidth="24" ConeMaxLength="12" UpdateLighting="0" UpdateGeometry="0" MinNodeSize="8" SkipNonGILights="0" LowSpecMode="0" HalfresKernelPrimary="0" HalfresKernelSecondary="1" UseLightProbes="0" VoxelizationLODRatio="1" VoxelizationMapBorder="0" VoxelPoolResolution="128" SSAOAmount="0.7" ObjectsMaxViewDistance="64" SunRSMInject="0" SSDepthTrace="0" HighGlossOcclusion="0" ShadowsFromSun="0" ShadowsSoftness="1.25" ShadowsFromHeightmap="0" Troposphere_Active="0" Troposphere_Density="1" Troposphere_Brightness="1.0" AnalyticalOccluders="0" AnalyticalGI="0" TraceVoxels="1" TranslucentBrightness="2.5" StreamVoxels="0"/>
+</Environment>

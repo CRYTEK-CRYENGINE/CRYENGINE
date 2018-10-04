@@ -1,0 +1,19 @@
+<EntityScheduler>
+	<!-- game rules -->
+	<Class name="SinglePlayer" policy="rule"/>
+
+	<Class name="Player" policy="player" own="own"/>
+	
+	<Class name="Bullet" policy="phys"/>
+	<Class name="Rifle" policy="obj"/>
+	
+	<Class name="RigidBody" policy="phys"/>
+	
+	<Class name="Light" policy="obj"/>
+	<Class name="EnvironmentLight" policy="obj"/>
+	
+	<Class name="SpawnPoint" policy="obj"/>
+	
+	<!-- fallback -->
+	<Default policy="obj"/>
+</EntityScheduler>

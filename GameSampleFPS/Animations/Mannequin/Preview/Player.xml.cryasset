@@ -1,0 +1,8 @@
+<AssetMetadata version="0" type="Xml" guid="9f05792b-ae0b-4734-f71c-d0edfb988488">
+ <Files>
+  <File path="Player.xml"/>
+ </Files>
+ <Details>
+  <Detail name="rootTag">MannequinPreview</Detail>
+ </Details>
+</AssetMetadata>

@@ -1,0 +1,8 @@
+<AssetMetadata version="0" type="Xml" guid="dc698657-ea18-b5ae-7d89-5081ea04e472">
+ <Files>
+  <File path="GameObjectSerializationOrder.xml"/>
+ </Files>
+ <Details>
+  <Detail name="rootTag">extensionsSerializationOrder</Detail>
+ </Details>
+</AssetMetadata>

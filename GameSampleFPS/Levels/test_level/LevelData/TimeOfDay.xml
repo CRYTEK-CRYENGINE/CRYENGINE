@@ -1,0 +1,5 @@
+<TimeOfDay Time="12" TimeStart="12" TimeEnd="12" TimeAnimSpeed="0">
+ <Presets>
+  <Preset Name="libs/environmentpresets/Levels/test_level.xml" Default="1"/>
+ </Presets>
+</TimeOfDay>

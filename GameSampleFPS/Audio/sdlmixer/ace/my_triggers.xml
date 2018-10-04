@@ -1,0 +1,14 @@
+<AudioSystemData name="my_triggers" version="3">
+ <Triggers>
+  <Trigger name="bullet_impact">
+   <WwiseEvent wwise_name="Play_p_pro_impact_bullet_hit_mat_metal"/>
+   <FmodEvent fmod_name="p_pro/p_pro_bullet_impact/p_pro_bullet_impact_metal"/>
+   <Event name="p_pro_impact_bullet_impact_metal_thick.ogg" path="" type="start" enable_panning="true" enable_dist_attenuation="true" attenuation_dist_min="0" attenuation_dist_max="50" volume="-12" loop_count="1"/>
+  </Trigger>
+ </Triggers>
+ <EditorData>
+  <Library />
+  <Folders />
+  <Controls />
+ </EditorData>
+</AudioSystemData>

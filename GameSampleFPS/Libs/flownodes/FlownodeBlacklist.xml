@@ -1,0 +1,13 @@
+<!-- Remove engine (CryAction) flownodes on flowgraph level. -->
+<!-- This was added to adopt the flowgraph to future titles without losing code-compatibility -->
+<!-- Backwards compatibility can be preserved by adding the renamed flownodes to the Substitutions.xml -->
+
+<Blacklist>
+
+	<!-- Remove classes here -->
+
+	<!-- Rename classes here -->
+
+	<Ren class="Start" newClass="Game:Start"/>
+	
+</Blacklist>

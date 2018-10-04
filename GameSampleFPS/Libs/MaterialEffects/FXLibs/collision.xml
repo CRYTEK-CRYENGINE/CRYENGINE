@@ -1,0 +1,6 @@
+<FXLib>
+<Effect name="bullet_hit">
+	<Audio trigger="bullet_impact">
+	</Audio>
+</Effect>
+</FXLib>

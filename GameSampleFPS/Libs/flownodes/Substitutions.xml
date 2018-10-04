@@ -1,0 +1,9 @@
+<Substitutions>
+	<!-- Here you can change and old node class to a new class and also reconnect edges to new ports, by remapping old ports to new ones
+		 Optionally you can also remap the value of an old input port to an new one, when the port name has changed
+		 Also, you can set the input port values of the new node to reasonable/appropriate values
+	-->
+
+	<Node OldClass="Start" NewClass="Game:Start" />
+
+</Substitutions>

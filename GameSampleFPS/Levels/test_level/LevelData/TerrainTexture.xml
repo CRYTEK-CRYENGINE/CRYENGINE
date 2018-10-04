@@ -1,0 +1,22 @@
+<TerrainTexture TileCountX="4" TileCountY="4" TileResolution="512">
+ <RGBLayer>
+  <Tiles>
+   <tile X="0" Y="0" Size="512"/>
+   <tile X="1" Y="0" Size="512"/>
+   <tile X="2" Y="0" Size="512"/>
+   <tile X="3" Y="0" Size="512"/>
+   <tile X="0" Y="1" Size="512"/>
+   <tile X="1" Y="1" Size="512"/>
+   <tile X="2" Y="1" Size="512"/>
+   <tile X="3" Y="1" Size="512"/>
+   <tile X="0" Y="2" Size="512"/>
+   <tile X="1" Y="2" Size="512"/>
+   <tile X="2" Y="2" Size="512"/>
+   <tile X="3" Y="2" Size="512"/>
+   <tile X="0" Y="3" Size="512"/>
+   <tile X="1" Y="3" Size="512"/>
+   <tile X="2" Y="3" Size="512"/>
+   <tile X="3" Y="3" Size="512"/>
+  </Tiles>
+ </RGBLayer>
+</TerrainTexture>

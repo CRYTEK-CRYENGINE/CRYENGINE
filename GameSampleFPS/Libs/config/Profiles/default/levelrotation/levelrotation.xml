@@ -1,0 +1,56 @@
+<levelRotation randomize="0">
+ <level name="multiplayer/ps/shore" gameRules="PowerStruggle">
+  <setting setting="g_timelimit 60"/>
+  <setting setting="g_fraglimit 0"/>
+  <setting setting="g_pp_scale_income 1.00"/>
+  <setting setting="g_revivetime 20"/>
+ </level>
+ <level name="multiplayer/ps/refinery" gameRules="PowerStruggle">
+  <setting setting="g_timelimit 60"/>
+  <setting setting="g_fraglimit 0"/>
+  <setting setting="g_pp_scale_income 1.00"/>
+  <setting setting="g_revivetime 20"/>
+ </level>
+ <level name="multiplayer/ps/plantation" gameRules="PowerStruggle">
+  <setting setting="g_timelimit 60"/>
+  <setting setting="g_fraglimit 0"/>
+  <setting setting="g_pp_scale_income 1.00"/>
+  <setting setting="g_revivetime 20"/>
+ </level>
+ <level name="multiplayer/ps/beach" gameRules="PowerStruggle">
+  <setting setting="g_timelimit 60"/>
+  <setting setting="g_fraglimit 0"/>
+  <setting setting="g_pp_scale_income 1.00"/>
+  <setting setting="g_revivetime 20"/>
+ </level>
+ <level name="multiplayer/ps/mesa" gameRules="PowerStruggle">
+  <setting setting="g_timelimit 60"/>
+  <setting setting="g_fraglimit 0"/>
+  <setting setting="g_pp_scale_income 1.00"/>
+  <setting setting="g_revivetime 20"/>
+ </level>
+ <level name="multiplayer/ia/steelmill" gameRules="InstantAction">
+  <setting setting="g_timelimit 20"/>
+  <setting setting="g_fraglimit 0"/>
+  <setting setting="g_pp_scale_income 1.00"/>
+  <setting setting="g_revivetime 20"/>
+ </level>
+ <level name="multiplayer/ia/quarry" gameRules="InstantAction">
+  <setting setting="g_timelimit 20"/>
+  <setting setting="g_fraglimit 0"/>
+  <setting setting="g_pp_scale_income 1.00"/>
+  <setting setting="g_revivetime 20"/>
+ </level>
+ <level name="multiplayer/ia/outpost" gameRules="InstantAction">
+  <setting setting="g_timelimit 20"/>
+  <setting setting="g_fraglimit 0"/>
+  <setting setting="g_pp_scale_income 1.00"/>
+  <setting setting="g_revivetime 20"/>
+ </level>
+ <level name="multiplayer/ia/armada" gameRules="InstantAction">
+  <setting setting="g_timelimit 20"/>
+  <setting setting="g_fraglimit 0"/>
+  <setting setting="g_pp_scale_income 1.00"/>
+  <setting setting="g_revivetime 20"/>
+ </level>
+ </levelRotation>

@@ -1,0 +1,14 @@
+{
+	"build": {
+		"additive": false,
+		"skeletonAlias": "motusTest",
+		"compression": {
+			"compressionValue": 10,
+			"positionEpsilon": 0.001,
+			"rotationEpsilon": 0.00001,
+			"scaleEpsilon": 0.00001,
+			"perJointSettings": [ ]
+		},
+		"tags": [ ]
+	}
+}

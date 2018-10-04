@@ -1,0 +1,697 @@
+<EnvironmentPreset CryXmlVersion="2" version="2">
+ <var id="PARAM_SUN_COLOR" type="TYPE_COLOR" minValue="0" maxValue="1">
+  <spline0 keys="0:1:0:0:0:0:0:0:0,144000:1:0:0:0:0:0:0:0,"/>
+  <spline1 keys="0:0.972549:0:0:0:0:0:0:0,144000:0.972549:0:0:0:0:0:0:0,"/>
+  <spline2 keys="0:0.972549:0:0:0:0:0:0:0,144000:0.972549:0:0:0:0:0:0:0,"/>
+ </var>
+ <var id="PARAM_SUN_INTENSITY" type="TYPE_FLOAT" minValue="0" maxValue="550000">
+  <spline0 keys="0:119000:0:0:0:0:0:0:0,144000:119000:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_SUN_SPECULAR_MULTIPLIER" type="TYPE_FLOAT" minValue="0" maxValue="4">
+  <spline0 keys="0:1:0:0:0:0:0:0:0,144000:1:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_FOG_COLOR" type="TYPE_COLOR" minValue="0" maxValue="1">
+  <spline0 keys="0:0:0:0:0:0:0:0:0,144000:0:0:0:0:0:0:0:0,"/>
+  <spline1 keys="0:0:0:0:0:0:0:0:0,144000:0:0:0:0:0:0:0:0,"/>
+  <spline2 keys="0:0:0:0:0:0:0:0:0,144000:0:0:0:0:0:0:0:0,"/>
+ </var>
+ <var id="PARAM_FOG_COLOR_MULTIPLIER" type="TYPE_FLOAT" minValue="0" maxValue="16">
+  <spline0 keys="0:0:0:0:0:0:0:0:0,144000:0:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_VOLFOG_HEIGHT" type="TYPE_FLOAT" minValue="-5000" maxValue="30000">
+  <spline0 keys="0:0:0:0:0:0:0:0:0,144000:0:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_VOLFOG_DENSITY" type="TYPE_FLOAT" minValue="0" maxValue="1">
+  <spline0 keys="0:1:0:0:0:0:0:0:0,144000:1:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_FOG_COLOR2" type="TYPE_COLOR" minValue="0" maxValue="1">
+  <spline0 keys="0:0:0:0:0:0:0:0:0,144000:0:0:0:0:0:0:0:0,"/>
+  <spline1 keys="0:0:0:0:0:0:0:0:0,144000:0:0:0:0:0:0:0:0,"/>
+  <spline2 keys="0:0:0:0:0:0:0:0:0,144000:0:0:0:0:0:0:0:0,"/>
+ </var>
+ <var id="PARAM_FOG_COLOR2_MULTIPLIER" type="TYPE_FLOAT" minValue="0" maxValue="16">
+  <spline0 keys="0:0:0:0:0:0:0:0:0,144000:0:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_VOLFOG_HEIGHT2" type="TYPE_FLOAT" minValue="-5000" maxValue="30000">
+  <spline0 keys="0:4000:0:0:0:0:0:0:0,144000:4000:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_VOLFOG_DENSITY2" type="TYPE_FLOAT" minValue="0" maxValue="1">
+  <spline0 keys="0:0:0:0:0:0:0:0:0,144000:0:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_VOLFOG_HEIGHT_OFFSET" type="TYPE_FLOAT" minValue="-1" maxValue="1">
+  <spline0 keys="0:0:0:0:0:0:0:0:0,144000:0:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_FOG_RADIAL_COLOR" type="TYPE_COLOR" minValue="0" maxValue="1">
+  <spline0 keys="0:0:0:0:0:0:0:0:0,144000:0:0:0:0:0:0:0:0,"/>
+  <spline1 keys="0:0:0:0:0:0:0:0:0,144000:0:0:0:0:0:0:0:0,"/>
+  <spline2 keys="0:0:0:0:0:0:0:0:0,144000:0:0:0:0:0:0:0:0,"/>
+ </var>
+ <var id="PARAM_FOG_RADIAL_COLOR_MULTIPLIER" type="TYPE_FLOAT" minValue="0" maxValue="16">
+  <spline0 keys="0:0:0:0:0:0:0:0:0,144000:0:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_VOLFOG_RADIAL_SIZE" type="TYPE_FLOAT" minValue="0" maxValue="1">
+  <spline0 keys="0:0.75:0:0:0:0:0:0:0,144000:0.75:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_VOLFOG_RADIAL_LOBE" type="TYPE_FLOAT" minValue="0" maxValue="1">
+  <spline0 keys="0:0.5:0:0:0:0:0:0:0,144000:0.5:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_VOLFOG_FINAL_DENSITY_CLAMP" type="TYPE_FLOAT" minValue="0" maxValue="1">
+  <spline0 keys="0:1:0:0:0:0:0:0:0,144000:1:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_VOLFOG_GLOBAL_DENSITY" type="TYPE_FLOAT" minValue="0" maxValue="100">
+  <spline0 keys="0:0.02:0:0:0:0:0:0:0,144000:0.02:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_VOLFOG_RAMP_START" type="TYPE_FLOAT" minValue="0" maxValue="30000">
+  <spline0 keys="0:0:0:0:0:0:0:0:0,144000:0:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_VOLFOG_RAMP_END" type="TYPE_FLOAT" minValue="0" maxValue="30000">
+  <spline0 keys="0:100:0:0:0:0:0:0:0,144000:100:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_VOLFOG_RAMP_INFLUENCE" type="TYPE_FLOAT" minValue="0" maxValue="1">
+  <spline0 keys="0:0:0:0:0:0:0:0:0,144000:0:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_VOLFOG_SHADOW_DARKENING" type="TYPE_FLOAT" minValue="0" maxValue="1">
+  <spline0 keys="0:0.25:0:0:0:0:0:0:0,144000:0.25:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_VOLFOG_SHADOW_DARKENING_SUN" type="TYPE_FLOAT" minValue="0" maxValue="1">
+  <spline0 keys="0:1:0:0:0:0:0:0:0,144000:1:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_VOLFOG_SHADOW_DARKENING_AMBIENT" type="TYPE_FLOAT" minValue="0" maxValue="1">
+  <spline0 keys="0:1:0:0:0:0:0:0:0,144000:1:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_VOLFOG_SHADOW_RANGE" type="TYPE_FLOAT" minValue="0" maxValue="1">
+  <spline0 keys="0:0.1:0:0:0:0:0:0:0,144000:0.1:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_VOLFOG2_HEIGHT" type="TYPE_FLOAT" minValue="-5000" maxValue="30000">
+  <spline0 keys="0:0:0:0:0:0:0:0:0,144000:0:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_VOLFOG2_DENSITY" type="TYPE_FLOAT" minValue="0" maxValue="1">
+  <spline0 keys="0:1:0:0:0:0:0:0:0,144000:1:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_VOLFOG2_HEIGHT2" type="TYPE_FLOAT" minValue="-5000" maxValue="30000">
+  <spline0 keys="0:4000:0:0:0:0:0:0:0,144000:4000:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_VOLFOG2_DENSITY2" type="TYPE_FLOAT" minValue="0" maxValue="1">
+  <spline0 keys="0:0.0001:0:0:0:0:0:0:0,144000:0.0001:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_VOLFOG2_GLOBAL_DENSITY" type="TYPE_FLOAT" minValue="0" maxValue="100">
+  <spline0 keys="0:0.1:0:0:0:0:0:0:0,144000:0.1:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_VOLFOG2_RAMP_START" type="TYPE_FLOAT" minValue="0" maxValue="30000">
+  <spline0 keys="0:0:0:0:0:0:0:0:0,144000:0:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_VOLFOG2_RAMP_END" type="TYPE_FLOAT" minValue="0" maxValue="30000">
+  <spline0 keys="0:0:0:0:0:0:0:0:0,144000:0:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_VOLFOG2_COLOR1" type="TYPE_COLOR" minValue="0" maxValue="1">
+  <spline0 keys="0:1:0:0:0:0:0:0:0,144000:1:0:0:0:0:0:0:0,"/>
+  <spline1 keys="0:1:0:0:0:0:0:0:0,144000:1:0:0:0:0:0:0:0,"/>
+  <spline2 keys="0:1:0:0:0:0:0:0:0,144000:1:0:0:0:0:0:0:0,"/>
+ </var>
+ <var id="PARAM_VOLFOG2_ANISOTROPIC1" type="TYPE_FLOAT" minValue="-1" maxValue="1">
+  <spline0 keys="0:0.2:0:0:0:0:0:0:0,144000:0.2:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_VOLFOG2_COLOR2" type="TYPE_COLOR" minValue="0" maxValue="1">
+  <spline0 keys="0:1:0:0:0:0:0:0:0,144000:1:0:0:0:0:0:0:0,"/>
+  <spline1 keys="0:1:0:0:0:0:0:0:0,144000:1:0:0:0:0:0:0:0,"/>
+  <spline2 keys="0:1:0:0:0:0:0:0:0,144000:1:0:0:0:0:0:0:0,"/>
+ </var>
+ <var id="PARAM_VOLFOG2_ANISOTROPIC2" type="TYPE_FLOAT" minValue="-1" maxValue="1">
+  <spline0 keys="0:0.95:0:0:0:0:0:0:0,144000:0.95:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_VOLFOG2_BLEND_FACTOR" type="TYPE_FLOAT" minValue="0" maxValue="1">
+  <spline0 keys="0:1:0:0:0:0:0:0:0,144000:1:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_VOLFOG2_BLEND_MODE" type="TYPE_FLOAT" minValue="0" maxValue="1">
+  <spline0 keys="0:0:0:0:0:0:0:0:0,144000:0:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_VOLFOG2_COLOR" type="TYPE_COLOR" minValue="0" maxValue="1">
+  <spline0 keys="0:1:0:0:0:0:0:0:0,144000:1:0:0:0:0:0:0:0,"/>
+  <spline1 keys="0:1:0:0:0:0:0:0:0,144000:1:0:0:0:0:0:0:0,"/>
+  <spline2 keys="0:1:0:0:0:0:0:0:0,144000:1:0:0:0:0:0:0:0,"/>
+ </var>
+ <var id="PARAM_VOLFOG2_ANISOTROPIC" type="TYPE_FLOAT" minValue="-1" maxValue="1">
+  <spline0 keys="0:0.6:0:0:0:0:0:0:0,144000:0.6:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_VOLFOG2_RANGE" type="TYPE_FLOAT" minValue="0" maxValue="8192">
+  <spline0 keys="0:64:0:0:0:0:0:0:0,144000:64:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_VOLFOG2_INSCATTER" type="TYPE_FLOAT" minValue="0" maxValue="100">
+  <spline0 keys="0:1:0:0:0:0:0:0:0,144000:1:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_VOLFOG2_EXTINCTION" type="TYPE_FLOAT" minValue="0" maxValue="100">
+  <spline0 keys="0:0.3:0:0:0:0:0:0:0,144000:0.3:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_VOLFOG2_GLOBAL_FOG_VISIBILITY" type="TYPE_FLOAT" minValue="0" maxValue="1">
+  <spline0 keys="0:0.5:0:0:0:0:0:0:0,144000:0.5:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_VOLFOG2_FINAL_DENSITY_CLAMP" type="TYPE_FLOAT" minValue="0" maxValue="1">
+  <spline0 keys="0:1:0:0:0:0:0:0:0,144000:1:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_SKYLIGHT_SUN_INTENSITY" type="TYPE_COLOR" minValue="0" maxValue="1">
+  <spline0 keys="0:1:0:0:0:0:0:0:0,144000:1:0:0:0:0:0:0:0,"/>
+  <spline1 keys="0:1:0:0:0:0:0:0:0,144000:1:0:0:0:0:0:0:0,"/>
+  <spline2 keys="0:1:0:0:0:0:0:0:0,144000:1:0:0:0:0:0:0:0,"/>
+ </var>
+ <var id="PARAM_SKYLIGHT_SUN_INTENSITY_MULTIPLIER" type="TYPE_FLOAT" minValue="0" maxValue="1000">
+  <spline0 keys="0:50:0:0:0:0:0:0:0,144000:50:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_SKYLIGHT_KM" type="TYPE_FLOAT" minValue="0" maxValue="1000">
+  <spline0 keys="0:4.8:0:0:0:0:0:0:0,144000:4.8:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_SKYLIGHT_KR" type="TYPE_FLOAT" minValue="0" maxValue="1000">
+  <spline0 keys="0:2:0:0:0:0:0:0:0,144000:2:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_SKYLIGHT_G" type="TYPE_FLOAT" minValue="-0.99989998" maxValue="0.99989998">
+  <spline0 keys="0:-0.997:0:0:0:0:0:0:0,144000:-0.997:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_SKYLIGHT_WAVELENGTH_R" type="TYPE_FLOAT" minValue="380" maxValue="780">
+  <spline0 keys="0:694:0:0:0:0:0:0:0,144000:694:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_SKYLIGHT_WAVELENGTH_G" type="TYPE_FLOAT" minValue="380" maxValue="780">
+  <spline0 keys="0:597:0:0:0:0:0:0:0,144000:597:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_SKYLIGHT_WAVELENGTH_B" type="TYPE_FLOAT" minValue="380" maxValue="780">
+  <spline0 keys="0:488:0:0:0:0:0:0:0,144000:488:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_NIGHSKY_HORIZON_COLOR" type="TYPE_COLOR" minValue="0" maxValue="1">
+  <spline0 keys="0:0.870588:0:0:0:0:0:0:0,144000:0.870588:0:0:0:0:0:0:0,"/>
+  <spline1 keys="0:0.580392:0:0:0:0:0:0:0,144000:0.580392:0:0:0:0:0:0:0,"/>
+  <spline2 keys="0:0.184314:0:0:0:0:0:0:0,144000:0.184314:0:0:0:0:0:0:0,"/>
+ </var>
+ <var id="PARAM_NIGHSKY_HORIZON_COLOR_MULTIPLIER" type="TYPE_FLOAT" minValue="0" maxValue="0.1">
+  <spline0 keys="0:0.0001:0:0:0:0:0:0:0,144000:0.0001:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_NIGHSKY_ZENITH_COLOR" type="TYPE_COLOR" minValue="0" maxValue="1">
+  <spline0 keys="0:0.0666667:0:0:0:0:0:0:0,144000:0.0666667:0:0:0:0:0:0:0,"/>
+  <spline1 keys="0:0.14902:0:0:0:0:0:0:0,144000:0.14902:0:0:0:0:0:0:0,"/>
+  <spline2 keys="0:0.305882:0:0:0:0:0:0:0,144000:0.305882:0:0:0:0:0:0:0,"/>
+ </var>
+ <var id="PARAM_NIGHSKY_ZENITH_COLOR_MULTIPLIER" type="TYPE_FLOAT" minValue="0" maxValue="0.1">
+  <spline0 keys="0:2e-05:0:0:0:0:0:0:0,144000:2e-05:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_NIGHSKY_ZENITH_SHIFT" type="TYPE_FLOAT" minValue="0" maxValue="16">
+  <spline0 keys="0:0.25:0:0:0:0:0:0:0,144000:0.25:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_NIGHSKY_START_INTENSITY" type="TYPE_FLOAT" minValue="0" maxValue="16">
+  <spline0 keys="0:0.01:0:0:0:0:0:0:0,144000:0.01:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_NIGHSKY_MOON_COLOR" type="TYPE_COLOR" minValue="0" maxValue="1">
+  <spline0 keys="0:1:0:0:0:0:0:0:0,144000:1:0:0:0:0:0:0:0,"/>
+  <spline1 keys="0:1:0:0:0:0:0:0:0,144000:1:0:0:0:0:0:0:0,"/>
+  <spline2 keys="0:1:0:0:0:0:0:0:0,144000:1:0:0:0:0:0:0:0,"/>
+ </var>
+ <var id="PARAM_NIGHSKY_MOON_COLOR_MULTIPLIER" type="TYPE_FLOAT" minValue="0" maxValue="0.1">
+  <spline0 keys="0:0.01:0:0:0:0:0:0:0,144000:0.01:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_NIGHSKY_MOON_INNERCORONA_COLOR" type="TYPE_COLOR" minValue="0" maxValue="1">
+  <spline0 keys="0:0.901961:0:0:0:0:0:0:0,144000:0.901961:0:0:0:0:0:0:0,"/>
+  <spline1 keys="0:1:0:0:0:0:0:0:0,144000:1:0:0:0:0:0:0:0,"/>
+  <spline2 keys="0:1:0:0:0:0:0:0:0,144000:1:0:0:0:0:0:0:0,"/>
+ </var>
+ <var id="PARAM_NIGHSKY_MOON_INNERCORONA_COLOR_MULTIPLIER" type="TYPE_FLOAT" minValue="0" maxValue="0.1">
+  <spline0 keys="0:0.0001:0:0:0:0:0:0:0,144000:0.0001:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_NIGHSKY_MOON_INNERCORONA_SCALE" type="TYPE_FLOAT" minValue="0" maxValue="2">
+  <spline0 keys="0:0.499:0:0:0:0:0:0:0,144000:0.499:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_NIGHSKY_MOON_OUTERCORONA_COLOR" type="TYPE_COLOR" minValue="0" maxValue="1">
+  <spline0 keys="0:0.501961:0:0:0:0:0:0:0,144000:0.501961:0:0:0:0:0:0:0,"/>
+  <spline1 keys="0:0.784314:0:0:0:0:0:0:0,144000:0.784314:0:0:0:0:0:0:0,"/>
+  <spline2 keys="0:1:0:0:0:0:0:0:0,144000:1:0:0:0:0:0:0:0,"/>
+ </var>
+ <var id="PARAM_NIGHSKY_MOON_OUTERCORONA_COLOR_MULTIPLIER" type="TYPE_FLOAT" minValue="0" maxValue="0.1">
+  <spline0 keys="0:5e-05:0:0:0:0:0:0:0,144000:5e-05:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_NIGHSKY_MOON_OUTERCORONA_SCALE" type="TYPE_FLOAT" minValue="0" maxValue="2">
+  <spline0 keys="0:0.006:0:0:0:0:0:0:0,144000:0.006:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_CLOUDSHADING_SUNLIGHT_MULTIPLIER" type="TYPE_FLOAT" minValue="0" maxValue="16">
+  <spline0 keys="0:1.96:0:0:0:0:0:0:0,144000:1.96:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_CLOUDSHADING_SKYLIGHT_MULTIPLIER" type="TYPE_FLOAT" minValue="0" maxValue="16">
+  <spline0 keys="0:0.8:0:0:0:0:0:0:0,144000:0.8:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_CLOUDSHADING_SUNLIGHT_CUSTOM_COLOR" type="TYPE_COLOR" minValue="0" maxValue="1">
+  <spline0 keys="0:0.843137:0:0:0:0:0:0:0,144000:0.843137:0:0:0:0:0:0:0,"/>
+  <spline1 keys="0:0.784314:0:0:0:0:0:0:0,144000:0.784314:0:0:0:0:0:0:0,"/>
+  <spline2 keys="0:0.666667:0:0:0:0:0:0:0,144000:0.666667:0:0:0:0:0:0:0,"/>
+ </var>
+ <var id="PARAM_CLOUDSHADING_SUNLIGHT_CUSTOM_COLOR_MULTIPLIER" type="TYPE_FLOAT" minValue="0" maxValue="16">
+  <spline0 keys="0:1:0:0:0:0:0:0:0,144000:1:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_CLOUDSHADING_SUNLIGHT_CUSTOM_COLOR_INFLUENCE" type="TYPE_FLOAT" minValue="0" maxValue="1">
+  <spline0 keys="0:0:0:0:0:0:0:0:0,144000:0:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_VOLCLOUD_GLOBAL_DENSITY" type="TYPE_FLOAT" minValue="0" maxValue="1">
+  <spline0 keys="0:0.5:0:0:0:0:0:0:0,144000:0.5:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_VOLCLOUD_HEIGHT" type="TYPE_FLOAT" minValue="-4000" maxValue="4000">
+  <spline0 keys="0:1000:0:0:0:0:0:0:0,144000:1000:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_VOLCLOUD_THICKNESS" type="TYPE_FLOAT" minValue="0" maxValue="8000">
+  <spline0 keys="0:1500:0:0:0:0:0:0:0,144000:1500:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_VOLCLOUD_CLOUD_EDGE_TURBULENCE" type="TYPE_FLOAT" minValue="0" maxValue="1">
+  <spline0 keys="0:0.4:0:0:0:0:0:0:0,144000:0.4:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_VOLCLOUD_CLOUD_EDGE_THRESHOLD" type="TYPE_FLOAT" minValue="0" maxValue="1">
+  <spline0 keys="0:0.3:0:0:0:0:0:0:0,144000:0.3:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_VOLCLOUD_SUN_SINGLE_SCATTERING" type="TYPE_FLOAT" minValue="0" maxValue="10">
+  <spline0 keys="0:1:0:0:0:0:0:0:0,144000:1:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_VOLCLOUD_SUN_LOW_ORDER_SCATTERING" type="TYPE_FLOAT" minValue="0" maxValue="10">
+  <spline0 keys="0:2:0:0:0:0:0:0:0,144000:2:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_VOLCLOUD_SUN_LOW_ORDER_SCATTERING_ANISTROPY" type="TYPE_FLOAT" minValue="0" maxValue="0.99999899">
+  <spline0 keys="0:0.2:0:0:0:0:0:0:0,144000:0.2:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_VOLCLOUD_SUN_HIGH_ORDER_SCATTERING" type="TYPE_FLOAT" minValue="0" maxValue="10">
+  <spline0 keys="0:1:0:0:0:0:0:0:0,144000:1:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_VOLCLOUD_SKY_LIGHTING_SCATTERING" type="TYPE_FLOAT" minValue="0" maxValue="20">
+  <spline0 keys="0:4:0:0:0:0:0:0:0,144000:4:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_VOLCLOUD_GOUND_LIGHTING_SCATTERING" type="TYPE_FLOAT" minValue="0" maxValue="20">
+  <spline0 keys="0:2:0:0:0:0:0:0:0,144000:2:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_VOLCLOUD_GROUND_LIGHTING_ALBEDO" type="TYPE_COLOR" minValue="0" maxValue="1">
+  <spline0 keys="0:0.19:0:0:0:0:0:0:0,144000:0.19:0:0:0:0:0:0:0,"/>
+  <spline1 keys="0:0.2:0:0:0:0:0:0:0,144000:0.2:0:0:0:0:0:0:0,"/>
+  <spline2 keys="0:0.15:0:0:0:0:0:0:0,144000:0.15:0:0:0:0:0:0:0,"/>
+ </var>
+ <var id="PARAM_VOLCLOUD_MULTI_SCATTERING_ATTENUATION" type="TYPE_FLOAT" minValue="0" maxValue="40">
+  <spline0 keys="0:8:0:0:0:0:0:0:0,144000:8:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_VOLCLOUD_MULTI_SCATTERING_PRESERVATION" type="TYPE_FLOAT" minValue="0" maxValue="1">
+  <spline0 keys="0:0.4:0:0:0:0:0:0:0,144000:0.4:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_VOLCLOUD_POWDER_EFFECT" type="TYPE_FLOAT" minValue="0" maxValue="20">
+  <spline0 keys="0:6:0:0:0:0:0:0:0,144000:6:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_VOLCLOUD_ABSORPTION" type="TYPE_FLOAT" minValue="0" maxValue="4">
+  <spline0 keys="0:0.01:0:0:0:0:0:0:0,144000:0.01:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_VOLCLOUD_ATMOSPHERIC_ALBEDO" type="TYPE_COLOR" minValue="0" maxValue="1">
+  <spline0 keys="0:0.244:0:0:0:0:0:0:0,144000:0.244:0:0:0:0:0:0:0,"/>
+  <spline1 keys="0:0.446:0:0:0:0:0:0:0,144000:0.446:0:0:0:0:0:0:0,"/>
+  <spline2 keys="0:1:0:0:0:0:0:0:0,144000:1:0:0:0:0:0:0:0,"/>
+ </var>
+ <var id="PARAM_VOLCLOUD_ATMOSPHERIC_SCATTERING" type="TYPE_FLOAT" minValue="0" maxValue="10">
+  <spline0 keys="0:1:0:0:0:0:0:0:0,144000:1:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_VOLCLOUD_WIND_INFLUENCE" type="TYPE_FLOAT" minValue="-1000" maxValue="1000">
+  <spline0 keys="0:0:0:0:0:0:0:0:0,144000:0:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_SUN_SHAFTS_VISIBILITY" type="TYPE_FLOAT" minValue="0" maxValue="1">
+  <spline0 keys="0:0.25:0:0:0:0:0:0:0,144000:0.25:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_SUN_RAYS_VISIBILITY" type="TYPE_FLOAT" minValue="0" maxValue="10">
+  <spline0 keys="0:1:0:0:0:0:0:0:0,144000:1:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_SUN_RAYS_ATTENUATION" type="TYPE_FLOAT" minValue="0" maxValue="10">
+  <spline0 keys="0:5:0:0:0:0:0:0:0,144000:5:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_SUN_RAYS_SUNCOLORINFLUENCE" type="TYPE_FLOAT" minValue="0" maxValue="1">
+  <spline0 keys="0:1:0:0:0:0:0:0:0,144000:1:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_SUN_RAYS_CUSTOMCOLOR" type="TYPE_COLOR" minValue="0" maxValue="1">
+  <spline0 keys="0:1:0:0:0:0:0:0:0,144000:1:0:0:0:0:0:0:0,"/>
+  <spline1 keys="0:1:0:0:0:0:0:0:0,144000:1:0:0:0:0:0:0:0,"/>
+  <spline2 keys="0:1:0:0:0:0:0:0:0,144000:1:0:0:0:0:0:0:0,"/>
+ </var>
+ <var id="PARAM_OCEANFOG_COLOR" type="TYPE_COLOR" minValue="0" maxValue="1">
+  <spline0 keys="0:0.113725:0:0:0:0:0:0:0,144000:0.113725:0:0:0:0:0:0:0,"/>
+  <spline1 keys="0:0.4:0:0:0:0:0:0:0,144000:0.4:0:0:0:0:0:0:0,"/>
+  <spline2 keys="0:0.552941:0:0:0:0:0:0:0,144000:0.552941:0:0:0:0:0:0:0,"/>
+ </var>
+ <var id="PARAM_OCEANFOG_COLOR_MULTIPLIER" type="TYPE_FLOAT" minValue="0" maxValue="1">
+  <spline0 keys="0:1:0:0:0:0:0:0:0,144000:1:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_OCEANFOG_DENSITY" type="TYPE_FLOAT" minValue="0" maxValue="1">
+  <spline0 keys="0:0.2:0:0:0:0:0:0:0,144000:0.2:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_SKYBOX_MULTIPLIER" type="TYPE_FLOAT" minValue="0" maxValue="1">
+  <spline0 keys="0:1:0:0:0:0:0:0:0,144000:1:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_HDR_FILMCURVE_SHOULDER_SCALE" type="TYPE_FLOAT" minValue="0" maxValue="10">
+  <spline0 keys="0:1:0:0:0:0:0:0:0,144000:1:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_HDR_FILMCURVE_LINEAR_SCALE" type="TYPE_FLOAT" minValue="0" maxValue="10">
+  <spline0 keys="0:1:0:0:0:0:0:0:0,144000:1:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_HDR_FILMCURVE_TOE_SCALE" type="TYPE_FLOAT" minValue="0" maxValue="10">
+  <spline0 keys="0:1:0:0:0:0:0:0:0,144000:1:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_HDR_FILMCURVE_WHITEPOINT" type="TYPE_FLOAT" minValue="0" maxValue="10">
+  <spline0 keys="0:1:0:0:0:0:0:0:0,144000:1:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_HDR_COLORGRADING_COLOR_SATURATION" type="TYPE_FLOAT" minValue="0" maxValue="2">
+  <spline0 keys="0:1:0:0:0:0:0:0:0,144000:1:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_HDR_COLORGRADING_COLOR_BALANCE" type="TYPE_COLOR" minValue="0" maxValue="1">
+  <spline0 keys="0:1:0:0:0:0:0:0:0,144000:1:0:0:0:0:0:0:0,"/>
+  <spline1 keys="0:1:0:0:0:0:0:0:0,144000:1:0:0:0:0:0:0:0,"/>
+  <spline2 keys="0:1:0:0:0:0:0:0:0,144000:1:0:0:0:0:0:0:0,"/>
+ </var>
+ <var id="PARAM_HDR_EYEADAPTATION_SCENEKEY" type="TYPE_FLOAT" minValue="0" maxValue="1">
+  <spline0 keys="0:0.18:0:0:0:0:0:0:0,144000:0.18:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_HDR_EYEADAPTATION_MIN_EXPOSURE" type="TYPE_FLOAT" minValue="0" maxValue="10">
+  <spline0 keys="0:0.36:0:0:0:0:0:0:0,144000:0.36:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_HDR_EYEADAPTATION_MAX_EXPOSURE" type="TYPE_FLOAT" minValue="0" maxValue="10">
+  <spline0 keys="0:2.8:0:0:0:0:0:0:0,144000:2.8:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_HDR_EYEADAPTATION_EV_MIN" type="TYPE_FLOAT" minValue="-10" maxValue="20">
+  <spline0 keys="0:4.5:0:0:0:0:0:0:0,144000:4.5:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_HDR_EYEADAPTATION_EV_MAX" type="TYPE_FLOAT" minValue="-10" maxValue="20">
+  <spline0 keys="0:17:0:0:0:0:0:0:0,144000:17:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_HDR_EYEADAPTATION_EV_AUTO_COMPENSATION" type="TYPE_FLOAT" minValue="-5" maxValue="5">
+  <spline0 keys="0:1.5:0:0:0:0:0:0:0,144000:1.5:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_HDR_BLOOM_AMOUNT" type="TYPE_FLOAT" minValue="0" maxValue="10">
+  <spline0 keys="0:0.1:0:0:0:0:0:0:0,144000:0.1:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_COLORGRADING_FILTERS_GRAIN" type="TYPE_FLOAT" minValue="0" maxValue="8">
+  <spline0 keys="0:0:0:0:0:0:0:0:0,144000:0:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_COLORGRADING_FILTERS_PHOTOFILTER_COLOR" type="TYPE_COLOR" minValue="0" maxValue="1">
+  <spline0 keys="0:0.952:0:0:0:0:0:0:0,144000:0.952:0:0:0:0:0:0:0,"/>
+  <spline1 keys="0:0.517:0:0:0:0:0:0:0,144000:0.517:0:0:0:0:0:0:0,"/>
+  <spline2 keys="0:0.09:0:0:0:0:0:0:0,144000:0.09:0:0:0:0:0:0:0,"/>
+ </var>
+ <var id="PARAM_COLORGRADING_FILTERS_PHOTOFILTER_DENSITY" type="TYPE_FLOAT" minValue="0" maxValue="1">
+  <spline0 keys="0:0:0:0:0:0:0:0:0,144000:0:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_COLORGRADING_DOF_FOCUSRANGE" type="TYPE_FLOAT" minValue="0" maxValue="10000">
+  <spline0 keys="0:1000:0:0:0:0:0:0:0,144000:1000:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_COLORGRADING_DOF_BLURAMOUNT" type="TYPE_FLOAT" minValue="0" maxValue="1">
+  <spline0 keys="0:0:0:0:0:0:0:0:0,144000:0:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_SHADOWSC0_BIAS" type="TYPE_FLOAT" minValue="0" maxValue="10">
+  <spline0 keys="0:1:0:0:0:0:0:0:0,144000:1:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_SHADOWSC0_SLOPE_BIAS" type="TYPE_FLOAT" minValue="0" maxValue="500">
+  <spline0 keys="0:4:0:0:0:0:0:0:0,144000:4:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_SHADOWSC1_BIAS" type="TYPE_FLOAT" minValue="0" maxValue="10">
+  <spline0 keys="0:1:0:0:0:0:0:0:0,144000:1:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_SHADOWSC1_SLOPE_BIAS" type="TYPE_FLOAT" minValue="0" maxValue="500">
+  <spline0 keys="0:2:0:0:0:0:0:0:0,144000:2:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_SHADOWSC2_BIAS" type="TYPE_FLOAT" minValue="0" maxValue="10">
+  <spline0 keys="0:1.9:0:0:0:0:0:0:0,144000:1.9:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_SHADOWSC2_SLOPE_BIAS" type="TYPE_FLOAT" minValue="0" maxValue="500">
+  <spline0 keys="0:0.24:0:0:0:0:0:0:0,144000:0.24:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_SHADOWSC3_BIAS" type="TYPE_FLOAT" minValue="0" maxValue="10">
+  <spline0 keys="0:3:0:0:0:0:0:0:0,144000:3:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_SHADOWSC3_SLOPE_BIAS" type="TYPE_FLOAT" minValue="0" maxValue="500">
+  <spline0 keys="0:0.24:0:0:0:0:0:0:0,144000:0.24:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_SHADOWSC4_BIAS" type="TYPE_FLOAT" minValue="0" maxValue="10">
+  <spline0 keys="0:2:0:0:0:0:0:0:0,144000:2:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_SHADOWSC4_SLOPE_BIAS" type="TYPE_FLOAT" minValue="0" maxValue="500">
+  <spline0 keys="0:0.5:0:0:0:0:0:0:0,144000:0.5:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_SHADOWSC5_BIAS" type="TYPE_FLOAT" minValue="0" maxValue="10">
+  <spline0 keys="0:2:0:0:0:0:0:0:0,144000:2:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_SHADOWSC5_SLOPE_BIAS" type="TYPE_FLOAT" minValue="0" maxValue="500">
+  <spline0 keys="0:0.5:0:0:0:0:0:0:0,144000:0.5:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_SHADOWSC6_BIAS" type="TYPE_FLOAT" minValue="0" maxValue="10">
+  <spline0 keys="0:2:0:0:0:0:0:0:0,144000:2:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_SHADOWSC6_SLOPE_BIAS" type="TYPE_FLOAT" minValue="0" maxValue="500">
+  <spline0 keys="0:0.5:0:0:0:0:0:0:0,144000:0.5:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_SHADOWSC7_BIAS" type="TYPE_FLOAT" minValue="0" maxValue="10">
+  <spline0 keys="0:2:0:0:0:0:0:0:0,144000:2:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_SHADOWSC7_SLOPE_BIAS" type="TYPE_FLOAT" minValue="0" maxValue="500">
+  <spline0 keys="0:0.5:0:0:0:0:0:0:0,144000:0.5:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_SHADOW_JITTERING" type="TYPE_FLOAT" minValue="0" maxValue="10">
+  <spline0 keys="0:2.5:0:0:0:0:0:0:0,144000:2.5:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_HDR_DYNAMIC_POWER_FACTOR" type="TYPE_FLOAT" minValue="-4" maxValue="4">
+  <spline0 keys="0:0:0:0:0:0:0:0:0,144000:0:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_TERRAIN_OCCL_MULTIPLIER" type="TYPE_FLOAT" minValue="0" maxValue="1">
+  <spline0 keys="0:0.3:0:0:0:0:0:0:0,144000:0.3:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_GI_MULTIPLIER" type="TYPE_FLOAT" minValue="0" maxValue="100">
+  <spline0 keys="0:1:0:0:0:0:0:0:0,144000:1:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+ <var id="PARAM_SUN_COLOR_MULTIPLIER" type="TYPE_FLOAT" minValue="0" maxValue="16">
+  <spline0 keys="0:1:0:0:0:0:0:0:0,144000:1:0:0:0:0:0:0:0,"/>
+  <spline1 keys=""/>
+  <spline2 keys=""/>
+ </var>
+</EnvironmentPreset>

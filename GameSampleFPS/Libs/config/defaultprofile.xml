@@ -1,0 +1,23 @@
+<profile version="0">
+	<platforms>
+		<PC keyboard="1" xboxpad="1" ps4pad="1"/>
+		<XboxOne keyboard="1" xboxpad="1" ps4pad="0"/>
+		<PS4 keyboard="1" xboxpad="0" ps4pad="1"/>
+	</platforms>
+	
+	<!--DO NOT REMOVE DEFAULT ACTIONMAP! NEEDED BY CRYACTION.-->
+	<actionmap name="default" version="1"/>
+	<!---->
+	
+	<actionmap name="player" version="1">
+		<action name="moveleft" onPress="1" onRelease="1" retriggerable="1" keyboard="a"/>
+		<action name="moveright" onPress="1" onRelease="1" retriggerable="1" keyboard="d"/>
+		<action name="moveforward" onPress="1" onRelease="1" retriggerable="1" keyboard="w"/>
+		<action name="moveback" onPress="1" onRelease="1" retriggerable="1" keyboard="s"/>
+		
+		<action name="mouse_rotateyaw" keyboard="maxis_x" />
+		<action name="mouse_rotatepitch" keyboard="maxis_y" />
+		
+		<action name="shoot" onPress="1" onRelease="1" retriggerable="1" keyboard="mouse1"/>
+	</actionmap>  
+</profile>

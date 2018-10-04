@@ -1,0 +1,19 @@
+<Material MtlFlags="524544" vertModifType="0">
+ <SubMaterials>
+  <Material Name="body_SUB" MtlFlags="524416" Shader="Illum" GenMask="30400000" StringGenMask="%NORMAL_MAP%SPECULAR_MAP%SUBSURFACE_SCATTERING" SurfaceType="" MatTemplate="" Diffuse="1,1,1" Specular="0.065040998,0.065040998,0.065040998" Opacity="1" Shininess="255" vertModifType="0" LayerAct="1">
+   <Textures>
+    <Texture Map="Diffuse" File="Objects/Characters/SampleCharacter/mcg_diff.tif"/>
+    <Texture Map="Bumpmap" File="Objects/Characters/SampleCharacter/mcg_ddna.tif"/>
+    <Texture Map="Specular" File="Objects/Characters/SampleCharacter/mcg_spec.tif"/>
+   </Textures>
+   <PublicParams EmittanceMapGamma="1" SSSIndex="0"/>
+  </Material>
+  <Material Name="skelProxy_SUB" MtlFlags="525440" Shader="Nodraw" GenMask="0" StringGenMask="" SurfaceType="" MatTemplate="" Diffuse="0.5,0.5,0.5" Specular="0.5,0.5,0.5" Opacity="1" Shininess="10" vertModifType="0" LayerAct="1">
+   <Textures />
+  </Material>
+  <Material Name="physProxy_SUB" MtlFlags="525440" Shader="Nodraw" GenMask="0" StringGenMask="" SurfaceType="" MatTemplate="" Diffuse="0,0.38754201,1" Specular="0.5,0.5,0.5" Opacity="1" Shininess="10" vertModifType="0" LayerAct="1">
+   <Textures />
+  </Material>
+ </SubMaterials>
+ <PublicParams EmittanceMapGamma="1" SSSIndex="0"/>
+</Material>

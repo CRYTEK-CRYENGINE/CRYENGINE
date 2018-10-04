@@ -1,0 +1,61 @@
+<ObjectLayer>
+ <Layer Name="Main" FullName="Main" GUID="8d77155f-8337-b9bd-99c1-70768b59a2d1" Hidden="0" Frozen="0" Expanded="0" Type="0" Exportable="1" ExportLayerPak="1" DefaultLoaded="0" HavePhysics="1" IsDefaultColor="1" Color="4671303">
+  <LayerObjects>
+   <Object Type="EntityWithComponent" Layer="Main" LayerGUID="8d77155f-8337-b9bd-99c1-70768b59a2d1" Id="0291275e-e457-cf54-1988-98005647a44c" Name="Entity-1" Pos="518,520,34" Rotate="1,0,0,0" Scale="2.74,3,4" ColorRGB="65535" UseCustomLevelLayerColor="0" MatLayersMask="0" OutdoorOnly="0" CastShadow="1" CastShadowMinspec="1" DynamicDistanceShadows="0" GIMode="0" LodRatio="100" ViewDistRatio="100" HiddenInGame="0" RecvWind="0" RenderNearest="0" NoStaticDecals="0" EntityClass="Entity" HasEntity="1">
+    <Properties />
+    <Components>
+     <Component CryXmlVersion="2" TypeGUID="6ddd0033-6aaa-4b71-b8ea-108258205e29" TypeName="Cry::DefaultComponents::CStaticMeshComponent" GUID="55dade4e-58d2-16b9-09d4-6e678a6a0925" Name="" UserAdded="true">
+      <Transform>
+       <translation>
+        <position>
+         <element element="0"/>
+         <element element="0"/>
+         <element element="0"/>
+        </position>
+       </translation>
+       <rotation x="0" y="-0" z="0"/>
+       <scale>
+        <element element="1"/>
+        <element element="1"/>
+        <element element="1"/>
+       </scale>
+      </Transform>
+      <properties Type="RenderAndCollider" FilePath="%ENGINE%/EngineAssets/Objects/primitive_sphere.cgf" Material="">
+       <IEditorEntityComponent />
+       <Render ShadowSpec="Low" IgnoreVisArea="false" IgnoreTerrainLayerBlend="false" IgnoreDecalBlend="false" ViewDistRatio="100" LODDistance="100" GIMode="None"/>
+       <Physics WeightType="EWeightType::Mass" Density="9.9999997e-05" Mass="10"/>
+      </properties>
+     </Component>
+     <Component CryXmlVersion="2" TypeGUID="912c6ce8-56f7-4ffa-9134-f98d4e307bd6" TypeName="Cry::DefaultComponents::CRigidBodyComponent" GUID="bd554e6b-0812-77fe-9b82-d7b8d0b97cf4" Name="" UserAdded="true">
+      <properties Networked="false" EnabledByDefault="true" Resting="false" Type="Rigid" SendCollisionSignal="false">
+       <Buoyancy Damping="0" Density="1000" Resistance="1000"/>
+      </properties>
+     </Component>
+    </Components>
+   </Object>
+   <Object Type="EntityWithComponent" Layer="Main" LayerGUID="8d77155f-8337-b9bd-99c1-70768b59a2d1" Id="41470c3f-da06-6638-a01d-31500390949e" Name="Entity-2" Pos="511,519,33" Rotate="1,0,0,0" Scale="1,1,1" ColorRGB="65535" UseCustomLevelLayerColor="0" MatLayersMask="0" OutdoorOnly="0" CastShadow="1" CastShadowMinspec="1" DynamicDistanceShadows="0" GIMode="0" LodRatio="100" ViewDistRatio="100" HiddenInGame="0" RecvWind="0" RenderNearest="0" NoStaticDecals="0" EntityClass="Entity" HasEntity="1">
+    <Properties />
+    <Components>
+     <Component CryXmlVersion="2" TypeGUID="41316132-8a1e-4073-b0cd-a242fd3d2e90" TypeName="CSpawnPointComponent" GUID="509a22a0-db49-cace-a927-fc641439b461" Name="" UserAdded="true">
+      <Transform>
+       <translation>
+        <position>
+         <element element="0"/>
+         <element element="0"/>
+         <element element="0"/>
+        </position>
+       </translation>
+       <rotation x="0" y="-0" z="0"/>
+       <scale>
+        <element element="1"/>
+        <element element="1"/>
+        <element element="1"/>
+       </scale>
+      </Transform>
+      <properties />
+     </Component>
+    </Components>
+   </Object>
+  </LayerObjects>
+ </Layer>
+</ObjectLayer>

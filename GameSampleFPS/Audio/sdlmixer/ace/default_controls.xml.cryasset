@@ -1,0 +1,8 @@
+<AssetMetadata version="0" type="Xml" guid="73f227bd-3040-2cfe-8a59-1ad3e8988d43">
+ <Files>
+  <File path="default_controls.xml"/>
+ </Files>
+ <Details>
+  <Detail name="rootTag">AudioSystemData</Detail>
+ </Details>
+</AssetMetadata>

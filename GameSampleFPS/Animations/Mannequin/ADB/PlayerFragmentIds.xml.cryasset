@@ -1,0 +1,8 @@
+<AssetMetadata version="0" type="Xml" guid="aa2410fe-ba1c-4cc3-7248-61a18b51ad8a">
+ <Files>
+  <File path="PlayerFragmentIds.xml"/>
+ </Files>
+ <Details>
+  <Detail name="rootTag">TagDefinition</Detail>
+ </Details>
+</AssetMetadata>

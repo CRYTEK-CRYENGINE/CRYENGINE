@@ -50,7 +50,9 @@ void CGamePlugin::OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_PTR lp
 			// Don't need to load the map in editor
 			if (!gEnv->IsEditor())
 			{
-				gEnv->pConsole->ExecuteString("map example", false, true);
+				// WARNING: 'Example' level is currently out of date. Will not be loaded properly due to differing chunk sizes.
+				// Using test_level for now.
+				gEnv->pConsole->ExecuteString("map test_level", false, true);
 			}
 		}
 		break;

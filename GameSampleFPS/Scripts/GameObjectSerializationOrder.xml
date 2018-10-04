@@ -1,0 +1,8 @@
+<!-- this defines the serialization order for game object extentions within an entity -->
+<!-- extensions not in the list get the lowest priority (serialized last) -->
+<extensionsSerializationOrder>
+	<Player/>
+	<InputExtension/>
+	<MovementExtension/>
+	<ViewExtension/>
+</extensionsSerializationOrder>
