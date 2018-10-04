@@ -2,6 +2,9 @@ cmake_minimum_required(VERSION 3.6.2)
 
 set(TOOLS_CMAKE_DIR "${CMAKE_CURRENT_LIST_DIR}")
 
+## For static/trackable build options outside of the usual setup.
+include("${TOOLS_CMAKE_DIR}/OVERRIDE.cmake") 
+
 # Bootstrap support
 if(EXISTS "${TOOLS_CMAKE_DIR}/Bootstrap.cmake")
 	include("${TOOLS_CMAKE_DIR}/Bootstrap.cmake")

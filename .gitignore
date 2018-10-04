@@ -2,10 +2,17 @@
 *.pak
 *.caf
 
+## Enforced tracking for .dds file, to prevent excessive 'new files' when RC compiles some textures. Use "git add -f" instead.
+Engine/EngineAssets/**/*.dds
+
+# Ain't that many files to ignore, easier to handle through github for now.
+!GameSampleFPS/**
+GameSampleFPS/Animations/editor/*
+
 # Config files
-/user.cfg
-/system.cfg
-/editor.cfg
+#/user.cfg
+#/system.cfg
+#/editor.cfg
 /.bootstrap*.*
 
 # Temporary files.
@@ -31,6 +38,8 @@ _WAF_/user_settings.options
 /[Ll]og[Bb]ackups
 /[Uu]ser*/
 __pycache__/*
+**/Editor/ResourceCache/
+**/Editor/Tmp/
 
 # Might contain a license key, so don't add it to a repo.
 /Code/Tools/waf-1.7.13/recode.lic
@@ -38,3 +47,4 @@ __pycache__/*
 
 # These are handled elsewhere.
 /Code/SDKs/*
+*SDKs.zip
