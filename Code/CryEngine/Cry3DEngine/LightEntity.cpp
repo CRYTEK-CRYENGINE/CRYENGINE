@@ -1567,6 +1567,11 @@ int CLightEntity::MakeShadowCastersHull(PodArray<SPlaneObject>& lstCastersHull, 
 
 	// 5 to 9 are the translated frustum vertices
 	Vec3 vSunDir = (m_light.m_Origin - vCamPos).normalized() * Get3DEngine()->m_fSunClipPlaneRange;
+
+	// PERSONAL CRYTEK: Due to floating-point approximation issues had to compute a 'minimal' FP. See debug location below.
+	if(abs(vSunDir.x) < 1e-4){ vSunDir.x = sgn(vSunDir.x) * 1e-4; }
+	if(abs(vSunDir.y) < 1e-4){ vSunDir.y = sgn(vSunDir.y) * 1e-4; }
+
 	for (int v = 0; v < 5; v++)
 		arrFrustVerts[v + 5] = arrFrustVerts[v] + vSunDir;
 
@@ -1634,6 +1639,29 @@ int CLightEntity::MakeShadowCastersHull(PodArray<SPlaneObject>& lstCastersHull, 
 		// If this plane belong to a different frustum than the far plane, add a junction plane
 		if (bUsePlane[4] != bUsePlane[i])
 		{
+			/* PERSONAL CRYTEK:
+				Test results using a stock Sandbox level. E.g. Create level -> leave as default -> Click perspective to load view then you get here.
+				GameLauncher loads same 'stock' level.
+				This is for CreatePlane(), both ofc get the same base frustrums. Offset is what matters.
+
+				GameLauncher on index 2 for that plane stuff gives this:
+				v1	[676.626404, 543.584473, 382.505951]						<--- Note, 73 not 12
+				v0	[676.626404, 543.584412, 638.505920]
+				v2	[676.626404, 543.584412, -122.698837]
+				vCamPos	[2.02701855e-10, 0.0280143116, 1.90355599]
+				vSunDir	[-2.23802253e-05, -3.87636937e-05, 255.999985]
+
+				Sandbox on index 2, End result is trying to construct a plane from a line of points. Impossible hence the issue.
+				v1	[1034.49268, 1190.73950, 439.523499]						<--- No difference! 
+				v0	[1034.49268, 1190.73950, 695.523499]
+				v2	[1034.49268, 1190.73950, -115.523514]
+				vCamPos	[512.000000, 512.000000, 34.0000000]				<-- Only difference is camera location
+				vSunDir	[-2.23828119e-05, -3.87656255e-05, 255.999985]	<-- Offset is the same in both cases
+
+				Floating point's inexactness breaks this here, not sure how to fix it. For now just making a 'minimal' translation offset :(
+				Should really only apply when looking nearly right at the sun, ugh.
+			*/
+
 			SPlaneObject po;
 			po.plane = Plane::CreatePlane(arrFrustVerts[vertexIndex[i][1] + iPlaneOffset], arrFrustVerts[vertexIndex[i][1] + iOtherOffset], arrFrustVerts[vertexIndex[i][2] + iPlaneOffset]);
 			po.Update();
