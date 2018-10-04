@@ -2122,11 +2122,14 @@ CTimeline::CTimeline(QWidget* parent)
 
 	m_highlightedTimer.setSingleShot(true);
 	m_highlightedConnection = QObject::connect(&m_highlightedTimer, &QTimer::timeout, [this]() { UpdateHightlightedInternal(); });
-	QObject::connect(this, &QObject::destroyed, [this]() { disconnect(m_highlightedConnection); });
 }
 
 CTimeline::~CTimeline()
 {
+	// PERSONAL CRYTEK: Fails in debug mode/build in standard engine.
+	// Moved from destroyed() bind to CTimeLine destructor.
+	// Reproducing: Build in debug, click 'mannequin' layout -> from that layout go to 'default' layout -> Sandbox crashes.
+	disconnect(m_highlightedConnection);
 }
 
 void CTimeline::customEvent(QEvent* pEvent)
