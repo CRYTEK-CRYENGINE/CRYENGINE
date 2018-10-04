@@ -155,6 +155,10 @@ SDeviceObjectHelpers::CShaderConstantManager::CShaderConstantManager(CShaderCons
 void SDeviceObjectHelpers::CShaderConstantManager::Reset()
 {
 	m_constantBuffers.clear();
+
+	// PERSONAL CRYTEK: Otherwise when running ReleaseReflectedBuffers() it would die since 
+	// m_pShaderReflection->bufferCount > m_constantBuffers.size() and m_constantBuffers[i] would be invalid.....
+	m_pShaderReflection.reset();
 }
 
 bool SDeviceObjectHelpers::CShaderConstantManager::AllocateShaderReflection(::CShader* pShader, const CCryNameTSCRC& technique, uint64 rtFlags, EShaderStage shaderStages)
