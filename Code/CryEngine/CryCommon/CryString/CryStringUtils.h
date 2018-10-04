@@ -127,7 +127,14 @@ inline bool vsprintf_with_clamp(char* const dst, size_t const dst_size_in_bytes,
 	}
 
 	PREFAST_SUPPRESS_WARNING(4996); // 'function': was declared deprecated
+
+	// PERSONAL CRYTEK:
+	// In case vsprintf detects invalid input, e.g. mpfloat read as float.
+	// By default it would silently fail assert with message: "unexpected input value; log10 failed".
+	// Changing the report mode for a bit configures it to it break at offending print instead.
+	int oldMode = _CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_WNDW);
 	const int n = vsnprintf(dst, dst_size_in_bytes, format, args);
+	_CrtSetReportMode(_CRT_ASSERT, oldMode);
 
 #if CRY_COMPILER_MSVC && CRY_COMPILER_VERSION < 1900
 	if (n < 0 || n == dst_size_in_bytes)

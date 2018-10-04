@@ -83,6 +83,25 @@ struct SResourceLayout
 #endif
 };
 
+static ILINE void EscapeString(string& inout)
+{
+	static const char chars[] = { '%' };
+	static const char* repls[] = { "%%" };
+
+	for (size_t i = 0; i < sizeof(chars) / sizeof(char); ++i)
+	{
+		size_t off = 0;
+		while (true)
+		{
+			off = inout.find(chars[i], off);
+			if (off == string::npos)
+				break;
+			inout.replace(off, sizeof(char), repls[i]);
+			off += strlen(repls[i]);
+		}
+	}
+}
+
 class CDeviceResource
 {
 
@@ -97,7 +116,12 @@ public:
 
 	inline void SetDebugName(const char* name) const
 	{
-		::SetDebugName(m_pNativeResource, name);
+		// PERSONAL CRYTEK:
+		// Debug str may be something like this: "%ENGINE%/EngineAssets/Textures/Cursor_Green.dds"
+		// The %'s cause vsprintf to crash, needs escaping. Copid from SimpleHttpServerListener.cpp since I can't find other existing methods/conventions.
+		string escapedStr = name;
+		EscapeString(escapedStr);
+		::SetDebugName(m_pNativeResource, escapedStr.c_str());
 	}
 
 	inline D3DResource* GetNativeResource() const
