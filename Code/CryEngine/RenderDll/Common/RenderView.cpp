@@ -321,6 +321,13 @@ void CRenderView::CalculateViewInfo()
 			const CCamera& cam = pRenderView->GetCamera(eye);
 			const CCamera& previousCam = pRenderView->GetPreviousCamera(eye);
 
+			/* HACK: 
+				Should not impact anything. Edge case of when (maybe) Renderer thread is killed, and cam's are zeroed out while here. 
+				Causes invalid camera (0,0,0,0 everything) + a little further down when calculating view.
+				Camera FOV should never be 0 anyway(?)
+			*/
+			if (cam.GetFov() == 0) { continue; }
+
 			m_viewInfo[viewInfoCount].flags = viewFlags;
 			m_viewInfo[viewInfoCount].SetCamera(cam, previousCam, m_vProjMatrixSubPixoffset,
 				gRenDev->GetDrawNearestFOV(), CRendererCVars::CV_r_DrawNearFarPlane);
