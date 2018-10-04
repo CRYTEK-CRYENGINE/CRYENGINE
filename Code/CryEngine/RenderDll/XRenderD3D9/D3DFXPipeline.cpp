@@ -202,7 +202,13 @@ bool CD3D9Renderer::FX_DrawToRenderTarget(
 	
 	if (!Tex)
 	{
-		CRY_ASSERT_MESSAGE(Tex, "DrawToRenderTarget called without passing a target texture!");
+		// PERSONAL CRYTEK: Something wrong with github provided water.cfx file or texture or something?
+		// Dies here, as expected. Made it a "Silent" death if water shader issue.
+		// Also, what's up with the whole "Screen becomes black at certain angles in the water"?
+		if (strcmp(pShader->GetName(), "Water") != 0)
+			CRY_ASSERT_MESSAGE(Tex, "DrawToRenderTarget called without passing a target texture!");
+		else
+			CryWarning(VALIDATOR_MODULE_RENDERER, VALIDATOR_ERROR, "Buggy water shader again");
 		return false;
 	}
 
