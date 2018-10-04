@@ -48,3 +48,12 @@ __pycache__/*
 # These are handled elsewhere.
 /Code/SDKs/*
 *SDKs.zip
+
+##
+## As a just-in-case + record keeping.
+	## NOTE: Main-branch download setup has changed. Only does it when generating solution, no separate download_sdks.exe.
+	## Be sure to delete the Code/SDKs folder on the initial git pull or it won't run.
+	## After generation the newly downloaded zip files should match any tracked below!
+	## Definitely need a better system for custom SDK-related edits tracking. For now, doing git add -f
+##
+# !/Code/SDKs/TangentBasisComputation/mikkelsen/StdAfx.h		<-- Was missing, added.

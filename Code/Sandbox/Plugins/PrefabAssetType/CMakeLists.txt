@@ -1,3 +1,6 @@
+## PERSONAL CRYTEK: Skipping compilation because it quite obviuosly doesn't work. Missing files and so on. Ugh.
+return()
+
 start_sources()
 
 # -- prefabassettype.waf_files --
