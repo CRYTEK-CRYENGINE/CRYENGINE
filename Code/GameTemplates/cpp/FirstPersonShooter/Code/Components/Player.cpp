@@ -176,15 +176,15 @@ void CPlayerComponent::UpdateLookDirectionRequest(float frameTime)
 	const float rotationLimitsMinPitch = -0.84f;
 	const float rotationLimitsMaxPitch = 1.5f;
 
-	if (m_mouseDeltaRotation.IsEquivalent(ZERO, MOUSE_DELTA_TRESHOLD))
-		return;
-
 	// Apply smoothing filter to the mouse input
 	m_mouseDeltaRotation = m_mouseDeltaSmoothingFilter.Push(m_mouseDeltaRotation).Get();
 
 	// Update angular velocity metrics
 	m_horizontalAngularVelocity = (m_mouseDeltaRotation.x * rotationSpeed) / frameTime;
 	m_averagedHorizontalAngularVelocity.Push(m_horizontalAngularVelocity);
+
+	if (m_mouseDeltaRotation.IsEquivalent(ZERO, MOUSE_DELTA_TRESHOLD))
+		return;
 
 	// Start with updating look orientation from the latest input
 	Ang3 ypr = CCamera::CreateAnglesYPR(Matrix33(m_lookOrientation));
