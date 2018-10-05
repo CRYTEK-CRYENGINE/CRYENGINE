@@ -1234,10 +1234,13 @@ bool CImpl::LoadMasterBanks()
 	}
 	else
 	{
-		// This does not qualify for a fallback to the NULL implementation!
-		// Still notify the user about this failure!
+		// PERSONAL CRYTEK: With no audio banks loaded -> No bus -> It will try to 'Mute' etc. the FMod bus on window select which will, of course, fail.
+		// For now, default to null-implementation. Better fixes can be done later.
+		// NOTE: Since logging here is on a different thread (hence delays with safe logging etc.)
+		//			this message doesn't get shown before FMod dies on MuteMasterBus().
 		Cry::Audio::Log(ELogType::Error, "Fmod failed to load master banks");
-		return true;
+		ShutDown();
+		return false;
 	}
 
 	return (fmodResult == FMOD_OK);
