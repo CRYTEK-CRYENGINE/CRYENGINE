@@ -1091,14 +1091,14 @@ void CNetChannel::PunkDetected(EPunkType punkType)
 	m_pNub->GetSecurity()->OnPunkDetected(RESOLVER.ToString(m_ip), punkType);
 }
 
-NET_IMPLEMENT_SIMPLE_IMMEDIATE_MESSAGE(CNetChannel, SetRemoteChannelID, eNRT_ReliableUnordered, true)
+NET_IMPLEMENT_SIMPLE_IMMEDIATE_MESSAGE(CNetChannel, SetRemoteChannelID, eNRT_ReliableUnordered, eMPF_BlocksStateChange)
 {
 	m_remoteChannelID = param.m_id;
 	return m_remoteChannelID > 0;
 }
 
 #if NEW_BANDWIDTH_MANAGEMENT
-NET_IMPLEMENT_SIMPLE_IMMEDIATE_MESSAGE(CNetChannel, SetRemotePerformanceMetrics, eNRT_ReliableUnordered, true)
+NET_IMPLEMENT_SIMPLE_IMMEDIATE_MESSAGE(CNetChannel, SetRemotePerformanceMetrics, eNRT_ReliableUnordered, eMPF_BlocksStateChange)
 {
 	INetChannel::SPerformanceMetrics metrics;
 	metrics.m_bandwidthShares = param.m_bandwidthShares;
@@ -1111,7 +1111,7 @@ NET_IMPLEMENT_SIMPLE_IMMEDIATE_MESSAGE(CNetChannel, SetRemotePerformanceMetrics,
 #endif
 
 #if LOAD_NETWORK_CODE
-NET_IMPLEMENT_SIMPLE_IMMEDIATE_MESSAGE(CNetChannel, LoadNetworkMessage, eNRT_ReliableUnordered, false)
+NET_IMPLEMENT_SIMPLE_IMMEDIATE_MESSAGE(CNetChannel, LoadNetworkMessage, eNRT_ReliableUnordered, 0)
 {
 	return true;
 }
