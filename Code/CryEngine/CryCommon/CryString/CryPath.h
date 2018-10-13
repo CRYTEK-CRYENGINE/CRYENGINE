@@ -837,18 +837,13 @@ inline string GetProjectFolder()
 		{
 			ICVar* pSysProject = gEnv->pConsole->GetCVar("sys_project");
 			if (pSysProject && pSysProject->GetString())
-			{
-				string sysProjectStr = PathUtil::GetParentDirectory(pSysProject->GetString());
-				if (PathUtil::IsRelativePath(sysProjectStr))
-				{
-					cmdLineProjectPath = PathUtil::Make(GetEnginePath(), sysProjectStr);
-				}
-				else
-				{
-					cmdLineProjectPath = sysProjectStr;
-				}
-			}
+				cmdLineProjectPath = PathUtil::GetParentDirectory(pSysProject->GetString());
 		}
+
+		// Relativity should be checked regardless of how cmd was loaded.
+		if (PathUtil::IsRelativePath(cmdLineProjectPath))
+			cmdLineProjectPath = PathUtil::Make(GetEnginePath(), cmdLineProjectPath);
+
 		checkedForCmdLineProjectArg = true;
 	}
 	return cmdLineProjectPath;
