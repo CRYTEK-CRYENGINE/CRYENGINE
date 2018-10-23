@@ -241,6 +241,11 @@ inline int CCharInstance::Release()
 {
 	if (--m_nRefCounter == 0)
 	{
+		// PERSONAL CRYTEK: On attachment release, eventually hits CCharInstance::RuntimeInit() with invalid renderer data.
+		// Since it tries to re-create the default skeleton xd
+		// Zeroing it out here for now.
+		// REPRODUCTION: Launch sandbox (should already be in mannequin view). Close it. Bam, dies.
+		memset(arrSkinningRendererData, 0, sizeof(arrSkinningRendererData));
 		m_AttachmentManager.RemoveAllAttachments();
 		delete this;
 		return 0;
