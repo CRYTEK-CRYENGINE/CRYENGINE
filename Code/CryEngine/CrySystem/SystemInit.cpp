@@ -2288,6 +2288,7 @@ void CSystem::InitResourceCacheFolder()
 	}
 
 	// Resource cache folder is used to store locally compiled resources (or precompiled asset cache folder).
+	m_env.pCryPak->MakeDir(szResourceCacheFolder);
 	m_env.pCryPak->AddMod(szResourceCacheFolder, ICryPak::EModAccessPriority::AfterSource);
 
 #endif // !defined(_RELEASE)
