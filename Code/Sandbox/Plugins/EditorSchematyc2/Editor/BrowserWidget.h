@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <queue>
+
 #include <QAbstractItemModel>
 #include <QTreeView>
 #include <QWidget>

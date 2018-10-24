@@ -12,7 +12,6 @@
 
 #include <vector>
 #include <CrySystem/Scaleform/GMemorySTLAlloc.h>
-#include <CryRenderer/IRenderer.h>
 
 struct IScaleformRecording;
 struct IScaleformPlayback;
@@ -22,6 +21,8 @@ class CScaleformPlayback;
 
 struct GRendererCommandBuffer;
 #endif
+
+#include <CryRenderer/IRenderer.h>
 
 class CCachedData;
 

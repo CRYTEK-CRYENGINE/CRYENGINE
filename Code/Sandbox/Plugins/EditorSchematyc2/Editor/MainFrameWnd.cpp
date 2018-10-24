@@ -6,6 +6,8 @@
 
 #include "MainFrameWnd.h"
 
+#include <CrySystem/CryVersion.h>
+
 #include <CryEntitySystem/IEntitySystem.h>
 #include <CrySchematyc2/ILib.h>
 #include <CrySchematyc2/IObject.h>

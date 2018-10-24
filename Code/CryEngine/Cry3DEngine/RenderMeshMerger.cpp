@@ -252,7 +252,7 @@ void CRenderMeshMerger::MakeListOfAllCRenderChunks(SMergeInfo& info)
 		CRenderChunk Ch = newMatInfo;
 		for (uint32 i = Ch.nFirstIndexId; i < Ch.nFirstIndexId + Ch.nNumIndices; i++)
 		{
-			assert(i >= 0 && i < pRM->GetIndicesCount());
+			assert(i >= 0 && i < (uint)pRM->GetIndicesCount());
 			assert(pSrcInds[i] >= Ch.nFirstVertId && pSrcInds[i] < Ch.nFirstVertId + Ch.nNumVerts);
 			assert((int)pSrcInds[i] < pRM->GetVerticesCount());
 		}
