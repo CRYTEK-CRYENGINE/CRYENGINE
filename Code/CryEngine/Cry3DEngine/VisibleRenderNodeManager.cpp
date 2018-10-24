@@ -186,12 +186,11 @@ void CVisibleRenderNodesManager::UpdateVisibleNodes(int currentFrame, int maxNod
 			m_firstAddedNode = -1;
 		}
 
-		auto b = m_visibleNodes.begin() + m_lastStartUpdateNode;
-		if (b >= m_visibleNodes.end())
-		{
-			b = m_visibleNodes.begin();
+		auto b = m_visibleNodes.begin();
+		if (m_lastStartUpdateNode >= m_visibleNodes.size())
 			m_lastStartUpdateNode = 0;
-		}
+		else
+			b += m_lastStartUpdateNode;
 
 		const auto maxFrames = (uint32)C3DEngine::GetCVars()->e_RNTmpDataPoolMaxFrames;
 		for (int i=0; i<maxNodesToCheck && b!=m_visibleNodes.end(); ++i)
@@ -214,10 +213,24 @@ void CVisibleRenderNodesManager::UpdateVisibleNodes(int currentFrame, int maxNod
 
 				m_toDeleteNodes[m_currentNodesToDelete].push_back(pTempData);
 
-				// Swap and erase
-				auto penultimate = std::prev(m_visibleNodes.end());
-				*b = *penultimate;
-				m_visibleNodes.erase(penultimate);
+				// Make sure you have at least 2 elements otherwise it'd be with invalid iterators.
+				if(m_visibleNodes.size() < 2)
+				{
+					m_visibleNodes.clear();
+					b = m_visibleNodes.end();
+				}
+				else
+				{
+					// Be sure not to swap&pop element with self! Also causes invalid iterators.
+					auto penultimate = std::prev(m_visibleNodes.end());
+
+					if(b == penultimate)
+						b = m_visibleNodes.begin();
+					else 
+						std::iter_swap(b, penultimate);
+
+					m_visibleNodes.pop_back();
+				}
 			}
 			else
 				++b;
@@ -293,10 +306,10 @@ void CVisibleRenderNodesManager::OnRenderNodeDeleted(IRenderNode* pRenderNode)
 		auto iter = std::find(m_visibleNodes.begin(), m_visibleNodes.end(), pNodeTempData);
 		if (iter != m_visibleNodes.end())
 		{
-			// Erase by swapping with back
+			// Erase with swap&pop, faster.
 			auto penultimate = std::prev(m_visibleNodes.end());
-			*iter = *penultimate;
-			m_visibleNodes.erase(penultimate);
+			std::iter_swap(iter, penultimate);
+			m_visibleNodes.pop_back();
 
 			m_toDeleteNodes[m_currentNodesToDelete].push_back(pNodeTempData);
 		}
