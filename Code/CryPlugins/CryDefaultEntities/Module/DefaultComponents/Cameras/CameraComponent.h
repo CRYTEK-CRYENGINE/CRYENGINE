@@ -65,7 +65,9 @@ namespace Cry
 				const CCamera& systemCamera = gEnv->pSystem->GetViewCamera();
 
 				m_camera.SetFrustum(systemCamera.GetViewSurfaceX(), systemCamera.GetViewSurfaceZ(), m_fieldOfView.ToRadians(), m_nearPlane, m_farPlane, systemCamera.GetPixelAspectRatio());
-				m_camera.SetMatrix(GetWorldTransformMatrix());
+				Matrix34 tmp = GetWorldTransformMatrix();
+				tmp.OrthonormalizeFast();
+				m_camera.SetMatrix(tmp);
 
 				gEnv->pSystem->SetViewCamera(m_camera);
 
