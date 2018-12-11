@@ -2128,9 +2128,6 @@ CTimeline::CTimeline(QWidget* parent)
 
 CTimeline::~CTimeline()
 {
-	// PERSONAL CRYTEK: Fails in debug mode/build in standard engine.
-	// Moved from destroyed() bind to CTimeLine destructor.
-	// Reproducing: Build in debug, click 'mannequin' layout -> from that layout go to 'default' layout -> Sandbox crashes.
 	disconnect(m_highlightedConnection);
 }
 
