@@ -2,7 +2,6 @@
 
 block_cipher = None
 
-
 a = Analysis(['wrapper.py'],
              pathex=['cry_cmake'],
              binaries=[],
@@ -25,4 +24,6 @@ exe = EXE(pyz,
           debug=False,
           strip=False,
           upx=False,
-          console=False , icon='icon.ico')
+          console=True, icon=os.path.join(SPECPATH, 'icon.ico'))
+
+## Icon ain't relative in EXE(). https://github.com/pyinstaller/pyinstaller/issues/3333
