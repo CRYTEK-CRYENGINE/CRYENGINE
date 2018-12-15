@@ -31,6 +31,8 @@ _WAF_/user_settings.options
 /[Ll]og[Bb]ackups
 /[Uu]ser*/
 __pycache__/*
+/Tools/CMake/cry_cmake/build/*
+/Tools/CMake/cry_cmake/dist/*
 
 # Might contain a license key, so don't add it to a repo.
 /Code/Tools/waf-1.7.13/recode.lic
