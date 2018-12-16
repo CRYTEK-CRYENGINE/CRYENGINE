@@ -56,6 +56,11 @@ if (EXISTS "${SDK_DIR}/SubstanceEngines")
 endif()
 option(OPTION_PCH "Enable Precompiled Headers" OFF)
 
+## To ignore warning "variable not used" that happens if we skip SDK extraction/etc.
+## And to remove caching of this option
+set(actual_mode "${CMAKE_MODE}")
+unset(CMAKE_MODE CACHE)
+
 # Print current project settings
 MESSAGE("CMAKE_SYSTEM_NAME = ${CMAKE_SYSTEM_NAME}")
 MESSAGE("CMAKE_GENERATOR = ${CMAKE_GENERATOR}")

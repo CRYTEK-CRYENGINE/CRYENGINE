@@ -1,0 +1,6 @@
+{
+	"repo": "${GIT_REPO}",
+	"rtag": "${GIT_TAG}",
+	"asset": "${SDK_ARCHIVE}",
+	"sdk_dir": "Tools/CMake/download_sdks"
+}
