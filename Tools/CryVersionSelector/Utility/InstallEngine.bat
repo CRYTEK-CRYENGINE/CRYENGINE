@@ -1,9 +1,14 @@
 @ECHO OFF
 
-REM Initialize values
-SET CRYSELECT=%~dp0tools\CryVersionSelector\cryselect.exe
-SET ENGINE=%~dp0cryengine.cryengine
+REM Initialize values, assume git setup. Otherwise assume run from engine root.
 SET PAUSE_ON_END=0
+SET CRYSELECT=%~dp0..\cryselect.exe
+IF EXIST "%CRYSELECT%" (
+	SET ENGINE=%~dp0..\..\..\cryengine.cryengine
+) ELSE (
+	SET CRYSELECT=%~dp0tools\CryVersionSelector\cryselect.exe
+	SET ENGINE=%~dp0cryengine.cryengine
+)
 
 REM Install CryVersionSelector
 @ECHO Installing CryVersionSelector...
