@@ -30,7 +30,9 @@ _WAF_/user_settings.options
 /project.sln
 /[Ll]og[Bb]ackups
 /[Uu]ser*/
-__pycache__/*
+/Tools/**/__pycache__/*
+/Tools/**/build/*
+/Tools/**/dist/*
 
 # Might contain a license key, so don't add it to a repo.
 /Code/Tools/waf-1.7.13/recode.lic
