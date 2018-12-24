@@ -2,7 +2,7 @@
 
 import cryplugin
 import json
-
+import re
 
 class CryProject:
     def __init__(self):
@@ -11,9 +11,11 @@ class CryProject:
 
     def load(self, path):
         file = open(path, 'r')
-        self.data = json.loads(file.read())
+        fileData = file.read()
         file.close()
-
+        
+        ## Make sure to remove xml-style comments before parsing json.
+        self.data = json.loads(re.sub('<--[\\s\\S]*?-->', '', fileData))
         self.path = path
 
     def save(self, path):

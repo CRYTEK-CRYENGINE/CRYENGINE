@@ -399,6 +399,7 @@ bool CSystemConfiguration::ParseSystemConfig()
 
 	string strGroup;      // current group e.g. "[General]"
 
+	bool comment = false; // If in a multiline comment.
 	char* strLast = sAllText + nLen;
 	char* str = sAllText;
 	while (str < strLast)
@@ -413,44 +414,47 @@ bool CSystemConfiguration::ParseSystemConfig()
 
 		string strLine = s;
 
-		// detect groups e.g. "[General]"   should set strGroup="General"
-		{
-			string strTrimmedLine(RemoveWhiteSpaces(strLine));
-			size_t size = strTrimmedLine.size();
-
-			if (size >= 3)
-				if (strTrimmedLine[0] == '[' && strTrimmedLine[size - 1] == ']') // currently no comments are allowed to be behind groups
-				{
-					strGroup = &strTrimmedLine[1];
-					strGroup.resize(size - 2);                              // remove [ and ]
-					continue;                                               // next line
-				}
+		// Skip comments. These are signified with ";" or "--" for single line and "<--" + "-->" for multi-line.
+		// Optimization is neglegible considering the engine boot up takes longer than parsing cfg files.
+		size_t pos = strLine.find("<--");
+		if (pos != strLine.npos)
+			comment = true;
+		else {
+			pos = strLine.find("-->");
+			if(pos != strLine.npos)
+				comment = false;
+			else
+				pos = strLine.find("--");	// -- takes priority over ;
+				if (pos == strLine.npos)
+					pos = strLine.find(";");
 		}
+		if(comment == true){ continue; }				// Skip multiline comments, inclusive.
+		if (pos != strLine.npos){ strLine.erase(pos); }	// Otherwise just erase the comment itself, e.g. var=blah "-- comment " stuff in "" is erased.
 
-		//trim all whitespace characters at the beginning and the end of the current line and store its size
+		// Trim all whitespace characters at the beginning and the end of the current line, after parsing out comments. Save the final str line size.
 		strLine.Trim();
-		size_t strLineSize = strLine.size();
+		size_t sz = strLine.size();
 
-		//skip comments, comments start with ";" or "--" but may have preceding whitespace characters
-		if (strLineSize > 0)
-		{
-			if (strLine[0] == ';')
-				continue;
-			else if (strLine.find("--") == 0)
-				continue;
-		}
-		//skip empty lines
-		else
-			continue;
+		// Skip comment-only/empty lines
+		if (sz == 0){ continue; }
 
-		//if line contains a '=' try to read and assign console variable
+		// Detect groups e.g. "[General]" should set via strGroup="General"
+		if (sz >= 3)
+			if (strLine[0] == '[' && strLine[sz - 1] == ']')
+			{
+				strGroup = &strLine[1];
+				strGroup.resize(sz - 2);						// remove [ and ]
+				continue;										// next line
+			}
+
+		// If line contains a '=' try to read and assign console variable		
 		string::size_type posEq(strLine.find("=", 0));
 		if (string::npos != posEq)
 		{
 			string stemp(strLine, 0, posEq);
 			string strKey(RemoveWhiteSpaces(stemp));
 
-			//				if (!strKey.empty())
+			// if (!strKey.empty())
 			{
 				// extract value
 				string::size_type posValueStart(strLine.find("\"", posEq + 1) + 1);
@@ -472,7 +476,7 @@ bool CSystemConfiguration::ParseSystemConfig()
 					strValue.replace("\\\\", "\\");
 					strValue.replace("\\\"", "\"");
 
-					//						m_pSystem->GetILog()->Log("Setting %s to %s",strKey.c_str(),strValue.c_str());
+					// m_pSystem->GetILog()->Log("Setting %s to %s",strKey.c_str(),strValue.c_str());
 					m_pSink->OnLoadConfigurationEntry(strKey, strValue, strGroup);
 				}
 			}
