@@ -47,7 +47,7 @@
 
 #define IDC_PARTICLES_TREE  AFX_IDW_PANE_FIRST
 
-#define EDITOR_OBJECTS_PATH string("%EDITOR%/Objects/")
+//#define EDITOR_OBJECTS_PATH string("%EDITOR%/Objects/")
 
 IMPLEMENT_DYNAMIC(CParticleDialog, CBaseLibraryDialog);
 //////////////////////////////////////////////////////////////////////////

@@ -1988,7 +1988,8 @@ void CLevelSystem::LogLoadingTime()
 #if CRY_PLATFORM_WINDOWS
 	SCOPED_ALLOW_FILE_ACCESS_FROM_THIS_THREAD();
 
-	string filename = PathUtil::Make(gEnv->pSystem->GetRootFolder(), "Game_LevelLoadTime.log");
+	// Store log where the system logs are stored.
+	string filename = PathUtil::Make(PathUtil::GetParentDirectory(gEnv->pLog->GetFilePath()), "Game_LevelLoadTime.log");
 
 	FILE* file = fxopen(filename, "at");
 	if (!file)

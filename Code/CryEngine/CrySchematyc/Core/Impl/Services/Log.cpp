@@ -201,21 +201,26 @@ private:
 		{
 			m_bErrorObserverRegistered = gEnv->pSystem->RegisterErrorObserver(this);
 
-			FILE* pFile = fxopen(m_fileName.c_str(), "rb");
+			// Store logs where system logs are stored.
+			string log_root = PathUtil::GetParentDirectory(gEnv->pLog->GetFilePath());
+			string fileLoc = PathUtil::Make(log_root, m_fileName);
+
+			FILE* pFile = fxopen(fileLoc.c_str(), "rb");
 			if (pFile)
 			{
 				fclose(pFile);
 
-				CStackString backupFileName("LogBackups/");
+				stack_string backupFileName = PathUtil::Make(log_root, "LogBackups/");
 				backupFileName.append(m_fileName.c_str());
+
 #if CRY_PLATFORM_DURANGO
 				CRY_ASSERT_MESSAGE(false, "MoveFileEx not supported on Durango!");
 #else
-				CopyFile(m_fileName.c_str(), backupFileName.c_str(), true);
+				CopyFile(fileLoc.c_str(), backupFileName.c_str(), true);
 #endif
 			}
 
-			m_pFile = fxopen(m_fileName.c_str(), "wtc");
+			m_pFile = fxopen(fileLoc.c_str(), "wtc");
 			setvbuf(m_pFile, m_writeBuffer, _IOFBF, sizeof(m_writeBuffer));
 
 			m_messagQueue.reserve(100);

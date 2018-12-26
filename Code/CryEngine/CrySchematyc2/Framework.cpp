@@ -121,7 +121,7 @@ namespace Schematyc2
 			}
 			else
 			{
-				logFileName = "schematyc_legacy.log";
+				logFileName = "schematyc_legacy.log"; // PERSONAL CRYTEK: Backup log rotation for this is poor, no date etc. just most recent copy.
 			}
 			m_pLogFileOutput = m_log.CreateFileOutput(logFileName.c_str());
 			SCHEMATYC2_SYSTEM_ASSERT(m_pLogFileOutput);

@@ -132,42 +132,42 @@ BOOL CTransitionBrowser::OnInitDialog()
 	if (pStatic != NULL)
 	{
 		CImage img;
-		img.Load("Editor\\UI\\Icons\\mann_folder.png");
+		img.Load(PathUtil::Make(PathUtil::GetEnginePath(), "Editor\\UI\\Icons\\mann_folder.png"));
 		pStatic->SetBitmap(img.Detach());
 	}
 	pStatic = (CStatic*)GetDlgItem(IDC_FRAGMENT_FILTER_ICON_RHS);
 	if (pStatic != NULL)
 	{
 		CImage img;
-		img.Load("Editor\\UI\\Icons\\mann_folder.png");
+		img.Load(PathUtil::Make(PathUtil::GetEnginePath(), "Editor\\UI\\Icons\\mann_folder.png"));
 		pStatic->SetBitmap(img.Detach());
 	}
 	pStatic = (CStatic*)GetDlgItem(IDC_TAG_FILTER_ICON_LHS);
 	if (pStatic != NULL)
 	{
 		CImage img;
-		img.Load("Editor\\UI\\Icons\\mann_tag.png");
+		img.Load(PathUtil::Make(PathUtil::GetEnginePath(), "Editor\\UI\\Icons\\mann_tag.png"));
 		pStatic->SetBitmap(img.Detach());
 	}
 	pStatic = (CStatic*)GetDlgItem(IDC_TAG_FILTER_ICON_RHS);
 	if (pStatic != NULL)
 	{
 		CImage img;
-		img.Load("Editor\\UI\\Icons\\mann_tag.png");
+		img.Load(PathUtil::Make(PathUtil::GetEnginePath(), "Editor\\UI\\Icons\\mann_tag.png"));
 		pStatic->SetBitmap(img.Detach());
 	}
 	pStatic = (CStatic*)GetDlgItem(IDC_ANIM_CLIP_FILTER_ICON_LHS);
 	if (pStatic != NULL)
 	{
 		CImage img;
-		img.Load("Editor\\Icons\\animation\\animation.png");
+		img.Load(PathUtil::Make(PathUtil::GetEnginePath(), "Editor\\Icons\\animation\\animation.png"));
 		pStatic->SetBitmap(img.Detach());
 	}
 	pStatic = (CStatic*)GetDlgItem(IDC_ANIM_CLIP_FILTER_ICON_RHS);
 	if (pStatic != NULL)
 	{
 		CImage img;
-		img.Load("Editor\\Icons\\animation\\animation.png");
+		img.Load(PathUtil::Make(PathUtil::GetEnginePath(), "Editor\\Icons\\animation\\animation.png"));
 		pStatic->SetBitmap(img.Detach());
 	}
 

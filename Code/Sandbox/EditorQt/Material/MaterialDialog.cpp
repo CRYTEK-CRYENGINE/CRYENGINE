@@ -34,7 +34,7 @@
 #define IDW_MTL_PROPERTIES_PANE AFX_IDW_CONTROLBAR_FIRST + 11
 #define IDW_MTL_PREVIEW_PANE    AFX_IDW_CONTROLBAR_FIRST + 12
 
-#define EDITOR_OBJECTS_PATH     CString("Objects\\Editor\\")
+//#define EDITOR_OBJECTS_PATH     CString("Objects\\Editor\\")
 
 class CMaterialEditorClass : public IViewPaneClass
 {

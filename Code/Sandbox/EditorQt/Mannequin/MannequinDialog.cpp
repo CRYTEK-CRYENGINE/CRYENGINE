@@ -1720,7 +1720,7 @@ void CMannequinDialog::OnMenuLoadPreviewFile()
 		return;
 	}
 
-	const string folder = PathUtil::Make(PathUtil::GetGameFolder(), "Animations/Mannequin/Preview/");
+	const string folder = PathUtil::Make(PathUtil::GetGameProjectAssetsPath(), "Animations/Mannequin/Preview/");
 	CFileUtil::CreateDirectory(folder.c_str());
 	CString filename;
 

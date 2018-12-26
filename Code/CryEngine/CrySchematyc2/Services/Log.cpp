@@ -210,21 +210,26 @@ namespace Schematyc2
 				{
 					m_bErrorObserverRegistered = gEnv->pSystem->RegisterErrorObserver(this);
 
-					FILE *pFile = fxopen(m_fileName.c_str(), "rb");
+					// Store logs where system logs are stored.
+					string log_root = PathUtil::GetParentDirectory(gEnv->pLog->GetFilePath());
+					string fileLoc  = PathUtil::Make(log_root, m_fileName);
+
+					FILE *pFile = fxopen(fileLoc.c_str(), "rb");
 					if(pFile)
 					{
 						fclose(pFile);
 
-						stack_string backupFileName("LogBackups/");
+						stack_string backupFileName = PathUtil::Make(log_root, "LogBackups/");
 						backupFileName.append(m_fileName.c_str());
+
 #if CRY_PLATFORM_DURANGO
 						CRY_VERIFY_WITH_MESSAGE(CopyFile2(CryStringUtils::UTF8ToWStrSafe(m_fileName), CryStringUtils::UTF8ToWStrSafe(backupFileName), nullptr) == S_OK, "Error copying schematyc log backup file");
 #else
-						CopyFile(m_fileName.c_str(), backupFileName.c_str(), true);
+						CopyFile(fileLoc.c_str(), backupFileName.c_str(), true);
 #endif
 					}
 
-					if (m_pFile = fxopen(m_fileName.c_str(), "wtc"))
+					if (m_pFile = fxopen(fileLoc.c_str(), "wtc"))
 					{
 						setvbuf(m_pFile, m_writeBuffer, _IOFBF, s_writeBufferSize);
 					}

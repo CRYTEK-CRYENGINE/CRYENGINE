@@ -30,7 +30,7 @@ CUIEnumerations::TDValuesContainer& CUIEnumerations::GetStandardNameContainer()
 		int nNumberOfEnumerationItems(0);
 		int nCurrentEnumarationItem(0);
 
-		oRootNode = GetISystem()->GetXmlUtils()->LoadXmlFromFile("Editor\\PropertyEnumerations.xml");
+		oRootNode = GetISystem()->GetXmlUtils()->LoadXmlFromFile(PathUtil::Make(PathUtil::GetEnginePath(), "Editor\\PropertyEnumerations.xml"));
 		nNumberOfEnumarations = oRootNode ? oRootNode->getChildCount() : 0;
 
 		for (nCurrentEnumaration = 0; nCurrentEnumaration < nNumberOfEnumarations; ++nCurrentEnumaration)

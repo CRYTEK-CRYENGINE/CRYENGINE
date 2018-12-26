@@ -9,6 +9,7 @@
 #include <QThread>
 #include <QSet>
 #include <QTimerEvent>
+#include <QDebug>
 
 #include <deque>
 
@@ -162,6 +163,7 @@ private:
 		CUniqueFind find(absolutePath.full);
 		if (!find.IsValid())
 		{
+			qWarning() << "WARNING: FileSystem::Internal::Win32::ScanDirectory>>>" << "Skipping scan of invalid path: " << absolutePath.full;
 			return; // path not valid
 		}
 		SDirectoryScanResult directoryResult;
