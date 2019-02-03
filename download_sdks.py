@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 from zipfile import ZipFile
 from tarfile import TarFile
-from urllib import request
+from urllib import request, error
 
 import os
 import platform
@@ -22,7 +22,7 @@ def read_chunks(url, block_sz=8192 * 8):
                 return
 
 
-BASE_URL = 'https://github.com/CRYTEK/CRYENGINE/releases/download/5.5.0_preview4/CRYENGINE_v5.5.0_SDKs'
+BASE_URL = 'https://github.com/CRYTEK/CRYENGINE/releases/download/5.5.2/CRYENGINE_v5.5.2_SDKs'
 
 
 def main():
@@ -40,7 +40,11 @@ def main():
     file_name = url.split('/')[-1]
     temp_file = os.path.join(temp_folder, file_name)
 
-    u = request.urlopen(url)
+    try: u = request.urlopen(url)
+    except error.URLError as e:
+        print("Error opening %s: %s " % (url, e.reason))
+        exit(1)
+
     meta = u.info()
     file_size = int(u.getheader("Content-Length"))
 
