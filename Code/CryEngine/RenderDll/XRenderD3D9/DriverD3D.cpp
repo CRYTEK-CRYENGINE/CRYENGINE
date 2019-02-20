@@ -3381,6 +3381,22 @@ void CD3D9Renderer::RT_EndFrame()
 			if (swapDC)
 			{
 				swapDC->PrePresent();
+
+				if (gEnv && gEnv->pConsole)
+				{
+					static ICVar* pSysMaxFPS = gEnv->pConsole->GetCVar("sys_MaxFPS");
+					static ICVar* pVSync = gEnv->pConsole->GetCVar("r_Vsync");
+					if (pSysMaxFPS && pVSync)
+					{
+						int32 maxFPS = pSysMaxFPS->GetIVal();
+						uint32 vSync = pVSync->GetIVal();
+						if (vSync != 0)
+						{
+							LimitFramerate(maxFPS, false);
+						}
+					}
+				}
+
 				hReturn = swapDC->GetSwapChain().Present(0, dwFlags);
 				if (hReturn == DXGI_ERROR_INVALID_CALL)
 				{
