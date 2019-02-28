@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -116,6 +116,7 @@ ILINE void LogSerialize(const char* type, const char* name, XmlNodeRef& value, I
 class CArithModel;
 
 	#if DEEP_BANDWIDTH_ANALYSIS
+extern bool g_DBAEnabled;
 extern uint32 g_DBASizePriorToUpdate;
 extern CryStringLocal g_DBAMainProfileBuffer;
 extern CryStringLocal g_DBASmallProfileBuffer;
@@ -274,9 +275,12 @@ public:
 		}
 	#endif // ENABLE_SERIALIZATION_LOGGING
 	#if DEEP_BANDWIDTH_ANALYSIS
-		float newSize = m_output.GetBitSize();
-		g_DBASmallProfileBuffer.Format("{%s,%s : %0.2f(%d)}", name, KeyToString(pPolicy->key).c_str(), newSize - oldSize, pPolicy->GetBitCount(value));
-		g_DBAMainProfileBuffer += g_DBASmallProfileBuffer;
+		IF_UNLIKELY(g_DBAEnabled)
+		{
+			float newSize = m_output.GetBitSize();
+			g_DBASmallProfileBuffer.Format("{%s,%s : %0.2f(%d)}", name, KeyToString(pPolicy->key).c_str(), newSize - oldSize, pPolicy->GetBitCount(value));
+			g_DBAMainProfileBuffer += g_DBASmallProfileBuffer;
+		}
 	#endif
 		ConditionalPostlude(name);
 	}

@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="f1ab1848-b774-c663-955e-c80871e90ce6" source="bokeh_love.TIF">
+ <Files>
+  <File path="bokeh_love.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">64</Detail>
+  <Detail name="height">64</Detail>
+  <Detail name="mipCount">1</Detail>
+ </Details>
+</AssetMetadata>

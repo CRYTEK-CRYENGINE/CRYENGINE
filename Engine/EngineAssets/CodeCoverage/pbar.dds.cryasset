@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="1a7fde3f-25f2-f2db-9c7d-feff0a923c5f" source="pbar.tif">
+ <Files>
+  <File path="pbar.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">4</Detail>
+  <Detail name="height">64</Detail>
+  <Detail name="mipCount">1</Detail>
+ </Details>
+</AssetMetadata>

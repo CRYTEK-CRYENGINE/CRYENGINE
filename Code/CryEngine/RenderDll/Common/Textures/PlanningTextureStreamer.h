@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef PLANNINGTEXTURESTREAMER_H
 #define PLANNINGTEXTURESTREAMER_H
@@ -134,7 +134,6 @@ struct SPlanningTextureOrderKey
 	uint32    bIsStreaming     : 1;
 
 	uint32    bUnloaded        : 1;
-	uint32    nIsComposite     : 1;
 	uint32    nStreamPrio      : 3;
 	uint32    nSlicesMinus1    : 9;
 	uint32    nSlicesPotMinus1 : 9;
@@ -160,17 +159,17 @@ struct SPlanningTextureOrderKey
 		nKey =
 		  (pTex->IsForceStreamHighRes() ? 0 : (1 << 31)) |
 		  (pTex->IsStreamHighPriority() ? 0 : (1 << 30)) |
-		  (pTex->GetAccessFrameIdNonVirtual() >= nFrameId ? 0 : (1 << 29)) |
+		  (pTex->GetAccessFrameId() >= nFrameId ? 0 : (1 << 29)) |
 		  (pTex->GetStreamRoundInfo(0).nRoundUpdateId >= nZoneIds[0] ? 0 : (1 << 28)) |
 		  (pTex->GetStreamRoundInfo(1).nRoundUpdateId >= nZoneIds[1] ? 0 : (1 << 27)) |
-		  static_cast<uint16>(pTex->GetRequiredMipNonVirtualFP() + PackedFpBias);
+		  static_cast<uint16>(pTex->GetRequiredMipFP() + PackedFpBias);
 
 		pTexture = pTex;
 
-		nWidth = pTex->GetWidthNonVirtual();
-		nHeight = pTex->GetHeightNonVirtual();
-		nMips = pTex->GetNumMipsNonVirtual();
-		nMipsPersistent = pTex->IsForceStreamHighRes() ?  pTex->GetNumMipsNonVirtual() : pTex->GetNumPersistentMips();
+		nWidth = pTex->GetWidth();
+		nHeight = pTex->GetHeight();
+		nMips = pTex->GetNumMips();
+		nMipsPersistent = pTex->IsForceStreamHighRes() ?  pTex->GetNumMips() : pTex->GetNumPersistentMips();
 		nFormatCode = pTex->StreamGetFormatCode();
 
 		uint32 nSlices = pTex->StreamGetNumSlices();
@@ -183,7 +182,6 @@ struct SPlanningTextureOrderKey
 		bIsStreaming = pTex->IsStreaming();
 		bUnloaded = pTex->IsUnloaded();
 		nStreamPrio = pTex->StreamGetPriority();
-		nIsComposite = 0;
 	}
 };
 
@@ -260,9 +258,6 @@ private:
 	bool TryBegin_FromDisk(CTexture* pTex, uint32 nTexPersMip, uint32 nTexWantedMip, uint32 nTexAvailMip, int nBias, int nBalancePoint,
 	                       TStreamerTextureVec& textures, TStreamerTextureVec& trimmable, ptrdiff_t& nMemFreeLower, ptrdiff_t& nMemFreeUpper, int& nKickIdx,
 	                       int& nNumSubmittedLoad, size_t& nAmtSubmittedLoad);
-	bool TryBegin_Composite(CTexture* pTex, uint32 nTexPersMip, uint32 nTexWantedMip, uint32 nTexAvailMip, int nBias, int nBalancePoint,
-	                        TStreamerTextureVec& textures, TStreamerTextureVec& trimmable, ptrdiff_t& nMemFreeLower, ptrdiff_t& nMemFreeUpper, int& nKickIdx,
-	                        int& nNumSubmittedLoad, size_t& nAmtSubmittedLoad);
 
 #if defined(TEXSTRM_TEXTURECENTRIC_MEMORY)
 	bool      TrimTexture(int nBias, TStreamerTextureVec& trimmable, STexPool* pPrioritise);

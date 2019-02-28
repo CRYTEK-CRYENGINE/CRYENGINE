@@ -1,45 +1,45 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
-
-// -------------------------------------------------------------------------
-//  Created:     29/01/2015 by Filipe amim
-//  Description:
-// -------------------------------------------------------------------------
-//
-////////////////////////////////////////////////////////////////////////////
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
+#include "ParticleComponent.h"
+#include "ParticleSystem.h"
+#include "ParticleComponentRuntime.h"
+#include "ParticleEmitter.h"
+#include "Features/FeatureMotion.h"
 #include <CrySerialization/STL.h>
 #include <CrySerialization/IArchive.h>
 #include <CrySerialization/SmartPtr.h>
+#include <CrySerialization/DynArray.h>
 #include <CrySerialization/Math.h>
-#include "ParticleComponent.h"
-#include "ParticleEffect.h"
-#include "ParticleFeature.h"
-#include "Features/FeatureMotion.h"
-
-CRY_PFX2_DBG
 
 namespace pfx2
 {
 
-EParticleDataType PDT(EPDT_SpawnId, TParticleId);
-EParticleDataType PDT(EPDT_ParentId, TParticleId);
-EParticleDataType PDT(EPDT_State, uint8);
-EParticleDataType PDT(EPDT_SpawnFraction, float);
-EParticleDataType PDT(EPDT_NormalAge, float);
-EParticleDataType PDT(EPDT_LifeTime, float);
-EParticleDataType PDT(EPDT_InvLifeTime, float);
-EParticleDataType PDT(EPDT_Random, float);
+MakeDataType(EPDT_SpawnId,          TParticleId);
+MakeDataType(EPDT_ParentId,         TParticleId);
+MakeDataType(EPDT_SpawnFraction,    float);
+MakeDataType(EPDT_NormalAge,        float);
+MakeDataType(EPDT_LifeTime,         float);
+MakeDataType(EPDT_InvLifeTime,      float);
+MakeDataType(EPDT_Random,           float);
 
-EParticleDataType PDT(EPVF_Position, float, 3);
-EParticleDataType PDT(EPVF_Velocity, float, 3);
-EParticleDataType PDT(EPQF_Orientation, float, 4);
-EParticleDataType PDT(EPVF_AngularVelocity, float, 3);
-EParticleDataType PDT(EPVF_LocalPosition, float, 3);
-EParticleDataType PDT(EPVF_LocalVelocity, float, 3);
-EParticleDataType PDT(EPQF_LocalOrientation, float, 4);
+MakeDataType(EPVF_Position,         Vec3);
+MakeDataType(EPVF_Velocity,         Vec3);
+MakeDataType(EPQF_Orientation,      Quat);
+MakeDataType(EPVF_AngularVelocity,  Vec3);
 
 
+void SVisibilityParams::Combine(const SVisibilityParams& o) // Combination from multiple features chooses most restrictive values
+{
+	m_viewDistanceMultiple = m_viewDistanceMultiple * o.m_viewDistanceMultiple;
+	SetMin(m_maxScreenSize, o.m_maxScreenSize);
+	SetMax(m_minCameraDistance, o.m_minCameraDistance);
+	SetMin(m_maxCameraDistance, o.m_maxCameraDistance);
+	if (m_indoorVisibility == EIndoorVisibility::Both)
+		m_indoorVisibility = o.m_indoorVisibility;
+	if (m_waterVisibility == EWaterVisibility::Both)
+		m_waterVisibility = o.m_waterVisibility;
+}
 
 void STextureAnimation::Serialize(Serialization::IArchive& ar)
 {
@@ -70,20 +70,28 @@ void STextureAnimation::Update()
 // SModuleParams
 
 SComponentParams::SComponentParams()
-	: m_pComponent(0)
 {
-	Reset();
-}
-
-SComponentParams::SComponentParams(const CParticleComponent& component)
-	: m_pComponent(&component)
-{
-	Reset();
+	m_usesGPU              = false;
+	m_renderObjectFlags    = 0;
+	m_instanceDataStride   = 0;
+	m_maxParticlesBurst    = 0;
+	m_maxParticlesPerFrame = 0;
+	m_maxParticleRate      = 0.0f;
+	m_scaleParticleCount   = 1.0f;
+	m_renderStateFlags     = OS_ALPHA_BLEND;
+	m_requiredShaderType   = eST_All;
+	m_maxParticleSize      = 0.0f;
+	m_maxParticleAlpha     = 1.0f;
+	m_meshCentered         = false;
+	m_diffuseMap           = "%ENGINE%/EngineAssets/Textures/white.dds";
+	m_particleObjFlags     = 0;
+	m_renderObjectSortBias = 0.0f;
 }
 
 void SComponentParams::Serialize(Serialization::IArchive& ar)
 {
-	if (!m_pComponent || !ar.isEdit() || !ar.isOutput())
+	auto* pComponent = static_cast<CParticleComponent*>(ar.context<IParticleComponent>());
+	if (!pComponent || !ar.isEdit() || !ar.isOutput())
 		return;
 	char buffer[1024];
 
@@ -92,14 +100,14 @@ void SComponentParams::Serialize(Serialization::IArchive& ar)
 	uint32 bytesPerParticle = 0;
 	for (auto type : EParticleDataType::values())
 	{
-		if (m_pComponent->UseParticleData(type))
+		if (pComponent->UseParticleData(type))
 		{
 			if (first)
 				cry_sprintf(buffer, "%s", type.name());
 			else
 				cry_sprintf(buffer, "%s, %s", buffer, type.name());
 			first = false;
-			bytesPerParticle += type.info().typeSize() * type.info().step();
+			bytesPerParticle += type.info().typeSize * type.info().step();
 		}
 	}
 	ar(string(buffer), "", "!Fields used:");
@@ -108,102 +116,14 @@ void SComponentParams::Serialize(Serialization::IArchive& ar)
 	ar(string(buffer), "", "!Bytes per Particle:");
 }
 
-void SComponentParams::Reset()
+void SComponentParams::GetMaxParticleCounts(int& total, int& perFrame, float minFPS, float maxFPS) const
 {
-	m_shaderData = SParticleShaderData();
-	m_visibility = SVisibilityParams();
-	m_renderObjectFlags = 0;
-	m_instanceDataStride = 0;
-	m_scaleParticleCount = 1.0f;
-	m_emitterLifeTime = {};
-	m_maxParticleLifeTime = 0.0f;
-	m_particleRange = 0;
-	m_renderStateFlags = OS_ALPHA_BLEND;
-	m_requiredShaderType = eST_All;
-	m_maxParticleSize = 0.0f;
-	m_meshCentered = false;
-	m_isValid = false;
-	m_parentId = gInvalidId;
-	m_diffuseMap = "%ENGINE%/EngineAssets/Textures/white.dds";
-	m_pMaterial = 0;
-	m_particleObjFlags = 0;
-	m_renderObjectSortBias = 0.0f;
-
-	m_subComponentIds.clear();
-}
-
-void SComponentParams::Validate(CParticleComponent* pComponent, Serialization::IArchive* ar)
-{
-	bool output = pComponent && ar;
-	bool isValid = true;
-#define CRY_PFX2_CHECK(cond, msg) if (!(cond)) { if (output) ar->warning(*pComponent, msg); isValid = false; } \
-  else
-
-	CRY_PFX2_CHECK(pComponent->GetNumFeatures(EFT_Spawn) != 0, "At least one spawn feature required");
-	CRY_PFX2_CHECK(pComponent->GetNumFeatures(EFT_Size) != 0, "At least one size feature required")
-	{
-		CRY_PFX2_CHECK(m_maxParticleSize > 0.0f, "Particles size are set to 0");
-	}
-	CRY_PFX2_CHECK(pComponent->GetNumFeatures(EFT_Life) != 0, "At least one life time feature required");
-	CRY_PFX2_CHECK(pComponent->GetNumFeatures(EFT_Render) < 2, "Too many render features.");
-	CRY_PFX2_CHECK(pComponent->GetNumFeatures(EFT_Motion) < 2, "Too many motion features.");
-
-	if (!isValid && output)
-		ar->error(*pComponent, "This component is invalid and will not render");
-
-	m_isValid = isValid;
-
-#undef CRY_PFX2_CHECK
-}
-
-void SComponentParams::MakeMaterial(CParticleComponent* pComponent)
-{
-	enum EGpuParticlesVertexShaderFlags
-	{
-		eGpuParticlesVertexShaderFlags_None           = 0x0,
-		eGpuParticlesVertexShaderFlags_FacingVelocity = 0x2000
-	};
-
-	if (m_requiredShaderType != eST_All)
-	{
-		if (m_pMaterial)
-		{
-			IShader* pShader = m_pMaterial->GetShaderItem().m_pShader;
-			if (!pShader || pShader->GetShaderType() != m_requiredShaderType)
-				m_pMaterial = nullptr;
-		}
-	}
-
-	if (m_pMaterial)
-		return;
-
-	const SRuntimeInitializationParameters& params = pComponent->GetRuntimeInitializationParameters();
-	const char* shaderName = params.usesGpuImplementation ? "Particles.ParticlesGpu" : "Particles";
-	string materialName = string(pComponent->GetEffect()->GetName()) + ":" + pComponent->GetName();
-	m_pMaterial = gEnv->p3DEngine->GetMaterialManager()->CreateMaterial(materialName);
-	if (gEnv->pRenderer)
-	{
-		const uint32 textureLoadFlags = FT_DONT_STREAM;
-		const int textureId = gEnv->pRenderer->EF_LoadTexture(m_diffuseMap.c_str(), textureLoadFlags)->GetTextureID();
-		if (textureId <= 0)
-			CryWarning(VALIDATOR_MODULE_3DENGINE, VALIDATOR_WARNING, "Particle effect texture %s not found", m_diffuseMap.c_str());
-
-		SInputShaderResourcesPtr pResources = gEnv->pRenderer->EF_CreateInputShaderResource();
-		pResources->m_Textures[EFTT_DIFFUSE].m_Name = m_diffuseMap;
-		uint32 mask = eGpuParticlesVertexShaderFlags_None;
-		if (params.facingMode == 1)
-			mask |= eGpuParticlesVertexShaderFlags_FacingVelocity;
-		SShaderItem shaderItem = gEnv->pRenderer->EF_LoadShaderItem(shaderName, false, 0, pResources, mask);
-		m_pMaterial->AssignShaderItem(shaderItem);
-
-		if (textureId > 0)
-			gEnv->pRenderer->RemoveTexture(textureId);
-	}
-	Vec3 white = Vec3(1.0f, 1.0f, 1.0f);
-	float defaultOpacity = 1.0f;
-	m_pMaterial->SetGetMaterialParamVec3("diffuse", white, false);
-	m_pMaterial->SetGetMaterialParamFloat("opacity", defaultOpacity, false);
-	m_pMaterial->RequestTexturesLoading(0.0f);
+	total = m_maxParticlesBurst;
+	const float rate = m_maxParticleRate + m_maxParticlesPerFrame * maxFPS;
+	const float extendedLife = m_maxParticleLife + rcp(minFPS); // Particles stay 1 frame after death
+	if (rate > 0.0f && std::isfinite(extendedLife))
+		total += int_ceil(rate * extendedLife);
+	perFrame = int(m_maxParticlesBurst + m_maxParticlesPerFrame) + int_ceil(m_maxParticleRate / minFPS);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -211,9 +131,9 @@ void SComponentParams::MakeMaterial(CParticleComponent* pComponent)
 
 CParticleComponent::CParticleComponent()
 	: m_dirty(true)
-	, m_pEffect(0)
+	, m_pEffect(nullptr)
+	, m_parent(nullptr)
 	, m_componentId(gInvalidId)
-	, m_componentParams(*this)
 	, m_nodePosition(-1.0f, -1.0f)
 {
 	m_useParticleData.fill(false);
@@ -231,12 +151,23 @@ IParticleFeature* CParticleComponent::GetFeature(uint featureIdx) const
 	return m_features[featureIdx].get();
 }
 
-void CParticleComponent::AddFeature(uint placeIdx, const SParticleFeatureParams& featureParams)
+IParticleFeature* CParticleComponent::AddFeature(uint placeIdx, const SParticleFeatureParams& featureParams)
 {
 	IParticleFeature* pNewFeature = (featureParams.m_pFactory)();
-	m_features.insert(
-	  m_features.begin() + placeIdx,
-	  static_cast<CParticleFeature*>(pNewFeature));
+	m_features.insert(placeIdx, static_cast<CParticleFeature*>(pNewFeature));
+	SetChanged();
+	return pNewFeature;
+}
+
+void CParticleComponent::AddFeature(uint placeIdx, CParticleFeature* pFeature)
+{
+	m_features.insert(placeIdx, pFeature);
+	SetChanged();
+}
+
+void CParticleComponent::AddFeature(CParticleFeature* pFeature)
+{
+	m_features.push_back(pFeature);
 	SetChanged();
 }
 
@@ -267,44 +198,12 @@ void CParticleComponent::SetNodePosition(Vec2 position)
 	m_nodePosition = position;
 }
 
-uint CParticleComponent::GetNumFeatures(EFeatureType type) const
-{
-	size_t count = 0;
-	for (auto& it : m_features)
-		count += (it->IsEnabled() && (it->GetFeatureType() & type) != 0) ? 1 : 0;
-	return count;
-}
-
-CParticleFeature* CParticleComponent::GetCFeatureByType(const SParticleFeatureParams* pSearchParams) const
-{
-	for (auto& pFeature : m_features)
-	{
-		if (pFeature->IsEnabled() && &pFeature->GetFeatureParams() == pSearchParams)
-			return pFeature.get();
-	}
-	return nullptr;
-}
-
-void CParticleComponent::AddToUpdateList(EUpdateList list, CParticleFeature* pFeature)
-{
-	if (std::find(m_updateLists[list].begin(), m_updateLists[list].end(), pFeature) != m_updateLists[list].end())
-		return;
-	m_updateLists[list].push_back(pFeature);
-	if (pFeature->GetGpuInterface())
-	{
-		if (std::find(m_gpuUpdateLists[list].begin(), m_gpuUpdateLists[list].end(), pFeature->GetGpuInterface()) != m_gpuUpdateLists[list].end())
-			return;
-		m_gpuUpdateLists[list].push_back(pFeature->GetGpuInterface());
-	}
-	SetChanged();
-}
-
-TInstanceDataOffset CParticleComponent::AddInstanceData(size_t size)
+uint CParticleComponent::AddInstanceData(uint size)
 {
 	CRY_PFX2_ASSERT(size > 0);        // instance data of 0 bytes makes no sense
 	SetChanged();
-	TInstanceDataOffset offset = TInstanceDataOffset(m_componentParams.m_instanceDataStride);
-	m_componentParams.m_instanceDataStride += size;
+	uint offset = m_Params.m_instanceDataStride;
+	m_Params.m_instanceDataStride += size;
 	return offset;
 }
 
@@ -316,111 +215,68 @@ void CParticleComponent::AddParticleData(EParticleDataType type)
 		m_useParticleData[i] = true;
 }
 
-bool CParticleComponent::SetSecondGeneration(CParticleComponent* pParentComponent, bool delayed)
+void CParticleComponent::SetParent(IParticleComponent* pParentComponent)
 {
-	if (m_componentParams.m_parentId != gInvalidId)
-		return false;   // PFX2_TODO - user error - a component can only have one parent component at a time
-	m_componentParams.m_parentId = pParentComponent->GetComponentId();
-	if (delayed)
-		m_componentParams.m_emitterLifeTime.end = gInfinity;
-	m_runtimeInitializationParameters.parentId = m_componentParams.m_parentId;
-	m_runtimeInitializationParameters.isSecondGen = m_componentParams.IsSecondGen();
-	auto& subIds = pParentComponent->m_componentParams.m_subComponentIds;
-	auto it = std::find(subIds.begin(), subIds.end(), m_componentId);
-	if (it == subIds.end())
-		subIds.push_back(m_componentId);
-	return true;
+	if (m_parent == pParentComponent)
+		return;
+	if (m_parent)
+		stl::find_and_erase(m_parent->m_children, this);
+	m_parent = static_cast<CParticleComponent*>(pParentComponent);
+	if (m_parent)
+		stl::push_back_unique(m_parent->m_children, this);
+	SetChanged();
 }
 
-CParticleComponent* CParticleComponent::GetParentComponent() const
+void CParticleComponent::GetMaxParticleCounts(int& total, int& perFrame, float minFPS, float maxFPS) const
 {
-	if (m_componentParams.m_parentId != gInvalidId)
-		return m_pEffect->GetCComponent(m_componentParams.m_parentId);
-	return 0;
-}
-
-float CParticleComponent::GetEquilibriumTime(Range parentLife) const
-{
-	Range compLife(
-		parentLife.start + m_componentParams.m_emitterLifeTime.start,
-		min(parentLife.end, parentLife.start + m_componentParams.m_emitterLifeTime.end) + m_componentParams.m_maxParticleLifeTime);
-	float eqTime = std::isfinite(compLife.end) ? 
-		compLife.end : 
-		compLife.start + (std::isfinite(m_componentParams.m_maxParticleLifeTime) ? m_componentParams.m_maxParticleLifeTime : 0.0f);
-	for (auto childId : m_componentParams.m_subComponentIds)
+ 	m_Params.GetMaxParticleCounts(total, perFrame, minFPS, maxFPS);
+	if (m_parent)
 	{
-		const CParticleComponent* child = m_pEffect->GetCComponent(childId);
-		if (child->IsEnabled())
-		{
-			float childEqTime = child->GetEquilibriumTime(compLife);
-			eqTime = max(eqTime, childEqTime);
-		}
-	}
-	return eqTime;
-}
-
-
-void CParticleComponent::PrepareRenderObjects(CParticleEmitter* pEmitter)
-{
-	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
-
-	for (auto& it : GetUpdateList(EUL_Render))
-		it->PrepareRenderObjects(pEmitter, this);
-}
-
-void CParticleComponent::ResetRenderObjects(CParticleEmitter* pEmitter)
-{
-	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
-
-	for (auto& it : GetUpdateList(EUL_Render))
-		it->ResetRenderObjects(pEmitter, this);
-}
-
-void CParticleComponent::Render(CParticleEmitter* pEmitter, ICommonParticleComponentRuntime* pRuntime, const SRenderContext& renderContext)
-{
-	if (IsVisible())
-	{
-		CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
-
-		const bool isGpuParticles = (pRuntime->GetGpuRuntime() != nullptr);
-
-		for (auto& it : GetUpdateList(EUL_Render))
-			it->Render(pEmitter, pRuntime, this, renderContext);		
-		
-		if (!GetUpdateList(EUL_RenderDeferred).empty() && !isGpuParticles)
-		{
-			CParticleJobManager& jobManager = GetPSystem()->GetJobManager();
-			CParticleComponentRuntime* pCpuRuntime = static_cast<CParticleComponentRuntime*>(pRuntime);
-			jobManager.AddDeferredRender(pCpuRuntime, renderContext);
-		}
+		int totalParent, perFrameParent;
+ 		m_parent->GetMaxParticleCounts(totalParent, perFrameParent, minFPS, maxFPS);
+		total *= totalParent;
+		perFrame *= totalParent;
 	}
 }
 
-void CParticleComponent::RenderDeferred(CParticleEmitter* pEmitter, ICommonParticleComponentRuntime* pRuntime, const SRenderContext& renderContext)
+void CParticleComponent::UpdateTimings()
 {
-	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
+	// Adjust parent lifetimes to include child lifetimes
+	STimingParams params {};
+	float maxChildEq = 0.0f, maxChildLife = 0.0f;
+	for (auto& pChild : m_children)
+	{
+		pChild->UpdateTimings();
+		const STimingParams& timingsChild = pChild->ComponentParams();
+		SetMax(maxChildEq, timingsChild.m_equilibriumTime);
+		SetMax(maxChildLife, timingsChild.m_maxTotalLIfe);
+	}
 
-	for (auto& it : GetUpdateList(EUL_RenderDeferred))
-		it->Render(pEmitter, pRuntime, this, renderContext);
+	const float moreEq = maxChildEq - FiniteOr(m_Params.m_maxParticleLife, 0.0f);
+	if (moreEq > 0.0f)
+	{
+		m_Params.m_stableTime      += moreEq ;
+		m_Params.m_equilibriumTime += moreEq ;
+	}
+	const float moreLife = maxChildLife - FiniteOr(m_Params.m_maxParticleLife, 0.0f);
+	if (moreLife > 0.0f)
+	{
+		m_Params.m_maxTotalLIfe += moreLife;
+	}
 }
 
 bool CParticleComponent::CanMakeRuntime(CParticleEmitter* pEmitter) const
 {
+	if (!IsEnabled())
+		return false;
 	for (auto& pFeature : m_features)
 	{
 		if (pFeature->IsEnabled() && !pFeature->CanMakeRuntime(pEmitter))
 			return false;
 	}
+	if (m_parent)
+		return m_parent->CanMakeRuntime(pEmitter);
 	return true;
-}
-
-gpu_pfx2::IParticleFeatureGpuInterface** CParticleComponent::GetGpuUpdateList(EUpdateList list, int& size) const
-{
-	size = m_gpuUpdateLists[list].size();
-	if (size)
-		return (gpu_pfx2::IParticleFeatureGpuInterface**)&m_gpuUpdateLists[list][0];
-	else
-		return nullptr;
 }
 
 void CParticleComponent::PreCompile()
@@ -428,19 +284,11 @@ void CParticleComponent::PreCompile()
 	if (!m_dirty)
 		return;
 
-	for (size_t i = 0; i < EUL_Count; ++i)
-		m_updateLists[i].clear();
-	for (size_t i = 0; i < EUL_Count; ++i)
-		m_gpuUpdateLists[i].clear();
+	m_Params = {};
+	m_GPUParams = {};
 
-	// eliminates features that point to null
-	auto it = std::remove_if(
-	  m_features.begin(), m_features.end(),
-	  [](decltype(*m_features.begin()) pFeature)
-		{
-			return !pFeature;
-	  });
-	m_features.erase(it, m_features.end());
+	static_cast<SFeatureDispatchers&>(*this) = {};
+	m_gpuFeatures.clear();
 
 	// add default particle data
 	m_useParticleData.fill(false);
@@ -450,11 +298,6 @@ void CParticleComponent::PreCompile()
 	AddParticleData(EPDT_NormalAge);
 	AddParticleData(EPDT_InvLifeTime);
 	AddParticleData(EPDT_LifeTime);
-	AddParticleData(EPDT_State);
-
-	// add default motion feature
-	const bool hasMotion = GetNumFeatures(EFT_Motion) != 0;
-	m_defaultMotionFeature.reset(hasMotion ? nullptr : new CFeatureMotionPhysics());
 }
 
 void CParticleComponent::ResolveDependencies()
@@ -462,13 +305,18 @@ void CParticleComponent::ResolveDependencies()
 	if (!m_dirty)
 		return;
 
-	m_runtimeInitializationParameters = SRuntimeInitializationParameters();
-
 	for (auto& it : m_features)
 	{
-		if (it->IsEnabled())
-			it->ResolveDependency(this);
+		if (it && it->IsEnabled())
+		{
+			// potentially replace feature with new one or null
+			CParticleFeature* pFeature = it->ResolveDependency(this);
+			it = pFeature;
+		}
 	}
+
+	// remove null features
+	stl::find_and_erase_all(m_features, nullptr);
 }
 
 void CParticleComponent::Compile()
@@ -476,30 +324,112 @@ void CParticleComponent::Compile()
 	if (!m_dirty)
 		return;
 
+	uint featureMask = 0;
 	for (auto& it : m_features)
 	{
 		if (it->IsEnabled())
 		{
-			it->SetGpuInterfaceNeeded(m_runtimeInitializationParameters.usesGpuImplementation);
-			it->AddToComponent(this, &m_componentParams);
+			// Validate feature requirements and exclusivity.
+			EFeatureType type = it->GetFeatureType();
+			if (type & (EFT_Life | EFT_Motion | EFT_Render | EFT_Child))
+				if (featureMask & type)
+				{
+					it->SetEnabled(false);
+					continue;
+				}
+			featureMask |= type;
+			it->AddToComponent(this, &m_Params);
 		}
 	}
-	if (m_defaultMotionFeature)
-		m_defaultMotionFeature->AddToComponent(this, &m_componentParams);
+
+	// add default features
+	for (uint b = 1; b < EFT_END; b <<= 1)
+	{
+		if (!(featureMask & b))
+		{
+			if (EFeatureType(b) != EFT_Child || m_parent)
+			{
+				if (auto* params = GetPSystem()->GetDefaultFeatureParam(EFeatureType(b)))
+				{
+					if (auto* feature = params->m_pFactory())
+					{
+						m_defaultFeatures.push_back(static_cast<CParticleFeature*>(feature));
+						static_cast<CParticleFeature*>(feature)->AddToComponent(this, &m_Params);
+					}
+				}
+			}
+		}
+	}
 }
 
 void CParticleComponent::FinalizeCompile()
 {
-	SComponentParams& params = m_componentParams;
-
-	params.MakeMaterial(this);
-	params.Validate(this);
-
+	GetMaxParticleCounts(m_GPUParams.maxParticles, m_GPUParams.maxNewBorns);
+	m_GPUParams.maxParticles += m_GPUParams.maxParticles >> 3;
+	m_GPUParams.maxNewBorns  += m_GPUParams.maxNewBorns  >> 3;
+	MakeMaterial();
 	m_dirty = false;
+}
+
+IMaterial* CParticleComponent::MakeMaterial()
+{
+	enum EGpuParticlesVertexShaderFlags
+	{
+		eGpuParticlesVertexShaderFlags_None           = 0x0,
+		eGpuParticlesVertexShaderFlags_FacingVelocity = 0x2000
+	};
+
+	IMaterial* pMaterial = m_Params.m_pMaterial;
+	if (m_Params.m_requiredShaderType != eST_All)
+	{
+		if (pMaterial)
+		{
+			IShader* pShader = pMaterial->GetShaderItem().m_pShader;
+			if (!pShader || (pShader->GetFlags() & EF_LOADED && pShader->GetShaderType() != m_Params.m_requiredShaderType))
+				pMaterial = nullptr;
+		}
+	}
+
+	if (pMaterial)
+		return pMaterial;
+
+	string materialName = string(GetEffect()->GetName()) + ":" + GetName();
+	pMaterial = gEnv->p3DEngine->GetMaterialManager()->CreateMaterial(materialName);
+	if (gEnv->pRenderer)
+	{
+		const char* shaderName = UsesGPU() ? "Particles.ParticlesGpu" : "Particles";
+		const string& diffuseMap = m_Params.m_diffuseMap;
+		const uint32 textureLoadFlags = 0;//FT_DONT_STREAM;
+		ITexture* pTexture = gEnv->pRenderer->EF_GetTextureByName(diffuseMap.c_str(), textureLoadFlags);
+		if (!pTexture)
+		{
+			GetPSystem()->CheckFileAccess(diffuseMap.c_str());
+			pTexture = gEnv->pRenderer->EF_LoadTexture(diffuseMap.c_str(), textureLoadFlags);
+		}
+		if (pTexture->GetTextureID() <= 0)
+			CryWarning(VALIDATOR_MODULE_3DENGINE, VALIDATOR_WARNING, "Particle effect texture %s not found", diffuseMap.c_str());
+
+		SInputShaderResourcesPtr pResources = gEnv->pRenderer->EF_CreateInputShaderResource();
+		pResources->m_Textures[EFTT_DIFFUSE].m_Name = diffuseMap;
+		uint32 mask = eGpuParticlesVertexShaderFlags_None;
+		if (GPUComponentParams().facingMode == gpu_pfx2::EFacingMode::Velocity)
+			mask |= eGpuParticlesVertexShaderFlags_FacingVelocity;
+		SShaderItem shaderItem = gEnv->pRenderer->EF_LoadShaderItem(shaderName, false, 0, pResources, mask);
+		pMaterial->AssignShaderItem(shaderItem);
+	}
+	Vec3 white = Vec3(1.0f, 1.0f, 1.0f);
+	float defaultOpacity = 1.0f;
+	pMaterial->SetGetMaterialParamVec3("diffuse", white, false);
+	pMaterial->SetGetMaterialParamFloat("opacity", defaultOpacity, false);
+
+	return m_Params.m_pMaterial = pMaterial;
 }
 
 void CParticleComponent::Serialize(Serialization::IArchive& ar)
 {
+	if (!m_pEffect)
+		m_pEffect = ar.context<CParticleEffect>();
+
 	ar(m_enabled);
 	ar(m_visible, "Visible");
 	if (ar.isOutput())
@@ -510,8 +440,32 @@ void CParticleComponent::Serialize(Serialization::IArchive& ar)
 		ar(inputName, "Name", "^");
 		SetName(inputName.c_str());
 	}
-	m_componentParams.m_pComponent = this;
-	ar(m_componentParams, "Stats", "Component Statistics");
+
+	if (!ar.isEdit())
+	{
+		string parentName;
+		if (ar.isOutput())
+		{
+			if (m_parent)
+			{
+				parentName = m_parent->GetName();
+				ar(parentName, "Parent");
+			}
+		}
+		else if (ar.isInput())
+		{
+			CParticleComponent* pParent = nullptr;
+			if (ar(parentName, "Parent"))
+			{
+				assert(m_pEffect);
+				pParent = m_pEffect->FindComponentByName(parentName);
+			}
+			SetParent(pParent);
+		}
+	}
+
+	Serialization::SContext context(ar, static_cast<IParticleComponent*>(this));
+	ar(m_Params, "Stats", "Component Statistics");
 	ar(m_nodePosition, "nodePos", "Node Position");
 	ar(m_features, "Features", "^");
 	if (ar.isInput())
@@ -521,40 +475,9 @@ void CParticleComponent::Serialize(Serialization::IArchive& ar)
 void CParticleComponent::SetName(const char* name)
 {
 	if (!m_pEffect)
-	{
 		m_name = name;
-		return;
-	}
-
-	string oldName = m_name;
-
-	m_name = m_pEffect->MakeUniqueName(m_componentId, name);
-
-	// #PFX2_TODO - not the best solution but needed for 5.3. Deprecate after SecondGen is reimplemented using UIDs
-	if (oldName != m_name)
-	{
-		const uint numComponents = m_pEffect->GetNumComponents();
-		for (uint componentIdx = 0; componentIdx < numComponents; ++componentIdx)
-		{
-			IParticleComponent* pComponent = m_pEffect->GetComponent(componentIdx);
-			if (!pComponent)
-				continue;
-			const uint numFeatures = pComponent->GetNumFeatures();
-			for (uint featureIdx = 0; featureIdx < numFeatures; ++featureIdx)
-			{
-				IParticleFeature* pFeature = pComponent->GetFeature(featureIdx);
-				const uint numConnectors = pFeature->GetNumConnectors();
-				for (uint connectorIdx = 0; connectorIdx < numConnectors; ++connectorIdx)
-				{
-					if (strcmp(pFeature->GetConnectorName(connectorIdx), oldName.c_str()) == 0)
-					{
-						pFeature->DisconnectFrom(oldName);
-						pFeature->ConnectTo(m_name.c_str());
-					}
-				}
-			}
-		}
-	}
+	else
+		m_name = m_pEffect->MakeUniqueName(this, name);
 }
 
 SERIALIZATION_CLASS_NAME(CParticleComponent, CParticleComponent, "Component", "Component");

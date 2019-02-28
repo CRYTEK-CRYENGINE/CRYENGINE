@@ -1,3 +1,5 @@
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+
 //
 // File : rijndael.cpp
 // Creation date : Sun Nov 5 2000 03:22:10 CEST

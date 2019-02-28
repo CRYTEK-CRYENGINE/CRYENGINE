@@ -1,50 +1,36 @@
 {
-    "version": 1,
-    "type": "",
-    "info": {
-        "name": "Top Down Shooter Game Template"
-    },
-    "content": {
-        "assets": [
-            "Assets"
-        ],
-        "code": [
-            "Code"
-        ]
-    },
-    "require": {
-        "engine": "engine-5.4",
-        "plugins": [
-            {
-                "type": "EPluginType::Native",
-                "path": "CryDefaultEntities"
-            },
-            {
-                "type": "EPluginType::Native",
-                "path": "CrySensorSystem"
-            },
-            {
-                "type": "EPluginType::Native",
-                "path": "CryPerceptionSystem"
-            },
-            {
-                "type": "EPluginType::Native",
-                "path": "bin/win_x64/Game.dll"
-            }
-        ]
-    },
-    "console_variables": [
-        {
-            "name": "ca_useIMG_CAF",
-            "value": "0"
-        },
-        {
-            "name": "e_waterocean",
-            "value": "0"
-        },
-        {
-            "name": "sys_target_platforms",
-            "value": "pc,ps4,xboxone,linux"
-        }
-    ]
+	"version": 3,
+	"type": "",
+	"info": {
+		"name": "Top Down Shooter Game Template",
+		"guid": "323ff9c3-aaab-aaa6-6f82-a0bf4dd27405"
+	},
+	"content": {
+		"assets": [ "Assets" ],
+		"code": [ "Code" ],
+		"libs": [
+			{
+				"name": "Top Down Shooter Game Template",
+				"shared": { "any": "", "win_x64": "", "win_x86": "" }
+			}
+		]
+	},
+	"require": {
+		"engine": "engine-5.5",
+		"plugins": [
+			{ "type": "EPluginType::Native", "path": "CryDefaultEntities" },
+			{ "type": "EPluginType::Native", "path": "CrySensorSystem" },
+			{ "type": "EPluginType::Native", "path": "CryPerceptionSystem" },
+			{ "type": "EPluginType::Native", "path": "bin/win_x64/Game.dll" },
+			{
+				"type": "EPluginType::Native",
+				"path": "CryGamePlatform",
+				"platforms": [ "PS4" ]
+			}
+		]
+	},
+	"console_variables": [
+		{ "name": "sys_target_platforms", "value": "pc,ps4,xboxone,linux" }
+	],
+	"console_commands": [ ]
 }

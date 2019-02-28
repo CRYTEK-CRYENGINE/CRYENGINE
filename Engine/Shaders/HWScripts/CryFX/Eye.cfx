@@ -1,5 +1,4 @@
-// CRYENGINE Source Code File
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "Common.cfi"
 
@@ -40,7 +39,6 @@ struct CustomForwardShadingAttribs
 
 
 #include "ShadeLib.cfi"
-#include "ForwardShading.cfi"
 #include "VertexLib.cfi"
 
 //////////////////////////////// Samplers ////////////////
@@ -56,22 +54,12 @@ Texture2D corneaBumpTex : register(t9)
   UIDescription = "Bump map for the cornea";
 > = TM_Custom;
 
-sampler2D sceneDiffuseMapSampler = sampler_state
-{
-  Texture = $SceneDiffuse;
-  MinFilter = POINT;
-  MagFilter = POINT;
-  MipFilter = POINT;
-  AddressU = Clamp;
-  AddressV = Clamp;
-};
-
 Texture2DArray<float4> sunShadowMask : register(t38) = TS_ShadowMask;
 
 // Tweakables /////////////////
 
 #if !%EYE_AO_OVERLAY && !%EYE_SPECULAR_OVERLAY
-	half IrisDepth
+	float IrisDepth
 	< 
 		register = REG_PM_PARAM_0.x;
 		string UIHelp = "Set iris depth";                     
@@ -83,7 +71,7 @@ Texture2DArray<float4> sunShadowMask : register(t38) = TS_ShadowMask;
 		float UIStep = 0.001;
 	> = 0.005;
 
-	half ScleraSSS
+	float ScleraSSS
 	<
 		register = REG_PM_PARAM_0.y;
 		string UIHelp = "Change the subsurface scattering amount for the sclera";
@@ -94,7 +82,7 @@ Texture2DArray<float4> sunShadowMask : register(t38) = TS_ShadowMask;
 		float UIStep = 0.005;
 	> = 0.4;
 
-	half IrisSSS
+	float IrisSSS
 	<
 		register = REG_PM_PARAM_0.z;
 		string UIHelp = "Change the subsurface scattering amount for the iris";
@@ -105,7 +93,7 @@ Texture2DArray<float4> sunShadowMask : register(t38) = TS_ShadowMask;
 		float UIStep = 0.005;
 	> = 0.6;
 
-	half IrisShadowing
+	float IrisShadowing
 	<
 		register = REG_PM_PARAM_0.w;
 		string UIHelp = "Strength of shadowing on small details in the iris";
@@ -116,7 +104,7 @@ Texture2DArray<float4> sunShadowMask : register(t38) = TS_ShadowMask;
 		float UIStep = 0.1;
 	> = 5.0;
 	
-	half4 IrisColor
+	float4 IrisColor
 	<
 	  register = REG_PM_PARAM_1;
 	  string UIHelp = "Alter iris color";                   
@@ -125,7 +113,7 @@ Texture2DArray<float4> sunShadowMask : register(t38) = TS_ShadowMask;
 	  string UIWidget = "color";
 	> = {0.5, 0.5, 0.5, 1.0};
 		
-	half CorneaRefraction
+	float CorneaRefraction
 	<
 		register = REG_PM_PARAM_2.x;
 		string UIHelp = "Change the strength of refraction caused by the cornea";
@@ -136,7 +124,7 @@ Texture2DArray<float4> sunShadowMask : register(t38) = TS_ShadowMask;
 		float UIStep = 0.005;
 	> = 0.01;
 		
-	half CorneaSmoothness
+	float CorneaSmoothness
 	<
 		register = REG_PM_PARAM_2.y;
 		string UIHelp = "Change the smoothness/gloss of the sclera";
@@ -147,7 +135,7 @@ Texture2DArray<float4> sunShadowMask : register(t38) = TS_ShadowMask;
 		float UIStep = 0.005;
 	> = 1;
 #elif %EYE_AO_OVERLAY
-	half DiffOccStrength
+	float DiffOccStrength
 	< 
 	  register = REG_PM_PARAM_2.z;
 	  string UIHelp = "Set strength of diffuse occlusion";                     
@@ -159,7 +147,7 @@ Texture2DArray<float4> sunShadowMask : register(t38) = TS_ShadowMask;
 	  float UIStep = 0.001;
 	> = 1.0;
 
-	half SpecOccStrength
+	float SpecOccStrength
 	< 
 	  register = REG_PM_PARAM_2.w;
 	  string UIHelp = "Set strength of specular occlusion";                     
@@ -173,7 +161,7 @@ Texture2DArray<float4> sunShadowMask : register(t38) = TS_ShadowMask;
 #endif
 
 #if %EYE_SPECULAR_OVERLAY
-	half DepthBiasScale
+	float DepthBiasScale
 	< 
 	  register = REG_PM_PARAM_3.x;
 	  string UIHelp = "Scale of depth bias to avoid clipping.";                     
@@ -334,7 +322,7 @@ void Callback_ShadingDirect(in ForwardShadingAttribs attribs, in ForwardLightPar
 	specularAcc = cSpecular.xyz * light.illuminance;
 }
 
-#include "TiledShading.cfi"
+#include "ForwardShading.cfi"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -425,11 +413,7 @@ pixout EyePS(vert2FragGeneral IN)
 		const bool applyProbes = false;
 	#endif
 	
-	#if %_RT_PER_INSTANCE_CB_TEMP	
-		TiledForwardShading(attribs, diffuseAcc, specularAcc, ssFwdBilinearWrap, ssFwdComparison, false, applyProbes, true);
-	#else
-		TiledForwardShading(attribs, diffuseAcc, specularAcc, TrilinearClampSamplerState, SampStateComp, false, applyProbes, true);
-	#endif
+	TiledForwardShading(attribs, diffuseAcc, specularAcc, ssFwdBilinearWrap, ssFwdComparison, false, applyProbes, true);
 #endif
 
 	half4 cFinal = half4(0, 0, 0, 1);
@@ -438,10 +422,8 @@ pixout EyePS(vert2FragGeneral IN)
 	cFinal.rgb = specularAcc * attribs.albedo.x * IN.Color.x;
 #else
 	half2 occlusionMap = half2(0, 1);
-	#if !%_RT_SECONDARY_VIEW && %_RT_PER_INSTANCE_CB_TEMP
+	#if !%_RT_SECONDARY_VIEW
 		occlusionMap = GetTexture2DProj(Fwd_EyeOverlayTex, ssFwdBilinearWrap, IN.screenProj).xy;
-	#elif !%_RT_SECONDARY_VIEW
-		occlusionMap = GetTexture2DProj(sceneDiffuseMapSampler, IN.screenProj).xy;
 	#endif
 	
 	half3 diffuseOccl = 1 - occlusionMap.xxx * half3(0.85, 0.95, 1);
@@ -450,23 +432,8 @@ pixout EyePS(vert2FragGeneral IN)
 	cFinal.rgb = cDiffuse + cSpecular;
 #endif
 	
-#if !%_RT_PER_INSTANCE_CB_TEMP
-	// Fog
-	#if %_RT_FOG && !%_RT_DECAL_TEXGEN_2D
-		#if %_RT_VOLUMETRIC_FOG
-			VolumetricFogTexcoord vtc = GetVolumetricFogTexcoordParamByScreenProj(IN.screenProj);
-			float4 vf = GetVolumetricFogValue(vtc);
-			half4 globalFogColor = IN.AvgFogVolumeContrib.xyzw;
-			ApplyVolumetricFog(vf, globalFogColor, vtc, cFinal.rgb);
-		#else
-			ComputeGlobalFogPS(cFinal.rgb, IN.vView.w);
-			cFinal.rgb = IN.AvgFogVolumeContrib.xyz + cFinal.rgb * IN.AvgFogVolumeContrib.w;
-		#endif
-	#endif
-#else
-	const float3 worldPos = IN.vView.xyz + GetWorldViewPos();
-	Fwd_ApplyFog(worldPos, IN.vView.xyz, IN.WPos, cFinal.rgb);
-#endif
+  const float3 worldPos = IN.vView.xyz + GetWorldViewPos();
+  Fwd_ApplyFog(worldPos, IN.vView.xyz, IN.WPos, cFinal.rgb);
 
   OUT.Color = cFinal;
 #endif

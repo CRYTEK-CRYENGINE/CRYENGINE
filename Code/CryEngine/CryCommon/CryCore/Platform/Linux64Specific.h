@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   Linux32Specific.h
@@ -78,4 +78,5 @@ typedef uint8                         byte;
 
 
 #define __assume(x)
+#define __analysis_assume(x)
 #define _msize(p) malloc_usable_size(p)

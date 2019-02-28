@@ -1,27 +1,12 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-/*************************************************************************
-   -------------------------------------------------------------------------
-   $Id$
-   $DateTime$
-   Description:
+#pragma once
 
-   -------------------------------------------------------------------------
-   History:
-   - 2:8:2004   10:59 : Created by Márcio Martins
+#include <CryGame/IGame.h>
 
-*************************************************************************/
-#ifndef __IGAMEMODPTR_H__
-#define __IGAMEMODPTR_H__
-
-#if _MSC_VER > 1000
-	#pragma once
-#endif
-
-struct IGame;
 struct IGameRef
 {
-	IGameRef() : m_ptr(0) {}
+	CRY_DEPRECATED_GAME_DLL IGameRef() : m_ptr(0) {}
 	IGameRef(IGame** ptr) : m_ptr(ptr) {};
 	~IGameRef() {};
 
@@ -32,5 +17,3 @@ struct IGameRef
 private:
 	IGame** m_ptr;
 };
-
-#endif //__IGAMEMODPTR_H__

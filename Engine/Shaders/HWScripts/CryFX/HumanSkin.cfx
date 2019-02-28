@@ -1,5 +1,4 @@
-// CRYENGINE Source Code File
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "Common.cfi"
 #include "HumanSkinValidations.cfi"
@@ -30,6 +29,9 @@ struct CustomForwardShadingAttribs
 };
 
 #include "ShadeLib.cfi"
+
+//////////////////////////////// Common vertex shader ////////////////
+
 #include "VertexLib.cfi"
 
 //////////////////////////////// Samplers ////////////////
@@ -40,8 +42,8 @@ OPACITYMAP
 ENVIRONMENTCUBEMAP
 DISSOLVE_NOISE_MAP
 
-Texture2D customTex          : register(t9)  = TM_Custom;
-Texture2D customSecondaryTex : register(t10) = TM_CustomSecondary; 
+CUSTOMMAP;
+CUSTOMSECONDARYMAP; 
 
 /// Tweakables //////////////////////
 
@@ -195,17 +197,10 @@ half ComputeWrinkleBlendingWeight(float2 maskCoord)
 	half4 mask0, mask1, mask2;
 	DecodeBlendMask(customSecondaryTex, maskCoord, mask0, mask1, mask2);
 	
-#if %_RT_PER_INSTANCE_CB_TEMP
 	half weight =
-		dot(mask0, PerInstanceWrinklesMask0) + 
-		dot(mask1, PerInstanceWrinklesMask1) + 
-		dot(mask2, PerInstanceWrinklesMask2);
-#else
-	half weight =
-		dot(mask0, PI_WrinklesMask0) + 
-		dot(mask1, PI_WrinklesMask1) + 
-		dot(mask2, PI_WrinklesMask2);
-#endif
+		dot(mask0, CD_WrinklesMask0) + 
+		dot(mask1, CD_WrinklesMask1) + 
+		dot(mask2, CD_WrinklesMask2);
 
 	weight *= WrinklesBlend;
 
@@ -319,7 +314,6 @@ void Callback_ShadingDirect(in ForwardShadingAttribs attribs, in ForwardLightPar
 	specularAcc = specularAcc * light.illuminance;
 }
 
-#include "TiledShading.cfi"
 #include "ForwardShading.cfi"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -453,7 +447,7 @@ pixout_gbuffer SkinZPassPS(vert2fragZ_C IN)
 #endif
 
 #if %_RT_DISSOLVE
-	half2 noiseTC = IN.WPos.xy/(100.0f*PS_HPosScale.xy);
+	half2 noiseTC = IN.WPos.xy/(100.0f*CV_HPosScale.xy);
 
 	half fNoise = GetDissolveTex(dissolveNoiseTex, noiseTC).g;
 

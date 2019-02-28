@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   SceneTree.cpp
@@ -26,274 +26,60 @@
 
 CSvoEnv* gSvoEnv = 0;
 
-template<class T>
-struct SThreadSafeTask
-{
-	SThreadSafeTask(int n)
-	{
-		nRequestFrameId = 0;
-		pTaskObject = 0;
-	}
-	int nRequestFrameId;
-	T   pTaskObject;
-};
-
-template<class T>
-struct CTaskConveyor
-{
-	SThreadSafeArray<SThreadSafeTask<T>, 64>*   pTasks_Compute;
-	SThreadSafeArray<SThreadSafeTask<T>, 1024>* pTasks_Store;
-	volatile int                                nThreadsCounter;
-	bool   nThreadsContinue;
-	int    nRequestFrameId;
-	string szConveyorName;
-
-	struct SThreadInfo
-	{
-		CTaskConveyor* pTaskConveyor;
-		int            nThreadSlotId;
-	};
-
-	SThreadInfo arrThreadInfo[16];
-
-	CTaskConveyor(const char* szName)
-		: pTasks_Compute(nullptr)
-		, pTasks_Store(nullptr)
-		, nThreadsCounter(0)
-		, nThreadsContinue(true)
-		, nRequestFrameId(0)
-		, szConveyorName(szName)
-		, arrThreadInfo()
-	{
-		Start();
-	}
-
-	~CTaskConveyor()
-	{
-		Stop();
-	}
-
-	static void ThreadFunc_Compute(void* pUserData)
-	{
-		SThreadInfo* pInf = (SThreadInfo*)pUserData;
-		CTaskConveyor* pTC = pInf->pTaskConveyor;
-
-		CryInterlockedIncrement(&pTC->nThreadsCounter);
-
-		while (pTC->nThreadsContinue)
-		{
-			while (1)
-			{
-				SThreadSafeTask<T> nextTask = pTC->pTasks_Compute->GetNextTaskFromQeueOrdered2();
-
-				if (!nextTask.pTaskObject)
-					break;
-
-				nextTask.pTaskObject->Task_Compute(pInf->nThreadSlotId);
-
-				pTC->pTasks_Store->AddNewTaskToQeue(nextTask);
-			}
-
-			CrySleep(1);
-		}
-
-		CryInterlockedDecrement(&pTC->nThreadsCounter);
-	}
-
-	static void ThreadFunc_Store(void* pUserData)
-	{
-		SThreadInfo* pInf = (SThreadInfo*)pUserData;
-		CTaskConveyor* pTC = pInf->pTaskConveyor;
-
-		CryInterlockedIncrement(&pTC->nThreadsCounter);
-
-		while (pTC->nThreadsContinue)
-		{
-			while (1)
-			{
-				SThreadSafeTask<T> nextTask = pTC->pTasks_Store->GetNextTaskFromQeueOrdered2();
-
-				if (!nextTask.pTaskObject)
-					break;
-
-				nextTask.pTaskObject->Task_Store();
-			}
-
-			CrySleep(1);
-		}
-
-		CryInterlockedDecrement(&pTC->nThreadsCounter);
-	}
-
-	void Start()
-	{
-	#if CRY_PLATFORM_WINDOWS && CRY_PLATFORM_64BIT
-
-		pTasks_Compute = new SThreadSafeArray<SThreadSafeTask<T>, 64>;
-		pTasks_Store = new SThreadSafeArray<SThreadSafeTask<T>, 1024>;
-
-		int nThreadSlotId = 0;
-
-		for (; nThreadSlotId < 7; nThreadSlotId++)
-		{
-			arrThreadInfo[nThreadSlotId].pTaskConveyor = this;
-			arrThreadInfo[nThreadSlotId].nThreadSlotId = nThreadSlotId;
-			_beginthread(ThreadFunc_Compute, 0, (void*)&arrThreadInfo[nThreadSlotId]);
-		}
-
-		arrThreadInfo[nThreadSlotId].pTaskConveyor = this;
-		arrThreadInfo[nThreadSlotId].nThreadSlotId = nThreadSlotId;
-		_beginthread(ThreadFunc_Store, 0, (void*)&arrThreadInfo[nThreadSlotId]);
-
-		while (nThreadsCounter < 8)
-			CrySleep(10);
-
-	#endif
-	}
-
-	void Stop()
-	{
-		while (pTasks_Compute->Count() || pTasks_Store->Count())
-			CrySleep(10);
-		nThreadsContinue = false;
-		while (nThreadsCounter)
-			CrySleep(10);
-		nThreadsContinue = true;
-
-		T(0)->Task_OnTaskConveyorFinish(); // static
-	}
-
-	void AddTask(T task, int nTasksAll)
-	{
-		SThreadSafeTask<T> nextTask(0);
-		nextTask.pTaskObject = task;
-		nextTask.nRequestFrameId = nRequestFrameId;
-
-		pTasks_Compute->AddNewTaskToQeue(nextTask);
-
-		if (!(nRequestFrameId % 500))
-		{
-			Cry3DEngineBase::PrintMessage("%s: %d of %d tasks processed, pool %d MB of %d MB, compute=%d and store=%d",
-			                              szConveyorName.c_str(),
-			                              nRequestFrameId, nTasksAll, CVoxelSegment::GetBrickPoolUsageLoadedMB(), CVoxelSegment::GetBrickPoolUsageMB(),
-			                              pTasks_Compute->Count(), pTasks_Store->Count());
-		}
-
-		nRequestFrameId++;
-	}
-};
-
-struct SVoxRndDataFileHdr
-{
-	ETEX_Format nVoxTexFormat;
-	uint32      nVoxFlags;
-};
-
 void CSvoEnv::ReconstructTree(bool bMultiPoint)
 {
-	LOADING_TIME_PROFILE_SECTION;
-	char szFolder[256] = "";
-	CVoxelSegment::MakeFolderName(szFolder);
-	CVoxelSegment::m_strRenderDataFileName = szFolder;
-	CVoxelSegment::m_strRenderDataFileName += GLOBAL_CLOUD_MESH_FILE_NAME;
-
-	int nNodesCreated = 0;
-
 	if (GetCVars()->e_svoTI_Active)
 	{
 		PrintMessage("Constructing voxel tree ...");
 
-		m_nVoxTexFormat = eTF_R8G8B8A8;
-		PrintMessage("Voxel texture format: %s", GetRenderer()->GetTextureFormatName(m_nVoxTexFormat));
+		m_voxTexFormat = eTF_R8G8B8A8;
+		PrintMessage("Voxel texture format: %s", GetRenderer()->GetTextureFormatName(m_voxTexFormat));
 
 		SAFE_DELETE(m_pSvoRoot);
-		m_pSvoRoot = new CSvoNode(AABB(Vec3(0, 0, 0), Vec3((float)GetCVars()->e_svoRootSize)), NULL);
-		m_pSvoRoot->AllocateSegment(CVoxelSegment::m_nNextCloudId++, 0, ecss_NotLoaded, ecss_NotLoaded, true);
-		nNodesCreated++;
 
-		//		PrintMessage("Collecting level geometry . . .");
-		//	if(!m_pTree->m_pCloud->m_pNodeTrisXYZ)
-		//	m_pTree->m_pCloud->FindTrianglesForVoxelization(0);
+		AllocateRootNode();
 
 		m_bReady = true;
 
 		CVoxelSegment::CheckAllocateTexturePool();
 	}
-	else if (FILE* f = fopen(CVoxelSegment::m_strRenderDataFileName, "rb"))
-	{
-		PrintMessage("Loading voxel tree ...");
-
-		// read file header
-		SVoxRndDataFileHdr header;
-		fread(&header, 1, sizeof(header), f);
-		m_nVoxTexFormat = header.nVoxTexFormat;
-		if (m_nVoxTexFormat != eTF_BC3 && m_nVoxTexFormat != eTF_R8G8B8A8)
-			m_nVoxTexFormat = eTF_BC3; // old file format
-		PrintMessage("Voxel texture format: %s", GetRenderer()->GetTextureFormatName(m_nVoxTexFormat));
-		fclose(f);
-
-		SAFE_DELETE(m_pSvoRoot);
-		m_pSvoRoot = new CSvoNode(m_worldBox, NULL);
-
-		LoadTree(nNodesCreated);
-
-		CVoxelSegment::CheckAllocateTexturePool();
-	}
-
-	m_bReady = true;
-
-	if (nNodesCreated > 1)
-		PrintMessage("%d tree nodes created", nNodesCreated);
 }
 
-void CSvoEnv::LoadTree(int& nNodesCreated)
+void CSvoEnv::AllocateRootNode()
 {
-	char szFolder[256] = "";
-	CVoxelSegment::MakeFolderName(szFolder);
-	string filespec = szFolder;
-	filespec += GLOBAL_CLOUD_TREE_FILE_NAME;
+	float rootSize = GetCVars()->e_svoRootless ? SVO_ROOTLESS_PARENT_SIZE : max((float)Get3DEngine()->GetTerrainSize(), SVO_ROOTLESS_PARENT_SIZE);
 
-	if (FILE* f = fopen(filespec, "rb"))
+	m_pSvoRoot = new CSvoNode(AABB(Vec3(0, 0, 0), Vec3(rootSize)), nullptr);
+
+	m_pSvoRoot->AllocateSegment(CVoxelSegment::m_nextSegmentId++, 0, ecss_NotLoaded, ecss_NotLoaded, true);
+}
+
+int CSvoEnv::ExportSvo(ICryArchive* pArchive)
+{
+	float timeStart = GetCurAsyncTimeSec();
+
+	PrintMessage("======= Compiling SVO for entire level (press and keep ESC key to abort) =======");
+
+	SAFE_DELETE(m_pSvoRoot);
+
+	AllocateRootNode();
+
+	if (m_pSvoRoot)
 	{
-		PrintMessage("Loading tree from %s", filespec.c_str());
+		uint32 dummyCounter = 0;
+		uint32 totalSizeCounter = 0;
+		PodArray<byte> dummyArray;
+		m_pSvoRoot->SaveNode(dummyArray, dummyCounter, pArchive, totalSizeCounter);
 
-		int nDataSize = 0;
-		fread(&nDataSize, 1, sizeof(nDataSize), f);
-
-		PodArray<int> arrData;
-		arrData.CheckAllocated(nDataSize / 4);
-
-		int nLoadedItems = fread(arrData.GetElements(), 1, arrData.GetDataSize(), f);
-		fclose(f);
-
-		int* pData = arrData.GetElements();
-
-		if (m_pSvoRoot)
-		{
-			if (Cry3DEngineBase::GetCVars()->e_svoTI_Active)
-			{
-				m_pSvoRoot->AllocateSegment(CVoxelSegment::m_nNextCloudId++, 0, ecss_NotLoaded, ecss_NotLoaded, true);
-				nNodesCreated++;
-			}
-			else
-			{
-				m_pSvoRoot->Load(pData, nNodesCreated, NULL, NULL);
-			}
-		}
-
-		if (pData - arrData.GetElements() == arrData.Count() || Cry3DEngineBase::GetCVars()->e_svoTI_Active)
-		{
-			PrintMessage("%d K bytes loaded", arrData.GetDataSize() / 1024);
-			m_bReady = true;
-		}
-		else
-			PrintMessage("Error loading %s", filespec.c_str());
+		PrintMessage("======= Finished SVO data export: %.1f MB in %1.1f sec =======", (float)totalSizeCounter / 1024.f / 1024.f, GetCurAsyncTimeSec() - timeStart);
 	}
+
+	return m_pSvoRoot ? 1 : 0;
 }
 
 Vec3* GeneratePointsOnHalfSphere(int n);
 static Vec3* pKernelPoints = 0;
-const int nRaysNum = 512;
+const int kRaysNum = 512;
 
 bool CSvoEnv::Render()
 {
@@ -303,224 +89,215 @@ bool CSvoEnv::Render()
 
 	CVoxelSegment::CheckAllocateTexturePool();
 
+	CVoxelSegment::UpdateObjectLayersInfo();
+
 	CollectLights();
 
 	CollectAnalyticalOccluders();
 
-	if (Get3DEngine()->m_pObjectsTree[0])
+	if (Get3DEngine()->m_pObjectsTree)
 	{
-		m_pGlobalSpecCM = 0;
-		m_fGlobalSpecCM_Mult = 0;
+		CRY_PROFILE_REGION(PROFILE_3DENGINE, "CSvoEnv::Render_FindProbe");
+
+		AUTO_LOCK(m_csLockGlobalEnvProbe);
+
+		m_pGlobalEnvProbe = nullptr;
 
 		PodArray<IRenderNode*> arrObjects;
-		Get3DEngine()->m_pObjectsTree[0]->GetObjectsByType(arrObjects, eERType_Light, &m_worldBox, 0, false);
+		Get3DEngine()->m_pObjectsTree->GetObjectsByType(arrObjects, eERType_Light, &m_worldBox, 0, (uint64) ~0, false);
 
-		float fMaxRadius = 999;
+		float maxRadius = 999;
 
-		for (int nL = 0; nL < arrObjects.Count(); nL++)
+		for (int n = 0; n < arrObjects.Count(); n++)
 		{
-			ILightSource* pRN = (ILightSource*)arrObjects[nL];
+			ILightSource* pRN = (ILightSource*)arrObjects[n];
+			SRenderLight& rLight = pRN->GetLightProperties();
 
-			CDLight& rLight = pRN->GetLightProperties();
-
-			if (rLight.m_fRadius > fMaxRadius && rLight.m_Flags & DLF_DEFERRED_CUBEMAPS)
+			if (rLight.m_fRadius > maxRadius && rLight.m_Flags & DLF_DEFERRED_CUBEMAPS)
 			{
-				fMaxRadius = rLight.m_fRadius;
-				m_pGlobalSpecCM = rLight.GetSpecularCubemap();
-				m_fGlobalSpecCM_Mult = rLight.m_SpecMult;
+				maxRadius = rLight.m_fRadius;
+				m_pGlobalEnvProbe = &rLight;
 			}
 		}
 	}
 
 	// Teleport SVO root when camera comes close to the border of current SVO bounds
-	if (m_pSvoRoot && CVoxelSegment::m_nStreamingTasksInProgress == 0)
+	if (GetCVars()->e_svoRootless && m_pSvoRoot && CVoxelSegment::m_streamingTasksInProgress == 0 && GetCVars()->e_svoTI_Apply && SVO_ROOTLESS_PARENT_SIZE < Get3DEngine()->GetTerrainSize())
+	{
 		ProcessSvoRootTeleport();
+	}
 
-	static int nPrev_UpdateLighting = GetCVars()->e_svoTI_UpdateLighting;
-	if ((!nPrev_UpdateLighting || gEnv->IsEditing()) && GetCVars()->e_svoTI_UpdateLighting && GetCVars()->e_svoTI_IntegrationMode && m_bReady && m_pSvoRoot)
+	static int s_updateLightingPrev = GetCVars()->e_svoTI_UpdateLighting;
+	if ((!s_updateLightingPrev || gEnv->IsEditing()) && GetCVars()->e_svoTI_UpdateLighting && GetCVars()->e_svoTI_IntegrationMode && m_bReady && m_pSvoRoot)
 		DetectMovement_StatLights();
-	nPrev_UpdateLighting = GetCVars()->e_svoTI_UpdateLighting;
+	s_updateLightingPrev = GetCVars()->e_svoTI_UpdateLighting;
 
-	static int nPrev_UpdateGeometry = GetCVars()->e_svoTI_UpdateGeometry;
-	if (!nPrev_UpdateGeometry && GetCVars()->e_svoTI_UpdateGeometry && m_bReady && m_pSvoRoot)
+	static int s_updateGeometryPrev = GetCVars()->e_svoTI_UpdateGeometry;
+	if (!s_updateGeometryPrev && GetCVars()->e_svoTI_UpdateGeometry && m_bReady && m_pSvoRoot)
 	{
 		DetectMovement_StaticGeom();
-		CVoxelSegment::m_nVoxTrisCounter = 0;
+		CVoxelSegment::m_voxTrisCounter = 0;
 	}
-	nPrev_UpdateGeometry = GetCVars()->e_svoTI_UpdateGeometry;
+	s_updateGeometryPrev = GetCVars()->e_svoTI_UpdateGeometry;
 
 	bool bMultiUserMode = false;
-	int nUserId = /*gSSRSystem ? gSSRSystem->GetCurRenderUserId(bMultiUserMode) : */ 0;
+	int userId = 0;
 
-	if (IEntity* pEnt = GetSystem()->GetIEntitySystem()->FindEntityByName("MRI_Proxy"))
-	{
-		gSvoEnv->m_matDvrTm = pEnt->GetWorldTM();
-
-		float fScale = 1.f / 32.f;
-		Matrix44 mScale;
-		mScale.SetIdentity();
-		mScale.m00 = mScale.m11 = mScale.m22 = mScale.m33 = fScale;
-		gSvoEnv->m_matDvrTm = gSvoEnv->m_matDvrTm * mScale;
-
-		Matrix44 mTrans;
-		mTrans.SetIdentity();
-		mTrans.SetTranslation(Vec3(-128 * fScale, -128 * fScale, -128 * fScale));
-
-		gSvoEnv->m_matDvrTm = gSvoEnv->m_matDvrTm * mTrans;
-	}
-	else
-	{
-		gSvoEnv->m_matDvrTm.SetIdentity();
-	}
-
+	#ifdef FEATURE_SVO_GI_DVR // direct volume rendering
 	CRenderObject* pObjVox = 0;
 	{
-		pObjVox = Cry3DEngineBase::GetIdentityCRenderObject((*CVoxelSegment::m_pCurrPassInfo).ThreadID());
-		pObjVox->m_II.m_AmbColor = Cry3DEngineBase::Get3DEngine()->GetSkyColor();
-		pObjVox->m_II.m_Matrix.SetIdentity();
+		pObjVox = Cry3DEngineBase::GetIdentityCRenderObject((*CVoxelSegment::m_pCurrPassInfo));
+		pObjVox->SetAmbientColor(Cry3DEngineBase::Get3DEngine()->GetSkyColor(), (*CVoxelSegment::m_pCurrPassInfo));
+		pObjVox->SetMatrix(Matrix34::CreateIdentity(), (*CVoxelSegment::m_pCurrPassInfo));
 		pObjVox->m_nSort = 0;
 		pObjVox->m_ObjFlags |= (/*FOB_NO_Z_PASS | */ FOB_NO_FOG);
 
 		SRenderObjData* pData = pObjVox->GetObjData();
-		pData->m_fTempVars[0] = (float)nAtlasDimMaxXY;
-		pData->m_fTempVars[1] = (float)nAtlasDimMaxXY;
-		pData->m_fTempVars[2] = (float)nAtlasDimMaxZ;
-		pData->m_fTempVars[3] = (float)(nVoxTexMaxDim / nVoxBloMaxDim);
+		pData->m_fTempVars[0] = (float)SVO_ATLAS_DIM_MAX_XY;
+		pData->m_fTempVars[1] = (float)SVO_ATLAS_DIM_MAX_XY;
+		pData->m_fTempVars[2] = (float)SVO_ATLAS_DIM_MAX_Z;
+		pData->m_fTempVars[3] = (float)(SVO_VOX_BRICK_MAX_SIZE / voxBloMaxDim);
 		pData->m_fTempVars[4] = 0;//GetCVars()->e_svoDVR!=1 ? 0 : 11.111f;
 	}
+	#endif
 
 	if (m_bReady && m_pSvoRoot)
 	{
+		CRY_PROFILE_REGION(PROFILE_3DENGINE, "CSvoEnv::Traverse SVO");
+
 		//		UpdatePVS();
 
 		static Vec3 arrLastCamPos[16];
 		static Vec3 arrLastCamDir[16];
 		static float arrLastUpdateTime[16];
-		int nPoolId = max(0, nUserId);
+		int poolId = max(0, userId);
 		PodArray<SVF_P3F_C4B_T2F>& arrVertsOut = m_arrSvoProxyVertices;//arrVertsOutPool[nPoolId];
 
-		if (fabs(arrLastUpdateTime[nPoolId] - GetCurTimeSec()) > (/*bMultiUserMode ? 0.125f : 0.125f/64*/ 0.125f) || GetCVars()->e_svoEnabled >= 2 || (m_fStreamingStartTime >= 0) || (GetCVars()->e_svoDVR != 10))
+		if (fabs(arrLastUpdateTime[poolId] - GetCurTimeSec()) > (/*bMultiUserMode ? 0.125f : 0.125f/64*/ 0.125f) || GetCVars()->e_svoEnabled >= 2 || (m_streamingStartTime >= 0) || (GetCVars()->e_svoDVR != 10))
 		{
-			arrLastUpdateTime[nPoolId] = GetCurTimeSec();
-			arrLastCamPos[nPoolId] = CVoxelSegment::m_voxCam.GetPosition();
-			arrLastCamDir[nPoolId] = CVoxelSegment::m_voxCam.GetViewdir();
+			arrLastUpdateTime[poolId] = GetCurTimeSec();
+			arrLastCamPos[poolId] = CVoxelSegment::m_voxCam.GetPosition();
+			arrLastCamDir[poolId] = CVoxelSegment::m_voxCam.GetViewdir();
 
-			CVoxelSegment::m_nPostponedCounter = CVoxelSegment::m_nCheckReadyCounter = CVoxelSegment::m_nAddPolygonToSceneCounter = 0;
+			CVoxelSegment::m_postponedCounter = CVoxelSegment::m_checkReadyCounter = CVoxelSegment::m_addPolygonToSceneCounter = 0;
 
 			arrVertsOut.Clear();
 
 			m_pSvoRoot->CheckReadyForRendering(0, m_arrForStreaming);
 
-			m_pSvoRoot->Render(0, 1, pObjVox, 0, arrVertsOut, m_arrForStreaming);
+			m_pSvoRoot->Render(0, 1, 0, arrVertsOut, m_arrForStreaming);
 
 			CheckUpdateMeshPools();
 		}
 
-		// render DVR proxies
-		/*if(arrVertsOut.Count() && GetCVars()->e_svoDVR == 10)
-		   {
-		   uint16 nDummyIndex = 0;
+	#ifdef FEATURE_SVO_GI_DVR // direct volume rendering
+		if (arrVertsOut.Count() && GetCVars()->e_svoDVR == 10)
+		{
+			uint16 dummyIndex = 0;
 
-		   static SInputShaderResources res;
-		   static _smart_ptr< IMaterial > pMat = Cry3DEngineBase::MakeSystemMaterialFromShader("Total_Illumination.RenderDvrProxiesPass_GS", &res);
-		   pObjVox->m_pCurrMaterial = pMat;
+			static SInputShaderResources res;
+			static _smart_ptr<IMaterial> pMat = Cry3DEngineBase::MakeSystemMaterialFromShader("Total_Illumination.RenderDvrProxiesPass_GS", &res);
+			pObjVox->m_pCurrMaterial = pMat;
 
-		   Cry3DEngineBase::GetRenderer()->EF_AddPolygonToScene( pMat->GetShaderItem(),
-		    arrVertsOut.Count(), &arrVertsOut[0], NULL, pObjVox, (*CVoxelSegment::m_pCurrPassInfo), &nDummyIndex, 1, false );
-		   }*/
+			Cry3DEngineBase::GetRenderer()->EF_AddPolygonToScene(pMat->GetShaderItem(),
+			                                                     arrVertsOut.Count(), &arrVertsOut[0], nullptr, pObjVox, (*CVoxelSegment::m_pCurrPassInfo), &dummyIndex, 1, false);
+		}
+	#endif
 	}
 
-	int nMaxLoadedNodes = Cry3DEngineBase::GetCVars()->e_svoMaxBricksOnCPU;
+	int maxLoadedNodes = Cry3DEngineBase::GetCVars()->e_svoMaxBricksOnCPU;
 
-	if (m_nVoxTexFormat != eTF_R8G8B8A8)
-		nMaxLoadedNodes *= 4;
+	if (m_voxTexFormat != eTF_R8G8B8A8)
+		maxLoadedNodes *= 4;
 
 	//	if(GetCVars()->e_rsMode != RS_FAT_CLIENT)
 	{
-		FRAME_PROFILER("CGlobalCloud::Render_StartStreaming", GetSystem(), PROFILE_3DENGINE);
+		CRY_PROFILE_REGION(PROFILE_3DENGINE, "CSvoEnv::Render_StartStreaming");
 
-		for (int nTreeLevel = 0; (nTreeLevel < nVoxStreamQueueMaxSize); nTreeLevel++)
-			for (int nDistId = 0; (nDistId < nVoxStreamQueueMaxSize); nDistId++)
+		for (int treeLevel = 0; (treeLevel < SVO_STREAM_QUEUE_MAX_SIZE); treeLevel++)
+		{
+			for (int distId = 0; (distId < SVO_STREAM_QUEUE_MAX_SIZE); distId++)
 			{
 				if (!m_bFirst_StartStreaming)
-					for (int i = 0; (i < m_arrForStreaming[nTreeLevel][nDistId].Count()) && (CVoxelSegment::m_nStreamingTasksInProgress < Cry3DEngineBase::GetCVars()->e_svoMaxStreamRequests); i++)
+					for (int i = 0; (i < m_arrForStreaming[treeLevel][distId].Count()) && (CVoxelSegment::m_streamingTasksInProgress < Cry3DEngineBase::GetCVars()->e_svoMaxStreamRequests); i++)
 					{
-						if (CVoxelSegment::m_arrLoadedSegments.Count() > nMaxLoadedNodes)
+						if (CVoxelSegment::m_arrLoadedSegments.Count() > maxLoadedNodes)
 							break;
 
-						if (/*m_arrForStreaming[nTreeLevel][nDistId][i]->m_nFileStreamSize>0 && */ !m_arrForStreaming[nTreeLevel][nDistId][i]->StartStreaming())
+						if (/*m_arrForStreaming[treeLevel][nDistId][i]->m_nFileStreamSize>0 && */ !m_arrForStreaming[treeLevel][distId][i]->StartStreaming(m_pStreamEngine))
 							break;
 					}
 
-				m_arrForStreaming[nTreeLevel][nDistId].Clear();
+				m_arrForStreaming[treeLevel][distId].Clear();
 			}
+		}
 
 		m_bFirst_StartStreaming = false;
 	}
 
-	if (CVoxelSegment::m_arrLoadedSegments.Count() > (nMaxLoadedNodes - Cry3DEngineBase::GetCVars()->e_svoMaxStreamRequests))
+	if (CVoxelSegment::m_arrLoadedSegments.Count() > (maxLoadedNodes - Cry3DEngineBase::GetCVars()->e_svoMaxStreamRequests))
 	{
 		{
-			FRAME_PROFILER("CGlobalCloud::Render_UnloadStreamable_Sort", GetSystem(), PROFILE_3DENGINE);
+			CRY_PROFILE_REGION(PROFILE_3DENGINE, "CSvoEnv::Render_UnloadStreamable_Sort");
 
 			qsort(CVoxelSegment::m_arrLoadedSegments.GetElements(), CVoxelSegment::m_arrLoadedSegments.Count(), sizeof(CVoxelSegment::m_arrLoadedSegments[0]), CVoxelSegment::ComparemLastVisFrameID);
 		}
 
 		{
-			FRAME_PROFILER("CGlobalCloud::Render_UnloadStreamable_FreeRenderData", GetSystem(), PROFILE_3DENGINE);
+			CRY_PROFILE_REGION(PROFILE_3DENGINE, "CSvoEnv::Render_UnloadStreamable_FreeRenderData");
 
-			int nNumNodesToDelete = 4 + Cry3DEngineBase::GetCVars()->e_svoMaxStreamRequests;//CVoxelSegment::m_arrLoadedSegments.Count()/1000;
+			int numNodesToDelete = 4 + Cry3DEngineBase::GetCVars()->e_svoMaxStreamRequests;//CVoxelSegment::m_arrLoadedSegments.Count()/1000;
 
-			int nNodesUnloaded = 0;
+			int nodesUnloaded = 0;
 
-			while ((nNodesUnloaded < nNumNodesToDelete) &&
-				(CVoxelSegment::m_arrLoadedSegments[0]->m_eStreamingStatus != ecss_InProgress) &&
-				(CVoxelSegment::m_arrLoadedSegments[0]->m_nLastRendFrameId < (GetCurrPassMainFrameID() - 32)))
+			while ((nodesUnloaded < numNodesToDelete) &&
+			       (CVoxelSegment::m_arrLoadedSegments[0]->m_eStreamingStatus != ecss_InProgress) &&
+			       (CVoxelSegment::m_arrLoadedSegments[0]->m_lastRendFrameId < (GetCurrPassMainFrameID() - 32)))
 			{
-				CVoxelSegment * pSeg = CVoxelSegment::m_arrLoadedSegments[0];
+				CVoxelSegment* pSeg = CVoxelSegment::m_arrLoadedSegments[0];
 
 				pSeg->FreeRenderData();
 				pSeg->m_eStreamingStatus = ecss_NotLoaded;
 
 				CSvoNode** ppChilds = pSeg->m_pParentCloud->m_pNode->m_ppChilds;
 
-				for (int nChildId = 0; nChildId < 8; nChildId++)
+				for (int childId = 0; childId < 8; childId++)
 				{
-					if (ppChilds[nChildId] == pSeg->m_pNode)
+					if (ppChilds[childId] == pSeg->m_pNode)
 					{
-						SAFE_DELETE(ppChilds[nChildId]); // this also deletes pSeg and unregister it from CVoxelSegment::m_arrLoadedSegments
+						SAFE_DELETE(ppChilds[childId]); // this also deletes pSeg and unregister it from CVoxelSegment::m_arrLoadedSegments
 					}
 				}
 
 				assert(CVoxelSegment::m_arrLoadedSegments.Find(pSeg) < 0);
 
-				nNodesUnloaded++;
+				nodesUnloaded++;
 			}
 		}
 	}
 
-	CVoxelSegment::UpdateStreamingEngine();
+	m_pStreamEngine->ProcessSyncCallBacks();
 
-	CVoxelSegment::m_nMaxBrickUpdates = max(1, bMultiUserMode ? Cry3DEngineBase::GetCVars()->e_svoMaxBrickUpdates * 16 : (Cry3DEngineBase::GetCVars()->e_svoMaxBrickUpdates / max(1, Cry3DEngineBase::GetCVars()->e_svoTI_LowSpecMode / (int)2 + 1)));
-	if (!(m_fStreamingStartTime < 0)) // if not bSvoReady yet
-		CVoxelSegment::m_nMaxBrickUpdates *= 100;
+	CVoxelSegment::m_maxBrickUpdates = max(1, bMultiUserMode ? Cry3DEngineBase::GetCVars()->e_svoMaxBrickUpdates * 16 : (Cry3DEngineBase::GetCVars()->e_svoMaxBrickUpdates / max(1, Cry3DEngineBase::GetCVars()->e_svoTI_LowSpecMode / (int)2 + 1)));
+	if (!(m_streamingStartTime < 0)) // if not bSvoReady yet
+		CVoxelSegment::m_maxBrickUpdates *= 100;
 
 	//if(nUserId == 0 || !bMultiUserMode)
 	{
-		FRAME_PROFILER("CGlobalCloud::Render_BrickUpdate", GetSystem(), PROFILE_3DENGINE);
+		CRY_PROFILE_REGION(PROFILE_3DENGINE, "CSvoEnv::Render_BrickUpdate");
 
-		CVoxelSegment::m_nUpdatesInProgressTex = 0;
-		CVoxelSegment::m_nUpdatesInProgressBri = 0;
+		CVoxelSegment::m_updatesInProgressTex = 0;
+		CVoxelSegment::m_updatesInProgressBri = 0;
 
-		for (int nTreeLevel = 0; (nTreeLevel < 16); nTreeLevel++)
+		for (int treeLevel = 0; (treeLevel < 16); treeLevel++)
 		{
-			for (int i = 0; (i < gSvoEnv->m_arrForBrickUpdate[nTreeLevel].Count()) && (CVoxelSegment::m_nUpdatesInProgressBri < CVoxelSegment::m_nMaxBrickUpdates); i++)
+			for (int i = 0; (i < gSvoEnv->m_arrForBrickUpdate[treeLevel].Count()) && (CVoxelSegment::m_updatesInProgressBri < CVoxelSegment::m_maxBrickUpdates); i++)
 			{
-				CVoxelSegment* pSeg = gSvoEnv->m_arrForBrickUpdate[nTreeLevel][i];
+				CVoxelSegment* pSeg = gSvoEnv->m_arrForBrickUpdate[treeLevel][i];
 
 				if (pSeg->m_eStreamingStatus == ecss_Ready)
 				{
-					CVoxelSegment::m_nUpdatesInProgressBri++;
+					CVoxelSegment::m_updatesInProgressBri++;
 
 					bool bWas = pSeg->CheckUpdateBrickRenderData(true);
 
@@ -534,17 +311,18 @@ bool CSvoEnv::Render()
 				}
 			}
 
-			gSvoEnv->m_arrForBrickUpdate[nTreeLevel].Clear();
+			gSvoEnv->m_arrForBrickUpdate[treeLevel].Clear();
 		}
 
-		if (m_nTexNodePoolId)
+		if (m_texNodePoolId)
 		{
-			FRAME_PROFILER("CGlobalCloud::Render_UpdateNodeRenderDataPtrs", GetSystem(), PROFILE_3DENGINE);
+			CRY_PROFILE_REGION(PROFILE_3DENGINE, "CSvoEnv::Render_UpdateNodeRenderDataPtrs");
 
 			m_pSvoRoot->UpdateNodeRenderDataPtrs();
 		}
 	}
 
+	#ifdef FEATURE_SVO_GI_DVR // direct volume rendering
 	// render DVR quad
 	if (GetCVars()->e_svoDVR == 10)
 	{
@@ -570,17 +348,19 @@ bool CSvoEnv::Render()
 		   static _smart_ptr< IMaterial > pMat = Cry3DEngineBase::MakeSystemMaterialFromShader("Total_Illumination.BlendDvrIntoScene", &res);
 
 		   int nRGBD=0, nNORM=0, nOPAC=0;
-		   GetRenderer()->GetISvoRenderer()->GetDynamicTextures(nRGBD, nNORM, nOPAC, NULL, NULL);
+		   GetRenderer()->GetISvoRenderer()->GetDynamicTextures(nRGBD, nNORM, nOPAC, nullptr, nullptr);
 		   pObjVox->m_nTextureID = nRGBD;
 
 		   pObjVox->m_pCurrMaterial = pMat;
 
 		   Cry3DEngineBase::GetRenderer()->EF_AddPolygonToScene( pMat->GetShaderItem(),
-		   4, &arrVerts[0], NULL, pObjVox, (*CVoxelSegment::m_pCurrPassInfo), &arrIndices[0], 6, false );
+		   4, &arrVerts[0], nullptr, pObjVox, (*CVoxelSegment::m_pCurrPassInfo), &arrIndices[0], 6, false );
 		 */
 	}
 	else if (GetCVars()->e_svoDVR > 1)
 	{
+		const CCamera& camera = GetISystem()->GetViewCamera();
+
 		SVF_P3F_C4B_T2F arrVerts[4];
 		ZeroStruct(arrVerts);
 		uint16 arrIndices[] = { 0, 2, 1, 2, 3, 1 };
@@ -590,8 +370,9 @@ bool CSvoEnv::Render()
 			for (int y = 0; y < 2; y++)
 			{
 				int i = x * 2 + y;
-				float X = (float)(GetRenderer()->GetWidth() * x);
-				float Y = (float)(GetRenderer()->GetHeight() * y);
+				float X = (float)(camera.GetViewSurfaceX() * x);
+				float Y = (float)(camera.GetViewSurfaceZ() * y);
+
 				GetRenderer()->UnProjectFromScreen(X, Y, 0.05f, &arrVerts[i].xyz.x, &arrVerts[i].xyz.y, &arrVerts[i].xyz.z);
 			}
 		}
@@ -614,12 +395,13 @@ bool CSvoEnv::Render()
 		if (ICVar* pV = gEnv->pConsole->GetCVar("r_UseAlphaBlend"))
 			pV->Set(1);
 	}
+	#endif
 
 	if (Cry3DEngineBase::GetCVars()->e_svoDebug == 4 && 0)
 	{
 		if (!pKernelPoints)
 		{
-			pKernelPoints = GeneratePointsOnHalfSphere(nRaysNum);
+			pKernelPoints = GeneratePointsOnHalfSphere(kRaysNum);
 			//memcpy(pKernelPoints, &arrAO_Kernel[0], sizeof(Vec3)*32);
 
 			Cry3DEngineBase::PrintMessage("Organizing subsets . . .");
@@ -628,8 +410,8 @@ bool CSvoEnv::Render()
 			for (int i = 0; i < 1000; i++)
 			{
 				// find worst points in each of subsets and swap them
-				int m0 = GetWorstPointInSubSet(0, nRaysNum / 2);
-				int m1 = GetWorstPointInSubSet(nRaysNum / 2, nRaysNum);
+				int m0 = GetWorstPointInSubSet(0, kRaysNum / 2);
+				int m1 = GetWorstPointInSubSet(kRaysNum / 2, kRaysNum);
 				std::swap(pKernelPoints[m0], pKernelPoints[m1]);
 			}
 
@@ -641,9 +423,9 @@ bool CSvoEnv::Render()
 			{
 				//        fprintf(f, "#define nSampleNum %d\n", nRaysNum);
 				//        fprintf(f, "static float3 kernel[nSampleNum] = \n");
-				fprintf(f, "static float3 kernel_HS_%d[%d] = \n", nRaysNum, nRaysNum);
+				fprintf(f, "static float3 kernel_HS_%d[%d] = \n", kRaysNum, kRaysNum);
 				fprintf(f, "{\n");
-				for (int p = 0; p < nRaysNum; p++)
+				for (int p = 0; p < kRaysNum; p++)
 					fprintf(f, "  float3( %.6f , %.6f, %.6f ),\n", pKernelPoints[p].x, pKernelPoints[p].y, pKernelPoints[p].z);
 				fprintf(f, "};\n");
 				fclose(f);
@@ -654,11 +436,11 @@ bool CSvoEnv::Render()
 
 		static Vec3 vPos = CVoxelSegment::m_voxCam.GetPosition();
 		Cry3DEngineBase::DrawSphere(vPos, 4.f);
-		for (int i = 0; i < nRaysNum; i++)
-			Cry3DEngineBase::DrawSphere(vPos + pKernelPoints[i] * 4.f, .1f, (i < nRaysNum / 2) ? Col_Yellow : Col_Cyan);
+		for (int i = 0; i < kRaysNum; i++)
+			Cry3DEngineBase::DrawSphere(vPos + pKernelPoints[i] * 4.f, .1f, (i < kRaysNum / 2) ? Col_Yellow : Col_Cyan);
 	}
 
-	StartupStreamingTimeTest(CVoxelSegment::m_nStreamingTasksInProgress == 0 && CVoxelSegment::m_nUpdatesInProgressBri == 0 && CVoxelSegment::m_nUpdatesInProgressTex == 0 && CVoxelSegment::m_nTasksInProgressALL == 0);
+	StartupStreamingTimeTest(CVoxelSegment::m_streamingTasksInProgress == 0 && CVoxelSegment::m_updatesInProgressBri == 0 && CVoxelSegment::m_updatesInProgressTex == 0 && CVoxelSegment::m_bUpdateBrickRenderDataPostponed == 0);
 
 	// show GI probe object in front of the camera
 	if (GetCVars()->e_svoDebug == 1)
@@ -677,34 +459,38 @@ bool CSvoEnv::Render()
 
 void CSvoEnv::ProcessSvoRootTeleport()
 {
+	FUNCTION_PROFILER_3DENGINE;
+
 	if (GetCVars()->e_svoDebug == 3 || GetCVars()->e_svoDebug == 6)
 		Cry3DEngineBase::Get3DEngine()->DrawBBox(m_pSvoRoot->m_nodeBox, Col_Yellow);
 
 	AABB rootBox = m_pSvoRoot->m_nodeBox;
 	Vec3 rootCenter = rootBox.GetCenter();
-	float fRootSize = rootBox.GetSize().x;
+	float rootSize = rootBox.GetSize().x;
 	Vec3 vCamPos = gEnv->pSystem->GetViewCamera().GetPosition();
 
-	for (int nA = 0; nA < 3; nA++)
+	for (int axisId = 0; axisId < 3; axisId++)
 	{
-		float fScrollDir = 0;
-		float fThreshold = 2.f;
+		float scrollDir = 0;
+		float threshold = 2.f;
 
-		if (vCamPos[nA] > (rootBox.max[nA] - fRootSize / 4.f + fThreshold))
-			fScrollDir = 1.f;
-		else if (vCamPos[nA] < (rootBox.min[nA] + fRootSize / 4.f - fThreshold))
-			fScrollDir = -1.f;
+		if (vCamPos[axisId] > (rootBox.max[axisId] - rootSize / 4.f + threshold))
+			scrollDir = 1.f;
+		else if (vCamPos[axisId] < (rootBox.min[axisId] + rootSize / 4.f - threshold))
+			scrollDir = -1.f;
 
-		if (fScrollDir)
+		if (scrollDir)
 		{
+			m_bRootTeleportSkipFrame = true; // workaround for one frame flicker on root teleport
+
 			// scroll root node bounding box
-			m_pSvoRoot->m_nodeBox.min[nA] += fRootSize / 2 * fScrollDir;
-			m_pSvoRoot->m_nodeBox.max[nA] += fRootSize / 2 * fScrollDir;
+			m_pSvoRoot->m_nodeBox.min[axisId] += rootSize / 2 * scrollDir;
+			m_pSvoRoot->m_nodeBox.max[axisId] += rootSize / 2 * scrollDir;
 
 			if (m_pSvoRoot->m_pSeg)
 			{
-				m_pSvoRoot->m_pSeg->m_nChildOffsetsDirty = 2;
-				m_pSvoRoot->m_pSeg->m_vSegOrigin[nA] = (m_pSvoRoot->m_nodeBox.max[nA] + m_pSvoRoot->m_nodeBox.min[nA]) / 2;
+				m_pSvoRoot->m_pSeg->m_bChildOffsetsDirty = 2;
+				m_pSvoRoot->m_pSeg->m_vSegOrigin[axisId] = (m_pSvoRoot->m_nodeBox.max[axisId] + m_pSvoRoot->m_nodeBox.min[axisId]) / 2;
 			}
 
 			// scroll pointers to childs, delete unnecessary childs
@@ -714,30 +500,34 @@ void CSvoEnv::ProcessSvoRootTeleport()
 				{
 					for (int j = 0; j < 2; j++)
 					{
-						int nChildIdOld, nChildIdNew;
+						int childIdOld = 0, childIdNew = 0;
 
-						bool o = vCamPos[nA] > rootCenter[nA];
+						bool o = vCamPos[axisId] > rootCenter[axisId];
 						bool n = !o;
 
-						if (nA == 0) // X
+						if (axisId == 0) // X
 						{
-							nChildIdOld = (o ? 4 : 0) | (i ? 2 : 0) | (j ? 1 : 0);
-							nChildIdNew = (n ? 4 : 0) | (i ? 2 : 0) | (j ? 1 : 0);
+							childIdOld = (o ? 4 : 0) | (i ? 2 : 0) | (j ? 1 : 0);
+							childIdNew = (n ? 4 : 0) | (i ? 2 : 0) | (j ? 1 : 0);
 						}
-						else if (nA == 1) // Y
+						else if (axisId == 1) // Y
 						{
-							nChildIdOld = (i ? 4 : 0) | (o ? 2 : 0) | (j ? 1 : 0);
-							nChildIdNew = (i ? 4 : 0) | (n ? 2 : 0) | (j ? 1 : 0);
+							childIdOld = (i ? 4 : 0) | (o ? 2 : 0) | (j ? 1 : 0);
+							childIdNew = (i ? 4 : 0) | (n ? 2 : 0) | (j ? 1 : 0);
 						}
-						else if (nA == 2) // Z
+						else if (axisId == 2) // Z
 						{
-							nChildIdOld = (j ? 4 : 0) | (i ? 2 : 0) | (o ? 1 : 0);
-							nChildIdNew = (j ? 4 : 0) | (i ? 2 : 0) | (n ? 1 : 0);
+							childIdOld = (j ? 4 : 0) | (i ? 2 : 0) | (o ? 1 : 0);
+							childIdNew = (j ? 4 : 0) | (i ? 2 : 0) | (n ? 1 : 0);
 						}
 
-						SAFE_DELETE(m_pSvoRoot->m_ppChilds[nChildIdNew]);
-						m_pSvoRoot->m_ppChilds[nChildIdNew] = m_pSvoRoot->m_ppChilds[nChildIdOld];
-						m_pSvoRoot->m_ppChilds[nChildIdOld] = NULL;
+						SAFE_DELETE(m_pSvoRoot->m_ppChilds[childIdNew]);
+
+						m_pSvoRoot->m_ppChilds[childIdNew] = m_pSvoRoot->m_ppChilds[childIdOld];
+						m_pSvoRoot->m_ppChilds[childIdOld] = nullptr;
+
+						m_pSvoRoot->m_arrChildNotNeeded[childIdNew] = m_pSvoRoot->m_arrChildNotNeeded[childIdOld];
+						m_pSvoRoot->m_arrChildNotNeeded[childIdOld] = false;
 					}
 				}
 			}
@@ -747,22 +537,22 @@ void CSvoEnv::ProcessSvoRootTeleport()
 	gSvoEnv->m_vSvoOriginAndSize = Vec4(m_pSvoRoot->m_nodeBox.min, m_pSvoRoot->m_nodeBox.max.x - m_pSvoRoot->m_nodeBox.min.x);
 }
 
-CSvoNode* CSvoNode::FindNodeByPosition(const Vec3& vPosWS, int nTreeLevelToFind, int nTreeLevelCur)
+CSvoNode* CSvoNode::FindNodeByPosition(const Vec3& vPosWS, int treeLevelToFind, int treeLevelCur)
 {
-	if (nTreeLevelToFind == nTreeLevelCur)
+	if (treeLevelToFind == treeLevelCur)
 		return this;
 
 	Vec3 vNodeCenter = m_nodeBox.GetCenter();
 
-	int nChildId =
+	int childId =
 	  ((vPosWS.x > vNodeCenter.x) ? 4 : 0) |
 	  ((vPosWS.y > vNodeCenter.y) ? 2 : 0) |
 	  ((vPosWS.z > vNodeCenter.z) ? 1 : 0);
 
-	if (m_ppChilds && m_ppChilds[nChildId])
-		return m_ppChilds[nChildId]->FindNodeByPosition(vPosWS, nTreeLevelToFind, nTreeLevelCur + 1);
+	if (m_ppChilds && m_ppChilds[childId])
+		return m_ppChilds[childId]->FindNodeByPosition(vPosWS, treeLevelToFind, treeLevelCur + 1);
 
-	return NULL;
+	return nullptr;
 }
 
 void CSvoNode::OnStatLightsChanged(const AABB& objBox)
@@ -773,22 +563,22 @@ void CSvoNode::OnStatLightsChanged(const AABB& objBox)
 
 		if (m_ppChilds)
 		{
-			for (int nChildId = 0; nChildId < 8; nChildId++)
+			for (int childId = 0; childId < 8; childId++)
 			{
-				if (m_ppChilds[nChildId])
+				if (m_ppChilds[childId])
 				{
-					m_ppChilds[nChildId]->OnStatLightsChanged(objBox);
+					m_ppChilds[childId]->OnStatLightsChanged(objBox);
 				}
 			}
 		}
 	}
 }
 
-AABB CSvoNode::GetChildBBox(int nChildId)
+AABB CSvoNode::GetChildBBox(int childId)
 {
-	int x = (nChildId / 4);
-	int y = (nChildId - x * 4) / 2;
-	int z = (nChildId - x * 4 - y * 2);
+	int x = (childId / 4);
+	int y = (childId - x * 4) / 2;
+	int z = (childId - x * 4 - y * 2);
 	Vec3 vSize = m_nodeBox.GetSize() * 0.5f;
 	Vec3 vOffset = vSize;
 	vOffset.x *= x;
@@ -800,7 +590,7 @@ AABB CSvoNode::GetChildBBox(int nChildId)
 	return childBox;
 }
 
-bool CSvoNode::CheckReadyForRendering(int nTreeLevel, PodArray<CVoxelSegment*> arrForStreaming[nVoxStreamQueueMaxSize][nVoxStreamQueueMaxSize])
+bool CSvoNode::CheckReadyForRendering(int treeLevel, PodArray<CVoxelSegment*> arrForStreaming[SVO_STREAM_QUEUE_MAX_SIZE][SVO_STREAM_QUEUE_MAX_SIZE])
 {
 	bool bAllReady = true;
 
@@ -810,18 +600,18 @@ bool CSvoNode::CheckReadyForRendering(int nTreeLevel, PodArray<CVoxelSegment*> a
 
 		//		if(CVoxelSegment::voxCamera.IsAABBVisible_E(m_nodeBox))
 		if (GetCurrPassMainFrameID() > 1)
-			pCloud->m_nLastRendFrameId = max(pCloud->m_nLastRendFrameId, GetCurrPassMainFrameID() - 1);
+			pCloud->m_lastRendFrameId = max(pCloud->m_lastRendFrameId, GetCurrPassMainFrameID() - 1);
 
-		CVoxelSegment::m_nCheckReadyCounter++;
+		CVoxelSegment::m_checkReadyCounter++;
 
 		if (pCloud->m_eStreamingStatus == ecss_NotLoaded)
 		{
-			float fBoxSize = m_nodeBox.GetSize().x;
+			float boxSize = m_nodeBox.GetSize().x;
 
-			int nDistId = min(nVoxStreamQueueMaxSize - 1, (int)(m_nodeBox.GetDistance(CVoxelSegment::m_voxCam.GetPosition()) / fBoxSize));
-			int nTLevId = min(nVoxStreamQueueMaxSize - 1, nTreeLevel);
-			if (arrForStreaming[nTLevId][nDistId].Count() < Cry3DEngineBase::GetCVars()->e_svoMaxStreamRequests)
-				arrForStreaming[nTLevId][nDistId].Add(pCloud);
+			int distanceId = min(SVO_STREAM_QUEUE_MAX_SIZE - 1, (int)(m_nodeBox.GetDistance(CVoxelSegment::m_voxCam.GetPosition()) / boxSize));
+			int treeLevelId = min(SVO_STREAM_QUEUE_MAX_SIZE - 1, treeLevel);
+			if (arrForStreaming[treeLevelId][distanceId].Count() < Cry3DEngineBase::GetCVars()->e_svoMaxStreamRequests)
+				arrForStreaming[treeLevelId][distanceId].Add(pCloud);
 		}
 
 		if (pCloud->m_eStreamingStatus != ecss_Ready)
@@ -833,8 +623,8 @@ bool CSvoNode::CheckReadyForRendering(int nTreeLevel, PodArray<CVoxelSegment*> a
 		{
 			if (!pCloud->CheckUpdateBrickRenderData(true))
 			{
-				if (gSvoEnv->m_arrForBrickUpdate[nTreeLevel].Count() < CVoxelSegment::m_nMaxBrickUpdates)
-					gSvoEnv->m_arrForBrickUpdate[nTreeLevel].Add(pCloud);
+				if (gSvoEnv->m_arrForBrickUpdate[treeLevel].Count() < CVoxelSegment::m_maxBrickUpdates)
+					gSvoEnv->m_arrForBrickUpdate[treeLevel].Add(pCloud);
 				bAllReady = false;
 			}
 		}
@@ -843,18 +633,18 @@ bool CSvoNode::CheckReadyForRendering(int nTreeLevel, PodArray<CVoxelSegment*> a
 	return bAllReady;
 }
 
-CSvoNode* CSvoNode::FindNodeByPoolAffset(int nAllocatedAtlasOffset)
+CSvoNode* CSvoNode::FindNodeByPoolAffset(int allocatedAtlasOffset)
 {
-	if (nAllocatedAtlasOffset == m_pSeg->m_nAllocatedAtlasOffset)
+	if (allocatedAtlasOffset == m_pSeg->m_allocatedAtlasOffset)
 		return this;
 
 	if (m_ppChilds)
 	{
-		for (int nChildId = 0; nChildId < 8; nChildId++)
+		for (int childId = 0; childId < 8; childId++)
 		{
-			if (m_ppChilds[nChildId])
+			if (m_ppChilds[childId])
 			{
-				if (CSvoNode* pRes = m_ppChilds[nChildId]->FindNodeByPoolAffset(nAllocatedAtlasOffset))
+				if (CSvoNode* pRes = m_ppChilds[childId]->FindNodeByPoolAffset(allocatedAtlasOffset))
 					return pRes;
 			}
 		}
@@ -880,51 +670,51 @@ void CSvoNode::RegisterMovement(const AABB& objBox)
 
 		if (m_ppChilds)
 		{
-			for (int nChildId = 0; nChildId < 8; nChildId++)
+			for (int childId = 0; childId < 8; childId++)
 			{
-				if (m_ppChilds[nChildId])
+				if (m_ppChilds[childId])
 				{
-					m_ppChilds[nChildId]->RegisterMovement(objBox);
+					m_ppChilds[childId]->RegisterMovement(objBox);
 				}
 			}
 		}
 	}
 }
 
-Vec3i ComputeDataCoord(int nAtlasOffset)
+Vec3i ComputeDataCoord(int atlasOffset)
 {
 	static const Vec3i vAtlasDimInt(32, 32, 32);
 
 	//	nAtlasOffset = clamp(nAtlasOffset, 0, vAtlasDimInt*vAtlasDimInt*vAtlasDimInt);
 
 	Vec3i vOffset3D;
-	vOffset3D.z = nAtlasOffset / vAtlasDimInt.x / vAtlasDimInt.y;
-	vOffset3D.y = (nAtlasOffset / vAtlasDimInt.x - vOffset3D.z * vAtlasDimInt.y);
-	vOffset3D.x = nAtlasOffset - vOffset3D.z * vAtlasDimInt.y * vAtlasDimInt.y - vOffset3D.y * vAtlasDimInt.x;
+	vOffset3D.z = atlasOffset / vAtlasDimInt.x / vAtlasDimInt.y;
+	vOffset3D.y = (atlasOffset / vAtlasDimInt.x - vOffset3D.z * vAtlasDimInt.y);
+	vOffset3D.x = atlasOffset - vOffset3D.z * vAtlasDimInt.y * vAtlasDimInt.y - vOffset3D.y * vAtlasDimInt.x;
 
 	return vOffset3D;
 }
 
-void CSvoNode::Render(PodArray<struct SPvsItem>* pSortedPVS, uint64 nNodeKey, CRenderObject* pObj, int nTreeLevel, PodArray<SVF_P3F_C4B_T2F>& arrVertsOut, PodArray<CVoxelSegment*> arrForStreaming[nVoxStreamQueueMaxSize][nVoxStreamQueueMaxSize])
+void CSvoNode::Render(PodArray<struct SPvsItem>* pSortedPVS, uint64 nodeKey, int treeLevel, PodArray<SVF_P3F_C4B_T2F>& arrVertsOut, PodArray<CVoxelSegment*> arrForStreaming[SVO_STREAM_QUEUE_MAX_SIZE][SVO_STREAM_QUEUE_MAX_SIZE])
 {
-	float fBoxSize = m_nodeBox.GetSize().x;
+	float boxSize = m_nodeBox.GetSize().x;
 
 	Vec3 vCamPos = CVoxelSegment::m_voxCam.GetPosition();
 
-	const float fNodeToCamDist = m_nodeBox.GetDistance(vCamPos);
+	const float nodeToCamDist = m_nodeBox.GetDistance(vCamPos);
 
-	const float fBoxSizeRated = fBoxSize * Cry3DEngineBase::GetCVars()->e_svoTI_VoxelizaionLODRatio;
+	const float boxSizeRated = boxSize * Cry3DEngineBase::GetCVars()->e_svoTI_VoxelizationLODRatio;
 
 	bool bDrawThisNode = false;
 
 	if (m_ppChilds)
 	{
-		for (int nChildId = 0; nChildId < 8; nChildId++)
+		for (int childId = 0; childId < 8; childId++)
 		{
-			if (m_ppChilds[nChildId] && m_ppChilds[nChildId]->m_bForceRecreate && !m_ppChilds[nChildId]->IsStreamingInProgress())
+			if (m_ppChilds[childId] && m_ppChilds[childId]->m_bForceRecreate && !m_ppChilds[childId]->IsStreamingInProgress())
 			{
-				SAFE_DELETE(m_ppChilds[nChildId]);
-				gSvoEnv->m_fSvoFreezeTime = gEnv->pTimer->GetAsyncCurTime();
+				SAFE_DELETE(m_ppChilds[childId]);
+				gSvoEnv->m_svoFreezeTime = gEnv->pTimer->GetAsyncCurTime();
 				ZeroStruct(gSvoEnv->m_arrVoxelizeMeshesCounter);
 			}
 		}
@@ -934,42 +724,42 @@ void CSvoNode::Render(PodArray<struct SPvsItem>* pSortedPVS, uint64 nNodeKey, CR
 	if (Cry3DEngineBase::GetCVars()->e_svoTI_Active && m_pSeg && m_pSeg->m_eStreamingStatus == ecss_Ready && m_pSeg->m_pBlockInfo)
 		if (m_pSeg->m_dwChildTrisTest || (m_pSeg->GetBoxSize() > Cry3DEngineBase::GetCVars()->e_svoMaxNodeSize) || (Cry3DEngineBase::GetCVars()->e_svoTI_Troposphere_Subdivide))
 		{
-			if (fNodeToCamDist < fBoxSizeRated && !bDrawThisNode)
+			if (nodeToCamDist < boxSizeRated && !bDrawThisNode)
 			{
 				CheckAllocateChilds();
 			}
 		}
 
-	if ((!m_ppChilds || (fNodeToCamDist > fBoxSizeRated) || (fBoxSize <= Cry3DEngineBase::GetCVars()->e_svoMinNodeSize))
-	    || (!CVoxelSegment::m_voxCam.IsAABBVisible_E(m_nodeBox) && (fNodeToCamDist * 1.5 > fBoxSizeRated)))
+	if ((!m_ppChilds || (nodeToCamDist > boxSizeRated) || (boxSize <= Cry3DEngineBase::GetCVars()->e_svoMinNodeSize))
+	    || (!CVoxelSegment::m_voxCam.IsAABBVisible_E(m_nodeBox) && (nodeToCamDist * 1.5 > boxSizeRated)))
 	{
 		bDrawThisNode = true;
 	}
 
-	nTreeLevel++;
+	treeLevel++;
 
 	if (!bDrawThisNode && m_ppChilds)
 	{
 		if (Cry3DEngineBase::GetCVars()->e_svoDVR)
 		{
 			// check one child per frame
-			int nChildId = GetCurrPassMainFrameID() % 8;
+			int childId = GetCurrPassMainFrameID() % 8;
 
 			{
-				CSvoNode* pChild = m_ppChilds[nChildId];
+				CSvoNode* pChild = m_ppChilds[childId];
 				if (pChild && pChild->m_pSeg)
-					if (!pChild->CheckReadyForRendering(nTreeLevel, arrForStreaming))
+					if (!pChild->CheckReadyForRendering(treeLevel, arrForStreaming))
 						//					if(CVoxelSegment::voxCamera.IsAABBVisible_E(pChild->m_nodeBox))
 						bDrawThisNode = true;
 			}
 		}
 		else
 		{
-			for (int nChildId = 0; nChildId < 8; nChildId++)
+			for (int childId = 0; childId < 8; childId++)
 			{
-				CSvoNode* pChild = m_ppChilds[nChildId];
+				CSvoNode* pChild = m_ppChilds[childId];
 				if (pChild && pChild->m_pSeg)
-					if (!pChild->CheckReadyForRendering(nTreeLevel, arrForStreaming))
+					if (!pChild->CheckReadyForRendering(treeLevel, arrForStreaming))
 						//					if(CVoxelSegment::voxCamera.IsAABBVisible_E(pChild->m_nodeBox))
 						bDrawThisNode = true;
 			}
@@ -983,7 +773,7 @@ void CSvoNode::Render(PodArray<struct SPvsItem>* pSortedPVS, uint64 nNodeKey, CR
 			//			if(m_pCloud->m_voxVolumeBox.IsReset() || CVoxelSegment::voxCamera.IsAABBVisible_E(m_pCloud->m_voxVolumeBox))
 			{
 				if (CVoxelSegment::m_voxCam.IsAABBVisible_E(m_nodeBox))
-					m_pSeg->RenderMesh(pObj, arrVertsOut);
+					m_pSeg->RenderMesh(arrVertsOut);
 			}
 		}
 
@@ -1005,57 +795,29 @@ void CSvoNode::Render(PodArray<struct SPvsItem>* pSortedPVS, uint64 nNodeKey, CR
 	{
 		Vec3 vSrcCenter = m_nodeBox.GetCenter();
 
-		int nFirst =
+		int firstId =
 		  ((vCamPos.x > vSrcCenter.x) ? 4 : 0) |
 		  ((vCamPos.y > vSrcCenter.y) ? 2 : 0) |
 		  ((vCamPos.z > vSrcCenter.z) ? 1 : 0);
 
-		byte childId[8];
-		childId[0] = nFirst;
-		childId[1] = nFirst ^ 1;
-		childId[2] = nFirst ^ 2;
-		childId[3] = nFirst ^ 4;
-		childId[4] = nFirst ^ 3;
-		childId[5] = nFirst ^ 5;
-		childId[6] = nFirst ^ 6;
-		childId[7] = nFirst ^ 7;
+		byte arrChildId[8];
+		arrChildId[0] = firstId;
+		arrChildId[1] = firstId ^ 1;
+		arrChildId[2] = firstId ^ 2;
+		arrChildId[3] = firstId ^ 4;
+		arrChildId[4] = firstId ^ 3;
+		arrChildId[5] = firstId ^ 5;
+		arrChildId[6] = firstId ^ 6;
+		arrChildId[7] = firstId ^ 7;
 
 		for (int c = 0; c < 8; c++)
 		{
-			int nChildId = childId[c];
-			CSvoNode* pChild = m_ppChilds[nChildId];
+			int childId = arrChildId[c];
+			CSvoNode* pChild = m_ppChilds[childId];
 			if (pChild)
-				pChild->Render(NULL, (nNodeKey << 3) + (nChildId), pObj, nTreeLevel, arrVertsOut, arrForStreaming);
+				pChild->Render(nullptr, (nodeKey << 3) + (childId), treeLevel, arrVertsOut, arrForStreaming);
 		}
 	}
-}
-
-void CSvoNode::CollectResetVisNodes(PvsMap& arrNodes, uint64 nNodeKey)
-{
-	//  if(m_nVisId)
-	//  {
-	//    if(m_ppChilds)
-	//    {
-	//      std::pair<byte,byte> childVisMask;
-	//      childVisMask.first = childVisMask.second = 0;
-	//
-	//      for(int nChildId=0; nChildId<8; nChildId++)
-	//      {
-	//        if(m_ppChilds[nChildId])
-	//        {
-	//          childVisMask.first |= (1<<nChildId); // mark this info bit as valid
-	//          if(m_ppChilds[nChildId]->m_nVisId)
-	//            childVisMask.second |= (1<<nChildId);  // store vis flag
-	//
-	//          m_ppChilds[nChildId]->CollectResetVisNodes(arrNodes, (nNodeKey<<3) + nChildId);
-	//        }
-	//      }
-	//
-	//      arrNodes[nNodeKey] = childVisMask;
-	//    }
-	//
-	//    m_nVisId = 0;
-	//  }
 }
 
 Vec3* GeneratePointsOnHalfSphere(int n)
@@ -1073,7 +835,7 @@ Vec3* GeneratePointsOnHalfSphere(int n)
 
 	srand(0);
 
-	float fMinZ = 0.5f;
+	float minZ = 0.5f;
 
 	for (i = 0; i < n; i++)
 	{
@@ -1089,7 +851,7 @@ Vec3* GeneratePointsOnHalfSphere(int n)
 
 		p[i].Normalize();
 
-		p[i].z += fMinZ;
+		p[i].z += minZ;
 
 		p[i].Normalize();
 	}
@@ -1134,8 +896,8 @@ Vec3* GeneratePointsOnHalfSphere(int n)
 		p[minp1].y = p1.y - 0.01f * (p2.y - p1.y);
 		p[minp1].z = p1.z - 0.01f * (p2.z - p1.z);
 
-		p[minp2].z = max(p[minp2].z, fMinZ);
-		p[minp1].z = max(p[minp1].z, fMinZ);
+		p[minp2].z = max(p[minp2].z, minZ);
+		p[minp1].z = max(p[minp1].z, minZ);
 
 		p[minp1].Normalize();
 		p[minp2].Normalize();
@@ -1153,111 +915,97 @@ CSvoEnv::CSvoEnv(const AABB& worldBox)
 	gSvoEnv = this;
 
 	m_vSvoOriginAndSize = Vec4(worldBox.min, worldBox.max.x - worldBox.min.x);
-	m_nDebugDrawVoxelsCounter = 0;
-	m_nVoxTexFormat = eTF_R8G8B8A8; // eTF_BC3
+	m_debugDrawVoxelsCounter = 0;
+	m_voxTexFormat = eTF_R8G8B8A8; // eTF_BC3
 
-	#ifdef FEATURE_SVO_GI_ALLOW_HQ
-		#ifdef FEATURE_SVO_GI_USE_MESH_RT
-	m_nTexTrisPoolId = 0;
-		#endif
-	m_nTexRgb0PoolId = 0;
-	m_nTexRgb1PoolId = 0;
-	m_nTexDynlPoolId = 0;
-	m_nTexRgb2PoolId = 0;
-	m_nTexRgb3PoolId = 0;
-	m_nTexRgb4PoolId = 0;
-	m_nTexNormPoolId = 0;
-	m_nTexAldiPoolId = 0;
+	#ifdef FEATURE_SVO_GI_USE_MESH_RT
+	m_texTrisPoolId = 0;
 	#endif
-	m_nTexOpasPoolId = 0;
-	m_nTexNodePoolId = 0;
+	m_texRgb0PoolId = 0;
+	m_texRgb1PoolId = 0;
+	m_texDynlPoolId = 0;
+	m_texRgb2PoolId = 0;
+	m_texRgb3PoolId = 0;
+	m_texRgb4PoolId = 0;
+	m_texNormPoolId = 0;
+	m_texAldiPoolId = 0;
+	m_texOpasPoolId = 0;
+	m_texNodePoolId = 0;
 
 	m_prevCheckVal = -1000000;
-	m_matDvrTm = Matrix44(Matrix34::CreateIdentity());
-	m_fStreamingStartTime = 0;
-	m_nNodeCounter = 0;
-	m_nDynNodeCounter_DYNL = m_nDynNodeCounter = 0;
+	m_streamingStartTime = 0;
+	m_nodeCounter = 0;
+	m_dynNodeCounter_DYNL = m_dynNodeCounter = 0;
 
 	if (GetCVars()->e_svoTI_Active)
 		GetCVars()->e_svoVoxelPoolResolution = min((int)256, GetCVars()->e_svoVoxelPoolResolution);
 
-	CVoxelSegment::nVoxTexPoolDimXY = min(GetCVars()->e_svoVoxelPoolResolution, (int)512);
-	CVoxelSegment::nVoxTexPoolDimZ = min(GetCVars()->e_svoVoxelPoolResolution, (int)1024);
-	CVoxelSegment::nVoxTexPoolDimZ = max(CVoxelSegment::nVoxTexPoolDimZ, (int)256);
+	CVoxelSegment::m_voxTexPoolDimXY = min(GetCVars()->e_svoVoxelPoolResolution, (int)512);
+	CVoxelSegment::m_voxTexPoolDimZ = min(GetCVars()->e_svoVoxelPoolResolution, (int)1024);
+	CVoxelSegment::m_voxTexPoolDimZ = max(CVoxelSegment::m_voxTexPoolDimZ, (int)256);
 
 	m_worldBox = worldBox;
 	m_bReady = false;
-	m_pSvoRoot = new CSvoNode(AABB(Vec3(0, 0, 0), Vec3((float)GetCVars()->e_svoRootSize)), NULL);
-	m_pGlobalSpecCM = (ITexture*)0;
-	m_fGlobalSpecCM_Mult = 1;
-	m_fSvoFreezeTime = -1;
+
+	AllocateRootNode();
+
+	m_pGlobalEnvProbe = nullptr;
+	m_svoFreezeTime = -1;
 	ZeroStruct(gSvoEnv->m_arrVoxelizeMeshesCounter);
 	GetRenderer()->GetISvoRenderer(); // allocate SVO sub-system in renderer
 	m_bFirst_SvoFreezeTime = m_bFirst_StartStreaming = true;
 	m_bStreamingDonePrev = false;
+
+	m_pStreamEngine = new CVoxStreamEngine();
 }
 
 CSvoEnv::~CSvoEnv()
 {
-	// wait until all streaming requests are complete
-	while (CVoxelSegment::m_nStreamingTasksInProgress)
-	{
-		CrySleep(20);
-		CVoxelSegment::UpdateStreamingEngine();
-	}
+	SAFE_DELETE(m_pStreamEngine);
+	assert(CVoxelSegment::m_streamingTasksInProgress == 0);
 
 	SAFE_DELETE(m_pSvoRoot);
 
-	#ifdef FEATURE_SVO_GI_ALLOW_HQ
-		#ifdef FEATURE_SVO_GI_USE_MESH_RT
-	GetRenderer()->RemoveTexture(m_nTexTrisPoolId);
-		#endif
-	GetRenderer()->RemoveTexture(m_nTexRgb0PoolId);
-	GetRenderer()->RemoveTexture(m_nTexRgb1PoolId);
-	GetRenderer()->RemoveTexture(m_nTexDynlPoolId);
-	GetRenderer()->RemoveTexture(m_nTexRgb2PoolId);
-	GetRenderer()->RemoveTexture(m_nTexRgb3PoolId);
-	GetRenderer()->RemoveTexture(m_nTexRgb4PoolId);
-	GetRenderer()->RemoveTexture(m_nTexNormPoolId);
-	GetRenderer()->RemoveTexture(m_nTexAldiPoolId);
+	#ifdef FEATURE_SVO_GI_USE_MESH_RT
+	GetRenderer()->RemoveTexture(m_texTrisPoolId);
 	#endif
-	GetRenderer()->RemoveTexture(m_nTexOpasPoolId);
-	GetRenderer()->RemoveTexture(m_nTexNodePoolId);
+	GetRenderer()->RemoveTexture(m_texRgb0PoolId);
+	GetRenderer()->RemoveTexture(m_texRgb1PoolId);
+	GetRenderer()->RemoveTexture(m_texDynlPoolId);
+	GetRenderer()->RemoveTexture(m_texRgb2PoolId);
+	GetRenderer()->RemoveTexture(m_texRgb3PoolId);
+	GetRenderer()->RemoveTexture(m_texRgb4PoolId);
+	GetRenderer()->RemoveTexture(m_texNormPoolId);
+	GetRenderer()->RemoveTexture(m_texAldiPoolId);
+	GetRenderer()->RemoveTexture(m_texOpasPoolId);
+	GetRenderer()->RemoveTexture(m_texNodePoolId);
+	CVoxelSegment::m_svoDataPoolsCounter = 0;
 
 	GetCVars()->e_svoTI_Active = 0;
 	GetCVars()->e_svoTI_Apply = 0;
 	GetCVars()->e_svoLoadTree = 0;
 	GetCVars()->e_svoEnabled = 0;
-	gSvoEnv = NULL;
+	gSvoEnv = nullptr;
 
 	{
 		AUTO_MODIFYLOCK(CVoxelSegment::m_arrLockedTextures.m_Lock);
-		for (int i = 0; i < CVoxelSegment::m_arrLockedTextures.Count(); i++)
-			CVoxelSegment::m_arrLockedTextures[i]->Release();
-		CVoxelSegment::m_arrLockedTextures.Reset();
+		CVoxelSegment::m_arrLockedTextures.clear();
 	}
 
 	{
 		AUTO_MODIFYLOCK(CVoxelSegment::m_arrLockedMaterials.m_Lock);
-		for (int i = 0; i < CVoxelSegment::m_arrLockedMaterials.Count(); i++)
-			CVoxelSegment::m_arrLockedMaterials[i]->Release();
-		CVoxelSegment::m_arrLockedMaterials.Reset();
-	}
-
-	if (gEnv->pRenderer)
-	{
-		gEnv->pRenderer->FreeResources(FRR_SVOGI);
+		CVoxelSegment::m_arrLockedMaterials.clear();
 	}
 }
 
-void CSvoNode::CheckAllocateSegment(int nLod)
+void CSvoNode::CheckAllocateSegment(int lodId)
 {
 	if (!m_pSeg)
 	{
-		int nCloudId = CVoxelSegment::m_nNextCloudId;
-		CVoxelSegment::m_nNextCloudId++;
+		int segmentId = CVoxelSegment::m_nextSegmentId;
+		CVoxelSegment::m_nextSegmentId++;
 
-		AllocateSegment(nCloudId, -1, nLod, ecss_Ready, false);
+		AllocateSegment(segmentId, -1, lodId, ecss_Ready, false);
 	}
 }
 
@@ -1269,9 +1017,9 @@ CSvoNode::CSvoNode(const AABB& box, CSvoNode* pParent)
 	m_nodeBox = box;
 
 	if (!pParent)
-		gSvoEnv->m_vSvoOriginAndSize = Vec4(box.min, box.max.x- box.min.x);
+		gSvoEnv->m_vSvoOriginAndSize = Vec4(box.min, box.max.x - box.min.x);
 
-	gSvoEnv->m_nNodeCounter++;
+	gSvoEnv->m_nodeCounter++;
 }
 
 CSvoNode::~CSvoNode()
@@ -1285,70 +1033,200 @@ CSvoNode::~CSvoNode()
 	}
 	m_pSeg = 0;
 
-	gSvoEnv->m_nNodeCounter--;
+	SAFE_DELETE_ARRAY(m_pChildFileOffsets);
+
+	gSvoEnv->m_nodeCounter--;
 }
 
-void CSvoNode::Load(int*& pData, int& nNodesCreated, CSvoNode* pParent, AABB* pAreaBox)
+uint32 CSvoNode::SaveNode(PodArray<byte>& rS, uint32& nodesCounterRec, ICryArchive* pArchive, uint32& totalSizeCounter)
 {
-	m_pParent = pParent;
+	assert(m_pSeg);
 
-	int nChildsMask = *pData;
-	pData++;
-
-	if (nChildsMask)
+	if (m_pSeg->m_eStreamingStatus != ecss_Ready)
 	{
-		if (!m_ppChilds)
+		assert(m_pSeg->m_eStreamingStatus != ecss_InProgress);
+
+		// start streaming
+		m_pSeg->m_eStreamingStatus = ecss_InProgress;
+		m_pSeg->m_streamingTasksInProgress++;
+
+		// async callback
+		m_pSeg->VoxelizeMeshes(0, true);
+
+		// sync callback
+		m_pSeg->StreamOnComplete(0, 0);
+	}
+
+	assert(m_pSeg->m_eStreamingStatus == ecss_Ready);
+
+	// auto allocate new childs same way it happens during rendering
+	if (Cry3DEngineBase::GetCVars()->e_svoTI_Active && m_pSeg && m_pSeg->m_eStreamingStatus == ecss_Ready /*&& m_pSeg->m_pBlockInfo*/)
+	{
+		if (m_pSeg->m_dwChildTrisTest || (m_pSeg->GetBoxSize() > Cry3DEngineBase::GetCVars()->e_svoMaxNodeSize) || (Cry3DEngineBase::GetCVars()->e_svoTI_Troposphere_Subdivide))
 		{
-			m_ppChilds = new CSvoNode*[8];
-			memset(m_ppChilds, 0, sizeof(m_ppChilds[0]) * 8);
+			CheckAllocateChilds();
 		}
 	}
 
-	for (int nChildId = 0; nChildId < 8; nChildId++)
+	if (m_nodeBox.GetSize().x > SVO_ROOTLESS_PARENT_SIZE)
 	{
-		if (nChildsMask & (1 << nChildId))
+		// just continue recursion
+
+		for (int childId = 0; childId < 8; childId++)
 		{
-			if (!m_ppChilds[nChildId])
-				m_ppChilds[nChildId] = new CSvoNode(GetChildBBox(nChildId), this);
-			nNodesCreated++;
+			if (m_ppChilds && m_ppChilds[childId])
+			{
+				m_ppChilds[childId]->SaveNode(rS, nodesCounterRec, pArchive, totalSizeCounter);
+			}
 		}
-		else if (m_ppChilds && m_ppChilds[nChildId])
+
+		return 0;
+	}
+	else if (m_nodeBox.GetSize().x == SVO_ROOTLESS_PARENT_SIZE)
+	{
+		// create new export file for every child and continue recursion
+
+		for (int childId = 0; childId < 8; childId++)
 		{
-			SAFE_DELETE(m_ppChilds[nChildId]);
+			if (m_ppChilds && m_ppChilds[childId])
+			{
+				char szFileName[256];
+				m_ppChilds[childId]->MakeNodeFilePath(szFileName);
+
+				if (pArchive->FindFile(szFileName) == nullptr)
+				{
+					PodArray<byte> arrSvoData;
+					arrSvoData.PreAllocate(32 * 1024 * 1024);
+
+					uint32 nodesCounter = 0;
+					float startTime = Cry3DEngineBase::GetTimer()->GetAsyncCurTime();
+
+					AABB terrainBox = AABB(Vec3(0, 0, 0), Vec3((float)gEnv->p3DEngine->GetTerrainSize(), (float)gEnv->p3DEngine->GetTerrainSize(), (float)gEnv->p3DEngine->GetTerrainSize()));
+					terrainBox.Expand(-Vec3(Cry3DEngineBase::GetCVars()->e_svoTI_VoxelizationMapBorder + 1.f, Cry3DEngineBase::GetCVars()->e_svoTI_VoxelizationMapBorder + 1.f, 0));
+					bool isInPlayableArea = terrainBox.IsIntersectBox(m_ppChilds[childId]->m_nodeBox);
+
+					if (isInPlayableArea && !CVoxelSegment::m_bExportAbortRequested)
+					{
+						m_ppChilds[childId]->SaveNode(arrSvoData, nodesCounter, pArchive, totalSizeCounter);
+					}
+
+					if (nodesCounter)
+					{
+						assert(pArchive);
+
+						// We do not use PAK compression because we will stream from those files (each SVO node is compressed independently)
+						pArchive->UpdateFile(szFileName, arrSvoData.GetElements(), arrSvoData.GetDataSize(), ICryArchive::METHOD_STORE);
+						totalSizeCounter += arrSvoData.GetDataSize();
+
+						int areaGridDim = int(Cry3DEngineBase::Get3DEngine()->GetTerrainSize() / (SVO_ROOTLESS_PARENT_SIZE / 2));
+						Cry3DEngineBase::PrintMessage("Exported segment %s, Progress = %d %%", szFileName, int(100.f * float(CVoxelSegment::m_exportVisitedAreasCounter) / float(areaGridDim * areaGridDim * areaGridDim)));
+
+						Cry3DEngineBase::PrintMessage("%d KB stored in %.1f sec (%d nodes, total size = %.1f MB)",
+						                              arrSvoData.Count() / 1024, Cry3DEngineBase::GetTimer()->GetAsyncCurTime() - startTime,
+						                              nodesCounter, (float)totalSizeCounter / 1024.f / 1024.f);
+					}
+					else
+					{
+						pArchive->RemoveFile(szFileName);
+					}
+				}
+
+				SAFE_DELETE(m_ppChilds[childId]);
+
+				CVoxelSegment::m_exportVisitedAreasCounter++;
+			}
+		}
+
+		return 0;
+	}
+
+	assert(m_pSeg);
+
+	assert(m_pParent); // levels smaller than SVO_ROOTLESS_PARENT_SIZE not supported for now
+
+	#ifdef SVO_DEBUG
+	Vec3i vKey = (Vec3i)m_nodeBox.GetCenter();
+	int boxSize = (int)m_nodeBox.GetSize().z;
+	if (boxSize == Cry3DEngineBase::GetCVars()->e_svoMaxNodeSize)
+	{
+		Cry3DEngineBase::PrintMessage("Voxelizing SVO area %04d_%04d_%04d_%04d", vKey.x, vKey.y, vKey.z, boxSize);
+	}
+	#endif
+
+	uint32 nNodeDataSize = rS.Count();
+
+	m_pSeg->SaveVoxels(rS);
+
+	if (m_pSeg->m_voxData.pData[SVoxBrick::OPA3D] ? (m_pSeg->m_vCropTexSize.x * m_pSeg->m_vCropTexSize.y * m_pSeg->m_vCropTexSize.z * sizeof(ColorB)) : 0)
+	{
+		nodesCounterRec++;
+	}
+
+	if (!(++CVoxelSegment::m_exportVisitedNodesCounter % 2000))
+	{
+		Cry3DEngineBase::PrintMessage("SVO nodes processed: %d K", CVoxelSegment::m_exportVisitedNodesCounter / 1000);
+
+		if (Cry3DEngineBase::IsEscapePressed())
+		{
+			if (!CVoxelSegment::m_bExportAbortRequested)
+			{
+				Cry3DEngineBase::PrintMessage("Aborting SVO export process with the ESC Key");
+			}
+
+			CVoxelSegment::m_bExportAbortRequested = true;
 		}
 	}
 
-	int nCloudsNum = *pData;
-	pData++;
+	// calculate node data size
+	nNodeDataSize = (rS.Count() - nNodeDataSize);
 
-	if (nCloudsNum)
+	// information about childs is appended only if childs exist; at loading time presence of this chunk will be detected by size of remaining data
+	if (m_ppChilds && !CVoxelSegment::m_bExportAbortRequested)
 	{
-		int nCloudId = *pData;
-		pData++;
-		if (!m_pSeg)
-			AllocateSegment(nCloudId, 0, ecss_NotLoaded, ecss_NotLoaded, true);
-		m_pSeg->m_nFileStreamOffset64 = *(int64*)pData;
-		pData++;
-		pData++;
-		m_pSeg->m_nFileStreamSize = *pData;
-		pData++;
-	}
-	else
-	{
-		SAFE_DELETE(m_pSeg);
+		int childOffsetsPos = rS.Count();
+
+		const uint32 arrZeros[8 * 2] = { 0 };
+
+		// preallocate space for child offsets
+		rS.AddList((byte*)arrZeros, sizeof(arrZeros)); // file offset
+
+		for (int childId = 0; childId < 8; childId++)
+		{
+			if (m_ppChilds && m_ppChilds[childId])
+			{
+				((uint32*)&rS[childOffsetsPos])[childId * 2 + 0] = rS.Count();  // file offset
+
+				int childNodeDataSize = m_ppChilds[childId]->SaveNode(rS, nodesCounterRec, pArchive, totalSizeCounter);
+
+				((uint32*)&rS[childOffsetsPos])[childId * 2 + 1] = childNodeDataSize;  // file data size
+			}
+		}
+
+		nNodeDataSize += 8 * sizeof(uint32) * 2;
 	}
 
-	if (pAreaBox && !Overlap::AABB_AABB(*pAreaBox, m_nodeBox))
-		return;
-
-	for (int nChildId = 0; nChildId < 8; nChildId++)
+	#ifdef SVO_DEBUG
+	if (boxSize == Cry3DEngineBase::GetCVars()->e_svoMaxNodeSize)
 	{
-		if (m_ppChilds && m_ppChilds[nChildId])
-			m_ppChilds[nChildId]->Load(pData, nNodesCreated, this, pAreaBox);
+		Cry3DEngineBase::PrintMessage("%d tris voxelized", m_pSeg->m_pTrisInArea ? m_pSeg->m_pTrisInArea->Count() : 0);
 	}
+	#endif
+
+	return nNodeDataSize;
 }
 
-CVoxelSegment* CSvoNode::AllocateSegment(int nCloudId, int nStationId, int nLod, EFileStreamingStatus eStreamingStatus, bool bDroppedOnDisk)
+void CSvoNode::MakeNodeFilePath(char* szFileName)
+{
+	Vec3_tpl<uint16> vPos = (Vec3_tpl<uint16> )m_nodeBox.GetCenter();
+
+	uint16 nBoxSize = (uint16)m_nodeBox.GetSize().z;
+
+	const char* pLevelPath = Cry3DEngineBase::Get3DEngine()->GetLevelFilePath(COMPILED_SVO_FOLDER_NAME);
+
+	sprintf(szFileName, "%s%04d_%04d_%04d_%04d.crysvo", pLevelPath, vPos.x, vPos.y, vPos.z, nBoxSize);
+}
+
+CVoxelSegment* CSvoNode::AllocateSegment(int segmentId, int stationId, int lodId, EFileStreamingStatus eStreamingStatus, bool bDroppedOnDisk)
 {
 	CVoxelSegment* pCloud = new CVoxelSegment(this, true, eStreamingStatus, bDroppedOnDisk);
 
@@ -1359,7 +1237,7 @@ CVoxelSegment* CSvoNode::AllocateSegment(int nCloudId, int nStationId, int nLod,
 	pCloud->SetBoxOS(cloudBox);
 	//	pCloud->SetRenderBBox(m_nodeBox);
 
-	pCloud->SetID(nCloudId);
+	pCloud->SetID(segmentId);
 	//pCloud->m_nStationId = nStationId;
 	pCloud->m_vSegOrigin = vCenter;
 
@@ -1377,19 +1255,19 @@ Vec3i CSvoNode::GetStatGeomCheckSumm()
 {
 	Vec3i vCheckSumm(0, 0, 0);
 
-	float fNodeSize = m_nodeBox.GetSize().x;
+	float nodeSize = m_nodeBox.GetSize().x;
 
-	if (fNodeSize > Cry3DEngineBase::GetCVars()->e_svoMaxNodeSize)
+	if (nodeSize > Cry3DEngineBase::GetCVars()->e_svoMaxNodeSize)
 		return vCheckSumm;
 
 	PodArray<IRenderNode*> lstObjects;
 	AABB boxEx = m_nodeBox;
-	float fBorder = fNodeSize / nVoxTexMaxDim;
-	boxEx.Expand(Vec3(fBorder, fBorder, fBorder));
+	float border = nodeSize / SVO_VOX_BRICK_MAX_SIZE;
+	boxEx.Expand(Vec3(border, border, border));
 	Cry3DEngineBase::Get3DEngine()->GetObjectsByTypeGlobal(lstObjects, eERType_Brush, &boxEx);
 	Cry3DEngineBase::Get3DEngine()->GetVisAreaManager()->GetObjectsByType(lstObjects, eERType_Brush, &boxEx);
 
-	float fPrecisioin = 1000;
+	float precisioin = 1000;
 
 	for (int i = 0; i < lstObjects.Count(); i++)
 	{
@@ -1407,8 +1285,8 @@ Vec3i CSvoNode::GetStatGeomCheckSumm()
 
 		if (pStatObj && pStatObj->m_eStreamingStatus == ecss_Ready)
 		{
-			vCheckSumm += Vec3i(box.min * fPrecisioin);
-			vCheckSumm += Vec3i(box.max * fPrecisioin * 2);
+			vCheckSumm += Vec3i(box.min * precisioin);
+			vCheckSumm += Vec3i(box.max * precisioin * 2);
 			vCheckSumm.x += uint16(((uint64)pNode->GetMaterial()) / 64);
 		}
 	}
@@ -1423,8 +1301,8 @@ Vec3i CSvoNode::GetStatGeomCheckSumm()
 		if (!Overlap::AABB_AABB(*pVisArea->GetAABBox(), m_nodeBox))
 			continue;
 
-		vCheckSumm += Vec3i(pVisArea->GetAABBox()->min * fPrecisioin);
-		vCheckSumm += Vec3i(pVisArea->GetAABBox()->max * fPrecisioin * 2);
+		vCheckSumm += Vec3i(pVisArea->GetAABBox()->min * precisioin);
+		vCheckSumm += Vec3i(pVisArea->GetAABBox()->max * precisioin * 2);
 	}
 
 	return vCheckSumm;
@@ -1432,13 +1310,13 @@ Vec3i CSvoNode::GetStatGeomCheckSumm()
 
 void CSvoNode::UpdateNodeRenderDataPtrs()
 {
-	if (m_pSeg && m_ppChilds && m_pSeg->m_pBlockInfo && m_pSeg->m_nChildOffsetsDirty)
+	if (m_pSeg && m_ppChilds && m_pSeg->m_pBlockInfo && m_pSeg->m_bChildOffsetsDirty)
 	{
 		ZeroStruct(m_pSeg->m_arrChildOffset);
 
-		for (int nChildId = 0; nChildId < 8; nChildId++)
+		for (int childId = 0; childId < 8; childId++)
 		{
-			CSvoNode* pChildNode = m_ppChilds[nChildId];
+			CSvoNode* pChildNode = m_ppChilds[childId];
 
 			if (pChildNode && pChildNode->m_pSeg)
 			{
@@ -1446,41 +1324,41 @@ void CSvoNode::UpdateNodeRenderDataPtrs()
 
 				if (pChildNode->m_pSeg->CheckUpdateBrickRenderData(true))
 				{
-					m_pSeg->m_arrChildOffset[nChildId] = pChildNode->m_pSeg->m_nAllocatedAtlasOffset;
+					m_pSeg->m_arrChildOffset[childId] = pChildNode->m_pSeg->m_allocatedAtlasOffset;
 
-					int nAllChildsNum = 0;
-					int nReadyChildsNum = 0;
+					int allChildsNum = 0;
+					int readyChildsNum = 0;
 
 					if (pChildNode->m_ppChilds)
 					{
-						for (int nSubChildId = 0; nSubChildId < 8; nSubChildId++)
+						for (int subChildId = 0; subChildId < 8; subChildId++)
 						{
-							if (CSvoNode* pSubChildNode = pChildNode->m_ppChilds[nSubChildId])
+							if (CSvoNode* pSubChildNode = pChildNode->m_ppChilds[subChildId])
 							{
 								if (pSubChildNode->m_pSeg)
 								{
-									nAllChildsNum++;
+									allChildsNum++;
 									if (pSubChildNode->m_pSeg->CheckUpdateBrickRenderData(true))
-										nReadyChildsNum++;
+										readyChildsNum++;
 								}
 							}
 						}
 					}
 
-					if (nAllChildsNum != nReadyChildsNum || !nAllChildsNum)
-						m_pSeg->m_arrChildOffset[nChildId] = -m_pSeg->m_arrChildOffset[nChildId];
+					if (allChildsNum != readyChildsNum || !allChildsNum)
+						m_pSeg->m_arrChildOffset[childId] = -m_pSeg->m_arrChildOffset[childId];
 				}
 			}
-			/*	else if(m_arrChildNotNeeded[nChildId])
+			/*	else if(m_arrChildNotNeeded[childId])
 			   {
-			    m_pCloud->m_arrChildOffset[nChildId] = 0;//-3000;
+			    m_pCloud->m_arrChildOffset[childId] = 0;//-3000;
 			   }*/
 		}
 
-		if (m_pSeg->m_nChildOffsetsDirty == 2)
+		if (m_pSeg->m_bChildOffsetsDirty == 2)
 			m_pSeg->UpdateNodeRenderData();
 
-		m_pSeg->m_nChildOffsetsDirty = 0;
+		m_pSeg->m_bChildOffsetsDirty = 0;
 	}
 }
 
@@ -1537,14 +1415,14 @@ bool CSvoNode::IsStreamingInProgress()
 		return true;
 
 	if (m_ppChilds)
-		for (int nChildId = 0; nChildId < 8; nChildId++)
-			if (m_ppChilds[nChildId] && m_ppChilds[nChildId]->IsStreamingInProgress())
+		for (int childId = 0; childId < 8; childId++)
+			if (m_ppChilds[childId] && m_ppChilds[childId]->IsStreamingInProgress())
 				return true;
 
 	return false;
 }
 
-void CSvoNode::GetTrisInAreaStats(int& nTrisCount, int& nVertCount, int& nTrisBytes, int& nVertBytes, int& nMaxVertPerArea, int& nMatsCount)
+void CSvoNode::GetTrisInAreaStats(int& trisCount, int& vertCount, int& trisBytes, int& vertBytes, int& maxVertPerArea, int& matsCount)
 {
 
 	if (m_pSeg && m_pSeg->m_pTrisInArea)
@@ -1553,38 +1431,38 @@ void CSvoNode::GetTrisInAreaStats(int& nTrisCount, int& nVertCount, int& nTrisBy
 		{
 			AUTO_READLOCK(m_pSeg->m_superMeshLock);
 
-			nTrisBytes += m_pSeg->m_pTrisInArea->ComputeSizeInMemory();
-			nVertBytes += m_pSeg->m_pVertInArea->ComputeSizeInMemory();
+			trisBytes += m_pSeg->m_pTrisInArea->ComputeSizeInMemory();
+			vertBytes += m_pSeg->m_pVertInArea->ComputeSizeInMemory();
 
-			nTrisCount += m_pSeg->m_pTrisInArea->Count();
-			nVertCount += m_pSeg->m_pVertInArea->Count();
+			trisCount += m_pSeg->m_pTrisInArea->Count();
+			vertCount += m_pSeg->m_pVertInArea->Count();
 
-			nMaxVertPerArea = max(nMaxVertPerArea, m_pSeg->m_pVertInArea->Count());
+			maxVertPerArea = max(maxVertPerArea, m_pSeg->m_pVertInArea->Count());
 
-			nMatsCount += m_pSeg->m_pMatsInArea->Count();
+			matsCount += m_pSeg->m_pMatsInArea->Count();
 		}
 	}
 	else if (m_ppChilds)
 	{
-		for (int nChildId = 0; nChildId < 8; nChildId++)
-			if (m_ppChilds[nChildId])
-				m_ppChilds[nChildId]->GetTrisInAreaStats(nTrisCount, nVertCount, nTrisBytes, nVertBytes, nMaxVertPerArea, nMatsCount);
+		for (int childId = 0; childId < 8; childId++)
+			if (m_ppChilds[childId])
+				m_ppChilds[childId]->GetTrisInAreaStats(trisCount, vertCount, trisBytes, vertBytes, maxVertPerArea, matsCount);
 	}
 }
 
-void CSvoNode::GetVoxSegMemUsage(int& nAllocated)
+void CSvoNode::GetVoxSegMemUsage(int& allocated)
 {
 	if (m_pSeg)
 	{
-		nAllocated += m_pSeg->m_nodeTrisAllMerged.capacity() * sizeof(int);
-		nAllocated += sizeof(*m_pSeg);
+		allocated += m_pSeg->m_nodeTrisAllMerged.capacity() * sizeof(int);
+		allocated += sizeof(*m_pSeg);
 	}
 
 	if (m_ppChilds)
 	{
-		for (int nChildId = 0; nChildId < 8; nChildId++)
-			if (m_ppChilds[nChildId])
-				m_ppChilds[nChildId]->GetVoxSegMemUsage(nAllocated);
+		for (int childId = 0; childId < 8; childId++)
+			if (m_ppChilds[childId])
+				m_ppChilds[childId]->GetVoxSegMemUsage(allocated);
 	}
 }
 
@@ -1592,8 +1470,8 @@ void CSvoNode::DeleteChilds()
 {
 	if (m_ppChilds)
 	{
-		for (int nChildId = 0; nChildId < 8; nChildId++)
-			SAFE_DELETE(m_ppChilds[nChildId]);
+		for (int childId = 0; childId < 8; childId++)
+			SAFE_DELETE(m_ppChilds[childId]);
 		SAFE_DELETE_ARRAY(m_ppChilds);
 	}
 }
@@ -1609,20 +1487,20 @@ bool CPointTreeNode::GetAllPointsInTheBox(const AABB& testBox, const AABB& nodeB
 
 			if (testBox.IsContainPoint(vPos))
 			{
-				arrIds.Add((*m_pPoints)[s].nId);
+				arrIds.Add((*m_pPoints)[s].id);
 			}
 		}
 	}
 
 	if (m_ppChilds)
 	{
-		for (int nChildId = 0; nChildId < 8; nChildId++)
+		for (int childId = 0; childId < 8; childId++)
 		{
-			if (m_ppChilds[nChildId])
+			if (m_ppChilds[childId])
 			{
-				AABB childBox = GetChildBBox(nChildId, nodeBox);
+				AABB childBox = GetChildBBox(childId, nodeBox);
 				if (Overlap::AABB_AABB(testBox, childBox))
-					if (m_ppChilds[nChildId]->GetAllPointsInTheBox(testBox, childBox, arrIds))
+					if (m_ppChilds[childId]->GetAllPointsInTheBox(testBox, childBox, arrIds))
 						return true;
 			}
 		}
@@ -1649,13 +1527,13 @@ bool CPointTreeNode::IsThereAnyPointInTheBox(const AABB& testBox, const AABB& no
 
 	if (m_ppChilds)
 	{
-		for (int nChildId = 0; nChildId < 8; nChildId++)
+		for (int childId = 0; childId < 8; childId++)
 		{
-			if (m_ppChilds[nChildId])
+			if (m_ppChilds[childId])
 			{
-				AABB childBox = GetChildBBox(nChildId, nodeBox);
+				AABB childBox = GetChildBBox(childId, nodeBox);
 				if (Overlap::AABB_AABB(testBox, childBox))
-					if (m_ppChilds[nChildId]->IsThereAnyPointInTheBox(testBox, childBox))
+					if (m_ppChilds[childId]->IsThereAnyPointInTheBox(testBox, childBox))
 						return true;
 			}
 		}
@@ -1664,22 +1542,22 @@ bool CPointTreeNode::IsThereAnyPointInTheBox(const AABB& testBox, const AABB& no
 	return false;
 }
 
-bool CPointTreeNode::TryInsertPoint(int nId, const Vec3& vPos, const AABB& nodeBox, int nRecursionLevel)
+bool CPointTreeNode::TryInsertPoint(int pointId, const Vec3& vPos, const AABB& nodeBox, int recursionLevel)
 {
-	if (nRecursionLevel >= 7)
+	if (recursionLevel >= 7)
 	{
 		if (!m_pPoints)
 			m_pPoints = new PodArray<SPointInfo>;
 		SPointInfo info;
 		info.vPos = vPos;
-		info.nId = nId;
+		info.id = pointId;
 		m_pPoints->Add(info);
 		return true;
 	}
 
 	Vec3 vNodeCenter = nodeBox.GetCenter();
 
-	int nChildId =
+	int childId =
 	  ((vPos.x >= vNodeCenter.x) ? 4 : 0) |
 	  ((vPos.y >= vNodeCenter.y) ? 2 : 0) |
 	  ((vPos.z >= vNodeCenter.z) ? 1 : 0);
@@ -1690,28 +1568,28 @@ bool CPointTreeNode::TryInsertPoint(int nId, const Vec3& vPos, const AABB& nodeB
 		memset(m_ppChilds, 0, sizeof(m_ppChilds[0]) * 8);
 	}
 
-	AABB childBox = GetChildBBox(nChildId, nodeBox);
+	AABB childBox = GetChildBBox(childId, nodeBox);
 
-	if (!m_ppChilds[nChildId])
-		m_ppChilds[nChildId] = new CPointTreeNode();
+	if (!m_ppChilds[childId])
+		m_ppChilds[childId] = new CPointTreeNode();
 
-	return m_ppChilds[nChildId]->TryInsertPoint(nId, vPos, childBox, nRecursionLevel + 1);
+	return m_ppChilds[childId]->TryInsertPoint(pointId, vPos, childBox, recursionLevel + 1);
 }
 
 void CPointTreeNode::Clear()
 {
 	if (m_ppChilds)
-		for (int nChildId = 0; nChildId < 8; nChildId++)
-			SAFE_DELETE(m_ppChilds[nChildId]);
+		for (int childId = 0; childId < 8; childId++)
+			SAFE_DELETE(m_ppChilds[childId]);
 	SAFE_DELETE_ARRAY(m_ppChilds);
 	SAFE_DELETE_ARRAY(m_pPoints);
 }
 
-AABB CPointTreeNode::GetChildBBox(int nChildId, const AABB& nodeBox)
+AABB CPointTreeNode::GetChildBBox(int childId, const AABB& nodeBox)
 {
-	int x = (nChildId / 4);
-	int y = (nChildId - x * 4) / 2;
-	int z = (nChildId - x * 4 - y * 2);
+	int x = (childId / 4);
+	int y = (childId - x * 4) / 2;
+	int z = (childId - x * 4 - y * 2);
 	Vec3 vSize = nodeBox.GetSize() * 0.5f;
 	Vec3 vOffset = vSize;
 	vOffset.x *= x;
@@ -1727,35 +1605,36 @@ bool CSvoEnv::GetSvoStaticTextures(I3DEngine::SSvoStaticTexInfo& svoInfo, PodArr
 {
 	AUTO_LOCK(m_csLockTree);
 
-	svoInfo.pTexTree = GetRenderer()->EF_GetTextureByID(m_nTexNodePoolId);
-	svoInfo.pTexOpac = GetRenderer()->EF_GetTextureByID(m_nTexOpasPoolId);
+	svoInfo.pTexTree = GetRenderer()->EF_GetTextureByID(m_texNodePoolId);
+	svoInfo.pTexOpac = GetRenderer()->EF_GetTextureByID(m_texOpasPoolId);
 
-	#ifdef FEATURE_SVO_GI_ALLOW_HQ
-		#ifdef FEATURE_SVO_GI_USE_MESH_RT
-	svoInfo.pTexTris = GetRenderer()->EF_GetTextureByID(m_nTexTrisPoolId);
-		#endif
-	svoInfo.pTexRgb0 = GetRenderer()->EF_GetTextureByID(m_nTexRgb0PoolId);
-	svoInfo.pTexRgb1 = GetRenderer()->EF_GetTextureByID(m_nTexRgb1PoolId);
-	svoInfo.pTexDynl = GetRenderer()->EF_GetTextureByID(m_nTexDynlPoolId);
-	svoInfo.pTexRgb2 = GetRenderer()->EF_GetTextureByID(m_nTexRgb2PoolId);
-	svoInfo.pTexRgb3 = GetRenderer()->EF_GetTextureByID(m_nTexRgb3PoolId);
-	svoInfo.pTexRgb4 = GetRenderer()->EF_GetTextureByID(m_nTexRgb4PoolId);
-	svoInfo.pTexNorm = GetRenderer()->EF_GetTextureByID(m_nTexNormPoolId);
-	svoInfo.pTexAldi = GetRenderer()->EF_GetTextureByID(m_nTexAldiPoolId);
-	svoInfo.pTexTriA = GetRenderer()->EF_GetTextureByID(gSvoEnv->m_arrRTPoolTris.m_nTexId);
-	svoInfo.pTexTexA = GetRenderer()->EF_GetTextureByID(gSvoEnv->m_arrRTPoolTexs.m_nTexId);
-	svoInfo.pTexIndA = GetRenderer()->EF_GetTextureByID(gSvoEnv->m_arrRTPoolInds.m_nTexId);
-	svoInfo.pGlobalSpecCM = m_pGlobalSpecCM;
+	#ifdef FEATURE_SVO_GI_USE_MESH_RT
+	svoInfo.pTexTris = GetRenderer()->EF_GetTextureByID(m_texTrisPoolId);
+	#endif
+	svoInfo.pTexRgb0 = GetRenderer()->EF_GetTextureByID(m_texRgb0PoolId);
+	svoInfo.pTexRgb1 = GetRenderer()->EF_GetTextureByID(m_texRgb1PoolId);
+	svoInfo.pTexDynl = GetRenderer()->EF_GetTextureByID(m_texDynlPoolId);
+	svoInfo.pTexRgb2 = GetRenderer()->EF_GetTextureByID(m_texRgb2PoolId);
+	svoInfo.pTexRgb3 = GetRenderer()->EF_GetTextureByID(m_texRgb3PoolId);
+	svoInfo.pTexRgb4 = GetRenderer()->EF_GetTextureByID(m_texRgb4PoolId);
+	svoInfo.pTexNorm = GetRenderer()->EF_GetTextureByID(m_texNormPoolId);
+	svoInfo.pTexAldi = GetRenderer()->EF_GetTextureByID(m_texAldiPoolId);
+	#ifdef FEATURE_SVO_GI_USE_MESH_RT
+	svoInfo.pTexTriA = GetRenderer()->EF_GetTextureByID(gSvoEnv->m_arrRTPoolTris.m_textureId);
+	svoInfo.pTexTexA = GetRenderer()->EF_GetTextureByID(gSvoEnv->m_arrRTPoolTexs.m_textureId);
+	svoInfo.pTexIndA = GetRenderer()->EF_GetTextureByID(gSvoEnv->m_arrRTPoolInds.m_textureId);
 	#endif
 
-	svoInfo.fGlobalSpecCM_Mult = m_fGlobalSpecCM_Mult;
+	GetGlobalEnvProbeProperties(svoInfo.pGlobalSpecCM, svoInfo.fGlobalSpecCM_Mult);
 
-	svoInfo.nTexDimXY = CVoxelSegment::nVoxTexPoolDimXY;
-	svoInfo.nTexDimZ = CVoxelSegment::nVoxTexPoolDimZ;
-	svoInfo.nBrickSize = nVoxTexMaxDim;
+	svoInfo.nTexDimXY = CVoxelSegment::m_voxTexPoolDimXY;
+	svoInfo.nTexDimZ = CVoxelSegment::m_voxTexPoolDimZ;
+	svoInfo.nBrickSize = SVO_VOX_BRICK_MAX_SIZE;
 
-	svoInfo.bSvoReady = (m_fStreamingStartTime < 0);
-	svoInfo.bSvoFreeze = (m_fSvoFreezeTime >= 0);
+	svoInfo.bSvoReady = (m_streamingStartTime < 0);
+	svoInfo.bSvoFreeze = (m_svoFreezeTime >= 0) || m_bRootTeleportSkipFrame;
+
+	m_bRootTeleportSkipFrame = false;
 
 	ZeroStruct(svoInfo.arrPortalsPos);
 	ZeroStruct(svoInfo.arrPortalsDir);
@@ -1766,12 +1645,12 @@ bool CSvoEnv::GetSvoStaticTextures(I3DEngine::SSvoStaticTexInfo& svoInfo, PodArr
 			PodArray<IVisArea*> visitedAreas;
 			pCurVisArea->FindSurroundingVisArea(2, true, &visitedAreas, 32);
 
-			int nPortalCounter = 0;
-			for (int nAreaID = 0; nAreaID < visitedAreas.Count(); nAreaID++)
+			int portalCounter = 0;
+			for (int areaID = 0; areaID < visitedAreas.Count(); areaID++)
 			{
-				IVisArea* pPortal = visitedAreas[nAreaID];
+				IVisArea* pPortal = visitedAreas[areaID];
 
-				if (!pPortal || nPortalCounter >= SVO_MAX_PORTALS)
+				if (!pPortal || portalCounter >= SVO_MAX_PORTALS)
 					break;
 
 				if (!pPortal->IsPortal())
@@ -1785,21 +1664,21 @@ bool CSvoEnv::GetSvoStaticTextures(I3DEngine::SSvoStaticTexInfo& svoInfo, PodArr
 				if (!gEnv->pSystem->GetViewCamera().IsAABBVisible_E(boxEx))
 					continue;
 
-				svoInfo.arrPortalsPos[nPortalCounter] = Vec4(pPortal->GetAABBox()->GetCenter(), pPortal->GetAABBox()->GetRadius());
-				svoInfo.arrPortalsDir[nPortalCounter] = Vec4(((CVisArea*)pCurVisArea)->GetConnectionNormal((CVisArea*)pPortal), 0);
+				svoInfo.arrPortalsPos[portalCounter] = Vec4(pPortal->GetAABBox()->GetCenter(), pPortal->GetAABBox()->GetRadius());
+				svoInfo.arrPortalsDir[portalCounter] = Vec4(((CVisArea*)pCurVisArea)->GetConnectionNormal((CVisArea*)pPortal), 0);
 
-				nPortalCounter++;
+				portalCounter++;
 			}
 		}
 	}
 
 	ZeroStruct(svoInfo.arrAnalyticalOccluders);
-	for (int nStage = 0; nStage < 2; nStage++)
+	for (int stage = 0; stage < 2; stage++)
 	{
-		if (m_AnalyticalOccluders[nStage].Count())
+		if (m_analyticalOccluders[stage].Count())
 		{
-			uint32 bytesToCopy = min((unsigned int)sizeof(svoInfo.arrAnalyticalOccluders[nStage]), m_AnalyticalOccluders[nStage].GetDataSize());
-			memcpy(&svoInfo.arrAnalyticalOccluders[nStage][0], m_AnalyticalOccluders[nStage].GetElements(), bytesToCopy);
+			uint32 bytesToCopy = min((unsigned int)sizeof(svoInfo.arrAnalyticalOccluders[stage]), m_analyticalOccluders[stage].GetDataSize());
+			memcpy(&svoInfo.arrAnalyticalOccluders[stage][0], m_analyticalOccluders[stage].GetElements(), bytesToCopy);
 		}
 	}
 
@@ -1815,10 +1694,10 @@ bool CSvoEnv::GetSvoStaticTextures(I3DEngine::SSvoStaticTexInfo& svoInfo, PodArr
 		Get3DEngine()->GetTimeOfDay()->GetVariableInfo(ITimeOfDay::PARAM_FOG_COLOR_MULTIPLIER, varMul);
 		svoInfo.vSkyColorBottom = Vec3(varCol.fValue[0] * varMul.fValue[0], varCol.fValue[1] * varMul.fValue[0], varCol.fValue[2] * varMul.fValue[0]);
 
-		float fAver = (svoInfo.vSkyColorTop.x + svoInfo.vSkyColorTop.y + svoInfo.vSkyColorTop.z) / 3;
-		svoInfo.vSkyColorTop.SetLerp(Vec3(fAver, fAver, fAver), svoInfo.vSkyColorTop, GetCVars()->e_svoTI_UseTODSkyColor);
-		fAver = (svoInfo.vSkyColorBottom.x + svoInfo.vSkyColorBottom.y + svoInfo.vSkyColorBottom.z) / 3;
-		svoInfo.vSkyColorBottom.SetLerp(Vec3(fAver, fAver, fAver), svoInfo.vSkyColorBottom, GetCVars()->e_svoTI_UseTODSkyColor);
+		float aver = (svoInfo.vSkyColorTop.x + svoInfo.vSkyColorTop.y + svoInfo.vSkyColorTop.z) / 3;
+		svoInfo.vSkyColorTop.SetLerp(Vec3(aver, aver, aver), svoInfo.vSkyColorTop, GetCVars()->e_svoTI_UseTODSkyColor);
+		aver = (svoInfo.vSkyColorBottom.x + svoInfo.vSkyColorBottom.y + svoInfo.vSkyColorBottom.z) / 3;
+		svoInfo.vSkyColorBottom.SetLerp(Vec3(aver, aver, aver), svoInfo.vSkyColorBottom, GetCVars()->e_svoTI_UseTODSkyColor);
 	}
 	else
 	{
@@ -1831,7 +1710,7 @@ bool CSvoEnv::GetSvoStaticTextures(I3DEngine::SSvoStaticTexInfo& svoInfo, PodArr
 	return /*!GetCVars()->e_svoQuad && */ svoInfo.pTexTree != 0;
 }
 
-void CSvoEnv::GetSvoBricksForUpdate(PodArray<I3DEngine::SSvoNodeInfo>& arrNodeInfo, float fNodeSize, PodArray<SVF_P3F_C4B_T2F>* pVertsOut)
+void CSvoEnv::GetSvoBricksForUpdate(PodArray<I3DEngine::SSvoNodeInfo>& arrNodeInfo, float nodeSize, PodArray<SVF_P3F_C4B_T2F>* pVertsOut)
 {
 	FUNCTION_PROFILER_3DENGINE;
 
@@ -1848,15 +1727,13 @@ void CSvoEnv::GetSvoBricksForUpdate(PodArray<I3DEngine::SSvoNodeInfo>& arrNodeIn
 	if (!GetCVars()->e_svoTI_Active && !GetCVars()->e_svoDVR)
 		return;
 
-	//  uint nOldestVisFrameId[4] = { ~0, ~0, ~0, ~0 };
-	//  const uint nMaxAllowedFrameId = GetCurrPassMainFrameID()-16;
-	const uint nNumBlocks = CVoxelSegment::m_pBlockPacker->GetNumBlocks();
+	const uint numBlocks = CVoxelSegment::m_pBlockPacker->GetNumBlocks();
 
 	bool bSyncAll = 1;
 
-	if (fNodeSize == 0)
+	if (nodeSize == 0)
 	{
-		gSvoEnv->m_nDynNodeCounter = 0;
+		gSvoEnv->m_dynNodeCounter = 0;
 
 		double fCheckVal = 0;
 		fCheckVal += GetCVars()->e_svoTI_DiffuseConeWidth;
@@ -1870,7 +1747,7 @@ void CSvoEnv::GetSvoBricksForUpdate(PodArray<I3DEngine::SSvoNodeInfo>& arrNodeIn
 		fCheckVal += GetCVars()->e_svoTI_DiffuseBias * 10;
 		fCheckVal += GetCVars()->e_svoMinNodeSize;
 		fCheckVal += GetCVars()->e_svoMaxNodeSize;
-		fCheckVal += (float)(m_fStreamingStartTime < 0);
+		fCheckVal += (float)(m_streamingStartTime < 0);
 		fCheckVal += GetCVars()->e_Sun;
 		static int e_svoTI_Troposphere_Active_Max = 0;
 		e_svoTI_Troposphere_Active_Max = max(e_svoTI_Troposphere_Active_Max, GetCVars()->e_svoTI_Troposphere_Active);
@@ -1896,6 +1773,7 @@ void CSvoEnv::GetSvoBricksForUpdate(PodArray<I3DEngine::SSvoNodeInfo>& arrNodeIn
 		fCheckVal += GetCVars()->e_svoTI_SunRSMInject;
 		fCheckVal += GetCVars()->e_svoTI_EmissiveMultiplier;
 		fCheckVal += GetCVars()->e_svoTI_PointLightsMultiplier;
+		fCheckVal += GetCVars()->e_svoTI_PointLightsBias;
 
 		//		fCheckVal += int(Get3DEngine()->GetSunDir().x*10);
 		//	fCheckVal += int(Get3DEngine()->GetSunDir().y*10);
@@ -1907,20 +1785,20 @@ void CSvoEnv::GetSvoBricksForUpdate(PodArray<I3DEngine::SSvoNodeInfo>& arrNodeIn
 		bSyncAll = (m_prevCheckVal != (fCheckVal));
 
 		{
-			static int nPrevFlagAsync = GetCVars()->e_svoTI_UpdateLighting;
-			if (GetCVars()->e_svoTI_UpdateLighting && !nPrevFlagAsync)
+			static int s_prevFlagAsync = GetCVars()->e_svoTI_UpdateLighting;
+			if (GetCVars()->e_svoTI_UpdateLighting && !s_prevFlagAsync)
 				bSyncAll = true;
-			nPrevFlagAsync = GetCVars()->e_svoTI_UpdateLighting;
+			s_prevFlagAsync = GetCVars()->e_svoTI_UpdateLighting;
 		}
 
 		{
-			static int nPrevFlagAsync = (gSvoEnv->m_fSvoFreezeTime <= 0);
-			if ((gSvoEnv->m_fSvoFreezeTime <= 0) && !nPrevFlagAsync)
+			static int s_prevFlagAsync = (gSvoEnv->m_svoFreezeTime <= 0);
+			if ((gSvoEnv->m_svoFreezeTime <= 0) && !s_prevFlagAsync)
 			{
 				bSyncAll = true;
-				gSvoEnv->m_fSvoFreezeTime = -1;
+				gSvoEnv->m_svoFreezeTime = -1;
 			}
-			nPrevFlagAsync = (gSvoEnv->m_fSvoFreezeTime <= 0);
+			s_prevFlagAsync = (gSvoEnv->m_svoFreezeTime <= 0);
 		}
 
 		m_prevCheckVal = fCheckVal;
@@ -1932,39 +1810,39 @@ void CSvoEnv::GetSvoBricksForUpdate(PodArray<I3DEngine::SSvoNodeInfo>& arrNodeIn
 
 		if (GetCVars()->e_svoTI_UpdateLighting && GetCVars()->e_svoTI_IntegrationMode)
 		{
-			int nAutoUpdateVoxNum = 0;
+			int autoUpdateVoxNum = 0;
 
-			int nMaxVox = GetCVars()->e_svoTI_Reflect_Vox_Max * (int)30 / (int)max(30.f, gEnv->pTimer->GetFrameRate());
-			int nMaxVoxEdit = GetCVars()->e_svoTI_Reflect_Vox_MaxEdit * (int)30 / (int)max(30.f, gEnv->pTimer->GetFrameRate());
+			int maxVox = GetCVars()->e_svoTI_Reflect_Vox_Max * (int)30 / (int)max(30.f, gEnv->pTimer->GetFrameRate());
+			int maxVoxEdit = GetCVars()->e_svoTI_Reflect_Vox_MaxEdit * (int)30 / (int)max(30.f, gEnv->pTimer->GetFrameRate());
 
-			for (uint n = 0; n < nNumBlocks; n++)
+			for (uint n = 0; n < numBlocks; n++)
 			{
-				static uint nAutoBlockId = 0;
-				if (nAutoBlockId >= nNumBlocks)
-					nAutoBlockId = 0;
+				static uint s_autoBlockId = 0;
+				if (s_autoBlockId >= numBlocks)
+					s_autoBlockId = 0;
 
-				if (SBlockMinMax* pBlock = CVoxelSegment::m_pBlockPacker->GetBlockInfo(nAutoBlockId))
+				if (SBlockMinMax* pBlock = CVoxelSegment::m_pBlockPacker->GetBlockInfo(s_autoBlockId))
 				{
 					CVoxelSegment* pSeg = (CVoxelSegment*)pBlock->m_pUserData;
 
-					if ((pSeg->GetBoxSize() >= fNodeSize && pSeg->GetBoxSize() <= GetCVars()->e_svoMaxNodeSize) || !fNodeSize)
-						if (pSeg->m_pNode->m_nRequestSegmentUpdateFrametId < GetCurrPassMainFrameID() - 30)
+					if ((pSeg->GetBoxSize() >= nodeSize && pSeg->GetBoxSize() <= GetCVars()->e_svoMaxNodeSize) || !nodeSize)
+						if (pSeg->m_pNode->m_requestSegmentUpdateFrametId < GetCurrPassMainFrameID() - 30)
 						{
-							if (nAutoUpdateVoxNum && (nAutoUpdateVoxNum + (int(sqrt((float)pSeg->m_nVoxNum)) + GetCVars()->e_svoTI_Reflect_Vox_Max_Overhead) > nMaxVox))
+							if (autoUpdateVoxNum && (autoUpdateVoxNum + (int(sqrt((float)pSeg->m_solidVoxelsNum)) + GetCVars()->e_svoTI_Reflect_Vox_Max_Overhead) > maxVox))
 							{
 								if (bEditing)
 								{
 									if (pSeg->m_bStatLightsChanged)
-										if ((pSeg->GetBoxSize() >= fNodeSize && pSeg->GetBoxSize() <= GetCVars()->e_svoMaxNodeSize) || !fNodeSize)
+										if ((pSeg->GetBoxSize() >= nodeSize && pSeg->GetBoxSize() <= GetCVars()->e_svoMaxNodeSize) || !nodeSize)
 										//if(pSeg->m_pNode->m_nRequestBrickUpdateFrametId < GetCurrPassMainFrameID()-30)
 										{
-											if (nAutoUpdateVoxNum && (nAutoUpdateVoxNum + (int(sqrt((float)pSeg->m_nVoxNum)) + GetCVars()->e_svoTI_Reflect_Vox_Max_Overhead) > nMaxVoxEdit))
+											if (autoUpdateVoxNum && (autoUpdateVoxNum + (int(sqrt((float)pSeg->m_solidVoxelsNum)) + GetCVars()->e_svoTI_Reflect_Vox_Max_Overhead) > maxVoxEdit))
 											{
 											}
 											else
 											{
-												pSeg->m_pNode->m_nRequestSegmentUpdateFrametId = max(pSeg->m_pNode->m_nRequestSegmentUpdateFrametId, GetCurrPassMainFrameID());
-												nAutoUpdateVoxNum += (int(sqrt((float)pSeg->m_nVoxNum)) + GetCVars()->e_svoTI_Reflect_Vox_Max_Overhead);
+												pSeg->m_pNode->m_requestSegmentUpdateFrametId = max(pSeg->m_pNode->m_requestSegmentUpdateFrametId, GetCurrPassMainFrameID());
+												autoUpdateVoxNum += (int(sqrt((float)pSeg->m_solidVoxelsNum)) + GetCVars()->e_svoTI_Reflect_Vox_Max_Overhead);
 											}
 										}
 								}
@@ -1973,42 +1851,42 @@ void CSvoEnv::GetSvoBricksForUpdate(PodArray<I3DEngine::SSvoNodeInfo>& arrNodeIn
 							}
 							else
 							{
-								pSeg->m_pNode->m_nRequestSegmentUpdateFrametId = max(pSeg->m_pNode->m_nRequestSegmentUpdateFrametId, GetCurrPassMainFrameID());
-								nAutoUpdateVoxNum += (int(sqrt((float)pSeg->m_nVoxNum)) + GetCVars()->e_svoTI_Reflect_Vox_Max_Overhead);
+								pSeg->m_pNode->m_requestSegmentUpdateFrametId = max(pSeg->m_pNode->m_requestSegmentUpdateFrametId, GetCurrPassMainFrameID());
+								autoUpdateVoxNum += (int(sqrt((float)pSeg->m_solidVoxelsNum)) + GetCVars()->e_svoTI_Reflect_Vox_Max_Overhead);
 							}
 						}
 				}
 
-				nAutoBlockId++;
+				s_autoBlockId++;
 			}
 		}
 	}
 
-	static uint nBlockId = 0;
+	static uint s_blockId = 0;
 
-	uint nMaxUpdateBlocks = (bSyncAll || (GetCVars()->e_svoDVR != 10)) ? nNumBlocks : (nNumBlocks / 16 + 1);
+	uint maxUpdateBlocks = (bSyncAll || (GetCVars()->e_svoDVR != 10)) ? numBlocks : (numBlocks / 16 + 1);
 
-	m_nDynNodeCounter_DYNL = 0;
+	m_dynNodeCounter_DYNL = 0;
 
-	for (uint nBl = 0; nBl < nMaxUpdateBlocks; nBl++)
+	for (uint b = 0; b < maxUpdateBlocks; b++)
 	{
-		nBlockId++;
-		if (nBlockId >= nNumBlocks)
-			nBlockId = 0;
+		s_blockId++;
+		if (s_blockId >= numBlocks)
+			s_blockId = 0;
 
-		if (SBlockMinMax* pBlock = CVoxelSegment::m_pBlockPacker->GetBlockInfo(nBlockId))
+		if (SBlockMinMax* pBlock = CVoxelSegment::m_pBlockPacker->GetBlockInfo(s_blockId))
 		{
 			CVoxelSegment* pSeg = (CVoxelSegment*)pBlock->m_pUserData;
 
 			//			if( ((GetMainFrameID()%nNumBlocks)&63) == (nBlockId&63) && pSeg->m_pNode->m_nRequestBrickUpdateFrametId>0 && GetCVars()->e_svoDVR )
 			//			pSeg->m_pNode->m_nRequestBrickUpdateFrametId = GetMainFrameID();
 
-			if (pSeg->m_pNode->m_nRequestSegmentUpdateFrametId >= GetCurrPassMainFrameID() || bSyncAll || pSeg->m_bStatLightsChanged)
+			if (pSeg->m_pNode->m_requestSegmentUpdateFrametId >= GetCurrPassMainFrameID() || bSyncAll || pSeg->m_bStatLightsChanged)
 			{
-				if (fNodeSize == 0)
-					gSvoEnv->m_nDynNodeCounter++;
+				if (nodeSize == 0)
+					gSvoEnv->m_dynNodeCounter++;
 
-				if ((pSeg->GetBoxSize() >= fNodeSize && pSeg->GetBoxSize() <= GetCVars()->e_svoMaxNodeSize) || !fNodeSize)
+				if ((pSeg->GetBoxSize() >= nodeSize && pSeg->GetBoxSize() <= GetCVars()->e_svoMaxNodeSize) || !nodeSize)
 				//					if( pSeg->GetBoxSize() <= GetCVars()->e_svoMaxNodeSize )
 				{
 					I3DEngine::SSvoNodeInfo nodeInfo;
@@ -2016,12 +1894,12 @@ void CSvoEnv::GetSvoBricksForUpdate(PodArray<I3DEngine::SSvoNodeInfo>& arrNodeIn
 					nodeInfo.wsBox.min = pSeg->m_boxOS.min + pSeg->m_vSegOrigin;
 					nodeInfo.wsBox.max = pSeg->m_boxOS.max + pSeg->m_vSegOrigin;
 
-					nodeInfo.tcBox.min.Set((float)pBlock->m_dwMinX / (float)nAtlasDimMaxXY, (float)pBlock->m_dwMinY / (float)nAtlasDimMaxXY, (float)pBlock->m_dwMinZ / (float)nAtlasDimMaxZ);
-					nodeInfo.tcBox.max.Set((float)pBlock->m_dwMaxX / (float)nAtlasDimMaxXY, (float)pBlock->m_dwMaxY / (float)nAtlasDimMaxXY, (float)pBlock->m_dwMaxZ / (float)nAtlasDimMaxZ);
+					nodeInfo.tcBox.min.Set((float)pBlock->m_dwMinX / (float)SVO_ATLAS_DIM_MAX_XY, (float)pBlock->m_dwMinY / (float)SVO_ATLAS_DIM_MAX_XY, (float)pBlock->m_dwMinZ / (float)SVO_ATLAS_DIM_MAX_Z);
+					nodeInfo.tcBox.max.Set((float)pBlock->m_dwMaxX / (float)SVO_ATLAS_DIM_MAX_XY, (float)pBlock->m_dwMaxY / (float)SVO_ATLAS_DIM_MAX_XY, (float)pBlock->m_dwMaxZ / (float)SVO_ATLAS_DIM_MAX_Z);
 
-					nodeInfo.nAtlasOffset = pSeg->m_nAllocatedAtlasOffset;
+					nodeInfo.nAtlasOffset = pSeg->m_allocatedAtlasOffset;
 
-					if (fNodeSize)
+					if (nodeSize)
 					{
 						if (nodeInfo.wsBox.GetDistance(Get3DEngine()->GetRenderingCamera().GetPosition()) > 24.f)//nodeInfo.wsBox.GetSize().z)
 							continue;
@@ -2034,7 +1912,7 @@ void CSvoEnv::GetSvoBricksForUpdate(PodArray<I3DEngine::SSvoNodeInfo>& arrNodeIn
 						if (!gEnv->pSystem->GetViewCamera().IsAABBVisible_F(wsBoxEx))
 							continue;
 
-						m_nDynNodeCounter_DYNL++;
+						m_dynNodeCounter_DYNL++;
 					}
 
 					pSeg->m_bStatLightsChanged = 0;
@@ -2056,10 +1934,10 @@ void CSvoEnv::DetectMovement_StaticGeom()
 	if (!GetCVars()->e_svoTI_Apply)
 		return;
 
-	const uint nNumBlocks = CVoxelSegment::m_pBlockPacker->GetNumBlocks();
-	for (uint nBlockId = 0; nBlockId < nNumBlocks; nBlockId++)
+	const uint numBlocks = CVoxelSegment::m_pBlockPacker->GetNumBlocks();
+	for (uint blockId = 0; blockId < numBlocks; blockId++)
 	{
-		if (SBlockMinMax* pBlock = CVoxelSegment::m_pBlockPacker->GetBlockInfo(nBlockId))
+		if (SBlockMinMax* pBlock = CVoxelSegment::m_pBlockPacker->GetBlockInfo(blockId))
 		{
 			CVoxelSegment* pSeg = (CVoxelSegment*)pBlock->m_pUserData;
 
@@ -2096,30 +1974,30 @@ void CSvoEnv::DetectMovement_StatLights()
 		return;
 
 	// count stats
-	const int nDataSizeStatsScale = 4;
-	CVoxelSegment::m_nPoolUsageItems = 0;
-	CVoxelSegment::m_nPoolUsageBytes = 0;
+	const int dataSizeStatsScale = 4;
+	CVoxelSegment::m_poolUsageItems = 0;
+	CVoxelSegment::m_poolUsageBytes = 0;
 
-	const uint nNumBlocks = CVoxelSegment::m_pBlockPacker->GetNumBlocks();
-	for (uint nBlockId = 0; nBlockId < nNumBlocks; nBlockId++)
+	const uint numBlocks = CVoxelSegment::m_pBlockPacker->GetNumBlocks();
+	for (uint blockId = 0; blockId < numBlocks; blockId++)
 	{
-		if (SBlockMinMax* pBlock = CVoxelSegment::m_pBlockPacker->GetBlockInfo(nBlockId))
+		if (SBlockMinMax* pBlock = CVoxelSegment::m_pBlockPacker->GetBlockInfo(blockId))
 		{
-			CVoxelSegment::m_nPoolUsageItems++;
-			CVoxelSegment::m_nPoolUsageBytes += nDataSizeStatsScale * pBlock->m_nDataSize;
+			CVoxelSegment::m_poolUsageItems++;
+			CVoxelSegment::m_poolUsageBytes += dataSizeStatsScale * pBlock->m_nDataSize;
 
 			CVoxelSegment* pSeg = (CVoxelSegment*)pBlock->m_pUserData;
 
-			float fNodeSize = pSeg->GetBoxSize();
+			float nodeSize = pSeg->GetBoxSize();
 
 			PodArray<IRenderNode*> lstObjects;
 			AABB boxEx = pSeg->m_pNode->m_nodeBox;
-			float fBorder = fNodeSize / 4.f + GetCVars()->e_svoTI_ConeMaxLength * max(0, GetCVars()->e_svoTI_NumberOfBounces - 1);
-			boxEx.Expand(Vec3(fBorder, fBorder, fBorder));
+			float border = nodeSize / 4.f + GetCVars()->e_svoTI_ConeMaxLength * max(0, GetCVars()->e_svoTI_NumberOfBounces - 1);
+			boxEx.Expand(Vec3(border, border, border));
 			Cry3DEngineBase::Get3DEngine()->GetObjectsByTypeGlobal(lstObjects, eERType_Light, &boxEx);
 			Cry3DEngineBase::Get3DEngine()->GetVisAreaManager()->GetObjectsByType(lstObjects, eERType_Light, &boxEx);
 
-			float fPrecisioin = 1000.f;
+			float precisioin = 1000.f;
 			Vec3i vCheckSumm(0, 0, 0);
 
 			for (int i = 0; i < lstObjects.Count(); i++)
@@ -2132,9 +2010,9 @@ void CSvoEnv::DetectMovement_StatLights()
 					{
 						ILightSource* pLS = (ILightSource*)pNode;
 
-						CDLight& m_light = pLS->GetLightProperties();
+						SRenderLight& m_light = pLS->GetLightProperties();
 
-						if (!Overlap::Sphere_AABB(Sphere(m_light.m_BaseOrigin, m_light.m_fBaseRadius), pSeg->m_pNode->m_nodeBox))
+						if (!Overlap::Sphere_AABB(Sphere(m_light.m_BaseOrigin, m_light.m_fClipRadius), pSeg->m_pNode->m_nodeBox))
 							continue;
 
 						if ((m_light.m_Flags & DLF_PROJECT) && (m_light.m_fLightFrustumAngle < 90.f) && m_light.m_pLightImage)
@@ -2168,8 +2046,8 @@ void CSvoEnv::DetectMovement_StatLights()
 					}
 
 					AABB box = pNode->GetBBox();
-					vCheckSumm += Vec3i(box.min * fPrecisioin);
-					vCheckSumm += Vec3i(box.max * fPrecisioin * 2);
+					vCheckSumm += Vec3i(box.min * precisioin);
+					vCheckSumm += Vec3i(box.max * precisioin * 2);
 				}
 			}
 
@@ -2191,11 +2069,13 @@ void CSvoEnv::DetectMovement_StatLights()
 
 void CSvoEnv::StartupStreamingTimeTest(bool bDone)
 {
-	if (m_fSvoFreezeTime > 0 && bDone && m_bStreamingDonePrev)
+	FUNCTION_PROFILER_3DENGINE;
+
+	if (m_svoFreezeTime > 0 && bDone && m_bStreamingDonePrev)
 	{
 		PrintMessage("SVO update finished in %.1f sec (%d / %d nodes, %d K tris)",
-		             gEnv->pTimer->GetAsyncCurTime() - m_fSvoFreezeTime, m_arrVoxelizeMeshesCounter[0], m_arrVoxelizeMeshesCounter[1], CVoxelSegment::m_nVoxTrisCounter / 1000);
-		m_fSvoFreezeTime = 0;
+		             gEnv->pTimer->GetAsyncCurTime() - m_svoFreezeTime, m_arrVoxelizeMeshesCounter[0], m_arrVoxelizeMeshesCounter[1], CVoxelSegment::m_voxTrisCounter / 1000);
+		m_svoFreezeTime = 0;
 
 		if (GetCVars()->e_svoDebug)
 		{
@@ -2207,25 +2087,25 @@ void CSvoEnv::StartupStreamingTimeTest(bool bDone)
 		}
 	}
 
-	if (m_fStreamingStartTime == 0)
+	if (m_streamingStartTime == 0)
 	{
-		m_fStreamingStartTime = Cry3DEngineBase::GetTimer()->GetAsyncCurTime();
+		m_streamingStartTime = Cry3DEngineBase::GetTimer()->GetAsyncCurTime();
 	}
-	else if (m_fStreamingStartTime > 0 && bDone && m_bStreamingDonePrev)
+	else if (m_streamingStartTime > 0 && bDone && m_bStreamingDonePrev)
 	{
-		//		float fTime = Cry3DEngineBase::GetTimer()->GetAsyncCurTime();
+		//		float time = Cry3DEngineBase::GetTimer()->GetAsyncCurTime();
 		//		PrintMessage("SVO initialization finished in %.1f sec (%d K tris)",
-		//		fTime - m_fStreamingStartTime, CVoxelSegment::m_nVoxTrisCounter/1000);
+		//		time - m_fStreamingStartTime, CVoxelSegment::m_voxTrisCounter/1000);
 
-		m_fStreamingStartTime = -1;
+		m_streamingStartTime = -1;
 
 		OnLevelGeometryChanged();
 
 		GetCVars()->e_svoMaxBrickUpdates = 4;
 		GetCVars()->e_svoMaxStreamRequests = 4;
 
-		int nGpuMax = nAtlasDimBriXY * nAtlasDimBriXY * nAtlasDimBriZ;
-		GetCVars()->e_svoMaxBricksOnCPU = nGpuMax * 3 / 2;
+		int maxBricksOnGPU = SVO_ATLAS_DIM_BRICKS_XY * SVO_ATLAS_DIM_BRICKS_XY * SVO_ATLAS_DIM_BRICKS_Z;
+		GetCVars()->e_svoMaxBricksOnCPU = maxBricksOnGPU * 3 / 2;
 
 		//		if(m_pTree)
 		//		m_pTree->UpdateTerrainNormals();
@@ -2239,30 +2119,30 @@ void CSvoEnv::OnLevelGeometryChanged()
 
 }
 
-int CSvoEnv::GetWorstPointInSubSet(const int nStart, const int nEnd)
+int CSvoEnv::GetWorstPointInSubSet(const int start, const int end)
 {
 	int p0 = -1;
 
-	float fMinAverDist = 100000000;
+	float minAverDist = 100000000;
 
-	for (int i = nStart; i < nEnd; i++)
+	for (int i = start; i < end; i++)
 	{
-		float fAverDist = 0;
+		float averDist = 0;
 
-		for (int j = 0; j < nRaysNum; j++)
+		for (int j = 0; j < kRaysNum; j++)
 		{
-			float fDist = sqrt(sqrt(pKernelPoints[i].GetSquaredDistance2D(pKernelPoints[j])));
+			float dist = sqrt(sqrt(pKernelPoints[i].GetSquaredDistance2D(pKernelPoints[j])));
 
-			if (j >= nStart && j < nEnd)
-				fAverDist += fDist;
+			if (j >= start && j < end)
+				averDist += dist;
 			else
-				fAverDist -= fDist;
+				averDist -= dist;
 		}
 
-		if (fAverDist < fMinAverDist)
+		if (averDist < minAverDist)
 		{
 			p0 = i;
-			fMinAverDist = fAverDist;
+			minAverDist = averDist;
 		}
 	}
 
@@ -2271,7 +2151,7 @@ int CSvoEnv::GetWorstPointInSubSet(const int nStart, const int nEnd)
 
 void CSvoEnv::CheckUpdateMeshPools()
 {
-	#ifdef FEATURE_SVO_GI_ALLOW_HQ
+	#ifdef FEATURE_SVO_GI_USE_MESH_RT
 	{
 		PodArrayRT<Vec4>& rAr = gSvoEnv->m_arrRTPoolTris;
 
@@ -2279,11 +2159,11 @@ void CSvoEnv::CheckUpdateMeshPools()
 
 		if (rAr.m_bModified)
 		{
-			gEnv->pRenderer->RemoveTexture(rAr.m_nTexId);
-			rAr.m_nTexId = 0;
+			gEnv->pRenderer->RemoveTexture(rAr.m_textureId);
+			rAr.m_textureId = 0;
 
-			rAr.m_nTexId = gEnv->pRenderer->DownLoadToVideoMemory3D((byte*)rAr.GetElements(),
-			                                                        CVoxelSegment::nVoxTexPoolDimXY, CVoxelSegment::nVoxTexPoolDimXY, CVoxelSegment::nVoxTexPoolDimZ, eTF_R32G32B32A32F, eTF_R32G32B32A32F, 1, false, FILTER_POINT, rAr.m_nTexId, 0, FT_DONT_STREAM);
+			rAr.m_textureId = gEnv->pRenderer->UploadToVideoMemory3D((byte*)rAr.GetElements(),
+			                                                         CVoxelSegment::m_voxTexPoolDimXY, CVoxelSegment::m_voxTexPoolDimXY, CVoxelSegment::m_voxTexPoolDimZ, eTF_R32G32B32A32F, eTF_R32G32B32A32F, 1, false, FILTER_POINT, rAr.m_textureId, 0, FT_DONT_STREAM);
 
 			rAr.m_bModified = 0;
 		}
@@ -2296,11 +2176,11 @@ void CSvoEnv::CheckUpdateMeshPools()
 
 		if (rAr.m_bModified)
 		{
-			gEnv->pRenderer->RemoveTexture(rAr.m_nTexId);
-			rAr.m_nTexId = 0;
+			gEnv->pRenderer->RemoveTexture(rAr.m_textureId);
+			rAr.m_textureId = 0;
 
-			rAr.m_nTexId = gEnv->pRenderer->DownLoadToVideoMemory3D((byte*)rAr.GetElements(),
-			                                                        CVoxelSegment::nVoxTexPoolDimXY, CVoxelSegment::nVoxTexPoolDimXY, CVoxelSegment::nVoxTexPoolDimZ, m_nVoxTexFormat, m_nVoxTexFormat, 1, false, FILTER_POINT, rAr.m_nTexId, 0, FT_DONT_STREAM);
+			rAr.m_textureId = gEnv->pRenderer->UploadToVideoMemory3D((byte*)rAr.GetElements(),
+			                                                         CVoxelSegment::m_voxTexPoolDimXY, CVoxelSegment::m_voxTexPoolDimXY, CVoxelSegment::m_voxTexPoolDimZ, m_voxTexFormat, m_voxTexFormat, 1, false, FILTER_POINT, rAr.m_textureId, 0, FT_DONT_STREAM);
 
 			rAr.m_bModified = 0;
 		}
@@ -2313,11 +2193,11 @@ void CSvoEnv::CheckUpdateMeshPools()
 
 		if (rAr.m_bModified)
 		{
-			gEnv->pRenderer->RemoveTexture(rAr.m_nTexId);
-			rAr.m_nTexId = 0;
+			gEnv->pRenderer->RemoveTexture(rAr.m_textureId);
+			rAr.m_textureId = 0;
 
-			rAr.m_nTexId = gEnv->pRenderer->DownLoadToVideoMemory3D((byte*)rAr.GetElements(),
-			                                                        CVoxelSegment::nVoxTexPoolDimXY, CVoxelSegment::nVoxTexPoolDimXY, CVoxelSegment::nVoxTexPoolDimZ, m_nVoxTexFormat, m_nVoxTexFormat, 1, false, FILTER_POINT, rAr.m_nTexId, 0, FT_DONT_STREAM);
+			rAr.m_textureId = gEnv->pRenderer->UploadToVideoMemory3D((byte*)rAr.GetElements(),
+			                                                         CVoxelSegment::m_voxTexPoolDimXY, CVoxelSegment::m_voxTexPoolDimXY, CVoxelSegment::m_voxTexPoolDimZ, m_voxTexFormat, m_voxTexFormat, 1, false, FILTER_POINT, rAr.m_textureId, 0, FT_DONT_STREAM);
 
 			rAr.m_bModified = 0;
 		}
@@ -2330,9 +2210,20 @@ bool C3DEngine::GetSvoStaticTextures(I3DEngine::SSvoStaticTexInfo& svoInfo, PodA
 	return CSvoManager::GetSvoStaticTextures(svoInfo, pLightsTI_S, pLightsTI_D);
 }
 
-void C3DEngine::GetSvoBricksForUpdate(PodArray<SSvoNodeInfo>& arrNodeInfo, float fNodeSize, PodArray<SVF_P3F_C4B_T2F>* pVertsOut)
+void C3DEngine::GetSvoBricksForUpdate(PodArray<SSvoNodeInfo>& arrNodeInfo, float nodeSize, PodArray<SVF_P3F_C4B_T2F>* pVertsOut)
 {
-	CSvoManager::GetSvoBricksForUpdate(arrNodeInfo, fNodeSize, pVertsOut);
+	CSvoManager::GetSvoBricksForUpdate(arrNodeInfo, nodeSize, pVertsOut);
+}
+
+bool C3DEngine::IsSvoReady(bool testPostponed) const
+{
+	return (CVoxelSegment::m_streamingTasksInProgress == 0) && ((CVoxelSegment::m_postponedCounter == 0) || (testPostponed == false)) &&
+	       (CVoxelSegment::m_updatesInProgressBri == 0) && (CVoxelSegment::m_updatesInProgressTex == 0) && (CVoxelSegment::m_bUpdateBrickRenderDataPostponed == 0);
+}
+
+int C3DEngine::GetSvoCompiledData(ICryArchive* pArchive)
+{
+	return CSvoManager::ExportSvo(pArchive);
 }
 
 void C3DEngine::LoadTISettings(XmlNodeRef pInputNode)
@@ -2344,17 +2235,19 @@ void C3DEngine::LoadTISettings(XmlNodeRef pInputNode)
 		GetCVars()->e_svoTI_Apply = (int)atof(GetXMLAttribText(pInputNode, szXmlNodeName, "Active", "0"));
 
 	GetCVars()->e_svoVoxelPoolResolution = 64;
-	int nVoxelPoolResolution = (int)atof(GetXMLAttribText(pInputNode, szXmlNodeName, "VoxelPoolResolution", "0"));
-	while (GetCVars()->e_svoVoxelPoolResolution < nVoxelPoolResolution)
+	int voxelPoolResolution = (int)atof(GetXMLAttribText(pInputNode, szXmlNodeName, "VoxelPoolResolution", "0"));
+	while (GetCVars()->e_svoVoxelPoolResolution < voxelPoolResolution)
 		GetCVars()->e_svoVoxelPoolResolution *= 2;
 
-	GetCVars()->e_svoTI_VoxelizaionLODRatio = (float)atof(GetXMLAttribText(pInputNode, szXmlNodeName, "VoxelizaionLODRatio", "0"));
-	GetCVars()->e_svoDVR_DistRatio = GetCVars()->e_svoTI_VoxelizaionLODRatio / 2;
+	GetCVars()->e_svoTI_VoxelizationLODRatio = (float)atof(GetXMLAttribText(pInputNode, szXmlNodeName, "VoxelizationLODRatio", "1"));
+	GetCVars()->e_svoTI_VoxelizationMapBorder = (int)atof(GetXMLAttribText(pInputNode, szXmlNodeName, "VoxelizationMapBorder", "0"));
+	GetCVars()->e_svoDVR_DistRatio = GetCVars()->e_svoTI_VoxelizationLODRatio / 2;
 
 	GetCVars()->e_svoTI_InjectionMultiplier = (float)atof(GetXMLAttribText(pInputNode, szXmlNodeName, "InjectionMultiplier", "0"));
 	GetCVars()->e_svoTI_NumberOfBounces = (int)atof(GetXMLAttribText(pInputNode, szXmlNodeName, "NumberOfBounces", "0"));
 	GetCVars()->e_svoTI_Saturation = (float)atof(GetXMLAttribText(pInputNode, szXmlNodeName, "Saturation", "0"));
 	GetCVars()->e_svoTI_PropagationBooster = (float)atof(GetXMLAttribText(pInputNode, szXmlNodeName, "PropagationBooster", "0"));
+	GetCVars()->e_svoTI_PointLightsBias = (float)atof(GetXMLAttribText(pInputNode, szXmlNodeName, "PointLightsBias", "0"));
 	if (gEnv->IsEditor())
 	{
 		GetCVars()->e_svoTI_UpdateLighting = (int)atof(GetXMLAttribText(pInputNode, szXmlNodeName, "UpdateLighting", "0"));
@@ -2373,6 +2266,7 @@ void C3DEngine::LoadTISettings(XmlNodeRef pInputNode)
 		GetCVars()->e_svoTI_NumberOfBounces++;
 
 	GetCVars()->e_svoTI_SpecularAmplifier = (float)atof(GetXMLAttribText(pInputNode, szXmlNodeName, "SpecularAmplifier", "0"));
+	GetCVars()->e_svoTI_SpecularFromDiffuse = (int)atof(GetXMLAttribText(pInputNode, szXmlNodeName, "SpecularFromDiffuse", "0"));
 
 	GetCVars()->e_svoMinNodeSize = (float)atof(GetXMLAttribText(pInputNode, szXmlNodeName, "MinNodeSize", "0"));
 
@@ -2385,6 +2279,9 @@ void C3DEngine::LoadTISettings(XmlNodeRef pInputNode)
 	GetCVars()->e_svoTI_SunRSMInject = (int)atof(GetXMLAttribText(pInputNode, szXmlNodeName, "SunRSMInject", "0"));
 	GetCVars()->e_svoTI_SSDepthTrace = (float)atof(GetXMLAttribText(pInputNode, szXmlNodeName, "SSDepthTrace", "0"));
 
+	GetCVars()->e_svoTI_ShadowsFromSun = (int)atof(GetXMLAttribText(pInputNode, szXmlNodeName, "ShadowsFromSun", "0"));
+	GetCVars()->e_svoTI_ShadowsSoftness = (float)atof(GetXMLAttribText(pInputNode, szXmlNodeName, "ShadowsSoftness", "0"));
+	GetCVars()->e_svoTI_ShadowsFromHeightmap = (int)atof(GetXMLAttribText(pInputNode, szXmlNodeName, "ShadowsFromHeightmap", "0"));
 	GetCVars()->e_svoTI_Troposphere_Active = (int)atof(GetXMLAttribText(pInputNode, szXmlNodeName, "Troposphere_Active", "0"));
 	GetCVars()->e_svoTI_Troposphere_Brightness = (float)atof(GetXMLAttribText(pInputNode, szXmlNodeName, "Troposphere_Brightness", "0"));
 	GetCVars()->e_svoTI_Troposphere_Ground_Height = (float)atof(GetXMLAttribText(pInputNode, szXmlNodeName, "Troposphere_Ground_Height", "0"));
@@ -2410,9 +2307,9 @@ void C3DEngine::LoadTISettings(XmlNodeRef pInputNode)
 	GetCVars()->e_svoTI_AnalyticalGI = (int)atof(GetXMLAttribText(pInputNode, szXmlNodeName, "AnalyticalGI", "0"));
 	GetCVars()->e_svoTI_TraceVoxels = (int)atof(GetXMLAttribText(pInputNode, szXmlNodeName, "TraceVoxels", "1"));
 
-	int nLowSpecMode = (int)atof(GetXMLAttribText(pInputNode, szXmlNodeName, "LowSpecMode", "0"));
-	if (nLowSpecMode > -2 && gEnv->IsEditor()) // otherwise we use value from sys_spec_Light.cfg
-		GetCVars()->e_svoTI_LowSpecMode = nLowSpecMode;
+	int lowSpecMode = (int)atof(GetXMLAttribText(pInputNode, szXmlNodeName, "LowSpecMode", "0"));
+	if (lowSpecMode > -2 && gEnv->IsEditor()) // otherwise we use value from sys_spec_Light.cfg
+		GetCVars()->e_svoTI_LowSpecMode = lowSpecMode;
 
 	GetCVars()->e_svoTI_HalfresKernelPrimary = (int)atof(GetXMLAttribText(pInputNode, szXmlNodeName, "HalfresKernelPrimary", "0"));
 	GetCVars()->e_svoTI_HalfresKernelSecondary = (int)atof(GetXMLAttribText(pInputNode, szXmlNodeName, "HalfresKernelSecondary", "0"));
@@ -2431,6 +2328,24 @@ void C3DEngine::LoadTISettings(XmlNodeRef pInputNode)
 
 	GetCVars()->e_svoTI_ConstantAmbientDebug = (float)atof(GetXMLAttribText(pInputNode, szXmlNodeName, "ConstantAmbientDebug", "0"));
 
+	if (Cry3DEngineBase::GetCVars()->e_svoStreamVoxels != 2)
+		GetCVars()->e_svoStreamVoxels = (int)atof(GetXMLAttribText(pInputNode, szXmlNodeName, "StreamVoxels", "0"));
+
+	// fall back to run-time voxelization if voxel file data is not prepared
+	if (CSvoNode::IsStreamingActive())
+	{
+		char szFileName[256];
+		const char* pLevelPath = Cry3DEngineBase::Get3DEngine()->GetLevelFilePath(COMPILED_SVO_FOLDER_NAME);
+		sprintf(szFileName, "%s*.crysvo", pLevelPath);
+
+		_finddata_t fd;
+		if (gEnv->pCryPak->FindFirst(szFileName, &fd) < 0)
+		{
+			PrintMessage("%s: Error: Streaming of voxels is enabled in level settings but files are missing. Falling back to run-time voxelization", __FUNCTION__);
+			GetCVars()->e_svoStreamVoxels = 0;
+		}
+	}
+
 	if (GetCVars()->e_svoTI_IntegrationMode < 1) // AO
 	{
 		GetCVars()->e_svoTI_NumberOfBounces = min(GetCVars()->e_svoTI_NumberOfBounces, 1);
@@ -2444,16 +2359,21 @@ void C3DEngine::LoadTISettings(XmlNodeRef pInputNode)
 	}
 
 	// validate MinNodeSize
-	float fSize = (float)Get3DEngine()->GetTerrainSize();
-	for (; fSize > 0.01f && fSize >= GetCVars()->e_svoMinNodeSize * 2.f; fSize /= 2.f)
+	float size = (float)Get3DEngine()->GetTerrainSize();
+	for (; size > 0.01f && size >= GetCVars()->e_svoMinNodeSize * 2.f; size /= 2.f)
 		;
-	GetCVars()->e_svoMinNodeSize = fSize;
+	GetCVars()->e_svoMinNodeSize = size;
 }
 
 void CVars::RegisterTICVars()
 {
 	#define CVAR_CPP
 	#include "SceneTreeCVars.inl"
+
+	if (GetRenderer())
+	{
+		GetRenderer()->GetISvoRenderer()->InitCVarValues(); // allocate SVO sub-system in renderer
+	}
 }
 
 static int32 SLightTI_Compare(const void* v1, const void* v2)
@@ -2472,13 +2392,12 @@ void CSvoEnv::CollectLights()
 {
 	FUNCTION_PROFILER_3DENGINE;
 
-	//AABB nodeBox = AABB(Vec3(0,0,0), Vec3( (float)gEnv->p3DEngine->GetTerrainSize(), (float)gEnv->p3DEngine->GetTerrainSize(), (float)gEnv->p3DEngine->GetTerrainSize()));
-	AABB nodeBox;
-	nodeBox.Reset();
+	float areaRange = 128.f;
+	if (!GetCVars()->e_svoTI_IntegrationMode)
+		areaRange = GetCVars()->e_svoTI_PointLightsMaxDistance;
 
-	nodeBox.Add(gEnv->pSystem->GetViewCamera().GetPosition());
-
-	nodeBox.Expand(Vec3(256, 256, 256));
+	const CCamera& camera = GetISystem()->GetViewCamera();
+	AABB nodeBox(camera.GetPosition() - Vec3(areaRange), camera.GetPosition() + Vec3(areaRange));
 
 	m_lightsTI_S.Clear();
 	m_lightsTI_D.Clear();
@@ -2486,66 +2405,101 @@ void CSvoEnv::CollectLights()
 
 	Vec3 vCamPos = CVoxelSegment::m_voxCam.GetPosition();
 
-	if (int nCount = gEnv->p3DEngine->GetObjectsByTypeInBox(eERType_Light, nodeBox, (IRenderNode**)0))
+	if (GetCVars()->e_svoTI_IntegrationMode || GetCVars()->e_svoTI_PointLightsMultiplier)
 	{
-		PodArray<IRenderNode*> arrObjects(nCount, nCount);
-		nCount = gEnv->p3DEngine->GetObjectsByTypeInBox(eERType_Light, nodeBox, arrObjects.GetElements());
-
-		for (int nL = 0; nL < nCount; nL++)
+		if (int objCount = gEnv->p3DEngine->GetObjectsByTypeInBox(eERType_Light, nodeBox, (IRenderNode**)0))
 		{
-			ILightSource* pRN = (ILightSource*)arrObjects[nL];
+			PodArray<IRenderNode*> arrObjects(objCount, objCount);
+			objCount = gEnv->p3DEngine->GetObjectsByTypeInBox(eERType_Light, nodeBox, arrObjects.GetElements());
 
-			static ICVar* e_svoMinNodeSize = gEnv->pConsole->GetCVar("e_svoMinNodeSize");
-
-			CDLight& rLight = pRN->GetLightProperties();
-
-			I3DEngine::SLightTI lightTI;
-			ZeroStruct(lightTI);
-
-			IRenderNode::EGIMode eVoxMode = pRN->GetGIMode();
-
-			if (eVoxMode)
+			for (int n = 0; n < objCount; n++)
 			{
-				lightTI.vPosR = Vec4(rLight.m_Origin, rLight.m_fRadius);
+				ILightSource* pRN = (ILightSource*)arrObjects[n];
 
-				if ((rLight.m_Flags & DLF_PROJECT) && (rLight.m_fLightFrustumAngle < 90.f) && rLight.m_pLightImage)
-					lightTI.vDirF = Vec4(pRN->GetMatrix().GetColumn(0), rLight.m_fLightFrustumAngle * 2);
-				else
-					lightTI.vDirF = Vec4(0, 0, 0, 0);
+				static ICVar* e_svoMinNodeSize = gEnv->pConsole->GetCVar("e_svoMinNodeSize");
 
-				if (eVoxMode == IRenderNode::eGM_DynamicVoxelization)
-					lightTI.vCol = rLight.m_Color.toVec4();
-				else
-					lightTI.vCol = rLight.m_BaseColor.toVec4();
+				SRenderLight& rLight = pRN->GetLightProperties();
 
-				lightTI.vCol.w = (rLight.m_Flags & DLF_CASTSHADOW_MAPS) ? 1.f : 0.f;
+				I3DEngine::SLightTI lightTI;
+				ZeroStruct(lightTI);
 
-				if (rLight.m_Flags & DLF_SUN)
-					lightTI.fSortVal = -1;
-				else
-					lightTI.fSortVal = vCamPos.GetDistance(rLight.m_Origin) / max(24.f, rLight.m_fRadius);
+				IRenderNode::EGIMode eVoxMode = pRN->GetGIMode();
 
-				if (eVoxMode == IRenderNode::eGM_DynamicVoxelization || (!GetCVars()->e_svoTI_IntegrationMode && !(rLight.m_Flags & DLF_SUN)))
+				if (eVoxMode == IRenderNode::eGM_DynamicVoxelization || eVoxMode == IRenderNode::eGM_StaticVoxelization)
 				{
-					if ((pRN->GetDrawFrame(0) > 10) && (pRN->GetDrawFrame(0) >= (int)GetCurrPassMainFrameID()))
+					lightTI.vPosR = Vec4(rLight.m_Origin, rLight.m_fRadius);
+
+					bool bProjector = (rLight.m_Flags & DLF_PROJECT) && (rLight.m_fLightFrustumAngle < 90.f) && rLight.m_pLightImage;
+					Vec3 vLitAreaCenter;
+					float litAreaRadius;
+
+					// set direction info
+					if (bProjector)
 					{
-						m_lightsTI_D.Add(lightTI);
-						m_aabbLightsTI_D.Add(pRN->GetBBox());
+						lightTI.vDirF = Vec4(pRN->GetMatrix().GetColumn(0), rLight.m_fLightFrustumAngle * 2);
+						vLitAreaCenter = rLight.m_Origin + pRN->GetMatrix().GetColumn(0) * rLight.m_fRadius * 0.5f;
+						litAreaRadius = rLight.m_fRadius * 0.5f + GetCVars()->e_svoTI_RsmConeMaxLength * 0.5f;
+					}
+					else
+					{
+						lightTI.vDirF = Vec4(0, 0, 0, 0);
+						vLitAreaCenter = rLight.m_Origin;
+						litAreaRadius = rLight.m_fRadius + GetCVars()->e_svoTI_RsmConeMaxLength * 0.5f;
+					}
+
+					// frustum culling
+					Sphere sp(vLitAreaCenter, litAreaRadius);
+					if (!camera.IsSphereVisible_F(sp))
+						continue;
+
+					// set color
+					if (eVoxMode == IRenderNode::eGM_DynamicVoxelization)
+						lightTI.vCol = rLight.m_Color.toVec4();
+					else
+						lightTI.vCol = rLight.m_BaseColor.toVec4();
+
+					lightTI.vCol.w = (rLight.m_Flags & DLF_CASTSHADOW_MAPS) ? 1.f : 0.f;
+
+					// set sort value
+					if (rLight.m_Flags & DLF_SUN)
+					{
+						lightTI.fSortVal = -1;
+					}
+					else
+					{
+						float distance = vCamPos.GetDistance(vLitAreaCenter);
+
+						if (distance > GetCVars()->e_svoTI_PointLightsMaxDistance)
+							continue;
+
+						lightTI.fSortVal = distance / max(1.f, rLight.m_fRadius);
+						lightTI.fSortVal *= 1.f / max(0.01f, rLight.m_BaseColor.Luminance());
+					}
+
+					if (eVoxMode == IRenderNode::eGM_DynamicVoxelization || (eVoxMode == IRenderNode::eGM_StaticVoxelization && !GetCVars()->e_svoTI_IntegrationMode && !(rLight.m_Flags & DLF_SUN)))
+					{
+						if ((pRN->GetDrawFrame(0) > 10) && (pRN->GetDrawFrame(0) >= (int)GetCurrPassMainFrameID()))
+						{
+							m_lightsTI_D.Add(lightTI);
+							m_aabbLightsTI_D.Add(pRN->GetBBox());
+						}
+					}
+					else
+					{
+						m_lightsTI_S.Add(lightTI);
 					}
 				}
-				else
-					m_lightsTI_S.Add(lightTI);
 			}
+
+			if (m_lightsTI_S.Count() > 1)
+				qsort(m_lightsTI_S.GetElements(), m_lightsTI_S.Count(), sizeof(m_lightsTI_S[0]), SLightTI_Compare);
+
+			if (m_lightsTI_D.Count() > 1)
+				qsort(m_lightsTI_D.GetElements(), m_lightsTI_D.Count(), sizeof(m_lightsTI_D[0]), SLightTI_Compare);
+
+			if (m_lightsTI_D.Count() > 8)
+				m_lightsTI_D.PreAllocate(8, 8);
 		}
-
-		if (m_lightsTI_S.Count() > 1)
-			qsort(m_lightsTI_S.GetElements(), m_lightsTI_S.Count(), sizeof(m_lightsTI_S[0]), SLightTI_Compare);
-
-		if (m_lightsTI_D.Count() > 1)
-			qsort(m_lightsTI_D.GetElements(), m_lightsTI_D.Count(), sizeof(m_lightsTI_D[0]), SLightTI_Compare);
-
-		if (m_lightsTI_D.Count() > 8)
-			m_lightsTI_D.PreAllocate(8);
 	}
 }
 
@@ -2568,8 +2522,8 @@ void CSvoEnv::CollectAnalyticalOccluders()
 {
 	FUNCTION_PROFILER_3DENGINE;
 
-	for (int nStage = 0; nStage < 2; nStage++)
-		m_AnalyticalOccluders[nStage].Clear();
+	for (int stageId = 0; stageId < 2; stageId++)
+		m_analyticalOccluders[stageId].Clear();
 
 	if (!GetCVars()->e_svoTI_AnalyticalOccluders && !GetCVars()->e_svoTI_AnalyticalGI)
 		return;
@@ -2582,16 +2536,16 @@ void CSvoEnv::CollectAnalyticalOccluders()
 	Vec3 vCamPos = CVoxelSegment::m_voxCam.GetPosition();
 
 	// collect from static entities
-	if (int nCount = gEnv->p3DEngine->GetObjectsByTypeInBox(eERType_MovableBrush, areaBox, (IRenderNode**)0))
+	if (int objCount = gEnv->p3DEngine->GetObjectsByTypeInBox(eERType_MovableBrush, areaBox, (IRenderNode**)0))
 	{
-		PodArray<IRenderNode*> arrObjects(nCount, nCount);
-		nCount = gEnv->p3DEngine->GetObjectsByTypeInBox(eERType_MovableBrush, areaBox, arrObjects.GetElements());
+		PodArray<IRenderNode*> arrObjects(objCount, objCount);
+		objCount = gEnv->p3DEngine->GetObjectsByTypeInBox(eERType_MovableBrush, areaBox, arrObjects.GetElements());
 
 		Vec3 camPos = gEnv->pSystem->GetViewCamera().GetPosition();
 
-		for (int nL = 0; nL < nCount; nL++)
+		for (int n = 0; n < objCount; n++)
 		{
-			IRenderNode* pRN = arrObjects[nL];
+			IRenderNode* pRN = arrObjects[n];
 
 			AABB aabbEx = pRN->GetBBox();
 			aabbEx.Expand(Vec3(GetCVars()->e_svoTI_ConeMaxLength, GetCVars()->e_svoTI_ConeMaxLength, GetCVars()->e_svoTI_ConeMaxLength));
@@ -2604,16 +2558,16 @@ void CSvoEnv::CollectAnalyticalOccluders()
 	}
 
 	// collect from characters
-	if (int nCount = gEnv->p3DEngine->GetObjectsByTypeInBox(eERType_Character, areaBox, (IRenderNode**)0))
+	if (int objCount = gEnv->p3DEngine->GetObjectsByTypeInBox(eERType_Character, areaBox, (IRenderNode**)0))
 	{
-		PodArray<IRenderNode*> arrObjects(nCount, nCount);
-		nCount = gEnv->p3DEngine->GetObjectsByTypeInBox(eERType_Character, areaBox, arrObjects.GetElements());
+		PodArray<IRenderNode*> arrObjects(objCount, objCount);
+		objCount = gEnv->p3DEngine->GetObjectsByTypeInBox(eERType_Character, areaBox, arrObjects.GetElements());
 
 		Vec3 camPos = gEnv->pSystem->GetViewCamera().GetPosition();
 
-		for (int nL = 0; nL < nCount; nL++)
+		for (int n = 0; n < objCount; n++)
 		{
-			IRenderNode* pRN = arrObjects[nL];
+			IRenderNode* pRN = arrObjects[n];
 
 			AABB aabbEx = pRN->GetBBox();
 			aabbEx.Expand(Vec3(GetCVars()->e_svoTI_ConeMaxLength, GetCVars()->e_svoTI_ConeMaxLength, GetCVars()->e_svoTI_ConeMaxLength));
@@ -2625,25 +2579,25 @@ void CSvoEnv::CollectAnalyticalOccluders()
 		}
 	}
 
-	for (int nStage = 0; nStage < 2; nStage++)
+	for (int stageId = 0; stageId < 2; stageId++)
 	{
 		// remove invalid objects
-		for (int n = 0; n < m_AnalyticalOccluders[nStage].Count(); n++)
+		for (int n = 0; n < m_analyticalOccluders[stageId].Count(); n++)
 		{
-			if (m_AnalyticalOccluders[nStage][n].v0.IsZero() || m_AnalyticalOccluders[nStage][n].v1.IsZero())
+			if (m_analyticalOccluders[stageId][n].v0.IsZero() || m_analyticalOccluders[stageId][n].v1.IsZero())
 			{
-				m_AnalyticalOccluders[nStage].DeleteFastUnsorted(n);
+				m_analyticalOccluders[stageId].DeleteFastUnsorted(n);
 				n--;
 				continue;
 			}
-			
-			if (m_AnalyticalOccluders[nStage][n].type == (float)I3DEngine::SAnalyticalOccluder::eCapsule)
-				m_AnalyticalOccluders[nStage][n].c = (m_AnalyticalOccluders[nStage][n].v0 + m_AnalyticalOccluders[nStage][n].v1) * 0.5f;
+
+			if (m_analyticalOccluders[stageId][n].type == (float)I3DEngine::SAnalyticalOccluder::eCapsule)
+				m_analyticalOccluders[stageId][n].c = (m_analyticalOccluders[stageId][n].v0 + m_analyticalOccluders[stageId][n].v1) * 0.5f;
 		}
 
 		// sort by importance
-		if (m_AnalyticalOccluders[nStage].Count() > 1)
-			qsort(m_AnalyticalOccluders[nStage].GetElements(), m_AnalyticalOccluders[nStage].Count(), sizeof(m_AnalyticalOccluders[nStage][0]), SAnalyticalOccluder_Compare);
+		if (m_analyticalOccluders[stageId].Count() > 1)
+			qsort(m_analyticalOccluders[stageId].GetElements(), m_analyticalOccluders[stageId].Count(), sizeof(m_analyticalOccluders[stageId][0]), SAnalyticalOccluder_Compare);
 	}
 }
 
@@ -2694,7 +2648,7 @@ void CSvoEnv::AddAnalyticalOccluder(IRenderNode* pRN, Vec3 camPos)
 				if (bAOHard)
 					obb.type += 2.f;
 
-				m_AnalyticalOccluders[bPO].Add(obb);
+				m_analyticalOccluders[bPO].Add(obb);
 			}
 			else if (bSphere)
 			{
@@ -2713,7 +2667,7 @@ void CSvoEnv::AddAnalyticalOccluder(IRenderNode* pRN, Vec3 camPos)
 				capsule.v1 = vCenter - vZ;
 				capsule.radius = vX.GetLength();
 
-				m_AnalyticalOccluders[bPO].Add(capsule);
+				m_analyticalOccluders[bPO].Add(capsule);
 			}
 		}
 	}
@@ -2753,7 +2707,7 @@ void CSvoEnv::AddAnalyticalOccluder(IRenderNode* pRN, Vec3 camPos)
 					capsule.v0 = Vec3(vCenter.x, vCenter.y, max(vCenter.z + .01f, aabb.max.z - capsule.radius));
 					capsule.v1 = Vec3(vCenter.x, vCenter.y, min(vCenter.z - .01f, aabb.min.z + capsule.radius));
 
-					m_AnalyticalOccluders[bPO].Add(capsule);
+					m_analyticalOccluders[bPO].Add(capsule);
 
 					return;
 				}
@@ -2764,18 +2718,18 @@ void CSvoEnv::AddAnalyticalOccluder(IRenderNode* pRN, Vec3 camPos)
 
 					Vec3 arrBonePositions[2];
 
-					for (int nJointSlot = 0; nJointSlot < 2; nJointSlot++)
+					for (int jointSlot = 0; jointSlot < 2; jointSlot++)
 					{
-						int nJointID = capsuleInfo.arrJoints[nJointSlot];
+						int jointID = capsuleInfo.arrJoints[jointSlot];
 
-						if (nJointID >= 0)
+						if (jointID >= 0)
 						{
-							Matrix34A tm34 = matParent * Matrix34(pSkeletonPose->GetAbsJointByID(nJointID));
-							arrBonePositions[nJointSlot] = tm34.GetTranslation();
+							Matrix34A tm34 = matParent * Matrix34(pSkeletonPose->GetAbsJointByID(jointID));
+							arrBonePositions[jointSlot] = tm34.GetTranslation();
 						}
 						else
 						{
-							arrBonePositions[nJointSlot].zero();
+							arrBonePositions[jointSlot].zero();
 						}
 					}
 
@@ -2786,47 +2740,74 @@ void CSvoEnv::AddAnalyticalOccluder(IRenderNode* pRN, Vec3 camPos)
 					capsule.v0 = arrBonePositions[0];
 					capsule.v1 = arrBonePositions[1];
 
-					m_AnalyticalOccluders[bPO].Add(capsule);
+					m_analyticalOccluders[bPO].Add(capsule);
 				}
 			}
 		}
 	}
 }
 
+void CSvoEnv::GetGlobalEnvProbeProperties(_smart_ptr<ITexture>& specEnvCM, float& mult)
+{
+	AUTO_LOCK(m_csLockGlobalEnvProbe);
+
+	if (!m_pGlobalEnvProbe)
+	{
+		specEnvCM = nullptr;
+		mult = 1.0f;
+		return;
+	}
+
+	specEnvCM = m_pGlobalEnvProbe->GetSpecularCubemap();
+	mult = m_pGlobalEnvProbe->GetSpecularMult();
+}
+
+bool CSvoNode::IsStreamingActive()
+{
+	return (!gEnv->IsEditor() && Cry3DEngineBase::GetCVars()->e_svoStreamVoxels) || Cry3DEngineBase::GetCVars()->e_svoStreamVoxels == 2;
+}
+
 void CSvoNode::CheckAllocateChilds()
 {
+	FUNCTION_PROFILER_3DENGINE;
+
 	if (m_nodeBox.GetSize().x <= Cry3DEngineBase::GetCVars()->e_svoMinNodeSize)
 		return;
 
-	const int nCurrPassMainFrameID = GetCurrPassMainFrameID();
+	const int currPassMainFrameID = GetCurrPassMainFrameID();
 
-	m_pSeg->m_nLastRendFrameId = nCurrPassMainFrameID;
+	m_pSeg->m_lastRendFrameId = currPassMainFrameID;
 
-	for (int nChildId = 0; nChildId < 8; nChildId++)
+	for (int childId = 0; childId < 8; childId++)
 	{
-		if (m_arrChildNotNeeded[nChildId])
+		bool bChildNotNeeded = (!m_pChildFileOffsets || !m_pChildFileOffsets[childId].second) && IsStreamingActive() && (m_nodeBox.GetSize().x < SVO_ROOTLESS_PARENT_SIZE);
+
+		if (m_arrChildNotNeeded[childId] || bChildNotNeeded)
 		{
-			if (m_ppChilds[nChildId])
-				SAFE_DELETE(m_ppChilds[nChildId]);
+			if (m_ppChilds && m_ppChilds[childId])
+			{
+				SAFE_DELETE(m_ppChilds[childId]);
+			}
 			continue;
-			;
 		}
 
-		AABB childBox = GetChildBBox(nChildId);
+		AABB childBox = GetChildBBox(childId);
 
-		if (Cry3DEngineBase::GetCVars()->e_svoTI_VoxelizaionPostpone && (!m_ppChilds || !m_ppChilds[nChildId]) && (childBox.GetSize().z == Cry3DEngineBase::GetCVars()->e_svoMaxNodeSize))
+		if (!IsStreamingActive() && Cry3DEngineBase::GetCVars()->e_svoTI_VoxelizationPostpone && (!m_ppChilds || !m_ppChilds[childId]) && (childBox.GetSize().z == Cry3DEngineBase::GetCVars()->e_svoMaxNodeSize))
 		{
 			bool bThisIsAreaParent, bThisIsLowLodNode;
-			if (!CVoxelSegment::CheckCollectObjectsForVoxelization(childBox, NULL, bThisIsAreaParent, bThisIsLowLodNode, true))
+			if (!CVoxelSegment::CheckCollectObjectsForVoxelization(childBox, nullptr, bThisIsAreaParent, bThisIsLowLodNode, true))
 			{
+				assert(!CVoxelSegment::m_bExportMode || !"Some meshes are not streamed in, stream cgf must be off for now during EXPORT processs");
+
 				if (Cry3DEngineBase::GetCVars()->e_svoDebug == 7)
 					Cry3DEngineBase::Get3DEngine()->DrawBBox(childBox, Col_Lime);
-				CVoxelSegment::m_nPostponedCounter++;
+				CVoxelSegment::m_postponedCounter++;
 				continue;
 			}
 		}
 
-		//					if((m_pCloud->m_dwChildTrisTest & (1<<nChildId)) ||
+		//					if((m_pCloud->m_dwChildTrisTest & (1<<childId)) ||
 		//					(m_pCloud->GetBoxSize() > Cry3DEngineBase::GetCVars()->e_svoMaxNodeSize) || (Cry3DEngineBase::GetCVars()->e_rsDebugAI&2) || 1)
 		{
 			if (!m_ppChilds)
@@ -2835,22 +2816,54 @@ void CSvoNode::CheckAllocateChilds()
 				memset(m_ppChilds, 0, sizeof(m_ppChilds[0]) * 8);
 			}
 
-			CSvoNode* pChild = m_ppChilds[nChildId];
+			CSvoNode* pChild = m_ppChilds[childId];
 
 			if (pChild)
 			{
 				if (pChild->m_pSeg)
 				{
-					pChild->m_pSeg->m_nLastRendFrameId = nCurrPassMainFrameID;
+					pChild->m_pSeg->m_lastRendFrameId = currPassMainFrameID;
 				}
 
 				continue;
 			}
 
 			{
-				m_ppChilds[nChildId] = new CSvoNode(childBox, this);
+				m_ppChilds[childId] = new CSvoNode(childBox, this);
 
-				m_ppChilds[nChildId]->AllocateSegment(CVoxelSegment::m_nNextCloudId++, 0, 0, ecss_NotLoaded, true);
+				m_ppChilds[childId]->AllocateSegment(CVoxelSegment::m_nextSegmentId++, 0, 0, ecss_NotLoaded, true);
+
+				if (IsStreamingActive() && m_nodeBox.GetSize().x <= SVO_ROOTLESS_PARENT_SIZE)
+				{
+					if (m_ppChilds[childId]->m_nodeBox.GetSize().x == SVO_ROOTLESS_PARENT_SIZE / 2)
+					{
+						char szAreaFileName[256];
+						m_ppChilds[childId]->MakeNodeFilePath(szAreaFileName);
+
+						if (gEnv->pCryPak->IsFileExist(szAreaFileName))
+						{
+							//
+							m_ppChilds[childId]->m_pSeg->m_fileStreamOffset64 = 0;
+
+							const int parentNodeFileStreamSize = 132;
+							//assert(parentNodeFileStreamSize == (sizeof(int) + sizeof(uint32) * 2 * 8));
+
+							m_ppChilds[childId]->m_pSeg->m_fileStreamSize = parentNodeFileStreamSize;
+						}
+						else
+						{
+							m_arrChildNotNeeded[childId] = true;
+
+							SAFE_DELETE(m_ppChilds[childId]);
+						}
+					}
+					else
+					{
+						m_ppChilds[childId]->m_pSeg->m_fileStreamOffset64 = m_pChildFileOffsets[childId].first;
+
+						m_ppChilds[childId]->m_pSeg->m_fileStreamSize = m_pChildFileOffsets[childId].second;
+					}
+				}
 			}
 		}
 	}

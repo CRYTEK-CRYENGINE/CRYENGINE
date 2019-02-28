@@ -1,5 +1,4 @@
-// CRYENGINE Source Code File
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // Intended to be included from Illum.cfx
 
@@ -28,7 +27,7 @@ struct a2v
 
 struct v2f
 {
-  float4 screenPos : POSITION;
+  float4 screenPos : SV_POSITION;
   float3 pos	   : TEXCOORDN; // starting position of ray
   float3 dir	   : TEXCOORDN; // direction of ray
 
@@ -106,7 +105,11 @@ pixout_mb MeshBakerComplex_PS(v2f IN)
 	GatherMaterialAttribs(mTangentToWS, realCoord, vertexColor, commonAttribs);
 	
 	OUT.Color.xyz = LinearToSRGB(commonAttribs.Albedo);
+#if %DECAL
 	OUT.Color.w = GatherAlpha(realCoord, vertexColor.w);
+#else
+	OUT.Color.w = GatherAlpha(realCoord, 1.0f);
+#endif  
 
   if (ZOFFSET.z>1.0f)
   {

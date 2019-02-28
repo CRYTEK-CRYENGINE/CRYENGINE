@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -18,14 +18,6 @@ bool Resources::ms_libInitialized = false;
 Resources::Resources()
 	: m_pDevice(0)
 {
-	//if the renderer is not Dx11, don't initialize the OpenVR
-	if (strcmp(gEnv->pConsole->GetCVar("r_driver")->GetString(), "DX11") != 0)
-	{
-		CryLogAlways("[HMD][OpenVR] Unable to initialize OpenVR, only DX11 supported.");
-		return;
-	}
-
-
 	CryLogAlways("[HMD][OpenVR] Initialising Resources - Using OpenVR %s", vr::IVRSystem_Version);
 
 	vr::EVRInitError eError = vr::EVRInitError::VRInitError_None;

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "LevelSystem.h"
@@ -879,7 +879,7 @@ struct SLevelNameAutoComplete : public IConsoleArgumentAutoComplete
 SLevelNameAutoComplete g_LevelNameAutoComplete;
 
 //------------------------------------------------------------------------
-CLevelSystem::CLevelSystem(ISystem* pSystem, const char* levelsFolder)
+CLevelSystem::CLevelSystem(ISystem* pSystem)
 	: m_pSystem(pSystem),
 	m_pCurrentLevelInfo(nullptr),
 	m_pLoadingLevelInfo(nullptr)
@@ -903,7 +903,7 @@ CLevelSystem::CLevelSystem(ISystem* pSystem, const char* levelsFolder)
 	}
 
 	//if (!gEnv->IsEditor())
-	Rescan(levelsFolder, ILevelSystem::TAG_MAIN);
+	Rescan("", ILevelSystem::TAG_MAIN);
 
 	// register with system to get loading progress events
 	m_pSystem->SetLoadingProgressListener(this);
@@ -942,17 +942,15 @@ void CLevelSystem::Rescan(const char* levelsFolder, const uint32 tag)
 			if (m_pSystem->IsMODValid(pModArg->GetValue()))
 			{
 				m_levelsFolder.Format("Mods/%s/%s/%s", pModArg->GetValue(), PathUtil::GetGameFolder().c_str(), levelsFolder);
-				ScanFolder(0, true, tag);
+				ScanFolder(m_levelsFolder, true, tag);
 			}
 		}
 
 		m_levelsFolder = levelsFolder;
 	}
 
-	CRY_ASSERT(!m_levelsFolder.empty());
-
 	m_levelInfos.reserve(64);
-	ScanFolder(0, false, tag);
+	ScanFolder(m_levelsFolder, false, tag);
 
 	g_LevelNameAutoComplete.levels.clear();
 	for (int i = 0; i < (int)m_levelInfos.size(); i++)
@@ -993,70 +991,51 @@ void CLevelSystem::LoadRotation()
 }
 
 //------------------------------------------------------------------------
-void CLevelSystem::ScanFolder(const char* subfolder, bool modFolder, const uint32 tag)
+void CLevelSystem::ScanFolder(const string& rootFolder, bool modFolder, const uint32 tag)
 {
-	//CryLog("[DLC] ScanFolder:'%s' tag:'%.4s'", subfolder, (char*)&tag);
-	string folder;
-	if (subfolder && subfolder[0])
-		folder = subfolder;
-
-	string search(m_levelsFolder);
-	if (!folder.empty())
-		search += string("/") + folder;
-	search += "/*.*";
-
-	ICryPak* pPak = gEnv->pCryPak;
+	string searchedPath = PathUtil::Make(rootFolder, "*.*");
 
 	_finddata_t fd;
 	intptr_t handle = 0;
 
-	//CryLog("[DLC] ScanFolder: search:'%s'", search.c_str());
-	// --kenzo
-	// allow this find first to actually touch the file system
-	// (causes small overhead but with minimal amount of levels this should only be around 150ms on actual DVD Emu)
-	handle = pPak->FindFirst(search.c_str(), &fd, 0, true);
+	handle = gEnv->pCryPak->FindFirst(searchedPath.c_str(), &fd, 0, true);
 
 	if (handle > -1)
 	{
 		do
 		{
-			if (!(fd.attrib & _A_SUBDIR) || !strcmp(fd.name, ".") || !strcmp(fd.name, ".."))
+			if (!strcmp(fd.name, ".") || !strcmp(fd.name, ".."))
+			{
+				continue;
+			}
+
+			if (fd.attrib & _A_SUBDIR)
+			{
+				if (!rootFolder.empty())
+				{
+					string nextRootFolder = PathUtil::Make(rootFolder, fd.name);
+					ScanFolder(nextRootFolder, modFolder, tag);
+				}
+				else
+				{
+					ScanFolder(fd.name, modFolder, tag);
+				}
+
+				continue;
+			}
+
+			const char* szFileName = PathUtil::GetFile(fd.name);
+			if (stricmp(szFileName, "level.pak"))
 			{
 				continue;
 			}
 
 			CLevelInfo levelInfo;
 
-			string levelFolder = (folder.empty() ? "" : (folder + "/")) + string(fd.name);
-			string levelPath = m_levelsFolder + "/" + levelFolder;
-			string paks = levelPath + string("/*.pak");
+			levelInfo.m_levelPaks = PathUtil::Make(rootFolder, fd.name);
+			levelInfo.m_levelPath = rootFolder;
+			levelInfo.m_levelName = PathUtil::GetFile(levelInfo.m_levelPath);
 
-			//CryLog("[DLC] ScanFolder fd:'%s' levelPath:'%s'", fd.name, levelPath.c_str());
-
-			const string levelPakName = levelPath + "/level.pak";
-			const string levelXmlName = levelPath + "/" + fd.name + ".xml";
-#if 0
-			if (pPak->IsFileExist(levelPakName.c_str(), ICryPak::eFileLocation_OnDisk))
-			{
-				CryLog("[DLC] %s found on disk", levelPakName.c_str());
-			}
-			if (pPak->IsFileExist(levelXmlName.c_str()))
-			{
-				CryLog("[DLC] %s found", levelXmlName.c_str());
-			}
-#endif
-
-			if (!pPak->IsFileExist(levelPakName.c_str(), ICryPak::eFileLocation_OnDisk) && !pPak->IsFileExist(levelXmlName.c_str()))
-			{
-				ScanFolder(levelFolder.c_str(), modFolder, tag);
-				continue;
-			}
-
-			//CryLog("[DLC] ScanFolder adding level:'%s'", levelPath.c_str());
-			levelInfo.m_levelPath = levelPath;
-			levelInfo.m_levelPaks = paks;
-			levelInfo.m_levelName = levelFolder;
-			levelInfo.m_levelName = UnifyName(levelInfo.m_levelName);
 			levelInfo.m_isModLevel = modFolder;
 			levelInfo.m_scanTag = tag;
 			levelInfo.m_levelTag = ILevelSystem::TAG_UNKNOWN;
@@ -1064,7 +1043,7 @@ void CLevelSystem::ScanFolder(const char* subfolder, bool modFolder, const uint3
 			SwapEndian(levelInfo.m_scanTag, eBigEndian);
 			SwapEndian(levelInfo.m_levelTag, eBigEndian);
 
-			CLevelInfo* pExistingInfo = GetLevelInfoInternal(levelInfo.m_levelName);
+			CLevelInfo* pExistingInfo = GetLevelInfoByPathInternal(levelInfo.m_levelPath);
 			if (pExistingInfo && pExistingInfo->MetadataLoaded() == false)
 			{
 				//Reload metadata if it failed to load
@@ -1085,9 +1064,9 @@ void CLevelSystem::ScanFolder(const char* subfolder, bool modFolder, const uint3
 			}
 
 		}
-		while (pPak->FindNext(handle, &fd) >= 0);
+		while (gEnv->pCryPak->FindNext(handle, &fd) >= 0);
 
-		pPak->FindClose(handle);
+		gEnv->pCryPak->FindClose(handle);
 	}
 }
 
@@ -1123,36 +1102,35 @@ ILevelInfo* CLevelSystem::GetLevelInfo(const char* levelName)
 //------------------------------------------------------------------------
 CLevelInfo* CLevelSystem::GetLevelInfoInternal(const char* levelName)
 {
-	// If level not found by full name try comparing with only filename
+	if (CLevelInfo* pLevelInfo = GetLevelInfoByPathInternal(levelName))
+	{
+		return pLevelInfo;
+	}
+
+	// Try stripping out the folder to find the raw level name
+	string sLevelName = PathUtil::GetFile(levelName);
 	for (std::vector<CLevelInfo>::iterator it = m_levelInfos.begin(); it != m_levelInfos.end(); ++it)
 	{
-		if (!strcmpi(it->GetName(), levelName))
+		if (!strcmpi(it->GetName(), sLevelName))
 		{
 			return &(*it);
 		}
 	}
 
-	//////////////////////////////////////////////////////////////////////////
+	return nullptr;
+}
+
+//------------------------------------------------------------------------
+CLevelInfo* CLevelSystem::GetLevelInfoByPathInternal(const char* szLevelPath)
+{
 	for (std::vector<CLevelInfo>::iterator it = m_levelInfos.begin(); it != m_levelInfos.end(); ++it)
 	{
-		if (!strcmpi(PathUtil::GetFileName(it->GetName()), levelName))
+		if (!strcmpi(it->GetPath(), szLevelPath))
 		{
 			return &(*it);
 		}
 	}
-
-	// Try stripping out the folder to find the raw filename
-	string sLevelName(levelName);
-	size_t lastSlash = sLevelName.find_last_of('\\');
-	if (lastSlash == string::npos)
-		lastSlash = sLevelName.find_last_of('/');
-	if (lastSlash != string::npos)
-	{
-		sLevelName = sLevelName.substr(lastSlash + 1, sLevelName.size() - lastSlash - 1);
-		return GetLevelInfoInternal(sLevelName.c_str());
-	}
-
-	return 0;
+	return nullptr;
 }
 
 //------------------------------------------------------------------------
@@ -1615,8 +1593,8 @@ void CLevelSystem::OnLoadingStart(ILevelInfo* pLevelInfo)
 	m_fFilteredProgress = 0.f;
 	m_fLastTime = gEnv->pTimer->GetAsyncCurTime();
 
-	if(gEnv->IsEditor()) //pure game calls it from CCET_LoadLevel
-		GetISystem()->GetISystemEventDispatcher()->OnSystemEvent( ESYSTEM_EVENT_LEVEL_LOAD_START,0,0 );
+	if (gEnv->IsEditor()) //pure game calls it from CCET_LoadLevel
+		GetISystem()->GetISystemEventDispatcher()->OnSystemEvent(ESYSTEM_EVENT_LEVEL_LOAD_START, 0, 0);
 
 #if CRY_PLATFORM_WINDOWS
 	/*
@@ -1726,7 +1704,7 @@ void CLevelSystem::OnLoadingComplete(ILevelInfo* pLevelInfo)
 	 */
 
 	// LoadLevel is not called in the editor, hence OnLoadingComplete is not invoked on the ILevelSystemListeners
-	if (gEnv->IsEditor())
+	if (gEnv->IsEditor() && pLevelInfo)
 	{
 		for (std::vector<ILevelSystemListener*>::const_iterator it = m_listeners.begin(); it != m_listeners.end(); ++it)
 		{
@@ -1771,15 +1749,6 @@ void CLevelSystem::OnLoadingProgress(int steps)
 	OnLoadingProgress(m_pLoadingLevelInfo, (int)m_fFilteredProgress);
 }
 
-//------------------------------------------------------------------------
-string& CLevelSystem::UnifyName(string& name)
-{
-	//name.MakeLower();
-	name.replace('\\', '/');
-
-	return name;
-}
-
 //////////////////////////////////////////////////////////////////////////
 void CLevelSystem::LogLoadingTime()
 {
@@ -1792,8 +1761,7 @@ void CLevelSystem::LogLoadingTime()
 #if CRY_PLATFORM_WINDOWS
 	SCOPED_ALLOW_FILE_ACCESS_FROM_THIS_THREAD();
 
-	string filename = gEnv->pSystem->GetRootFolder();
-	filename += "Game_LevelLoadTime.log";
+	string filename = PathUtil::Make(gEnv->pSystem->GetRootFolder(), "Game_LevelLoadTime.log");
 
 	FILE* file = fxopen(filename, "at");
 	if (!file)
@@ -1927,6 +1895,15 @@ bool CLevelInfo::OpenLevelPak()
 			gEnv->pCryPak->OpenPack(levelmmpak, (unsigned)0, NULL, &fullLevelPakPath);
 			m_levelMMPakFullPath.assign(fullLevelPakPath.c_str());
 		}
+
+#if defined(FEATURE_SVO_GI)
+		string levelSvoPak = m_levelPath + string("/svogi.pak");
+		if (gEnv->pCryPak->IsFileExist(levelSvoPak))
+		{
+			gEnv->pCryPak->OpenPack(levelSvoPak, (unsigned)0, NULL, &fullLevelPakPath);
+			m_levelSvoPakFullPath.assign(fullLevelPakPath.c_str());
+		}
+#endif
 	}
 
 	gEnv->pCryPak->SetPacksAccessibleForLevel(GetName());
@@ -1948,6 +1925,12 @@ void CLevelInfo::CloseLevelPak()
 	{
 		gEnv->pCryPak->ClosePack(m_levelMMPakFullPath.c_str(), ICryPak::FLAGS_PATH_REAL);
 		stl::free_container(m_levelMMPakFullPath);
+	}
+
+	if (!m_levelSvoPakFullPath.empty())
+	{
+		gEnv->pCryPak->ClosePack(m_levelSvoPakFullPath.c_str(), ICryPak::FLAGS_PATH_REAL);
+		stl::free_container(m_levelSvoPakFullPath);
 	}
 }
 
@@ -2021,12 +2004,8 @@ void CLevelSystem::UnLoadLevel()
 		gEnv->pRenderer->EndFrame();
 
 		// force a black screen as last render command
-		gEnv->pRenderer->BeginFrame();
-		gEnv->pRenderer->SetState(GS_BLSRC_SRCALPHA | GS_BLDST_ONEMINUSSRCALPHA | GS_NODEPTHTEST);
-		gEnv->pRenderer->Draw2dImage(0, 0, 800, 600, -1, 0.0f, 0.0f, 1.0f, 1.0f, 0.f,
+		IRenderAuxImage::Draw2dImage(0, 0, 800, 600, -1, 0.0f, 0.0f, 1.0f, 1.0f, 0.f,
 		                             0.0f, 0.0f, 0.0f, 1.0, 0.f);
-		gEnv->pRenderer->EndFrame();
-
 		//flush any outstanding texture requests
 		gEnv->pRenderer->FlushPendingTextureTasks();
 	}
@@ -2034,7 +2013,10 @@ void CLevelSystem::UnLoadLevel()
 	// Disable filecaching during level unloading
 	// will be reenabled when we get back to the IIS (frontend directly)
 	// or after level loading is finished (via system event system)
-	gEnv->pSystem->GetPlatformOS()->AllowOpticalDriveUsage(false);
+	if (IPlatformOS* pPlatformOS = gEnv->pSystem->GetPlatformOS())
+	{
+		pPlatformOS->AllowOpticalDriveUsage(false);
+	}
 
 	if (gEnv->pScriptSystem)
 	{
@@ -2171,16 +2153,16 @@ void CLevelSystem::UnLoadLevel()
 	m_pCurrentLevelInfo = nullptr;
 
 	// Force to clean render resources left after deleting all objects and materials.
+	const int flags = gEnv->IsEditor() ? FRR_LEVEL_UNLOAD_SANDBOX : FRR_LEVEL_UNLOAD_LAUNCHER;
 	IRenderer* pRenderer = gEnv->pRenderer;
 	if (pRenderer)
 	{
 		pRenderer->FlushRTCommands(true, true, true);
 
 		CryComment("Deleting Render meshes, render resources and flush texture streaming");
-		
+
 		// This may also release some of the materials.
-		const int flags = gEnv->IsEditor() ? FRR_LEVEL_UNLOAD_SANDBOX : FRR_LEVEL_UNLOAD_LAUNCHER;
-		pRenderer->FreeResources(flags);
+		pRenderer->FreeSystemResources(flags);
 
 		CryComment("done");
 	}
@@ -2193,6 +2175,11 @@ void CLevelSystem::UnLoadLevel()
 	// Must be sent last.
 	// Cleanup all containers
 	GetISystem()->GetISystemEventDispatcher()->OnSystemEvent(ESYSTEM_EVENT_LEVEL_POST_UNLOAD, 0, 0);
+
+	if (pRenderer)
+	{
+		pRenderer->InitSystemResources(flags);
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////

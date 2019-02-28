@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -11,18 +11,17 @@ struct SGraphicsPipelineStateDescription;
 
 class CSceneGBufferStage : public CGraphicsPipelineStage
 {
+public:
 	enum EPerPassTexture
 	{
 		ePerPassTexture_PerlinNoiseMap = 25,
-		ePerPassTexture_TerrainElevMap,
 		ePerPassTexture_WindGrid,
+		ePerPassTexture_TerrainElevMap,
 		ePerPassTexture_TerrainNormMap,
 		ePerPassTexture_TerrainBaseMap,
 		ePerPassTexture_NormalsFitting,
 		ePerPassTexture_DissolveNoise,
 		ePerPassTexture_SceneLinearDepth,
-
-		ePerPassTexture_Count
 	};
 
 	enum EPass
@@ -32,26 +31,37 @@ class CSceneGBufferStage : public CGraphicsPipelineStage
 		ePass_MicroGBufferFill = 2,
 	};
 
-public:
 	CSceneGBufferStage();
 
-	virtual void Init() override;
-	virtual void Prepare(CRenderView* pRenderView) override;
-	void         Execute();
-	void         ExecuteMicroGBuffer();
-	void         ExecuteLinearizeDepth();
+	void Init() final;
+	void Update() final;
+	void Prepare(bool bPostLinearize);
 
-	bool         CreatePipelineStates(DevicePipelineStatesArray* pStateArray, const SGraphicsPipelineStateDescription& stateDesc, CGraphicsPipelineStateLocalCache* pStateCache);
+	bool IsStageActive(EShaderRenderingFlags flags) const final
+	{
+		// TODO: GBuffer shouldn't be responsible for ZPrePass
+	//	if (flags & EShaderRenderingFlags::SHDF_FORWARD_MINIMAL)
+	//		return false;
+
+		return true;
+	}
+
+	void Execute();
+	void ExecuteMinimumZpass();
+	void ExecuteMicroGBuffer();
+	void ExecuteLinearizeDepth();
+	void ExecuteGBufferVisualization();
+
+	bool CreatePipelineStates(DevicePipelineStatesArray* pStateArray, const SGraphicsPipelineStateDescription& stateDesc, CGraphicsPipelineStateLocalCache* pStateCache);
 
 private:
 	bool CreatePipelineState(const SGraphicsPipelineStateDescription& desc, EPass passID, CDeviceGraphicsPSOPtr& outPSO);
 
 	bool SetAndBuildPerPassResources(bool bOnInit);
 
-	void OnResolutionChanged();
-	void RenderDepthPrepass();
-	void RenderSceneOpaque();
-	void RenderSceneOverlays();
+	void ExecuteDepthPrepass();
+	void ExecuteSceneOpaque();
+	void ExecuteSceneOverlays();
 
 private:
 	CDeviceResourceSetPtr    m_pPerPassResourceSet;

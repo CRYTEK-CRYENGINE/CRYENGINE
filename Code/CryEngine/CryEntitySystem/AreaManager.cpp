@@ -1,14 +1,14 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "AreaManager.h"
 #include "Area.h"
+#include "Entity.h"
 #include <CryRenderer/IRenderAuxGeom.h>
 
 //////////////////////////////////////////////////////////////////////////
-CAreaManager::CAreaManager(CEntitySystem* pEntitySystem)
-	: m_pEntitySystem(pEntitySystem)
-	, m_bAreasDirty(true)
+CAreaManager::CAreaManager()
+	: m_bAreasDirty(true)
 {
 	// Minimize run-time allocations.
 	m_mapEntitiesToUpdate.reserve(32);
@@ -190,11 +190,11 @@ void CAreaManager::MarkEntityForUpdate(EntityId const entityId)
 void CAreaManager::TriggerAudioListenerUpdate(IArea const* const _pArea)
 {
 	CArea const* const pArea = static_cast<CArea const* const>(_pArea);
-	IEntityItPtr const pIt = m_pEntitySystem->GetEntityIterator();
+	IEntityItPtr const pIt = g_pIEntitySystem->GetEntityIterator();
 
 	while (!pIt->IsEnd())
 	{
-		IEntity const* const pIEntity = pIt->Next();
+		CEntity const* const pIEntity = static_cast<CEntity*>(pIt->Next());
 
 		// Do this for all audio listener entities.
 		if (pIEntity != nullptr && (pIEntity->GetFlagsExtended() & ENTITY_FLAG_EXTENDED_AUDIO_LISTENER) > 0)
@@ -209,7 +209,7 @@ void CAreaManager::TriggerAudioListenerUpdate(IArea const* const _pArea)
 //////////////////////////////////////////////////////////////////////////
 void CAreaManager::Update()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ENTITY);
+	CRY_PROFILE_FUNCTION(PROFILE_ENTITY);
 
 	// Update the area grid data structure.
 	UpdateDirtyAreas();
@@ -239,7 +239,7 @@ void CAreaManager::Update()
 			CRY_ASSERT(entityIdPair.second > 0);
 			--(entityIdPair.second);
 
-			IEntity* const pIEntity = g_pIEntitySystem->GetEntity(entityIdPair.first);
+			CEntity* const pIEntity = g_pIEntitySystem->GetEntityFromID(entityIdPair.first);
 
 			if (pIEntity != nullptr)
 			{
@@ -263,7 +263,7 @@ void CAreaManager::Update()
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CAreaManager::UpdateEntity(Vec3 const& position, IEntity* const pIEntity)
+void CAreaManager::UpdateEntity(Vec3 const& position, CEntity* const pIEntity)
 {
 	EntityId const entityId = pIEntity->GetId();
 	SAreasCache* pAreaCache = GetAreaCache(entityId);
@@ -345,7 +345,7 @@ void CAreaManager::UpdateEntity(Vec3 const& position, IEntity* const pIEntity)
 #endif // DEBUG_AREAMANAGER
 
 			// check if Area is hidden
-			IEntity const* const pAreaEntity = m_pEntitySystem->GetEntity(pArea->GetEntityID());
+			CEntity const* const pAreaEntity = g_pIEntitySystem->GetEntityFromID(pArea->GetEntityID());
 			bool const bIsHidden = (pAreaEntity && pAreaEntity->IsHidden());
 
 			// area was just hidden
@@ -443,7 +443,7 @@ bool CAreaManager::QueryAudioAreas(Vec3 const& pos, SAudioAreaInfo* const pResul
 			for (SAreaCacheEntry& areaCacheEntry : areaCache.entries)
 			{
 				CArea* const pArea = areaCacheEntry.pArea;
-				IEntity const* const pAreaEntity = m_pEntitySystem->GetEntity(pArea->GetEntityID());
+				CEntity const* const pAreaEntity = g_pIEntitySystem->GetEntityFromID(pArea->GetEntityID());
 
 				if (pAreaEntity && !pAreaEntity->IsHidden())
 				{
@@ -453,7 +453,7 @@ bool CAreaManager::QueryAudioAreas(Vec3 const& pos, SAudioAreaInfo* const pResul
 					{
 						for (size_t i = 0; i < attachedEntities; ++i)
 						{
-							IEntity const* const pIEntity = gEnv->pEntitySystem->GetEntity(pArea->GetEntityByIdx(i));
+							CEntity const* const pIEntity = g_pIEntitySystem->GetEntityFromID(pArea->GetEntityByIdx(i));
 
 							if (pIEntity != nullptr)
 							{
@@ -486,7 +486,7 @@ void CAreaManager::ProcessArea(
   SAreaCacheEntry& areaCacheEntry,
   SAreasCache* const pAreaCache,
   Vec3 const& pos,
-  IEntity const* const pIEntity,
+  CEntity const* const pIEntity,
   AreaEnvironments& areaEnvironments)
 {
 	Vec3 Closest3d(ZERO);
@@ -509,7 +509,7 @@ void CAreaManager::ProcessArea(
 			{
 				// Was far before both EnterNear and Enter needed.
 				// This is optimized internally and might not recalculate but rather retrieve the cached data.
-				float const distanceSq = pArea->CalcPointNearDistSq(entityId, pos, Closest3d, false);
+				pArea->CalcPointNearDistSq(entityId, pos, Closest3d, false);
 				pArea->EnterNearArea(entityId, Closest3d, 0.0f);
 				pArea->EnterArea(entityId);
 			}
@@ -953,7 +953,7 @@ bool CAreaManager::RetrieveEnvironmentAmount(
 	{
 		for (size_t i = 0; i < attachedEntities; ++i)
 		{
-			IEntity const* const pIEntity = m_pEntitySystem->GetEntity(pArea->GetEntityByIdx(i));
+			CEntity const* const pIEntity = g_pIEntitySystem->GetEntityFromID(pArea->GetEntityByIdx(i));
 
 			if (pIEntity != nullptr)
 			{
@@ -1066,7 +1066,7 @@ void CAreaManager::DrawAreas(ISystem const* const pSystem)
 
 		for (auto const& areaCachePair : m_mapAreaCache)
 		{
-			IEntity const* const pIEntity = m_pEntitySystem->GetEntity(areaCachePair.first);
+			CEntity const* const pIEntity = g_pIEntitySystem->GetEntityFromID(areaCachePair.first);
 
 			if (pIEntity != nullptr)
 			{
@@ -1155,7 +1155,7 @@ void CAreaManager::ResetAreas()
 	{
 		EntityId const entityId = cacheIt.first;
 		SAreasCache const& areaCache(cacheIt.second);
-		IEntity* const pEntity = m_pEntitySystem->GetEntity(entityId);
+		CEntity* const pEntity = g_pIEntitySystem->GetEntityFromID(entityId);
 
 		if (pEntity != nullptr)
 		{
@@ -1349,10 +1349,6 @@ void CAreaManager::OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_PTR l
 	switch (event)
 	{
 	case ESYSTEM_EVENT_LEVEL_LOAD_END:
-	case ESYSTEM_EVENT_SW_FORCE_LOAD_END:
-	case ESYSTEM_EVENT_SW_SHIFT_WORLD:
-		// This seems to be enabled by Segmented World, which is turned of in ProjectDefines.h
-		// if(GetEntitySystem()->EntitiesUseGUIDs())
 		{
 			LOADING_TIME_PROFILE_SECTION_NAMED("CAreaManager::OnSystemEvent ESYSTEM_EVENT_LEVEL_LOAD_END");
 			for (auto const pArea : m_areas)

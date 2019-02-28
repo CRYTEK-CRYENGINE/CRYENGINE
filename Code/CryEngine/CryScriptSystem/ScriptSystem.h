@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -25,29 +25,29 @@ struct SLuaStackEntry
 };
 
 // Returns literal representation of the type value
-inline const char* ScriptAnyTypeToString(ScriptAnyType type)
+inline const char* ScriptAnyTypeToString(EScriptAnyType type)
 {
 	switch (type)
 	{
-	case ANY_ANY:
+	case EScriptAnyType::Any:
 		return "Any";
-	case ANY_TNIL:
+	case EScriptAnyType::Nil:
 		return "Null";
-	case ANY_TBOOLEAN:
+	case EScriptAnyType::Boolean:
 		return "Boolean";
-	case ANY_TSTRING:
+	case EScriptAnyType::String:
 		return "String";
-	case ANY_TNUMBER:
+	case EScriptAnyType::Number:
 		return "Number";
-	case ANY_TFUNCTION:
+	case EScriptAnyType::Function:
 		return "Function";
-	case ANY_TTABLE:
+	case EScriptAnyType::Table:
 		return "Table";
-	case ANY_TUSERDATA:
+	case EScriptAnyType::UserData:
 		return "UserData";
-	case ANY_THANDLE:
+	case EScriptAnyType::Handle:
 		return "Pointer";
-	case ANY_TVECTOR:
+	case EScriptAnyType::Vector:
 		return "Vec3";
 	default:
 		return "Unknown";

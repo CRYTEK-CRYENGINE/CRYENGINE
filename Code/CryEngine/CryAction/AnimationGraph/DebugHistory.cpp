@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "DebugHistory.h"
@@ -13,11 +13,13 @@ static int g_currentlyVisibleCount = 0;
 void Draw2DLine(float x1, float y1, float x2, float y2, ColorF color, float fThickness)
 {
 	IRenderAuxGeom* pAux = gEnv->pRenderer->GetIRenderAuxGeom();
+
+	x1 /= gEnv->pRenderer->GetOverlayWidth();
+	y1 /= gEnv->pRenderer->GetOverlayHeight();
+	x2 /= gEnv->pRenderer->GetOverlayWidth();
+	y2 /= gEnv->pRenderer->GetOverlayHeight();
+
 	ColorB rgba((uint8)(color.r * 255.0f), (uint8)(color.g * 255.0f), (uint8)(color.b * 255.0f), (uint8)(color.a * 255.0f));
-	x1 /= gEnv->pRenderer->GetWidth();
-	y1 /= gEnv->pRenderer->GetHeight();
-	x2 /= gEnv->pRenderer->GetWidth();
-	y2 /= gEnv->pRenderer->GetHeight();
 	pAux->DrawLine(Vec3(x1, y1, 0), rgba, Vec3(x2, y2, 0), rgba, fThickness);
 }
 
@@ -123,11 +125,11 @@ void CDebugHistory::SetupLayoutAbs(float leftx, float topy, float width, float h
 
 void CDebugHistory::SetupLayoutRel(float leftx, float topy, float width, float height, float margin)
 {
-	m_layoutTopLeft.x = leftx * gEnv->pRenderer->GetWidth();
-	m_layoutTopLeft.y = topy * gEnv->pRenderer->GetHeight();
-	m_layoutExtent.x = width * gEnv->pRenderer->GetWidth();
-	m_layoutExtent.y = height * gEnv->pRenderer->GetHeight();
-	m_layoutMargin = margin * gEnv->pRenderer->GetHeight();
+	m_layoutTopLeft.x = leftx  * gEnv->pRenderer->GetOverlayWidth();
+	m_layoutTopLeft.y = topy   * gEnv->pRenderer->GetOverlayHeight();
+	m_layoutExtent.x  = width  * gEnv->pRenderer->GetOverlayWidth();
+	m_layoutExtent.y  = height * gEnv->pRenderer->GetOverlayHeight();
+	m_layoutMargin    = margin * gEnv->pRenderer->GetOverlayHeight();
 }
 
 //--------------------------------------------------------------------------------
@@ -521,7 +523,7 @@ void CDebugHistoryManager::Render(bool bSetupRenderer)
 	if (m_histories.empty())
 		return;
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	if (bSetupRenderer)
 		CDebugHistoryManager::SetupRenderer();
@@ -555,9 +557,8 @@ void CDebugHistoryManager::GetMemoryUsage(ICrySizer* s) const
 
 void CDebugHistoryManager::SetupRenderer()
 {
-	gEnv->pRenderer->SetMaterialColor(1, 1, 1, 1);
-	int screenw = gEnv->pRenderer->GetWidth();
-	int screenh = gEnv->pRenderer->GetHeight();
+	const int screenw = gEnv->pRenderer->GetOverlayWidth();
+	const int screenh = gEnv->pRenderer->GetOverlayHeight();
 
 	IRenderAuxGeom* pAux = gEnv->pRenderer->GetIRenderAuxGeom();
 	SAuxGeomRenderFlags flags = pAux->GetRenderFlags();

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "VClothSaver.h"
@@ -23,7 +23,7 @@ void CSaverVCloth::WriteChunkHeader()
 	chunk.vertexCount = vertexCount;
 	chunk.bendTriangleCount = (int)m_pVClothInfo->m_triangles.size();
 	chunk.bendTrianglePairCount = (int)m_pVClothInfo->m_trianglePairs.size();
-	chunk.lraNotAttachedOrderedIdxCount = (int)m_pVClothInfo->m_lraNotAttachedOrderedIdx.size();
+	chunk.nndcNotAttachedOrderedIdxCount = (int)m_pVClothInfo->m_nndcNotAttachedOrderedIdx.size();
 	chunk.linkCount[eVClothLink_Stretch] = (int)m_pVClothInfo->m_links[eVClothLink_Stretch].size();
 	chunk.linkCount[eVClothLink_Shear] = (int)m_pVClothInfo->m_links[eVClothLink_Shear].size();
 	chunk.linkCount[eVClothLink_Bend] = (int)m_pVClothInfo->m_links[eVClothLink_Bend].size();
@@ -66,14 +66,14 @@ void CSaverVCloth::WriteTriangleData()
 	m_pChunkData->AddData(buffer.begin(), m_pVClothInfo->m_trianglePairs.size_mem());
 }
 
-void CSaverVCloth::WriteLraNotAttachedOrdered()
+void CSaverVCloth::WriteNndcNotAttachedOrdered()
 {
 	if (!m_pVClothInfo) return;
-	DynArray<char> bufferLra;
-	bufferLra.resize(m_pVClothInfo->m_lraNotAttachedOrderedIdx.size_mem());
-	memcpy(&bufferLra[0], m_pVClothInfo->m_lraNotAttachedOrderedIdx.begin(), m_pVClothInfo->m_lraNotAttachedOrderedIdx.size_mem());
-	SwapEndian((SVClothLraNotAttachedOrderedIdx*)bufferLra.begin(), m_pVClothInfo->m_lraNotAttachedOrderedIdx.size(), m_bSwapEndian);
-	m_pChunkData->AddData(bufferLra.begin(), m_pVClothInfo->m_lraNotAttachedOrderedIdx.size_mem());
+	DynArray<char> bufferNndc;
+	bufferNndc.resize(m_pVClothInfo->m_nndcNotAttachedOrderedIdx.size_mem());
+	memcpy(&bufferNndc[0], m_pVClothInfo->m_nndcNotAttachedOrderedIdx.begin(), m_pVClothInfo->m_nndcNotAttachedOrderedIdx.size_mem());
+	SwapEndian((SVClothNndcNotAttachedOrderedIdx*)bufferNndc.begin(), m_pVClothInfo->m_nndcNotAttachedOrderedIdx.size(), m_bSwapEndian);
+	m_pChunkData->AddData(bufferNndc.begin(), m_pVClothInfo->m_nndcNotAttachedOrderedIdx.size_mem());
 }
 
 void CSaverVCloth::WriteLinks()

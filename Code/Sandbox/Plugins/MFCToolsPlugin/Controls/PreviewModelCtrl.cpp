@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -14,6 +14,7 @@
 #include "IIconManager.h"
 #include "ViewportInteraction.h"
 #include <Preferences/ViewportPreferences.h>
+#include "RenderLock.h"
 
 CPreviewModelCtrl::CPreviewModelCtrl()
 {
@@ -40,17 +41,17 @@ CPreviewModelCtrl::CPreviewModelCtrl()
 	m_bInRotateMode = false;
 	m_bInMoveMode = false;
 
-	CDLight l;
+	SRenderLight l;
 
 	float L = 1.0f;
-	l.m_fRadius = 10000;
 	l.m_Flags |= DLF_SUN | DLF_DIRECTIONAL;
 	l.SetLightColor(ColorF(L, L, L, 1));
 	l.SetPosition(Vec3(100, 100, 100));
+	l.SetRadius(10000);
 	m_lights.push_back(l);
 
 	m_bUseBacklight = false;
-	m_bContextCreated = false;
+	m_renderContextCreated = false;
 	m_bHaveAnythingToRender = false;
 	m_bGrid = true;
 	m_bAxis = true;
@@ -124,17 +125,62 @@ int CPreviewModelCtrl::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	return 0;
 }
 
-bool CPreviewModelCtrl::CreateContext()
+bool CPreviewModelCtrl::CreateRenderContext()
 {
 	// Create context.
-	if (m_pRenderer && !m_bContextCreated)
+	if (m_pRenderer && !m_renderContextCreated)
 	{
-		m_bContextCreated = true;
-		m_pRenderer->CreateContext(m_hWnd, false);
-		m_pRenderer->MakeMainContextActive();
+		CRect rc; GetClientRect(rc);
+		IRenderer::SDisplayContextDescription desc;
+
+		desc.handle = m_hWnd;
+		desc.type = IRenderer::eViewportType_Secondary;
+		desc.clearColor = m_clearColor;
+		desc.renderFlags = FRT_CLEAR_COLOR | FRT_CLEAR_DEPTH | FRT_TEMPORARY_DEPTH;
+		desc.superSamplingFactor.x = 1;
+		desc.superSamplingFactor.y = 1;
+		desc.screenResolution.x = rc.Width();
+		desc.screenResolution.y = rc.Height();
+
+		m_displayContextKey = m_pRenderer->CreateSwapChainBackedContext(desc);
+		m_renderContextCreated = true;
+
 		return true;
 	}
+
 	return false;
+}
+
+void CPreviewModelCtrl::DestroyRenderContext()
+{
+	// Destroy render context.
+	if (m_pRenderer && m_renderContextCreated)
+	{
+		// Do not delete primary context.
+		if (m_displayContextKey != reinterpret_cast<HWND>(m_pRenderer->GetHWND()))
+			m_pRenderer->DeleteContext(m_displayContextKey);
+
+		m_renderContextCreated = false;
+	}
+}
+
+void CPreviewModelCtrl::InitDisplayContext(HWND hWnd)
+{
+	CRY_PROFILE_FUNCTION(PROFILE_EDITOR);
+
+	// Draw all objects.
+	SDisplayContextKey displayContextKey;
+	displayContextKey.key.emplace<HWND>(hWnd);
+
+	DisplayContext& dctx = m_displayContext;
+	dctx.SetDisplayContext(displayContextKey, IRenderer::eViewportType_Secondary);
+//	dctx.SetView(m_pViewportAdapter.get());
+	dctx.SetCamera(&m_camera);
+	dctx.renderer = m_pRenderer;
+	dctx.engine = nullptr;
+	dctx.box.min = Vec3(-100000, -100000, -100000);
+	dctx.box.max = Vec3(100000, 100000, 100000);
+	dctx.flags = 0;
 }
 
 void CPreviewModelCtrl::PreSubclassWindow()
@@ -356,12 +402,12 @@ void CPreviewModelCtrl::UseBackLight(bool bEnable)
 	if (bEnable)
 	{
 		m_lights.resize(1);
-		CDLight l;
+		SRenderLight l;
+		l.m_Flags |= DLF_POINT;
 		l.SetPosition(Vec3(-100, 100, -100));
 		float L = 0.5f;
 		l.SetLightColor(ColorF(L, L, L, 1));
-		l.m_fRadius = 1000;
-		l.m_Flags |= DLF_POINT;
+		l.SetRadius(1000);
 		m_lights.push_back(l);
 	}
 	else
@@ -417,6 +463,34 @@ void CPreviewModelCtrl::SetOrbitAngles(const Ang3& ang)
 
 bool CPreviewModelCtrl::Render()
 {
+	bool result = false;
+
+	// lock while we are rendering to prevent any recursive rendering across the application
+	if (CScopedRenderLock lock = CScopedRenderLock())
+	{
+		if (!m_renderContextCreated)
+		{
+			if (!CreateRenderContext())
+				return false;
+		}
+
+		// Configures Aux to draw to the current display-context
+		InitDisplayContext(m_hWnd);
+
+		m_pRenderer->BeginFrame(m_displayContextKey);
+
+		result = RenderInternal();
+
+		m_pRenderer->EndFrame();
+	}
+
+	return result;
+}
+
+bool CPreviewModelCtrl::RenderInternal()
+{
+	DisplayContext& dc = m_displayContext;
+
 	CRect rc;
 	GetClientRect(rc);
 
@@ -425,21 +499,7 @@ bool CPreviewModelCtrl::Render()
 	if (height < 2 || width < 2)
 		return false;
 
-	if (!m_bContextCreated)
-	{
-		if (!CreateContext())
-			return false;
-	}
-
 	SetCamera(m_camera);
-	SRenderingPassInfo passInfo = SRenderingPassInfo::CreateGeneralPassRenderingInfo(m_camera, SRenderingPassInfo::DEFAULT_FLAGS, true);
-
-	m_pRenderer->SetClearColor(Vec3(m_clearColor.r, m_clearColor.g, m_clearColor.b));
-	m_pRenderer->SetCurrentContext(GetSafeHwnd());
-	m_pRenderer->ChangeViewport(0, 0, width, height);
-	m_pRenderer->BeginFrame();
-	m_pRenderer->SetRenderTile(m_tileX, m_tileY, m_tileSizeX, m_tileSizeY);
-	m_pRenderer->SetCamera(m_camera);
 
 	DrawBackground();
 	if (m_bGrid || m_bAxis)
@@ -455,8 +515,8 @@ bool CPreviewModelCtrl::Render()
 	gEnv->pConsole->GetCVar("r_displayInfo")->Set((int)m_bShowRenderInfo);
 
 	// Render object.
+	SRenderingPassInfo passInfo = SRenderingPassInfo::CreateGeneralPassRenderingInfo(m_camera, SRenderingPassInfo::DEFAULT_FLAGS, true, dc.GetDisplayContextKey());
 	m_pRenderer->EF_StartEf(passInfo);
-	m_pRenderer->ResetToDefault();
 
 	{
 		CScopedWireFrameMode scopedWireFrame(m_pRenderer, m_bDrawWireFrame ? R_WIREFRAME_MODE : R_SOLID_MODE);
@@ -517,15 +577,13 @@ bool CPreviewModelCtrl::Render()
 		if (m_bShowObject)
 			RenderObject(pMaterial, passInfo);
 
-		m_pRenderer->EF_EndEf3D(SHDF_NOASYNC | SHDF_STREAM_SYNC | SHDF_ALLOWHDR | SHDF_SECONDARY_VIEWPORT, -1, -1, passInfo);
+		m_pRenderer->EF_EndEf3D(SHDF_NOASYNC | SHDF_ALLOWHDR | SHDF_SECONDARY_VIEWPORT, -1, -1, passInfo);
+
+		if (true)
+			RenderEffect(pMaterial, passInfo);
 	}
 
 	m_pRenderer->RenderDebug(false);
-	m_pRenderer->EndFrame();
-	m_pRenderer->SetRenderTile();
-
-	// Restore main context.
-	m_pRenderer->MakeMainContextActive();
 
 	gEnv->pConsole->GetCVar("r_ShowNormals")->Set(showNormals);
 	gEnv->pConsole->GetCVar("p_draw_helpers")->Set(showPhysics);
@@ -534,7 +592,7 @@ bool CPreviewModelCtrl::Render()
 	return true;
 }
 
-void CPreviewModelCtrl::RenderObject(IMaterial* pMaterial, SRenderingPassInfo& passInfo)
+void CPreviewModelCtrl::RenderObject(IMaterial* pMaterial, const SRenderingPassInfo& passInfo)
 {
 	SRendParams rp;
 	rp.dwFObjFlags = 0;
@@ -559,13 +617,17 @@ void CPreviewModelCtrl::RenderObject(IMaterial* pMaterial, SRenderingPassInfo& p
 		m_pEntity->Render(rp, passInfo);
 
 	if (m_pCharacter)
-		m_pCharacter->Render(rp, QuatTS(IDENTITY), passInfo);
+		m_pCharacter->Render(rp, passInfo);
 
 	if (m_pEmitter)
 	{
 		m_pEmitter->Update();
 		m_pEmitter->Render(rp, passInfo);
 	}
+}
+
+void CPreviewModelCtrl::RenderEffect(IMaterial* pMaterial, const SRenderingPassInfo& passInfo)
+{
 }
 
 void CPreviewModelCtrl::DrawGrid()
@@ -656,21 +718,10 @@ void CPreviewModelCtrl::GetCameraTM(Matrix34& cameraTM)
 	cameraTM = m_camera.GetMatrix();
 }
 
-void CPreviewModelCtrl::DeleteRenderContex()
-{
-	ReleaseObject();
-
-	// Destroy render context.
-	if (m_pRenderer && m_bContextCreated)
-	{
-		m_pRenderer->DeleteContext(m_hWnd);
-		m_bContextCreated = false;
-	}
-}
-
 void CPreviewModelCtrl::OnDestroy()
 {
-	DeleteRenderContex();
+	ReleaseObject();
+	DestroyRenderContext();
 
 	CWnd::OnDestroy();
 
@@ -825,6 +876,8 @@ void CPreviewModelCtrl::OnSize(UINT nType, int cx, int cy)
 {
 	CWnd::OnSize(nType, cx, cy);
 	RedrawWindow();
+
+	//m_pRenderer->ResizeContext(GetSafeHwnd(),cx,cy);
 }
 
 void CPreviewModelCtrl::EnableUpdate(bool bUpdate)
@@ -905,7 +958,7 @@ void CPreviewModelCtrl::GetImageOffscreen(CImageEx& image, const CSize& customSi
 	}
 
 	image.Allocate(width, height);
-	m_pRenderer->ReadFrameBufferFast(image.GetData(), width, height);
+	m_pRenderer->ReadFrameBuffer(image.GetData(), width, height);
 
 	// At this point the image is upside-down, so we need to flip it.
 	unsigned int* data = image.GetData();
@@ -1258,7 +1311,7 @@ void CPreviewModelCtrl::DrawBackground()
 	renderFlags.SetDepthWriteFlag(e_DepthWriteOff);
 	renderFlags.SetDepthTestFlag(e_DepthTestOff);
 
-	IRenderAuxGeom* aux = gEnv->pRenderer->GetIRenderAuxGeom(IRenderer::eViewportType_Secondary);
+	IRenderAuxGeom* aux = gEnv->pRenderer->GetIRenderAuxGeom();
 	const SAuxGeomRenderFlags prevRenderFlags = aux->GetRenderFlags();
 	aux->SetRenderFlags(renderFlags);
 	aux->SetTexture(m_backgroundTextureId);
@@ -1268,3 +1321,4 @@ void CPreviewModelCtrl::DrawBackground()
 	aux->SetTexture(-1);
 	aux->SetRenderFlags(prevRenderFlags);
 }
+

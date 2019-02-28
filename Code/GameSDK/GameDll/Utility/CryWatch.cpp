@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
 -------------------------------------------------------------------------
@@ -38,7 +38,7 @@ static float GetWatchTextYPos()
 	const bool bConsoleVisible = GetISystem()->GetIConsole()->GetStatus();
 	if(bConsoleVisible)
 	{
-		const float screenHeight = (float)gEnv->pRenderer->GetHeight();
+		const float screenHeight = (float)gEnv->pRenderer->GetOverlayHeight();
 		Vec2 overscanBorders = Vec2(0.0f,0.0f);
 		gEnv->pRenderer->EF_Query(EFQ_OverscanBorders, overscanBorders);
 		const float overscanBorderHeight = screenHeight * overscanBorders.y;
@@ -49,7 +49,7 @@ static float GetWatchTextYPos()
 	if (s_watchTextLastPrintedDuringFrame == frame)
 	{
 		s_watchTextYPos += g_pGameCVars->watch_text_render_size * g_pGameCVars->watch_text_render_lineSpacing;
-		if( s_watchTextYPos + (g_pGameCVars->watch_text_render_size * g_pGameCVars->watch_text_render_lineSpacing) > gEnv->pRenderer->GetHeight() )
+		if( s_watchTextYPos + (g_pGameCVars->watch_text_render_size * g_pGameCVars->watch_text_render_lineSpacing) > gEnv->pRenderer->GetOverlayHeight() )
 		{
 			s_watchTextYPos = belowConsolePosY;
 			s_watchTextXPos += s_max_width_this_col + 15;

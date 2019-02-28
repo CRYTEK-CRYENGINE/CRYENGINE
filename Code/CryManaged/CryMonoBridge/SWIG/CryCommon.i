@@ -188,11 +188,9 @@ SMART_PTR_TEMPLATE(ISerializableInfo)
 SMART_PTR_TEMPLATE(IUIElementIterator)
 SMART_PTR_TEMPLATE(IUIEventSystemIterator)
 SMART_PTR_TEMPLATE(IWriteXMLSource)
-%template(SmartObjectNavDataPtr) _smart_ptr<PathPointDescriptor::SmartObjectNavData>;
 SMART_PTR_TEMPLATE(SCrySessionID)
 SMART_PTR_TEMPLATE(SCryUserID)
 SMART_PTR_TEMPLATE(SMFXResourceList)
-SMART_PTR_TEMPLATE(IParticleEffectIterator)
 
 //%include <std_vector.i>
 //%template(ProfilerList) std::vector<CFrameProfiler*>;

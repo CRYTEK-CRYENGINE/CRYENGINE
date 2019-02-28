@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   DialogSystem.cpp
@@ -418,7 +418,7 @@ bool CDialogSystem::RemoveSession(CDialogSession* pSession)
 ////////////////////////////////////////////////////////////////////////////
 void CDialogSystem::Update(const float dt)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	RestoreSessions();
 

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*=============================================================================
    ShadowUtils.h :
@@ -7,8 +7,7 @@
 * Created by Nick Kasyan
    =============================================================================*/
 
-#ifndef __SHADOWUTILS_H__
-#define __SHADOWUTILS_H__
+#pragma once
 
 #define DEG2RAD_R(a) (f64(a) * (g_PI / 180.0))
 #define RAD2DEG_R(a) float((f64)(a) * (180.0 / g_PI))
@@ -44,16 +43,13 @@ enum EFrustum_Type
 };
 
 struct SRenderTileInfo;
-struct SViewport;
+struct SRenderViewport;
 
 class CRenderView;
 
 class CShadowUtils
 {
 public:
-	typedef uint16                    ShadowFrustumID;
-	typedef PodArray<ShadowFrustumID> ShadowFrustumIDs;
-
 	static const int32 MaxCascadesNum = 4;
 
 	// Bit flags for forward shadows.
@@ -104,12 +100,17 @@ public:
 		float    shadowFadingDist;
 	};
 
+	struct SShadowsSetupInfo
+	{
+		Matrix44 ShadowMat;
+		float    RecpFarDist;
+	};
+
 public:
 	static void              CalcDifferentials(const CCamera& cam, float fViewWidth, float fViewHeight, float& fFragSizeX);
-	static void              ProjectScreenToWorldExpansionBasis(const Matrix44r& mShadowTexGen, const CCamera& cam, const Vec2& vJitter, float fViewWidth, float fViewHeight, Vec4r& vWBasisX, Vec4r& vWBasisY, Vec4r& vWBasisZ, Vec4r& vCamPos, bool bWPos, SRenderTileInfo* pSTileInfo);
+	static void              ProjectScreenToWorldExpansionBasis(const Matrix44r& mShadowTexGen, const CCamera& cam, const Vec2& vJitter, float fViewWidth, float fViewHeight, Vec4r& vWBasisX, Vec4r& vWBasisY, Vec4r& vWBasisZ, Vec4r& vCamPos, bool bWPos);
 	static void              CalcScreenToWorldExpansionBasis(const CCamera& cam, float fViewWidth, float fViewHeight, Vec3& vWBasisX, Vec3& vWBasisY, Vec3& vWBasisZ, bool bWPos);
 
-	static void              CalcLightBoundRect(const SRenderLight* pLight, const CRenderCamera& RCam, Matrix44A& mView, Matrix44A& mProj, Vec2* pvMin, Vec2* pvMax, IRenderAuxGeom* pAuxRend);
 	static void              GetProjectiveTexGen(const SRenderLight* pLight, int nFace, Matrix44A* mTexGen);
 	static void              GetCubemapFrustumForLight(const SRenderLight* pLight, int nS, float fFov, Matrix44A* pmProj, Matrix44A* pmView, bool bProjLight);
 
@@ -124,28 +125,12 @@ public:
 
 	static void              GetIrregKernel(float sData[][4], int nSamplesNum);
 
-	static ShadowMapFrustum* GetFrustum(CRenderView* pRenderView, ShadowFrustumID nFrustumID);
-	static ShadowMapFrustum& GetFirstFrustum(CRenderView* pRenderView, int nLightID);
+	static bool              GetSubfrustumMatrix(Matrix44A& result, const ShadowMapFrustum* pFullFrustum, const ShadowMapFrustum* pSubFrustum);
 
-	// Get list of encoded frustum ids for given mask
-	static const ShadowFrustumIDs* GetShadowFrustumList(uint64 nMask);
-	// Get light id and LOD id from encoded id in shadow frustum cache
-	static int32                   GetShadowLightID(int32& nLod, ShadowFrustumID nFrustumID)
-	{
-		nLod = int32((nFrustumID >> 8) & 0xFF);
-		return int32(nFrustumID & 0xFF);
-	}
-	static void InvalidateShadowFrustumCache()
-	{
-		bShadowFrustumCacheValid = false;
-	}
-
-	static bool     GetSubfrustumMatrix(Matrix44A& result, const ShadowMapFrustum* pFullFrustum, const ShadowMapFrustum* pSubFrustum);
-
-	static Matrix44 GetClipToTexSpaceMatrix(const ShadowMapFrustum* pFrustum, int nSide);
+	static Matrix44          GetClipToTexSpaceMatrix(const ShadowMapFrustum* pFrustum, int nSide);
 
 	// setup shader constants, return the validity of the textures for forward sun shadow, and return the textures and the shader runtime flags.
-	static bool SetupShadowsForFog(SShadowCascades& shadowCascades, CRenderView* pRenderView);
+	static bool SetupShadowsForFog(SShadowCascades& shadowCascades, const CRenderView* pRenderView);
 
 	// set the sampler-states and textures for forward sun shadow to RenderPass.
 	template<class RenderPassType>
@@ -166,12 +151,12 @@ public:
 	  const SShadowCascades& shadowCascades);
 
 	// return the validity of all cascade textures for forward sun shadow, and return the textures.
-	static bool GetShadowCascades(SShadowCascades& shadowCascades, CRenderView* pRenderView);
+	static bool GetShadowCascades(SShadowCascades& shadowCascades, const CRenderView* pRenderView);
 
 	// return the validity of all sun shadow cascades, and shadow sampling info for forward rendering.
-	static bool                GetShadowCascadesSamplingInfo(SShadowCascadesSamplingInfo& samplingInfo, CRenderView* pRenderView);
+	static bool                GetShadowCascadesSamplingInfo(SShadowCascadesSamplingInfo& samplingInfo, const CRenderView* pRenderView);
 
-	static SShadowSamplingInfo GetDeferredShadowSamplingInfo(ShadowMapFrustum* pFr, int nSide, const CCamera& cam, const SViewport& viewport, const Vec2& subpixelOffset);
+	static SShadowSamplingInfo GetDeferredShadowSamplingInfo(ShadowMapFrustum* pFr, int nSide, const CCamera& cam, const SRenderViewport& viewport, const Vec2& subpixelOffset);
 
 	CShadowUtils();
 	~CShadowUtils();
@@ -180,9 +165,6 @@ private:
 	static void GetForwardShadowSamplingInfo(SShadowSamplingInfo& samplingInfo, Matrix44& lightViewProj, const ShadowMapFrustum* pFr, int nSide);
 
 private:
-	static bool      bShadowFrustumCacheValid;
 	// Currently forced to use always ID 0 for sun (if sun present)
 	static const int nSunLightID = 0;
 };
-
-#endif

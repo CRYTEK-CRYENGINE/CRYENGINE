@@ -17,7 +17,9 @@ namespace CryEngine.OldPhysics
 
 		private uint _hitID;
 
+		[SerializeValue]
 		public ray_hit NativeHandle { get; private set; }
+		[SerializeValue]
 		public int Hits { get; private set; }
 		public bool Intersected { get { return Hits != 0; } }
 		public Vector3 Point { get { return NativeHandle.pt; } }
@@ -37,6 +39,7 @@ namespace CryEngine.OldPhysics
 		/// <summary>
 		/// The type of surface that was hit, if any. Returns 'Unknown' if nothing was hit.
 		/// </summary>
+		[SerializeValue]
 		public HitType Type { get; private set; }
 
 		/// <summary>

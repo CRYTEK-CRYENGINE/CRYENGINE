@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   DrawContext.cpp
@@ -28,8 +28,8 @@ CDrawContext::CDrawContext(SMetrics* pMetrics)
 	m_defaultZ = 0.0f;
 	m_pAuxRender = gEnv->pRenderer->GetIRenderAuxGeom();
 
-	m_frameWidth = (float)gEnv->pRenderer->GetWidth();
-	m_frameHeight = (float)gEnv->pRenderer->GetHeight();
+	m_frameWidth  = (float)gEnv->pRenderer->GetOverlayWidth();
+	m_frameHeight = (float)gEnv->pRenderer->GetOverlayHeight();
 
 }
 
@@ -82,9 +82,9 @@ void CDrawContext::DrawFrame(const Rect& rc, ColorB lineColor, ColorB solidColor
 //////////////////////////////////////////////////////////////////////////
 void CDrawContext::StartDrawing()
 {
-	int width = gEnv->pRenderer->GetWidth();
-	int height = gEnv->pRenderer->GetHeight();
-	gEnv->pRenderer->Set2DMode(true, width, height);
+	int width  = gEnv->pRenderer->GetOverlayWidth();
+	int height = gEnv->pRenderer->GetOverlayHeight();
+	m_pAuxRender->SetOrthographicProjection(true, 0.0f, static_cast<float>(width), static_cast<float>(height), 0.0f);
 
 	m_prevRenderFlags = m_pAuxRender->GetRenderFlags().m_renderFlags;
 	m_pAuxRender->SetRenderFlags(e_Mode3D | e_AlphaBlended | e_FillModeSolid | e_CullModeBack | e_DepthWriteOff | e_DepthTestOff);
@@ -96,9 +96,9 @@ void CDrawContext::StopDrawing()
 	// Restore old flags that where set before our draw context.
 	m_pAuxRender->SetRenderFlags(m_prevRenderFlags);
 
-	int width = gEnv->pRenderer->GetWidth();
-	int height = gEnv->pRenderer->GetHeight();
-	gEnv->pRenderer->Set2DMode(false, width, height);
+	int width  = gEnv->pRenderer->GetOverlayWidth();
+	int height = gEnv->pRenderer->GetOverlayHeight();
+	gEnv->pRenderer->GetIRenderAuxGeom()->SetOrthographicProjection(false);
 }
 
 //////////////////////////////////////////////////////////////////////////

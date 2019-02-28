@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 namespace CryEngine.Game
 {
@@ -7,10 +7,10 @@ namespace CryEngine.Game
 	/// </summary>
 	public class MyPlugin : ICryEnginePlugin
 	{
-        public override void Initialize()
-        {
+		public override void Initialize()
+		{
 			Game.Initialize();
-        }
+		}
 
 		public override void Shutdown()
 		{

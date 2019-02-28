@@ -1,11 +1,11 @@
-﻿// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 using System;
 using System.Runtime.InteropServices;
 
 namespace CryEngine.Core.Util
 {
-	public class AutoPinner : IDisposable
+	internal class AutoPinner : IDisposable
 	{
 		public GCHandle Handle { get; }
 		public object Target { get; }

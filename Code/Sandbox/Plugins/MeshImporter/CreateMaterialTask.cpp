@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "CreateMaterialTask.h"
@@ -85,7 +85,7 @@ static void InitializeMaterial(const string& directoryPath, CMaterial* pEditorMa
 		// If bump map is missing, lighting breaks in viewport of MeshImporter.
 		if (i == FbxTool::eMaterialChannelType_Bump && !bTexExists)
 		{
-			inputRes.m_Textures[texId].m_Name = "Objects/pbs_reference/gloss0_ddna.tif";
+			inputRes.m_Textures[texId].m_Name = "%ENGINE%/EngineAssets/Textures/white_ddn.dds";
 			continue;
 		}
 
@@ -94,7 +94,7 @@ static void InitializeMaterial(const string& directoryPath, CMaterial* pEditorMa
 		if (i == FbxTool::eMaterialChannelType_Diffuse && !bTexExists)
 		{
 			inputRes.m_LMaterial.m_Diffuse = material.m_materialChannels[i].m_color;
-			inputRes.m_Textures[texId].m_Name = "textures/defaults/white.tif";
+			inputRes.m_Textures[texId].m_Name = "%ENGINE%/EngineAssets/Textures/white.dds";
 			continue;
 		}
 
@@ -270,3 +270,4 @@ void CCreateMaterialTask::FinishTask(bool bTaskSucceeded)
 
 	delete this;
 }
+

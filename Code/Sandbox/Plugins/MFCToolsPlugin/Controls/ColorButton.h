@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef _C_COLORBUTTON_H__INCLUDED
 #define _C_COLORBUTTON_H__INCLUDED
@@ -44,3 +44,4 @@ protected:
 };
 
 #endif // #ifndef _C_COLOREDBUTTON_H__INCLUDED
+

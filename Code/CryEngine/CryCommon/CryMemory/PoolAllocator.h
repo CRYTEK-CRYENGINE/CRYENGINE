@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // Created by: Michael Smith
 // Modified 2008-06, Scott Peter
@@ -37,8 +37,6 @@
 //
 // The class is implemented using a HeapAllocator.
 //---------------------------------------------------------------------------
-
-#pragma warning(disable: 4355)  // 'this' : used in base member initializer list
 
 #include "HeapAllocator.h"
 

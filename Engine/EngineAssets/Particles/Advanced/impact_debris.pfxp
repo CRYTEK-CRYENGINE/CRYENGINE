@@ -111,14 +111,6 @@
         "DynamicObjects": false,
         "SlidingFriction": 0.0
       }
-    },
-    {
-      "SecondGenOnCollide": {
-        "Components": [ ],
-        "Enabled": false,
-        "Mode": "All",
-        "Probability": 1.0
-      }
     }
   ]
 }

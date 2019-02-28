@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "PoseMatching.h"
@@ -120,6 +120,8 @@ bool CPoseMatching::Prepare(const SAnimationPoseModifierParams& params)
 
 bool CPoseMatching::Execute(const SAnimationPoseModifierParams& params)
 {
+	DEFINE_PROFILER_FUNCTION();
+
 	CCharInstance* pCharInstance = PoseModifierHelper::GetCharInstance(params);
 	if (!pCharInstance)
 		return false;

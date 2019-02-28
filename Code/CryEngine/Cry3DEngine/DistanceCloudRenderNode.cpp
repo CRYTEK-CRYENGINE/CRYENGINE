@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "DistanceCloudRenderNode.h"
@@ -53,6 +53,9 @@ void CDistanceCloudRenderNode::SetProperties(const SDistanceCloudProperties& pro
 
 void CDistanceCloudRenderNode::SetMatrix(const Matrix34& mat)
 {
+	if (m_pos == mat.GetTranslation())
+		return;
+
 	Get3DEngine()->UnRegisterEntityAsJob(this);
 
 	m_pos = mat.GetTranslation();
@@ -92,7 +95,7 @@ void CDistanceCloudRenderNode::Render(const SRendParams& rParam, const SRenderin
 	if (cam.GetViewdir().z < 0)
 		zDist = -zDist;
 
-	CRenderObject* pRenderObject(gEnv->pRenderer->EF_GetObject_Temp(passInfo.ThreadID()));
+	CRenderObject* pRenderObject(passInfo.GetIRenderView()->AllocateTemporaryRenderObject());
 	if (!pRenderObject)
 		return;
 	pRenderObject->m_nSort = HalfFlip(CryConvertFloatToHalf(zDist));
@@ -142,7 +145,7 @@ void CDistanceCloudRenderNode::Render(const SRendParams& rParam, const SRenderin
 	pIndices[5] = 3;
 
 	int afterWater(GetObjManager()->IsAfterWater(m_pos, passInfo.GetCamera().GetPosition(), passInfo, Get3DEngine()->GetWaterLevel()) ? 1 : 0);
-	SRenderPolygonDescription poly(pRenderObject, pMaterial->GetShaderItem(), 4, pVerts, pTangents, pIndices, 6, EFSLIST_DECAL, afterWater);
+	SRenderPolygonDescription poly(pRenderObject, pMaterial->GetShaderItem(), 4, pVerts, pTangents, pIndices, 6, EFSLIST_SKY, afterWater);
 	passInfo.GetIRenderView()->AddPolygon(poly, passInfo);
 }
 
@@ -172,7 +175,7 @@ void CDistanceCloudRenderNode::GetMemoryUsage(ICrySizer* pSizer) const
 
 void CDistanceCloudRenderNode::OffsetPosition(const Vec3& delta)
 {
-	if (m_pTempData) m_pTempData->OffsetPosition(delta);
+	if (const auto pTempData = m_pTempData.load()) pTempData->OffsetPosition(delta);
 	m_pos += delta;
 	m_WSBBox.Move(delta);
 }

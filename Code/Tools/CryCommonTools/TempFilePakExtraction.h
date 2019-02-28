@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // Description: Opens a temporary file for read only access, where the file could be
 // located in a zip or pak file. Note that if the file specified

@@ -1,7 +1,6 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-#ifndef __IAIACTION_H__
-#define __IAIACTION_H__
+//! \cond INTERNAL
 
 #pragma once
 
@@ -85,4 +84,4 @@ struct IAIAction
 	// </interfuscator:shuffle>
 };
 
-#endif
+//! \endcond

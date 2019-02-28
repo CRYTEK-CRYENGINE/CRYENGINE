@@ -1,16 +1,8 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-//
-//  File:CryHeaders.h
-//  Definition of cgf, caf file chunks
-//
-//  History:
-//  -:Created by Vladimir Kajalin
-//
-//////////////////////////////////////////////////////////////////////
+//! \cond INTERNAL
 
-#ifndef __CS_HEADERS_H__
-#define __CS_HEADERS_H__
+#pragma once
 
 #include <CryCore/BaseTypes.h>
 #include <CryMath/Cry_Math.h>
@@ -1281,7 +1273,7 @@ struct VCLOTH_CHUNK
 	uint32 vertexCount;
 	uint32 bendTrianglePairCount;
 	uint32 bendTriangleCount;
-	uint32 lraNotAttachedOrderedIdxCount;
+	uint32 nndcNotAttachedOrderedIdxCount;
 	uint32 linkCount[3];
 
 	AUTO_STRUCT_INFO;
@@ -1291,9 +1283,9 @@ struct VCLOTH_CHUNK
 	// SVClothChunkVertex      vertices[vertexCount];
 	// SVClothBendTriangle     triangles[bendTriangleCount];
 	// SVClothBendTrianglePair trianglePairs[bendTrianglePairCount];
-	// SVClothLraNotAttachedOrderedIdx m_lraNotAttachedOrderedIdx[lraNotAttachedOrderedIdxCount];
+	// SVClothNndcNotAttachedOrderedIdx m_nndcNotAttachedOrderedIdx[nndcNotAttachedOrderedIdxCount];
 	// SVClothLink             m_links [linkCount];
 
 };
 
-#endif
+//! \endcond

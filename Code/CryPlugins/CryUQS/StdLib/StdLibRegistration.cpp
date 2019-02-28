@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"  // the actual location would be "stdlib/StdAfx.h", but for win64_no_uber builds, we added "stdlib" as an include path to make it happy
 #include "StdLibRegistration.h"

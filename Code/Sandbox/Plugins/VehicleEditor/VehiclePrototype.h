@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __VehiclePrototype_h__
 #define __VehiclePrototype_h__
@@ -35,7 +35,7 @@ public:
 	//////////////////////////////////////////////////////////////////////////
 	bool Init(CBaseObject* prev, const string& file);
 	void InitVariables() {};
-	void Display(DisplayContext& disp);
+	void Display(CObjectRenderHelper& objRenderHelper);
 	void Done();
 
 	bool HitTest(HitContext& hc);
@@ -105,7 +105,7 @@ public:
 	CRuntimeClass*      GetRuntimeClass()                   { return RUNTIME_CLASS(CVehiclePrototype); };
 	const char*         GetFileSpec()                       { return "Scripts/Entities/Vehicles/Implementations/Xml/*.xml"; };
 	virtual const char* GetDataFilesFilterString() override { return GetFileSpec(); }
-	//int GameCreationOrder() { return 150; };
 };
 
 #endif // __VehicleObject_h__
+

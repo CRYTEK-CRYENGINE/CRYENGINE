@@ -55,7 +55,7 @@ namespace Cry
 			}
 		}
 
-		void CAlembicComponent::ProcessEvent(SEntityEvent& event)
+		void CAlembicComponent::ProcessEvent(const SEntityEvent& event)
 		{
 			if (event.event == ENTITY_EVENT_COMPONENT_PROPERTY_CHANGED)
 			{
@@ -65,7 +65,7 @@ namespace Cry
 
 		uint64 CAlembicComponent::GetEventMask() const
 		{
-			return BIT64(ENTITY_EVENT_COMPONENT_PROPERTY_CHANGED);
+			return ENTITY_EVENT_BIT(ENTITY_EVENT_COMPONENT_PROPERTY_CHANGED);
 		}
 
 		void CAlembicComponent::Enable(bool bEnable)

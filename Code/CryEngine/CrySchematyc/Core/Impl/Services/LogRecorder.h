@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // #SchematycTODO : Optimize! Right now we're storing a full copy of the log's scope stack plus two strings per message. Maybe we could serialize to one log string buffer instead?
 

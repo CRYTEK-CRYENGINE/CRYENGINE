@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="fd939328-f662-c64c-14ee-7ad46fd074eb" source="ring.tif">
+ <Files>
+  <File path="ring.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">96</Detail>
+  <Detail name="height">96</Detail>
+  <Detail name="mipCount">1</Detail>
+ </Details>
+</AssetMetadata>

@@ -1,3 +1,5 @@
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+
 #include <CrySerialization/yasli/decorators/FileOpen.h>
 #include <CrySerialization/yasli/STL.h>
 #include <CrySerialization/yasli/Archive.h>

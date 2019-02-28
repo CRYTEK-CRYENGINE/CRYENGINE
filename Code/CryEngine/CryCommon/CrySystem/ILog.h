@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -18,6 +18,7 @@ enum ELogMode
 // forward declarations
 class ICrySizer;
 
+//! \cond INTERNAL
 //! Callback interface to the ILog.
 struct ILogCallback
 {
@@ -27,6 +28,7 @@ struct ILogCallback
 	virtual void OnWriteToFile(const char* sText, bool bNewLine) = 0;
 	// </interfuscator:shuffle>
 };
+//! \endcond
 
 //! Interface for logging operations based on IMiniLog.
 //! Logging in CryEngine should be done using the following global functions:

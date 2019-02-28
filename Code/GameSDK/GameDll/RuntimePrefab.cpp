@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
  -------------------------------------------------------------------------
@@ -235,9 +235,7 @@ void	CRuntimePrefab::Spawn(IEntity *pEntity,CPrefab &pRef, const Matrix34 &matOf
 	IScriptTable *pScriptTable(pEntity->GetScriptTable());
 	if (pScriptTable)
 	{		
-		ScriptAnyValue value;
-		value.type = ANY_TSTRING;
-		value.str = pRef.m_szName;
+		ScriptAnyValue value(pRef.m_szName);
 		pScriptTable->SetValueAny( "PrefabSourceName", value );
 	}	
 

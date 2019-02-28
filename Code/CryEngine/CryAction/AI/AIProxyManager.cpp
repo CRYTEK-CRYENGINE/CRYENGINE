@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -32,7 +32,7 @@ CAIProxyManager::~CAIProxyManager()
 //////////////////////////////////////////////////////////////////////////
 void CAIProxyManager::Init()
 {
-	gEnv->pEntitySystem->AddSink(this, IEntitySystem::OnReused, 0);
+	gEnv->pEntitySystem->AddSink(this, IEntitySystem::OnReused);
 
 	gEnv->pAISystem->SetActorProxyFactory(this);
 	gEnv->pAISystem->SetGroupProxyFactory(this);
@@ -124,12 +124,6 @@ void CAIProxyManager::OnSpawn(IEntity* pEntity, SEntitySpawnParams& params)
 bool CAIProxyManager::OnRemove(IEntity* pEntity)
 {
 	return true;
-}
-
-//////////////////////////////////////////////////////////////////////////
-void CAIProxyManager::OnEvent(IEntity* pEntity, SEntityEvent& event)
-{
-
 }
 
 //////////////////////////////////////////////////////////////////////////

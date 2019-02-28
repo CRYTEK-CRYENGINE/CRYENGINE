@@ -71,7 +71,7 @@ void CPathfindingComponent::SetMaxAcceleration(float maxAcceleration)
 	m_pPathFollower->SetParams(params);
 }
 
-void CPathfindingComponent::ProcessEvent(SEntityEvent& event)
+void CPathfindingComponent::ProcessEvent(const SEntityEvent& event)
 {
 	switch (event.event)
 	{
@@ -98,7 +98,7 @@ void CPathfindingComponent::ProcessEvent(SEntityEvent& event)
 
 uint64 CPathfindingComponent::GetEventMask() const
 {
-	return BIT64(ENTITY_EVENT_START_GAME) | BIT64(ENTITY_EVENT_COMPONENT_PROPERTY_CHANGED);
+	return ENTITY_EVENT_BIT(ENTITY_EVENT_START_GAME) | ENTITY_EVENT_BIT(ENTITY_EVENT_COMPONENT_PROPERTY_CHANGED);
 }
 
 void CPathfindingComponent::SetMovementOutputValue(const PathFollowResult& result)

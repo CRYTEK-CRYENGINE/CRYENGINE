@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /********************************************************************
    -------------------------------------------------------------------------
@@ -22,6 +22,7 @@
 #include <CryPhysics/AgePriorityQueue.h>
 #include <CryAISystem/INavigationSystem.h>
 #include <CryAISystem/IPathfinder.h>
+#include <CryAISystem/NavigationSystem/INavigationQuery.h>
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -32,23 +33,40 @@ namespace PathfinderUtils
 struct QueuedRequest
 {
 	QueuedRequest()
-		: pRequester(NULL)
+		: requesterEntityId(INVALID_ENTITYID)
 		, agentTypeID(0)
+		, pFilter(nullptr)
 	{
-		SetupDangerousLocationsData();
+		//don't need to setup dangerous areas in default constructor
 	}
 
-	QueuedRequest(const IAIPathAgent* _pRequester, NavigationAgentTypeID _agentTypeID, const MNMPathRequest& _request)
-		: pRequester(_pRequester)
+	~QueuedRequest()
+	{
+		pFilter = nullptr;
+	}
+
+	QueuedRequest(EntityId _requesterEntityId, NavigationAgentTypeID _agentTypeID, const MNMPathRequest& _request)
+		: requesterEntityId(_requesterEntityId)
 		, agentTypeID(_agentTypeID)
 		, requestParams(_request)
 	{
+		// Make a copy of the navigation query filter
+		if (_request.pFilter)
+		{
+			requestParams.pFilter = _request.pFilter->Clone();
+			pFilter = INavMeshQueryFilterConstPtr(requestParams.pFilter, [](const INavMeshQueryFilter* pFilter)
+			{
+				pFilter->Release();
+			});
+		}
+		
 		SetupDangerousLocationsData();
 	}
 
-	const IAIPathAgent*            pRequester;
-	NavigationAgentTypeID          agentTypeID;
-	MNMPathRequest                 requestParams;
+	EntityId                 requesterEntityId;
+	NavigationAgentTypeID    agentTypeID;
+	MNMPathRequest           requestParams;
+	INavMeshQueryFilterConstPtr pFilter;
 
 	const MNM::DangerousAreasList& GetDangersInfos() { return dangerousAreas; }
 
@@ -65,8 +83,7 @@ private:
 struct ProcessingRequest
 {
 	ProcessingRequest()
-		: pRequester(NULL)
-		, meshID(0)
+		: meshID(0)
 		, fromTriangleID(0)
 		, toTriangleID(0)
 		, data()
@@ -78,7 +95,6 @@ struct ProcessingRequest
 	ILINE void Reset()         { (*this) = ProcessingRequest(); }
 	ILINE bool IsValid() const { return (queuedID != 0); };
 
-	const IAIPathAgent* pRequester;
 	NavigationMeshID    meshID;
 	MNM::TriangleID     fromTriangleID;
 	MNM::TriangleID     toTriangleID;
@@ -102,20 +118,17 @@ struct ProcessingContext
 	};
 
 	ProcessingContext(const size_t maxWaySize)
-		: pWayQuery(NULL)
-		, queryResult(maxWaySize)
+		: queryResult(maxWaySize)
 		, status(Invalid)
-	{}
-
-	~ProcessingContext()
 	{
-		SAFE_DELETE(pWayQuery);
 	}
+	
+	ProcessingContext(ProcessingContext&&) = default;
+	ProcessingContext(const ProcessingContext&) = delete;
 
 	void Reset()
 	{
 		processingRequest.Reset();
-		SAFE_DELETE(pWayQuery);
 		queryResult.Reset();
 		workingSet.Reset();
 
@@ -143,8 +156,10 @@ struct ProcessingContext
 		}
 	}
 
+	ProcessingContext& operator=(ProcessingContext&&) = default;
+	ProcessingContext& operator=(const ProcessingContext&) = delete;
+
 	ProcessingRequest            processingRequest;
-	CNavMesh::WayQueryRequest*   pWayQuery;
 	CNavMesh::WayQueryResult     queryResult;
 	CNavMesh::WayQueryWorkingSet workingSet;
 
@@ -176,9 +191,9 @@ public:
 	typedef Functor1<ProcessingContext&>   ProcessingOperation;
 
 	ProcessingContextsPool(const size_t maxAmountOfTrianglesToCalculateWay = 512)
-		: m_pool(gAIEnv.CVars.MNMPathfinderConcurrentRequests, ProcessingContext(maxAmountOfTrianglesToCalculateWay))
-		, m_maxAmountOfTrianglesToCalculateWay(maxAmountOfTrianglesToCalculateWay)
+		: m_maxAmountOfTrianglesToCalculateWay(maxAmountOfTrianglesToCalculateWay)
 	{
+		Reset();
 	}
 
 	struct IsProcessCompleted
@@ -232,11 +247,6 @@ public:
 		void operator()(ProcessingContext& context) { if (context.status == ProcessingContext::Completed) context.Reset(); }
 	};
 
-	struct ResetProcessingContext
-	{
-		void operator()(ProcessingContext& context) { context.Reset(); }
-	};
-
 	void CleanupFinishedRequests()
 	{
 		std::for_each(m_pool.begin(), m_pool.end(), InvalidateCompletedProcess());
@@ -266,9 +276,15 @@ public:
 
 	void Reset()
 	{
+		const int poolSize = gAIEnv.CVars.MNMPathfinderConcurrentRequests;
+
 		m_pool.clear();
-		m_pool.resize(gAIEnv.CVars.MNMPathfinderConcurrentRequests, ProcessingContext(m_maxAmountOfTrianglesToCalculateWay));
-		std::for_each(m_pool.begin(), m_pool.end(), ResetProcessingContext());
+		m_pool.reserve(poolSize);
+
+		for(int i = 0; i < poolSize; ++i)
+		{
+			m_pool.emplace_back(m_maxAmountOfTrianglesToCalculateWay);
+		}
 	}
 
 private:
@@ -341,12 +357,13 @@ public:
 
 	void                      Reset();
 
-	virtual MNM::QueuedPathID RequestPathTo(const IAIPathAgent* pRequester, const MNMPathRequest& request);
-	virtual void              CancelPathRequest(MNM::QueuedPathID requestId);
+	virtual MNM::QueuedPathID RequestPathTo(const EntityId requesterEntityId, const MNMPathRequest& request) override;
+	virtual void              CancelPathRequest(MNM::QueuedPathID requestId) override;
 
 	void                      WaitForJobsToFinish();
 
-	bool                      CheckIfPointsAreOnStraightWalkableLine(const NavigationMeshID& meshID, const Vec3& source, const Vec3& destination, float heightOffset = 0.2f) const;
+	bool                      CheckIfPointsAreOnStraightWalkableLine(const NavigationMeshID& meshID, const Vec3& source, const Vec3& destination, float heightOffset = 0.2f) const override;
+	bool                      CheckIfPointsAreOnStraightWalkableLine(const NavigationMeshID& meshID, const Vec3& source, const Vec3& destination, const INavMeshQueryFilter* pFilter, float heightOffset = 0.2f) const override;
 
 	void                      Update();
 
@@ -368,8 +385,6 @@ public:
 
 private:
 
-	MNM::QueuedPathID QueuePathRequest(IAIPathAgent* pRequester, const MNMPathRequest& request);
-
 	void              SpawnJobs();
 	void              SpawnAppropriateJobIfPossible(MNM::PathfinderUtils::ProcessingContext& processingContext);
 	void              ExecuteAppropriateOperationIfPossible(MNM::PathfinderUtils::ProcessingContext& processingContext);
@@ -379,7 +394,7 @@ private:
 	void              ProcessPathRequest(MNM::PathfinderUtils::ProcessingContext& processingContext);
 	void              ConstructPathIfWayWasFound(MNM::PathfinderUtils::ProcessingContext& processingContext);
 
-	bool              SetupForNextPathRequest(MNM::QueuedPathID requestID, MNM::PathfinderUtils::QueuedRequest& request, MNM::PathfinderUtils::ProcessingContext& processingContext);
+	bool              SetupForNextPathRequest(MNM::QueuedPathID requestID, const MNM::PathfinderUtils::QueuedRequest& request, MNM::PathfinderUtils::ProcessingContext& processingContext);
 	void              PathRequestFailed(MNM::QueuedPathID requestID, const MNM::PathfinderUtils::QueuedRequest& request);
 
 	void              CancelResultDispatchingForRequest(MNM::QueuedPathID requestId);

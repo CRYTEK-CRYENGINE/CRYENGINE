@@ -1,5 +1,4 @@
-// CRYENGINE Source Code File
-// Copyright 2001-2016 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 float Script : STANDARDSGLOBAL<string Script = "NoPreview;"
                                                "ShaderType = Compute;"
@@ -70,8 +69,8 @@ technique ReorderParticles
 	pass p0 { ComputeShader = ReorderParticlesCS(); }
 }
 
-RWStructuredBuffer<int> killList : register(u1);
-RWStructuredBuffer<uint> counter : register(u2);
+RWBuffer<int> killList : register(u1);
+RWBuffer<uint> counter : register(u2);
 RWStructuredBuffer<SReadbackData> readback : register(u3);
 
 // this corresponds to gpu_pfx2::kBoundsScale on the C++ side
@@ -216,9 +215,9 @@ technique SwapToEnd
 }
 			
 // SRV slots (not all of them need to be used)
-StructuredBuffer<float> sizeTable : register(t0);
+Buffer<float> sizeTable : register(t0);
 StructuredBuffer<float3> colorTable : register(t1);
-StructuredBuffer<float> opacityTable : register(t2);
+Buffer<float> opacityTable : register(t2);
 
 float DeltaTime(float normAge, float frameTime)
 {
@@ -353,19 +352,17 @@ void FeatureUpdateCS(uint3 DTid : SV_DispatchThreadID)
 		size = (1.0 - mix) * sizeTable[normAgeBaseSlot] + mix * sizeTable[normAgeNextSlot];
 #endif
 
-#if %PFX_UPDATE_MOTION_LINEARINTEGRAL
-		float3 p0 = defaultParticleData[i].position;
-		float3 v0 = defaultParticleData[i].velocity;
-		float3 p1 = v0 * dT + p0;
-		defaultParticleData[i].position = p1;
-#endif
-
-#if %PFX_UPDATE_MOTION_DRAGFAST
+#if %PFX_UPDATE_MOTION_DRAGFAST 
 		float3 physAccel = c_physAccel;
 		float3 physWind = c_physWind * c_windMultiplier + c_uniformWind;
 
 		float3 p0 = defaultParticleData[i].position;
 		float3 v0 = defaultParticleData[i].velocity;
+#else
+		float3 p0 = defaultParticleData[i].position;
+		float3 v0 = defaultParticleData[i].velocity;
+		float3 p1 = v0 * dT + p0;
+		defaultParticleData[i].position = p1;
 #endif
 		
 		float3 partAccel = float3(0.0, 0.0, 0.0);
@@ -404,12 +401,13 @@ void FeatureUpdateCS(uint3 DTid : SV_DispatchThreadID)
 		{
 			float time = max(1.0f/1024.0f, c_deltaTime);
 			float speed = c_brownian_speed / sqrt(time);
-			SetKeyFloat(p0.x);
-			float keyX = RandSNorm();
-			SetKeyFloat(p0.y);
-			float keyY = RandSNorm();
-			SetKeyFloat(p0.z);
-			float keyZ = RandSNorm();
+			uint randKey;
+			randKey = GenKeyFromFloat(p0.x);
+			float keyX = RandSNorm(randKey);
+			randKey = GenKeyFromFloat(p0.y);
+			float keyY = RandSNorm(randKey);
+			randKey = GenKeyFromFloat(p0.z);
+			float keyZ = RandSNorm(randKey);
 			float3 accel = float3(keyX, keyY, keyZ) * speed;
 			partAccel += accel;
 		}
@@ -554,7 +552,7 @@ cbuffer g_initializationParameters : register(b5)
 	int c_init_octaves;
 };
 
-StructuredBuffer<uint> newBornIndices : register(t0);
+Buffer<uint> newBornIndices : register(t0);
 StructuredBuffer<SInitialData> parentData : register(t1);
 
 [numthreads(1024, 1, 1)] 
@@ -573,7 +571,8 @@ void FeatureInitializationCS(uint3 DTid : SV_DispatchThreadID)
 		position += parentData[newBornIndices[i]].velocity * c_deltaTime * fraction;
 		
 		// seed the random number generator for the location features etc.
-		SetKeyFloat(position.x + (i + c_currentTime) * 0.01);
+		uint randKey;
+		randKey = GenKeyFromFloat(position.x + (i + c_currentTime) * 0.01);
 
 #if %PFX_INIT_LOCATION_OFFSET
 		position += c_init_offset * c_init_scale.x;
@@ -582,9 +581,9 @@ void FeatureInitializationCS(uint3 DTid : SV_DispatchThreadID)
 #if %PFX_INIT_LOCATION_BOX
 		{
 			float3 oOffset = float3(
-			RandSNorm() * c_init_box.x,
-			RandSNorm() * c_init_box.y,
-			RandSNorm() * c_init_box.z);
+			RandSNorm(randKey) * c_init_box.x,
+			RandSNorm(randKey) * c_init_box.y,
+			RandSNorm(randKey) * c_init_box.z);
 
 			position += oOffset * c_init_scale.x;
 		}
@@ -592,7 +591,7 @@ void FeatureInitializationCS(uint3 DTid : SV_DispatchThreadID)
 		float EPSILON = 1.0f / 2048.0f;
 #if %PFX_INIT_LOCATION_SPHERE
 		{
-			float3 sphere = RandSphere();
+			float3 sphere = RandSphere(randKey);
 			sphere.x *= c_init_scale.x;
 			sphere.y *= c_init_scale.y;
 			sphere.z *= c_init_scale.z;
@@ -609,7 +608,7 @@ void FeatureInitializationCS(uint3 DTid : SV_DispatchThreadID)
 #endif
 #if %PFX_INIT_LOCATION_CIRCLE
 		{
-			float3 disc = float3(RandCircle(), 0.0);
+			float3 disc = float3(RandCircle(randKey), 0.0);
 			disc.x *= c_init_scale.x;
 			disc.y *= c_init_scale.y;
 		
@@ -637,7 +636,7 @@ void FeatureInitializationCS(uint3 DTid : SV_DispatchThreadID)
 
 #if %PFX_INIT_VELOCITY_CONE
 		{
-			float2 disc = RandCircle();
+			float2 disc = RandCircle(randKey);
 			float angle = c_init_angle;
 			float as = sin(angle), ac = cos(angle);
 			float3 dir = float3(disc.x * as, disc.y * as, ac);
@@ -655,7 +654,7 @@ void FeatureInitializationCS(uint3 DTid : SV_DispatchThreadID)
 
 #if %PFX_INIT_VELOCITY_OMNIDIRECTIONAL
 		{
-			float3 sphere = RandSphere();
+			float3 sphere = RandSphere(randKey);
 			float3 oVelocity = sphere * c_init_omniVelocity;
 			velocity += oVelocity;
 		}

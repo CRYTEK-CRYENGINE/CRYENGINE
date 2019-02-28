@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="bc2551ed-86f4-3ddb-7df7-8c7d56e4d339">
+ <Files>
+  <File path="dither_pattern_2d.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">4</Detail>
+  <Detail name="height">4</Detail>
+  <Detail name="mipCount">1</Detail>
+ </Details>
+</AssetMetadata>

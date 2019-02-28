@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include <CryRenderer/IRenderer.h>
@@ -35,23 +35,23 @@ namespace UQS
 		//
 		//===================================================================================
 
-		CDeferredEvaluator_TestRaycast::CRaycastRegulator::CRaycastRegulator(int maxRequestsPerFrame)
-			: m_maxRequestsPerFrame(maxRequestsPerFrame)
-			, m_currentFrame(0)
-			, m_numRequestsInCurrentFrame(0)
+		CDeferredEvaluator_TestRaycast::CRaycastRegulator::CRaycastRegulator(int maxRequestsPerSecond)
+			: m_maxRequestsPerSecond(maxRequestsPerSecond)
+			, m_timeLastFiredRaycast(0)
 		{}
 
 		bool CDeferredEvaluator_TestRaycast::CRaycastRegulator::RequestRaycast()
 		{
-			const int currentFrame = gEnv->pRenderer->GetFrameID();
+			const float currentTime = gEnv->pTimer->GetAsyncCurTime();
+			bool bRaycastAllowed = false;
 
-			if (currentFrame != m_currentFrame)
+			if (!m_timeLastFiredRaycast || (currentTime - m_timeLastFiredRaycast) >= 1.0f / (float) m_maxRequestsPerSecond)
 			{
-				m_currentFrame = currentFrame;
-				m_numRequestsInCurrentFrame = 0;
+				bRaycastAllowed = true;
+				m_timeLastFiredRaycast = currentTime;
 			}
 
-			return (++m_numRequestsInCurrentFrame <= m_maxRequestsPerFrame);
+			return bRaycastAllowed;
 		}
 
 		//===================================================================================
@@ -60,7 +60,7 @@ namespace UQS
 		//
 		//===================================================================================
 
-		CDeferredEvaluator_TestRaycast::CRaycastRegulator CDeferredEvaluator_TestRaycast::s_regulator(12);  // allow up to 12 raycasts per frame
+		CDeferredEvaluator_TestRaycast::CRaycastRegulator CDeferredEvaluator_TestRaycast::s_regulator(360);  // allow up to 360 raycasts per second, which amounts to 12 raycasts per frame at 30 FPS
 
 		CDeferredEvaluator_TestRaycast::CDeferredEvaluator_TestRaycast(const SParams& params)
 			: m_params(params)

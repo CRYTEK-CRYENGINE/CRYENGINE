@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -105,13 +105,24 @@ int32 CDeviceResource::Cleanup()
 
 	// Gracefully deal with NULL-resources which are nullptr
 	int32 nRef = m_resourceElements ? -1 : 0; // -!!bool
+
 	if (m_pNativeResource)
 	{
+		// Figure out current ref-count
+		nRef = m_pNativeResource->AddRef();
 		nRef = m_pNativeResource->Release();
 
+		// NOTE: Heap are ref-counting (first register, then release yourself)
+		if (m_eFlags & CDeviceObjectFactory::USAGE_HIFREQ_HEAP)
+			GetDeviceObjectFactory().RecycleResource(m_pNativeResource);
+		else
+			GetDeviceObjectFactory().ReleaseResource(m_pNativeResource);
+
 		// NOTE: CDeviceResource might be shared, take care the texture-pointer stays valid for the other aliases
-		if (!nRef)
+		if (nRef == 1)
 		{
+			nRef = 0;
+
 			m_pNativeResource = nullptr;
 		}
 	}
@@ -135,7 +146,7 @@ CDeviceBuffer* CDeviceBuffer::Create(const SBufferLayout& pLayout, const void* p
 	D3DBuffer* pBuffer = nullptr;
 
 	int32 nESRAMOffset = SKIP_ESRAM;
-#if CRY_PLATFORM_DURANGO
+#if CRY_PLATFORM_DURANGO && DURANGO_USE_ESRAM
 	nESRAMOffset = pLayout.m_eSRAMOffset;
 #endif
 
@@ -197,7 +208,16 @@ int32 CDeviceBuffer::Cleanup()
 {
 	Unbind();
 
+#if CRY_PLATFORM_DURANGO && (CRY_RENDERER_DIRECT3D >= 110) && (CRY_RENDERER_DIRECT3D < 120)
+	void* pBackingStorage = m_pNativeResource ? CDeviceObjectFactory::GetBackingStorage((ID3D11Buffer*)m_pNativeResource) : nullptr;
+#endif
 	int32 nRef = CDeviceResource::Cleanup();
+#if CRY_PLATFORM_DURANGO && (CRY_RENDERER_DIRECT3D >= 110) && (CRY_RENDERER_DIRECT3D < 120)
+	if (!nRef && pBackingStorage)
+	{
+		CDeviceObjectFactory::FreeBackingStorage(pBackingStorage);
+	}
+#endif
 
 	if (nRef != -1)
 	{
@@ -220,10 +240,10 @@ CDeviceTexture* CDeviceTexture::Create(const STextureLayout& pLayout, const STex
 {
 	CDeviceTexture* pDevTexture = nullptr;
 	RenderTargetData* pRenderTargetData = nullptr;
-	HRESULT hr;
+	HRESULT hr = S_OK;
 
 	int32 nESRAMOffset = SKIP_ESRAM;
-#if CRY_PLATFORM_DURANGO
+#if CRY_PLATFORM_DURANGO && DURANGO_USE_ESRAM
 	nESRAMOffset = pLayout.m_nESRAMOffset;
 #endif
 
@@ -249,8 +269,8 @@ CDeviceTexture* CDeviceTexture::Create(const STextureLayout& pLayout, const STex
 		eFlags |= CDeviceObjectFactory::BIND_DEPTH_STENCIL;
 	if (pLayout.m_eFlags & FT_USAGE_RENDERTARGET)
 		eFlags |= CDeviceObjectFactory::BIND_RENDER_TARGET;
-	if (pLayout.m_eFlags & FT_USAGE_DYNAMIC)
-		eFlags |= CDeviceObjectFactory::USAGE_CPU_WRITE;
+	if (pLayout.m_eFlags & FT_USAGE_TEMPORARY)
+		eFlags |= CDeviceObjectFactory::USAGE_HIFREQ_HEAP;
 	if (pLayout.m_eFlags & FT_STAGE_READBACK)
 		stagingFlags |= CDeviceObjectFactory::USAGE_STAGE_ACCESS | CDeviceObjectFactory::USAGE_CPU_READ;
 	if (pLayout.m_eFlags & FT_STAGE_UPLOAD)
@@ -294,7 +314,7 @@ CDeviceTexture* CDeviceTexture::Create(const STextureLayout& pLayout, const STex
 		if (pLayout.m_eFlags & (FT_USAGE_RENDERTARGET | FT_USAGE_DEPTHSTENCIL | FT_USAGE_UNORDERED_ACCESS))
 		{
 			pRenderTargetData = new RenderTargetData();
-#if CRY_PLATFORM_DURANGO
+#if CRY_PLATFORM_DURANGO && DURANGO_USE_ESRAM
 			pRenderTargetData->m_nESRAMOffset = nESRAMOffset;
 #endif
 		}
@@ -323,8 +343,9 @@ CDeviceTexture* CDeviceTexture::Create(const STextureLayout& pLayout, const STex
 			{
 				STexturePayload TI;
 
-				pRenderTargetData->m_nMSAASamples = (uint8)r->m_RP.m_MSAAData.Type;
-				pRenderTargetData->m_nMSAAQuality = (uint8)r->m_RP.m_MSAAData.Quality;
+				assert(pRenderTargetData);
+				pRenderTargetData->m_nMSAASamples = (uint8)gRenDev->GetMSAA().Type;
+				pRenderTargetData->m_nMSAAQuality = (uint8)gRenDev->GetMSAA().Quality;
 
 				TI.m_nDstMSAASamples = pRenderTargetData->m_nMSAASamples;
 				TI.m_nDstMSAAQuality = pRenderTargetData->m_nMSAAQuality;
@@ -358,8 +379,9 @@ CDeviceTexture* CDeviceTexture::Create(const STextureLayout& pLayout, const STex
 			{
 				STexturePayload TI;
 
-				pRenderTargetData->m_nMSAASamples = (uint8)r->m_RP.m_MSAAData.Type;
-				pRenderTargetData->m_nMSAAQuality = (uint8)r->m_RP.m_MSAAData.Quality;
+				assert(pRenderTargetData);
+				pRenderTargetData->m_nMSAASamples = (uint8)gRenDev->GetMSAA().Type;
+				pRenderTargetData->m_nMSAAQuality = (uint8)gRenDev->GetMSAA().Quality;
 
 				TI.m_nDstMSAASamples = pRenderTargetData->m_nMSAASamples;
 				TI.m_nDstMSAAQuality = pRenderTargetData->m_nMSAAQuality;
@@ -392,9 +414,7 @@ CDeviceTexture* CDeviceTexture::Create(const STextureLayout& pLayout, const STex
 			{
 				STexturePayload TI;
 
-				pRenderTargetData->m_nMSAASamples = (uint8)r->m_RP.m_MSAAData.Type;
-				pRenderTargetData->m_nMSAAQuality = (uint8)r->m_RP.m_MSAAData.Quality;
-
+				assert(pRenderTargetData);
 				TI.m_nDstMSAASamples = pRenderTargetData->m_nMSAASamples;
 				TI.m_nDstMSAAQuality = pRenderTargetData->m_nMSAAQuality;
 
@@ -437,18 +457,21 @@ CDeviceTexture* CDeviceTexture::Create(const STextureLayout& pLayout, const STex
 #endif
 	}
 
-	pDevTexture->m_pRenderTargetData = pRenderTargetData;
-	pDevTexture->m_eNativeFormat = D3DFmt;
-	pDevTexture->m_resourceElements = CTexture::TextureDataSize(nWdt, nHgt, nDepth, nMips, nArraySize, eTF_A8);
-	pDevTexture->m_subResources[eSubResource_Mips] = nMips;
-	pDevTexture->m_subResources[eSubResource_Slices] = nArraySize;
-	pDevTexture->m_eTT = pLayout.m_eTT;
-	pDevTexture->m_bFilterable = true;
-	pDevTexture->m_bIsSrgb = bIsSRGB;
-	pDevTexture->m_bAllowSrgb = !!(pLayout.m_eFlags & FT_USAGE_ALLOWREADSRGB);
-	pDevTexture->m_bIsMSAA = false;
-	pDevTexture->m_eFlags = eFlags | stagingFlags;
-	pDevTexture->AllocatePredefinedResourceViews();
+	if (pDevTexture)
+	{
+		pDevTexture->m_pRenderTargetData = pRenderTargetData;
+		pDevTexture->m_eNativeFormat = D3DFmt;
+		pDevTexture->m_resourceElements = CTexture::TextureDataSize(nWdt, nHgt, nDepth, nMips, nArraySize, eTF_A8);
+		pDevTexture->m_subResources[eSubResource_Mips] = nMips;
+		pDevTexture->m_subResources[eSubResource_Slices] = nArraySize;
+		pDevTexture->m_eTT = pLayout.m_eTT;
+		pDevTexture->m_bFilterable = true;
+		pDevTexture->m_bIsSrgb = bIsSRGB;
+		pDevTexture->m_bAllowSrgb = !!(pLayout.m_eFlags & FT_USAGE_ALLOWREADSRGB);
+		pDevTexture->m_bIsMSAA = false;
+		pDevTexture->m_eFlags = eFlags | stagingFlags;
+		pDevTexture->AllocatePredefinedResourceViews();
+	}
 
 	if (pRenderTargetData && pRenderTargetData->m_pDeviceTextureMSAA)
 	{
@@ -475,7 +498,7 @@ CDeviceTexture* CDeviceTexture::Associate(const STextureLayout& pLayout, D3DReso
 	RenderTargetData* pRenderTargetData = nullptr;
 
 	int32 nESRAMOffset = SKIP_ESRAM;
-#if CRY_PLATFORM_DURANGO
+#if CRY_PLATFORM_DURANGO && DURANGO_USE_ESRAM
 	nESRAMOffset = pLayout.m_nESRAMOffset;
 #endif
 
@@ -500,8 +523,6 @@ CDeviceTexture* CDeviceTexture::Associate(const STextureLayout& pLayout, D3DReso
 		eFlags |= CDeviceObjectFactory::BIND_DEPTH_STENCIL;
 	if (pLayout.m_eFlags & FT_USAGE_RENDERTARGET)
 		eFlags |= CDeviceObjectFactory::BIND_RENDER_TARGET;
-	if (pLayout.m_eFlags & FT_USAGE_DYNAMIC)
-		eFlags |= CDeviceObjectFactory::USAGE_CPU_WRITE;
 	if (pLayout.m_eFlags & FT_STAGE_READBACK)
 		eFlags |= CDeviceObjectFactory::USAGE_STAGE_ACCESS | CDeviceObjectFactory::USAGE_CPU_READ;
 	if (pLayout.m_eFlags & FT_STAGE_UPLOAD)
@@ -537,7 +558,7 @@ CDeviceTexture* CDeviceTexture::Associate(const STextureLayout& pLayout, D3DReso
 		if (pLayout.m_eFlags & (FT_USAGE_RENDERTARGET | FT_USAGE_DEPTHSTENCIL | FT_USAGE_UNORDERED_ACCESS))
 		{
 			pRenderTargetData = new RenderTargetData();
-#if CRY_PLATFORM_DURANGO
+#if CRY_PLATFORM_DURANGO && DURANGO_USE_ESRAM
 			pRenderTargetData->m_nESRAMOffset = nESRAMOffset;
 #endif
 		}
@@ -588,8 +609,6 @@ CDeviceTexture* CDeviceTexture::Associate(const STextureLayout& pLayout, D3DReso
 
 int CDeviceTexture::Cleanup()
 {
-	Unbind();
-
 	SAFE_DELETE(m_pRenderTargetData);
 
 	int32 nRef = CDeviceResource::Cleanup();
@@ -639,7 +658,7 @@ bool CDeviceTexture::IsMSAAChanged()
 {
 	const RenderTargetData* pRtdt = m_pRenderTargetData;
 
-	return pRtdt && (pRtdt->m_nMSAASamples != gRenDev->m_RP.m_MSAAData.Type || pRtdt->m_nMSAAQuality != gRenDev->m_RP.m_MSAAData.Quality);
+	return pRtdt && (pRtdt->m_nMSAASamples != gRenDev->GetMSAA().Type || pRtdt->m_nMSAAQuality != gRenDev->GetMSAA().Quality);
 }
 
 void CDeviceTexture::AddDirtRect(RECT& rcSrc, uint32 dstX, uint32 dstY)

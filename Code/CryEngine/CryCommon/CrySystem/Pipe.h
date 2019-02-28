@@ -1,18 +1,8 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  File name:   Pipe.h
-//  Version:     v1.00
-//  Created:     11/9/2007 by MichaelS.
-//  Compilers:   Visual Studio.NET 2005
-//  Description: Queue class that can be used to send data from a single
-//               writer thread to a single reader thread efficiently.
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
-#ifndef __PIPE_H__
-#define __PIPE_H__
+//! \cond INTERNAL
+
+#pragma once
 
 namespace CryMT
 {
@@ -87,7 +77,7 @@ namespace CryMT
 //--------------------------------------------------------------------------
 
 #if defined(PROFILE_PIPE_SYS)
-	#define PIPE_FUNCTION_PROFILER(sys) FUNCTION_PROFILER(GetISystem(), sys)
+	#define PIPE_FUNCTION_PROFILER(sys) CRY_PROFILE_FUNCTION(sys)
 #else //defined(PROFILE_PIPE_SYS)
 	#define PROFILE_PIPE_SYS
 	#define PIPE_FUNCTION_PROFILER(sys)
@@ -684,4 +674,4 @@ inline void TestPipe()
 
 }
 
-#endif //__PIPE_H__
+//! \endcond

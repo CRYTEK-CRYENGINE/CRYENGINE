@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   Particle.cpp
@@ -88,7 +88,7 @@ float CParticle::TravelSlide(SParticleState& state, SSlideInfo& sliding, float f
 			break;
 		}
 
-		GetContainer().GetCounts().ParticlesReiterate += 1.f;
+		GetContainer().GetCounts().particles.reiterate += 1.f;
 
 		// There is a force against the sliding plane.
 		// Sliding if velocity is currently into the plane, or max bounce distance is less than the border.
@@ -150,7 +150,7 @@ float CParticle::TravelSlide(SParticleState& state, SSlideInfo& sliding, float f
 			// Require retest against entity.
 			ray_hit hit;
 			Vec3 vTest = vExtAccel.GetNormalized(fMaxSlide);
-			GetContainer().GetCounts().ParticlesClip += 1.f;
+			GetContainer().GetCounts().particles.clip += 1.f;
 			if (!SPhysEnviron::PhysicsCollision(hit, state.m_Loc.t - vTest, state.m_Loc.t + vTest,
 			                                    fCOLLIDE_BUFFER_DIST, sliding.pEntity ? ENV_COLLIDE_PHYSICS : ENV_TERRAIN, sliding.pEntity))
 			{
@@ -173,7 +173,7 @@ float CParticle::TravelSlide(SParticleState& state, SSlideInfo& sliding, float f
 
 void CParticle::Move(SParticleState& state, float fTime, STargetForces const& forces_ext) const
 {
-	GetContainer().GetCounts().ParticlesReiterate += 1.f;
+	GetContainer().GetCounts().particles.reiterate += 1.f;
 
 	ResourceParticleParams const& params = GetParams();
 
@@ -414,7 +414,7 @@ bool CParticle::CheckCollision(ray_hit& hit, float fStepTime, SParticleUpdateCon
 {
 	hit.dist = 1.f;
 	uint32 nCollideFlags = context.nEnvFlags & ENV_COLLIDE_ANY;
-	if (nCollideFlags & ENV_COLLIDE_CACHE && GetCVars()->e_ParticlesObjectCollisions < 3)
+	if (nCollideFlags & ENV_COLLIDE_CACHE && !(GetCVars()->e_ParticlesCollisions & AlphaBit('p')))
 	{
 		// Cache collisions ahead in extended path.
 		if (collNew.Hit.TestHit(hit, m_Loc.t, stateNew.m_Loc.t, m_Vel.vLin, stateNew.m_Vel.vLin, fMAX_COLLIDE_DEVIATION, fCOLLIDE_BUFFER_DIST))
@@ -439,7 +439,7 @@ bool CParticle::CheckCollision(ray_hit& hit, float fStepTime, SParticleUpdateCon
 				if (fTestTime >= fStepTime * fMIN_TEST_AHEAD_MULT && stateTest.m_Loc.t != m_Loc.t)
 				{
 					ray_hit hit_cache;
-					GetContainer().GetCounts().ParticlesCollideTest += 1.f;
+					GetContainer().GetCounts().particles.collideTest += 1.f;
 					if (SPhysEnviron::PhysicsCollision(hit_cache, m_Loc.t, stateTest.m_Loc.t, 0.f, nCollideFlags & ENV_COLLIDE_CACHE))
 						collNew.Hit.SetHit(m_Loc.t, hit_cache.pt, hit_cache.n, hit_cache.surface_idx, hit_cache.pCollider);
 					else
@@ -460,7 +460,7 @@ bool CParticle::CheckCollision(ray_hit& hit, float fStepTime, SParticleUpdateCon
 			iDrawHelpers = 0;
 			ray_hit hit2;
 			if (SPhysEnviron::PhysicsCollision(hit2, m_Loc.t, stateNew.m_Loc.t, fCOLLIDE_BUFFER_DIST, context.nEnvFlags & ENV_COLLIDE_CACHE))
-				GetContainer().GetCounts().ParticlesReject += 1.f;
+				GetContainer().GetCounts().particles.reject += 1.f;
 			iDrawHelpers = iSave;
 		}
 #endif
@@ -468,7 +468,7 @@ bool CParticle::CheckCollision(ray_hit& hit, float fStepTime, SParticleUpdateCon
 	if (nCollideFlags)
 	{
 		ray_hit hit2;
-		GetContainer().GetCounts().ParticlesCollideTest += 1.f;
+		GetContainer().GetCounts().particles.collideTest += 1.f;
 		if (SPhysEnviron::PhysicsCollision(hit2, m_Loc.t, stateNew.m_Loc.t, fCOLLIDE_BUFFER_DIST, nCollideFlags))
 			if (hit2.dist < hit.dist)
 				hit = hit2;
@@ -1099,7 +1099,7 @@ void CParticle::Update(SParticleUpdateContext const& context, float fFrameTime, 
 				if (CheckCollision(hit, fStepTime, context, forces, stateNew, collNew))
 				{
 					assert(hit.dist >= 0.f);
-					rContainer.GetCounts().ParticlesCollideHit += 1.f;
+					rContainer.GetCounts().particles.collideHit += 1.f;
 
 					// Set particle to collision point.
 					// Linearly interpolate velocity based on distance.
@@ -1210,7 +1210,7 @@ void CParticle::Update(SParticleUpdateContext const& context, float fFrameTime, 
 			m_fAge += fStepTime;
 		}
 
-		rContainer.GetCounts().ParticlesReiterate -= 1.f;
+		rContainer.GetCounts().particles.reiterate -= 1.f;
 	}
 
 	m_fAge += max(fFrameTime, 0.f);
@@ -1273,7 +1273,7 @@ float CParticle::UpdateAlignment(SParticleState& state, SParticleUpdateContext c
 							avCorner[c].x += ((c & 1) * 2 - 1) * state.m_Loc.s;
 							avCorner[c].y += ((c & 2) - 1) * state.m_Loc.s;
 						}
-						avCorner[c].z = pTerrain->GetZApr(avCorner[c].x, avCorner[c].y, GetDefSID());
+						avCorner[c].z = pTerrain->GetZApr(avCorner[c].x, avCorner[c].y);
 					}
 
 					// Rotate sprite to average normal of quad.
@@ -1519,8 +1519,6 @@ CParticle::~CParticle()
 	{
 		GetPhysicalWorld()->DestroyPhysicalEntity(m_pPhysEnt);
 	}
-
-	GeomRef::Release();
 
 	IF (m_pCollisionInfo, 0)
 	{

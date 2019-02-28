@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "Fog.h"
@@ -28,59 +28,82 @@ void CFogStage::Init()
 	m_pTexInterleaveSamplePattern = CTexture::ForNamePtr("%ENGINE%/EngineAssets/Textures/FogVolShadowJitter.tif", FT_DONT_STREAM | FT_NOMIPS, eTF_Unknown);
 }
 
-void CFogStage::Prepare(CRenderView* pRenderView)
+void CFogStage::ResizeResource(int resourceWidth, int resourceHeight)
 {
 #if defined(VOLUMETRIC_FOG_SHADOWS)
-	CD3D9Renderer* const __restrict rd = gcpRendD3D;
-	int32 screenWidth = rd->GetWidth();
-	int32 screenHeight = rd->GetHeight();
+	const uint32 flags = FT_NOMIPS | FT_DONT_STREAM | FT_USAGE_RENDERTARGET;
 
-	// Recreate render targets if quality was changed
-	bool halfRes = (CRenderer::CV_r_FogShadows == 1);
-	bool quarterRes = (CRenderer::CV_r_FogShadows == 2);
-	if ((halfRes && CTexture::s_ptexVolFogShadowBuf[0]->GetWidth() != screenWidth / 2)
-	    || (quarterRes && CTexture::s_ptexVolFogShadowBuf[0]->GetWidth() != screenWidth / 4))
+	for (uint32 i = 0; i < 2; ++i)
 	{
-		int32 width = screenWidth / (halfRes ? 2 : 4);
-		int32 height = screenHeight / (halfRes ? 2 : 4);
-		for (uint32 i = 0; i < 2; ++i)
+		if (CRendererResources::s_ptexVolFogShadowBuf[i])
 		{
-			ETEX_Format fmt = CTexture::s_ptexVolFogShadowBuf[i]->GetDstFormat();
-			CTexture::s_ptexVolFogShadowBuf[i]->Invalidate(width, height, fmt);
-			CTexture::s_ptexVolFogShadowBuf[i]->CreateRenderTarget(fmt, Clr_Transparent);
+			const bool shouldApplyFog = true;
+
+			// Create/release the displacement texture on demand
+			if (!shouldApplyFog && CTexture::IsTextureExist(CRendererResources::s_ptexVolFogShadowBuf[i]))
+				CRendererResources::s_ptexVolFogShadowBuf[i]->ReleaseDeviceTexture(false);
+			else if (shouldApplyFog && (CRendererResources::s_ptexVolFogShadowBuf[i]->Invalidate(resourceWidth, resourceHeight, eTF_R8G8B8A8) || !CTexture::IsTextureExist(CRendererResources::s_ptexVolFogShadowBuf[i])))
+				CRendererResources::s_ptexVolFogShadowBuf[i]->CreateRenderTarget(eTF_R8G8B8A8, Clr_Unused);
 		}
+	}
+#endif
+}
+
+void CFogStage::Resize(int renderWidth, int renderHeight)
+{
+#if defined(VOLUMETRIC_FOG_SHADOWS)
+	// Recreate render targets if quality was changed
+	const int32 resolutionScale = (CRenderer::CV_r_FogShadows == 1) ? 2 : 4;
+
+	const int32 width  = renderWidth  / resolutionScale;
+	const int32 height = renderHeight / resolutionScale;
+
+	ResizeResource(width, height);
+#endif
+}
+
+void CFogStage::OnCVarsChanged(const CCVarUpdateRecorder& cvarUpdater)
+{
+#if defined(VOLUMETRIC_FOG_SHADOWS)
+	if (auto pVar = cvarUpdater.GetCVar("r_FogShadows"))
+	{
+		const CRenderView* pRenderView = RenderView();
+		const int32 renderWidth  = pRenderView->GetRenderResolution()[0];
+		const int32 renderHeight = pRenderView->GetRenderResolution()[1];
+
+		// Recreate render targets if quality was changed
+		const int32 resolutionScale = (pVar->intValue == 1 ? 2 : 4);
+
+		const int32 width  = renderWidth  / resolutionScale;
+		const int32 height = renderHeight / resolutionScale;
+
+		ResizeResource(width, height);
 	}
 #endif
 }
 
 void CFogStage::Execute()
 {
-	CD3D9Renderer* const __restrict rd = gcpRendD3D;
-	const SRenderPipeline& rp(rd->m_RP);
-	const SThreadInfo* const pShaderThreadInfo = &(rp.m_TI[rp.m_nProcessThreadID]);
+	bool bFogEnabled = RenderView()->IsGlobalFogEnabled();
 
-	if (!(pShaderThreadInfo->m_FS.m_bEnable && CRenderer::CV_r_usezpass != 0))
+	if (!(bFogEnabled && CRenderer::CV_r_usezpass != 0))
 	{
 		return;
 	}
 
-	// MSAA can't be used in new graphics pipeline.
-	CRY_ASSERT((rp.m_PersFlags2 & (RBPF2_MSAA_STENCILCULL | RBPF2_MSAA_SAMPLEFREQ_PASS)) == 0);
-
 	PROFILE_LABEL_SCOPE("FOG_GLOBAL");
 
-	Prepare(RenderView());
+	int32 width  = RenderView()->GetViewport().width;
+	int32 height = RenderView()->GetViewport().height;
 
-	int32 width = rd->GetWidth();
-	int32 height = rd->GetHeight();
-	const bool bReverseDepth = (rp.m_TI[rp.m_nProcessThreadID].m_PersFlags & RBPF_REVERSE_DEPTH) != 0;
-	const bool bVolumtricFog = (rd->m_bVolumetricFogEnabled != 0);
+	const bool bReverseDepth = true;
+	const bool bVolumtricFog = (gRenDev->m_bVolumetricFogEnabled != 0);
 #if defined(VOLUMETRIC_FOG_SHADOWS)
-	const bool bVolFogShadow = (rd->m_bVolFogShadowsEnabled != 0);
+	const bool bVolFogShadow = (gRenDev->m_bVolFogShadowsEnabled != 0);
 #else
 	const bool bVolFogShadow = false;
 #endif
-	auto* pVolFogStage = rd->GetGraphicsPipeline().GetVolumetricFogStage();
+	auto* pVolFogStage = GetStdGraphicsPipeline().GetVolumetricFogStage();
 
 	if (bVolFogShadow)
 	{
@@ -98,30 +121,30 @@ void CFogStage::Execute()
 #else
 		const int nSvoGiTexId = 0;
 #endif
-		const int viewInfoCount = rd->GetGraphicsPipeline().GetViewInfoCount();
+		const int viewInfoCount = GetStdGraphicsPipeline().GetViewInfoCount();
 		const bool bSinglePassStereo = (viewInfoCount > 1) ? true : false;
 
 		// prevent fog depth clipping if volumetric fog, SVOGI, or single pass stereo rendering are activated.
-		bool useFogDepthTest = (CRenderer::CV_r_FogDepthTest != 0.0f)
+		bool bFogDepthTest = (CRenderer::CV_r_FogDepthTest != 0.0f)
 		                       && !bVolumtricFog
 		                       && !nSvoGiTexId
 		                       && !bSinglePassStereo;
 
 		f32 fogDepth = 0.0f;
-		if (useFogDepthTest)
+		if (bFogDepthTest)
 		{
 			fogDepth = GetFogCullDistance();
-			useFogDepthTest = (fogDepth >= 0.01f);
+			bFogDepthTest = (fogDepth >= 0.01f);
 		}
-		rd->m_fogCullDistance = fogDepth;
+		gRenDev->m_fogCullDistance = fogDepth;
 
 		uint32 inputFlag = 0;
 		inputFlag |= bVolFogShadow ? BIT(0) : 0;
 		inputFlag |= bVolumtricFog ? BIT(2) : 0;
-		inputFlag |= useFogDepthTest ? BIT(3) : 0;
+		inputFlag |= bFogDepthTest ? BIT(3) : 0;
 		inputFlag |= bReverseDepth ? BIT(4) : 0;
 
-		if (m_passFog.InputChanged(inputFlag, CTexture::s_ptexHDRTarget->GetTextureID(), nSvoGiTexId))
+		if (m_passFog.IsDirty(inputFlag, nSvoGiTexId, RenderView()->GetDepthTarget()->GetTextureID()))
 		{
 			uint64 rtMask = 0;
 			rtMask |= bVolFogShadow ? g_HWSR_MaskBit[HWSR_SAMPLE0] : 0;
@@ -131,17 +154,19 @@ void CFogStage::Execute()
 			static CCryNameTSCRC techName("FogPass");
 			m_passFog.SetPrimitiveFlags(CRenderPrimitive::eFlags_ReflectShaderConstants_PS);
 			m_passFog.SetTechnique(pShader, techName, rtMask);
-			m_passFog.SetRenderTarget(0, CTexture::s_ptexHDRTarget);
-			m_passFog.SetDepthTarget(rd->m_pZTexture);
+			m_passFog.SetRenderTarget(0, CRendererResources::s_ptexHDRTarget);
 
 			m_passFog.SetFlags(CPrimitiveRenderPass::ePassFlags_VrProjectionPass);
 
 			// using GS_BLDST_SRCALPHA because GS_BLDST_ONEMINUSSRCALPHA causes banding artifact when alpha value is very low.
-			uint32 nRS = GS_BLSRC_ONE | GS_BLDST_SRCALPHA | (useFogDepthTest ? GS_DEPTHFUNC_LEQUAL : GS_NODEPTHTEST);
+			uint32 nRS = GS_BLSRC_ONE | GS_BLDST_SRCALPHA | (bFogDepthTest ? GS_DEPTHFUNC_LEQUAL : GS_NODEPTHTEST);
 			nRS = bReverseDepth ? ReverseDepthHelper::ConvertDepthFunc(nRS) : nRS;
 			m_passFog.SetState(nRS);
 
-			m_passFog.SetTexture(0, CTexture::s_ptexZTarget);
+			m_passFog.SetTexture(0, CRendererResources::s_ptexLinearDepth);
+			m_passFog.SetSampler(0, EDefaultSamplerStates::PointClamp);
+
+			m_passFog.SetDepthTarget(RenderView()->GetDepthTarget());
 
 			if (bVolumtricFog)
 			{
@@ -150,24 +175,25 @@ void CFogStage::Execute()
 #if defined(VOLUMETRIC_FOG_SHADOWS)
 			else if (bVolFogShadow)
 			{
-				m_passFog.SetTextureSamplerPair(1, CTexture::s_ptexVolFogShadowBuf[0], EDefaultSamplerStates::PointClamp);
+				m_passFog.SetTexture(1, CRendererResources::s_ptexVolFogShadowBuf[0]);
 			}
 #endif
 #if defined(FEATURE_SVO_GI)
 			else if (nSvoGiTexId)
 			{
 				// bind SVO atmosphere
-				m_passFog.SetTextureSamplerPair(12, pSR->GetTroposphereMinRT(), EDefaultSamplerStates::PointClamp);
-				m_passFog.SetTextureSamplerPair(13, pSR->GetTroposphereShadRT(), EDefaultSamplerStates::PointClamp);
-				m_passFog.SetTextureSamplerPair(14, pSR->GetTroposphereMaxRT(), EDefaultSamplerStates::PointClamp);
+				m_passFog.SetTexture(12, pSR->GetTroposphereMinRT());
+				m_passFog.SetTexture(13, pSR->GetTroposphereShadRT());
+				m_passFog.SetTexture(14, pSR->GetTroposphereMaxRT());
 			}
 #endif
 		}
 
 		f32 clipZ = 0.0f;
-		if (useFogDepthTest)
+		if (bFogDepthTest)
 		{
-			const Matrix44A& projMat = *(pShaderThreadInfo->m_matProj->GetTop());
+			const auto &viewInfo = GetStdGraphicsPipeline().GetCurrentViewInfo(CCamera::eEye_Left);
+			const Matrix44A& projMat = viewInfo.projMatrix;
 
 			// projMat.m23 is -1 or 1 depending on whether we use a RH or LH coord system
 			// done in favor of an if check to make homogeneous divide by fogDepth (which is always positive) work
@@ -185,8 +211,8 @@ void CFogStage::Execute()
 
 		m_passFog.BeginConstantUpdate();
 
-		const f32 averageLuminance = rd->m_vSceneLuminanceInfo.x;
-		const f32 adaptedSceneScale = rd->m_fAdaptedSceneScale;
+		const f32 averageLuminance = gcpRendD3D.m_vSceneLuminanceInfo.x;
+		const f32 adaptedSceneScale = gcpRendD3D.m_fAdaptedSceneScale;
 		static CCryNameR szHDRParams("HDRParams2");
 		m_passFog.SetConstant(szHDRParams, Vec4(averageLuminance, adaptedSceneScale, 0, 0), eHWSC_Pixel);
 
@@ -219,8 +245,8 @@ void CFogStage::Execute()
 
 			Vec4 sampleOffsets[5];
 			{
-				const float tU = 1.0f / static_cast<float>(CTexture::s_ptexVolFogShadowBuf[0]->GetWidth());
-				const float tV = 1.0f / static_cast<float>(CTexture::s_ptexVolFogShadowBuf[0]->GetHeight());
+				const float tU = 1.0f / static_cast<float>(CRendererResources::s_ptexVolFogShadowBuf[0]->GetWidth());
+				const float tV = 1.0f / static_cast<float>(CRendererResources::s_ptexVolFogShadowBuf[0]->GetHeight());
 
 				sampleOffsets[0] = Vec4(0, 0, 0, 0);
 				sampleOffsets[1] = Vec4(0, -tV, 0, 0);
@@ -236,7 +262,7 @@ void CFogStage::Execute()
 #if defined(FEATURE_SVO_GI)
 		static CCryNameR sSVO_AirTextureScale("SVO_AirTextureScale");
 		Vec4 vSVO_AirTextureScale(
-			nSvoGiTexId ? float(width / pSR->GetTroposphereMinRT()->GetWidth()) : 0.0f,
+			nSvoGiTexId ? float(width  / pSR->GetTroposphereMinRT()->GetWidth ()) : 0.0f,
 			nSvoGiTexId ? float(height / pSR->GetTroposphereMinRT()->GetHeight()) : 0.0f,
 		  0.0f, 0.0f);
 		m_passFog.SetConstant(sSVO_AirTextureScale, vSVO_AirTextureScale, eHWSC_Pixel);
@@ -252,17 +278,17 @@ void CFogStage::Execute()
 	// render fog with lightning
 	if (bLightning)
 	{
-		if (m_passLightning.InputChanged())
+		if (m_passLightning.IsDirty())
 		{
 			uint64 rtMask = 0;
 
 			static CCryNameTSCRC techName("FogPassWithLightning");
 			m_passLightning.SetTechnique(pShader, techName, rtMask);
-			m_passLightning.SetRenderTarget(0, CTexture::s_ptexHDRTarget);
+			m_passLightning.SetRenderTarget(0, CRendererResources::s_ptexHDRTarget);
 
 			m_passLightning.SetState(GS_NODEPTHTEST | GS_BLSRC_ONE | GS_BLDST_ONE);
 
-			m_passLightning.SetTexture(0, CTexture::s_ptexZTarget);
+			m_passLightning.SetTexture(0, CRendererResources::s_ptexLinearDepth);
 
 			m_passLightning.SetRequireWorldPos(true);
 
@@ -289,6 +315,7 @@ void CFogStage::ExecuteVolumetricFogShadow()
 {
 #if defined(VOLUMETRIC_FOG_SHADOWS)
 	CD3D9Renderer* const __restrict rd = gcpRendD3D;
+	const auto *pRenderView = RenderView();
 
 	const bool bCloudShadow = rd->m_bVolFogCloudShadowsEnabled;
 	const bool bVolCloudShadow = rd->m_bVolumetricCloudsEnabled;
@@ -298,7 +325,7 @@ void CFogStage::ExecuteVolumetricFogShadow()
 	// ray cast into sun shadow maps
 	{
 		CShadowUtils::SShadowCascades cascades;
-		bool bSunShadow = CShadowUtils::SetupShadowsForFog(cascades, RenderView());
+		bool bSunShadow = CShadowUtils::SetupShadowsForFog(cascades, pRenderView);
 		
 		m_pCloudShadowTex = cascades.pCloudShadowMap;
 
@@ -307,7 +334,7 @@ void CFogStage::ExecuteVolumetricFogShadow()
 		inputFlag |= bVolCloudShadow ? BIT(1) : 0;
 		inputFlag |= bSunShadow ? BIT(2) : 0;
 
-		if (m_passVolFogShadowRaycast.InputChanged(inputFlag, CRenderer::CV_r_FogShadowsMode))
+		if (m_passVolFogShadowRaycast.IsDirty(inputFlag, CRenderer::CV_r_FogShadowsMode))
 		{
 			uint64 rtMask = 0;
 			rtMask |= bCloudShadow ? g_HWSR_MaskBit[HWSR_SAMPLE5] : 0;
@@ -319,19 +346,19 @@ void CFogStage::ExecuteVolumetricFogShadow()
 
 			m_passVolFogShadowRaycast.SetPrimitiveFlags(CRenderPrimitive::eFlags_ReflectShaderConstants_PS);
 			m_passVolFogShadowRaycast.SetTechnique(pShader, techName, rtMask);
-			m_passVolFogShadowRaycast.SetRenderTarget(0, CTexture::s_ptexVolFogShadowBuf[0]);
+			m_passVolFogShadowRaycast.SetRenderTarget(0, CRendererResources::s_ptexVolFogShadowBuf[0]);
 			m_passVolFogShadowRaycast.SetState(GS_NODEPTHTEST);
 			m_passVolFogShadowRaycast.SetRequireWorldPos(true);
 			m_passVolFogShadowRaycast.SetRequirePerViewConstantBuffer(true);
 
-			m_passVolFogShadowRaycast.SetTexture(0, CTexture::s_ptexZTarget);
+			m_passVolFogShadowRaycast.SetTexture(0, CRendererResources::s_ptexLinearDepth);
 			m_passVolFogShadowRaycast.SetTexture(1, m_pTexInterleaveSamplePattern);
 
 			CShadowUtils::SetShadowSamplingContextToRenderPass(m_passVolFogShadowRaycast, 0, 1, 2, 3, 2);
 
 			if (bVolCloudShadow)
 			{
-				m_passVolFogShadowRaycast.SetTexture(8, CTexture::s_ptexVolCloudShadow);
+				m_passVolFogShadowRaycast.SetTexture(8, CRendererResources::s_ptexVolCloudShadow);
 				m_passVolFogShadowRaycast.SetSampler(4, EDefaultSamplerStates::BilinearBorder_Black);
 			}
 		}
@@ -351,28 +378,42 @@ void CFogStage::ExecuteVolumetricFogShadow()
 		static CCryNameR volFogShadowRangeN("volFogShadowRange");
 		m_passVolFogShadowRaycast.SetConstant(volFogShadowRangeN, volFogShadowRange, eHWSC_Pixel);
 
+		CShadowUtils::SShadowCascadesSamplingInfo shadowSamplingInfo;
+		CShadowUtils::GetShadowCascadesSamplingInfo(shadowSamplingInfo, pRenderView);
+		m_passVolFogShadowRaycast.SetConstant(CCryNameR("TexGen0"), shadowSamplingInfo.shadowTexGen[0]);
+		m_passVolFogShadowRaycast.SetConstant(CCryNameR("TexGen1"), shadowSamplingInfo.shadowTexGen[1]);
+		m_passVolFogShadowRaycast.SetConstant(CCryNameR("TexGen2"), shadowSamplingInfo.shadowTexGen[2]);
+		m_passVolFogShadowRaycast.SetConstant(CCryNameR("TexGen3"), shadowSamplingInfo.shadowTexGen[3]);
+		m_passVolFogShadowRaycast.SetConstant(CCryNameR("vInvShadowMapSize"), shadowSamplingInfo.invShadowMapSize);
+		m_passVolFogShadowRaycast.SetConstant(CCryNameR("fDepthTestBias"), shadowSamplingInfo.depthTestBias);
+		m_passVolFogShadowRaycast.SetConstant(CCryNameR("fOneDivFarDist"), shadowSamplingInfo.oneDivFarDist);
+		m_passVolFogShadowRaycast.SetConstant(CCryNameR("fKernelRadius"), shadowSamplingInfo.kernelRadius);
+		m_passVolFogShadowRaycast.SetConstant(CCryNameR("CloudShadowParams"), shadowSamplingInfo.cloudShadowParams);
+		m_passVolFogShadowRaycast.SetConstant(CCryNameR("CloudShadowAnimParams"), shadowSamplingInfo.cloudShadowAnimParams);
+		m_passVolFogShadowRaycast.SetConstantArray(CCryNameR("irreg_kernel_2d"), shadowSamplingInfo.irregKernel2d, 8);
+
 		m_passVolFogShadowRaycast.Execute();
 	}
 
 	// horizontal blur
 	{
-		if (m_passVolFogShadowHBlur.InputChanged())
+		if (m_passVolFogShadowHBlur.IsDirty())
 		{
 			static CCryNameTSCRC TechName("FogPassVolShadowsGatherPass");
 			m_passVolFogShadowHBlur.SetPrimitiveFlags(CRenderPrimitive::eFlags_ReflectShaderConstants_PS);
 			m_passVolFogShadowHBlur.SetTechnique(pShader, TechName, 0);
-			m_passVolFogShadowHBlur.SetRenderTarget(0, CTexture::s_ptexVolFogShadowBuf[1]);
+			m_passVolFogShadowHBlur.SetRenderTarget(0, CRendererResources::s_ptexVolFogShadowBuf[1]);
 			m_passVolFogShadowHBlur.SetState(GS_NODEPTHTEST);
 			m_passVolFogShadowHBlur.SetRequireWorldPos(true);
 			m_passVolFogShadowHBlur.SetRequirePerViewConstantBuffer(true);
 
-			m_passVolFogShadowHBlur.SetTextureSamplerPair(0, CTexture::s_ptexVolFogShadowBuf[0], EDefaultSamplerStates::PointClamp);
+			m_passVolFogShadowHBlur.SetTextureSamplerPair(0, CRendererResources::s_ptexVolFogShadowBuf[0], EDefaultSamplerStates::PointClamp);
 		}
 
 		m_passVolFogShadowHBlur.BeginConstantUpdate();
 
 		Vec4 sampleOffsets[8];
-		const f32 tU = 1.0f / static_cast<f32>(CTexture::s_ptexVolFogShadowBuf[0]->GetWidth());
+		const f32 tU = 1.0f / static_cast<f32>(CRendererResources::s_ptexVolFogShadowBuf[0]->GetWidth());
 		for (int32 x = -4, index = 0; x < 4; ++x, ++index)
 		{
 			sampleOffsets[index] = Vec4(x * tU, 0.0f, 0.0f, 1.0f);
@@ -385,23 +426,23 @@ void CFogStage::ExecuteVolumetricFogShadow()
 
 	// vertical blur
 	{
-		if (m_passVolFogShadowVBlur.InputChanged())
+		if (m_passVolFogShadowVBlur.IsDirty())
 		{
 			static CCryNameTSCRC TechName("FogPassVolShadowsGatherPass");
 			m_passVolFogShadowVBlur.SetPrimitiveFlags(CRenderPrimitive::eFlags_ReflectShaderConstants_PS);
 			m_passVolFogShadowVBlur.SetTechnique(pShader, TechName, 0);
-			m_passVolFogShadowVBlur.SetRenderTarget(0, CTexture::s_ptexVolFogShadowBuf[0]);
+			m_passVolFogShadowVBlur.SetRenderTarget(0, CRendererResources::s_ptexVolFogShadowBuf[0]);
 			m_passVolFogShadowVBlur.SetState(GS_NODEPTHTEST);
 			m_passVolFogShadowVBlur.SetRequireWorldPos(true);
 			m_passVolFogShadowVBlur.SetRequirePerViewConstantBuffer(true);
 
-			m_passVolFogShadowVBlur.SetTextureSamplerPair(0, CTexture::s_ptexVolFogShadowBuf[1], EDefaultSamplerStates::PointClamp);
+			m_passVolFogShadowVBlur.SetTextureSamplerPair(0, CRendererResources::s_ptexVolFogShadowBuf[1], EDefaultSamplerStates::PointClamp);
 		}
 
 		m_passVolFogShadowVBlur.BeginConstantUpdate();
 
 		Vec4 sampleOffsets[8];
-		const f32 tV = 1.0f / static_cast<f32>(CTexture::s_ptexVolFogShadowBuf[1]->GetWidth());
+		const f32 tV = 1.0f / static_cast<f32>(CRendererResources::s_ptexVolFogShadowBuf[1]->GetWidth());
 		for (int32 y = -4, index = 0; y < 4; ++y, ++index)
 		{
 			sampleOffsets[index] = Vec4(0.0f, y * tV, 0.0f, 1.0f);
@@ -417,10 +458,10 @@ void CFogStage::ExecuteVolumetricFogShadow()
 f32 CFogStage::GetFogCullDistance() const
 {
 	CD3D9Renderer* const __restrict rd = gcpRendD3D;
-	SRenderPipeline& rp(rd->m_RP);
-	SCGParamsPF& PF = rd->m_cEF.m_PF[rp.m_nProcessThreadID];
 	CRenderView* pRenderView = RenderView();
-	const CRenderCamera& rcam = pRenderView->GetRenderCamera(CCamera::eEye_Left);
+	SRenderViewShaderConstants& PF = pRenderView->GetShaderConstants();
+
+	const auto& viewInfo = GetCurrentViewInfo();
 
 	float fogDepth = 0.0f;
 
@@ -431,8 +472,8 @@ f32 CFogStage::GetFogCullDistance() const
 			Vec4 fogColGradColBase(0, 0, 0, 0);
 			Vec4 fogColGradColDelta(0, 0, 0, 0);
 			CHWShader_D3D::GetFogColorGradientConstants(fogColGradColBase, fogColGradColDelta);
-			const Vec4 fogColGradRadial = CHWShader_D3D::GetFogColorGradientRadial(rcam);
-			const Vec4 volFogParams = CHWShader_D3D::GetVolumetricFogParams(rcam);
+			const Vec4 fogColGradRadial = CHWShader_D3D::GetFogColorGradientRadial(*viewInfo.pCamera);
+			const Vec4 volFogParams = CHWShader_D3D::GetVolumetricFogParams(*viewInfo.pCamera);
 			const Vec4 volFogRampParams = CHWShader_D3D::GetVolumetricFogRampParams();
 			const Vec4 volFogSunDir = CHWShader_D3D::GetVolumetricFogSunDir(PF.pSunDirection);
 
@@ -450,8 +491,8 @@ f32 CFogStage::GetFogCullDistance() const
 			const float finalClamp = 1.0f - volFogSunDir.w;
 
 			SD3DPostEffectsUtils::UpdateFrustumCorners();
-			Vec3 camDir = rcam.ViewDir();
-			f32 camZFar = rcam.fFar;
+			Vec3 camDir = -viewInfo.cameraVZ;
+			f32 camZFar = viewInfo.farClipPlane;
 
 			Vec3 lookDir = SD3DPostEffectsUtils::m_vRT;
 			if (lookDir.z * atmosphereScale < SD3DPostEffectsUtils::m_vLT.z * atmosphereScale)
@@ -527,7 +568,7 @@ f32 CFogStage::GetFogCullDistance() const
 
 void CFogStage::FillForwardParams(SForwardParams& forwardParams, bool enable) const
 {
-	SCGParamsPF& paramsPF = gcpRendD3D->m_cEF.m_PF[gcpRendD3D->m_RP.m_nProcessThreadID];
+	SRenderViewShaderConstants& paramsPF = RenderView()->GetShaderConstants();
 	
 	if (enable)
 	{

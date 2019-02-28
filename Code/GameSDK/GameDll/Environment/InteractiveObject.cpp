@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
 -------------------------------------------------------------------------
@@ -273,7 +273,7 @@ void CInteractiveObjectEx::HandleEvent( const SGameObjectEvent &goEvent )
 
 }
 
-void CInteractiveObjectEx::ProcessEvent( SEntityEvent &entityEvent )
+void CInteractiveObjectEx::ProcessEvent( const SEntityEvent &entityEvent )
 {
 	switch (entityEvent.event)
 	{
@@ -303,6 +303,11 @@ void CInteractiveObjectEx::ProcessEvent( SEntityEvent &entityEvent )
 		}
 		break;
 	}
+}
+
+uint64 CInteractiveObjectEx::GetEventMask() const
+{
+	return ENTITY_EVENT_BIT(ENTITY_EVENT_RESET) | ENTITY_EVENT_BIT(ENTITY_EVENT_ATTACH_THIS) | ENTITY_EVENT_BIT(ENTITY_EVENT_XFORM) | ENTITY_EVENT_BIT(ENTITY_EVENT_START_LEVEL);
 }
 
 void CInteractiveObjectEx::SetChannelId( uint16 id )

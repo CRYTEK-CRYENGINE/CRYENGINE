@@ -1,14 +1,16 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
 #ifndef MovementBlock_Helpers_h
-	#define MovementBlock_Helpers_h
+#define MovementBlock_Helpers_h
 
-	#include "MovementPlan.h"
-	#include <CryAISystem/MovementStyle.h>
+#include "MovementPlan.h"
+#include <CryAISystem/MovementStyle.h>
 
 struct IMovementActor;
+class MovementStyle;
+class CNavPath;
 
 namespace Movement
 {

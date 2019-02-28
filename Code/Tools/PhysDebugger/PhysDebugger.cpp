@@ -141,10 +141,13 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 			}
 			if (msg.message==WM_QUIT) 
 				break;
-		}	else if (g_bAnimate | bMoving)
+		}	else if (g_bAnimate | bMoving || GetCapture()==g_hWnd && GetKeyState(VK_SHIFT)<0)
 			InvalidateRect(g_hWnd,0,0);
 			//RenderWorld(g_hWnd,g_hDC);
 	} while (true);
+
+	for(i=0;i<3;i++) if (strlen(g_arg[i])>=4 && *(int*)(g_arg[i]+strlen(g_arg[i])-4)=='pmt.')
+		DeleteFile(g_arg[i]);
 
 	return (int) msg.wParam;
 }

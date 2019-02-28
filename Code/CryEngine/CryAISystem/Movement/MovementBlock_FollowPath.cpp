@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "MovementBlock_FollowPath.h"
@@ -16,12 +16,12 @@ FollowPath::FollowPath(
   const CNavPath& path,
   const float endDistance,
   const MovementStyle& style,
-  const bool endsInCover)
+  const bool bLastFollowBlock)
 	: m_path(path)
 	, m_finishBlockEndDistance(endDistance)
 	, m_accumulatedPathFollowerFailureTime(0.0f)
 	, m_style(style)
-	, m_endsInCover(endsInCover)
+	, m_bLastFollowBlock(bLastFollowBlock)
 {
 }
 
@@ -52,9 +52,7 @@ void FollowPath::End(IMovementActor& actor)
 Movement::Block::Status FollowPath::Update(const MovementUpdateContext& context)
 {
 	context.actor.GetAdapter().ResetMovementContext();
-
-	if (m_endsInCover)
-		context.actor.GetAdapter().UpdateCoverLocations();
+	context.actor.GetActionAbilities().PrePathFollowUpdateCall(context, m_bLastFollowBlock);
 
 	PathFollowResult result;
 	const bool targetReachable = Movement::Helpers::UpdatePathFollowing(result, context, m_style);
@@ -63,6 +61,7 @@ Movement::Block::Status FollowPath::Update(const MovementUpdateContext& context)
 	const float pathDistanceToEnd = context.pathFollower.GetDistToEnd(&physicsPosition);
 
 	context.actor.GetAdapter().UpdateLooking(context.updateTime, m_lookTarget, targetReachable, pathDistanceToEnd, result.followTargetPos, m_style);
+	context.actor.GetActionAbilities().PostPathFollowUpdateCall(context, m_bLastFollowBlock);
 
 	m_stuckDetector.Update(context);
 
@@ -96,7 +95,7 @@ Movement::Block::Status FollowPath::Update(const MovementUpdateContext& context)
 
 	IMovementActor& actor = context.actor;
 
-	if (result.reachedEnd && !actor.IsLastPointInPathASmartObject())
+	if (result.reachedEnd)
 	{
 
 		const Vec3 velocity = actor.GetAdapter().GetVelocity();

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __RENDELEMENT_H__
 #define __RENDELEMENT_H__
@@ -13,6 +13,7 @@ class CShader;
 struct SShaderTechnique;
 class CParserBin;
 struct SParserFrame;
+class CRenderView;
 
 enum EDataType
 {
@@ -24,14 +25,12 @@ enum EDataType
 	eDATA_SkyZone,
 	eDATA_Mesh,
 	eDATA_LensOptics,
-	eDATA_FarTreeSprites,
 	eDATA_OcclusionQuery,
 	eDATA_Particle,
 	eDATA_HDRSky,
 	eDATA_FogVolume,
 	eDATA_WaterVolume,
 	eDATA_WaterOcean,
-	eDATA_DeferredShading,
 	eDATA_GameEffect,
 	eDATA_BreakableGlass,
 	eDATA_GeomCache,
@@ -45,7 +44,6 @@ enum ERenderElementFlags
 	FCEF_DELETED               = BIT(3),
 
 	FCEF_UPDATEALWAYS          = BIT(8),
-	FCEF_ALLOC_CUST_FLOAT_DATA = BIT(9),
 
 	FCEF_SKINNED               = BIT(11),
 	FCEF_PRE_DRAW_DONE         = BIT(12),
@@ -55,9 +53,9 @@ typedef uintptr_t stream_handle_t;
 
 struct SStreamInfo
 {
-	stream_handle_t hStream;
-	uint32          nStride; // NOTE: for index buffers this needs to contain the index format
-	uint32          nSlot;
+	stream_handle_t hStream = ~0u;
+	uint32          nStride =  0u; // NOTE: for index buffers this needs to contain the index format
+	uint32          nSlot   =  0u;
 };
 
 
@@ -65,20 +63,19 @@ class IRenderElement
 {
 public:
 	IRenderElement() {}
-	~IRenderElement() {};
+	virtual ~IRenderElement() {};
 
-	virtual void               mfPrepare(bool bCheckOverflow) = 0;
 	virtual CRenderChunk*      mfGetMatInfo() = 0;
 	virtual TRenderChunkArray* mfGetMatInfoList() = 0;
 	virtual int                mfGetMatId() = 0;
 	virtual void               mfReset() = 0;
 	virtual bool               mfIsHWSkinned() = 0;
 	virtual CRenderElement*      mfCopyConstruct(void) = 0;
-	virtual void               mfCenter(Vec3& centr, CRenderObject* pObj) = 0;
-	virtual void               mfGetBBox(Vec3& vMins, Vec3& vMaxs) = 0;
-	virtual bool  mfPreDraw(SShaderPass* sl) = 0;
+	virtual void               mfCenter(Vec3& centr, CRenderObject* pObj, const SRenderingPassInfo& passInfo) = 0;
+	virtual void               mfGetBBox(Vec3& vMins, Vec3& vMaxs) const = 0;
+
 	virtual bool  mfUpdate(InputLayoutHandle eVertFormat, int Flags, bool bTessellation = false) = 0;
-	virtual void  mfPrecache(const SShaderItem& SH) = 0;
+
 	virtual void  mfExport(struct SShaderSerializeContext& SC) = 0;
 	virtual void  mfImport(struct SShaderSerializeContext& SC, uint32& offset) = 0;
 
@@ -91,11 +88,11 @@ public:
 
 	//! Compile is called on a non mesh render elements, must be called only in rendering thread
 	//! Returns false if compile failed, and render element must not be rendered
-	virtual bool          Compile(CRenderObject* pObj) = 0;
+	virtual bool          Compile(CRenderObject* pObj, CRenderView *pRenderView, bool updateInstanceDataOnly) = 0;
 
 	//! Custom Drawing for the non mesh render elements.
 	//! Must be thread safe for the parallel recording
-	virtual void          DrawToCommandList(CRenderObject* pObj, const struct SGraphicsPipelinePassContext& ctx) = 0;
+	virtual void          DrawToCommandList(CRenderObject* pObj, const struct SGraphicsPipelinePassContext& ctx, class CDeviceCommandList* commandList) = 0;
 
 	//////////////////////////////////////////////////////////////////////////
 	// ~Pipeline 2.0 methods.
@@ -126,27 +123,29 @@ public:
 	void* m_CustomData;
 	int   m_CustomTexBind[MAX_CUSTOM_TEX_BINDS_NUM];
 
+	static CryCriticalSection s_accessLock;
+
 public:
 	struct SGeometryInfo
 	{
-		uint32        bonesRemapGUID; // Input parameter to fetch correct skinning stream.
+		uint32        bonesRemapGUID               = 0u; // Input parameter to fetch correct skinning stream.
 
-		int           primitiveType; //!< \see eRenderPrimitiveType
-		InputLayoutHandle eVertFormat;
+		int           primitiveType                = 0; //!< \see eRenderPrimitiveType
+		InputLayoutHandle eVertFormat              = EDefaultInputLayouts::Empty;
 
-		int32         nFirstIndex;
-		int32         nNumIndices;
-		uint32        nFirstVertex;
-		uint32        nNumVertices;
+		int32         nFirstIndex                  = 0;
+		int32         nNumIndices                  = 0;
+		uint32        nFirstVertex                 = 0u;
+		uint32        nNumVertices                 = 0u;
 
-		uint32        nNumVertexStreams;
+		uint32        nNumVertexStreams            = 0u;
 
 		SStreamInfo   indexStream;
 		SStreamInfo   vertexStreams[VSF_NUM]; // contains only nNumVertexStreams elements
 
-		void*         pTessellationAdjacencyBuffer;
-		void*         pSkinningExtraBonesBuffer;
-		uint32        nTessellationPatchIDOffset;
+		void*         pTessellationAdjacencyBuffer = nullptr;
+		void*         pSkinningExtraBonesBuffer    = nullptr;
+		uint32        nTessellationPatchIDOffset   = 0u;
 
 		inline uint32 CalcStreamMask()
 		{
@@ -208,26 +207,25 @@ public:
 		return true;
 	}
 
-	virtual void               mfPrepare(bool bCheckOverflow); //!< \param bCheckOverflow false - mergable, true - static mesh.
 	virtual CRenderChunk*      mfGetMatInfo();
 	virtual TRenderChunkArray* mfGetMatInfoList();
 	virtual int                mfGetMatId();
 	virtual void               mfReset();
 	virtual bool               mfIsHWSkinned() { return false; }
-	virtual CRenderElement*      mfCopyConstruct(void);
-	virtual void               mfCenter(Vec3& centr, CRenderObject* pObj);
-	virtual void               mfGetBBox(Vec3& vMins, Vec3& vMaxs)
+	virtual CRenderElement*    mfCopyConstruct(void);
+	virtual void               mfCenter(Vec3& centr, CRenderObject* pObj, const SRenderingPassInfo& passInfo);
+	virtual void               mfGetBBox(Vec3& vMins, Vec3& vMaxs) const
 	{
 		vMins.Set(0, 0, 0);
 		vMaxs.Set(0, 0, 0);
 	}
 	virtual void  mfGetPlane(Plane& pl);
-	virtual bool  mfCompile(CParserBin& Parser, SParserFrame& Frame) { return false; }
-	virtual bool  mfDraw(CShader* ef, SShaderPass* sfm);
+
+
 	virtual void* mfGetPointer(ESrcPointer ePT, int* Stride, EParamType Type, ESrcPointer Dst, int Flags);
-	virtual bool  mfPreDraw(SShaderPass* sl)                                                 { return true; }
+
 	virtual bool  mfUpdate(InputLayoutHandle eVertFormat, int Flags, bool bTessellation = false) { return true; }
-	virtual void  mfPrecache(const SShaderItem& SH)                                          {}
+
 	virtual void  mfExport(struct SShaderSerializeContext& SC)                               { CryFatalError("mfExport has not been implemented for this render element type"); }
 	virtual void  mfImport(struct SShaderSerializeContext& SC, uint32& offset)               { CryFatalError("mfImport has not been implemented for this render element type"); }
 
@@ -241,11 +239,11 @@ public:
 
 	//! Compile is called on a non mesh render elements, must be called only in rendering thread
 	//! Returns false if compile failed, and render element must not be rendered
-	virtual bool          Compile(CRenderObject* pObj)  { return false; };
+	virtual bool          Compile(CRenderObject* pObj, CRenderView *pRenderView, bool updateInstanceDataOnly)  { return false; };
 
 	//! Custom Drawing for the non mesh render elements.
 	//! Must be thread safe for the parallel recording
-	virtual void          DrawToCommandList(CRenderObject* pObj, const struct SGraphicsPipelinePassContext& ctx)  {};
+	virtual void          DrawToCommandList(CRenderObject* pObj, const struct SGraphicsPipelinePassContext& ctx, class CDeviceCommandList* commandList)  {};
 	
 	//////////////////////////////////////////////////////////////////////////
 	// ~Pipeline 2.0 methods.
@@ -265,7 +263,6 @@ public:
 
 #include "CREMesh.h"
 #include "CRESky.h"
-#include "CREFarTreeSprites.h"
 #include "CREOcclusionQuery.h"
 #include "CREFogVolume.h"
 #include "CREWaterVolume.h"

@@ -1,5 +1,10 @@
-﻿namespace CryEngine
+﻿// Copyright 2001-2017 Crytek GmbH / CrytekGroup. All rights reserved.
+
+namespace CryEngine
 {
+	/// <summary>
+	/// The various input devices from which input can be received.
+	/// </summary>
 	public enum InputDeviceType
 	{
 		/// <summary>

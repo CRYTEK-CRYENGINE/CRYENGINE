@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -170,3 +170,4 @@ public:
 } // namespace ATG
 
 #endif // __WAVEFILE_H__
+

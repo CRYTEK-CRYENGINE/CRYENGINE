@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef DYNAMICRESPONSESYSTEM_PROXY_H_
 #define DYNAMICRESPONSESYSTEM_PROXY_H_
@@ -23,7 +23,7 @@ public:
 	//////////////////////////////////////////////////////////////////////////
 	// IEntityComponent interface implementation.
 	//////////////////////////////////////////////////////////////////////////
-	virtual void         ProcessEvent(SEntityEvent& event) override;
+	virtual void         ProcessEvent(const SEntityEvent& event) override;
 	virtual uint64       GetEventMask() const override;
 	virtual EEntityProxy GetProxyType() const override { return ENTITY_PROXY_DYNAMICRESPONSE; }
 	virtual void         GetMemoryUsage(ICrySizer* pSizer) const override
@@ -35,7 +35,7 @@ public:
 	//////////////////////////////////////////////////////////////////////////
 	// IEntityDynamicResponseComponent interface implementation.
 	//////////////////////////////////////////////////////////////////////////
-	virtual void ReInit(const char* szName = nullptr, const char* szGlobalVariableCollectionToUse = nullptr) override;
+	virtual void                      ReInit(const char* szName = nullptr, const char* szGlobalVariableCollectionToUse = nullptr) override;
 	virtual DRS::IVariableCollection* GetLocalVariableCollection() const override;
 	virtual DRS::IResponseActor*      GetResponseActor() const override;
 	//////////////////////////////////////////////////////////////////////////

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #if !defined(CRY_PLATFORM)
 	#error CRY_PLATFORM is not defined, probably #include "stdafx.h" is missing.
@@ -442,7 +442,7 @@ void CEngineSettingsManager::CallSettingsDialog(void* pParent)
 		return;
 	}
 
-	Sleep(1000);
+	Sleep(1000); // Sleep because CrySleep is not available in this scope!
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -544,10 +544,13 @@ void CEngineSettingsManager::CallRootPathDialog(void* pParent)
 	DestroyWindow(hDialogWnd);
 	UnregisterClassW(szWindowClass, GetModuleHandleW(0));
 
-	if (bReEnableParent)
-		EnableWindow(hParent, true);
+	if (hParent)
+	{
+		if (bReEnableParent)
+			EnableWindow(hParent, true);
 
-	BringWindowToTop(hParent);
+		BringWindowToTop(hParent);
+	}
 
 	g_pThis = NULL;
 }
@@ -614,6 +617,8 @@ bool CEngineSettingsManager::LoadValuesFromConfigFile(const wchar_t* szFileName)
 
 	fseek(file, 0, SEEK_END);
 	long size = ftell(file);
+	if (size < 0)
+		return false;
 	fseek(file, 0, SEEK_SET);
 	char* data = new char[size + 1];
 	fread_s(data, size, 1, size, file);
@@ -985,6 +990,7 @@ BOOL BrowseForFolder(HWND hWnd, LPCWSTR szInitialPath, LPWSTR szPath, LPCWSTR sz
 {
 	wchar_t szDisplay[MAX_PATH];
 
+	PREFAST_SUPPRESS_WARNING(6031)
 	CoInitialize(NULL);
 
 	BROWSEINFOW bi = { 0 };

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef _DEFORMABLE_NODE_
 #define _DEFORMABLE_NODE_
@@ -24,9 +24,6 @@ class CDeformableNode
 	CStatObj*                 m_pStatObj;
 	JobManager::SJobState     m_cullState;
 	JobManager::SJobState     m_updateState;
-#ifdef SEG_WORLD
-	uint16                    m_nStaticTypeSlot;
-#endif
 	bool                      m_all_prepared : 1;
 
 protected:
@@ -51,7 +48,7 @@ protected:
 
 public:
 
-	CDeformableNode(uint16 slot);
+	CDeformableNode();
 
 	~CDeformableNode();
 

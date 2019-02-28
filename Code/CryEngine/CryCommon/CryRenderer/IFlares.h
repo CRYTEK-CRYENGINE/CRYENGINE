@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 ////////////////////////////////////////////////////////////////////////////
@@ -138,7 +138,7 @@ public:
 	void Release()
 	{
 		if (CryInterlockedDecrement(&m_nRefCount) <= 0)
-			delete this;
+			DeleteThis();
 	}
 
 	// <interfuscator:shuffle>
@@ -164,7 +164,7 @@ public:
 	virtual void                GetMemoryUsage(ICrySizer* pSizer) const = 0;
 	virtual void                Invalidate() = 0;
 
-	virtual void                RenderPreview(SLensFlareRenderParam* pParam, const Vec3& vPos) = 0;
+	virtual void                RenderPreview(const SLensFlareRenderParam* pParam, const Vec3& vPos) = 0;
 
 	virtual void                SetOpticsReference(IOpticsElementBase* pReference) {}
 	virtual IOpticsElementBase* GetOpticsReference() const                         { return NULL; }
@@ -173,6 +173,9 @@ public:
 #if defined(FLARES_SUPPORT_EDITING)
 	virtual DynArray<FuncVariableGroup> GetEditorParamGroups() = 0;
 #endif
+
+protected:
+	virtual void                DeleteThis() = 0;
 
 private:
 	volatile int m_nRefCount;

@@ -1,3 +1,5 @@
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+
 #include "StdAfx.h"
 #include "SubstanceCommon.h"
 #include "SandboxPlugin.h"
@@ -32,6 +34,7 @@ namespace EditorSubstance
 		: CAssetEditor("SubstanceDefinition")
 		, m_pOutputsGraphEditor(nullptr)
 	{
+		AddToMenu(CEditor::MenuItems::SaveAs);
 
 		m_pScrollBox = new QScrollableBox(this);
 

@@ -1,7 +1,6 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-#ifndef _TEXTURECOMPILER_H
-#define _TEXTURECOMPILER_H
+#pragma once
 
 #include <stdio.h>     // strlen()
 #include <functional>
@@ -32,14 +31,27 @@ public:
 	// run compiler only on developer platform
 #if defined(CRY_ENABLE_RC_HELPER)
 public:
+	enum class EResult
+	{
+		//! Texture was already compiled, no need to run RC
+		AlreadyCompiled,
+		//! Texture was queued for compilation, will not be available immediately
+		Queued,
+		//! Texture was compiled immediately, and can be loaded right away.
+		Available,
+		//! Texture compilation failed
+		Failed
+	};
+
 	// checks file date and existence
 	// Return:
 	//   fills processedFilename[] with name of the file that should be loaded
 	//   boolean for success
-	bool ProcessTextureIfNeeded(
+	EResult ProcessTextureIfNeeded(
 	  const char* originalFilename,
 	  char* processedFilename,
-	  size_t processedFilenameSizeInBytes);
+	  size_t processedFilenameSizeInBytes,
+	  bool immediate = true);
 
 private:
 	class CQueuedRC
@@ -99,6 +111,7 @@ public:
 	//   szDstFile usually the path to a DDS
 	bool          HasQueuedResourceCompiler(const char* szSrcFile, const char* szDstFile);
 	ERcCallResult QueueResourceCompiler(const char* szSrcFile, const char* szDstFile, const bool bWindow, const bool bRefresh);
+
 #endif // CRY_ENABLE_RC_HELPER
 
 	void AddAsyncTextureCompileListener(IAsyncTextureCompileListener* pListener);
@@ -106,6 +119,13 @@ public:
 
 private:
 #if defined(CRY_ENABLE_RC_HELPER)
+	bool AddToWatchList(const char* szDstFile, const char* szSrcFile);
+	void NotifyCompilationQueueTriggered(int pending);
+	void NotifyCompilationStarted(TProcItem* item, int pending);
+	void NotifyCompilationFinished(TProcItem* item);
+	void NotifyCompilationQueueDepleted();
+	void GetNextItem(TProcItem* &item, int &pending);
+
 	// Arguments:
 	//   szFilePath - could be source or destination filename
 	//   dwIndex - used to iterate through all input filenames, start with 0 and increment by 1
@@ -116,7 +136,6 @@ private:
 	  const unsigned int index,
 	  char* inputFilename,
 	  size_t inputFilenameSizeInBytes);
-#endif
 
 	// little helper function (to stay independent)
 	static string AddSuffix(string in, const char* suffix)
@@ -129,6 +148,9 @@ private:
 		size_t position = out.size() - strlen(extension) - 1;
 		return out.insert(position, suffix);
 	}
+
+	static bool IsFileOpened(const char* szPath);
+#endif
 
 public:
 	// only for image formats supported by the resource compiler
@@ -150,4 +172,3 @@ public:
 	}
 };
 
-#endif

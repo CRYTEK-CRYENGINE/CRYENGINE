@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -130,76 +130,11 @@ int ChoosePrimitiveForMesh(strided_pointer<const Vec3> pVertices,strided_pointer
 	int i,j,ibest;
 	real error_max[3],error_avg[4],locerror,locarea;
 
-	if (flags & mesh_approx_cylinder) {
-		float r[3],h[3],area[2],zloc,rinv,hinv;
-		Matrix33 Basis = GetMtxFromBasis(eigen_axes);
-		Vec3 axis,ptloc,n,ptmin,ptmax,c;
-		int iz,bBest,itype;
-		error_avg[3]=(real)1E10; ibest=3;
-
-		ptmin=ptmax = Basis*pVertices[pIndices[0]];
-		for(i=1; i<nTris*3; i++) {
-			ptloc = Basis*pVertices[pIndices[i]];
-			ptmin = min(ptmin,ptloc); ptmax = max(ptmax,ptloc);
-		}
-		c = ((ptmin+ptmax)*0.5f)*Basis;
-
-		for(iz=0;iz<3;iz++) {
-			axis = eigen_axes[iz];
-			for(i=0,r[iz]=h[iz]=0;i<nTris*3;i++) {
-				ptloc = pVertices[pIndices[i]]-c; zloc = ptloc*axis;
-				r[iz] = max(r[iz],(ptloc-axis*zloc).len2()); h[iz] = max(h[iz],zloc);
-			}
-			r[iz] = sqrt_tpl(r[iz]);
-			if (fabs_tpl(r[iz])<(real)1E-5 || fabs_tpl(h[iz])<(real)1E-5)
-				continue;
-			rinv = (real)1/r[iz];
-			hinv = (real)1/h[iz];
-			error_max[iz] = error_avg[iz] = 0;
-			area[0] = area[1] = 0;
-
-			for(i=0;i<nTris;i++) {
-				n = pVertices[pIndices[i*3+1]]-pVertices[pIndices[i*3]] ^ pVertices[pIndices[i*3+2]]-pVertices[pIndices[i*3]];
-				if (n.len2()==0) 
-					continue;
-				locarea=n.len(); n/=locarea; locarea*=(real)0.5; zloc=fabs_tpl(n*axis);
-				itype = isneg((real)0.5-zloc); // 0-cylinder side, 1-cap
-				locerror = 0;	// locerror will contain maximum distance from from triangle points to the cyl surface, normalized by cyl size
-				if (itype) for(j=0;j<3;j++)
-					locerror = max(locerror, fabs_tpl(fabs_tpl((pVertices[pIndices[i*3+j]]-c)*axis)*hinv-(real)1));
-				else for(j=0;j<3;j++) {
-					ptloc = pVertices[pIndices[i*3+j]]-c;
-					locerror = max(locerror, fabs_tpl((ptloc-axis*(ptloc*axis)).len()*rinv-(real)1));
-				}
-				error_max[iz] = max(error_max[iz],locerror);
-				error_avg[iz] += locerror*locarea;
-				area[itype] += locarea;
-			}
-			error_avg[iz] /= (area[0]+area[1]);
-			// additionally check if object area is close to that of the cylinder
-			locerror = fabs_tpl((area[0]-r[iz]*h[iz]*g_PI*4)*(rinv*hinv*((real)0.5/g_PI)));
-			locerror = max(locerror, real(fabs_tpl((area[1]-r[iz]*r[iz]*g_PI*2)*(rinv*rinv*((real)0.5/g_PI))))   );
-			error_max[iz] = max(error_max[iz], locerror);
-			error_avg[iz] = error_avg[iz]*(real)0.7+locerror*(real)0.3;
-			bBest = isneg(error_avg[iz]-error_avg[ibest]);
-			ibest = ibest&~-bBest | iz&-bBest;
-		}
-
-		if (ibest<3 && error_max[ibest]<tolerance*1.5f && error_avg[ibest]<tolerance) {
-			acyl.axis = eigen_axes[ibest];
-			acyl.center = c;
-			acyl.r = r[ibest];
-			acyl.hh = h[ibest];
-			pprim = &acyl;
-			return cylinder::type;
-		}
-	}
-
 	if (flags & mesh_approx_capsule) {
-		float r[3],h[3],area[2],zloc,rinv,hinv;
+		float r[3],h[3],V[3],area[2],zloc,rinv;
 		Matrix33 Basis = GetMtxFromBasis(eigen_axes);
 		Vec3 axis,ptloc,n,ptmin,ptmax,c;
-		int iz,bBest,itype;
+		int iz,itype;
 		error_avg[3]=(real)1E10; ibest=3;
 
 		ptmin=ptmax = Basis*pVertices[pIndices[0]];
@@ -216,10 +151,11 @@ int ChoosePrimitiveForMesh(strided_pointer<const Vec3> pVertices,strided_pointer
 				r[iz] = max(r[iz],(ptloc-axis*zloc).len2()); h[iz] = max(h[iz],zloc);
 			}
 			r[iz] = sqrt_tpl(r[iz]); h[iz] -= r[iz];
+			h[iz] = max(r[iz]*0.01f, h[iz]);
 			if (fabs_tpl(r[iz])<(real)1E-5 || fabs_tpl(h[iz])<(real)1E-5)
 				continue;
+			V[iz] = sqr(r[iz])*((4.0f/3)*r[iz]+h[iz]*2);
 			rinv = (real)1/r[iz];
-			hinv = (real)1/h[iz];
 			error_max[iz] = error_avg[iz] = 0;
 			area[0] = area[1] = 0;
 
@@ -227,31 +163,35 @@ int ChoosePrimitiveForMesh(strided_pointer<const Vec3> pVertices,strided_pointer
 				n = pVertices[pIndices[i*3+1]]-pVertices[pIndices[i*3]] ^ pVertices[pIndices[i*3+2]]-pVertices[pIndices[i*3]];
 				if (n.len2()==0) 
 					continue;
-				locarea=n.len(); n/=locarea; locarea*=(real)0.5; 
-				zloc = ((pVertices[pIndices[i*3]]+pVertices[pIndices[i*3+1]]+pVertices[pIndices[i*3+2]])*(1.0f/3)-c)*axis;
-				itype = isneg(h[iz]-fabs_tpl(zloc)); // 0-capsule side, 1-cap
-				locerror = 0;	// locerror will contain maximum distance from from triangle points to the capsule surface, normalized by capsule size
-				if (itype) for(j=0;j<3;j++)
-					locerror = max(locerror, (pVertices[pIndices[i*3+j]]-c-axis*(h[iz]*sgnnz(zloc))).len()*rinv-(real)1);
-				else for(j=0;j<3;j++) {
+				locarea=n.len(); n/=locarea; locarea*=(real)0.5;
+				Vec3 ptc = (pVertices[pIndices[i*3]]+pVertices[pIndices[i*3+1]]+pVertices[pIndices[i*3+2]])*(1.0f/3)-c;
+				zloc = ptc*axis;
+				// locerror will contain maximum distance from triangle points to the capsule surface, normalized by capsule radius
+				real locerrorSide=fabs_tpl((ptc-axis*(ptc*axis)).len()*rinv-(real)1), locerrorCap=0; 
+				for(j=0;j<3;j++) {
 					ptloc = pVertices[pIndices[i*3+j]]-c;
-					locerror = max(locerror, fabs_tpl((ptloc-axis*(ptloc*axis)).len()*rinv-(real)1));
+					locerrorCap = max(locerrorCap, fabs_tpl((ptloc-axis*(h[iz]*sgnnz(zloc))).len()*rinv-(real)1));
+					locerrorSide = max(locerrorSide, fabs_tpl((ptloc-axis*(ptloc*axis)).len()*rinv-(real)1));
 				}
+				locerror = min(locerrorSide, locerrorCap);
+				itype = isneg(locerrorCap-locerrorSide); // 0-capsule side, 1-cap
 				error_max[iz] = max(error_max[iz],locerror);
 				error_avg[iz] += locerror*locarea;
 				area[itype] += locarea;
 			}
 			error_avg[iz] /= max(1e-20f,area[0]+area[1]);
-			// additionally check if object area is close to that of the cylinder
-			locerror = fabs_tpl((area[0]-r[iz]*h[iz]*g_PI*4)*(rinv*hinv*((real)0.5/g_PI)));
-			locerror = max(locerror, real(fabs_tpl((area[1]-r[iz]*r[iz]*g_PI*4)*(rinv*rinv*((real)0.25/g_PI)))));
+			// additionally check if object area is close to that of the capsule
+			float areaCaps = 4*gf_PI*r[iz]*(r[iz]+h[iz]);
+			locerror = fabs_tpl(area[0]+area[1]-areaCaps)/areaCaps;
 			error_max[iz] = max(error_max[iz], locerror);
-			error_avg[iz] = error_avg[iz]*(real)0.7+locerror*(real)0.3;
-			bBest = isneg(error_avg[iz]-error_avg[ibest]);
-			ibest = ibest&~-bBest | iz&-bBest;
+			error_avg[iz] = error_avg[iz]*(real)0.6+locerror*(real)0.4;
 		}
+		float Vmin=min(min(V[0],V[1]),V[2]), Vmaxinv=1/max(max(max(V[0],V[1]),V[2]),1e-20f);
+		for(iz=0;iz<3;iz++)
+			error_avg[iz] = (error_avg[iz] + (V[iz]-Vmin)*Vmaxinv)*0.5f;
+		ibest = idxmin3(error_avg);
 
-		if (ibest<3 && error_max[ibest]<tolerance*1.5f && error_avg[ibest]<tolerance) {
+		if (error_max[ibest]<tolerance*1.5f && error_avg[ibest]<tolerance) {
 			acyl.axis = eigen_axes[ibest];
 			acyl.center = c;
 			acyl.r = r[ibest];
@@ -344,6 +284,71 @@ int ChoosePrimitiveForMesh(strided_pointer<const Vec3> pVertices,strided_pointer
 		}
 	}
 
+	if (flags & mesh_approx_cylinder) {
+		float r[3],h[3],area[2],zloc,rinv,hinv;
+		Matrix33 Basis = GetMtxFromBasis(eigen_axes);
+		Vec3 axis,ptloc,n,ptmin,ptmax,c;
+		int iz,bBest,itype;
+		error_avg[3]=(real)1E10; ibest=3;
+
+		ptmin=ptmax = Basis*pVertices[pIndices[0]];
+		for(i=1; i<nTris*3; i++) {
+			ptloc = Basis*pVertices[pIndices[i]];
+			ptmin = min(ptmin,ptloc); ptmax = max(ptmax,ptloc);
+		}
+		c = ((ptmin+ptmax)*0.5f)*Basis;
+
+		for(iz=0;iz<3;iz++) {
+			axis = eigen_axes[iz];
+			for(i=0,r[iz]=h[iz]=0;i<nTris*3;i++) {
+				ptloc = pVertices[pIndices[i]]-c; zloc = ptloc*axis;
+				r[iz] = max(r[iz],(ptloc-axis*zloc).len2()); h[iz] = max(h[iz],zloc);
+			}
+			r[iz] = sqrt_tpl(r[iz]);
+			if (fabs_tpl(r[iz])<(real)1E-5 || fabs_tpl(h[iz])<(real)1E-5)
+				continue;
+			rinv = (real)1/r[iz];
+			hinv = (real)1/h[iz];
+			error_max[iz] = error_avg[iz] = 0;
+			area[0] = area[1] = 0;
+
+			for(i=0;i<nTris;i++) {
+				n = pVertices[pIndices[i*3+1]]-pVertices[pIndices[i*3]] ^ pVertices[pIndices[i*3+2]]-pVertices[pIndices[i*3]];
+				if (n.len2()==0) 
+					continue;
+				locarea=n.len(); n/=locarea; locarea*=(real)0.5; zloc=fabs_tpl(n*axis);
+				itype = isneg((real)0.5-zloc); // 0-cylinder side, 1-cap
+				locerror = 0;	// locerror will contain maximum distance from from triangle points to the cyl surface, normalized by cyl size
+				if (itype) for(j=0;j<3;j++)
+					locerror = max(locerror, fabs_tpl(fabs_tpl((pVertices[pIndices[i*3+j]]-c)*axis)*hinv-(real)1));
+				else for(j=0;j<3;j++) {
+					ptloc = pVertices[pIndices[i*3+j]]-c;
+					locerror = max(locerror, fabs_tpl((ptloc-axis*(ptloc*axis)).len()*rinv-(real)1));
+				}
+				error_max[iz] = max(error_max[iz],locerror);
+				error_avg[iz] += locerror*locarea;
+				area[itype] += locarea;
+			}
+			error_avg[iz] /= (area[0]+area[1]);
+			// additionally check if object area is close to that of the cylinder
+			locerror = fabs_tpl((area[0]-r[iz]*h[iz]*g_PI*4)*(rinv*hinv*((real)0.5/g_PI)));
+			locerror = max(locerror, real(fabs_tpl((area[1]-r[iz]*r[iz]*g_PI*2)*(rinv*rinv*((real)0.5/g_PI))))   );
+			error_max[iz] = max(error_max[iz], locerror);
+			error_avg[iz] = error_avg[iz]*(real)0.7+locerror*(real)0.3;
+			bBest = isneg(error_avg[iz]-error_avg[ibest]);
+			ibest = ibest&~-bBest | iz&-bBest;
+		}
+
+		if (ibest<3 && error_max[ibest]<tolerance*1.5f && error_avg[ibest]<tolerance) {
+			acyl.axis = eigen_axes[ibest];
+			acyl.center = c;
+			acyl.r = r[ibest];
+			acyl.hh = h[ibest];
+			pprim = &acyl;
+			return cylinder::type;
+		}
+	}
+
 	return triangle::type;
 }
 
@@ -424,10 +429,7 @@ int BakeScaleIntoGeometry(phys_geometry *&pgeom,IGeomManager *pGeoman, const Vec
 		if (bReleaseOld)
 			pGeoman->UnregisterGeometry(pgeom);
 		pGeomScaled->SetForeignData(pgeom,DATA_UNSCALED_GEOM);
-		int *pMatMapping = 0;
-		if (pgeom->nMats)
-			memcpy(pMatMapping = new int[pgeom->nMats], pgeom->pMatMapping, pgeom->nMats*sizeof(int));
-		pgeom = pGeoman->RegisterGeometry(pGeomScaled, pgeom->surface_idx,pMatMapping,pgeom->nMats);
+		pgeom = pGeoman->RegisterGeometry(pGeomScaled, pgeom->surface_idx, pgeom->pMatMapping,pgeom->nMats);
 		pgeom->nRefCount = 0;	pGeomScaled->Release();
 		return 1;
 	}
@@ -912,7 +914,7 @@ int ascii2bin(const unsigned char *pin,int sz, unsigned char *pout)
 {
 	int a[4],nout,count0;
 	const unsigned char *pin0=pin;
-	for(nout=count0=0; *pin; nout+=3) {
+	for(nout=count0=0; *pin || count0; nout+=3) {
 		for(int i=0;i<4;i++) if (count0>0) 
 			a[i]=0, count0--; 
 		else if (*pin!='#')

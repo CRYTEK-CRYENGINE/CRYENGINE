@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
 -------------------------------------------------------------------------
@@ -44,7 +44,7 @@ CAutoAimManager::~CAutoAimManager()
 
 void CAutoAimManager::Update(float dt)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	const int numAutoaimTargets = m_autoaimTargets.size();
 

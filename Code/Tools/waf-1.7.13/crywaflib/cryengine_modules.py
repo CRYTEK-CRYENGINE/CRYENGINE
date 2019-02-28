@@ -1,4 +1,4 @@
-# Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+# Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 
 ###############################################################################
@@ -744,6 +744,32 @@ def MonolithicBuildModule(ctx, *k, **kw):
 	kw['source'] = tmp_src		
 		
 	return ctx.objects(*k, **kw)
+	
+def MonolithicBuildStaticModule(ctx, *k, **kw):
+	""" 
+	Util function to collect all libs and linker settings for monolithic builds
+	(Which apply all of those only to the final link as no DLLs or libs are produced)
+	"""
+	# Set up member for monolithic build settings
+	if not hasattr(ctx, 'monolitic_build_settings'):
+		ctx.monolitic_build_settings = {}
+		
+	# For game specific modules, store with a game unique prefix
+	prefix = ''
+	if kw.get('game_project', False):		
+		prefix = kw['game_project'] + '_'
+
+	# Collect libs for later linking
+	def _append(key, values):
+		if not ctx.monolitic_build_settings.get(key):
+			ctx.monolitic_build_settings[key] = []
+		ctx.monolitic_build_settings[key] += values
+		
+	_append(prefix + 'use',         [ kw['target']] + kw['use'] )	
+	_append(prefix + 'lib',           kw['lib'] )
+	_append(prefix + 'libpath',       kw['libpath'] )
+	#_append(prefix + 'use_module',    kw['use_module']  )
+	#_append(prefix + 'linkflags',     kw['linkflags'] )
 		
 ###############################################################################
 def BuildTaskGenerator(ctx, kw):
@@ -909,10 +935,12 @@ def CryEngineStaticModule(ctx, *k, **kw):
 	set_cryengine_flags(ctx, kw)
 
 	ConfigureTaskGenerator(ctx, kw)
+	
+	if _is_monolithic_build(ctx, kw['target']): # For monolithc builds, simply collect all build settings
+		MonolithicBuildStaticModule(ctx, getattr(ctx, 'game_project', None), *k, **kw)
 		
 	CreateStaticModule(ctx, *k, **kw)
 
-	
 ###############################################################################
 @feature('create_static_library')
 @before_method('process_source')
@@ -1318,6 +1346,7 @@ def CryPlugin(ctx, *k, **kw):
 	kw['defines']   += [ 'PLUGIN_EXPORTS', 'EDITOR_COMMON_IMPORTS', 'NOT_USE_CRY_MEMORY_MANAGER' ]
 	kw['output_sub_folder']  = 'EditorPlugins'
 	kw['use']  += ['EditorCommon']
+	kw['includes'] +=  [ctx.CreateRootRelativePath('Code/Sandbox/EditorQt/Include'), ctx.CreateRootRelativePath('Code/Sandbox/EditorQt')]
 		
 	ConfigureTaskGenerator(ctx, kw)
 		
@@ -1345,6 +1374,8 @@ def CryPluginModule(ctx, *k, **kw):
 		
 	if not BuildTaskGenerator(ctx, kw):
 		return
+		
+	kw['features'] += ['create_dynamic_library']
 		
 	ctx.shlib(*k, **kw)
 	

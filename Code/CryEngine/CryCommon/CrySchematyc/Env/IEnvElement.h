@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -47,7 +47,7 @@ struct IEnvElement
 	virtual EEnvElementType    GetType() const = 0;
 	virtual EnvElementFlags    GetFlags() const = 0;
 
-	virtual CryGUID              GetGUID() const = 0;
+	virtual CryGUID            GetGUID() const = 0;
 	virtual const char*        GetName() const = 0;
 	virtual SSourceFileInfo    GetSourceFileInfo() const = 0;
 	virtual const char*        GetDescription() const = 0;

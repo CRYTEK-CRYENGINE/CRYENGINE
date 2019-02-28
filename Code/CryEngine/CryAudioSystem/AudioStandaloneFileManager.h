@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -42,7 +42,7 @@ private:
 #if defined(INCLUDE_AUDIO_PRODUCTION_CODE)
 public:
 
-	void DrawDebugInfo(IRenderAuxGeom& auxGeom, float posX, float posY) const;
+	void DrawDebugInfo(IRenderAuxGeom& auxGeom, Vec3 const& listenerPosition, float posX, float posY) const;
 
 #endif // INCLUDE_AUDIO_PRODUCTION_CODE
 };

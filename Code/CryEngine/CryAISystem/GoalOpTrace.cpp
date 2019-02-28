@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "GoalOpTrace.h"
@@ -219,8 +219,6 @@ void COPTrace::Reset(CPipeUser* pPipeUser)
 		{
 			pPipeUser->m_bLooseAttention = false;
 		}
-
-		pPipeUser->ClearInvalidatedSOLinks();
 	}
 }
 
@@ -270,7 +268,7 @@ void COPTrace::Serialize(TSerialize ser)
 EGoalOpResult COPTrace::Execute(CPipeUser* pPipeUser)
 {
 	CCCPOINT(COPTrace_Execute);
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	bool bTraceFinished = ExecuteTrace(pPipeUser, /* full update */ true);
 
@@ -291,9 +289,6 @@ EGoalOpResult COPTrace::Execute(CPipeUser* pPipeUser)
 			// Kevin - Clean up residual data that is causing problems elsewhere
 			pipeUserState.fDistanceToPathEnd = 0.f;
 
-			// Done tracing, allow to try to use invalid objects again.
-			pPipeUser->ClearInvalidatedSOLinks();
-
 			if (pipeUserState.curActorTargetPhase == eATP_Error)
 			{
 				return eGOR_FAILED;
@@ -312,7 +307,7 @@ EGoalOpResult COPTrace::Execute(CPipeUser* pPipeUser)
 //===================================================================
 bool COPTrace::ExecuteTrace(CPipeUser* pPipeUser, bool bFullUpdate)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	// The destructor needs to know the most recent pipe user
 	if (m_refPipeUser != pPipeUser)
@@ -626,7 +621,7 @@ void COPTrace::ExecuteManeuver(CPipeUser* pPipeUser, const Vec3& steerDir)
 bool COPTrace::ExecutePreamble(CPipeUser* pPipeUser)
 {
 	CCCPOINT(COPTrace_ExecutePreamble);
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	if (m_lastPosition.IsZero())
 		m_lastPosition = pPipeUser->GetPhysicsPos();
@@ -663,7 +658,7 @@ bool COPTrace::ExecutePreamble(CPipeUser* pPipeUser)
 //===================================================================
 bool COPTrace::ExecutePostamble(CPipeUser* pPipeUser, bool& reachedEnd, bool fullUpdate, bool b2D)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	// do this after maneuver since that needs to track how far we moved
 	Vec3 opPos = pPipeUser->GetPhysicsPos();
@@ -712,7 +707,7 @@ bool COPTrace::ExecutePostamble(CPipeUser* pPipeUser, bool& reachedEnd, bool ful
 //===================================================================
 bool COPTrace::ExecutePathFollower(CPipeUser* pPipeUser, bool fullUpdate, IPathFollower* pPathFollower)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	AIAssert(pPathFollower);
 	if (!pPathFollower)
@@ -1106,7 +1101,7 @@ bool COPTrace::Execute2D(CPipeUser* const pPipeUser, bool fullUpdate)
 //====================================================================
 bool COPTrace::Execute3D(CPipeUser* pPipeUser, bool fullUpdate)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	if (ExecutePreamble(pPipeUser))
 		return true;
@@ -1474,7 +1469,7 @@ bool COPTrace::HandleAnimationPhase(CPipeUser* pPipeUser, bool bFullUpdate, bool
 				// Exact positioning and animation has been finished at navigation smart object, resurrect path.
 				pPipeUser->m_State.fDistanceToPathEnd = pPipeUser->m_Path.GetDiscardedPathLength();
 				pPipeUser->m_Path.ResurrectRemainingPath();
-				pPipeUser->m_Path.PrepareNavigationalSmartObjectsForMNM(pPipeUser);
+				pPipeUser->m_Path.PrepareNavigationalSmartObjectsForMNM(pPipeUser->GetEntity());
 				pPipeUser->AdjustPath();
 				*pbForceRegeneratePath = false;
 
@@ -1681,12 +1676,6 @@ void COPTrace::TriggerExactPositioning(CPipeUser* pPipeUser, bool* pbForceRegene
 								pPipeUser->m_Path.GetParams().inhibitPathRegeneration = true;
 								pPipeUser->CancelRequestedPath(false);
 
-#ifdef _DEBUG
-								// TODO: these are debug variables, should be perhaps initialised somewhere else.
-								pPipeUser->m_DEBUGCanTargetPointBeReached.clear();
-								pPipeUser->m_DEBUGUseTargetPointRequest.zero();
-#endif
-
 								m_bWaitingForBusySmartObject = false;
 							}
 							else // Can't navigate using this SO for some reason
@@ -1697,9 +1686,6 @@ void COPTrace::TriggerExactPositioning(CPipeUser* pPipeUser, bool* pbForceRegene
 								pipeUserActorTargetRequest.Reset();
 								m_actorTargetRequester = eTATR_None;
 								m_pendingActorTargetRequester = eTATR_None;
-
-								//Should this be used for MNM case?
-								pPipeUser->InvalidateSOLink(pSmartObject, pSOLink->m_pFromHelper, pSOLink->m_pToHelper);
 							}
 						}
 						else // We are not the closest in line
@@ -1725,12 +1711,6 @@ void COPTrace::TriggerExactPositioning(CPipeUser* pPipeUser, bool* pbForceRegene
 				// Enforce to use the current path.
 				pPipeUser->m_Path.GetParams().inhibitPathRegeneration = true;
 				pPipeUser->CancelRequestedPath(false);
-
-#ifdef _DEBUG
-				// TODO: these are debug variables, should be perhaps initialised somewhere else.
-				pPipeUser->m_DEBUGCanTargetPointBeReached.clear();
-				pPipeUser->m_DEBUGUseTargetPointRequest.zero();
-#endif
 			}
 			break;
 		}

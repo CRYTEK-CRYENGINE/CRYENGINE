@@ -1,18 +1,21 @@
-﻿// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 
 namespace CryEngine.Game
 {
-	[EntityComponent(Category = "Camera")]
+	[EntityComponent(Category = "Camera", Guid = "5c82d07f-6b67-bfad-5421-5da382a158fe")]
 	public class ViewCamera : EntityComponent
 	{
 		/// <summary>
 		/// The currently active ViewCamera, or null of no ViewCamera is active at the moment.
 		/// </summary>
 		/// <value>The active camera.</value>
+		[SerializeValue]
 		public static ViewCamera ActiveCamera { get; private set; }
 
+		[SerializeValue]
 		private View _view;
+		[SerializeValue]
 		private bool _active;
 
 		/// <summary>

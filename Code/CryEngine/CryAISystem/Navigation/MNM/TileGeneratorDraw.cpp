@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "TileGenerator.h"
@@ -26,8 +26,10 @@ static bool IsOnScreen(const Vec3& worldPos, Vec2& outScreenPos)
 	{
 		if ((z >= 0.0f) && (z <= 1.0f))
 		{
-			outScreenPos.x = x * (float)gEnv->pRenderer->GetWidth() * 0.01f;
-			outScreenPos.y = y * (float)gEnv->pRenderer->GetHeight() * 0.01f;
+			const CCamera& camera = GetISystem()->GetViewCamera();
+
+			outScreenPos.x = x * 0.01f * camera.GetViewSurfaceX();
+			outScreenPos.y = y * 0.01f * camera.GetViewSurfaceZ();
 			return true;
 		}
 	}
@@ -54,7 +56,7 @@ struct SEmptyInfoPrinter
 template<typename TyFilter, typename TyInfoPrinter>
 void DrawSpanGrid(const Vec3 volumeMin, const Vec3 voxelSize, const CompactSpanGrid& grid, const TyFilter& filter, const ColorB& color, const TyInfoPrinter& printer) PREFAST_SUPPRESS_WARNING(6262)
 {
-	const size_t width = grid.GetWidth();
+	const size_t width  = grid.GetWidth();
 	const size_t height = grid.GetHeight();
 	const size_t gridSize = width * height;
 

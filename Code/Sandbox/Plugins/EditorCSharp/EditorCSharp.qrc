@@ -1,0 +1,6 @@
+<RCC>
+    <qresource prefix="/icons">
+      <file alias="csharp/assets_csharp.ico">icons/assets_csharp.ico</file>
+      <file alias="Tools/tools_c#-output.ico">icons/tools_csharp_output.ico</file>
+    </qresource>
+</RCC>

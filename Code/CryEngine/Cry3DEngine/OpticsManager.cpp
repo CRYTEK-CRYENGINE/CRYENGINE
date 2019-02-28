@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 //
 //////////////////////////////////////////////////////////////////////
@@ -11,8 +11,7 @@ void COpticsManager::Reset()
 	m_OpticsMap.clear();
 	m_SearchedOpticsSet.clear();
 
-	for (auto& pOpticsElement : m_OpticsList)
-		gEnv->pRenderer->ReleaseOptics(pOpticsElement);
+	m_OpticsList.clear();
 
 	stl::free_container(m_OpticsList);
 }

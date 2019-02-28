@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
  -------------------------------------------------------------------------
@@ -595,7 +595,8 @@ public:
 	void ReloadClientXmlData();
 	virtual bool ReloadExtension( IGameObject * pGameObject, const SEntitySpawnParams &params ) override;
 	virtual void PostReloadExtension( IGameObject * pGameObject, const SEntitySpawnParams &params ) override;
-	virtual void ProcessEvent(SEntityEvent& event) override;
+	virtual void ProcessEvent(const SEntityEvent& event) override;
+	virtual uint64 GetEventMask() const override;
 	virtual void Update(SEntityUpdateContext& ctx, int updateSlot) override;
 	virtual void SerializeSpawnInfo( TSerialize ser ) override;
 	virtual ISerializableInfoPtr GetSpawnInfo() override;
@@ -1369,8 +1370,6 @@ public:
 	void  InterpLadderPosition(float frameTime);
 
 	void RegisterVehicleClient(CVehicleClient* vehicleClient) { m_pVehicleClient = vehicleClient; }
-
-	virtual void OnShiftWorld() override;
 
 private:
 

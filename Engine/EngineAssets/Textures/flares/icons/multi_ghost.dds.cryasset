@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="384636db-9ef7-8fd6-40bc-9b165dbc541b" source="multi_ghost.tif">
+ <Files>
+  <File path="multi_ghost.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">96</Detail>
+  <Detail name="height">96</Detail>
+  <Detail name="mipCount">1</Detail>
+ </Details>
+</AssetMetadata>

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -113,12 +113,17 @@ void CVehiclePartDetachedEntity::Update(SEntityUpdateContext& ctx, int slot)
 }
 
 //------------------------------------------------------------------------
-void CVehiclePartDetachedEntity::ProcessEvent(SEntityEvent& event)
+void CVehiclePartDetachedEntity::ProcessEvent(const SEntityEvent& event)
 {
 	if (event.event == ENTITY_EVENT_RESET)
 	{
 		gEnv->pEntitySystem->RemoveEntity(GetEntity()->GetId());
 	}
+}
+
+uint64 CVehiclePartDetachedEntity::GetEventMask() const 
+{
+	return ENTITY_EVENT_BIT(ENTITY_EVENT_RESET);
 }
 
 //------------------------------------------------------------------------

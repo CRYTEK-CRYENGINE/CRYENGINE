@@ -3,13 +3,13 @@
 import json
 import os.path
 
-def load (path):
+def load(path):
     try:
-        file= open (path, 'r')
-        proj= json.loads (file.read())
+        file = open(path, 'r', encoding='utf-8')
+        proj = json.loads (file.read())
         file.close()
     except ValueError:
-        proj= None
+        proj = None
 
     return proj
 

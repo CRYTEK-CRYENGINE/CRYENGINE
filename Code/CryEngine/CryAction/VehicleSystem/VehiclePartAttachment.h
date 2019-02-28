@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -25,16 +25,16 @@ class CVehiclePartEntityAttachment
 public:
 
 	// IVehiclePartAttachment
-	virtual bool            Init(IVehicle* pVehicle, const CVehicleParams& table, IVehiclePart* parent, CVehicle::SPartInitInfo& initInfo, int partType) override;
+	virtual bool        Init(IVehicle* pVehicle, const CVehicleParams& table, IVehiclePart* parent, CVehicle::SPartInitInfo& initInfo, int partType) override;
 	//virtual void InitGeometry();
-	virtual void            PostInit() override;
+	virtual void        PostInit() override;
 
-	virtual void            Update(const float frameTime) override;
+	virtual void        Update(const float frameTime) override;
 
-	virtual const Matrix34& GetLocalTM(bool relativeToParentPart, bool forced = false) override;
-	virtual const Matrix34& GetWorldTM() override;
+	virtual Matrix34    GetLocalTM(bool relativeToParentPart, bool forced = false) override;
+	virtual Matrix34    GetWorldTM() override;
 
-	virtual void            SetLocalTM(const Matrix34& localTM) override;
+	virtual void        SetLocalTM(const Matrix34& localTM) override;
 	virtual const AABB& GetLocalBounds() override;
 
 	virtual void        GetMemoryUsage(ICrySizer* s) const override

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __CET_ENTITYSYSTEM_H__
 #define __CET_ENTITYSYSTEM_H__
@@ -19,4 +19,5 @@ void AddRandomSystemReset(IContextEstablisher* pEst, EContextViewState state, bo
 void AddLoadLevelEntities(IContextEstablisher* pEst, EContextViewState state);
 void AddFakeSpawn(IContextEstablisher* pEst, EContextViewState state, unsigned what);
 void AddEntitySystemEvent(IContextEstablisher* pEst, EContextViewState state, const SEntityEvent& evt);
+void AddEntitySystemGameplayStart(IContextEstablisher* pEst, EContextViewState state);
 #endif

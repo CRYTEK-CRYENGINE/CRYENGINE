@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -24,7 +24,7 @@ public:
 	CImpl& operator=(CImpl&&) = delete;
 
 	// CryAudio::Impl::IImpl
-	virtual void                Update(float const deltaTime) override {}
+	virtual void                Update() override {}
 	virtual ERequestStatus      Init(uint32 const objectPoolSize, uint32 const eventPoolSize) override;
 	virtual ERequestStatus      OnBeforeShutDown() override;
 	virtual ERequestStatus      ShutDown() override;
@@ -33,12 +33,15 @@ public:
 	virtual ERequestStatus      OnGetFocus() override;
 	virtual ERequestStatus      MuteAll() override;
 	virtual ERequestStatus      UnmuteAll() override;
+	virtual ERequestStatus      PauseAll() override;
+	virtual ERequestStatus      ResumeAll() override;
 	virtual ERequestStatus      StopAllSounds() override;
 	virtual ERequestStatus      RegisterInMemoryFile(SFileInfo* const pFileInfo) override;
 	virtual ERequestStatus      UnregisterInMemoryFile(SFileInfo* const pFileInfo) override;
 	virtual ERequestStatus      ConstructFile(XmlNodeRef const pRootNode, SFileInfo* const pFileInfo) override;
 	virtual void                DestructFile(IFile* const pIFile) override;
 	virtual char const* const   GetFileLocation(SFileInfo* const pFileInfo) override;
+	virtual void                GetInfo(SImplInfo& implInfo) const override;
 	virtual ITrigger const*     ConstructTrigger(XmlNodeRef const pRootNode) override;
 	virtual void                DestructTrigger(ITrigger const* const pITrigger) override;
 	virtual IParameter const*   ConstructParameter(XmlNodeRef const pRootNode) override;
@@ -62,17 +65,11 @@ public:
 	virtual void                SetLanguage(char const* const szLanguage) override;
 
 	// Below data is only used when INCLUDE_PORTAUDIO_IMPL_PRODUCTION_CODE is defined!
-	virtual char const* const GetName() const override;
-	virtual void              GetMemoryInfo(SMemoryInfo& memoryInfo) const override;
-	virtual void              GetFileData(char const* const szName, SFileData& fileData) const override;
+	virtual void GetMemoryInfo(SMemoryInfo& memoryInfo) const override;
+	virtual void GetFileData(char const* const szName, SFileData& fileData) const override;
 	// ~CryAudio::Impl::IImpl
 
 private:
-
-	static char const* const           s_szPortAudioEventTag;
-	static char const* const           s_szPortAudioEventNameAttribute;
-	static char const* const           s_szPortAudioEventNumLoopsAttribute;
-	static char const* const           s_szPortAudioEventTypeAttribute;
 
 	std::vector<CObject*>              m_constructedObjects;
 
@@ -80,7 +77,7 @@ private:
 	CryFixedStringT<MaxFilePathLength> m_localizedSoundBankFolder;
 
 #if defined(INCLUDE_PORTAUDIO_IMPL_PRODUCTION_CODE)
-	CryFixedStringT<MaxMiscStringLength> m_name;
+	CryFixedStringT<MaxInfoStringLength> m_name;
 #endif  // INCLUDE_PORTAUDIO_IMPL_PRODUCTION_CODE
 };
 } // namespace PortAudio

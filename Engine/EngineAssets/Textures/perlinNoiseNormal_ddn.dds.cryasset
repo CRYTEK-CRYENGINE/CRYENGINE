@@ -1,0 +1,14 @@
+<AssetMetadata version="0" type="Texture" guid="1a6a8207-e38f-aa72-74e6-d723d3ebe0f8" source="perlinNoiseNormal_ddn.tif">
+ <Files>
+  <File path="perlinNoiseNormal_ddn.dds"/>
+  <File path="perlinNoiseNormal_ddn.dds.1"/>
+  <File path="perlinNoiseNormal_ddn.dds.2"/>
+  <File path="perlinNoiseNormal_ddn.dds.3"/>
+  <File path="perlinNoiseNormal_ddn.dds.4"/>
+ </Files>
+ <Details>
+  <Detail name="width">256</Detail>
+  <Detail name="height">256</Detail>
+  <Detail name="mipCount">7</Detail>
+ </Details>
+</AssetMetadata>

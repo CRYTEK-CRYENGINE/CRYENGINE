@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -8,112 +8,118 @@
 
 #include "OctreePlotter.h"
 
-// Forward declare interfaces;
-struct ISensorTagLibrary;
-
-class CSensorMap : public ISensorMap
+namespace Cry
 {
-private:
-
-	struct SCell;
-
-	struct SVolume
+	namespace SensorSystem
 	{
-		SVolume();
+		// Forward declare interfaces;
+		struct ISensorTagLibrary;
 
-		SensorVolumeId      id;
-		SensorVolumeId      prevId;
-		SensorVolumeId      nextId;
-		SCell*              pCell;
-		SSensorVolumeParams params;
-		SensorVolumeIdSet   cache;
-	};
+		class CSensorMap : public ISensorMap
+		{
+		private:
 
-	typedef std::vector<SVolume> Volumes;
-	typedef std::vector<uint32>  FreeVolumes;
+			struct SCell;
 
-	struct SCell
-	{
-		SCell();
+			struct SVolume
+			{
+				SVolume();
 
-		SensorVolumeId firstVolumeId;
-		SensorVolumeId lastVolumeId;
-	};
+				SensorVolumeId      id;
+				SensorVolumeId      prevId;
+				SensorVolumeId      nextId;
+				SCell*              pCell;
+				SSensorVolumeParams params;
+				SensorVolumeIdSet   cache;
+			};
 
-	typedef std::vector<SCell>            Cells;
-	typedef VectorMap<uint32, SensorTags> DirtyCells;
-	typedef std::vector<SSensorEvent>     Events;
+			typedef std::vector<SVolume> Volumes;
+			typedef std::vector<uint32>  FreeVolumes;
 
-	struct SUpdateStats
-	{
-		SUpdateStats();
+			struct SCell
+			{
+				SCell();
 
-		uint32 queryCount;
-		float  time;
-	};
+				SensorVolumeId firstVolumeId;
+				SensorVolumeId lastVolumeId;
+			};
 
-public:
+			typedef std::vector<SCell>            Cells;
+			typedef VectorMap<uint32, SensorTags> DirtyCells;
+			typedef std::vector<SSensorEvent>     Events;
 
-	CSensorMap(ISensorTagLibrary& tagLibrary, const SSensorMapParams& params);
+			struct SUpdateStats
+			{
+				SUpdateStats();
 
-	// ISensorMap
+				uint32 queryCount;
+				float  time;
+			};
 
-	virtual SensorVolumeId      CreateVolume(const SSensorVolumeParams& params) override;
-	virtual void                DestroyVolume(SensorVolumeId volumeId) override;
-	virtual void                UpdateVolumeBounds(SensorVolumeId volumeId, const CSensorBounds& bounds) override;
-	virtual void                SetVolumeAttributeTags(SensorVolumeId volumeId, const SensorTags& attributeTags, bool bValue) override;
-	virtual void                SetVolumeListenerTags(SensorVolumeId volumeId, const SensorTags& listenerTags, bool bValue) override;
-	virtual SSensorVolumeParams GetVolumeParams(SensorVolumeId volumeId) const override;
+		public:
 
-	virtual void                Query(SensorVolumeIdSet& results, const CSensorBounds& bounds, const SensorTags& tags = SensorTags(), SensorVolumeId exclusionId = SensorVolumeId::Invalid) const override;
+			CSensorMap(ISensorTagLibrary& tagLibrary, const SSensorMapParams& params);
 
-	virtual void                Update() override;
-	virtual void                Debug(float drawRange, const SensorMapDebugFlags& flags) override;
+			// ISensorMap
 
-	virtual void                SetOctreeDepth(uint32 depth) override;
-	virtual void                SetOctreeBounds(const AABB& bounds) override;
+			virtual SensorVolumeId      CreateVolume(const SSensorVolumeParams& params) override;
+			virtual void                DestroyVolume(SensorVolumeId volumeId) override;
+			virtual void                UpdateVolumeBounds(SensorVolumeId volumeId, const CSensorBounds& bounds) override;
+			virtual void                SetVolumeAttributeTags(SensorVolumeId volumeId, const SensorTags& attributeTags, bool bValue) override;
+			virtual void                SetVolumeListenerTags(SensorVolumeId volumeId, const SensorTags& listenerTags, bool bValue) override;
+			virtual SSensorVolumeParams GetVolumeParams(SensorVolumeId volumeId) const override;
 
-	// ~ISensorMap
+			virtual void                Query(SensorVolumeIdSet& results, const CSensorBounds& bounds, const SensorTags& tags = SensorTags(), SensorVolumeId exclusionId = SensorVolumeId::Invalid) const override;
 
-private:
+			virtual void                Update() override;
+			virtual void                Debug(float drawRange, const SensorMapDebugFlags& flags) override;
 
-	bool           AllocateVolumes(uint32 volumeCount);
-	SensorVolumeId CreateVolumeId(uint32 volumeIdx, uint32 salt) const;
-	SVolume*       GetVolume(SensorVolumeId volumeId);
-	const SVolume* GetVolume(SensorVolumeId volumeId) const;
+			virtual void                SetOctreeDepth(uint32 depth) override;
+			virtual void                SetOctreeBounds(const AABB& bounds) override;
 
-	bool           ExpandVolumeId(SensorVolumeId volumeId, uint32& volumeIdx, uint32& salt) const;
+			// ~ISensorMap
 
-	uint32         GetCellIdx(const SCell* pCell) const;
-	void           MarkCellsDirty(const AABB& bounds, const SensorTags& tags);
-	void           MapVolumeToCell(SVolume& volume);
-	void           RemoveVolumeFromCurrentCell(SVolume& volume);
+		private:
 
-	void           Query(SensorVolumeId volumeId, Events& events);
+			bool           AllocateVolumes(uint32 volumeCount);
+			SensorVolumeId CreateVolumeId(uint32 volumeIdx, uint32 salt) const;
+			SVolume*       GetVolume(SensorVolumeId volumeId);
+			const SVolume* GetVolume(SensorVolumeId volumeId) const;
 
-	void           Remap();
+			bool           ExpandVolumeId(SensorVolumeId volumeId, uint32& volumeIdx, uint32& salt) const;
 
-private:
+			uint32         GetCellIdx(const SCell* pCell) const;
+			void           MarkCellsDirty(const AABB& bounds, const SensorTags& tags);
+			void           MapVolumeToCell(SVolume& volume);
+			void           RemoveVolumeFromCurrentCell(SVolume& volume);
 
-	void DebugDrawStats() const;
-	void DebugDrawVolumesAndOctree(float drawRange, const SensorMapDebugFlags& flags) const;
-	void DebugInteractive(float drawRange) const;
+			void           Query(SensorVolumeId volumeId, Events& events);
 
-private:
+			void           Remap();
 
-	ISensorTagLibrary& m_tagLibrary;
+		private:
 
-	Volumes            m_volumes;
-	FreeVolumes        m_freeVolumes;
-	SensorVolumeIdSet  m_activeVolumes;
-	SensorVolumeIdSet  m_strayVolumes;
+			void DebugDrawStats() const;
+			void DebugDrawVolumesAndOctree(float drawRange, const SensorMapDebugFlags& flags) const;
+			void DebugInteractive(float drawRange) const;
 
-	COctreePlotter     m_octreePlotter;
-	Cells              m_cells;
-	DirtyCells         m_dirtyCells;
+		private:
 
-	SUpdateStats       m_updateStats;
+			ISensorTagLibrary& m_tagLibrary;
 
-	SensorVolumeIdSet  m_pendingQueries;
-	SensorVolumeIdSet  m_queryResults;
-};
+			Volumes            m_volumes;
+			FreeVolumes        m_freeVolumes;
+			SensorVolumeIdSet  m_activeVolumes;
+			SensorVolumeIdSet  m_strayVolumes;
+
+			COctreePlotter     m_octreePlotter;
+			Cells              m_cells;
+			DirtyCells         m_dirtyCells;
+
+			SUpdateStats       m_updateStats;
+
+			SensorVolumeIdSet  m_pendingQueries;
+			SensorVolumeIdSet  m_queryResults;
+		};
+	}
+}

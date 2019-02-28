@@ -1,8 +1,10 @@
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+
 using System;
 
 namespace CryEngine.Debugging
 {
-	public static class ExceptionHandler
+	internal static class ExceptionHandler
 	{
 		static ExceptionHandler()
 		{

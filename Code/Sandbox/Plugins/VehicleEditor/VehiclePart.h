@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __VehiclePart_h__
 #define __VehiclePart_h__
@@ -40,7 +40,7 @@ public:
 	bool Init(CBaseObject* prev, const string& file);
 	void Done();
 	void InitVariables() {};
-	void Display(DisplayContext& disp);
+	void Display(CObjectRenderHelper& objRenderHelper);
 
 	bool HitTest(HitContext& hc);
 
@@ -118,3 +118,4 @@ public:
 };
 
 #endif // __VehiclePart_h__
+

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
  -------------------------------------------------------------------------
@@ -212,7 +212,7 @@ void CCarryEntity::Detach()
 
 		AttachmentUtils::DetachObject( pPlayerEntity, GetEntity(), CARRYENTITY_ATTACHMENT_NAME );
 
-		GetEntity()->DetachThis(IEntity::ATTACHMENT_KEEP_TRANSFORMATION, 0);
+		GetEntity()->DetachThis(IEntity::ATTACHMENT_KEEP_TRANSFORMATION);
 		 
 		pEntity->SetRotation(Quat::CreateRotationXYZ(Ang3(0.f, 0.f, 0.f)));
 

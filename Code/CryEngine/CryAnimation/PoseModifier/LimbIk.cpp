@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "LimbIk.h"
@@ -60,6 +60,8 @@ bool CLimbIk::Prepare(const SAnimationPoseModifierParams& params)
 
 bool CLimbIk::Execute(const SAnimationPoseModifierParams& params)
 {
+	DEFINE_PROFILER_FUNCTION();
+
 	Skeleton::CPoseData* pPoseData = Skeleton::CPoseData::GetPoseData(params.pPoseData);
 	if (!pPoseData)
 		return false;

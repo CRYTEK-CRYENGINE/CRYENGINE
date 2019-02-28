@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "DX12RootSignature.hpp"
@@ -422,27 +422,45 @@ bool CRootSignature::Serialize(bool bGfx, UINT nodeMask)
 	{
 		ID3DBlob* pOutBlob = NULL;
 		ID3DBlob* pErrorBlob = NULL;
+		HRESULT result;
 
-		if (S_OK != D3D12SerializeRootSignature(&descRootSignature, D3D_ROOT_SIGNATURE_VERSION_1, &pOutBlob, &pErrorBlob))
+		result = D3D12SerializeRootSignature(&descRootSignature, D3D_ROOT_SIGNATURE_VERSION_1, &pOutBlob, &pErrorBlob);
+
+		if (result != S_OK)
 		{
-			DX12_ERROR("Could not serialize root signature!");
+			if (pErrorBlob)
+			{
+				void* pError = pErrorBlob->GetBufferPointer();
+				size_t sizeError = pErrorBlob->GetBufferSize();
+
+				DX12_ERROR("Could not serialize root signature: %s", pErrorBlob->GetBufferPointer());
+
+				pErrorBlob->Release();
+			}
+			else
+			{
+				DX12_ERROR("Could not serialize root signature!");
+			}
+
 			return false;
 		}
 
-		if (S_OK != GetDevice()->GetD3D12Device()->CreateRootSignature(m_nodeMask = nodeMask, pOutBlob->GetBufferPointer(), pOutBlob->GetBufferSize(), IID_GFX_ARGS(&rootSign)))
+		if (pErrorBlob)
 		{
-			DX12_ERROR("Could not create root signature!");
-			return false;
+			pErrorBlob->Release();
 		}
+
+		result = GetDevice()->GetD3D12Device()->CreateRootSignature(m_nodeMask = nodeMask, pOutBlob->GetBufferPointer(), pOutBlob->GetBufferSize(), IID_GFX_ARGS(&rootSign));
 
 		if (pOutBlob)
 		{
 			pOutBlob->Release();
 		}
 
-		if (pErrorBlob)
+		if (result != S_OK)
 		{
-			pErrorBlob->Release();
+			DX12_ERROR("Could not create root signature!");
+			return false;
 		}
 	}
 

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "FacialPreviewDialog.h"
@@ -467,3 +467,4 @@ void CModelViewportFE::HandleAnimationSettingsSwitch()
 	if (m_storedCamerasInitialized[cameraIndex])
 		m_Camera.SetMatrix(m_storedCameras[cameraIndex]);
 }
+

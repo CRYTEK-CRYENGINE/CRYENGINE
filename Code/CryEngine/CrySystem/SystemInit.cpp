@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "SystemInit.h"
@@ -18,6 +18,7 @@
 #include <CrySystem/ICryPlugin.h>
 #include <CryExtension/CryCreateClassInstance.h>
 #include <CryMono/IMonoRuntime.h>
+#include <CryGame/IGameStartup.h>
 
 #if (CRY_PLATFORM_APPLE || CRY_PLATFORM_LINUX || CRY_PLATFORM_ANDROID) && !defined(DEDICATED_SERVER)
 	#include <dlfcn.h>
@@ -29,6 +30,8 @@
 
 #if CRY_PLATFORM_WINDOWS
 	#include <float.h>
+	#include <timeapi.h>
+	#include <algorithm>
 #endif
 
 #include <CryNetwork/INetwork.h>
@@ -45,6 +48,7 @@
 #include <CryScriptSystem/IScriptSystem.h>
 #include <CrySystem/ICmdLine.h>
 #include <CrySystem/IProcess.h>
+#include <CryReflection/IReflection.h>
 
 #include "CryPak.h"
 #include "XConsole.h"
@@ -68,6 +72,7 @@
 #include "LoadingProfiler.h"
 #include "BootProfiler.h"
 #include "DiskProfiler.h"
+#include "Watchdog.h"
 #include "Statoscope.h"
 #include "TestSystemLegacy.h"
 #include "VisRegTest.h"
@@ -104,11 +109,8 @@
 #include "Serialization/ArchiveHost.h"
 
 #include "CrySchematyc/ICore.h"
-
-#if USE_STEAM
-	#include "Steamworks/public/steam/steam_api.h"
-	#include "Steamworks/public/steam/isteamremotestorage.h"
-#endif
+#include <CrySchematyc2/IFramework.h>
+#include "ManualFrameStep.h"
 
 #if CRY_PLATFORM_IOS
 	#include "IOSConsole.h"
@@ -167,7 +169,7 @@ extern AAssetManager* androidGetAssetManager();
 #define DLL_RENDERER_DX11 "CryRenderD3D11"
 #define DLL_RENDERER_DX12 "CryRenderD3D12"
 #define DLL_RENDERER_GL   "CryRenderOpenGL"
-#define DLL_RENDERER_VK	  "CryRenderVulkan"
+#define DLL_RENDERER_VK   "CryRenderVulkan"
 #define DLL_RENDERER_GNM  "CryRenderGNM"
 #define DLL_LIVECREATE    "CryLiveCreate"
 #define DLL_MONO_BRIDGE   "CryMonoBridge"
@@ -226,6 +228,7 @@ extern HMODULE gDLLHandle;
 #endif
 
 //static int g_sysSpecChanged = false;
+int sys_SchematycPlugin;
 
 const char* g_szLvlResExt = "_LvlRes.txt";
 
@@ -254,8 +257,11 @@ static void CmdCrashTest(IConsoleCmdArgs* pArgs)
 
 	if (pArgs->GetArgCount() == 2)
 	{
-		//This method intentionally crashes, a lot.
-
+		// This method intentionally crashes, a lot.
+#if CRY_COMPILER_MSVC
+	#pragma warning(push)
+	#pragma warning(disable:4723) // potential divide by 0
+#endif // CRY_COMPILER_MSVC
 		int crashType = atoi(pArgs->GetArg(1));
 		switch (crashType)
 		{
@@ -326,7 +332,6 @@ static void CmdCrashTest(IConsoleCmdArgs* pArgs)
 		// Pure virtual function call
 		case 10:
 			{
-	#pragma warning( disable : 4101 )
 				struct Base
 				{
 					virtual void PureVirtual() const = 0;
@@ -347,26 +352,11 @@ static void CmdCrashTest(IConsoleCmdArgs* pArgs)
 			CryWarning(VALIDATOR_MODULE_SYSTEM, VALIDATOR_WARNING, "CmdCrashTest: Unsupported error number \"%i\" provided for crash test function.", crashType);
 			break;
 		}
+#if CRY_COMPILER_MSVC
+	#pragma warning(pop)
+#endif // CRY_COMPILER_MSVC
 	}
 }
-
-#if USE_STEAM
-//////////////////////////////////////////////////////////////////////////
-static void CmdWipeSteamCloud(IConsoleCmdArgs* pArgs)
-{
-	if (!gEnv->pSystem->SteamInit())
-		return;
-
-	int32 fileCount = SteamRemoteStorage()->GetFileCount();
-	for (int i = 0; i < fileCount; i++)
-	{
-		int32 size = 0;
-		const char* name = SteamRemoteStorage()->GetFileNameAndSize(i, &size);
-		bool success = SteamRemoteStorage()->FileDelete(name);
-		CryLog("Deleting file: %s - success: %d", name, success);
-	}
-}
-#endif
 
 //////////////////////////////////////////////////////////////////////////
 class CCrashTestThread : public IThread
@@ -388,7 +378,7 @@ public:
 		while (true)
 		{
 			CmdCrashTest(&commandArg);
-			Sleep(1); // Allow other threads to run
+			CrySleep(1); // Allow other threads to run
 		}
 	}
 
@@ -419,6 +409,70 @@ static void CmdDumpJobManagerJobList(IConsoleCmdArgs* pArgs)
 }
 
 //////////////////////////////////////////////////////////////////////////
+static void CmdDumpCvars(IConsoleCmdArgs* pArgs)
+{
+	struct CCVarSink : public ICVarDumpSink
+	{
+		CCVarSink()
+		{
+			m_cvars.reserve(4000);
+		}
+
+		~CCVarSink()
+		{
+		}
+
+		void OnElementFound(ICVar *pCVar)
+		{
+			if (!pCVar)
+			{
+				return;
+			}
+
+			const char* name = pCVar->GetName();
+			const char* val = pCVar->GetString();
+			m_cvars.push_back({ name, val });
+		}
+
+		void LogToFile()
+		{
+			const char* file_path = "%USER%/dumped_cvars.cfg";
+			FILE* pFile = fxopen(file_path, "w");
+			if (!pFile)
+			{
+				return;
+			}
+
+			std::sort(m_cvars.begin(), m_cvars.end(), [](const std::pair<const char*, const char*> & rA, const std::pair<const char*, const char*>& rB) -> bool { return strcmp(rA.first, rB.first) < 0; });
+
+			for (const auto& cvar : m_cvars)
+			{
+				fprintf(pFile, "%s=%s\n", cvar.first,cvar.second);
+			}
+
+			if (gEnv && gEnv->pCryPak)
+			{
+				char path[_MAX_PATH];
+				const char* szAdjustedPath = gEnv->pCryPak->AdjustFileName(file_path, path, 0);
+				CryLogAlways("\n=================\n CVars dumped to file: \"%s\" \n=================\n", szAdjustedPath);
+			}
+
+			fclose(pFile);
+		}
+
+		std::vector<std::pair<const char*, const char* > > m_cvars;
+	};
+
+	if (gEnv && gEnv->pConsole)
+	{
+		
+		CCVarSink sink;
+		gEnv->pConsole->DumpCVars(&sink);
+		sink.LogToFile();
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////
 static void CmdDumpThreadConfigList(IConsoleCmdArgs* pArgs)
 {
 #if !defined(RELEASE)
@@ -428,6 +482,28 @@ static void CmdDumpThreadConfigList(IConsoleCmdArgs* pArgs)
 	}
 #endif
 }
+
+//////////////////////////////////////////////////////////////////////////
+#if defined(USE_CRY_ASSERT)
+static void CmdIgnoreAssertsFromModule(IConsoleCmdArgs* pArgs)
+{
+	if (gEnv && gEnv->pSystem && pArgs->GetArgCount() == 2)
+	{
+		wstring requestedModule = CryStringUtils::UTF8ToWStr(pArgs->GetArg(1));
+
+		for (uint32 i = 0; i < eCryM_Num; ++i)
+		{
+			if (requestedModule == g_moduleNames[i])
+			{
+				gEnv->pSystem->DisableAssertionsForModule(i);
+				return;
+			}
+		}
+
+		CryWarning(VALIDATOR_MODULE_SYSTEM, VALIDATOR_ERROR, "Tried to ignore assertions for unknown module %s", pArgs->GetArg(1));
+	}
+}
+#endif
 
 //////////////////////////////////////////////////////////////////////////
 struct SysSpecOverrideSink : public ILoadConfigurationEntrySink
@@ -447,7 +523,8 @@ struct SysSpecOverrideSink : public ILoadConfigurationEntrySink
 				{
 					// If it is set to 0 then ignore this request to set to something else
 					// If it is set to 0 then the user wants to changes system spec settings in system.cfg
-					if (pCvar->GetIVal() != 0)
+					// Ignore the spec if the renderer wasn't initialized.
+					if (pCvar->GetIVal() != 0 && gEnv->pRenderer != nullptr)
 					{
 						applyCvar = true;
 					}
@@ -581,6 +658,9 @@ static void OnSysSpecChange(ICVar* pVar)
 	if (gEnv->p3DEngine)
 		gEnv->p3DEngine->GetMaterialManager()->RefreshMaterialRuntime();
 
+	if (gEnv->pRenderer)
+		gEnv->pRenderer->FlushPendingUploads();
+
 	no_recursive = false;
 }
 
@@ -641,7 +721,7 @@ WIN_HMODULE CSystem::LoadDynamicLibrary(const char* szModulePath, bool bQuitIfNo
 	if (m_binariesDir.empty())
 	{
 		handle = CryLoadLibrary(modulePath);
-		if (!handle)
+		if (!handle && bLogLoadingInfo)
 		{
 			DWORD dwErrorCode = GetLastError();
 			CryLogAlways("DLL Failed to load, error code: %X", dwErrorCode);
@@ -663,11 +743,11 @@ WIN_HMODULE CSystem::LoadDynamicLibrary(const char* szModulePath, bool bQuitIfNo
 	{
 		if (bQuitIfNotFound)
 		{
-	#if CRY_PLATFORM_LINUX || CRY_PLATFORM_ANDROID || CRY_PLATFORM_APPLE
+#if CRY_PLATFORM_LINUX || CRY_PLATFORM_ANDROID || CRY_PLATFORM_APPLE
 			CryFatalError("Error loading dynamic library: %s, error :  %s\n", modulePath.c_str(), dlerror());
-	#else
+#else
 			CryFatalError("Error loading dynamic library: %s, error code %d", modulePath.c_str(), GetLastError());
-	#endif
+#endif
 
 			Quit();
 		}
@@ -675,7 +755,7 @@ WIN_HMODULE CSystem::LoadDynamicLibrary(const char* szModulePath, bool bQuitIfNo
 		return nullptr;
 	}
 
-	m_moduleDLLHandles.insert(std::make_pair(CCryNameCRC(modulePath), handle));
+	m_moduleDLLHandles.emplace(modulePath, handle);
 
 	//////////////////////////////////////////////////////////////////////////
 	// After loading DLL initialize it by calling ModuleInitISystem
@@ -698,15 +778,14 @@ bool CSystem::UnloadDynamicLibrary(const char* szDllName)
 	stack_string modulePath = szDllName;
 	modulePath = CrySharedLibraryPrefix + PathUtil::ReplaceExtension(modulePath, CrySharedLibraryExtension);
 
-	CCryNameCRC moduleCrc(modulePath);
-
-	const WIN_HMODULE hModule = stl::find_in_map(m_moduleDLLHandles, moduleCrc, nullptr);
-
-	if (hModule != nullptr)
+	auto moduleIt = m_moduleDLLHandles.find(modulePath);
+	if (moduleIt != m_moduleDLLHandles.end())
 	{
 		string msg = string().Format("Unloading %s...", modulePath.c_str());
 
 		CryLog("%s", msg.c_str());
+
+		WIN_HMODULE hModule = moduleIt->second;
 
 		// CVars should be unregistered earlier than owning objects/modules are destroyed.
 		auto CleanupModuleCVars = (void (*)())CryGetProcAddress(hModule, "CleanupModuleCVars");
@@ -726,12 +805,30 @@ bool CSystem::UnloadDynamicLibrary(const char* szDllName)
 		}
 
 		CryFreeLibrary(hModule);
-		m_moduleDLLHandles.erase(moduleCrc);
+		m_moduleDLLHandles.erase(moduleIt);
 
 		return true;
 	}
 
 	return false;
+}
+
+void CSystem::GetLoadedDynamicLibraries(std::vector<string>& moduleNames) const
+{
+	moduleNames.reserve(m_moduleDLLHandles.size() + 1);
+
+	for (const std::pair<string, WIN_HMODULE>& modulePair : m_moduleDLLHandles)
+	{
+		moduleNames.emplace_back(modulePair.first);
+	}
+
+#ifdef CRY_PLATFORM_WINDOWS
+	// Push back the executing module.
+	char filename[MAX_PATH];
+	::GetModuleFileName(nullptr, filename, MAX_PATH);
+
+	moduleNames.push_back(filename);
+#endif
 }
 
 ICryFactory* CSystem::LoadModuleWithFactory(const char* dllName, const CryInterfaceID& moduleInterfaceId)
@@ -773,7 +870,7 @@ ICryFactory* CSystem::LoadModuleWithFactory(const char* dllName, const CryInterf
 }
 
 //////////////////////////////////////////////////////////////////////////
-bool CSystem::InitializeEngineModule(const char* dllName, const CryInterfaceID& moduleInterfaceId, bool bQuitIfNotFound)
+bool CSystem::InitializeEngineModule(const SSystemInitParams& startupParams, const char* dllName, const CryInterfaceID& moduleInterfaceId, bool bQuitIfNotFound)
 {
 	IMemoryManager::SProcessMemInfo memStart, memEnd;
 	if (GetIMemoryManager())
@@ -781,21 +878,33 @@ bool CSystem::InitializeEngineModule(const char* dllName, const CryInterfaceID& 
 	else
 		ZeroStruct(memStart);
 
+	bool loadedLibrary = false;
+
 	std::shared_ptr<Cry::IDefaultModule> pModule;
 	if (!CryCreateClassInstanceForInterface(moduleInterfaceId, pModule))
 	{
 		if (LoadDynamicLibrary(dllName, bQuitIfNotFound, true) == 0)
 			return false;
 
+		loadedLibrary = true;
 		CryCreateClassInstanceForInterface(moduleInterfaceId, pModule);
 	}
 
-	bool bSuccess = false;
-
-	if (pModule)
+	if (pModule == nullptr)
 	{
-		MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_Other, 0, "Initialize module: %s", pModule->GetFactory()->GetName());
-		bSuccess = pModule->Initialize(m_env, m_startupParams);
+		return false;
+	}
+
+	MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_Other, 0, "Initialize module: %s", pModule->GetFactory()->GetName());
+	if (!pModule->Initialize(m_env, startupParams))
+	{
+		if (loadedLibrary)
+		{
+			pModule.reset();
+			UnloadDynamicLibrary(dllName);
+		}
+
+		return false;
 	}
 
 	if (GetIMemoryManager())
@@ -806,7 +915,7 @@ bool CSystem::InitializeEngineModule(const char* dllName, const CryInterfaceID& 
 		CryLog("Initializing %s done, MemUsage=%uKb", dllName, uint32(memUsed / 1024));
 	}
 
-	return bSuccess;
+	return true;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -816,7 +925,7 @@ bool CSystem::UnloadEngineModule(const char* szDllName)
 }
 
 //////////////////////////////////////////////////////////////////////////
-bool CSystem::OpenRenderLibrary(const char* t_rend)
+bool CSystem::OpenRenderLibrary(const SSystemInitParams& startupParams, const char* t_rend)
 {
 	LOADING_TIME_PROFILE_SECTION(GetISystem());
 
@@ -824,15 +933,15 @@ bool CSystem::OpenRenderLibrary(const char* t_rend)
 		return true;
 
 	if (stricmp(t_rend, STR_DX11_RENDERER) == 0)
-		return OpenRenderLibrary(R_DX11_RENDERER);
+		return OpenRenderLibrary(startupParams, R_DX11_RENDERER);
 	else if (stricmp(t_rend, STR_DX12_RENDERER) == 0)
-		return OpenRenderLibrary(R_DX12_RENDERER);
+		return OpenRenderLibrary(startupParams, R_DX12_RENDERER);
 	else if (stricmp(t_rend, STR_GL_RENDERER) == 0)
-		return OpenRenderLibrary(R_GL_RENDERER);
+		return OpenRenderLibrary(startupParams, R_GL_RENDERER);
 	else if (stricmp(t_rend, STR_VK_RENDERER) == 0)
-		return OpenRenderLibrary(R_VK_RENDERER);
+		return OpenRenderLibrary(startupParams, R_VK_RENDERER);
 	else if (stricmp(t_rend, STR_GNM_RENDERER) == 0)
-		return OpenRenderLibrary(R_GNM_RENDERER);
+		return OpenRenderLibrary(startupParams, R_GNM_RENDERER);
 
 	CryFatalError("Unknown renderer type: %s", t_rend);
 	return false;
@@ -905,15 +1014,15 @@ static wstring GetErrorStringUnsupportedGPU(const char* gpuName, unsigned int gp
 }
 #endif
 
-bool CSystem::OpenRenderLibrary(int type)
+bool CSystem::OpenRenderLibrary(const SSystemInitParams& startupParams, int type)
 {
 	LOADING_TIME_PROFILE_SECTION;
 
 	if (gEnv->IsDedicated())
 		return true;
 
-	#if !defined(DEDICATED_SERVER)
-		#if CRY_PLATFORM_WINDOWS
+#if !defined(DEDICATED_SERVER)
+	#if CRY_PLATFORM_WINDOWS
 	if (!gEnv->IsDedicated())
 	{
 		unsigned int gpuVendorId = 0, gpuDeviceId = 0, totVidMem = 0;
@@ -926,21 +1035,17 @@ bool CSystem::OpenRenderLibrary(int type)
 			const char logMsgFmt[] ("Unsupported GPU configuration!\n- %s (vendor = 0x%.4x, device = 0x%.4x)\n- Dedicated video memory: %d MB\n- Feature level: %s\n");
 			CryLogAlways(logMsgFmt, gpuName, gpuVendorId, gpuDeviceId, totVidMem >> 20, GetFeatureLevelAsString(featureLevel));
 
-			#if !defined(_RELEASE)
+		#if !defined(_RELEASE)
 			if (m_env.pSystem->GetICmdLine()->FindArg(eCLAT_Pre, "anygpu") == NULL)  // Useful for shader cache generation
-			#endif
+		#endif
 			{
-				bool allowMessageBox = m_env.pSystem->GetICmdLine()->FindArg(eCLAT_Pre, "noprompt") == NULL;
-				if (allowMessageBox)
-				{
-					MessageBoxW(0, GetErrorStringUnsupportedGPU(gpuName, gpuVendorId, gpuDeviceId).c_str(), L"CRYENGINE", MB_ICONERROR | MB_OK | MB_DEFAULT_DESKTOP_ONLY);
-				}
+				CryMessageBox(GetErrorStringUnsupportedGPU(gpuName, gpuVendorId, gpuDeviceId).c_str(), L"CRYENGINE", eMB_Error);
 				return false;
 			}
 		}
 	}
-		#endif
-	#endif // !defined(DEDICATED_SERVER)
+	#endif
+#endif   // !defined(DEDICATED_SERVER)
 
 	const char* libname = "";
 	if (type == R_DX11_RENDERER)
@@ -959,7 +1064,7 @@ bool CSystem::OpenRenderLibrary(int type)
 		return false;
 	}
 
-	if (!InitializeEngineModule(libname, cryiidof<IRendererEngineModule>(), true))
+	if (!InitializeEngineModule(startupParams, libname, cryiidof<IRendererEngineModule>(), true))
 	{
 		return false;
 	}
@@ -974,11 +1079,11 @@ bool CSystem::OpenRenderLibrary(int type)
 }
 
 /////////////////////////////////////////////////////////////////////////////////
-bool CSystem::InitNetwork()
+bool CSystem::InitNetwork(const SSystemInitParams& startupParams)
 {
 	LOADING_TIME_PROFILE_SECTION(GetISystem());
 
-	if (!InitializeEngineModule(DLL_NETWORK, cryiidof<INetworkEngineModule>(), true))
+	if (!InitializeEngineModule(startupParams, DLL_NETWORK, cryiidof<INetworkEngineModule>(), true))
 		return false;
 
 	if (m_env.pNetwork == NULL)
@@ -986,20 +1091,21 @@ bool CSystem::InitNetwork()
 		CryFatalError("Error creating Network System!");
 		return false;
 	}
+
 	return true;
 }
 
 /////////////////////////////////////////////////////////////////////////////////
-bool CSystem::InitSchematyc()
+bool CSystem::InitReflectionSystem(const SSystemInitParams& startupParams)
 {
 	LOADING_TIME_PROFILE_SECTION(GetISystem());
 
-	if (!InitializeEngineModule("CrySchematyc", cryiidof<ICrySchematycCore>(), true))
+	if (!InitializeEngineModule(startupParams, "CryReflection", cryiidof<Cry::Reflection::IReflection>(), true))
 		return false;
 
-	if (!m_env.pSchematyc)
+	if (!m_env.pReflection)
 	{
-		CryFatalError("Error initializing Schematyc!");
+		CryFatalError("Error initializing Reflection!");
 		return false;
 	}
 
@@ -1007,11 +1113,43 @@ bool CSystem::InitSchematyc()
 }
 
 /////////////////////////////////////////////////////////////////////////////////
-bool CSystem::InitEntitySystem()
+bool CSystem::InitSchematyc(const SSystemInitParams& startupParams)
 {
 	LOADING_TIME_PROFILE_SECTION(GetISystem());
 
-	if (!InitializeEngineModule(DLL_ENTITYSYSTEM, cryiidof<IEntitySystemEngineModule>(), true))
+	if (sys_SchematycPlugin == 0 || sys_SchematycPlugin == 1)
+	{
+		if (!InitializeEngineModule(startupParams, "CrySchematyc2", cryiidof<Schematyc2::IFramework>(), true))
+			return false;
+
+		if (m_env.pSchematyc2 == nullptr)
+		{
+			CryFatalError("Error initializing Schematyc!");
+			return false;
+		}
+	}
+
+	if (sys_SchematycPlugin == 0 || sys_SchematycPlugin == 2)
+	{
+		if (!InitializeEngineModule(startupParams, "CrySchematyc", cryiidof<ICrySchematycCore>(), true))
+			return false;
+
+		if (m_env.pSchematyc == nullptr)
+		{
+			CryFatalError("Error initializing experimental Schematyc!");
+			return false;
+		}
+	}
+
+	return true;
+}
+
+/////////////////////////////////////////////////////////////////////////////////
+bool CSystem::InitEntitySystem(const SSystemInitParams& startupParams)
+{
+	LOADING_TIME_PROFILE_SECTION(GetISystem());
+
+	if (!InitializeEngineModule(startupParams, DLL_ENTITYSYSTEM, cryiidof<IEntitySystemEngineModule>(), true))
 		return false;
 
 	if (!m_env.pEntitySystem)
@@ -1024,7 +1162,7 @@ bool CSystem::InitEntitySystem()
 }
 
 /////////////////////////////////////////////////////////////////////////////////
-bool CSystem::InitDynamicResponseSystem()
+bool CSystem::InitDynamicResponseSystem(const SSystemInitParams& startupParams)
 {
 	LOADING_TIME_PROFILE_SECTION(GetISystem());
 
@@ -1036,7 +1174,7 @@ bool CSystem::InitDynamicResponseSystem()
 	}
 	else
 	{
-		InitializeEngineModule(sDLLName, cryiidof<DRS::IDynamicResponseSystemEngineModule>(), false);
+		InitializeEngineModule(startupParams, sDLLName, cryiidof<DRS::IDynamicResponseSystemEngineModule>(), false);
 	}
 
 	if (!m_env.pDynamicResponseSystem)
@@ -1049,10 +1187,10 @@ bool CSystem::InitDynamicResponseSystem()
 }
 
 /////////////////////////////////////////////////////////////////////////////////
-bool CSystem::InitLiveCreate()
+bool CSystem::InitLiveCreate(const SSystemInitParams& startupParams)
 {
 	LOADING_TIME_PROFILE_SECTION(GetISystem());
-	bool bSkip = m_startupParams.bSkipLiveCreate;
+	bool bSkip = startupParams.bSkipLiveCreate;
 
 #ifdef NO_LIVECREATE
 	bSkip = true;
@@ -1067,7 +1205,7 @@ bool CSystem::InitLiveCreate()
 	if (!bSkip)
 	{
 		// load initialize the module, this will create and setup the LiveCreate interfaces in the m_env.
-		if (!InitializeEngineModule(DLL_LIVECREATE, cryiidof<ILiveCreateEngineModule>(), false))
+		if (!InitializeEngineModule(startupParams, DLL_LIVECREATE, cryiidof<ILiveCreateEngineModule>(), false))
 			return false;
 
 		// initialize the new host interface
@@ -1096,11 +1234,11 @@ bool CSystem::InitLiveCreate()
 }
 
 //////////////////////////////////////////////////////////////////////////
-bool CSystem::InitMonoBridge()
+bool CSystem::InitMonoBridge(const SSystemInitParams& startupParams)
 {
 	LOADING_TIME_PROFILE_SECTION(GetISystem());
 
-	if (!InitializeEngineModule(DLL_MONO_BRIDGE, cryiidof<IMonoEngineModule>(), false))
+	if (!InitializeEngineModule(startupParams, DLL_MONO_BRIDGE, cryiidof<IMonoEngineModule>(), false))
 	{
 		gEnv->pLog->LogWarning("MonoRuntime not created.");
 		m_env.pMonoRuntime = nullptr;
@@ -1111,23 +1249,37 @@ bool CSystem::InitMonoBridge()
 }
 
 //////////////////////////////////////////////////////////////////////////
-bool CSystem::InitInput()
+void CSystem::InitGameFramework(SSystemInitParams& startupParams)
 {
 	LOADING_TIME_PROFILE_SECTION(GetISystem());
 
-	if (m_startupParams.bSkipInput)
+	if (!InitializeEngineModule(startupParams, "CryAction", cryiidof<IGameFrameworkEngineModule>(), false))
+	{
+		gEnv->pLog->LogWarning("Game Framework not created, this is currently unsupported!");
+		m_env.pGameFramework = nullptr;
+		return;
+	}
+
+#if !defined(CRY_IS_MONOLITHIC_BUILD)
+	m_gameLibrary.Free();
+#endif
+}
+
+//////////////////////////////////////////////////////////////////////////
+bool CSystem::InitInput(const SSystemInitParams& startupParams)
+{
+	LOADING_TIME_PROFILE_SECTION(GetISystem());
+
+	if (startupParams.bSkipInput)
 	{
 		m_env.pInput = new CNullInput();
 		return true;
 	}
 
-	if (!InitializeEngineModule(DLL_INPUT, cryiidof<IInputEngineModule>(), true))
+	if (!InitializeEngineModule(startupParams, DLL_INPUT, cryiidof<IInputEngineModule>(), true))
 	{
 #if CRY_PLATFORM_WINDOWS
-		if (!m_startupParams.bUnattendedMode)
-		{
-			MessageBox(NULL, "CryInput.dll could not be loaded. This is likely due to not having XInput support installed.\nPlease install the most recent version of the DirectX runtime.", "ERROR: CryInput.dll could not be loaded!", MB_OK | MB_ICONERROR);
-		}
+		CryMessageBox("CryInput.dll could not be loaded. This is likely due to not having XInput support installed.\nPlease install the most recent version of the DirectX runtime.", "ERROR: CryInput.dll could not be loaded!", eMB_Error);
 #endif
 		return false;
 	}
@@ -1198,7 +1350,7 @@ ICVar* CSystem::attachVariable(const char* szVarName, int* pContainer, const cha
 }
 
 /////////////////////////////////////////////////////////////////////////////////
-bool CSystem::InitRenderer(WIN_HWND hwnd)
+bool CSystem::InitRenderer(SSystemInitParams& startupParams)
 {
 	LOADING_TIME_PROFILE_SECTION(GetISystem());
 
@@ -1215,44 +1367,41 @@ bool CSystem::InitRenderer(WIN_HWND hwnd)
 		m_iColorBits = m_env.pConsole->GetCVar("r_ColorBits")->GetIVal();
 	}
 
-	if (!OpenRenderLibrary(m_rDriver->GetString()))
+	if (!OpenRenderLibrary(startupParams, m_rDriver->GetString()))
 		return false;
 
-#if CRY_PLATFORM_WINDOWS
 	if (m_env.pRenderer)
 	{
 		if (m_env.pHardwareMouse)
 			m_env.pHardwareMouse->OnPreInitRenderer();
 
-		SCustomRenderInitArgs args;
-		args.appStartedFromMediaCenter = strstr(m_startupParams.szSystemCmdLine, "ReLaunchMediaCenter") != 0;
+		WIN_HWND hwnd = (startupParams.bEditor) ? (WIN_HWND)1 : m_hWnd;
 
-		m_hWnd = m_env.pRenderer->Init(0, 0, m_rWidth->GetIVal(), m_rHeight->GetIVal(), m_rColorBits->GetIVal(), m_rDepthBits->GetIVal(), m_rStencilBits->GetIVal(), m_rFullscreen->GetIVal() ? true : false, hwnd, false, &args, m_startupParams.bShaderCacheGen);
-		//Timur, Not very clean code, we need to push new hwnd value to the system init params, so other modules can used when initializing.
-		(const_cast<SSystemInitParams*>(&m_startupParams))->hWnd = m_hWnd;
+		int width = m_rWidth->GetIVal();
+		int height = m_rHeight->GetIVal();
+		if (gEnv->IsEditor())
+		{
+			// In Editor base default Display Context is not really used, so it is allocated with the minimal resolution.
+			width = 32;
+			height = 32;
+		}
+
+		m_hWnd = m_env.pRenderer->Init(
+		  0, 0, width, height,
+		  m_rColorBits->GetIVal(), m_rDepthBits->GetIVal(), m_rStencilBits->GetIVal(),
+		  hwnd, false, startupParams.bShaderCacheGen);
+
+		startupParams.hWnd = m_hWnd;
 
 		m_env.pAuxGeomRenderer = m_env.pRenderer->GetIRenderAuxGeom();
-		InitPhysicsRenderer();
+		InitPhysicsRenderer(startupParams);
 
-		return (m_startupParams.bShaderCacheGen || m_hWnd != 0);
-	}
-#else
-	if (m_env.pRenderer)
-	{
-		WIN_HWND h = m_env.pRenderer->Init(0, 0, m_rWidth->GetIVal(), m_rHeight->GetIVal(), m_rColorBits->GetIVal(), m_rDepthBits->GetIVal(), m_rStencilBits->GetIVal(), m_rFullscreen->GetIVal() ? true : false, hwnd);
-
-		m_env.pAuxGeomRenderer = m_env.pRenderer->GetIRenderAuxGeom();
-		InitPhysicsRenderer();
-
-	#if CRY_PLATFORM_LINUX || CRY_PLATFORM_ANDROID || CRY_PLATFORM_APPLE || CRY_PLATFORM_ORBIS
+#if CRY_PLATFORM_LINUX || CRY_PLATFORM_ANDROID || CRY_PLATFORM_APPLE || CRY_PLATFORM_ORBIS
 		return true;
-	#else
-		if (h)
-			return true;
-		return (false);
-	#endif
-	}
+#else
+		return (startupParams.bUnattendedMode || startupParams.bShaderCacheGen || m_hWnd != 0);
 #endif
+	}
 	return true;
 }
 
@@ -1372,7 +1521,7 @@ void OnDrawHelpersStrChange(ICVar* pVar)
 	gEnv->pPhysicalWorld->GetPhysVars()->iDrawHelpers = StrToPhysHelpers(pVar->GetString());
 }
 
-bool CSystem::InitPhysics()
+bool CSystem::InitPhysics(const SSystemInitParams& startupParams)
 {
 	LOADING_TIME_PROFILE_SECTION(GetISystem());
 	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Physics, 0, "Init Physics");
@@ -1382,7 +1531,7 @@ bool CSystem::InitPhysics()
 #else
 	// Check m_pPhysicsLibrary - if not specified, load CryPhysics, if specified, load that one
 	const char* physDLL = m_pPhysicsLibrary ? m_pPhysicsLibrary->GetString() : DLL_PHYSICS;
-	if (!InitializeEngineModule(physDLL, cryiidof<IPhysicsEngineModule>(), true))
+	if (!InitializeEngineModule(startupParams, physDLL, cryiidof<IPhysicsEngineModule>(), true))
 	{
 		CryFatalError("Error loading physics dll: %s", physDLL);
 		return false;
@@ -1482,7 +1631,7 @@ bool CSystem::InitPhysics()
 	               "Sets physical time step granularity.\n"
 	               "Usage: p_time_granularity [0..0.1]\n"
 	               "Used for internal tweaking only.");
-	REGISTER_CVAR2("p_list_active_objects", &pVars->bLogActiveObjects, pVars->bLogActiveObjects, VF_NULL, "");
+	REGISTER_CVAR2("p_list_active_objects", &pVars->bLogActiveObjects, pVars->bLogActiveObjects, VF_NULL, "1 - list normal objects, 2 - list independent objects, 3 - both");
 	REGISTER_CVAR2("p_profile_entities", &pVars->bProfileEntities, pVars->bProfileEntities, 0,
 	               "Enables per-entity time step profiling");
 	REGISTER_CVAR2("p_profile_functions", &pVars->bProfileFunx, pVars->bProfileFunx, 0,
@@ -1629,6 +1778,8 @@ bool CSystem::InitPhysics()
 	               "Whether to use OBBs rather than AABBs for the entity grid setup for brushes");
 	REGISTER_CVAR2("p_num_startup_overload_checks", &pVars->nStartupOverloadChecks, pVars->nStartupOverloadChecks, 0,
 	               "For this many frames after loading a level, check if the physics gets overloaded and freezes non-player physicalized objects that are slow enough");
+	REGISTER_CVAR2("p_break_on_awake_ent_id", &pVars->idEntBreakOnAwake, pVars->idEntBreakOnAwake, 0,
+	               "Sets the id of the entity that will trigger debug break if awoken");
 
 	pVars->flagsColliderDebris = geom_colltype_debris;
 	pVars->flagsANDDebris = ~(geom_colltype_vehicle | geom_colltype6);
@@ -1647,13 +1798,13 @@ bool CSystem::InitPhysics()
 }
 
 //////////////////////////////////////////////////////////////////////////
-bool CSystem::InitPhysicsRenderer()
+bool CSystem::InitPhysicsRenderer(const SSystemInitParams& startupParams)
 {
 	LOADING_TIME_PROFILE_SECTION;
 	//////////////////////////////////////////////////////////////////////////
 	// Physics Renderer (for debug helpers)
 	//////////////////////////////////////////////////////////////////////////
-	if (!m_bUIFrameworkMode && !m_startupParams.bShaderCacheGen)
+	if (!m_bUIFrameworkMode && !startupParams.bShaderCacheGen)
 	{
 		m_pPhysRenderer = new CPhysRenderer;
 		m_pPhysRenderer->Init(); // needs to be created after physics and renderer
@@ -1706,11 +1857,11 @@ bool CSystem::InitPhysicsRenderer()
 }
 
 /////////////////////////////////////////////////////////////////////////////////
-bool CSystem::InitMovieSystem()
+bool CSystem::InitMovieSystem(const SSystemInitParams& startupParams)
 {
 	LOADING_TIME_PROFILE_SECTION(GetISystem());
 
-	if (!InitializeEngineModule(DLL_MOVIE, cryiidof<IMovieEngineModule>(), true))
+	if (!InitializeEngineModule(startupParams, DLL_MOVIE, cryiidof<IMovieEngineModule>(), true))
 		return false;
 
 	if (!m_env.pMovieSystem)
@@ -1723,14 +1874,14 @@ bool CSystem::InitMovieSystem()
 
 /////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////
-bool CSystem::InitAISystem()
+bool CSystem::InitAISystem(const SSystemInitParams& startupParams)
 {
 	LOADING_TIME_PROFILE_SECTION(GetISystem());
 
 	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Init AISystem ");
 
 	const char* sDLLName = m_sys_dll_ai->GetString();
-	if (!InitializeEngineModule(sDLLName, cryiidof<IAIEngineModule>(), false))
+	if (!InitializeEngineModule(startupParams, sDLLName, cryiidof<IAIEngineModule>(), false))
 		return false;
 
 	if (!m_env.pAISystem)
@@ -1741,13 +1892,13 @@ bool CSystem::InitAISystem()
 
 /////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////
-bool CSystem::InitScriptSystem()
+bool CSystem::InitScriptSystem(const SSystemInitParams& startupParams)
 {
 	LOADING_TIME_PROFILE_SECTION(GetISystem());
 
 	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_LUA, 0, "Init ScriptSystem");
 
-	if (!InitializeEngineModule(DLL_SCRIPTSYSTEM, cryiidof<IScriptSystemEngineModule>(), true))
+	if (!InitializeEngineModule(startupParams, DLL_SCRIPTSYSTEM, cryiidof<IScriptSystemEngineModule>(), true))
 		return false;
 
 	if (m_env.pScriptSystem == NULL)
@@ -1766,7 +1917,7 @@ bool CSystem::InitScriptSystem()
 }
 
 /////////////////////////////////////////////////////////////////////////////////
-bool CSystem::InitFileSystem(const IGameStartup* pGameStartup)
+bool CSystem::InitFileSystem(const SSystemInitParams& startupParams)
 {
 	LOADING_TIME_PROFILE_SECTION;
 
@@ -1783,7 +1934,7 @@ bool CSystem::InitFileSystem(const IGameStartup* pGameStartup)
 #endif // !defined(_RELEASE)
 
 	CCryPak* pCryPak;
-	pCryPak = new CCryPak(m_env.pLog, &g_cvars.pakVars, bLvlRes, pGameStartup);
+	pCryPak = new CCryPak(m_env.pLog, &g_cvars.pakVars, bLvlRes);
 	pCryPak->SetGameFolderWritable(m_bGameFolderWritable);
 	m_env.pCryPak = pCryPak;
 
@@ -1813,16 +1964,21 @@ bool CSystem::InitFileSystem(const IGameStartup* pGameStartup)
 		{
 			const CryPathString editorDir = PathUtil::Make(CryPathString(engineRootDir.c_str()), CryPathString("Editor"));
 			m_env.pCryPak->SetAlias("%EDITOR%", editorDir.c_str(), true);
+
+			m_env.pCryPak->SetAlias("%{PLUGIN-GUID}%", editorDir.c_str(), true);
 		}
 #endif
 	}
 
 	// Now set up the log
-	InitLog();
+	InitLog(startupParams);
 
 	LogVersion();
 
 	((CCryPak*)m_env.pCryPak)->SetLog(m_env.pLog);
+
+	const char* szConfigPakPath = "%ENGINEROOT%/config.pak";
+	m_env.pCryPak->OpenPack(szConfigPakPath);
 
 	// Load value of sys_game_folder from system.cfg into the sys_game_folder console variable
 	ILoadConfigurationEntrySink* pCVarsWhiteListConfigSink = GetCVarsWhiteListConfigSink();
@@ -1830,12 +1986,43 @@ bool CSystem::InitFileSystem(const IGameStartup* pGameStartup)
 	string path = string(CryGetProjectStoragePath()) + "/system.cfg";
 	LoadConfiguration(path.c_str(), pCVarsWhiteListConfigSink, eLoadConfigInit);
 #else
-	LoadConfiguration("system.cfg", pCVarsWhiteListConfigSink, eLoadConfigInit);
+	LoadConfiguration("%ENGINEROOT%/system.cfg", pCVarsWhiteListConfigSink, eLoadConfigInit);
 #endif
 
 	if (!m_pProjectManager->ParseProjectFile())
 	{
+		m_env.pCryPak->ClosePack(szConfigPakPath);
 		return false;
+	}
+
+	m_env.pCryPak->ClosePack(szConfigPakPath);
+
+	// Legacy support for setting decryption key from IGameStartup interface
+	// Should be removed when legacy game dll's are gone
+	if (ICVar* pLegacyGameDllCVar = m_env.pConsole->GetCVar("sys_dll_game"))
+	{
+		HMODULE hGameDll;
+
+#if !defined(CRY_IS_MONOLITHIC_BUILD)
+		m_gameLibrary.Set(pLegacyGameDllCVar->GetString());
+		hGameDll = m_gameLibrary.m_hModule;
+#else
+		hGameDll = CryGetCurrentModule();
+#endif
+		if (hGameDll != nullptr)
+		{
+			if (IGameStartup::TEntryFunction CreateTempGameStartup = (IGameStartup::TEntryFunction)CryGetProcAddress(hGameDll, "CreateGameStartup"))
+			{
+				IGameStartup* pGameStartup = CreateTempGameStartup();
+
+				uint32 keyLen;
+				const uint8* pKeyData = pGameStartup->GetRSAKey(&keyLen);
+				if (pKeyData && keyLen > 0)
+				{
+					(static_cast<CCryPak*>(m_env.pCryPak))->SetDecryptionKey(pKeyData, keyLen);
+				}
+			}
+		}
 	}
 
 	bool bRes = m_env.pCryPak->Init("");
@@ -1867,17 +2054,17 @@ bool CSystem::InitFileSystem(const IGameStartup* pGameStartup)
 	return (bRes);
 }
 
-void CSystem::InitLog()
+void CSystem::InitLog(const SSystemInitParams& startupParams)
 {
-	if (m_startupParams.pLog == nullptr)
+	if (startupParams.pLog == nullptr)
 	{
 		m_env.pLog = new CLog(this);
-		if (m_startupParams.pLogCallback)
+		if (startupParams.pLogCallback)
 		{
-			m_env.pLog->AddCallback(m_startupParams.pLogCallback);
+			m_env.pLog->AddCallback(startupParams.pLogCallback);
 		}
 
-		string sLogFileName = m_startupParams.sLogFileName != nullptr ? m_startupParams.sLogFileName : DEFAULT_LOG_FILENAME;
+		string sLogFileName = startupParams.sLogFileName != nullptr ? startupParams.sLogFileName : DEFAULT_LOG_FILENAME;
 
 #if CRY_PLATFORM_WINDOWS
 		if (sLogFileName.size() > 0)
@@ -1916,7 +2103,7 @@ void CSystem::InitLog()
 	}
 	else
 	{
-		m_env.pLog = m_startupParams.pLog;
+		m_env.pLog = startupParams.pLog;
 	}
 }
 
@@ -2001,7 +2188,7 @@ bool CSystem::InitFileSystem_LoadEngineFolders()
 #endif
 
 	// We set now the correct "game" folder to use in Pak File
-	ICVar* pGameFolderCVar = gEnv->pConsole->GetCVar("sys_game_folder"); 
+	ICVar* pGameFolderCVar = gEnv->pConsole->GetCVar("sys_game_folder");
 	CRY_ASSERT(pGameFolderCVar != nullptr);
 
 	m_env.pCryPak->SetGameFolder(pGameFolderCVar->GetString());
@@ -2048,13 +2235,7 @@ bool CSystem::InitFileSystem_LoadEngineFolders()
 		string gameFolder = (!PathUtil::GetGameFolder().empty()) ? (PathUtil::GetGameFolder() + "/") : "";
 		AddCVarGroupDirectory(gameFolder + "Config/CVarGroups");
 	}
-    AddCVarGroupDirectory("Config/CVarGroups");
-
-#ifdef SEG_WORLD
-	int maxStdio = gEnv->pConsole->GetCVar("sys_max_stdio")->GetIVal();
-	int res = _setmaxstdio(maxStdio);
-	assert(res != -1);
-#endif
+	AddCVarGroupDirectory("%ENGINE%/Config/CVarGroups");
 
 #if defined(USE_PATCH_PAK)
 	LoadPatchPaks();
@@ -2076,13 +2257,13 @@ bool CSystem::InitStreamEngine()
 }
 
 /////////////////////////////////////////////////////////////////////////////////
-bool CSystem::InitFont()
+bool CSystem::InitFont(const SSystemInitParams& startupParams)
 {
 	LOADING_TIME_PROFILE_SECTION(GetISystem());
 
 	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Init FontSystem");
 
-	if (!InitializeEngineModule(DLL_FONT, cryiidof<IFontEngineModule>(), true))
+	if (!InitializeEngineModule(startupParams, DLL_FONT, cryiidof<IFontEngineModule>(), true))
 		return false;
 
 	if (!m_env.pCryFont)
@@ -2115,12 +2296,12 @@ bool CSystem::InitFont()
 }
 
 //////////////////////////////////////////////////////////////////////////
-bool CSystem::Init3DEngine()
+bool CSystem::Init3DEngine(const SSystemInitParams& startupParams)
 {
 	LOADING_TIME_PROFILE_SECTION(GetISystem());
 	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Init 3D Engine");
 
-	if (!InitializeEngineModule(DLL_3DENGINE, cryiidof<I3DEngineModule>(), true))
+	if (!InitializeEngineModule(startupParams, DLL_3DENGINE, cryiidof<I3DEngineModule>(), true))
 		return false;
 
 	if (!m_env.p3DEngine)
@@ -2141,12 +2322,12 @@ bool CSystem::Init3DEngine()
 }
 
 //////////////////////////////////////////////////////////////////////////
-bool CSystem::InitAnimationSystem()
+bool CSystem::InitAnimationSystem(const SSystemInitParams& startupParams)
 {
 	LOADING_TIME_PROFILE_SECTION(GetISystem());
 	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Init AnimationSystem");
 
-	if (!InitializeEngineModule(DLL_ANIMATION, cryiidof<IAnimationEngineModule>(), true))
+	if (!InitializeEngineModule(startupParams, DLL_ANIMATION, cryiidof<IAnimationEngineModule>(), true))
 		return false;
 
 	return true;
@@ -2239,13 +2420,14 @@ void CSystem::OpenBasicPaks(bool bLoadGamePaks)
 		// After game paks to have same search order as with files on disk
 		{
 			const char* szBindRoot = m_env.pCryPak->GetAlias("%ENGINE%", false);
-			if (buildFolder.empty())
+			string paksFolder = PathUtil::Make(buildFolder.empty() ? "%ENGINEROOT%" : buildFolder, "Engine");
+
+			const unsigned int numOpenPacksBeforeEngine = m_env.pCryPak->GetPakInfo()->numOpenPaks;
+			m_env.pCryPak->OpenPacks(szBindRoot, PathUtil::Make(paksFolder, "*.pak"));
+
+			if (g_cvars.pakVars.nPriority == ePakPriorityPakOnly && numOpenPacksBeforeEngine == m_env.pCryPak->GetPakInfo()->numOpenPaks)
 			{
-				m_env.pCryPak->OpenPacks(szBindRoot, "%ENGINEROOT%/Engine/*.pak");
-			}
-			else
-			{
-				m_env.pCryPak->OpenPacks(szBindRoot, buildFolder + "Engine/*.pak");
+				CryFatalError("Engine initialization failed: Engine assets are required to be in pak files and cannot be read from the directory structure");
 			}
 		}
 
@@ -2398,33 +2580,11 @@ static bool CheckCPURequirements(CCpuFeatures* pCpu, CSystem* pSystem)
 		{
 			CryLogAlways("Unsupported CPU! Need SSE, SSE2 and SSE3 instructions to be available.");
 
-		#if !defined(_RELEASE)
-			const bool allowPrompts = pSystem->GetICmdLine()->FindArg(eCLAT_Pre, "noprompt") == 0;
-		#else
-			const bool allowPrompts = true;
-		#endif // !defined(_RELEASE)
-			if (allowPrompts)
+			CryLogAlways("Asking user if they wish to continue...");
+			if (CryMessageBox(GetErrorStringUnsupportedCPU().c_str(), L"CRYENGINE", eMB_YesCancel) == eQR_Cancel)
 			{
-				CryLogAlways("Asking user if they wish to continue...");
-				const int mbRes = MessageBoxW(0, GetErrorStringUnsupportedCPU().c_str(), L"CRYENGINE", MB_ICONWARNING | MB_OKCANCEL | MB_DEFBUTTON2 | MB_DEFAULT_DESKTOP_ONLY);
-				if (mbRes == IDCANCEL)
-				{
-					CryLogAlways("User chose to cancel.");
-					return false;
-				}
-			}
-			else
-			{
-		#if !defined(_RELEASE)
-				const bool obeyCPUCheck = pSystem->GetICmdLine()->FindArg(eCLAT_Pre, "anycpu") == 0;
-		#else
-				const bool obeyCPUCheck = true;
-		#endif // !defined(_RELEASE)
-				if (obeyCPUCheck)
-				{
-					CryLogAlways("No prompts allowed and unsupported CPU check active. Treating unsupported CPU as error and exiting.");
-					return false;
-				}
+				CryLogAlways("User chose to cancel.");
+				return false;
 			}
 
 			CryLogAlways("User chose to continue despite unsupported CPU!");
@@ -2439,8 +2599,20 @@ static bool CheckCPURequirements(CCpuFeatures* pCpu, CSystem* pSystem)
 /////////////////////////////////////////////////////////////////////////////////
 // INIT
 /////////////////////////////////////////////////////////////////////////////////
-bool CSystem::Init()
+bool CSystem::Initialize(SSystemInitParams& startupParams)
 {
+	// Fix to improve wait() time within third-party APIs
+#if CRY_PLATFORM_WINDOWS
+	TIMECAPS tc;
+	UINT wTimerRes;
+	if (timeGetDevCaps(&tc, sizeof(TIMECAPS)) != TIMERR_NOERROR)
+	{
+		CryFatalError("Error while changing the system timer resolution!");
+	}
+	wTimerRes = std::min(std::max(tc.wPeriodMin, 1u), tc.wPeriodMax);
+	timeBeginPeriod(wTimerRes);
+#endif // CRY_PLATFORM_WINDOWS
+
 	LOADING_TIME_PROFILE_SECTION;
 
 	SetSystemGlobalState(ESYSTEM_GLOBAL_STATE_INIT);
@@ -2449,13 +2621,43 @@ bool CSystem::Init()
 	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "System Initialization");
 
 	InlineInitializationProcessing("CSystem::Init start");
-	m_szCmdLine = m_startupParams.szSystemCmdLine;
+	m_szCmdLine = startupParams.szSystemCmdLine;
+
+	m_pCmdLine = new CCmdLine(startupParams.szSystemCmdLine);
+
+	if (m_pCmdLine->FindArg(eCLAT_Pre, "norandom"))
+	{
+		startupParams.bNoRandom = true;
+	}
+
+	// set unit test flag at start so multiple systems could handle initialization differently when needed
+	if (m_pCmdLine->FindArg(eCLAT_Pre, "run_unit_tests"))
+	{
+		startupParams.bTesting = true;
+	}
+
+	// Skipping renderer is useful for automation modes when visual output is unnecessary
+	if (m_pCmdLine->FindArg(eCLAT_Pre, "skiprenderer"))
+	{
+		startupParams.bSkipRenderer = true;
+	}
+
+	// Skipping input is useful for automation modes
+	if (m_pCmdLine->FindArg(eCLAT_Pre, "skipinput"))
+	{
+		startupParams.bSkipInput = true;
+	}
 
 	m_env.szCmdLine = m_szCmdLine.c_str();
-	m_env.bTesting = m_startupParams.bTesting;
-	m_env.bNoAssertDialog = m_startupParams.bTesting;
-	m_env.bNoRandomSeed = m_startupParams.bNoRandom;
-	m_bShaderCacheGenMode = m_startupParams.bShaderCacheGen;
+	m_env.bTesting = startupParams.bTesting;
+	m_env.bUnattendedMode = startupParams.bTesting || startupParams.bUnattendedMode;
+	if (m_pCmdLine->FindArg(eCLAT_Pre, "noprompt"))
+	{
+		m_env.bUnattendedMode = true;
+	}
+
+	m_env.bNoRandomSeed = startupParams.bNoRandom;
+	m_bShaderCacheGenMode = startupParams.bShaderCacheGen;
 	assert(IsHeapValid());
 
 #ifdef EXTENSION_SYSTEM_INCLUDE_TESTCASES
@@ -2468,18 +2670,46 @@ bool CSystem::Init()
 	QueryVersionInfo();
 	DetectGameFolderAccessRights();
 
-	m_hWnd = (WIN_HWND)m_startupParams.hWnd;
+	m_hWnd = (WIN_HWND)startupParams.hWnd;
 
-	m_binariesDir = m_startupParams.szBinariesDir;
-	m_bEditor = m_startupParams.bEditor;
-	m_bPreviewMode = m_startupParams.bPreview;
-	m_bUIFrameworkMode = m_startupParams.bUIFramework;
-	m_pUserCallback = m_startupParams.pUserCallback;
-#if defined(CVARS_WHITELIST)
-	m_pCVarsWhitelist = m_startupParams.pCVarsWhitelist;
-#endif // defined(CVARS_WHITELIST)
-	m_bDedicatedServer = m_startupParams.bDedicatedServer;
-	m_pCmdLine = new CCmdLine(m_startupParams.szSystemCmdLine);
+	m_binariesDir = startupParams.szBinariesDir;
+	m_bEditor = startupParams.bEditor;
+	m_bPreviewMode = startupParams.bPreview;
+	m_bUIFrameworkMode = startupParams.bUIFramework;
+	m_pUserCallback = startupParams.pUserCallback;
+
+#if !defined(_RELEASE)
+	if (!startupParams.bDedicatedServer)
+	{
+		const ICmdLineArg* dedicated = m_pCmdLine->FindArg(eCLAT_Pre, "dedicated");
+		if (dedicated)
+		{
+			startupParams.bDedicatedServer = true;
+		}
+	}
+#endif // !defined(_RELEASE)
+
+#if defined(DEDICATED_SERVER)
+	startupParams.bDedicatedServer = true;
+#endif // #if defined(DEDICATED_SERVER)
+
+#if CRY_PLATFORM_DESKTOP
+	const ICmdLineArg* pDedicatedArbitrator = m_pCmdLine->FindArg(eCLAT_Pre, "dedicatedarbitrator");
+	if (pDedicatedArbitrator)
+	{
+		startupParams.bDedicatedServer = true;
+		gEnv->bDedicatedArbitrator = true;
+	}
+#endif
+
+#if CRY_PLATFORM_DESKTOP
+	if (startupParams.bDedicatedServer)
+	{
+		m_env.SetIsDedicated(true);
+	}
+#endif
+
+	m_pCmdLine = new CCmdLine(startupParams.szSystemCmdLine);
 	m_currentLanguageAudio = "";
 #if defined(DEDICATED_SERVER)
 	m_bNoCrashDialog = true;
@@ -2487,11 +2717,12 @@ bool CSystem::Init()
 	m_bNoCrashDialog = false;
 #endif
 
-	memcpy(gEnv->pProtectedFunctions, m_startupParams.pProtectedFunctions, sizeof(m_startupParams.pProtectedFunctions));
+	memcpy(gEnv->pProtectedFunctions, startupParams.pProtectedFunctions, sizeof(startupParams.pProtectedFunctions));
 
 #if CRY_PLATFORM_DESKTOP
 	m_env.SetIsEditor(m_bEditor);
 	m_env.SetIsEditorGameMode(false);
+	m_env.SetIsEditorSimulationMode(false);
 #endif
 
 	m_env.bIsOutOfMemory = false;
@@ -2513,7 +2744,6 @@ bool CSystem::Init()
 		SetDevMode(devModeEnable);
 	}
 
-
 #if !defined(DEDICATED_SERVER)
 	const ICmdLineArg* crashdialog = m_pCmdLine->FindArg(eCLAT_Post, "sys_no_crash_dialog");
 	if (crashdialog)
@@ -2522,60 +2752,25 @@ bool CSystem::Init()
 	}
 #endif
 
-	if (m_startupParams.bUnattendedMode)
+	if (startupParams.bUnattendedMode)
 	{
 		m_bNoCrashDialog = true;
-		m_env.bNoAssertDialog = true; //this also suppresses CryMessageBox
-		AddPlatformOSCreateFlag(IPlatformOS::eCF_NoDialogs);
 	}
 
-	if (!m_startupParams.pValidator)
+	if (!startupParams.pValidator)
 	{
 		m_pDefaultValidator = new SDefaultValidator(this);
 		m_pValidator = m_pDefaultValidator;
 	}
 	else
 	{
-		m_pValidator = m_startupParams.pValidator;
+		m_pValidator = startupParams.pValidator;
 	}
 
-#if !defined(_RELEASE)
-	if (!m_bDedicatedServer)
-	{
-		const ICmdLineArg* dedicated = m_pCmdLine->FindArg(eCLAT_Pre, "dedicated");
-		if (dedicated)
-		{
-			m_bDedicatedServer = true;
-	#if CRY_PLATFORM_DESKTOP
-			gEnv->SetIsDedicated(true);
-	#endif
-		}
-	}
-#endif // !defined(_RELEASE)
-
-#if defined(DEDICATED_SERVER)
-	m_bDedicatedServer = true;
-	#if CRY_PLATFORM_DESKTOP
-	gEnv->SetIsDedicated(true);
-	#endif
-#endif // #if defined(DEDICATED_SERVER)
-
-#if CRY_PLATFORM_DESKTOP
-	const ICmdLineArg* pDedicatedArbitrator = m_pCmdLine->FindArg(eCLAT_Pre, "dedicatedarbitrator");
-	if (pDedicatedArbitrator)
-	{
-		m_bDedicatedServer = true;
-		gEnv->SetIsDedicated(true);
-		gEnv->bDedicatedArbitrator = true;
-	}
-#endif
-
-#if !defined(DEDICATED_SERVER)
-	if (!m_startupParams.bSkipRenderer)
+	if (!startupParams.bSkipRenderer)
 	{
 		m_pHmdManager = new CHmdManager();
 	}
-#endif
 
 #if CRY_PLATFORM_DESKTOP
 	#if !defined(_RELEASE)
@@ -2609,22 +2804,36 @@ bool CSystem::Init()
 		#endif
 		m_pTextModeConsole = static_cast<ITextModeConsole*>(pConsole);
 
-		if (m_pUserCallback == NULL && m_bDedicatedServer)
+		if (m_pUserCallback == NULL)
 		{
-			m_pUserCallback = pConsole;
-			pConsole->SetRequireDedicatedServer(true);
-
-			headerName.append("Dedicated Server");
-			if (gEnv->bDedicatedArbitrator)
+			auto getProductVersion = [this]
 			{
-				headerName.append(" Arbitrator");
-			}
-			headerName.append(" - Version ");
+				char version[64];
+				GetProductVersion().ToString(version);
+				return string(version);
+			};
 
-			char version[64];
-			GetProductVersion().ToString(version);
-			headerName.append(version);
-			pConsole->SetHeader(headerName.c_str());
+			if (m_env.IsDedicated())
+			{
+				m_pUserCallback = pConsole;
+				pConsole->SetRequireDedicatedServer(true);
+				headerName.append("Dedicated Server");
+				if (gEnv->bDedicatedArbitrator)
+				{
+					headerName.append(" Arbitrator");
+				}
+				headerName.append(" - Version ");
+				headerName.append(getProductVersion());
+				pConsole->SetHeader(headerName.c_str());
+			}
+			else if (m_pCmdLine->FindArg(eCLAT_Pre, "console"))
+			{
+				m_pUserCallback = pConsole;
+				pConsole->SetRequireDedicatedServer(false);
+				headerName.append("Client - Version ");
+				headerName.append(getProductVersion());
+				pConsole->SetHeader(headerName.c_str());
+			}
 		}
 	}
 		#if !defined(_RELEASE)
@@ -2637,25 +2846,12 @@ bool CSystem::Init()
 		CNULLConsole* pConsole = new CNULLConsole(isDaemonMode);
 		m_pTextModeConsole = pConsole;
 
-		if (m_pUserCallback == NULL && m_bDedicatedServer)
+		if (m_pUserCallback == NULL && m_env.IsDedicated())
 			m_pUserCallback = pConsole;
 	}
 	#endif
 
 #endif // CRY_PLATFORM_DESKTOP
-
-	//////////////////////////////////////////////////////////////////////////
-	// CREATE CONSOLE
-	//////////////////////////////////////////////////////////////////////////
-	InlineInitializationProcessing("CSystem::Init Create console");
-
-	if (!m_startupParams.bSkipConsole)
-	{
-		m_env.pConsole = new CXConsole;
-
-		if (m_startupParams.pPrintSync)
-			m_env.pConsole->AddOutputPrintSink(m_startupParams.pPrintSync);
-	}
 
 	//////////////////////////////////////////////////////////////////////////
 	// LOAD GAME PROJECT CONFIGURATION
@@ -2674,13 +2870,12 @@ bool CSystem::Init()
 	InlineInitializationProcessing("CSystem::Init PlatformOS");
 
 	{
+		m_FrameProfileSystem.Init();
+
 		//////////////////////////////////////////////////////////////////////////
 		// File system, must be very early
 		//////////////////////////////////////////////////////////////////////////
-		if (!InitFileSystem(m_startupParams.pGameStartup))
-		{
-			return false;
-		}
+		InitFileSystem(startupParams);
 
 		//////////////////////////////////////////////////////////////////////////
 		InlineInitializationProcessing("CSystem::Init InitFileSystem");
@@ -2732,15 +2927,12 @@ bool CSystem::Init()
 		CStroboscope::GetInst()->RegisterCommands();
 #endif
 
-		if (!m_startupParams.bSkipConsole)
-		{
-			// Register system console variables.
-			CreateSystemVars();
+		// Register system console variables.
+		CreateSystemVars();
 
-			if (*m_startupParams.szUserPath)
-			{
-				m_sys_user_folder->Set(m_startupParams.szUserPath);
-			}
+		if (*startupParams.szUserPath)
+		{
+			m_sys_user_folder->Set(startupParams.szUserPath);
 		}
 
 		// Set this as soon as the system cvars got initialized.
@@ -2766,7 +2958,18 @@ bool CSystem::Init()
 		void* pThreadHandle = 0; // Let system figure out thread handle
 		gEnv->pThreadManager->RegisterThirdPartyThread(pThreadHandle, "Main");
 
+		// Start watchdog after thread manager initialization
+		if (int val = m_sys_profile_watchdog_timeout->GetIVal())
+		{
+			m_pWatchdog = new CWatchdogThread(val);
+		}
+
 		CryGetIMemReplay()->EnableAsynchMode();
+
+		if (!InitReflectionSystem(startupParams))
+		{
+			return false;
+		}
 
 		m_pResourceManager->Init();
 
@@ -2779,7 +2982,6 @@ bool CSystem::Init()
 		m_env.pCodeCheckpointMgr = NULL;
 #endif
 
-
 		//////////////////////////////////////////////////////////////////////////
 		// CREATE NOTIFICATION NETWORK
 		//////////////////////////////////////////////////////////////////////////
@@ -2789,7 +2991,7 @@ bool CSystem::Init()
 #ifndef _RELEASE
 	#if !(CRY_PLATFORM_LINUX || CRY_PLATFORM_ANDROID)
 
-		if (!m_startupParams.bMinimal && !gEnv->IsDedicated())
+		if (!startupParams.bMinimal && !gEnv->IsDedicated())
 		{
 			if (m_pNotificationNetwork = CNotificationNetwork::Create())
 			{
@@ -2812,10 +3014,7 @@ bool CSystem::Init()
 
 		InlineInitializationProcessing("CSystem::Init Create console");
 
-		if (!m_startupParams.bSkipConsole)
-		{
-			LogSystemInfo();
-		}
+		LogSystemInfo();
 
 		//////////////////////////////////////////////////////////////////////////
 		//Load config files
@@ -2846,16 +3045,16 @@ bool CSystem::Init()
 			}
 		}
 
-		m_FrameProfileSystem.Init(m_sys_profile_allThreads->GetIVal());
-
-		if (!m_startupParams.bSkipRenderer)
+		if (!startupParams.bSkipRenderer)
 		{
-			CreateRendererVars();
+			CreateRendererVars(startupParams);
 		}
 
 		{
 			ILoadConfigurationEntrySink* pCVarsWhiteListConfigSink = GetCVarsWhiteListConfigSink();
-			LoadConfiguration("system.cfg", pCVarsWhiteListConfigSink, eLoadConfigInit); // We have to load this file again since first time we did it without devmode
+
+			// We have to load this file again since first time we did it without devmode
+			LoadConfiguration("%ENGINEROOT%/system.cfg", pCVarsWhiteListConfigSink, eLoadConfigInit);
 			LoadConfiguration("user.cfg", pCVarsWhiteListConfigSink);
 
 #if defined(ENABLE_STATS_AGENT)
@@ -2881,10 +3080,13 @@ bool CSystem::Init()
 
 		if (g_cvars.sys_vr_support)
 			GetISystem()->LoadConfiguration("vr.cfg", 0, eLoadConfigInit);
-		if (g_cvars.sys_asserts > 1)
+
+#ifdef USE_CRY_ASSERT
+		if (m_env.cryAssertLevel > ECryAssertLevel::Enabled)
 		{
-			gEnv->bNoAssertDialog = true; // skip assert UI when sys_assert is 2 or 3
+			gEnv->bUnattendedMode = true; // skip assert UI when sys_assert is 2 or 3
 		}
+#endif
 
 #if defined(CRY_PLATFORM_DESKTOP) && defined(USE_DEDICATED_SERVER_CONSOLE)
 		m_pTextModeConsole->SetTitle(m_pProjectManager->GetCurrentProjectName());
@@ -2940,27 +3142,17 @@ bool CSystem::Init()
 
 		m_env.pOverloadSceneManager = new COverloadSceneManager;
 
-		if (m_bDedicatedServer && m_rDriver)
+		if (m_env.IsDedicated() && m_rDriver)
 		{
 			m_sSavedRDriver = m_rDriver->GetString();
 			m_rDriver->Set("NULL");
 		}
 
 #if CRY_PLATFORM_WINDOWS
-		if (!m_startupParams.bSkipRenderer)
+		if (!startupParams.bSkipRenderer)
 		{
 			if (stricmp(m_rDriver->GetString(), STR_AUTO_RENDERER) == 0)
 			{
-				m_rDriver->Set(STR_DX11_RENDERER);
-			}
-		}
-
-		if (m_env.IsEditor())
-		{
-			if (!(stricmp(m_rDriver->GetString(), STR_DX11_RENDERER) == 0 ||
-				  stricmp(m_rDriver->GetString(), STR_DX12_RENDERER) == 0))
-			{
-				m_env.pLog->LogWarning("Editor only supports DX11 & DX12. Switching to DX11 Renderer.");
 				m_rDriver->Set(STR_DX11_RENDERER);
 			}
 		}
@@ -2983,10 +3175,10 @@ bool CSystem::Init()
 		// PHYSICS
 		//////////////////////////////////////////////////////////////////////////
 		//if (!params.bPreview)
-		if (!m_bUIFrameworkMode && !m_startupParams.bShaderCacheGen)
+		if (!m_bUIFrameworkMode && !startupParams.bShaderCacheGen)
 		{
 			CryLogAlways("Physics initialization");
-			if (!InitPhysics())
+			if (!InitPhysics(startupParams))
 				return false;
 		}
 
@@ -2995,7 +3187,7 @@ bool CSystem::Init()
 		//////////////////////////////////////////////////////////////////////////
 		// Localization
 		//////////////////////////////////////////////////////////////////////////
-		if (!m_startupParams.bMinimal)
+		if (!startupParams.bMinimal)
 		{
 			InitLocalization();
 		}
@@ -3005,14 +3197,14 @@ bool CSystem::Init()
 		// AUDIO
 		//////////////////////////////////////////////////////////////////////////
 		bool bAudioInitSuccess = false;
-		if (!m_startupParams.bPreview && !m_bDedicatedServer && !m_bUIFrameworkMode && !m_startupParams.bShaderCacheGen &&
+		if (!startupParams.bPreview && !m_env.IsDedicated() && !m_bUIFrameworkMode && !startupParams.bShaderCacheGen &&
 		    (m_sys_audio_disable->GetIVal() == 0))
 		{
 			LOADING_TIME_PROFILE_SECTION_NAMED("AudioSystem initialization");
 			CryLogAlways("<Audio>: AudioSystem initialization");
 			INDENT_LOG_DURING_SCOPE();
 
-			bAudioInitSuccess = InitializeEngineModule(DLL_AUDIOSYSTEM, cryiidof<CryAudio::ISystemModule>(), false);
+			bAudioInitSuccess = InitializeEngineModule(startupParams, DLL_AUDIOSYSTEM, cryiidof<CryAudio::ISystemModule>(), false);
 		}
 
 		if (!bAudioInitSuccess)
@@ -3032,17 +3224,47 @@ bool CSystem::Init()
 		// Note: IME manager needs to be created before Scaleform is initialized
 		m_pImeManager = new CImeManager();
 
+		// Initialize CryMono / C# integration
+		// Notet that this has to occur before plug-ins are loaded as this is a prerequisite for C# plug-ins!
+		{
+			CryLogAlways("C# Backend initialization");
+			INDENT_LOG_DURING_SCOPE();
+
+			if (m_pUserCallback)
+			{
+				m_pUserCallback->OnInitProgress("Initializing C#...");
+			}
+
+			ICVar* pCVar = m_env.pConsole->GetCVar("sys_use_mono");
+			if (pCVar && pCVar->GetIVal())
+			{
+				InitMonoBridge(startupParams);
+			}
+		}
+
+		InlineInitializationProcessing("CSystem::Init LoadProjectPlugins");
+		m_pPluginManager->LoadProjectPlugins();
+
+		InlineInitializationProcessing("CSystem::Init InitRenderer");
+
+		m_pSystemEventDispatcher->OnSystemEvent(ESYSTEM_EVENT_PRE_RENDERER_INIT, 0, 0);
+
+		// [VR]
+		if (m_pHmdManager)
+		{
+			m_pHmdManager->SetupAction(IHmdManager::eHmdSetupAction_Init);
+		}
+
 		//////////////////////////////////////////////////////////////////////////
 		// RENDERER
 		//////////////////////////////////////////////////////////////////////////
-		if (!m_startupParams.bSkipRenderer && !m_bDedicatedServer)
+		if (!startupParams.bSkipRenderer && !m_env.IsDedicated())
 		{
 			assert(IsHeapValid());
 			CryLogAlways("Renderer initialization");
 
-			if (!InitRenderer((m_startupParams.bEditor) ? (WIN_HWND)1 : m_hWnd))
+			if (!InitRenderer(startupParams))
 			{
-				CryFatalError("Renderer initialization failed.");
 				return false;
 			}
 			assert(IsHeapValid());
@@ -3052,16 +3274,41 @@ bool CSystem::Init()
 				m_env.pRenderer->EF_Query(EFQ_MultiGPUEnabled, bMultiGPUEnabled);
 				if (bMultiGPUEnabled)
 					LoadConfiguration("mgpu.cfg");
+
+#if defined(INCLUDE_SCALEFORM_SDK) || defined(CRY_FEATURE_SCALEFORM_HELPER)
+				if (!m_bShaderCacheGenMode)
+				{
+					if (!InitializeEngineModule(startupParams, DLL_SCALEFORM, cryiidof<IScaleformHelperEngineModule>(), false))
+					{
+						m_env.pScaleformHelper = nullptr;
+						CryLog("Attempt to load Scaleform helper library from '%s' failed, this feature will not be available", DLL_SCALEFORM);
+					}
+					else if (!m_env.pScaleformHelper->Init())
+					{
+						m_env.pScaleformHelper->Destroy();
+						m_env.pScaleformHelper = nullptr;
+						CryLog("Unable to initialize Scaleform helper library, this feature will not be available");
+					}
+					else
+					{
+						m_env.pScaleformHelper->SetAmpEnabled(false);
+					}
+				}
+#endif
+				else
+				{
+					m_env.pScaleformHelper = nullptr;
+				}
 			}
 		}
 		else
 		{
 #if CRY_PLATFORM_DESKTOP
-			if (m_bDedicatedServer && !isDaemonMode)
+			if (m_env.IsDedicated() && !isDaemonMode)
 			{
 				m_pNULLRenderAuxGeom = CNULLRenderAuxGeom::Create();
 				m_env.pAuxGeomRenderer = m_pNULLRenderAuxGeom;
-				InitPhysicsRenderer();
+				InitPhysicsRenderer(startupParams);
 			}
 #endif // CRY_PLATFORM_DESKTOP
 		}
@@ -3078,73 +3325,12 @@ bool CSystem::Init()
 		m_env.pHardwareMouse = new CHardwareMouse(true);
 #endif
 
-		//////////////////////////////////////////////////////////////////////////
-		// C# MONO BRIDGE
-		//////////////////////////////////////////////////////////////////////////
-		{
-			CryLogAlways("CryMonoBridge initialization");
-			INDENT_LOG_DURING_SCOPE();
-
-			if (m_pUserCallback)
-			{
-				m_pUserCallback->OnInitProgress("Initializing MonoBridge...");
-			}
-
-			ICVar* pCVar = m_env.pConsole->GetCVar("sys_use_mono");
-			if (pCVar && pCVar->GetIVal())
-			{
-				InitMonoBridge();
-			}
-		}
-
-		InlineInitializationProcessing("CSystem::Init LoadProjectPlugins");
-		m_pPluginManager->LoadProjectPlugins();
 		m_pUserAnalyticsSystem->Initialize();
-
-		InlineInitializationProcessing("CSystem::Init InitRenderer");
-
-		m_pSystemEventDispatcher->OnSystemEvent(ESYSTEM_EVENT_PRE_RENDERER_INIT, 0, 0);
-
-		// [VR]
-		if (m_pHmdManager)
-		{
-			m_pHmdManager->SetupAction(IHmdManager::eHmdSetupAction_Init);
-		}
-
-#if defined(INCLUDE_SCALEFORM_SDK) || defined(CRY_FEATURE_SCALEFORM_HELPER)
-		if (m_env.pRenderer && !m_bShaderCacheGenMode)
-		{
-			if (!InitializeEngineModule(DLL_SCALEFORM, cryiidof<IScaleformHelperEngineModule>(), false))
-			{
-				m_env.pScaleformHelper = nullptr;
-				CryLog("Attempt to load Scaleform helper library from '%s' failed, this feature will not be available", DLL_SCALEFORM);
-			}
-			else if (!m_env.pScaleformHelper->Init())
-			{
-				m_env.pScaleformHelper->Destroy();
-				m_env.pScaleformHelper = nullptr;
-				CryLog("Unable to initialize Scaleform helper library, this feature will not be available");
-			}
-			else
-			{
-				m_env.pScaleformHelper->SetAmpEnabled(false);
-			}
-		}
-		else
-#endif
-		{
-			m_env.pScaleformHelper = nullptr;
-		}
 
 		InlineInitializationProcessing("CSystem::Init CSharedFlashPlayerResources::Init");
 
-		if (m_env.pCryFont)
-			m_env.pCryFont->SetRendererProperties(m_env.pRenderer);
-
-		InlineInitializationProcessing("CSystem::Init m_pResourceManager->UnloadFastLoadPaks");
-
-		const bool bStartScreensAllowed = !m_startupParams.bEditor
-		                                  && !m_startupParams.bShaderCacheGen
+		const bool bStartScreensAllowed = !startupParams.bEditor
+		                                  && !startupParams.bShaderCacheGen
 		                                  && !m_env.IsDedicated()
 		                                  && m_env.pRenderer;
 
@@ -3154,10 +3340,10 @@ bool CSystem::Init()
 			m_env.pRenderer->InitSystemResources(FRR_SYSTEM_RESOURCES);
 			m_env.pRenderer->StartRenderIntroMovies();
 		}
-		else if (g_cvars.sys_rendersplashscreen && bStartScreensAllowed)
+		else if (g_cvars.sys_splashscreen != nullptr && bStartScreensAllowed && g_cvars.sys_splashscreen->GetString()[0] != '\0')
 		{
 			LOADING_TIME_PROFILE_SECTION_NAMED("Rendering Splash Screen");
-			ITexture* pTex = m_env.pRenderer->EF_LoadTexture("Libs/UI/textures/startscreen.tif", FT_DONT_STREAM | FT_NOMIPS);
+			ITexture* pTex = m_env.pRenderer->EF_LoadTexture(g_cvars.sys_splashscreen->GetString(), FT_DONT_STREAM | FT_NOMIPS);
 			if (pTex)
 			{
 				const int splashWidth = pTex->GetWidth();
@@ -3178,19 +3364,11 @@ bool CSystem::Init()
 					const float x = (screenWidth - w) * 0.5f;
 					const float y = (screenHeight - h) * 0.5f;
 
-					const float vx = (800.0f / (float) screenWidth);
-					const float vy = (600.0f / (float) screenHeight);
-
-					m_env.pRenderer->SetViewport(0, 0, screenWidth, screenHeight);
 					// make sure it's rendered in full screen mode when triple buffering is enabled as well
 					for (size_t n = 0; n < 3; n++)
 					{
-						m_env.pRenderer->BeginFrame();
-						m_env.pRenderer->SetCullMode(R_CULL_NONE);
-						m_env.pRenderer->SetState(GS_BLSRC_SRCALPHA | GS_BLDST_ONEMINUSSRCALPHA | GS_NODEPTHTEST);
-						m_env.pRenderer->Draw2dImageStretchMode(true);
-						m_env.pRenderer->Draw2dImage(x * vx, y * vy, w * vx, h * vy, pTex->GetTextureID(), 0.0f, 1.0f, 1.0f, 0.0f);
-						m_env.pRenderer->Draw2dImageStretchMode(false);
+						m_env.pRenderer->BeginFrame({});
+						IRenderAuxImage::Draw2dImage(x, y, w, h, pTex->GetTextureID(), 0.0f, 1.0f, 1.0f, 0.0f);
 						m_env.pRenderer->EndFrame();
 					}
 				}
@@ -3212,11 +3390,14 @@ bool CSystem::Init()
 		//////////////////////////////////////////////////////////////////////////
 		// FONT
 		//////////////////////////////////////////////////////////////////////////
-		if (!m_startupParams.bSkipFont)
+		if (!startupParams.bSkipFont)
 		{
 			CryLogAlways("Font initialization");
-			if (!InitFont())
+			if (!InitFont(startupParams))
 				return false;
+
+			if (m_env.pCryFont)
+				m_env.pCryFont->SetRendererProperties(m_env.pRenderer);
 		}
 
 		InlineInitializationProcessing("CSystem::Init InitFonts");
@@ -3233,7 +3414,7 @@ bool CSystem::Init()
 
 			m_env.pRenderer->PostInit();
 
-			if (!m_startupParams.bShaderCacheGen)
+			if (!startupParams.bShaderCacheGen)
 			{
 				// try to do a flush to keep the renderer busy during loading
 				m_env.pRenderer->TryFlush();
@@ -3244,25 +3425,25 @@ bool CSystem::Init()
 		//////////////////////////////////////////////////////////////////////////
 		// NETWORK
 		//////////////////////////////////////////////////////////////////////////
-		if (!m_startupParams.bPreview && !m_bUIFrameworkMode && !m_startupParams.bShaderCacheGen)
+		if (!startupParams.bPreview && !m_bUIFrameworkMode && !startupParams.bShaderCacheGen)
 		{
 			CryLogAlways("Network initialization");
 			INDENT_LOG_DURING_SCOPE();
-			InitNetwork();
+			InitNetwork(startupParams);
 
 			if (gEnv->IsDedicated())
 				m_pServerThrottle.reset(new CServerThrottle(this, m_pCpu->GetCPUCount()));
 		}
 		InlineInitializationProcessing("CSystem::Init InitNetwork");
-		
+
 		//////////////////////////////////////////////////////////////////////////
 		// MOVIE
 		//////////////////////////////////////////////////////////////////////////
-		if (!m_bUIFrameworkMode && !m_startupParams.bShaderCacheGen)
+		if (!m_bUIFrameworkMode && !startupParams.bShaderCacheGen)
 		{
 			CryLogAlways("MovieSystem initialization");
 			INDENT_LOG_DURING_SCOPE();
-			if (!InitMovieSystem())
+			if (!InitMovieSystem(startupParams))
 				return false;
 		}
 
@@ -3281,7 +3462,7 @@ bool CSystem::Init()
 		//////////////////////////////////////////////////////////////////////////
 		// CONSOLE
 		//////////////////////////////////////////////////////////////////////////
-		if (!m_startupParams.bSkipConsole && !m_startupParams.bShaderCacheGen)
+		if (!startupParams.bShaderCacheGen)
 		{
 			CryLogAlways("Console initialization");
 			if (!InitConsole())
@@ -3312,11 +3493,11 @@ bool CSystem::Init()
 		//////////////////////////////////////////////////////////////////////////
 		// INPUT
 		//////////////////////////////////////////////////////////////////////////
-		if (!m_startupParams.bPreview && !gEnv->IsDedicated() && !m_startupParams.bShaderCacheGen)
+		if (!startupParams.bPreview && !gEnv->IsDedicated() && !startupParams.bShaderCacheGen)
 		{
 			CryLogAlways("Input initialization");
 			INDENT_LOG_DURING_SCOPE();
-			if (!InitInput()) // !!! TODO: FIX ME !!!
+			if (!InitInput(startupParams))
 				return false;
 
 			if (m_env.pHardwareMouse)
@@ -3346,20 +3527,20 @@ bool CSystem::Init()
 		{
 			CryLogAlways("Initializing Animation System");
 			INDENT_LOG_DURING_SCOPE();
-			if (!m_bUIFrameworkMode && !m_startupParams.bShaderCacheGen)
-				if (!InitAnimationSystem())
+			if (!m_bUIFrameworkMode && !startupParams.bShaderCacheGen)
+				if (!InitAnimationSystem(startupParams))
 					return false;
 		}
 
 		//////////////////////////////////////////////////////////////////////////
 		// Init 3d engine
 		//////////////////////////////////////////////////////////////////////////
-		if (!m_startupParams.bShaderCacheGen)
+		if (!startupParams.bShaderCacheGen)
 		{
 			CryLogAlways("Initializing 3D Engine");
 			INDENT_LOG_DURING_SCOPE();
 
-			if (!Init3DEngine())
+			if (!Init3DEngine(startupParams))
 				return false;
 
 			// try flush to keep renderer busy
@@ -3385,40 +3566,42 @@ bool CSystem::Init()
 		//////////////////////////////////////////////////////////////////////////
 		// We need script materials for now
 
-		if (!m_startupParams.bShaderCacheGen)
+		if (!startupParams.bShaderCacheGen)
 		{
 			CryLogAlways("Script System Initialization");
 			INDENT_LOG_DURING_SCOPE();
 
-			if (!InitScriptSystem())
+			if (!InitScriptSystem(startupParams))
 				return false;
 		}
 
 		InlineInitializationProcessing("CSystem::Init InitScripts");
+
 		//////////////////////////////////////////////////////////////////////////
 
 		//////////////////////////////////////////////////////////////////////////
 		// ENTITY SYSTEM
 		//////////////////////////////////////////////////////////////////////////
-		if (!m_startupParams.bPreview && !m_startupParams.bShaderCacheGen)
+		if (!startupParams.bPreview && !startupParams.bShaderCacheGen)
 		{
 			// Start with initializing Schematyc before the entity system
 			{
 				CryLogAlways("Schematyc initialization");
 				INDENT_LOG_DURING_SCOPE();
 
-				if (!InitSchematyc())
+				if (!InitSchematyc(startupParams))
 					return false;
 			}
 
 			CryLogAlways("Entity system initialization");
 			INDENT_LOG_DURING_SCOPE();
 
-			if (!InitEntitySystem())
+			if (!InitEntitySystem(startupParams))
 				return false;
 		}
 
 		InlineInitializationProcessing("CSystem::Init InitEntitySystem");
+
 		//////////////////////////////////////////////////////////////////////////
 
 		//////////////////////////////////////////////////////////////////////////
@@ -3434,7 +3617,7 @@ bool CSystem::Init()
 				m_pUserCallback->OnInitProgress("Initializing LiveCreate...");
 			// we dont have to return if fail, no problem if there is no LiveCreate
 
-			InitLiveCreate();
+			InitLiveCreate(startupParams);
 		}
 
 		InlineInitializationProcessing("CSystem::Init InitInterface");
@@ -3442,7 +3625,7 @@ bool CSystem::Init()
 
 		//////////////////////////////////////////////////////////////////////////
 		// DYNAMIC RESPONSE SYSTEM
-		if (!m_startupParams.bShaderCacheGen)
+		if (!startupParams.bShaderCacheGen)
 		{
 			CryLogAlways("Dynamic Response System initialization");
 			INDENT_LOG_DURING_SCOPE();
@@ -3450,7 +3633,7 @@ bool CSystem::Init()
 			if (m_pUserCallback)
 				m_pUserCallback->OnInitProgress("Initializing Dynamic Response System...");
 
-			if (m_bDedicatedServer || !InitDynamicResponseSystem())
+			if (m_env.IsDedicated() || !InitDynamicResponseSystem(startupParams))
 			{
 				CryLogAlways("No Dynamic Response System was loaded from a module, will use the NULL implementation.");
 				m_env.pDynamicResponseSystem = new NullDRS::CSystem();
@@ -3489,15 +3672,15 @@ bool CSystem::Init()
 
 		//////////////////////////////////////////////////////////////////////////
 		// Load FlowGraph
-		if (!m_startupParams.bShaderCacheGen)
+		if (!startupParams.bShaderCacheGen)
 		{
-			InitializeEngineModule("CryFlowGraph", cryiidof<IFlowSystemEngineModule>(), true);
+			InitializeEngineModule(startupParams, "CryFlowGraph", cryiidof<IFlowSystemEngineModule>(), true);
 		}
 
 		//////////////////////////////////////////////////////////////////////////
 		// AI
 		//////////////////////////////////////////////////////////////////////////
-		if (!m_startupParams.bPreview && !m_bUIFrameworkMode && !m_startupParams.bShaderCacheGen)
+		if (!startupParams.bPreview && !m_bUIFrameworkMode && !startupParams.bShaderCacheGen)
 		{
 			if (gEnv->IsDedicated() && m_svAISystem && !m_svAISystem->GetIVal())
 				;
@@ -3506,7 +3689,7 @@ bool CSystem::Init()
 				CryLogAlways("AI initialization");
 				INDENT_LOG_DURING_SCOPE();
 
-				if (!InitAISystem())
+				if (!InitAISystem(startupParams))
 					return false;
 			}
 		}
@@ -3515,7 +3698,7 @@ bool CSystem::Init()
 		// AI SYSTEM INITIALIZATION
 		//////////////////////////////////////////////////////////////////////////
 		// AI System needs to be initialized after entity system
-		if (!m_startupParams.bPreview && !m_bUIFrameworkMode && m_env.pAISystem)
+		if (!startupParams.bPreview && !m_bUIFrameworkMode && m_env.pAISystem)
 		{
 			MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Initialize AI System");
 
@@ -3531,6 +3714,21 @@ bool CSystem::Init()
 		CryLogAlways("Initializing additional systems");
 
 		InlineInitializationProcessing("CSystem::Init AIInit");
+
+		if (!startupParams.bShaderCacheGen)
+		{
+			InitGameFramework(startupParams);
+		}
+		else
+		{
+			// Command line is otherwise executed in InitGameFramework
+			// Call it manually here to ensure that command line can still be used
+			ExecuteCommandLine();
+		}
+
+#if defined(CVARS_WHITELIST)
+		m_pCVarsWhitelist = startupParams.pCVarsWhitelist;
+#endif // defined(CVARS_WHITELIST)
 
 		//////////////////////////////////////////////////////////////////////////
 		// Create PerfHUD
@@ -3574,7 +3772,7 @@ bool CSystem::Init()
 		//////////////////////////////////////////////////////////////////////////
 
 #ifdef USE_HTTP_WEBSOCKETS
-		if (m_startupParams.bSkipWebsocketServer == false && gEnv->pNetwork)
+		if (startupParams.bSkipWebsocketServer == false && gEnv->pNetwork)
 		{
 			if (ISimpleHttpServer* http = gEnv->pNetwork->GetSimpleHttpServerSingleton())
 			{
@@ -3586,7 +3784,7 @@ bool CSystem::Init()
 #endif
 
 		// final tryflush to be sure that all framework init request have been processed
-		if (!m_startupParams.bShaderCacheGen && m_env.pRenderer)
+		if (!startupParams.bShaderCacheGen && m_env.pRenderer)
 			m_env.pRenderer->TryFlush();
 
 #if !defined(RELEASE)
@@ -3636,9 +3834,9 @@ bool CSystem::Init()
 #endif
 
 #if CRY_PLATFORM_DURANGO
-	if (m_startupParams.pLastPLMEvent)
+	if (startupParams.pLastPLMEvent)
 	{
-		switch (*m_startupParams.pLastPLMEvent)
+		switch (*startupParams.pLastPLMEvent)
 		{
 		case EPLMEV_ON_APP_ACTIVATED:
 		case EPLMEV_ON_FULL:
@@ -3708,6 +3906,13 @@ bool CSystem::Init()
 		}
 	}
 #endif
+
+	m_pManualFrameStepController = new CManualFrameStepController();
+
+	if (startupParams.bShaderCacheGen)
+	{
+		GetIConsole()->ExecuteString("r_PrecacheShaderList");
+	}
 
 	return (true);
 }
@@ -4109,7 +4314,7 @@ public:
 				if (!bOk)
 					return;
 
-				memcpy((void*)szFile, fd.name, strlen(fd.name)+1);   // set
+				memcpy((void*)szFile, fd.name, strlen(fd.name) + 1);   // set
 
 				if (*p == 0)
 					break;
@@ -4715,12 +4920,29 @@ void ChangeLogAllocations(ICVar* pVal)
 
 static void VisRegTest(IConsoleCmdArgs* pParams)
 {
-	CSystem* pCSystem = (CSystem*)(gEnv->pSystem);
+	CSystem* pCSystem = static_cast<CSystem*>(gEnv->pSystem);
 	CVisRegTest*& visRegTest = pCSystem->GetVisRegTestPtrRef();
 	if (!visRegTest)
 		visRegTest = new CVisRegTest();
 
 	visRegTest->Init(pParams);
+}
+
+void CSystem::WatchDogTimeOutChanged(ICVar* pCVar)
+{
+	CSystem* pCSystem = static_cast<CSystem*>(gEnv->pSystem);
+	int val = pCVar->GetIVal();
+	if (val > 0)
+	{
+		if (pCSystem->m_pWatchdog == nullptr)
+		{
+			pCSystem->m_pWatchdog = new CWatchdogThread(val);
+		}
+		else
+		{
+			pCSystem->m_pWatchdog->SetTimeout(val);
+		}
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -4735,7 +4957,7 @@ void CSystem::CreateSystemVars()
 	//
 	EVarFlags dllFlags = (EVarFlags)0;
 	m_sys_dll_ai = REGISTER_STRING("sys_dll_ai", DLL_AI, dllFlags, "Specifies the DLL to load for the AI system");
-	
+
 	m_sys_dll_response_system = REGISTER_STRING("sys_dll_response_system", "CryDynamicResponseSystem", dllFlags, "Specifies the DLL to load for the dynamic response system");
 
 	g_cvars.sys_build_folder = REGISTER_STRING("sys_build_folder", "", 0, "Optionally specifies external full path to the build folder to read pak files from. Can be a full path to an external folder or a relative path to a folder inside of the local build.");
@@ -4820,27 +5042,17 @@ void CSystem::CreateSystemVars()
 
 	REGISTER_CVAR2("sys_intromoviesduringinit", &g_cvars.sys_intromoviesduringinit, 0, VF_NULL, "Render the intro movies during game initialization");
 
-	{
-		int nDefaultRenderSplashScreen = 1;
-#if CRY_PLATFORM_ORBIS
-		nDefaultRenderSplashScreen = 0;
+#ifndef CRY_PLATFORM_ORBIS
+	g_cvars.sys_splashscreen = REGISTER_STRING("sys_splashscreen", "", 0, "Specifies the path to the splashscreen texture to render at startup");
+#else
+	g_cvars.sys_splashscreen = nullptr;
 #endif
-		REGISTER_CVAR2("sys_rendersplashscreen", &g_cvars.sys_rendersplashscreen, nDefaultRenderSplashScreen, VF_NULL,
-		               "Render the splash screen during game initialization");
-	}
 
 	REGISTER_CVAR2("sys_deferAudioUpdateOptim", &g_cvars.sys_deferAudioUpdateOptim, 1, VF_NULL,
 	               "0 - disable optimisation\n"
 	               "1 - enable optimisation\n"
 	               "Default is 1");
 
-#if USE_STEAM
-	#ifndef RELEASE
-	REGISTER_CVAR2("sys_steamAppId", &g_cvars.sys_steamAppId, 0, VF_NULL, "steam appId used for development testing");
-	REGISTER_COMMAND("sys_wipeSteamCloud", CmdWipeSteamCloud, VF_CHEAT, "Delete all files from steam cloud for this user");
-	#endif // RELEASE
-	REGISTER_CVAR2("sys_useSteamCloudForPlatformSaving", &g_cvars.sys_useSteamCloudForPlatformSaving, 0, VF_NULL, "Use steam cloud for save games and profile on PC (instead of the user folder)");
-#endif
 	REGISTER_CVAR2("sys_filesystemCaseSensitivity", &g_cvars.sys_filesystemCaseSensitivity, 0, VF_NULL, "0 = Ignore letter casing mismatches, 1 = Show warning on mismatch, 2 = Show error on mismatch");
 
 	m_sysNoUpdate = REGISTER_INT("sys_noupdate", 0, VF_CHEAT,
@@ -4892,85 +5104,8 @@ void CSystem::CreateSystemVars()
 	                                          "Usage: e_EntitySuppressionLevel [0-infinity]\n"
 	                                          "Default is 0 (off)");
 
-	m_sys_profile = REGISTER_INT("profile", 0, 0, "Allows CPU profiling\n"
-	                                              "Usage: profile #\n"
-	                                              "Where # sets the profiling to:\n"
-	                                              "	0: Profiling off\n"
-	                                              "	1: Self Time\n"
-	                                              "	2: Hierarchical Time\n"
-	                                              "	3: Extended Self Time\n"
-	                                              "	4: Extended Hierarchical Time\n"
-	                                              "	5: Peaks Time\n"
-	                                              "	6: Subsystem Info\n"
-	                                              "	7: Calls Numbers\n"
-	                                              "	8: Standard Deviation\n"
-	                                              "	9: Memory Allocation\n"
-	                                              "	10: Memory Allocation (Bytes)\n"
-	                                              "	11: Stalls\n"
-	                                              "	-1: Profiling enabled, but not displayed\n"
-	                                              "Default is 0 (off)");
-
-	m_sys_profile_deep = REGISTER_INT("profile_deep", 0, 0, "Enable deep profiling\n"
-	                                                        "Usage: profile_deep_profiling #\n"
-	                                                        "Where # sets profiling level to:\n"
-	                                                        "	0: Regions only\n"
-	                                                        "	1: Regions and all others\n"
-	                                                        "Default is 0 (Regions only)");
-
-	m_sys_profile_additionalsub = REGISTER_INT("profile_additionalsub", 0, 0, "Enable displaying additional sub-system profiling.\n"
-	                                                                          "Usage: profile_additionalsub #\n"
-	                                                                          "Where where # may be:\n"
-	                                                                          "	0: no additional subsystem information\n"
-	                                                                          "	1: display additional subsystem information\n"
-	                                                                          "Default is 0 (off)");
-
-	m_sys_profile_filter = REGISTER_STRING("profile_filter", "", 0,
-	                                       "Profiles a specified subsystem.\n"
-	                                       "Usage: profile_filter subsystem\n"
-	                                       "Where 'subsystem' may be:\n"
-	                                       "Any\n"
-	                                       "Renderer\n"
-	                                       "3DEngine\n"
-	                                       "Animation\n"
-	                                       "AI\n"
-	                                       "Entity\n"
-	                                       "Physics\n"
-	                                       "Sound\n"
-	                                       "System\n"
-	                                       "Game\n"
-	                                       "Editor\n"
-	                                       "Script\n"
-	                                       "Network");
-	m_sys_profile_filter_thread = REGISTER_STRING("profile_filter_thread", "", 0,
-	                                              "Profiles a specified thread only.\n"
-	                                              "Usage: profile_filter threadName\n"
-	                                              "Where 'threadName' may be:\n"
-	                                              "Any\n"
-	                                              "Main\n"
-	                                              "RenderThread\n"
-	                                              "Network\n"
-	                                              "etc...");
-	m_sys_profile_graph = REGISTER_INT("profile_graph", 0, 0,
-	                                   "Enable drawing of profiling graph.");
-	m_sys_profile_graphScale = REGISTER_FLOAT("profile_graphScale", 100.0f, 0,
-	                                          "Sets the scale of profiling histograms.\n"
-	                                          "Usage: profileGraphScale 100");
-	m_sys_profile_pagefaultsgraph = REGISTER_INT("profile_pagefaults", 0, 0,
-	                                             "Enable drawing of page faults graph.");
-	m_sys_profile_allThreads = REGISTER_INT("profile_allthreads", 1, 0,
-	                                        "Enables profiling of non-main threads.\n");
-	m_sys_profile_network = REGISTER_INT("profile_network", 0, 0,
-	                                     "Enables network profiling");
-	m_sys_profile_peak = REGISTER_FLOAT("profile_peak", 10.0f, 0,
-	                                    "Profiler Peaks Tolerance in Milliseconds");
-	m_sys_profile_peak_time = REGISTER_FLOAT("profile_peak_display", 8.0f, 0,
-	                                         "hot to cold time for peak display");
-	m_sys_profile_memory = REGISTER_INT("MemInfo", 0, 0, "Display memory information by modules\n1=on, 0=off");
-
-	m_sys_profile_sampler = REGISTER_FLOAT("profile_sampler", 0, 0,
-	                                       "Set to 1 to start sampling profiling");
-	m_sys_profile_sampler_max_samples = REGISTER_FLOAT("profile_sampler_max_samples", 2000, 0,
-	                                                   "Number of samples to collect for sampling profiler");
+	m_sys_profile_watchdog_timeout = REGISTER_INT_CB("watchdog", 0, VF_NULL,
+	                                                 "Set time out in seconds (positive) to start watching over game freezes", WatchDogTimeOutChanged);
 	m_sys_job_system_filter = REGISTER_STRING("sys_job_system_filter", "", 0,
 	                                          "Filters a Job.\n"
 	                                          "Usage: sys_job_system_filter name1,name2,..\n"
@@ -4987,10 +5122,10 @@ void CSystem::CreateSystemVars()
 	                                         "0: Disable the profiler\n"
 	                                         "1: Show the full profiler\n"
 	                                         "2: Show only the execution graph\n");
-#if CRY_PLATFORM_WINDOWS || CRY_PLATFORM_DURANGO
-	const uint32 nJobSystemDefaultCoreNumber = 8;
-#else
+#if CRY_PLATFORM_CONSOLE || CRY_PLATFORM_MOBILE
 	const uint32 nJobSystemDefaultCoreNumber = 4;
+#else
+	const uint32 nJobSystemDefaultCoreNumber = 8;
 #endif
 	m_sys_job_system_max_worker = REGISTER_INT("sys_job_system_max_worker", nJobSystemDefaultCoreNumber, 0,
 	                                           "Sets the number of threads to use for the job system"
@@ -4998,6 +5133,7 @@ void CSystem::CreateSystemVars()
 	                                           "Set to 0 to create as many threads as cores are available");
 
 	REGISTER_COMMAND("sys_job_system_dump_job_list", CmdDumpJobManagerJobList, VF_CHEAT, "Show a list of all registered job in the console");
+	REGISTER_COMMAND("sys_dump_cvars", CmdDumpCvars, VF_CHEAT, "Dump all cvars to file");
 
 	m_sys_spec = REGISTER_INT_CB("sys_spec", CONFIG_CUSTOM, VF_ALWAYSONCHANGE,    // starts with CONFIG_CUSTOM so callback is called when setting initial value
 	                             "Tells the system cfg spec. (0=custom, 1=low, 2=med, 3=high, 4=very high, 5=XBoxOne, 6=PS4)",
@@ -5100,19 +5236,7 @@ void CSystem::CreateSystemVars()
 	               "sets the base port for the simple http server to run on, defaults to 1880");
 #endif
 
-#if defined DEDICATED_SERVER
-	const int DEFAULT_DUMP_TYPE = 3;
-#else
-	const int DEFAULT_DUMP_TYPE = 2;
-#endif
 
-	REGISTER_CVAR2("sys_dump_type", &g_cvars.sys_dump_type, DEFAULT_DUMP_TYPE, VF_NULL,
-	               "Specifies type of crash dump to create - see MINIDUMP_TYPE in dbghelp.h for full list of values\n"
-	               "0: Do not create a minidump\n"
-	               "1: Create a small minidump (stacktrace)\n"
-	               "2: Create a medium minidump (+ some variables)\n"
-	               "3: Create a full minidump (+ all memory)\n"
-	               );
 	REGISTER_CVAR2("sys_dump_aux_threads", &g_cvars.sys_dump_aux_threads, 1, VF_NULL, "Dumps callstacks of other threads in case of a crash");
 	REGISTER_CVAR2("sys_keyboard_break", &g_cvars.sys_keyboard_break, 0, VF_NULL, "Enables keyboard break handler");
 
@@ -5182,6 +5306,12 @@ void CSystem::CreateSystemVars()
 	              "2 = Output full statistics including loading time and memory allocations with call stack info");
 
 	REGISTER_CVAR_CB(sys_ProfileLevelLoadingDump, 0, VF_CHEAT, "Output level loading dump stats into log\n", OnLevelLoadingDump);
+
+	REGISTER_CVAR(sys_SchematycPlugin, 2, VF_REQUIRE_APP_RESTART,
+	              "Set whether default Schematyc and/or experimental plugin is loaded\n"
+	              "0 = Both plugins\n"
+	              "1 = Loads default Schematyc plugin only\n"
+	              "2 = Loads experimental Schematyc plugin only");
 
 	assert(m_env.pConsole);
 	m_env.pConsole->CreateKeyBind("alt_f12", "Screenshot");
@@ -5271,16 +5401,18 @@ void CSystem::CreateSystemVars()
 	REGISTER_CVAR2("sys_usePlatformSavingAPIEncryption", &g_cvars.sys_usePlatformSavingAPIEncryption, default_sys_usePlatformSavingAPIDefault, VF_CHEAT, "Use encryption cipher when using the platform APIs for saving and loading");
 #endif
 
-#if !defined(_RELEASE)
+#if defined(USE_CRY_ASSERT)
 	const bool defaultAsserts = 1;
-	REGISTER_CVAR2("sys_asserts", &g_cvars.sys_asserts, defaultAsserts, VF_CHEAT,
+	REGISTER_CVAR2("sys_asserts", &m_env.cryAssertLevel, defaultAsserts, VF_CHEAT,
 	               "0 = Disable Asserts\n"
 	               "1 = Enable Asserts\n"
 	               "2 = Fatal Error on Assert\n"
 	               "3 = Debug break on Assert\n"
 	               );
-#endif
+
+	REGISTER_COMMAND("sys_ignore_asserts_from_module", CmdIgnoreAssertsFromModule, VF_CHEAT, "Disables asserts from the specified module");
 	REGISTER_CVAR2("sys_log_asserts", &g_cvars.sys_log_asserts, 1, VF_CHEAT, "Enable/Disable Asserts logging");
+#endif
 
 	REGISTER_CVAR2("sys_error_debugbreak", &g_cvars.sys_error_debugbreak, 0, VF_CHEAT, "__debugbreak() if a VALIDATOR_ERROR_DBGBREAK message is hit");
 
@@ -5302,9 +5434,7 @@ void CSystem::CreateSystemVars()
 	                                    "Sets the physics library to be used. Default is 'CryPhysics'"
 	                                    "Specify in system.cfg like this: p_physics_library = \"CryPhysics\"");
 
-#ifdef SEG_WORLD
-	REGISTER_INT("sys_max_stdio", 2048, 0, "Sets a maximum for the number of simultaneously open files at the stdio level");
-#endif
+	REGISTER_INT("sys_system_timer_resolution", 1, VF_NULL, "(Windows only) Value of the system timer resolution in milliseconds (ms)");
 
 #if defined(MAP_LOADING_SLICING)
 	CreateSystemScheduler(this);
@@ -5411,11 +5541,11 @@ const char* CSystem::GetLoadingProfilerCallstack()
 #endif
 }
 
-CBootProfilerRecord* CSystem::StartBootSectionProfiler(const char* name, const char* args)
+CBootProfilerRecord* CSystem::StartBootSectionProfiler(const char* name, const char* args, EProfileDescription type)
 {
 #if defined(ENABLE_LOADING_PROFILER)
 	CBootProfiler& profiler = CBootProfiler::GetInstance();
-	return profiler.StartBlock(name, args);
+	return profiler.StartBlock(name, args, type);
 #else
 	return NULL;
 #endif
@@ -5455,7 +5585,6 @@ void CSystem::OnFrameStart(const char* szName)
 
 void CSystem::OnFrameEnd()
 {
-	SleepIfNeeded();
 #if defined(ENABLE_LOADING_PROFILER)
 	CBootProfiler& profiler = CBootProfiler::GetInstance();
 	profiler.StopFrame();
@@ -5472,35 +5601,6 @@ bool CSystem::UnregisterErrorObserver(IErrorObserver* errorObserver)
 	return stl::find_and_erase(m_errorObservers, errorObserver);
 }
 
-void CSystem::OnAssert(const char* condition, const char* message, const char* fileName, unsigned int fileLineNumber)
-{
-	if (g_cvars.sys_asserts == 0)
-	{
-		return;
-	}
-
-	std::vector<IErrorObserver*>::const_iterator end = m_errorObservers.end();
-	for (std::vector<IErrorObserver*>::const_iterator it = m_errorObservers.begin(); it != end; ++it)
-	{
-		(*it)->OnAssert(condition, message, fileName, fileLineNumber);
-	}
-	if (!m_env.bIgnoreAllAsserts)
-	{
-		if (g_cvars.sys_asserts == 2)
-		{
-			CryFatalError("<assert> %s\r\n%s\r\n%s (%u)\r\n", condition, message, fileName, fileLineNumber);
-		}
-		if (g_cvars.sys_asserts >= 3)
-		{
-#ifndef _RELEASE
-	#ifdef WIN32
-			__debugbreak();
-	#endif
-#endif
-		}
-	}
-}
-
 void CSystem::OnFatalError(const char* message)
 {
 	std::vector<IErrorObserver*>::const_iterator end = m_errorObservers.end();
@@ -5510,12 +5610,51 @@ void CSystem::OnFatalError(const char* message)
 	}
 }
 
+#if defined(USE_CRY_ASSERT)
+void CSystem::OnAssert(const char* condition, const char* message, const char* fileName, unsigned int fileLineNumber)
+{
+	if (m_env.cryAssertLevel == ECryAssertLevel::Disabled)
+	{
+		return;
+	}
+
+	std::vector<IErrorObserver*>::const_iterator end = m_errorObservers.end();
+	for (std::vector<IErrorObserver*>::const_iterator it = m_errorObservers.begin(); it != end; ++it)
+	{
+		(*it)->OnAssert(condition, message, fileName, fileLineNumber);
+	}
+	if (!m_env.ignoreAllAsserts)
+	{
+		if (m_env.cryAssertLevel == ECryAssertLevel::FatalErrorOnAssert)
+		{
+			CryFatalError("<assert> %s\r\n%s\r\n%s (%u)\r\n", condition, message, fileName, fileLineNumber);
+		}
+		if (m_env.cryAssertLevel == ECryAssertLevel::DebugBreakOnAssert)
+		{
+	#ifndef _RELEASE
+			CryDebugBreak();
+	#endif
+		}
+	}
+}
+
+bool CSystem::AreAssertsEnabledForModule(uint32 moduleId)
+{
+	return !m_disabledAssertModules[moduleId];
+}
+
+void CSystem::DisableAssertionsForModule(uint32 moduleId)
+{
+	m_disabledAssertModules.set(moduleId, true);
+}
+
 bool CSystem::IsAssertDialogVisible() const
 {
-	return m_bIsAsserting;
+	return m_isAsserting;
 }
 
 void CSystem::SetAssertVisible(bool bAssertVisble)
 {
-	m_bIsAsserting = bAssertVisble;
+	m_isAsserting = bAssertVisble;
 }
+#endif

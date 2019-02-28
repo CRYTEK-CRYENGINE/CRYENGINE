@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "RopeRenderNode.h"
@@ -9,6 +9,7 @@
 
 #include <CryEntitySystem/IEntity.h>
 
+#pragma warning(push)
 #pragma warning(disable: 4244)
 
 class TubeSurface : public _i_reference_target_t
@@ -816,6 +817,9 @@ void CRopeRenderNode::GetLocalBounds(AABB& bbox)
 //////////////////////////////////////////////////////////////////////////
 void CRopeRenderNode::SetMatrix(const Matrix34& mat)
 {
+	if (m_worldTM == mat)
+		return;
+
 	m_worldTM = mat;
 	m_InvWorldTM = m_worldTM.GetInverted();
 	m_pos = mat.GetTranslation();
@@ -894,15 +898,16 @@ void CRopeRenderNode::Render(const SRendParams& rParams, const SRenderingPassInf
 
 	IRenderer* pRend = GetRenderer();
 
-	CRenderObject* pObj = pRend->EF_GetObject_Temp(passInfo.ThreadID());
+	CRenderObject* pObj = passInfo.GetIRenderView()->AllocateTemporaryRenderObject();
 	if (!pObj)
 		return; // false;
+
 	pObj->m_pRenderNode = this;
 	pObj->m_DissolveRef = rParams.nDissolveRef;
 	pObj->m_ObjFlags |= FOB_TRANS_MASK | rParams.dwFObjFlags;
 	pObj->m_fAlpha = rParams.fAlpha;
-	pObj->m_II.m_AmbColor = rParams.AmbientColor;
-	pObj->m_II.m_Matrix = m_worldTM;
+	pObj->SetAmbientColor(rParams.AmbientColor, passInfo);
+	pObj->SetMatrix(m_worldTM, passInfo);
 
 	pObj->m_ObjFlags |= FOB_INSHADOW;
 
@@ -923,7 +928,7 @@ void CRopeRenderNode::Render(const SRendParams& rParams, const SRenderingPassInf
 	pObj->m_nMaterialLayers = m_nMaterialLayers;
 
 	//////////////////////////////////////////////////////////////////////////
-	if (GetCVars()->e_DebugDraw)
+	if (GetCVars()->e_DebugDraw && pObj->m_fDistance <= GetCVars()->e_DebugDrawMaxDistance)
 	{
 		RenderDebugInfo(rParams, passInfo);
 	}
@@ -1888,7 +1893,7 @@ void CRopeRenderNode::SetAudioParams(SRopeAudioParams const& audioParams)
 ///////////////////////////////////////////////////////////////////////////////
 void CRopeRenderNode::OffsetPosition(const Vec3& delta)
 {
-	if (m_pTempData) m_pTempData->OffsetPosition(delta);
+	if (const auto pTempData = m_pTempData.load()) pTempData->OffsetPosition(delta);
 	m_pos += delta;
 	m_worldTM.SetTranslation(m_pos);
 	m_InvWorldTM = m_worldTM.GetInverted();
@@ -1938,3 +1943,5 @@ IMaterial* CRopeRenderNode::GetMaterial(Vec3* pHitPos) const
 {
 	return m_pMaterial;
 }
+
+#pragma warning(pop)

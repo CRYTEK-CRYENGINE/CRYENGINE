@@ -1,20 +1,6 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-/*************************************************************************
-   -------------------------------------------------------------------------
-   $Id$
-   $DateTime$
-   Description:	This is the interface which the Launcher.exe will interact
-                with the game dll. For an implementation of this interface
-                refer to the GameDll project of the title or MOD you are
-                working	on.
-
-   -------------------------------------------------------------------------
-   History:
-    - 23:7:2004   15:17 : Created by Marco Koegler
-    - 30:7:2004   12:00 : Taken-over by Márcio Martins
-
-*************************************************************************/
+//! \cond INTERNAL
 
 #pragma once
 
@@ -27,15 +13,16 @@ struct ILogCallback;
 struct IValidator;
 struct ISystemUserCallback;
 
-//! Interfaces used to initialize a game using CRYENGINE.
-struct IGameStartup
+//! Interfaces used to initialize a legacy game using CRYENGINE.
+struct CRY_DEPRECATED_GAME_DLL IGameStartup
 {
 	//! Entry function used to create a new instance of the game.
-	//! This is considered deprecated, in favor of ICryPlugin, and will be removed in the future
+	//! This is considered deprecated, in favor of Cry::IEnginePlugin, and will be removed in the future
 	//! \return A new instance of the game startup.
 	typedef IGameStartup*(* TEntryFunction)();
 
 	// <interfuscator:shuffle>
+	CRY_DEPRECATED_GAME_DLL IGameStartup() = default;
 	virtual ~IGameStartup(){}
 
 	//! Initialize the game and/or any MOD, and get the IGameMod interface.
@@ -53,3 +40,5 @@ struct IGameStartup
 	virtual const uint8* GetRSAKey(uint32* pKeySize) const {* pKeySize = 0; return NULL; }
 	// </interfuscator:shuffle>
 };
+
+//! \endcond

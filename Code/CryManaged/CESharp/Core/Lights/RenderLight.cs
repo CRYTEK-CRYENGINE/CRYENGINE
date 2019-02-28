@@ -1,63 +1,117 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 using CryEngine.Common;
 
 namespace CryEngine
 {
+	/// <summary>
+	/// Flags that can be used to set the parameters of dynamic lights.
+	/// </summary>
 	[System.Flags]
 	public enum DynamicLightFlags
 	{
-		AreaSpecTex = 1,
-		Directional,
-		BoxProjectedCm = 4,
-		Post3DRenderer = 16,
-		CastShadowMaps = 32,
-		Point = 64,
-		Project = 128,
-		IgnoresVisAreas = 1024,
-		DeferredCubemaps = 2048,
-		HasClipVolume = 4096,
-		Disabled = 8192,
-		AreaLight = 16384,
-		UseForSVOGI = 32768,
+		/// <summary>
+		/// Flag for AreaSpecTex.
+		/// </summary>
+		AreaSpecTex = eDynamicLightFlags.DLF_AREA_SPEC_TEX,
+		/// <summary>
+		/// Flag that indicates this is a directional light.
+		/// </summary>
+		Directional = eDynamicLightFlags.DLF_DIRECTIONAL,
+		/// <summary>
+		/// Flag for box projected cubemaps.
+		/// </summary>
+		BoxProjectedCm = eDynamicLightFlags.DLF_BOX_PROJECTED_CM,
+		/// <summary>
+		/// Flag for post 3d renderer light.
+		/// </summary>
+		Post3DRenderer = eDynamicLightFlags.DLF_POST_3D_RENDERER,
+		/// <summary>
+		/// Flag that indicates if this light should cast shadows.
+		/// </summary>
+		CastShadowMaps = eDynamicLightFlags.DLF_CASTSHADOW_MAPS,
+		/// <summary>
+		/// Flag that indicates this light is a point light.
+		/// </summary>
+		Point = eDynamicLightFlags.DLF_POINT,
+		/// <summary>
+		/// Flag that indicates this light is a projector.
+		/// </summary>
+		Project = eDynamicLightFlags.DLF_PROJECT,
+		/// <summary>
+		/// Flag for ignoring Vis Areas.
+		/// </summary>
+		IgnoresVisAreas = eDynamicLightFlags.DLF_IGNORES_VISAREAS,
+		/// <summary>
+		/// Flag that indicates that the cubemaps are deferred.
+		/// </summary>
+		DeferredCubemaps = eDynamicLightFlags.DLF_DEFERRED_CUBEMAPS,
+		/// <summary>
+		/// Flag that indicates this light has a clip volume.
+		/// </summary>
+		HasClipVolume = eDynamicLightFlags.DLF_HAS_CLIP_VOLUME,
+		/// <summary>
+		/// Flag that indicate that this light is disabled.
+		/// </summary>
+		Disabled = eDynamicLightFlags.DLF_DISABLED,
+		/// <summary>
+		/// Flag that indicates that this light is an area light.
+		/// </summary>
+		AreaLight = eDynamicLightFlags.DLF_AREA_LIGHT,
+		/// <summary>
+		/// Flag that indicates that this light is used for SVOGI.
+		/// </summary>
+		UseForSVOGI = eDynamicLightFlags.DLF_USE_FOR_SVOGI,
 		/// <summary>
 		/// No lighting, used for Flares, beams and such.
 		/// </summary>
-		Fake = 131072,
-		Sun = 262144,
-		LM = 524288,
+		Fake = eDynamicLightFlags.DLF_FAKE,
+		/// <summary>
+		/// Flag that indicates that this light is the sun.
+		/// </summary>
+		Sun = eDynamicLightFlags.DLF_SUN,
+		// TODO Add summary for DLF_LM.
+		/// <summary>
+		/// 
+		/// </summary>
+		LM = eDynamicLightFlags.DLF_LM,
 		/// <summary>
 		/// Affects only current area/sector.
 		/// </summary>
-		ThisAreaOnly = 1048576,
+		ThisAreaOnly = eDynamicLightFlags.DLF_THIS_AREA_ONLY,
 		/// <summary>
-		/// Ambient light (has name indicates, used for replacing ambient).
+		/// Ambient light (as name indicates, used for replacing ambient).
 		/// </summary>
-		Ambient = 2097152,
+		Ambient = eDynamicLightFlags.DLF_AMBIENT,
 		/// <summary>
-		/// Do not affect height map.
+		/// Does not affect height map.
 		/// </summary>
-		IndoorOnly = 4194304,
+		IndoorOnly = eDynamicLightFlags.DLF_INDOOR_ONLY,
 		/// <summary>
 		/// Affects volumetric fog.
 		/// </summary>
-		VolumetricFog = 8388608,
+		VolumetricFog = eDynamicLightFlags.DLF_VOLUMETRIC_FOG,
 		/// <summary>
-		/// Add only to  Light Propagation Volume if it's possible.
+		/// Add only to Light Propagation Volume if it's possible.
 		/// </summary>
-		AttachToSun = 33554432,
+		AttachToSun = eDynamicLightFlags.DLF_ATTACH_TO_SUN,
 		/// <summary>
-		/// Add only to  Light Propagation Volume if it's possible.
+		/// Add only to Light Propagation Volume if it's possible.
 		/// </summary>
-		TrackviewTimescrubbing = 67108864,
+		TrackviewTimescrubbing = eDynamicLightFlags.DLF_TRACKVIEW_TIMESCRUBBING,
 		/// <summary>
 		/// Affects only volumetric fog.
 		/// </summary>
-		VolumetricFogOnly = 134217728,
-		DiffuseOcclusion = -2147483648,
+		VolumetricFogOnly = eDynamicLightFlags.DLF_VOLUMETRIC_FOG_ONLY,
+		/// <summary>
+		/// Mask with the various types of light that are available.
+		/// </summary>
 		LightTypeMask = (Directional | Point | Project | AreaLight)
 	}
 
+	/// <summary>
+	/// Base class for a RenderLight.
+	/// </summary>
 	public abstract class RenderLight
 	{
 		/// <summary>
@@ -140,6 +194,9 @@ namespace CryEngine
 			}
 		}
 
+		/// <summary>
+		/// The area height of this <see cref="RenderLight"/>.
+		/// </summary>
 		public float AreaHeight
 		{
 			get
@@ -152,6 +209,9 @@ namespace CryEngine
 			}
 		}
 
+		/// <summary>
+		/// The area width of this <see cref="RenderLight"/>.
+		/// </summary>
 		public float AreaWidth
 		{
 			get
@@ -164,6 +224,9 @@ namespace CryEngine
 			}
 		}
 
+		/// <summary>
+		/// The bulb size of the attenuation.
+		/// </summary>
 		public float AttenuationBulbSize
 		{
 			get
@@ -176,18 +239,24 @@ namespace CryEngine
 			}
 		}
 
-		public float BaseRadius
+		/// <summary>
+		/// The clipping radius.
+		/// </summary>
+		public float ClipRadius
 		{
 			get
 			{
-				return NativeBaseHandle.m_fBaseRadius;
+				return NativeBaseHandle.m_fClipRadius;
 			}
 			set
 			{
-				NativeBaseHandle.m_fBaseRadius = value;
+				NativeBaseHandle.m_fClipRadius = value;
 			}
 		}
 
+		/// <summary>
+		/// The environment probe box height of this <see cref="RenderLight"/>.
+		/// </summary>
 		public float BoxHeight
 		{
 			get
@@ -200,6 +269,9 @@ namespace CryEngine
 			}
 		}
 
+		/// <summary>
+		/// The environment probe box length of this <see cref="RenderLight"/>.
+		/// </summary>
 		public float BoxLength
 		{
 			get
@@ -212,6 +284,9 @@ namespace CryEngine
 			}
 		}
 
+		/// <summary>
+		/// The environment probe box width of this <see cref="RenderLight"/>.
+		/// </summary>
 		public float BoxWidth
 		{
 			get
@@ -224,6 +299,9 @@ namespace CryEngine
 			}
 		}
 
+		/// <summary>
+		/// The blend ratio of two radial lobe for volumetric fog.
+		/// </summary>
 		public float FogRadialLobe
 		{
 			get
@@ -236,18 +314,9 @@ namespace CryEngine
 			}
 		}
 
-		public float HDRDynamic
-		{
-			get
-			{
-				return NativeBaseHandle.m_fHDRDynamic;
-			}
-			set
-			{
-				NativeBaseHandle.m_fHDRDynamic = value;
-			}
-		}
-
+		/// <summary>
+		/// The flags of this <see cref="RenderLight"/>.
+		/// </summary>
 		public DynamicLightFlags Flags
 		{
 			get
@@ -260,6 +329,9 @@ namespace CryEngine
 			}
 		}
 
+		/// <summary>
+		/// The light frustrum angle of the projector.
+		/// </summary>
 		public float LightFrustumAngle
 		{
 			get
@@ -272,6 +344,9 @@ namespace CryEngine
 			}
 		}
 
+		/// <summary>
+		/// The near plane of the projector.
+		/// </summary>
 		public float ProjectorNearPlane
 		{
 			get
@@ -284,6 +359,9 @@ namespace CryEngine
 			}
 		}
 
+		/// <summary>
+		/// The radius of the light.
+		/// </summary>
 		public float Radius
 		{
 			get
@@ -296,6 +374,9 @@ namespace CryEngine
 			}
 		}
 
+		/// <summary>
+		/// The shadow bias of the shadow map.
+		/// </summary>
 		public float ShadowBias
 		{
 			get
@@ -308,6 +389,9 @@ namespace CryEngine
 			}
 		}
 
+		/// <summary>
+		/// The resolution scale of the shadow map.
+		/// </summary>
 		public float ShadowResolutionScale
 		{
 			get
@@ -320,6 +404,9 @@ namespace CryEngine
 			}
 		}
 
+		/// <summary>
+		/// The slope bias of the shadow map.
+		/// </summary>
 		public float ShadowSlopeBias
 		{
 			get
@@ -332,6 +419,9 @@ namespace CryEngine
 			}
 		}
 
+		/// <summary>
+		/// The minimal update radius of the shadow map.
+		/// </summary>
 		public float ShadowUpdateMinRadius
 		{
 			get
@@ -344,6 +434,9 @@ namespace CryEngine
 			}
 		}
 
+		/// <summary>
+		/// The time the light was scrubbed.
+		/// </summary>
 		public float TimeScrubbed
 		{
 			get
@@ -356,6 +449,9 @@ namespace CryEngine
 			}
 		}
 
+		/// <summary>
+		/// The ID of the light.
+		/// </summary>
 		public short Id
 		{
 			get
@@ -368,6 +464,9 @@ namespace CryEngine
 			}
 		}
 
+		/// <summary>
+		/// Frustum angle ranging from 0 to 255. The range will be adjusted from 0 to 360 when used.
+		/// </summary>
 		public byte LensOpticsFrustumAngle
 		{
 			get
@@ -380,6 +479,9 @@ namespace CryEngine
 			}
 		}
 
+		/// <summary>
+		/// Frame ID of the Engine3D update.
+		/// </summary>
 		public uint Engine3DUpdateFrameID
 		{
 			get
@@ -392,6 +494,9 @@ namespace CryEngine
 			}
 		}
 
+		/// <summary>
+		/// The animation speed of the light.
+		/// </summary>
 		public byte AnimationSpeed
 		{
 			get
@@ -404,6 +509,9 @@ namespace CryEngine
 			}
 		}
 
+		/// <summary>
+		/// The maximum attenuation falloff of the environment probe.
+		/// </summary>
 		public byte AttenuationFalloffMax
 		{
 			get
@@ -416,6 +524,9 @@ namespace CryEngine
 			}
 		}
 
+		/// <summary>
+		/// The ID of the entity.
+		/// </summary>
 		public EntitySystem.EntityId EntityId
 		{
 			get
@@ -428,6 +539,9 @@ namespace CryEngine
 			}
 		}
 
+		/// <summary>
+		/// The phase of the light.
+		/// </summary>
 		public byte LightPhase
 		{
 			get
@@ -440,6 +554,9 @@ namespace CryEngine
 			}
 		}
 
+		/// <summary>
+		/// The style of the light.
+		/// </summary>
 		public byte LightStyle
 		{
 			get
@@ -452,6 +569,9 @@ namespace CryEngine
 			}
 		}
 
+		/// <summary>
+		/// The minimum shadow resolution of the shadow map.
+		/// </summary>
 		public ushort ShadowMinResolution
 		{
 			get
@@ -464,6 +584,9 @@ namespace CryEngine
 			}
 		}
 
+		/// <summary>
+		/// The update ratio of the shadow map.
+		/// </summary>
 		public ushort ShadowUpdateRatio
 		{
 			get
@@ -476,6 +599,9 @@ namespace CryEngine
 			}
 		}
 
+		/// <summary>
+		/// The sorting priority of the environemt probe.
+		/// </summary>
 		public byte SortPriority
 		{
 			get
@@ -488,6 +614,9 @@ namespace CryEngine
 			}
 		}
 
+		/// <summary>
+		/// The object matrix of the projector.
+		/// </summary>
 		public Matrix3x4 ObjectMatrix
 		{
 			get
@@ -500,6 +629,9 @@ namespace CryEngine
 			}
 		}
 
+		/// <summary>
+		/// The world space position of the <see cref="RenderLight"/>.
+		/// </summary>
 		public Vector3 Position
 		{
 			get
@@ -512,6 +644,9 @@ namespace CryEngine
 			}
 		}
 
+		/// <summary>
+		/// The extents of the environment probe.
+		/// </summary>
 		public Vector3 ProbeExtents
 		{
 			get
@@ -524,6 +659,9 @@ namespace CryEngine
 			}
 		}
 
+		/// <summary>
+		/// The projection matrix of the projector.
+		/// </summary>
 		public Matrix4x4 ProjectionMatrix
 		{
 			get
@@ -536,6 +674,9 @@ namespace CryEngine
 			}
 		}
 
+		/// <summary>
+		/// The index of the shadow mask of the shadow map.
+		/// </summary>
 		public byte ShadowMaskIndex
 		{
 			get
@@ -548,6 +689,9 @@ namespace CryEngine
 			}
 		}
 
+		/// <summary>
+		/// The height of the <see cref="RenderLight"/>.
+		/// </summary>
 		public short Height
 		{
 			get
@@ -560,6 +704,9 @@ namespace CryEngine
 			}
 		}
 
+		/// <summary>
+		/// Optional name of the light source.
+		/// </summary>
 		public string Name
 		{
 			get
@@ -572,6 +719,9 @@ namespace CryEngine
 			}
 		}
 
+		/// <summary>
+		/// The specular multiplier.
+		/// </summary>
 		public float SpecularMultiplier
 		{
 			get
@@ -584,6 +734,9 @@ namespace CryEngine
 			}
 		}
 
+		/// <summary>
+		/// The width of the <see cref="RenderLight"/>.
+		/// </summary>
 		public short Width
 		{
 			get
@@ -596,6 +749,9 @@ namespace CryEngine
 			}
 		}
 
+		/// <summary>
+		/// Scissor parameters (2d extent).
+		/// </summary>
 		public short X
 		{
 			get
@@ -608,6 +764,9 @@ namespace CryEngine
 			}
 		}
 
+		/// <summary>
+		/// Scissor parameters (2d extent).
+		/// </summary>
 		public short Y
 		{
 			get
@@ -620,6 +779,7 @@ namespace CryEngine
 			}
 		}
 
+		[SerializeValue]
 		internal SRenderLight NativeBaseHandle { get; private set; }
 
 		internal RenderLight(SRenderLight nativeHandle)
@@ -627,11 +787,17 @@ namespace CryEngine
 			NativeBaseHandle = nativeHandle;
 		}
 
+		/// <summary>
+		/// Safely acquires the data of this <see cref="RenderLight"/>.
+		/// </summary>
 		public void AcquireResources()
 		{
 			NativeBaseHandle.AcquireResources();
 		}
 
+		/// <summary>
+		/// Safely releases the data of this <see cref="RenderLight"/>.
+		/// </summary>
 		public void DropResources()
 		{
 			NativeBaseHandle.DropResources();

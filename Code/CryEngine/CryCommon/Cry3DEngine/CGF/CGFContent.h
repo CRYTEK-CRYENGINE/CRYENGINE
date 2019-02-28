@@ -1,20 +1,7 @@
-////////////////////////////////////////////////////////////////////////////
-//
-//  Crytek Engine Source File.
-//  Copyright (C), Crytek Studios, 2002.
-// -------------------------------------------------------------------------
-//  File name:   CGFContent.h
-//  Version:     v1.00
-//  Created:     7/11/2004 by Timur.
-//  Compilers:   Visual Studio.NET
-//  Description: Describe contents on CGF file.
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-#ifndef __CGFContent_h__
-#define __CGFContent_h__
+//! \cond INTERNAL
+
 #pragma once
 
 #include <Cry3DEngine/IIndexedMesh.h>   // <> required for Interfuscator
@@ -391,10 +378,10 @@ struct CSkinningInfo : public _reference_target_t
 // Fixed-size data stored for each vertex in a VCloth mesh.
 struct SVClothVertexAttributes
 {
-	// Improved long range attachments.
-	uint32 lraIdx;
-	uint32 lraNextParent;
-	f32    lraDist;
+	// Nearest Neighbor Distance Constraints
+	uint32 nndcIdx;
+	uint32 nndcNextParent;
+	f32    nndcDist;
 
 	AUTO_STRUCT_INFO;
 };
@@ -431,10 +418,10 @@ struct SVClothVertex
 	AUTO_STRUCT_INFO;
 };
 
-struct SVClothLraNotAttachedOrderedIdx
+struct SVClothNndcNotAttachedOrderedIdx
 {
-	int lraNotAttachedOrderedIdx;
-	SVClothLraNotAttachedOrderedIdx() : lraNotAttachedOrderedIdx(-1) {}
+	int nndcNotAttachedOrderedIdx;
+	SVClothNndcNotAttachedOrderedIdx() : nndcNotAttachedOrderedIdx(-1) {}
 
 	AUTO_STRUCT_INFO;
 };
@@ -463,11 +450,11 @@ struct SVClothBendTriangle
 
 struct SVClothInfoCGF
 {
-	DynArray<SVClothVertex>                   m_vertices;
-	DynArray<SVClothBendTrianglePair>         m_trianglePairs;
-	DynArray<SVClothBendTriangle>             m_triangles;
-	DynArray<SVClothLraNotAttachedOrderedIdx> m_lraNotAttachedOrderedIdx;
-	DynArray<SVClothLink>                     m_links[eVClothLink_COUNT];
+	DynArray<SVClothVertex>                    m_vertices;
+	DynArray<SVClothBendTrianglePair>          m_trianglePairs;
+	DynArray<SVClothBendTriangle>              m_triangles;
+	DynArray<SVClothNndcNotAttachedOrderedIdx> m_nndcNotAttachedOrderedIdx;
+	DynArray<SVClothLink>                      m_links[eVClothLink_COUNT];
 };
 
 //! This structure represents Material inside CGF.
@@ -814,4 +801,4 @@ private:
 	IChunkFile*                        m_pOwnChunkFile;
 };
 
-#endif //__CGFContent_h__
+//! \endcond

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -7,6 +7,8 @@
 #if UQS_SCHEMATYC_SUPPORT
 #include <CrySchematyc/CoreAPI.h>
 #endif
+
+#include <CrySchematyc/Utils/EnumFlags.h>
 
 #include "shared/TypeInfo.h"
 #include "shared/DataTypeHelper.h"
@@ -90,5 +92,6 @@
 #include "core/IItemSerializationSupport.h"
 #include "core/IEditorService.h"
 #include "core/IUtils.h"
+#include "core/ISettingsManager.h"
 #include "core/IHub.h"
 #include "core/IHubPlugin.h"

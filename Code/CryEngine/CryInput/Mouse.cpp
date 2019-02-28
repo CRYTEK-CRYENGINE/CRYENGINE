@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -77,7 +77,7 @@ bool CMouse::Init()
 ///////////////////////////////////////////
 void CMouse::Update(bool bFocus)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_INPUT);
+	CRY_PROFILE_FUNCTION(PROFILE_INPUT);
 	HRESULT hr;
 
 	if (!GetDirectInputDevice())

@@ -1,13 +1,10 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 using System;
-using System.Runtime.CompilerServices;
-using CryEngine.Common;
-using CryEngine.Common.CryAudio;
 
 namespace CryEngine
 {
-	using NativeAudioSystem = CryEngine.NativeInternals.IAudioSystem;
+	using NativeAudioSystem = NativeInternals.IAudioSystem;
 	/// <summary>
 	/// AudioFile is most direct with minimal setup in the Sandbox editor to playback an audio file
 	/// 
@@ -28,6 +25,9 @@ namespace CryEngine
 			_audioPlayFileInfoPtr = new System.Runtime.InteropServices.HandleRef(this, NativeAudioSystem.CreateSPlayFileInfo(_audioFilePath));
 		}
 
+		/// <summary>
+		/// Destructor for the AudioFile which ensures Dispose is called.
+		/// </summary>
 		~AudioFile()
 		{
 			Dispose(false);
@@ -49,13 +49,15 @@ namespace CryEngine
 			_isDisposed = true;
 		}
 
+		/// <summary>
+		/// Disposes this instance.
+		/// </summary>
 		public void Dispose()
 		{
 			Dispose(true);
 			System.GC.SuppressFinalize(this);
 		}
 
-		
 		internal IntPtr NativePtr
 		{
 			get

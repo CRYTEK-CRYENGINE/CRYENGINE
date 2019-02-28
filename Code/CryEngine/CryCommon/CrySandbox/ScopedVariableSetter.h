@@ -1,17 +1,8 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  File name:   ScopedVariableSetter.h
-//  Version:     v1.00
-//  Created:     22/8/2006 by MichaelS.
-//  Compilers:   Visual Studio.NET 2005
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
-#ifndef __SCOPEDVARIABLESETTER_H__
-#define __SCOPEDVARIABLESETTER_H__
+//! \cond INTERNAL
+
+#pragma once
 
 //! Temporarily set the value of a variable.
 //! This class sets a variable the the value in its constructor
@@ -38,4 +29,4 @@ private:
 	Value& m_variable;
 };
 
-#endif //__SCOPEDVARIABLESETTER_H__
+//! \endcond

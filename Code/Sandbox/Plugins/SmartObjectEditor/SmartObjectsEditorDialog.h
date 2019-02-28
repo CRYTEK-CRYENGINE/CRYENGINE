@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __SmartObjectsEditorDialog_h__
 #define __SmartObjectsEditorDialog_h__
@@ -11,6 +11,7 @@
 #include <CryAISystem/IAISystem.h>
 #include "Controls\PropertyCtrl.h"
 #include "Controls\ColorCtrl.h"
+#include "Objects/BaseObject.h"
 
 class CSmartObjectEntry;
 class CSmartObjectHelperObject;
@@ -238,7 +239,9 @@ public:
 	BOOL           Create(DWORD dwStyle, const RECT& rect, CWnd* pParentWnd);
 	CXTPTaskPanel& GetTaskPanel() { return m_taskPanel; }
 
-	void      OnObjectEvent(CBaseObject* object, int event);
+	void      OnObjectEvent(CObjectEvent& event);
+	void      OnObjectEventLegacy(CBaseObject* pObject, int eventType) { OnObjectEvent(CObjectEvent(static_cast<EObjectListenerEvent>(eventType), pObject)); }
+	void      OnSelectionChanged();
 	void      RecalcLayout(BOOL bNotify = TRUE);
 
 	CString   GetFolderPath(HTREEITEM item) const;
@@ -383,3 +386,4 @@ private:
 };
 
 #endif // __VehicleEditorDialog_h__
+

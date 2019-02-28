@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   bugsflock.h
@@ -28,7 +28,7 @@ public:
 	virtual void Kill( const Vec3 &hitPoint,const Vec3 &force );
 	virtual void Physicalize( SBoidContext &bc );
 	virtual void OnPickup( bool bPickup,float fSpeed );
-	virtual void OnCollision( SEntityEvent &event );
+	virtual void OnCollision( const SEntityEvent &event );
 	virtual void CalcOrientation( Quat &qOrient );
 
 protected:

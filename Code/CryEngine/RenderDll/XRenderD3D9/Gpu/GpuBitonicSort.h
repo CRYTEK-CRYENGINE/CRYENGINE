@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -34,8 +34,8 @@ public:
 private:
 	void        SyncParams(uint32 iLevel, uint32 iLevelMask, uint32 iWidth, uint32 iHeight);
 	CTypedConstantBuffer<CParams>                          m_params;
-	CTypedResource<SBitonicSortItem, BufferFlagsReadWrite> m_data;
-	CTypedResource<SBitonicSortItem, BufferFlagsReadWrite> m_transposeData;
+	CStructuredResource<SBitonicSortItem, BufferFlagsReadWrite> m_data;
+	CStructuredResource<SBitonicSortItem, BufferFlagsReadWrite> m_transposeData;
 	CComputeRenderPass m_computePassBitonicSort;
 	CComputeRenderPass m_computePassBitonicTranspose;
 };

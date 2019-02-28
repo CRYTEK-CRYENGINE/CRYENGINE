@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -238,12 +238,12 @@ struct SParticleHot
 	bool    collisionExist;  //!< set to true, if a collision occurs
 	Vector4 collisionNormal; //!< stores collision normal for damping in tangential direction
 
-	// long range attachments
-	int   lraIdx;        //!< index of closest constraint / attached vtx
-	float lraDist;       //!< distance to closest constraint
-	int   lraNextParent; //!< index of next parent on path to closest constraint
+	// Nearest Neighbor Distance Constraints
+	int   nndcIdx;        //!< index of closest constraint / attached vtx
+	float nndcDist;       //!< distance to closest constraint
+	int   nndcNextParent; //!< index of next parent on path to closest constraint
 
-	SParticleHot() : collisionExist(false), timer(0), alpha(0), lraIdx(-1), lraDist(0), lraNextParent(-1), collisionNormal(ZERO), pos(ZERO)
+	SParticleHot() : pos(ZERO), alpha(0), factorAttached(0), timer(0), collisionExist(false), collisionNormal(ZERO), nndcIdx(-1), nndcDist(0), nndcNextParent(-1)
 	{
 	}
 };
@@ -282,16 +282,20 @@ public:
 		, m_links(nullptr)
 		, m_gravity(0, 0, -9.8f)
 		, m_time(0.0f)
+		, m_timeInterval(0.0f)
 		, m_dt(0.0f)
 		, m_dtPrev(-1)
 		, m_dtNormalize(100.0f) // i.e. normalize substep to 1/dt with dt = 0.01
 		, m_steps(0)
 		, m_normalizedTimePrev(0)
 		, m_doSkinningForNSteps(0)
+		, m_forceSkinningAfterNFramesCounter(0)
+		, m_isFramerateBelowFpsThresh(false)
 		, m_fadeInOutPhysicsDirection(0)
 		, m_fadeTimeActual(0) // physical fade time
-		, m_bUseDijkstraForLRA(true)
 		, m_bIsInitialized(false)
+		, m_bIsGpuSkinning(false)
+		, m_debugCollidableSubsteppingId(0)
 	{
 	}
 
@@ -308,6 +312,11 @@ public:
 	void                 EnableSimulation(bool enable = true)   { m_config.disableSimulation = !enable; }
 	bool                 IsSimulationEnabled() const            { return !m_config.disableSimulation; }
 
+	bool				 IsGpuSkinning()						{ return m_bIsGpuSkinning; }
+	void                 SetGpuSkinning(bool bGpuSkinning)		{ m_bIsGpuSkinning=bGpuSkinning; }
+
+	bool                 IsVisible();
+
 	const SVClothParams& GetParams() const                      { return m_config; };
 	void                 SetParams(const SVClothParams& params) { m_config = params; };
 	int                  SetParams(const SVClothParams& params, float* weights);
@@ -319,6 +328,7 @@ public:
 	void                 SetSkinnedPositions(const Vector4* points);
 	void                 GetVertices(Vector4* pWorldCoords) const;
 	void                 GetVerticesFaded(Vector4* pWorldCoords);
+	bool                 IsParticleAttached(unsigned int idx) const { assert(idx < m_nVtx); return m_particlesCold[idx].bAttached != 0; }
 
 	/**
 	 * Laplace-filter for input-positions, using the default mesh-edges.
@@ -377,13 +387,20 @@ private:
 	 * Determine actual, lerped quaternions for colliders
 	 */
 	void UpdateCollidablesLerp(f32 t01 = 1.0f);
-	void LongRangeAttachmentsSolve();
+	void NearestNeighborDistanceConstraintsSolve();
 
 	/**
 	 * Check distance to camera.
 	 * @return True, if distance to camera is les than value; false, otherwise.
 	 */
 	bool CheckCameraDistanceLessThan(float dist) const;
+
+	/**
+	 * Check screen space size of characters bounding box in x- or y-direction against viewport-size [using provided percentage-threshold]. 
+	 * @return True, if x- or y-dimension of bounding box in screen space is larger than provided threshold.
+	 */
+	bool CheckSSRatioLargerThan(float ssAxisSizePercThresh) const;
+
 	/**
 	 * Check framerate.
 	 * @return True, if framerate is less than m_config.forceSkinningFpsThreshold; false otherwise.
@@ -410,7 +427,6 @@ private:
 private:
 
 	bool                      m_bIsInitialized;
-	bool                      m_bUseDijkstraForLRA; //!< defaults to true; if set to false euklidean distances are used, which does not work very well, since in strange poses particles are pulled through the body (e.g. in case of bending down)
 	ColorB                    m_color;
 
 	SVClothParams             m_config;
@@ -435,16 +451,20 @@ private:
 
 	std::vector<SCollidable>  m_permCollidables; //!< list of collision proxies (no collision with the world)
 
-	float                     m_fadeTimeActual;            //!< actual fade time
-	int                       m_fadeInOutPhysicsDirection; //!< -1 fade out, 1 fade in
-	int                       m_doSkinningForNSteps;       //!< use skinning if any position change has occured, to keep simulation stable
+	float                     m_fadeTimeActual;                   //!< actual fade time
+	int                       m_fadeInOutPhysicsDirection;        //!< -1 fade out, 1 fade in
+	int                       m_doSkinningForNSteps;              //!< use skinning if any position change has occured, to keep simulation stable
+	int                       m_forceSkinningAfterNFramesCounter; //!< safety mechanism, i.e. local counter: if framerate falls below threshold for n-frames, skinning is forced to avoid performance issues
+	bool                      m_isFramerateBelowFpsThresh;        //!< true, if framerate is below user provided framerate-threshold, false otherwise
 
-	Vec3                      m_externalDeltaTranslation; //!< delta translation of locator per timestep; is used to determine external influence according to velocity
-	Vec3                      m_permCollidables0Old;      //!< to determine above m_externalDeltaTranslation per step
-	QuatT                     m_location;                 //!< global location / not used in the moment
+	Vec3                      m_externalDeltaTranslation;  //!< delta translation of locator per timestep; is used to determine external influence according to velocity
+	Vec3                      m_permCollidables0Old;       //!< to determine above m_externalDeltaTranslation per step
+	QuatT                     m_location;                  //!< global location / not used in the moment
 
-	// Long Range Attachments
-	std::vector<int> m_lraNotAttachedOrderedIdx; //!< not attached particles: ordered by distance to constraints
+	bool					  m_bIsGpuSkinning;            //!< true, if simulation is not needed (e.g., due to distance threshold), thus, the cloth can be skinned in total
+
+	// Nearest Neighbor Distance Constraints
+	std::vector<int> m_nndcNotAttachedOrderedIdx; //!< not attached particles: ordered by distance to constraints
 
 	// Bending by triangle angles, not springs
 	std::vector<SBendTrianglePair> m_listBendTrianglePairs; //!< triangle pairs sharing an edge
@@ -568,6 +588,7 @@ private:
 	void    UpdateSimulation(const DualQuat* pTransformations, const uint transformationCount);
 	template<bool PREVIOUS_POSITIONS>
 	void    SkinSimulationToRenderMesh(int lod, CVertexData& vertexData, const strided_pointer<const Vec3>& pVertexPositionsPrevious);
+	void    SetRenderPositionsFromSkinnedPositions(bool setAllPositions);
 
 	void    WaitForJob(bool bPrev);
 
@@ -713,6 +734,7 @@ public:
 	void                 DrawAttachment(SRendParams& rParams, const SRenderingPassInfo& passInfo, const Matrix34& rWorldMat34, f32 fZoomFactor = 1);
 	void                 RecreateDefaultSkeleton(CCharInstance* pInstanceSkel, uint32 nLoadingFlags);
 	void                 UpdateRemapTable();
+	bool                 EnsureRemapTableIsValid();
 
 	void                 ComputeClothCacheKey();
 	uint64               GetClothCacheKey() const { return m_clothCacheKey; };
@@ -722,18 +744,17 @@ public:
 
 	// Vertex Transformation
 public:
-	SSkinningData*          GetVertexTransformationData(const bool bVertexAnimation, uint8 nRenderLOD);
+	SSkinningData*          GetVertexTransformationData(const bool bVertexAnimation, uint8 nRenderLOD, const SRenderingPassInfo& passInfo);
 	_smart_ptr<IRenderMesh> CreateVertexAnimationRenderMesh(uint lod, uint id);
 
 #ifdef EDITOR_PCDEBUGCODE
 	void DrawWireframeStatic(const Matrix34& m34, int nLOD, uint32 color);
-	void SoftwareSkinningDQ_VS_Emulator(CModelMesh* pModelMesh, Matrix34 rRenderMat34, uint8 tang, uint8 binorm, uint8 norm, uint8 wire, const DualQuat* const pSkinningTransformations);
 #endif
 
 	virtual IVertexAnimation* GetIVertexAnimation() override { return &m_vertexAnimation; }
 	virtual ISkin*            GetISkin() override            { return m_pRenderSkin; };
 	virtual float             GetExtent(EGeomForm eForm) override;
-	virtual void              GetRandomPos(PosNorm& ran, CRndGen& seed, EGeomForm eForm) const override;
+	virtual void              GetRandomPoints(Array<PosNorm> points, CRndGen& seed, EGeomForm eForm) const override;
 	virtual SMeshLodInfo      ComputeGeometricMean() const override;
 
 	int                       GetGuid() const;

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "CGFContent.h"
 
@@ -26,9 +26,9 @@ VAR_INFO(m_nRotTrack)
 STRUCT_INFO_END(CControllerInfo)
 
 STRUCT_INFO_BEGIN(SVClothVertexAttributes)
-VAR_INFO(lraIdx)
-VAR_INFO(lraNextParent)
-VAR_INFO(lraDist)
+VAR_INFO(nndcIdx)
+VAR_INFO(nndcNextParent)
+VAR_INFO(nndcDist)
 STRUCT_INFO_END(SVClothVertexAttributes)
 
 STRUCT_INFO_BEGIN(SVClothLink)
@@ -46,9 +46,9 @@ VAR_INFO(attributes)
 VAR_INFO(linkCount)
 STRUCT_INFO_END(SVClothChunkVertex)
 
-STRUCT_INFO_BEGIN(SVClothLraNotAttachedOrderedIdx)
-VAR_INFO(lraNotAttachedOrderedIdx)
-STRUCT_INFO_END(SVClothLraNotAttachedOrderedIdx)
+STRUCT_INFO_BEGIN(SVClothNndcNotAttachedOrderedIdx)
+VAR_INFO(nndcNotAttachedOrderedIdx)
+STRUCT_INFO_END(SVClothNndcNotAttachedOrderedIdx)
 
 STRUCT_INFO_BEGIN(SVClothBendTrianglePair)
 VAR_INFO(angle)

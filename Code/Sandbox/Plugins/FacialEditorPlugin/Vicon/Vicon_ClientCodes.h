@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef VICON_CLIENTCODES_H
 #define VICON_CLIENTCODES_H
@@ -309,3 +309,4 @@ private:
 };
 
 #endif
+

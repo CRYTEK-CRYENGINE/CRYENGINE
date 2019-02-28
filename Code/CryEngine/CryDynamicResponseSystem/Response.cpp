@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include <CryDynamicResponseSystem/IDynamicResponseCondition.h>
@@ -63,7 +63,7 @@ void CConditionParserHelper::GetResponseVariableValueFromString(const char* szVa
 CResponseInstance* CResponse::StartExecution(SSignal& signal)
 {
 	DRS_DEBUG_DATA_ACTION(AddResponseStarted(signal.m_signalName.GetText()));
-	DRS_DEBUG_DATA_ACTION(AddResponseSegmentStarted(&m_baseSegment));
+	DRS_DEBUG_DATA_ACTION(AddResponseSegmentEvaluated(&m_baseSegment));
 
 	++m_executionCounter;
 	CResponseInstance temp(signal, this);

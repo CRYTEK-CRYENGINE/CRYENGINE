@@ -28,8 +28,7 @@ namespace Cry
 				desc.AddMember(&CCylinderPrimitiveComponent::m_radius, 'radi', "Radius", "Radius", "Radius of the cylinder", 0.5f);
 				desc.AddMember(&CCylinderPrimitiveComponent::m_height, 'heig', "Height", "Height", "Height of the cylinder", 1.f);
 
-				desc.AddMember(&CCylinderPrimitiveComponent::m_mass, 'mass', "Mass", "Mass", "Mass of the object in kg, note that this cannot be set at the same time as density. Both being set to 0 means no physics.", 10.f);
-				desc.AddMember(&CCylinderPrimitiveComponent::m_density, 'dens', "Density", "Density", "Density of the object, note that this cannot be set at the same time as mass. Both being set to 0 means no physics.", 0.f);
+				desc.AddMember(&CCylinderPrimitiveComponent::m_physics, 'phys', "Physics", "Physics Settings", "Physical properties for the object, only used if a simple physics or character controller is applied to the entity.", SPhysicsParameters());
 
 				desc.AddMember(&CCylinderPrimitiveComponent::m_surfaceTypeName, 'surf', "Surface", "Surface Type", "Surface type assigned to this object, determines its physical properties", "");
 				desc.AddMember(&CCylinderPrimitiveComponent::m_bReactToCollisions, 'coll', "ReactToCollisions", "React to Collisions", "Whether the part will react to collisions, or only report them", true);

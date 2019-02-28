@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -7,6 +7,7 @@
 #include "IExportSource.h"
 #include "PathHelpers.h"
 #include <CryCore/ToolsHelpers/ResourceCompilerHelper.h>
+#include <CryString/CryPath.h>
 #include "IExportContext.h"
 #include "ProgressRange.h"
 #include "XMLWriter.h"
@@ -150,9 +151,9 @@ void ColladaExportWriter::Export(IExportSource* source, IExportContext* context)
 
 			if (!geometryFileIndices.empty())
 			{
-				std::string name = PathHelpers::RemoveExtension(PathHelpers::GetFilename(source->GetDCCFileName()));
+				std::string name = PathUtil::RemoveExtension(PathUtil::GetFile(source->GetDCCFileName()));
 				std::replace(name.begin(), name.end(), ' ', '_');
-				std::string const colladaPath = PathHelpers::Join(originalExportDirectory, name + exportExtension);
+				std::string const colladaPath = PathUtil::Make(originalExportDirectory, name + exportExtension);
 				colladaGeometryFileNameList.push_back(colladaPath);
 
 				geometryExportSources.push_back(GeometryExportSourceAdapter(source, &geometryFileData, geometryFileIndices));
@@ -198,11 +199,11 @@ void ColladaExportWriter::Export(IExportSource* source, IExportContext* context)
 
 					std::string safeGeometryFileName = geometryFileName;
 					std::replace(safeGeometryFileName.begin(), safeGeometryFileName.end(), ' ', '_');
-					std::string assetPath = PathHelpers::Join(originalExportDirectory, safeGeometryFileName + "." + extension);
+					std::string assetPath = PathUtil::Make(originalExportDirectory, safeGeometryFileName + "." + extension);
 
 					if (!properties.customExportPath.empty())
 					{
-						assetPath = PathHelpers::Join(properties.customExportPath, safeGeometryFileName + "." + extension);
+						assetPath = PathUtil::Make(properties.customExportPath, safeGeometryFileName + "." + extension);
 					}
 
 					assetGeometryFileNameList.push_back(assetPath);					
@@ -222,7 +223,7 @@ void ColladaExportWriter::Export(IExportSource* source, IExportContext* context)
 							std::string safeAnimationName = animationName;
 							std::replace(safeAnimationName.begin(), safeAnimationName.end(), ' ', '_');
 
-							std::string exportPath = PathHelpers::Join(originalExportDirectory, safeAnimationName + exportExtension);
+							std::string exportPath = PathUtil::Make(originalExportDirectory, safeAnimationName + exportExtension);
 							animationFileNameList.push_back(std::make_pair(std::make_pair(animationIndex, geometryFileIndex), exportPath));
 							animationExportSources.push_back(SingleAnimationExportSourceAdapter(source, &geometryFileData, geometryFileIndex, animationIndex));
 							exportList.push_back(std::make_pair(exportPath, &animationExportSources.back()));
@@ -268,7 +269,7 @@ void ColladaExportWriter::Export(IExportSource* source, IExportContext* context)
 
 						std::string const archivePath = colladaFileName;
 						std::string archiveRelativePath = colladaFileName.substr(0, colladaFileName.length() - exportExtension.length()) + ".dae";
-						archiveRelativePath = PathHelpers::GetFilename(archiveRelativePath);
+						archiveRelativePath = PathUtil::GetFile(archiveRelativePath);
 
 						XMLPakFileSink sink(pakSystem, archivePath, archiveRelativePath);
 						ok = ColladaWriter::Write(fileExportSource, context, &sink, animationExportProgressRange);

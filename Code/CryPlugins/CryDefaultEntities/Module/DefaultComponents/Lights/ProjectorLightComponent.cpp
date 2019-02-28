@@ -2,7 +2,6 @@
 #include "ProjectorLightComponent.h"
 
 #include <CrySystem/IProjectManager.h>
-#include <CryGame/IGameFramework.h>
 #include <ILevelSystem.h>
 #include <Cry3DEngine/IRenderNode.h>
 
@@ -33,15 +32,13 @@ void CProjectorLightComponent::Initialize()
 		return;
 	}
 
-	CDLight light;
+	SRenderLight light;
 
 	light.m_nLightStyle = m_animations.m_style;
 	light.SetAnimSpeed(m_animations.m_speed);
 
 	light.SetPosition(ZERO);
 	light.m_Flags = DLF_DEFERRED_LIGHT | DLF_PROJECT;
-
-	light.m_fRadius = m_radius;
 
 	light.m_fLightFrustumAngle = m_angle.ToDegrees();
 	light.m_fProjectorNearPlane = m_projectorOptions.m_nearPlane;
@@ -63,6 +60,9 @@ void CProjectorLightComponent::Initialize()
 	if (m_options.m_bAffectsVolumetricFog)
 		light.m_Flags |= DLF_VOLUMETRIC_FOG;
 
+	if (m_options.m_bLinkToSkyColor)
+		light.m_Flags |= DLF_LINK_TO_SKY_COLOR;
+
 	if (m_options.m_bAmbient)
 		light.m_Flags |= DLF_AMBIENT;
 
@@ -81,7 +81,7 @@ void CProjectorLightComponent::Initialize()
 	else
 		light.m_Flags &= ~DLF_CASTSHADOW_MAPS;
 
-	light.m_fAttenuationBulbSize = m_options.m_attenuationBulbSize;
+	light.SetRadius(m_radius, m_options.m_attenuationBulbSize);
 
 	light.m_fFogRadialLobe = m_options.m_fogRadialLobe;
 
@@ -98,7 +98,7 @@ void CProjectorLightComponent::Initialize()
 	}
 	else
 	{
-		light.m_pLightImage = gEnv->pRenderer->EF_LoadTexture(szProjectorTexturePath, FT_DONT_STREAM);
+		light.m_pLightImage = gEnv->pRenderer->EF_LoadTexture(szProjectorTexturePath, 0);
 	}
 
 	if ((light.m_pLightImage == nullptr || !light.m_pLightImage->IsTextureLoaded()) && light.m_pLightDynTexSource == nullptr)
@@ -144,8 +144,34 @@ void CProjectorLightComponent::Initialize()
 		}
 	}
 
+	if (m_optics.m_flareEnable && !m_optics.m_lensFlareName.empty())
+	{
+		int32 opticsIndex = 0;
+		if (gEnv->pOpticsManager->Load(m_optics.m_lensFlareName.c_str(), opticsIndex))
+		{
+			IOpticsElementBase* pOpticsElement = gEnv->pOpticsManager->GetOptics(opticsIndex);
+			light.SetLensOpticsElement(pOpticsElement);
+
+			const int32 modularAngle = m_optics.m_flareFOV % 360;
+			if (modularAngle == 0)
+				light.m_LensOpticsFrustumAngle = 255;
+			else
+				light.m_LensOpticsFrustumAngle = (uint8)(m_optics.m_flareFOV * (255.0f / 360.0f));
+
+			if (m_optics.m_attachToSun)
+			{
+				light.m_Flags |= DLF_ATTACH_TO_SUN | DLF_FAKE | DLF_IGNORES_VISAREAS;
+				light.m_Flags &= ~DLF_THIS_AREA_ONLY;
+			}
+		}
+	}
+
+	m_pEntity->UpdateLightClipBounds(light);
+
 	// Load the light source into the entity
 	m_pEntity->LoadLight(GetOrMakeEntitySlotId(), &light);
+
+	bool needsDefaultLensFlareMaterial = m_optics.m_flareEnable;
 
 	if (m_projectorOptions.HasMaterialPath())
 	{
@@ -153,21 +179,38 @@ void CProjectorLightComponent::Initialize()
 		if (IMaterial* pMaterial = gEnv->p3DEngine->GetMaterialManager()->LoadMaterial(m_projectorOptions.GetMaterialPath(), false))
 		{
 			m_pEntity->SetSlotMaterial(GetEntitySlotId(), pMaterial);
+			needsDefaultLensFlareMaterial = false;
 		}
 	}
 
+	// Set the default lens flare material in case the user hasn't specified one.
+	if(needsDefaultLensFlareMaterial)
+	{
+		IMaterial* pMaterial = gEnv->p3DEngine->GetMaterialManager()->LoadMaterial(g_szDefaultLensFlareMaterialName);
+		if (pMaterial)
+			m_pEntity->SetSlotMaterial(GetEntitySlotId(), pMaterial);
+	}
+
+	CryTransform::CTransformPtr pTransform = m_pTransform;
+
+	Matrix34 slotTransform = pTransform != nullptr ? pTransform->ToMatrix34() : IDENTITY;
+	slotTransform = slotTransform * Matrix33::CreateRotationZ(gf_PI * 0.5f);
+
 	// Fix light orientation to point along the forward axis
 	// This has to be done since lights in the engine currently emit from the right axis for some reason.
-	m_pEntity->SetSlotLocalTM(GetEntitySlotId(), Matrix34::Create(Vec3(1.f), Quat::CreateRotationZ(gf_PI * 0.5f), ZERO));
+	m_pEntity->SetSlotLocalTM(GetEntitySlotId(), slotTransform);
+
+	// Restore to the user specified transform, as SetSlotLocalTM might override it
+	m_pTransform = pTransform;
 
 	uint32 slotFlags = m_pEntity->GetSlotFlags(GetEntitySlotId());
 	UpdateGIModeEntitySlotFlags((uint8)m_options.m_giMode, slotFlags);
 	m_pEntity->SetSlotFlags(GetEntitySlotId(), slotFlags);
 }
 
-void CProjectorLightComponent::ProcessEvent(SEntityEvent& event)
+void CProjectorLightComponent::ProcessEvent(const SEntityEvent& event)
 {
-	if (event.event == ENTITY_EVENT_COMPONENT_PROPERTY_CHANGED)
+	if (event.event == ENTITY_EVENT_COMPONENT_PROPERTY_CHANGED || ENTITY_EVENT_BIT(ENTITY_EVENT_LINK) || ENTITY_EVENT_BIT(ENTITY_EVENT_DELINK))
 	{
 		Initialize();
 	}
@@ -175,7 +218,7 @@ void CProjectorLightComponent::ProcessEvent(SEntityEvent& event)
 
 uint64 CProjectorLightComponent::GetEventMask() const
 {
-	return BIT64(ENTITY_EVENT_COMPONENT_PROPERTY_CHANGED);
+	return ENTITY_EVENT_BIT(ENTITY_EVENT_COMPONENT_PROPERTY_CHANGED) | ENTITY_EVENT_BIT(ENTITY_EVENT_LINK) | ENTITY_EVENT_BIT(ENTITY_EVENT_DELINK);
 }
 
 #ifndef RELEASE
@@ -185,7 +228,11 @@ void CProjectorLightComponent::Render(const IEntity& entity, const IEntityCompon
 	{
 		Matrix34 slotTransform = GetWorldTransformMatrix();
 
-		float distance = m_radius;
+		SRenderLight light;
+		light.SetLightColor(m_color.m_color * m_color.m_diffuseMultiplier);
+		light.SetRadius(m_radius, m_options.m_attenuationBulbSize);
+
+		float distance = light.m_fRadius;
 		float size = distance * tan(m_angle.ToRadians());
 
 		std::array<Vec3, 4> points = 

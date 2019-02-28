@@ -1,5 +1,4 @@
-// CRYENGINE Source Code File
-// Copyright 2001-2016 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "ComputeSkinningUtils.cfi"
 
@@ -60,17 +59,20 @@ struct GDMorphsBitfield
 
 // tangents structures
 struct GDTriangleNB
-{float3 normal;
+{
+	float3 normal;
 	float3 tangent;
 };
 
 // animation bones
 #define MAX_BONES 768
-cbuffer CB_SkinQuat_Cur : register(b9)
+
+cbuffer CB_SkinQuat_Cur : register(b2)
 {
 	float2x4 _g_SkinQuat_Cur[MAX_BONES];
 };
-cbuffer CB_SkinQuat_Prev : register(b10)
+
+cbuffer CB_SkinQuat_Prev : register(b3)
 {
 	float2x4 _g_SkinQuat_Prev[MAX_BONES];
 };
@@ -79,24 +81,23 @@ cbuffer CB_SkinQuat_Prev : register(b10)
 float4 g_DeformDispatchParams;
 
 // skinning output
-RWStructuredBuffer<CSSkinVertexOut>				g_vertexOut:register(u0);
-
-RWStructuredBuffer<GDTriangleNB>					g_tangentsOut:register(u1);
+RWStructuredBuffer<CSSkinVertexOut> g_vertexOut            : register(u0);
+RWStructuredBuffer<GDTriangleNB>    g_tangentsOut          : register(u1);
 
 // skinning input
-StructuredBuffer<GDSkinVertexIn>					g_vertexIn:register(t0);
-StructuredBuffer<GDSkinning>							g_skinning:register(t1);
-StructuredBuffer<GDSkinningMap>						g_skinningMap:register(t2); // TODO: this can't be moved inside the CSSkinVertexIn structure due to how the CPU code handles it
+StructuredBuffer<GDSkinVertexIn>    g_vertexIn             : register(t0);
+StructuredBuffer<GDSkinning>        g_skinning             : register(t1);
+StructuredBuffer<GDSkinningMap>     g_skinningMap          : register(t2); // TODO: this can't be moved inside the CSSkinVertexIn structure due to how the CPU code handles it
 
 // morphs input
-StructuredBuffer<GDMorphsDeltas>					g_vertexDeltas:register(t3);
-StructuredBuffer<GDMorphsBitfield>				g_vertexMorphsBitfield:register(t4);
-StructuredBuffer<GDActiveMorphs>					g_activeMorphs:register(t5);
+StructuredBuffer<GDMorphsDeltas>    g_vertexDeltas         : register(t3);
+StructuredBuffer<GDMorphsBitfield>  g_vertexMorphsBitfield : register(t4);
+StructuredBuffer<GDActiveMorphs>    g_activeMorphs         : register(t5);
 
 // tangents input
 // TODO: check indices size on Orbis
-StructuredBuffer<GDIndices>								g_indices:register(t6);
-StructuredBuffer<GDIndices>								g_sharedTriIndices:register(t7);
+StructuredBuffer<GDIndices>         g_indices              : register(t6);
+StructuredBuffer<GDIndices>         g_sharedTriIndices     : register(t7);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -107,7 +108,7 @@ void VertexTangentsCS(
 	uint3 Gid  : SV_GroupID, 
 	uint3 DTid : SV_DispatchThreadID, 
 	uint3 GTid : SV_GroupThreadID, 
-	uint  GI	 : SV_GroupIndex)
+	uint  GI   : SV_GroupIndex)
 {
 	static uint numVertices = (uint)g_DeformDispatchParams.x;
 	uint vidx = Gid.x*THREADS_X+GTid.x;
@@ -126,11 +127,11 @@ void VertexTangentsCS(
 		n += g_tangentsOut[tidx].normal;
 	}
 	
- 	//n = normalize(n);
+ 	n = normalize(n);
  	t = normalize(t);
 
 	g_vertexOut[vidx].qtangent.w = -1;
- 	g_vertexOut[vidx].tangent = (t - n * (n*t));
+ 	g_vertexOut[vidx].tangent = (t - n * (n * t));
  	g_vertexOut[vidx].bitangent = cross(t, n);
 }
 
@@ -143,7 +144,7 @@ void TriangleTangentsCS(
 	uint3 Gid  : SV_GroupID, 
 	uint3 DTid : SV_DispatchThreadID, 
 	uint3 GTid : SV_GroupThreadID, 
-	uint  GI	 : SV_GroupIndex)
+	uint  GI   : SV_GroupIndex)
 {
 	static uint numTriangles = (uint)g_DeformDispatchParams.x;
 	uint tidx = Gid.x*THREADS_X+GTid.x;
@@ -217,7 +218,7 @@ float3 applyActiveMorphs(uint vidx, float3 pos, uint morphDeltaOffset)
 
 // this is needed in case TangentsTechnique is not executed, so a value should be passed the same way 
 // as with g_DeformDispatchParams to control that
-// #define SKIN_TANGENTS
+#define SKIN_TANGENTS
 
 // dispatch parameters inside g_DeformDispatchParams
 // x - number of vertices
@@ -229,9 +230,9 @@ void DeformCS(
 	uint3 Gid  : SV_GroupID, 
 	uint3 DTid : SV_DispatchThreadID, 
 	uint3 GTid : SV_GroupThreadID, 
-	uint  GI	 : SV_GroupIndex)
+	uint  GI   : SV_GroupIndex)
 {
-	static uint numVertices			= (uint)g_DeformDispatchParams.x;
+	static uint numVertices     = (uint)g_DeformDispatchParams.x;
 	static uint numActiveMorphs = (uint)g_DeformDispatchParams.y;
 	static uint numMorphMasks   = (uint)g_DeformDispatchParams.w;
 	
@@ -260,28 +261,20 @@ void DeformCS(
 	{
 		const GDSkinning skinning = g_skinning[offset + i];
 
-		const float weight = (skinning.weightIndex * (1.0f / 0xFF000000));
+		const float weight = (float)(skinning.weightIndex >> 24) / 255.0f;
 		const uint index   = (skinning.weightIndex & 0x00FFFFFF);
 
-		dualQuat.rotation			+= _g_SkinQuat_Cur[index][0]*weight;
-		dualQuat.translation	+= _g_SkinQuat_Cur[index][1]*weight;
+		dualQuat.rotation    += _g_SkinQuat_Cur[index][0] * weight;
+		dualQuat.translation += _g_SkinQuat_Cur[index][1] * weight;
 	}
 
 	const float length = rsqrt(dot(dualQuat.rotation, dualQuat.rotation));
 	dualQuat.rotation *= length;
 	dualQuat.translation *= length;
 
-#if SKIN_TANGENTS
-	float reflection = sign(qtangent.w);
-	float4 q = transform_quat_quat(dualQuat.rotation, qtangent);
-	float3x3 tangentFrame = quat_to_mat(float4(-q.xyz, q.w));
-
-	qtangent.w = reflection;
-	tangentFrame[2] *= qtangent.w;
-#endif
-
 	GDSkinVertexIn vertexIn = g_vertexIn[vidx];
 	float3 pos = vertexIn.pos;
+	float4 qtangent = vertexIn.qtangent;
 
 #if %COMPUTE_SKINNING_WITH_MORPHS_POST_SKINNING
 	pos = applySkinning(dualQuat, pos);
@@ -295,9 +288,21 @@ void DeformCS(
 	pos = applySkinning(dualQuat, pos);
 #endif
 
+#if SKIN_TANGENTS
+	float reflection = sign(qtangent.w);
+	float4 q = transform_quat_quat(dualQuat.rotation, qtangent);
+	float3x3 tangentFrame = quat_to_mat(float4(-q.xyz, q.w));
+
+	qtangent.w = reflection;
+	tangentFrame[2] *= qtangent.w;
+
+	g_vertexOut[vidx].tangent = tangentFrame[0];
+	g_vertexOut[vidx].bitangent = tangentFrame[1];
+#endif
+
 	// output
 	g_vertexOut[vidx].pos = pos;
-	g_vertexOut[vidx].qtangent = vertexIn.qtangent;
+	g_vertexOut[vidx].qtangent = qtangent;
 	g_vertexOut[vidx].uv = vertexIn.uv;
 }
 

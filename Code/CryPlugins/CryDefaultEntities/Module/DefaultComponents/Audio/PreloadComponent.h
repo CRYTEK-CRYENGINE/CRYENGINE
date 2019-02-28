@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -35,7 +35,7 @@ protected:
 	virtual void   Initialize() override                      {}
 	virtual void   OnShutDown() override;
 	virtual uint64 GetEventMask() const override              { return 0; }
-	virtual void   ProcessEvent(SEntityEvent& event) override {}
+	virtual void   ProcessEvent(const SEntityEvent& event) override {}
 	// ~IEntityComponent
 
 	// Properties exposed to UI

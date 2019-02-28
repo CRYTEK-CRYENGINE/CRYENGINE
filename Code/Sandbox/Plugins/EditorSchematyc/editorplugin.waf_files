@@ -1,123 +1,130 @@
 {
-  "Uber_EditorPlugin_0.cpp":
-  {
-    "Deprecated": [
-      "ReportWidget.cpp",
-      "ReportWidget.h"
-    ],
-    "Deprecated/Plugin": [
-      "Resource.rc",
-      "Resource.h",
-      "CryLinkCommands.cpp",
-      "CryLinkCommands.h"
-    ],
+  "NoUberFile": {
     "Plugin": [
-      "MainWindow.cpp",
-      "MainWindow.h",
-      "Plugin.cpp",
-      "Plugin.h",
-      "PluginUtils.cpp",
-      "PluginUtils.h",
+      "StdAfx.cpp", 
+      "StdAfx.h", 
+      "EditorSchematyc.qrc"
+    ]
+  }, 
+  "Uber_EditorPlugin_0.cpp": {
+    "AssetTypes": [
+      "EntityAssetType.cpp", 
+      "EntityAssetType.h", 
+      "LibraryAssetType.cpp", 
+      "LibraryAssetType.h"
+    ], 
+    "Deprecated": [
+      "ReportWidget.cpp", 
+      "ReportWidget.h"
+    ], 
+    "Deprecated/Plugin": [
+      "Resource.rc", 
+      "Resource.h", 
+      "CryLinkCommands.cpp", 
+      "CryLinkCommands.h"
+    ], 
+    "Plugin": [
+      "Plugin.cpp", 
+      "Plugin.h", 
+      "PluginUtils.cpp", 
+      "PluginUtils.h", 
       "ResourceSelectors.cpp"
     ]
-  },
-  "Uber_EditorPlugin_2.cpp":
-  {
-  "Deprecated/Widgets": [
-      "DetailWidget.cpp",
-      "DetailWidget.h",
-      "EnvBrowserWidget.cpp",
-      "EnvBrowserWidget.h",
-      "LogWidget.cpp",
-      "LogWidget.h",
-      "ScriptBrowserWidget.cpp",
-      "ScriptBrowserWidget.h",
-      "ScriptBrowserUtils.cpp",
+  }, 
+  "Uber_EditorPlugin_2.cpp": {
+    "Deprecated/Widgets": [
+      "DetailWidget.cpp", 
+      "DetailWidget.h", 
+      "EnvBrowserWidget.cpp", 
+      "EnvBrowserWidget.h", 
+      "LogWidget.cpp", 
+      "LogWidget.h", 
+      "ScriptBrowserWidget.cpp", 
+      "ScriptBrowserWidget.h", 
+      "ScriptBrowserUtils.cpp", 
       "ScriptBrowserUtils.h"
     ]
-  },
-  "Uber_EditorPlugin_3.cpp": 
-  {
+  }, 
+  "Uber_EditorPlugin_3.cpp": {
     "AbstractModels": [
-      "AbstractObjectModel.cpp",
-      "AbstractObjectModel.h",
-      "AbstractObjectItem.cpp",
+      "AbstractObjectModel.cpp", 
+      "AbstractObjectModel.h", 
+      "AbstractObjectItem.cpp", 
       "AbstractObjectItem.h"
-    ],
-    "Object/Widgets": [
-      "ComponentsWidget.cpp",
-      "ComponentsWidget.h",
-      "ObjectStructureWidget.cpp",
-      "ObjectStructureWidget.h",
-      "PropertiesWidget.cpp",
-      "PropertiesWidget.h",
-      "VariablesWidget.cpp",
-      "VariablesWidget.h",
-      "PreviewWidget.cpp",
-      "PreviewWidget.h"
-    ],
-    "Object/Model": [
-      "ObjectModel.cpp",
-      "ObjectModel.h",
-      "GraphItem.cpp",
-      "GraphItem.h",
-      "SignalItem.cpp",
-      "SignalItem.h",
-      "StateItem.cpp",
-      "StateItem.h",
-      "StateMachineItem.cpp",
-      "StateMachineItem.h",
-
-      "ComponentsModel.cpp",
-      "ComponentsModel.h",
-      "ComponentsDictionaryModel.cpp",
-      "ComponentsDictionaryModel.h",
-      "VariablesModel.cpp",
-      "VariablesModel.h",
-      "VariableItem.cpp",
-      "VariableItem.h",
-
-      "TypesDictionary.cpp",
-      "TypesDictionary.h"
-    ],
-    "GraphView/Widgets": [
-      "GraphViewWidget.cpp",
-      "GraphViewWidget.h"
-    ],
-    "GraphView/Model": [
-      "GraphViewModel.cpp",
-      "GraphViewModel.h",
-      "GraphConnectionItem.cpp",
-      "GraphConnectionItem.h",
-      "GraphNodeItem.cpp",
-      "GraphNodeItem.h",
-      "GraphPinItem.cpp",
-      "GraphPinItem.h"
-    ],
+    ], 
     "Editor": [
-      "NodeGraphRuntimeContext.cpp",
-      "NodeGraphRuntimeContext.h",
-      "NodeGraphClipboard.cpp",
-      "NodeGraphClipboard.h"
-    ],
+      "NodeGraphRuntimeContext.cpp", 
+      "NodeGraphRuntimeContext.h", 
+      "NodeGraphClipboard.cpp", 
+      "NodeGraphClipboard.h", 
+      "SchematycUtils.cpp", 
+      "SchematycUtils.h", 
+      "MainWindow.cpp", 
+      "MainWindow.h"
+    ], 
+    "GraphView/Model": [
+      "GraphViewModel.cpp", 
+      "GraphViewModel.h", 
+      "GraphConnectionItem.cpp", 
+      "GraphConnectionItem.h", 
+      "GraphNodeItem.cpp", 
+      "GraphNodeItem.h", 
+      "GraphPinItem.cpp", 
+      "GraphPinItem.h"
+    ], 
+    "GraphView/Widgets": [
+      "GraphViewWidget.cpp", 
+      "GraphViewWidget.h"
+    ], 
+    "Object/Model": [
+      "ObjectModel.cpp", 
+      "ObjectModel.h", 
+      "GraphItem.cpp", 
+      "GraphItem.h", 
+      "SignalItem.cpp", 
+      "SignalItem.h", 
+      "StateItem.cpp", 
+      "StateItem.h", 
+      "StateMachineItem.cpp", 
+      "StateMachineItem.h", 
+      "ComponentsModel.cpp", 
+      "ComponentsModel.h", 
+      "ComponentsDictionaryModel.cpp", 
+      "ComponentsDictionaryModel.h", 
+      "InterfacesDictionaryModel.cpp", 
+      "InterfacesDictionaryModel.h", 
+      "VariablesModel.cpp", 
+      "VariablesModel.h", 
+      "VariableItem.cpp", 
+      "VariableItem.h", 
+      "TypesDictionary.cpp", 
+      "TypesDictionary.h"
+    ], 
+    "Object/Widgets": [
+      "ComponentsWidget.cpp", 
+      "ComponentsWidget.h", 
+      "ObjectStructureWidget.cpp", 
+      "ObjectStructureWidget.h", 
+      "PropertiesWidget.cpp", 
+      "PropertiesWidget.h", 
+      "VariablesWidget.cpp", 
+      "VariablesWidget.h", 
+      "PreviewWidget.cpp", 
+      "PreviewWidget.h"
+    ], 
+    "Script": [
+      "ScriptUndo.cpp", 
+      "ScriptUndo.h"
+    ], 
     "Widgets/Utils": [
-      "NameEditorWidget.cpp",
+      "NameEditorWidget.cpp", 
       "NameEditorWidget.h"
     ]
-  },
-  "Uber_Variables.cpp":
-  {
+  }, 
+  "Uber_Variables.cpp": {
     "Variables/Model": [
-      "VariableStorage/AbstractVariableTypesModel.cpp",
+      "VariableStorage/AbstractVariableTypesModel.cpp", 
       "VariableStorage/AbstractVariableTypesModel.h"
-    ]
-  },
-  "NoUberFile":
-  {
-    "Plugin": [
-      "StdAfx.cpp",
-      "StdAfx.h",
-      "EditorSchematyc.qrc"
     ]
   }
 }

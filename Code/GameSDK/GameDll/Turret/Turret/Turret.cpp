@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "Turret.h"
@@ -23,6 +23,7 @@ using namespace TurretHelpers;
 #include <CryAISystem/VisionMapTypes.h>
 #include <CryAISystem/IAIObject.h>
 #include <CryAISystem/IAIActor.h>
+#include <CryAISystem/IAIObjectManager.h>
 
 #include <IVehicleSystem.h>
 
@@ -398,7 +399,7 @@ void CTurret::HandleEvent( const SGameObjectEvent& event )
 }
 
 
-void CTurret::ProcessEvent( SEntityEvent& event )
+void CTurret::ProcessEvent( const SEntityEvent& event )
 {
 	switch ( event.event )
 	{
@@ -560,8 +561,8 @@ void CTurret::InitAiRepresentation( const EInitAiRepresentationMode mode )
 
 	const EntityId entityId = pEntity->GetId();
 
-	AIObjectParams params( AIOBJECT_TARGET, NULL, entityId );
-	pEntity->RegisterInAISystem( params );
+	AIObjectParams params(AIOBJECT_TARGET, NULL, entityId);
+	gEnv->pAISystem->GetAIObjectManager()->CreateAIObject(params);
 
 	uint8 factionId = GetDefaultFactionId();
 	if ( mode == eIARM_RestorePreviousState )
@@ -598,8 +599,7 @@ void CTurret::RemoveAiRepresentation()
 
 	SetTargetTrackClassThreat( 0.0f );
 
-	AIObjectParams nullParams( 0 );
-	pEntity->RegisterInAISystem( nullParams );
+	gEnv->pAISystem->GetAIObjectManager()->RemoveObjectByEntityId(GetEntityId());
 
 	m_factionOld = IFactionMap::InvalidFactionID;
 }

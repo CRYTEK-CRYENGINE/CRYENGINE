@@ -202,6 +202,27 @@ const _Vector3dC<T> _Vector3dC<T>::operator-() const
 
 typedef _Vector3dC<double> TVector3D;
 
+//! /param inT
+//! /return 0/1/2 plane axis that was hit
+inline int GetBiggestValue(double inT[3])
+{
+	// get the biggest value
+
+	if (inT[0] > inT[1])
+	{
+		if (inT[2] > inT[0])
+			return(2);
+		else
+			return(0);
+	}
+	else
+	{
+		if (inT[2] > inT[1])
+			return(2);
+		else
+			return(1);
+	}
+}
 
 template <class T>
 class CPossibleIntersectionSink
@@ -650,28 +671,6 @@ bool CRasterCube<T, bUseXRaster>::PreProcess( const bool inbDebug )
 	if(!m_ZRaster.PreProcess())	return(false);
 
 	return(true);
-}
-
-//! /param inT
-//! /return 0/1/2 plane axis that was hit
-inline int GetBiggestValue( double inT[3] )
-{
-	// get the biggest value
-
-	if(inT[0]>inT[1])
-	{
-		if(inT[2]>inT[0])
-			return(2);
-		  else
-			return(0);
-	}
-	else
-	{
-		if(inT[2]>inT[1])
-			return(2);
-		  else
-			return(1);
-	}
 }
 
 // calculates memory consumption in bytes O(1)

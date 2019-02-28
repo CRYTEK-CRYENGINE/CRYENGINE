@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "AudioImpl.h"
@@ -6,10 +6,11 @@
 #include "AudioObject.h"
 #include "AudioImplCVars.h"
 #include "ATLEntities.h"
+#include "GlobalData.h"
+#include <Logger.h>
 #include <CrySystem/File/ICryPak.h>
 #include <CrySystem/IProjectManager.h>
 #include <CryAudio/IAudioSystem.h>
-#include <CryString/CryPath.h>
 
 namespace CryAudio
 {
@@ -17,38 +18,30 @@ namespace Impl
 {
 namespace Fmod
 {
-ParameterToIndexMap g_parameterToIndex;
-SwitchToIndexMap g_switchToIndex;
+TriggerToParameterIndexes g_triggerToParameterIndexes;
 
-char const* const CImpl::s_szFmodEventTag = "FmodEvent";
-char const* const CImpl::s_szFmodSnapshotTag = "FmodSnapshot";
-char const* const CImpl::s_szFmodEventParameterTag = "FmodEventParameter";
-char const* const CImpl::s_szFmodSnapshotParameterTag = "FmodSnapshotParameter";
-char const* const CImpl::s_szFmodFileTag = "FmodFile";
-char const* const CImpl::s_szFmodBusTag = "FmodBus";
-char const* const CImpl::s_szFmodNameAttribute = "fmod_name";
-char const* const CImpl::s_szFmodValueAttribute = "fmod_value";
-char const* const CImpl::s_szFmodMutiplierAttribute = "fmod_value_multiplier";
-char const* const CImpl::s_szFmodShiftAttribute = "fmod_value_shift";
-char const* const CImpl::s_szFmodPathAttribute = "fmod_path";
-char const* const CImpl::s_szFmodLocalizedAttribute = "fmod_localized";
-char const* const CImpl::s_szFmodEventTypeAttribute = "fmod_event_type";
-char const* const CImpl::s_szFmodEventPrefix = "event:/";
-char const* const CImpl::s_szFmodSnapshotPrefix = "snapshot:/";
-char const* const CImpl::s_szFmodBusPrefix = "bus:/";
+char const* const CImpl::s_szEventPrefix = "event:/";
+char const* const CImpl::s_szSnapshotPrefix = "snapshot:/";
+char const* const CImpl::s_szBusPrefix = "bus:/";
+char const* const CImpl::s_szVcaPrefix = "vca:/";
+
+static constexpr size_t s_maxFileSize = size_t(1) << size_t(31);
 
 ///////////////////////////////////////////////////////////////////////////
 CImpl::CImpl()
 	: m_pSystem(nullptr)
 	, m_pLowLevelSystem(nullptr)
 	, m_pMasterBank(nullptr)
-	, m_pStringsBank(nullptr)
+	, m_pMasterAssetsBank(nullptr)
+	, m_pMasterStreamsBank(nullptr)
+	, m_pMasterStringsBank(nullptr)
+	, m_isMuted(false)
 {
 	m_constructedObjects.reserve(256);
 }
 
 ///////////////////////////////////////////////////////////////////////////
-void CImpl::Update(float const deltaTime)
+void CImpl::Update()
 {
 	if (m_pSystem != nullptr)
 	{
@@ -67,17 +60,11 @@ ERequestStatus CImpl::Init(uint32 const objectPoolSize, uint32 const eventPoolSi
 	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Fmod Event Pool");
 	CEvent::CreateAllocator(eventPoolSize);
 
-	char const* szAssetDirectory = gEnv->pSystem->GetIProjectManager()->GetCurrentAssetDirectoryRelative();
-
-	if (strlen(szAssetDirectory) == 0)
-	{
-		g_implLogger.Log(ELogType::Error, "<Audio - Fmod>: No asset folder set!");
-		szAssetDirectory = "no-asset-folder-set";
-	}
-
-	m_regularSoundBankFolder = szAssetDirectory;
-	m_regularSoundBankFolder += CRY_NATIVE_PATH_SEPSTR;
-	m_regularSoundBankFolder += FMOD_IMPL_DATA_ROOT;
+	m_regularSoundBankFolder = AUDIO_SYSTEM_DATA_ROOT;
+	m_regularSoundBankFolder += "/";
+	m_regularSoundBankFolder += s_szImplFolderName;
+	m_regularSoundBankFolder += "/";
+	m_regularSoundBankFolder += s_szAssetsFolderName;
 	m_localizedSoundBankFolder = m_regularSoundBankFolder;
 
 	FMOD_RESULT fmodResult = FMOD::Studio::System::create(&m_pSystem);
@@ -90,9 +77,9 @@ ERequestStatus CImpl::Init(uint32 const objectPoolSize, uint32 const eventPoolSi
 	fmodResult = m_pLowLevelSystem->getVersion(&version);
 	ASSERT_FMOD_OK;
 
-	CryFixedStringT<MaxMiscStringLength> systemVersion;
+	CryFixedStringT<MaxInfoStringLength> systemVersion;
 	systemVersion.Format("%08x", version);
-	CryFixedStringT<MaxMiscStringLength> headerVersion;
+	CryFixedStringT<MaxInfoStringLength> headerVersion;
 	headerVersion.Format("%08x", FMOD_VERSION);
 	CreateVersionString(systemVersion);
 	CreateVersionString(headerVersion);
@@ -100,11 +87,8 @@ ERequestStatus CImpl::Init(uint32 const objectPoolSize, uint32 const eventPoolSi
 	m_name = FMOD_IMPL_INFO_STRING;
 	m_name += "System: ";
 	m_name += systemVersion;
-	m_name += " Header: ";
+	m_name += " - Header: ";
 	m_name += headerVersion;
-	m_name += " (";
-	m_name += szAssetDirectory;
-	m_name += CRY_NATIVE_PATH_SEPSTR FMOD_IMPL_DATA_ROOT ")";
 #endif  // INCLUDE_FMOD_IMPL_PRODUCTION_CODE
 
 	int sampleRate = 0;
@@ -192,32 +176,60 @@ ERequestStatus CImpl::Release()
 ///////////////////////////////////////////////////////////////////////////
 ERequestStatus CImpl::OnLoseFocus()
 {
-	return MuteMasterBus(true);
+	if (!m_isMuted)
+	{
+		MuteMasterBus(true);
+	}
+
+	return ERequestStatus::Success;
 }
 
 ///////////////////////////////////////////////////////////////////////////
 ERequestStatus CImpl::OnGetFocus()
 {
-	return MuteMasterBus(false);
+	if (!m_isMuted)
+	{
+		MuteMasterBus(false);
+	}
+
+	return ERequestStatus::Success;
 }
 
 ///////////////////////////////////////////////////////////////////////////
 ERequestStatus CImpl::MuteAll()
 {
-	return MuteMasterBus(true);
+	MuteMasterBus(true);
+	m_isMuted = true;
+	return ERequestStatus::Success;
 }
 
 ///////////////////////////////////////////////////////////////////////////
 ERequestStatus CImpl::UnmuteAll()
 {
-	return MuteMasterBus(false);
+	MuteMasterBus(false);
+	m_isMuted = false;
+	return ERequestStatus::Success;
+}
+
+///////////////////////////////////////////////////////////////////////////
+ERequestStatus CImpl::PauseAll()
+{
+	PauseMasterBus(true);
+	return ERequestStatus::Success;
+}
+
+///////////////////////////////////////////////////////////////////////////
+ERequestStatus CImpl::ResumeAll()
+{
+	PauseMasterBus(false);
+	return ERequestStatus::Success;
 }
 
 ///////////////////////////////////////////////////////////////////////////
 ERequestStatus CImpl::StopAllSounds()
 {
 	FMOD::Studio::Bus* pMasterBus = nullptr;
-	FMOD_RESULT fmodResult = m_pSystem->getBus("bus:/", &pMasterBus);
+	FMOD_RESULT fmodResult = m_pSystem->getBus(s_szBusPrefix, &pMasterBus);
 	ASSERT_FMOD_OK;
 
 	if (pMasterBus != nullptr)
@@ -236,7 +248,7 @@ ERequestStatus CImpl::RegisterInMemoryFile(SFileInfo* const pFileInfo)
 
 	if (pFileInfo != nullptr)
 	{
-		CFile* const pFileData = static_cast<CFile*>(pFileInfo->pImplData);
+		auto const pFileData = static_cast<CFile*>(pFileInfo->pImplData);
 
 		if (pFileData != nullptr)
 		{
@@ -248,13 +260,27 @@ ERequestStatus CImpl::RegisterInMemoryFile(SFileInfo* const pFileInfo)
 			}
 #endif      // INCLUDE_FMOD_IMPL_PRODUCTION_CODE
 
-			FMOD_RESULT const fmodResult = m_pSystem->loadBankMemory(static_cast<char*>(pFileInfo->pFileData), static_cast<int>(pFileInfo->size), FMOD_STUDIO_LOAD_MEMORY_POINT, FMOD_STUDIO_LOAD_BANK_NORMAL, &pFileData->pBank);
+			FMOD_RESULT fmodResult = m_pSystem->loadBankMemory(static_cast<char*>(pFileInfo->pFileData), static_cast<int>(pFileInfo->size), FMOD_STUDIO_LOAD_MEMORY_POINT, FMOD_STUDIO_LOAD_BANK_NORMAL, &pFileData->pBank);
 			ASSERT_FMOD_OK;
+
+			CryFixedStringT<MaxFilePathLength> streamsBankPath = pFileInfo->szFilePath;
+			PathUtil::RemoveExtension(streamsBankPath);
+			streamsBankPath += ".streams.bank";
+
+			size_t const streamsBankFileSize = gEnv->pCryPak->FGetSize(streamsBankPath.c_str());
+
+			if (streamsBankFileSize > 0)
+			{
+				pFileData->m_streamsBankPath = streamsBankPath;
+				fmodResult = LoadBankCustom(pFileData->m_streamsBankPath.c_str(), &pFileData->pStreamsBank);
+				ASSERT_FMOD_OK;
+			}
+
 			requestResult = (fmodResult == FMOD_OK) ? ERequestStatus::Success : ERequestStatus::Failure;
 		}
 		else
 		{
-			g_implLogger.Log(ELogType::Error, "Invalid FileData passed to the Fmod implementation of RegisterInMemoryFile");
+			Cry::Audio::Log(ELogType::Error, "Invalid FileData passed to the Fmod implementation of RegisterInMemoryFile");
 		}
 	}
 
@@ -268,7 +294,7 @@ ERequestStatus CImpl::UnregisterInMemoryFile(SFileInfo* const pFileInfo)
 
 	if (pFileInfo != nullptr)
 	{
-		CFile* const pFileData = static_cast<CFile*>(pFileInfo->pImplData);
+		auto const pFileData = static_cast<CFile*>(pFileInfo->pImplData);
 
 		if (pFileData != nullptr)
 		{
@@ -287,11 +313,19 @@ ERequestStatus CImpl::UnregisterInMemoryFile(SFileInfo* const pFileInfo)
 			while (loadingState == FMOD_STUDIO_LOADING_STATE_UNLOADING);
 
 			pFileData->pBank = nullptr;
+
+			if (pFileData->pStreamsBank != nullptr)
+			{
+				fmodResult = pFileData->pStreamsBank->unload();
+				ASSERT_FMOD_OK;
+				pFileData->pStreamsBank = nullptr;
+			}
+
 			requestResult = (fmodResult == FMOD_OK) ? ERequestStatus::Success : ERequestStatus::Failure;
 		}
 		else
 		{
-			g_implLogger.Log(ELogType::Error, "Invalid FileData passed to the Fmod implementation of UnregisterInMemoryFile");
+			Cry::Audio::Log(ELogType::Error, "Invalid FileData passed to the Fmod implementation of UnregisterInMemoryFile");
 		}
 	}
 
@@ -303,14 +337,14 @@ ERequestStatus CImpl::ConstructFile(XmlNodeRef const pRootNode, SFileInfo* const
 {
 	ERequestStatus result = ERequestStatus::Failure;
 
-	if ((_stricmp(pRootNode->getTag(), s_szFmodFileTag) == 0) && (pFileInfo != nullptr))
+	if ((_stricmp(pRootNode->getTag(), s_szFileTag) == 0) && (pFileInfo != nullptr))
 	{
-		char const* const szFileName = pRootNode->getAttr(s_szFmodNameAttribute);
+		char const* const szFileName = pRootNode->getAttr(s_szNameAttribute);
 
 		if (szFileName != nullptr && szFileName[0] != '\0')
 		{
-			char const* const szLocalized = pRootNode->getAttr(s_szFmodLocalizedAttribute);
-			pFileInfo->bLocalized = (szLocalized != nullptr) && (_stricmp(szLocalized, "true") == 0);
+			char const* const szLocalized = pRootNode->getAttr(s_szLocalizedAttribute);
+			pFileInfo->bLocalized = (szLocalized != nullptr) && (_stricmp(szLocalized, s_szTrueValue) == 0);
 			pFileInfo->szFileName = szFileName;
 
 			// FMOD Studio always uses 32 byte alignment for preloaded banks regardless of the platform.
@@ -350,6 +384,17 @@ char const* const CImpl::GetFileLocation(SFileInfo* const pFileInfo)
 	return szResult;
 }
 
+//////////////////////////////////////////////////////////////////////////
+void CImpl::GetInfo(SImplInfo& implInfo) const
+{
+#if defined(INCLUDE_FMOD_IMPL_PRODUCTION_CODE)
+	implInfo.name = m_name.c_str();
+#else
+	implInfo.name = "name-not-present-in-release-mode";
+#endif  // INCLUDE_FMOD_IMPL_PRODUCTION_CODE
+	implInfo.folderName = s_szImplFolderName;
+}
+
 ///////////////////////////////////////////////////////////////////////////
 IObject* CImpl::ConstructGlobalObject()
 {
@@ -357,7 +402,7 @@ IObject* CImpl::ConstructGlobalObject()
 
 	if (!stl::push_back_unique(m_constructedObjects, pObject))
 	{
-		g_implLogger.Log(ELogType::Warning, "Trying to construct an already registered audio object.");
+		Cry::Audio::Log(ELogType::Warning, "Trying to construct an already registered audio object.");
 	}
 
 	return static_cast<IObject*>(pObject);
@@ -370,7 +415,7 @@ IObject* CImpl::ConstructObject(char const* const szName /*= nullptr*/)
 
 	if (!stl::push_back_unique(m_constructedObjects, pObject))
 	{
-		g_implLogger.Log(ELogType::Warning, "Trying to construct an already registered audio object.");
+		Cry::Audio::Log(ELogType::Warning, "Trying to construct an already registered audio object.");
 	}
 
 	return static_cast<IObject*>(pObject);
@@ -379,11 +424,11 @@ IObject* CImpl::ConstructObject(char const* const szName /*= nullptr*/)
 ///////////////////////////////////////////////////////////////////////////
 void CImpl::DestructObject(IObject const* const pIObject)
 {
-	CObjectBase const* const pObject = static_cast<CObjectBase const* const>(pIObject);
+	auto const pObject = static_cast<CObjectBase const*>(pIObject);
 
 	if (!stl::find_and_erase(m_constructedObjects, pObject))
 	{
-		g_implLogger.Log(ELogType::Warning, "Trying to delete a non-existing audio object.");
+		Cry::Audio::Log(ELogType::Warning, "Trying to delete a non-existing audio object.");
 	}
 
 	delete pObject;
@@ -418,8 +463,7 @@ void CImpl::DestructEvent(IEvent const* const pIEvent)
 //////////////////////////////////////////////////////////////////////////
 IStandaloneFile* CImpl::ConstructStandaloneFile(CATLStandaloneFile& standaloneFile, char const* const szFile, bool const bLocalized, ITrigger const* pITrigger /*= nullptr*/)
 {
-	static string s_localizedfilesFolder = PathUtil::GetGameFolder() + CRY_NATIVE_PATH_SEPSTR + PathUtil::GetLocalizationFolder() + CRY_NATIVE_PATH_SEPSTR + m_language.c_str() + CRY_NATIVE_PATH_SEPSTR;
-	static string s_nonLocalizedfilesFolder = PathUtil::GetGameFolder() + CRY_NATIVE_PATH_SEPSTR;
+	static string s_localizedfilesFolder = PathUtil::GetLocalizationFolder() + "/" + m_language.c_str() + "/";
 	string filePath;
 
 	if (bLocalized)
@@ -428,14 +472,14 @@ IStandaloneFile* CImpl::ConstructStandaloneFile(CATLStandaloneFile& standaloneFi
 	}
 	else
 	{
-		filePath = s_nonLocalizedfilesFolder + szFile + ".mp3";
+		filePath = string(szFile) + ".mp3";
 	}
 
 	CStandaloneFileBase* pFile = nullptr;
 
 	if (pITrigger != nullptr)
 	{
-		pFile = new CProgrammerSoundFile(filePath, static_cast<CTrigger const* const>(pITrigger)->m_guid, standaloneFile);
+		pFile = new CProgrammerSoundFile(filePath, static_cast<CTrigger const* const>(pITrigger)->GetGuid(), standaloneFile);
 	}
 	else
 	{
@@ -468,47 +512,52 @@ ITrigger const* CImpl::ConstructTrigger(XmlNodeRef const pRootNode)
 	CTrigger* pTrigger = nullptr;
 	char const* const szTag = pRootNode->getTag();
 
-	if (_stricmp(szTag, s_szFmodEventTag) == 0)
+	if (_stricmp(szTag, s_szEventTag) == 0)
 	{
-		stack_string path(s_szFmodEventPrefix);
-		path += pRootNode->getAttr(s_szFmodNameAttribute);
+		stack_string path(s_szEventPrefix);
+		path += pRootNode->getAttr(s_szNameAttribute);
 		FMOD_GUID guid = { 0 };
 
 		if (m_pSystem->lookupID(path.c_str(), &guid) == FMOD_OK)
 		{
 			EEventType eventType = EEventType::Start;
-			char const* const szEventType = pRootNode->getAttr(s_szFmodEventTypeAttribute);
+			char const* const szEventType = pRootNode->getAttr(s_szTypeAttribute);
 
-			if (szEventType != nullptr && szEventType[0] != '\0' && _stricmp(szEventType, "stop") == 0)
+			if ((szEventType != nullptr) && (szEventType[0] != '\0'))
 			{
-				eventType = EEventType::Stop;
+				if (_stricmp(szEventType, s_szStopValue) == 0)
+				{
+					eventType = EEventType::Stop;
+				}
+				else if (_stricmp(szEventType, s_szPauseValue) == 0)
+				{
+					eventType = EEventType::Pause;
+				}
+				else if (_stricmp(szEventType, s_szResumeValue) == 0)
+				{
+					eventType = EEventType::Resume;
+				}
 			}
 
-#if defined (INCLUDE_FMOD_IMPL_PRODUCTION_CODE)
-			pTrigger = new CTrigger(StringToId(path.c_str()), eventType, nullptr, guid, path.c_str());
-#else
 			pTrigger = new CTrigger(StringToId(path.c_str()), eventType, nullptr, guid);
-#endif      // INCLUDE_FMOD_IMPL_PRODUCTION_CODE
 		}
 		else
 		{
-			g_implLogger.Log(ELogType::Warning, "Unknown Fmod event: %s", path.c_str());
+			Cry::Audio::Log(ELogType::Warning, "Unknown Fmod event: %s", path.c_str());
 		}
 	}
-	else if (_stricmp(szTag, s_szFmodSnapshotTag) == 0)
+	else if (_stricmp(szTag, s_szSnapshotTag) == 0)
 	{
-		stack_string path(s_szFmodSnapshotPrefix);
-		path += pRootNode->getAttr(s_szFmodNameAttribute);
+		stack_string path(s_szSnapshotPrefix);
+		path += pRootNode->getAttr(s_szNameAttribute);
 		FMOD_GUID guid = { 0 };
 
 		if (m_pSystem->lookupID(path.c_str(), &guid) == FMOD_OK)
 		{
 			EEventType eventType = EEventType::Start;
-			char const* const szFmodEventType = pRootNode->getAttr(s_szFmodEventTypeAttribute);
+			char const* const szFmodEventType = pRootNode->getAttr(s_szTypeAttribute);
 
-			if (szFmodEventType != nullptr &&
-			    szFmodEventType[0] != '\0' &&
-			    _stricmp(szFmodEventType, "stop") == 0)
+			if ((szFmodEventType != nullptr) && (szFmodEventType[0] != '\0') && (_stricmp(szFmodEventType, s_szStopValue) == 0))
 			{
 				eventType = EEventType::Stop;
 			}
@@ -516,20 +565,16 @@ ITrigger const* CImpl::ConstructTrigger(XmlNodeRef const pRootNode)
 			FMOD::Studio::EventDescription* pEventDescription = nullptr;
 			m_pSystem->getEventByID(&guid, &pEventDescription);
 
-#if defined (INCLUDE_FMOD_IMPL_PRODUCTION_CODE)
-			pTrigger = new CTrigger(StringToId(path.c_str()), eventType, pEventDescription, guid, path.c_str());
-#else
 			pTrigger = new CTrigger(StringToId(path.c_str()), eventType, pEventDescription, guid);
-#endif      // INCLUDE_FMOD_IMPL_PRODUCTION_CODE
 		}
 		else
 		{
-			g_implLogger.Log(ELogType::Warning, "Unknown Fmod snapshot: %s", path.c_str());
+			Cry::Audio::Log(ELogType::Warning, "Unknown Fmod snapshot: %s", path.c_str());
 		}
 	}
 	else
 	{
-		g_implLogger.Log(ELogType::Warning, "Unknown Fmod tag: %s", szTag);
+		Cry::Audio::Log(ELogType::Warning, "Unknown Fmod tag: %s", szTag);
 	}
 
 	return static_cast<ITrigger*>(pTrigger);
@@ -538,7 +583,9 @@ ITrigger const* CImpl::ConstructTrigger(XmlNodeRef const pRootNode)
 ///////////////////////////////////////////////////////////////////////////
 void CImpl::DestructTrigger(ITrigger const* const pITrigger)
 {
-	delete pITrigger;
+	auto const pTrigger = static_cast<CTrigger const*>(pITrigger);
+	g_triggerToParameterIndexes.erase(pTrigger);
+	delete pTrigger;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -546,35 +593,45 @@ IParameter const* CImpl::ConstructParameter(XmlNodeRef const pRootNode)
 {
 	CParameter* pParameter = nullptr;
 	char const* const szTag = pRootNode->getTag();
-	stack_string path;
 
-	if (_stricmp(szTag, s_szFmodEventParameterTag) == 0)
+	if (_stricmp(szTag, s_szParameterTag) == 0)
 	{
-		path = s_szFmodEventPrefix;
+		char const* const szName = pRootNode->getAttr(s_szNameAttribute);
+		float multiplier = s_defaultParamMultiplier;
+		float shift = s_defaultParamShift;
+		pRootNode->getAttr(s_szMutiplierAttribute, multiplier);
+		pRootNode->getAttr(s_szShiftAttribute, shift);
+
+		pParameter = new CParameter(StringToId(szName), multiplier, shift, szName, EParameterType::Parameter);
 	}
-	else if (_stricmp(szTag, s_szFmodSnapshotParameterTag) == 0)
+	else if (_stricmp(szTag, s_szVcaTag) == 0)
 	{
-		path = s_szFmodSnapshotPrefix;
-	}
+		stack_string fullName(s_szVcaPrefix);
+		char const* const szName = pRootNode->getAttr(s_szNameAttribute);
+		fullName += szName;
+		FMOD_GUID guid = { 0 };
 
-	if (!path.empty())
-	{
-		char const* const szName = pRootNode->getAttr(s_szFmodNameAttribute);
-		char const* const szPath = pRootNode->getAttr(s_szFmodPathAttribute);
-		path += szPath;
-		uint32 const pathId = StringToId(path.c_str());
+		if (m_pSystem->lookupID(fullName.c_str(), &guid) == FMOD_OK)
+		{
+			FMOD::Studio::VCA* pVca = nullptr;
+			FMOD_RESULT const fmodResult = m_pSystem->getVCAByID(&guid, &pVca);
+			ASSERT_FMOD_OK;
 
-		float multiplier = 1.0f;
-		float shift = 0.0f;
-		pRootNode->getAttr(s_szFmodMutiplierAttribute, multiplier);
-		pRootNode->getAttr(s_szFmodShiftAttribute, shift);
+			float multiplier = s_defaultParamMultiplier;
+			float shift = s_defaultParamShift;
+			pRootNode->getAttr(s_szMutiplierAttribute, multiplier);
+			pRootNode->getAttr(s_szShiftAttribute, shift);
 
-		pParameter = new CParameter(pathId, multiplier, shift, szName);
-		g_parameterToIndex.emplace(std::piecewise_construct, std::make_tuple(pParameter), std::make_tuple(FMOD_IMPL_INVALID_INDEX));
+			pParameter = new CVcaParameter(StringToId(fullName.c_str()), multiplier, shift, szName, pVca);
+		}
+		else
+		{
+			Cry::Audio::Log(ELogType::Warning, "Unknown Fmod VCA: %s", fullName.c_str());
+		}
 	}
 	else
 	{
-		g_implLogger.Log(ELogType::Warning, "Unknown Fmod tag: %s", szTag);
+		Cry::Audio::Log(ELogType::Warning, "Unknown Fmod tag: %s", szTag);
 	}
 
 	return static_cast<IParameter*>(pParameter);
@@ -583,14 +640,13 @@ IParameter const* CImpl::ConstructParameter(XmlNodeRef const pRootNode)
 ///////////////////////////////////////////////////////////////////////////
 void CImpl::DestructParameter(IParameter const* const pIParameter)
 {
-	CParameter const* const pParameter = static_cast<CParameter const* const>(pIParameter);
+	auto const pParameter = static_cast<CParameter const*>(pIParameter);
 
 	for (auto const pObject : m_constructedObjects)
 	{
 		pObject->RemoveParameter(pParameter);
 	}
 
-	g_parameterToIndex.erase(pParameter);
 	delete pParameter;
 }
 
@@ -599,31 +655,40 @@ ISwitchState const* CImpl::ConstructSwitchState(XmlNodeRef const pRootNode)
 {
 	CSwitchState* pSwitchState = nullptr;
 	char const* const szTag = pRootNode->getTag();
-	stack_string path;
 
-	if (_stricmp(szTag, s_szFmodEventParameterTag) == 0)
+	if (_stricmp(szTag, s_szParameterTag) == 0)
 	{
-		path = s_szFmodEventPrefix;
+		char const* const szName = pRootNode->getAttr(s_szNameAttribute);
+		char const* const szValue = pRootNode->getAttr(s_szValueAttribute);
+		float const value = static_cast<float>(atof(szValue));
+		pSwitchState = new CSwitchState(StringToId(szName), value, szName, EStateType::State);
 	}
-	else if (_stricmp(szTag, s_szFmodSnapshotParameterTag) == 0)
+	else if (_stricmp(szTag, s_szVcaTag) == 0)
 	{
-		path = s_szFmodSnapshotPrefix;
-	}
+		stack_string fullName(s_szVcaPrefix);
+		char const* const szName = pRootNode->getAttr(s_szNameAttribute);
+		fullName += szName;
+		FMOD_GUID guid = { 0 };
 
-	if (!path.empty())
-	{
-		char const* const szFmodParameterName = pRootNode->getAttr(s_szFmodNameAttribute);
-		char const* const szFmodPath = pRootNode->getAttr(s_szFmodPathAttribute);
-		char const* const szFmodParameterValue = pRootNode->getAttr(s_szFmodValueAttribute);
-		path += szFmodPath;
-		uint32 const pathId = StringToId(path.c_str());
-		float const value = static_cast<float>(atof(szFmodParameterValue));
-		pSwitchState = new CSwitchState(pathId, value, szFmodParameterName);
-		g_switchToIndex.emplace(std::piecewise_construct, std::make_tuple(pSwitchState), std::make_tuple(FMOD_IMPL_INVALID_INDEX));
+		if (m_pSystem->lookupID(fullName.c_str(), &guid) == FMOD_OK)
+		{
+			FMOD::Studio::VCA* pVca = nullptr;
+			FMOD_RESULT const fmodResult = m_pSystem->getVCAByID(&guid, &pVca);
+			ASSERT_FMOD_OK;
+
+			char const* const szValue = pRootNode->getAttr(s_szValueAttribute);
+			float const value = static_cast<float>(atof(szValue));
+
+			pSwitchState = new CVcaState(StringToId(fullName.c_str()), value, szName, pVca);
+		}
+		else
+		{
+			Cry::Audio::Log(ELogType::Warning, "Unknown Fmod VCA: %s", fullName.c_str());
+		}
 	}
 	else
 	{
-		g_implLogger.Log(ELogType::Warning, "Unknown Fmod tag: %s", szTag);
+		Cry::Audio::Log(ELogType::Warning, "Unknown Fmod tag: %s", szTag);
 	}
 
 	return static_cast<ISwitchState*>(pSwitchState);
@@ -632,14 +697,13 @@ ISwitchState const* CImpl::ConstructSwitchState(XmlNodeRef const pRootNode)
 ///////////////////////////////////////////////////////////////////////////
 void CImpl::DestructSwitchState(ISwitchState const* const pISwitchState)
 {
-	CSwitchState const* const pSwitchState = static_cast<CSwitchState const* const>(pISwitchState);
+	auto const pSwitchState = static_cast<CSwitchState const*>(pISwitchState);
 
 	for (auto const pObject : m_constructedObjects)
 	{
 		pObject->RemoveSwitch(pSwitchState);
 	}
 
-	g_switchToIndex.erase(pSwitchState);
 	delete pSwitchState;
 }
 
@@ -649,10 +713,10 @@ IEnvironment const* CImpl::ConstructEnvironment(XmlNodeRef const pRootNode)
 	CEnvironment* pEnvironment = nullptr;
 	char const* const szTag = pRootNode->getTag();
 
-	if (_stricmp(szTag, s_szFmodBusTag) == 0)
+	if (_stricmp(szTag, s_szBusTag) == 0)
 	{
-		stack_string path(s_szFmodBusPrefix);
-		path += pRootNode->getAttr(s_szFmodNameAttribute);
+		stack_string path(s_szBusPrefix);
+		path += pRootNode->getAttr(s_szNameAttribute);
 		FMOD_GUID guid = { 0 };
 
 		if (m_pSystem->lookupID(path.c_str(), &guid) == FMOD_OK)
@@ -660,30 +724,27 @@ IEnvironment const* CImpl::ConstructEnvironment(XmlNodeRef const pRootNode)
 			FMOD::Studio::Bus* pBus = nullptr;
 			FMOD_RESULT const fmodResult = m_pSystem->getBusByID(&guid, &pBus);
 			ASSERT_FMOD_OK;
-			pEnvironment = new CEnvironment(nullptr, pBus);
+			pEnvironment = new CEnvironmentBus(nullptr, pBus);
 		}
 		else
 		{
-			g_implLogger.Log(ELogType::Warning, "Unknown Fmod bus: %s", path.c_str());
+			Cry::Audio::Log(ELogType::Warning, "Unknown Fmod bus: %s", path.c_str());
 		}
 	}
-	else if (_stricmp(szTag, s_szFmodSnapshotTag) == 0)
+	else if (_stricmp(szTag, s_szParameterTag) == 0)
 	{
-		stack_string path(s_szFmodSnapshotPrefix);
-		path += pRootNode->getAttr(s_szFmodNameAttribute);
-		FMOD_GUID guid = { 0 };
 
-		if (m_pSystem->lookupID(path.c_str(), &guid) == FMOD_OK)
-		{
-			FMOD::Studio::EventDescription* pEventDescription = nullptr;
-			FMOD_RESULT const fmodResult = m_pSystem->getEventByID(&guid, &pEventDescription);
-			ASSERT_FMOD_OK;
-			pEnvironment = new CEnvironment(pEventDescription, nullptr);
-		}
-		else
-		{
-			g_implLogger.Log(ELogType::Warning, "Unknown Fmod snapshot: %s", path.c_str());
-		}
+		char const* const szName = pRootNode->getAttr(s_szNameAttribute);
+		float multiplier = s_defaultParamMultiplier;
+		float shift = s_defaultParamShift;
+		pRootNode->getAttr(s_szMutiplierAttribute, multiplier);
+		pRootNode->getAttr(s_szShiftAttribute, shift);
+
+		pEnvironment = new CEnvironmentParameter(StringToId(szName), multiplier, shift, szName);
+	}
+	else
+	{
+		Cry::Audio::Log(ELogType::Warning, "Unknown Fmod tag: %s", szTag);
 	}
 
 	return static_cast<IEnvironment*>(pEnvironment);
@@ -692,7 +753,7 @@ IEnvironment const* CImpl::ConstructEnvironment(XmlNodeRef const pRootNode)
 ///////////////////////////////////////////////////////////////////////////
 void CImpl::DestructEnvironment(IEnvironment const* const pIEnvironment)
 {
-	CEnvironment const* const pEnvironment = static_cast<CEnvironment const* const>(pIEnvironment);
+	auto const pEnvironment = static_cast<CEnvironment const*>(pIEnvironment);
 
 	for (auto const pObject : m_constructedObjects)
 	{
@@ -700,15 +761,6 @@ void CImpl::DestructEnvironment(IEnvironment const* const pIEnvironment)
 	}
 
 	delete pEnvironment;
-}
-
-///////////////////////////////////////////////////////////////////////////
-char const* const CImpl::GetName() const
-{
-#if defined(INCLUDE_FMOD_IMPL_PRODUCTION_CODE)
-	return m_name.c_str();
-#endif  // INCLUDE_FMOD_IMPL_PRODUCTION_CODE
-	return nullptr;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -764,18 +816,20 @@ void CImpl::SetLanguage(char const* const szLanguage)
 	if (szLanguage != nullptr)
 	{
 		m_language = szLanguage;
-		m_localizedSoundBankFolder = PathUtil::GetGameFolder().c_str();
-		m_localizedSoundBankFolder += CRY_NATIVE_PATH_SEPSTR;
-		m_localizedSoundBankFolder += PathUtil::GetLocalizationFolder();
-		m_localizedSoundBankFolder += CRY_NATIVE_PATH_SEPSTR;
+		m_localizedSoundBankFolder = PathUtil::GetLocalizationFolder().c_str();
+		m_localizedSoundBankFolder += "/";
 		m_localizedSoundBankFolder += m_language.c_str();
-		m_localizedSoundBankFolder += CRY_NATIVE_PATH_SEPSTR;
-		m_localizedSoundBankFolder += FMOD_IMPL_DATA_ROOT;
+		m_localizedSoundBankFolder += "/";
+		m_localizedSoundBankFolder += AUDIO_SYSTEM_DATA_ROOT;
+		m_localizedSoundBankFolder += "/";
+		m_localizedSoundBankFolder += s_szImplFolderName;
+		m_localizedSoundBankFolder += "/";
+		m_localizedSoundBankFolder += s_szAssetsFolderName;
 	}
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CImpl::CreateVersionString(CryFixedStringT<MaxMiscStringLength>& stringOut) const
+void CImpl::CreateVersionString(CryFixedStringT<MaxInfoStringLength>& stringOut) const
 {
 	// Remove the leading zeros on the upper 16 bit and inject the 2 dots between the 3 groups
 	size_t const stringLength = stringOut.size();
@@ -803,20 +857,34 @@ void CImpl::CreateVersionString(CryFixedStringT<MaxMiscStringLength>& stringOut)
 	}
 }
 
-struct SFmodFileData
-{
-	void*        pData;
-	int unsigned fileSize;
-};
-
 //////////////////////////////////////////////////////////////////////////
 FMOD_RESULT F_CALLBACK FmodFileOpenCallback(const char* szName, unsigned int* pFileSize, void** pHandle, void* pUserData)
 {
-	SFmodFileData* const pFileData = static_cast<SFmodFileData*>(pUserData);
-	*pHandle = pFileData->pData;
-	*pFileSize = pFileData->fileSize;
+	FMOD_RESULT fmodResult = FMOD_ERR_FILE_NOTFOUND;
 
-	return FMOD_OK;
+	char const* szFileName = (char const*)pUserData;
+	FILE* const pFile = gEnv->pCryPak->FOpen(szFileName, "rbx", ICryPak::FOPEN_HINT_DIRECT_OPERATION);
+
+	if (pFile != nullptr)
+	{
+		gEnv->pCryPak->FSeek(pFile, 0, SEEK_END);
+		auto const fileSize = static_cast<size_t>(gEnv->pCryPak->FTell(pFile));
+		gEnv->pCryPak->FSeek(pFile, 0, SEEK_SET);
+
+		if (fileSize >= s_maxFileSize)
+		{
+			gEnv->pCryPak->FClose(pFile);
+			fmodResult = FMOD_ERR_FILE_BAD;
+		}
+		else
+		{
+			*pFileSize = static_cast<unsigned int>(fileSize);
+			*pHandle = pFile;
+			fmodResult = FMOD_OK;
+		}
+	}
+
+	return fmodResult;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -868,12 +936,29 @@ FMOD_RESULT F_CALLBACK FmodFileSeekCallback(void* pHandle, unsigned int pos, voi
 }
 
 //////////////////////////////////////////////////////////////////////////
+FMOD_RESULT CImpl::LoadBankCustom(char const* const szFileName, FMOD::Studio::Bank** ppBank)
+{
+	FMOD_STUDIO_BANK_INFO bankInfo;
+	ZeroStruct(bankInfo);
+	bankInfo.opencallback = &FmodFileOpenCallback;
+	bankInfo.closecallback = &FmodFileCloseCallback;
+	bankInfo.readcallback = &FmodFileReadCallback;
+	bankInfo.seekcallback = &FmodFileSeekCallback;
+	bankInfo.size = sizeof(bankInfo);
+	bankInfo.userdata = reinterpret_cast<void*>(const_cast<char*>(szFileName));
+
+	return m_pSystem->loadBankCustom(&bankInfo, FMOD_STUDIO_LOAD_BANK_NORMAL, ppBank);
+}
+
+//////////////////////////////////////////////////////////////////////////
 bool CImpl::LoadMasterBanks()
 {
 	FMOD_RESULT fmodResult = FMOD_ERR_UNINITIALIZED;
-	CryFixedStringT<MaxFileNameLength> masterBankPath;
-	CryFixedStringT<MaxFileNameLength> masterBankStringsPath;
-	CryFixedStringT<MaxFilePathLength + MaxFileNameLength> search(m_regularSoundBankFolder + CRY_NATIVE_PATH_SEPSTR "*.bank");
+	m_masterBankPath.clear();
+	m_masterAssetsBankPath.clear();
+	m_masterStreamsBankPath.clear();
+	m_masterStringsBankPath.clear();
+	CryFixedStringT<MaxFilePathLength + MaxFileNameLength> search(m_regularSoundBankFolder + "/*.bank");
 	_finddata_t fd;
 	intptr_t const handle = gEnv->pCryPak->FindFirst(search.c_str(), &fd);
 
@@ -881,17 +966,21 @@ bool CImpl::LoadMasterBanks()
 	{
 		do
 		{
-			masterBankStringsPath = fd.name;
-			size_t const substrPos = masterBankStringsPath.find(".strings.bank");
+			m_masterStringsBankPath = fd.name;
+			size_t const substrPos = m_masterStringsBankPath.find(".strings.bank");
 
-			if (substrPos != masterBankStringsPath.npos)
+			if (substrPos != m_masterStringsBankPath.npos)
 			{
-				masterBankPath = m_regularSoundBankFolder.c_str();
-				masterBankPath += CRY_NATIVE_PATH_SEPSTR;
-				masterBankPath += masterBankStringsPath.substr(0, substrPos);
-				masterBankPath += ".bank";
-				masterBankStringsPath.insert(0, CRY_NATIVE_PATH_SEPSTR);
-				masterBankStringsPath.insert(0, m_regularSoundBankFolder.c_str());
+				m_masterBankPath = m_regularSoundBankFolder.c_str();
+				m_masterBankPath += "/";
+				m_masterBankPath += m_masterStringsBankPath.substr(0, substrPos);
+				m_masterAssetsBankPath = m_masterBankPath;
+				m_masterStreamsBankPath = m_masterBankPath;
+				m_masterBankPath += ".bank";
+				m_masterAssetsBankPath += ".assets.bank";
+				m_masterStreamsBankPath += ".streams.bank";
+				m_masterStringsBankPath.insert(0, "/");
+				m_masterStringsBankPath.insert(0, m_regularSoundBankFolder.c_str());
 				break;
 			}
 
@@ -901,38 +990,21 @@ bool CImpl::LoadMasterBanks()
 		gEnv->pCryPak->FindClose(handle);
 	}
 
-	if (!masterBankPath.empty() && !masterBankStringsPath.empty())
+	if (!m_masterBankPath.empty() && !m_masterStringsBankPath.empty())
 	{
-		size_t const masterBankFileSize = gEnv->pCryPak->FGetSize(masterBankPath.c_str());
+		size_t const masterBankFileSize = gEnv->pCryPak->FGetSize(m_masterBankPath.c_str());
 		CRY_ASSERT(masterBankFileSize > 0);
-		size_t const masterBankStringsFileSize = gEnv->pCryPak->FGetSize(masterBankStringsPath.c_str());
+		size_t const masterBankStringsFileSize = gEnv->pCryPak->FGetSize(m_masterStringsBankPath.c_str());
 		CRY_ASSERT(masterBankStringsFileSize > 0);
 
 		if (masterBankFileSize > 0 && masterBankStringsFileSize > 0)
 		{
-			FILE* const pMasterBank = gEnv->pCryPak->FOpen(masterBankPath.c_str(), "rbx", ICryPak::FOPEN_HINT_DIRECT_OPERATION);
-			FILE* const pStringsBank = gEnv->pCryPak->FOpen(masterBankStringsPath.c_str(), "rbx", ICryPak::FOPEN_HINT_DIRECT_OPERATION);
-
-			SFmodFileData fileData;
-			fileData.pData = static_cast<void*>(pMasterBank);
-			fileData.fileSize = static_cast<int>(masterBankFileSize);
-
-			FMOD_STUDIO_BANK_INFO bankInfo;
-			ZeroStruct(bankInfo);
-			bankInfo.closecallback = &FmodFileCloseCallback;
-			bankInfo.opencallback = &FmodFileOpenCallback;
-			bankInfo.readcallback = &FmodFileReadCallback;
-			bankInfo.seekcallback = &FmodFileSeekCallback;
-			bankInfo.size = sizeof(bankInfo);
-			bankInfo.userdata = static_cast<void*>(&fileData);
-			bankInfo.userdatalength = sizeof(SFmodFileData);
-
-			fmodResult = m_pSystem->loadBankCustom(&bankInfo, FMOD_STUDIO_LOAD_BANK_NORMAL, &m_pMasterBank);
+			fmodResult = LoadBankCustom(m_masterBankPath.c_str(), &m_pMasterBank);
 			ASSERT_FMOD_OK;
-			fileData.pData = static_cast<void*>(pStringsBank);
-			fileData.fileSize = static_cast<int>(masterBankStringsFileSize);
-			fmodResult = m_pSystem->loadBankCustom(&bankInfo, FMOD_STUDIO_LOAD_BANK_NORMAL, &m_pStringsBank);
+
+			fmodResult = LoadBankCustom(m_masterStringsBankPath.c_str(), &m_pMasterStringsBank);
 			ASSERT_FMOD_OK;
+
 			if (m_pMasterBank != nullptr)
 			{
 				int numBuses = 0;
@@ -956,13 +1028,29 @@ bool CImpl::LoadMasterBanks()
 					delete[] pBuses;
 				}
 			}
+
+			size_t const masterBankAssetsFileSize = gEnv->pCryPak->FGetSize(m_masterAssetsBankPath.c_str());
+
+			if (masterBankAssetsFileSize > 0)
+			{
+				fmodResult = LoadBankCustom(m_masterAssetsBankPath.c_str(), &m_pMasterAssetsBank);
+				ASSERT_FMOD_OK;
+			}
+
+			size_t const masterBankStreamsFileSize = gEnv->pCryPak->FGetSize(m_masterStreamsBankPath.c_str());
+
+			if (masterBankStreamsFileSize > 0)
+			{
+				fmodResult = LoadBankCustom(m_masterStreamsBankPath.c_str(), &m_pMasterStreamsBank);
+				ASSERT_FMOD_OK;
+			}
 		}
 	}
 	else
 	{
 		// This does not qualify for a fallback to the NULL implementation!
 		// Still notify the user about this failure!
-		g_implLogger.Log(ELogType::Error, "Fmod failed to load master banks");
+		Cry::Audio::Log(ELogType::Error, "Fmod failed to load master banks");
 		return true;
 	}
 
@@ -974,11 +1062,25 @@ void CImpl::UnloadMasterBanks()
 {
 	FMOD_RESULT fmodResult = FMOD_ERR_UNINITIALIZED;
 
-	if (m_pStringsBank != nullptr)
+	if (m_pMasterStringsBank != nullptr)
 	{
-		fmodResult = m_pStringsBank->unload();
+		fmodResult = m_pMasterStringsBank->unload();
 		ASSERT_FMOD_OK;
-		m_pStringsBank = nullptr;
+		m_pMasterStringsBank = nullptr;
+	}
+
+	if (m_pMasterStreamsBank != nullptr)
+	{
+		fmodResult = m_pMasterStreamsBank->unload();
+		ASSERT_FMOD_OK;
+		m_pMasterStreamsBank = nullptr;
+	}
+
+	if (m_pMasterAssetsBank != nullptr)
+	{
+		fmodResult = m_pMasterAssetsBank->unload();
+		ASSERT_FMOD_OK;
+		m_pMasterAssetsBank = nullptr;
 	}
 
 	if (m_pMasterBank != nullptr)
@@ -990,19 +1092,31 @@ void CImpl::UnloadMasterBanks()
 }
 
 //////////////////////////////////////////////////////////////////////////
-ERequestStatus CImpl::MuteMasterBus(bool const bMute)
+void CImpl::MuteMasterBus(bool const shouldMute)
 {
 	FMOD::Studio::Bus* pMasterBus = nullptr;
-	FMOD_RESULT fmodResult = m_pSystem->getBus(s_szFmodBusPrefix, &pMasterBus);
+	FMOD_RESULT fmodResult = m_pSystem->getBus(s_szBusPrefix, &pMasterBus);
 	ASSERT_FMOD_OK;
 
 	if (pMasterBus != nullptr)
 	{
-		fmodResult = pMasterBus->setMute(bMute);
+		fmodResult = pMasterBus->setMute(shouldMute);
 		ASSERT_FMOD_OK;
 	}
+}
 
-	return (fmodResult == FMOD_OK) ? ERequestStatus::Success : ERequestStatus::Failure;
+//////////////////////////////////////////////////////////////////////////
+void CImpl::PauseMasterBus(bool const shouldPause)
+{
+	FMOD::Studio::Bus* pMasterBus = nullptr;
+	FMOD_RESULT fmodResult = m_pSystem->getBus(s_szBusPrefix, &pMasterBus);
+	ASSERT_FMOD_OK;
+
+	if (pMasterBus != nullptr)
+	{
+		fmodResult = pMasterBus->setPaused(shouldPause);
+		ASSERT_FMOD_OK;
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////

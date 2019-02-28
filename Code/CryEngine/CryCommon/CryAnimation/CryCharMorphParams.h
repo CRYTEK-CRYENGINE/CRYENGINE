@@ -1,16 +1,8 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-//
-//	File:CryCharMorphParams.h
-//  Parameters for the morphing functions in ICharacterInstance interface
-//
-//	History:
-//	-March 3,2003:Created by Ivo Herzeg
-//
-//////////////////////////////////////////////////////////////////////
+//! \cond INTERNAL
 
-#ifndef _CRY_CHAR_MORPH_PARAMS_HDR_
-#define _CRY_CHAR_MORPH_PARAMS_HDR_
+#pragma once
 
 //! StartMorph will accept this.
 struct CryCharMorphParams
@@ -63,4 +55,4 @@ struct CryCharMorphParams
 	uint32 m_nFlags;
 };
 
-#endif
+//! \endcond

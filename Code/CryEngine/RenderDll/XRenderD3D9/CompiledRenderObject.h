@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -42,6 +42,13 @@ public:
 		else
 			return m_cached[index];
 	}
+	const T& operator[](size_t index) const
+	{
+		if (index >= eCachedItems)
+			return m_array[index - eCachedItems];
+		else
+			return m_cached[index];
+	}
 	size_t size() const { return m_size; }
 
 private:
@@ -55,13 +62,6 @@ private:
 // Class used to allocate/deallocate permanent render objects.
 class CPermanentRenderObject : public CRenderObject
 {
-public:
-	enum ERenderPassType
-	{
-		eRenderPass_General,
-		eRenderPass_Shadows,
-		eRenderPass_NumTypes
-	};
 public:
 	CPermanentRenderObject()
 		: m_pNextPermanent(nullptr)
@@ -103,12 +103,14 @@ public:
 public:
 	struct SPermanentRendItem
 	{
-		CCompiledRenderObject* m_pCompiledObject; //!< Compiled object with precompiled PSO
-		CRenderElement*          m_pRenderElement;  //!< Mesh subset, or a special rendering object
-		uint32                 m_objSort;         //!< Custom object sorting value.
 		uint32                 m_sortValue;       //!< Encoded sort value, keeping info about material.
 		uint32                 m_nBatchFlags;     //!< see EBatchFlags, batch flags describe on what passes this object will be used (transparent,z-prepass,etc...)
+		uint32                 m_objSort;         //!< Custom object sorting value.
 		uint32                 m_nRenderList : 8; //!< Defines in which render list this compiled object belongs to, see ERenderListID
+		CCompiledRenderObject* m_pCompiledObject; //!< Compiled object with precompiled PSO
+		CRenderElement*        m_pRenderElement;  //!< Mesh subset, or a special rendering object
+
+		AABB                   m_aabb;            //!< AABB in local space
 	};
 	//! Persistent object record all items added to the object for the general and for shadow pass.
 	//! These items are then efficiently expanded adding render items to CRenderView lists.
@@ -118,7 +120,7 @@ public:
 	CPermanentRenderObject* m_pNextPermanent;
 
 	//! Correspond to the m_passReadyMask, object considered compiled when m_compiledReadyMask == m_passReadyMask
-	volatile int m_compiledReadyMask;
+	int          m_compiledReadyMask;
 	int          m_lastCompiledFrame;
 
 	// Make a reference to a render mesh, to prevent it being deleted while permanent render object still exist.
@@ -138,8 +140,8 @@ class CRenderObjectsPools
 public:
 	CRenderObjectsPools();
 	~CRenderObjectsPools();
-	CConstantBufferPtr AllocatePerInstanceConstantBuffer();
-	void               FreePerInstanceConstantBuffer(CConstantBufferPtr&& buffer);
+	CConstantBufferPtr AllocatePerDrawConstantBuffer();
+	void               FreePerDrawConstantBuffer(CConstantBufferPtr&& buffer);
 
 public:
 
@@ -161,6 +163,23 @@ private:
 	std::vector<CConstantBufferPtr> m_freeConstantBuffers;
 };
 
+enum EObjectCompilationOptions : uint8
+{
+	eObjCompilationOption_PipelineState             = BIT(0),
+	eObjCompilationOption_PerInstanceConstantBuffer = BIT(1),
+	eObjCompilationOption_PerInstanceExtraResources = BIT(2),
+	eObjCompilationOption_InputStreams              = BIT(3), // e.g. geometry streams (vertex, index buffers)
+
+	eObjCompilationOption_None                = 0,
+	eObjCompilationOption_PerIntanceDataOnly  = eObjCompilationOption_PerInstanceConstantBuffer |
+	                                            eObjCompilationOption_PerInstanceExtraResources,
+	eObjCompilationOption_All                 = eObjCompilationOption_PipelineState             | 
+	                                            eObjCompilationOption_PerInstanceConstantBuffer | 
+	                                            eObjCompilationOption_PerInstanceExtraResources | 
+	                                            eObjCompilationOption_InputStreams
+};
+DEFINE_ENUM_FLAG_OPERATORS(EObjectCompilationOptions);
+
 // Used by Graphics Pass pipeline
 class CCompiledRenderObject
 {
@@ -177,9 +196,11 @@ public:
 		float dissolve;
 		float tesselationPatchId;
 	};
+
 	struct SRootConstants
 	{
 	};
+
 	struct SDrawParams
 	{
 		int32 m_nVerticesCount;
@@ -192,6 +213,7 @@ public:
 			, m_nNumIndices(0)
 		{}
 	};
+
 	enum EDrawParams
 	{
 		eDrawParam_Shadow,
@@ -200,11 +222,6 @@ public:
 	};
 
 public:
-	CRenderObject* m_pRO;
-
-	// Optimized access to constants that can be directly bound to the root signature.
-	SRootConstants m_rootConstants;
-
 	/////////////////////////////////////////////////////////////////////////////
 	// Packed parameters
 	uint32 m_StencilRef           : 8; //!< Stencil ref value
@@ -219,45 +236,55 @@ public:
 	uint32 m_bCustomRenderElement       : 1; //!< When dealing with not known render element, will cause Draw be redirected to the RenderElement itself
 	/////////////////////////////////////////////////////////////////////////////
 
+	// AABB in world space
+	AABB m_aabb;
+
 	//////////////////////////////////////////////////////////////////////////
 	// Members used in submitting in the draw submission, sorted by access order
-
-	// Array of the PSOs for every ERenderableTechnique.
-	// Sub array of PSO is defined inside the pass, and indexed by an integer passed inside the SGraphicsPipelinePassContext
-	DevicePipelineStatesArray m_pso[MAX_PIPELINE_SCENE_STAGES];
+	// This area should be smaller than 128 bytes (2x 64byte cache-lines)
 
 	// From Material
 	CDeviceResourceSetPtr m_materialResourceSet;
 
 	// Per instance constant buffer contain transformation matrix and other potentially not often changed data.
-	CConstantBufferPtr m_perInstanceCB;
+	CConstantBufferPtr    m_perDrawCB;
 
 	// Per instance extra data
-	CDeviceResourceSetPtr m_perInstanceExtraResources;
-	int                   m_TessellationPatchIDOffset; // for tessellation only
-	CGpuBuffer*           m_pTessellationAdjacencyBuffer;
-	CGpuBuffer*           m_pExtraSkinWeights; // eight weight skinning
+	CDeviceResourceSetPtr m_perDrawExtraResources;
 
 	// Streams data.
-	const CDeviceInputStream*   m_vertexStreamSet;
-	const CDeviceInputStream*   m_indexStreamSet;
+	const CDeviceInputStream* m_vertexStreamSet;
+	const CDeviceInputStream* m_indexStreamSet;
 
-	CConstantBufferPtr  m_pInstancingConstBuffer;    //!< Constant Buffer with all instances
-	uint32              m_nInstances;                //!< Number of instances.
-
-	// Used for dynamic instancing.
-	SPerInstanceShaderData m_instanceShaderData;
+	uint32                m_perDrawInstances;
+	CConstantBufferPtr    m_pInstancingConstBuffer;    //!< Constant Buffer with all instances
 
 	// DrawCall parameters, store separate values for merged shadow-gen draw calls
 	SDrawParams m_drawParams[eDrawParam_Count];
 
-	// Skinning constant buffers, primary and previous
-	CConstantBufferPtr m_skinningCB[2];
+	// Array of the PSOs for every ERenderableTechnique.
+	// Sub array of PSO is defined inside the pass, and indexed by an integer passed inside the SGraphicsPipelinePassContext
+	// This data-blob alone is 200 bytes (the head of the array lies within the first 128 bytes)
+	DevicePipelineStatesArray m_pso[eStage_SCENE_NUM];
 
-private:
+	// / / / / / / / / / / / / / / / / / / / / / / / / / / / / / / / / / / / /
 	// These 2 members must be initialized prior to calling Compile
-	CRenderElement*     m_pRenderElement;
-	SShaderItem       m_shaderItem;
+	CRenderElement*        m_pRenderElement;
+	CRenderObject*         m_pRO;
+	SShaderItem            m_shaderItem;
+
+	//////////////////////////////////////////////////////////////////////////
+	EObjectCompilationOptions m_compiledFlags;
+
+	// Optimized access to constants that can be directly bound to the root signature.
+	SRootConstants         m_rootConstants;
+
+	int                    m_TessellationPatchIDOffset; // for tessellation only
+	CGpuBuffer*            m_pTessellationAdjacencyBuffer;
+	CGpuBuffer*            m_pExtraSkinWeights; // eight weight skinning
+
+	// Used for instancing.
+	SPerInstanceShaderData m_instanceData;
 
 	//////////////////////////////////////////////////////////////////////////
 public:
@@ -270,12 +297,11 @@ public:
 		, m_bIncomplete(true)
 		, m_bHasTessellation(false)
 		, m_bSharedWithShadow(false)
-		, m_bDynamicInstancingPossible(false)
 		, m_bCustomRenderElement(false)
-		, m_nInstances(0)
+		, m_perDrawInstances(1)
 		, m_TessellationPatchIDOffset(-1)
 	{
-		for (int i = 0; i < MAX_PIPELINE_SCENE_STAGES; ++i)
+		for (int i = 0; i < eStage_SCENE_NUM; ++i)
 		{
 			std::fill(m_pso[i].begin(), m_pso[i].end(), nullptr);
 		}
@@ -284,39 +310,35 @@ public:
 
 	// Compile(): Returns true if the compilation is fully finished, false if compilation should be retriggered later
 
-	bool Compile(CRenderObject* pRenderObject);
+	bool Compile(const EObjectCompilationOptions& compilationOptions, const AABB &localAABB, CRenderView *pRenderView);
 	void PrepareForUse(CDeviceCommandListRef RESTRICT_REFERENCE commandList, bool bInstanceOnly) const;
 
-	void DrawToCommandList(const SGraphicsPipelinePassContext& RESTRICT_REFERENCE passContext, CConstantBuffer* pDynamicInstancingBuffer = nullptr, uint32 dynamicInstancingCount = 0) const;
+	void DrawToCommandList(const SGraphicsPipelinePassContext& RESTRICT_REFERENCE passContext, CDeviceCommandList* commandList, CConstantBuffer* pDynamicInstancingBuffer = nullptr, uint32 dynamicInstancingCount = 1) const;
 
 	void Init(const SShaderItem& shaderItem, CRenderElement* pRE);
 
 	// Check if on the fly instancing can be used between this and next object
 	// If instancing is possible writes current object instance data to the outputInstanceData parameter.
-	bool CheckDynamicInstancing(const SGraphicsPipelinePassContext& RESTRICT_REFERENCE passContext,CCompiledRenderObject* pNextObject) const;
+	bool CheckDynamicInstancing(const SGraphicsPipelinePassContext& RESTRICT_REFERENCE passContext, const CCompiledRenderObject* RESTRICT_POINTER pNextObject) const;
 
 	// Returns cached data used to fill dynamic instancing buffer
-	const SPerInstanceShaderData& GetInstancingData() const { return m_instanceShaderData; };
+	const SPerInstanceShaderData& GetInstancingData() const { return m_instanceData; };
 
-public:
-	static CCompiledRenderObject* AllocateFromPool()
-	{
-		return s_pPools->m_compiledObjectsPool.New();
-	}
-	static void FreeToPool(CCompiledRenderObject* ptr)
-	{
-		s_pPools->m_compiledObjectsPool.Delete(ptr);
-	}
+	static CCompiledRenderObject* AllocateFromPool();
+	static void FreeToPool(CCompiledRenderObject* ptr);
 	static void SetStaticPools(CRenderObjectsPools* pools) { s_pPools = pools; }
 
 private:
-	void CompilePerInstanceConstantBuffer(CRenderObject* pRenderObject);
-	void CompilePerInstanceExtraResources(CRenderObject* pRenderObject);
-	void CompileInstancingData(CRenderObject* pRenderObject, bool bForce);
-	void UpdatePerInstanceCB(void* pData, size_t size);
-#if !defined(_RELEASE)
+	void CompilePerDrawCB(CRenderObject* pRenderObject);
+	void CompilePerInstanceCB(CRenderObject* pRenderObject, bool bForce);
+	void CompilePerDrawExtraResources(CRenderObject* pRenderObject);
+
+	void UpdatePerDrawCB(void* pData, size_t size);
+
+#ifdef DO_RENDERSTATS
 	void TrackStats(const SGraphicsPipelinePassContext& RESTRICT_REFERENCE passContext, CRenderObject* pRenderObject) const;
 #endif
+
 private:
 	static CRenderObjectsPools* s_pPools;
 	static CryCriticalSectionNonRecursive m_drawCallInfoLock;

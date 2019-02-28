@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include <CryRenderer/RenderElements/CREFogVolume.h>
@@ -21,7 +21,7 @@ enum class EPsoId : uint32
 	ViewerInsideVolumeNearCutoff,
 };
 
-struct SPerInstanceConstantBuffer
+struct SPerDrawConstantBuffer
 {
 	Matrix44 objMatrix;
 	Matrix34 invObjSpaceMatrix;
@@ -45,26 +45,14 @@ struct SCompiledFogVolume : NoCopy
 
 	void ReleaseDeviceResources()
 	{
-		if (m_pMaterialResourceSet)
-		{
-			gRenDev->m_pRT->RC_ReleaseRS(m_pMaterialResourceSet);
-		}
-
-		if (m_pPerInstanceResourceSet)
-		{
-			gRenDev->m_pRT->RC_ReleaseRS(m_pPerInstanceResourceSet);
-		}
-
-		if (m_pPerInstanceCB)
-		{
-			gRenDev->m_pRT->RC_ReleaseCB(m_pPerInstanceCB);
-			m_pPerInstanceCB = nullptr;
-		}
+		m_pMaterialResourceSet.reset();
+		m_pPerDrawRS.reset();
+		m_pPerDrawCB.reset();
 	}
 
 	CDeviceResourceSetPtr     m_pMaterialResourceSet = nullptr;
-	CDeviceResourceSetPtr     m_pPerInstanceResourceSet = nullptr;
-	CConstantBuffer*          m_pPerInstanceCB = nullptr;
+	CDeviceResourceSetPtr     m_pPerDrawRS = nullptr;
+	CConstantBufferPtr        m_pPerDrawCB = nullptr;
 
 	const CDeviceInputStream* m_vertexStreamSet = nullptr;
 	const CDeviceInputStream* m_indexStreamSet = nullptr;
@@ -170,146 +158,15 @@ CREFogVolume::~CREFogVolume()
 	}
 }
 
-void CREFogVolume::mfPrepare(bool bCheckOverflow)
-{
-	if (bCheckOverflow)
-		gRenDev->FX_CheckOverflow(0, 0, this);
-	gRenDev->m_RP.m_pRE = this;
-	gRenDev->m_RP.m_RendNumIndices = 0;
-	gRenDev->m_RP.m_RendNumVerts = 0;
-}
-
-bool CREFogVolume::mfDraw(CShader* ef, SShaderPass* sfm)
-{
-	CD3D9Renderer* rd(gcpRendD3D);
-
-#if !defined(_RELEASE)
-	if (ef->m_eShaderType != eST_PostProcess)
-	{
-		CryWarning(VALIDATOR_MODULE_RENDERER, VALIDATOR_ERROR, "Incorrect shader set for fog volume");
-		return false;
-	}
-#endif
-
-	PROFILE_LABEL_SCOPE("FOG_VOLUME");
-
-	rd->m_RP.m_PersFlags2 |= RBPF2_MSAA_SAMPLEFREQ_PASS;
-	rd->FX_SetMSAAFlagsRT();
-
-	// render
-	uint32 nPasses(0);
-	ef->FXBegin(&nPasses, 0);
-	if (0 == nPasses)
-	{
-		assert(0);
-		rd->m_RP.m_PersFlags2 &= ~RBPF2_MSAA_SAMPLEFREQ_PASS;
-		return(false);
-	}
-	ef->FXBeginPass(0);
-
-	if (m_viewerInsideVolume)
-	{
-		rd->SetCullMode(R_CULL_FRONT);
-		int nState = GS_COLMASK_RGB | GS_BLSRC_SRCALPHA | GS_BLDST_ONEMINUSSRCALPHA;
-		nState |= m_nearCutoff ? 0 : GS_NODEPTHTEST;
-		rd->FX_SetState(nState);
-	}
-	else
-	{
-		rd->SetCullMode(R_CULL_BACK);
-		rd->FX_SetState(GS_COLMASK_RGB | GS_BLSRC_SRCALPHA | GS_BLDST_ONEMINUSSRCALPHA);
-	}
-
-	// set vs constants
-	static CCryNameR invObjSpaceMatrixName("invObjSpaceMatrix");
-	ef->FXSetVSFloat(invObjSpaceMatrixName, (const Vec4*)&m_matWSInv.m00, 3);
-
-	const Vec4 cNearCutoffVec(m_nearCutoff, (!m_viewerInsideVolume ? 1.0f : 0.0f), 0.0f, 0.0f);
-	static CCryNameR nearCutoffName("nearCutoff");
-	ef->FXSetVSFloat(nearCutoffName, &cNearCutoffVec, 1);
-
-	// set ps constants
-	const Vec4 cFogColVec(m_fogColor.r, m_fogColor.g, m_fogColor.b, 0);
-	static CCryNameR fogColorName("fogColor");
-	ef->FXSetPSFloat(fogColorName, &cFogColVec, 1);
-
-	const Vec4 cGlobalDensityVec(m_globalDensity, 1.44269502f * m_globalDensity, 0, 0);
-	static CCryNameR globalDensityName("globalDensity");
-	ef->FXSetPSFloat(globalDensityName, &cGlobalDensityVec, 1);
-
-	const Vec4 cDensityOffsetVec(m_densityOffset, m_densityOffset, m_densityOffset, m_densityOffset);
-	static CCryNameR densityOffsetName("densityOffset");
-	ef->FXSetPSFloat(densityOffsetName, &cDensityOffsetVec, 1);
-
-	const Vec4 cHeigthFallOffBasePointVec(m_heightFallOffBasePoint, 0);
-	static CCryNameR heightFallOffBasePointName("heightFallOffBasePoint");
-	ef->FXSetPSFloat(heightFallOffBasePointName, &cHeigthFallOffBasePointVec, 1);
-
-	const Vec4 cHeightFallOffDirScaledVec(m_heightFallOffDirScaled, 0);
-	static CCryNameR heightFallOffDirScaledName("heightFallOffDirScaled");
-	ef->FXSetPSFloat(heightFallOffDirScaledName, &cHeightFallOffDirScaledVec, 1);
-
-	const Vec4 cOutsideSoftEdgesLerpVec(m_softEdgesLerp.x, m_softEdgesLerp.y, 0, 0);
-	static CCryNameR outsideSoftEdgesLerpName("outsideSoftEdgesLerp");
-	ef->FXSetPSFloat(outsideSoftEdgesLerpName, &cOutsideSoftEdgesLerpVec, 1);
-
-	// commit all render changes
-	rd->FX_Commit();
-
-	// set vertex declaration and streams of skydome
-	if (!FAILED(rd->FX_SetVertexDeclaration(0, EDefaultInputLayouts::P3F_C4B_T2F)))
-	{
-		// define bounding box geometry
-		const uint32 c_numBBVertices(8);
-		SVF_P3F_C4B_T2F bbVertices[c_numBBVertices] =
-		{
-			{ Vec3(m_localAABB.min.x, m_localAABB.min.y, m_localAABB.min.z) },
-			{ Vec3(m_localAABB.min.x, m_localAABB.max.y, m_localAABB.min.z) },
-			{ Vec3(m_localAABB.max.x, m_localAABB.max.y, m_localAABB.min.z) },
-			{ Vec3(m_localAABB.max.x, m_localAABB.min.y, m_localAABB.min.z) },
-			{ Vec3(m_localAABB.min.x, m_localAABB.min.y, m_localAABB.max.z) },
-			{ Vec3(m_localAABB.min.x, m_localAABB.max.y, m_localAABB.max.z) },
-			{ Vec3(m_localAABB.max.x, m_localAABB.max.y, m_localAABB.max.z) },
-			{ Vec3(m_localAABB.max.x, m_localAABB.min.y, m_localAABB.max.z) }
-		};
-
-		const uint32 c_numBBIndices(36);
-		static const uint16 bbIndices[c_numBBIndices] =
-		{
-			0, 1, 2, 0, 2, 3,
-			7, 6, 5, 7, 5, 4,
-			3, 2, 6, 3, 6, 7,
-			4, 5, 1, 4, 1, 0,
-			1, 5, 6, 1, 6, 2,
-			4, 0, 3, 4, 3, 7
-		};
-
-		// copy vertices into dynamic VB
-		TempDynVB<SVF_P3F_C4B_T2F>::CreateFillAndBind(bbVertices, c_numBBVertices, 0);
-
-		// copy indices into dynamic IB
-		TempDynIB16::CreateFillAndBind(bbIndices, c_numBBIndices);
-		// draw skydome
-		rd->FX_DrawIndexedPrimitive(eptTriangleList, 0, 0, c_numBBVertices, 0, c_numBBIndices);
-	}
-
-	ef->FXEndPass();
-	ef->FXEnd();
-
-	rd->m_RP.m_PersFlags2 &= ~RBPF2_MSAA_SAMPLEFREQ_PASS;
-
-	return(true);
-}
-
-bool CREFogVolume::Compile(CRenderObject* pObj)
+bool CREFogVolume::Compile(CRenderObject* pObj,CRenderView *pRenderView, bool updateInstanceDataOnly)
 {
 	if (!m_pCompiledObject)
 	{
 		return false;
 	}
 
-	auto& cro = *(m_pCompiledObject);
-	cro.m_bValid = false;
+	auto& compiledObj = *(m_pCompiledObject);
+	compiledObj.m_bValid = false;
 
 	CD3D9Renderer* const RESTRICT_POINTER rd = gcpRendD3D;
 	auto* pForwardStage = rd->GetGraphicsPipeline().GetSceneForwardStage();
@@ -345,10 +202,10 @@ bool CREFogVolume::Compile(CRenderObject* pObj)
 	  eptTriangleList
 	  );
 
-	cro.m_bViewerInsideVolume = m_viewerInsideVolume ? true : false;
-	cro.m_bNearCutoff = m_nearCutoff ? true : false;
+	compiledObj.m_bViewerInsideVolume = m_viewerInsideVolume ? true : false;
+	compiledObj.m_bNearCutoff = m_nearCutoff ? true : false;
 
-	if (!render_element::fogvolume::CreatePipelineStates(*pForwardStage, cro.m_psoArray, psoDescription, pResources->m_pipelineStateCache.get()))
+	if (!render_element::fogvolume::CreatePipelineStates(*pForwardStage, compiledObj.m_psoArray, psoDescription, pResources->m_pipelineStateCache.get()))
 	{
 		if (!CRenderer::CV_r_shadersAllowCompilation)
 		{
@@ -360,15 +217,15 @@ bool CREFogVolume::Compile(CRenderObject* pObj)
 		}
 	}
 
-	UpdateVertex(cro);
+	UpdateVertex(compiledObj);
 
-	// UpdatePerInstanceCB uses not thread safe functions like CreateConstantBuffer(),
+	// UpdatePerDrawCB uses not thread safe functions like CreateConstantBuffer(),
 	// so this needs to be called here instead of DrawToCommandList().
-	UpdatePerInstanceCB(cro, *pObj);
+	UpdatePerDrawCB(compiledObj, *pObj);
 
 	// this is dummy resource to match this render element with the resource layout of forward pass.
 	{
-		if (!cro.m_pMaterialResourceSet)
+		if (!compiledObj.m_pMaterialResourceSet)
 		{
 			CDeviceResourceSetDesc materialResources;
 			for (const auto& res : rd->GetGraphicsPipeline().GetDefaultMaterialBindPoints().GetResources())
@@ -382,53 +239,54 @@ bool CREFogVolume::Compile(CRenderObject* pObj)
 					materialResources.SetConstantBuffer(bindPoint.slotNumber, rd->m_DevBufMan.GetNullConstantBuffer(), bindPoint.stages);
 					break;
 				case SResourceBinding::EResourceType::Texture:
-					materialResources.SetTexture(bindPoint.slotNumber, CTexture::s_ptexBlack, binding.view, bindPoint.stages);
+					materialResources.SetTexture(bindPoint.slotNumber, CRendererResources::s_ptexBlack, binding.view, bindPoint.stages);
 					break;
 				default:
 					CRY_ASSERT("Not implemented!");
 				}
 			}
 
-			cro.m_pMaterialResourceSet = GetDeviceObjectFactory().CreateResourceSet();
-			cro.m_pMaterialResourceSet->Update(materialResources);
+			compiledObj.m_pMaterialResourceSet = GetDeviceObjectFactory().CreateResourceSet();
+			compiledObj.m_pMaterialResourceSet->Update(materialResources);
 		}
 
-		if (!cro.m_pPerInstanceResourceSet)
+		if (!compiledObj.m_pPerDrawRS)
 		{
-			cro.m_pPerInstanceResourceSet = rd->GetGraphicsPipeline().GetDefaultInstanceExtraResourceSet();
+			compiledObj.m_pPerDrawRS = rd->GetGraphicsPipeline().GetDefaulDrawExtraResourceSet();
 		}
 	}
 
-	CRY_ASSERT(cro.m_pMaterialResourceSet);
-	CRY_ASSERT(cro.m_pPerInstanceResourceSet);
-	CRY_ASSERT(cro.m_pPerInstanceCB);
-	CRY_ASSERT(cro.m_vertexStreamSet);
-	CRY_ASSERT(cro.m_indexStreamSet);
+	CRY_ASSERT(compiledObj.m_pMaterialResourceSet);
+	CRY_ASSERT(compiledObj.m_pPerDrawRS);
+	CRY_ASSERT(compiledObj.m_pPerDrawCB);
+	CRY_ASSERT(compiledObj.m_vertexStreamSet);
+	CRY_ASSERT(compiledObj.m_indexStreamSet);
 
 	// Issue the barriers on the core command-list, which executes directly before the Draw()s in multi-threaded jobs
-	PrepareForUse(cro, false, GetDeviceObjectFactory().GetCoreCommandList());
+	PrepareForUse(compiledObj, false, GetDeviceObjectFactory().GetCoreCommandList());
 
-	cro.m_bValid = true;
+	compiledObj.m_bValid = true;
 	return true;
 }
 
-void CREFogVolume::DrawToCommandList(CRenderObject* pObj, const struct SGraphicsPipelinePassContext& ctx)
+void CREFogVolume::DrawToCommandList(CRenderObject* pObj, const struct SGraphicsPipelinePassContext& ctx, CDeviceCommandList* commandList)
 {
 	if (!m_pCompiledObject)
 	{
 		return;
 	}
 
-	auto& RESTRICT_REFERENCE cobj = *m_pCompiledObject;
+	auto& RESTRICT_REFERENCE compiledObj = *m_pCompiledObject;
+	CD3D9Renderer* const RESTRICT_POINTER rd = gcpRendD3D;
 
 #if defined(ENABLE_PROFILING_CODE)
-	if (!cobj.m_bValid)
+	if (!compiledObj.m_bValid)
 	{
-		CryInterlockedIncrement(&SPipeStat::Out()->m_nIncompleteCompiledObjects);
+		CryInterlockedIncrement(&SRenderStatistics::Write().m_nIncompleteCompiledObjects);
 	}
 #endif
 
-	if (!cobj.m_bValid)
+	if (!compiledObj.m_bValid)
 	{
 		return;
 	}
@@ -438,68 +296,68 @@ void CREFogVolume::DrawToCommandList(CRenderObject* pObj, const struct SGraphics
 		return;
 	}
 
-	uint32 psoId = cobj.m_bViewerInsideVolume
-	               ? (cobj.m_bNearCutoff ? uint32(render_element::fogvolume::EPsoId::ViewerInsideVolumeNearCutoff) : uint32(render_element::fogvolume::EPsoId::ViewerInsideVolume))
+	uint32 psoId = compiledObj.m_bViewerInsideVolume
+	               ? (compiledObj.m_bNearCutoff ? uint32(render_element::fogvolume::EPsoId::ViewerInsideVolumeNearCutoff) : uint32(render_element::fogvolume::EPsoId::ViewerInsideVolume))
 	               : uint32(render_element::fogvolume::EPsoId::ViewerOustideVolume);
 
-	const CDeviceGraphicsPSOPtr& pPso = cobj.m_psoArray[psoId];
+	const CDeviceGraphicsPSOPtr& pPso = compiledObj.m_psoArray[psoId];
 
 	if (!pPso || !pPso->IsValid())
 	{
 		return;
 	}
 
-	CRY_ASSERT(cobj.m_pPerInstanceCB);
+	CRY_ASSERT(compiledObj.m_pPerDrawCB);
 
-	CDeviceGraphicsCommandInterface& RESTRICT_REFERENCE commandInterface = *(ctx.pCommandList->GetGraphicsInterface());
-
+	CDeviceGraphicsCommandInterface& RESTRICT_REFERENCE commandInterface = *(commandList->GetGraphicsInterface());
 	// Set states
-	commandInterface.SetPipelineState(pPso.get());
-	commandInterface.SetResources(EResourceLayoutSlot_PerMaterialRS, cobj.m_pMaterialResourceSet.get());
-	commandInterface.SetResources(EResourceLayoutSlot_PerInstanceExtraRS, cobj.m_pPerInstanceResourceSet.get());
+	const EShaderStage perDrawInlineShaderStages = (EShaderStage_Vertex | EShaderStage_Pixel);
 
-	EShaderStage perInstanceCBShaderStages = (EShaderStage_Vertex | EShaderStage_Pixel);
-	commandInterface.SetInlineConstantBuffer(EResourceLayoutSlot_PerInstanceCB, cobj.m_pPerInstanceCB, eConstantBufferShaderSlot_PerInstance, perInstanceCBShaderStages);
+	commandInterface.SetPipelineState(pPso.get());
+	commandInterface.SetResources(EResourceLayoutSlot_PerMaterialRS, compiledObj.m_pMaterialResourceSet.get());
+	commandInterface.SetResources(EResourceLayoutSlot_PerDrawExtraRS, compiledObj.m_pPerDrawRS.get());
+
+	commandInterface.SetInlineConstantBuffer(EResourceLayoutSlot_PerDrawCB, compiledObj.m_pPerDrawCB, eConstantBufferShaderSlot_PerDraw, perDrawInlineShaderStages);
 
 	if (CRenderer::CV_r_NoDraw != 3)
 	{
-		commandInterface.SetVertexBuffers(1, 0, cobj.m_vertexStreamSet);
-		commandInterface.SetIndexBuffer(cobj.m_indexStreamSet);
-		commandInterface.DrawIndexed(cobj.m_nNumIndices, 1, cobj.m_nStartIndex, 0, 0);
+		commandInterface.SetVertexBuffers(1, 0, compiledObj.m_vertexStreamSet);
+		commandInterface.SetIndexBuffer(compiledObj.m_indexStreamSet);
+		commandInterface.DrawIndexed(compiledObj.m_nNumIndices, 1, compiledObj.m_nStartIndex, 0, 0);
 	}
 }
 
 void CREFogVolume::PrepareForUse(render_element::fogvolume::SCompiledFogVolume& RESTRICT_REFERENCE compiledObj, bool bInstanceOnly, CDeviceCommandList& RESTRICT_REFERENCE commandList) const
 {
-	CDeviceGraphicsCommandInterface* pCommandInterface = commandList.GetGraphicsInterface();
+	CDeviceGraphicsCommandInterface* RESTRICT_REFERENCE pCommandInterface = commandList.GetGraphicsInterface();
+	const EShaderStage perDrawInlineShaderStages = (EShaderStage_Vertex | EShaderStage_Pixel);
 
 	pCommandInterface->PrepareResourcesForUse(EResourceLayoutSlot_PerMaterialRS, compiledObj.m_pMaterialResourceSet.get());
-	pCommandInterface->PrepareResourcesForUse(EResourceLayoutSlot_PerInstanceExtraRS, compiledObj.m_pPerInstanceResourceSet.get());
+	pCommandInterface->PrepareResourcesForUse(EResourceLayoutSlot_PerDrawExtraRS, compiledObj.m_pPerDrawRS.get());
 
-	EShaderStage perInstanceCBShaderStages = (EShaderStage_Vertex | EShaderStage_Pixel);
-	pCommandInterface->PrepareInlineConstantBufferForUse(EResourceLayoutSlot_PerInstanceCB, compiledObj.m_pPerInstanceCB, eConstantBufferShaderSlot_PerInstance, perInstanceCBShaderStages);
+	pCommandInterface->PrepareInlineConstantBufferForUse(EResourceLayoutSlot_PerDrawCB, compiledObj.m_pPerDrawCB, eConstantBufferShaderSlot_PerDraw, perDrawInlineShaderStages);
 
 	pCommandInterface->PrepareVertexBuffersForUse(1, 0, compiledObj.m_vertexStreamSet);
 	pCommandInterface->PrepareIndexBufferForUse(compiledObj.m_indexStreamSet);
 }
 
-void CREFogVolume::UpdatePerInstanceCB(render_element::fogvolume::SCompiledFogVolume& RESTRICT_REFERENCE compiledObj, const CRenderObject& renderObj) const
+void CREFogVolume::UpdatePerDrawCB(render_element::fogvolume::SCompiledFogVolume& RESTRICT_REFERENCE compiledObj, const CRenderObject& renderObj) const
 {
 	CD3D9Renderer* const RESTRICT_POINTER rd = gcpRendD3D;
 
-	if (!compiledObj.m_pPerInstanceCB)
+	if (!compiledObj.m_pPerDrawCB)
 	{
-		compiledObj.m_pPerInstanceCB = rd->m_DevBufMan.CreateConstantBufferRaw(sizeof(render_element::fogvolume::SPerInstanceConstantBuffer));
+		compiledObj.m_pPerDrawCB = rd->m_DevBufMan.CreateConstantBuffer(sizeof(render_element::fogvolume::SPerDrawConstantBuffer));
 	}
 
-	if (!compiledObj.m_pPerInstanceCB)
+	if (!compiledObj.m_pPerDrawCB)
 	{
 		return;
 	}
 
-	CryStackAllocWithSize(render_element::fogvolume::SPerInstanceConstantBuffer, cb, CDeviceBufferManager::AlignBufferSizeForStreaming);
+	CryStackAllocWithSize(render_element::fogvolume::SPerDrawConstantBuffer, cb, CDeviceBufferManager::AlignBufferSizeForStreaming);
 
-	cb->objMatrix = renderObj.m_II.m_Matrix;
+	cb->objMatrix = renderObj.GetMatrix(gcpRendD3D->GetObjectAccessorThreadConfig());
 	cb->invObjSpaceMatrix = m_matWSInv;
 	cb->globalDensity = Vec4(m_globalDensity, 1.44269502f * m_globalDensity, 0, 0);
 	cb->densityOffset = Vec4(m_densityOffset, m_densityOffset, m_densityOffset, m_densityOffset);
@@ -509,7 +367,7 @@ void CREFogVolume::UpdatePerInstanceCB(render_element::fogvolume::SCompiledFogVo
 	cb->heightFallOffBasePoint = Vec4(m_heightFallOffBasePoint, 0);
 	cb->heightFallOffDirScaled = Vec4(m_heightFallOffDirScaled, 0);
 
-	compiledObj.m_pPerInstanceCB->UpdateBuffer(cb, cbSize);
+	compiledObj.m_pPerDrawCB->UpdateBuffer(cb, cbSize);
 }
 
 bool CREFogVolume::UpdateVertex(render_element::fogvolume::SCompiledFogVolume& RESTRICT_REFERENCE compiledObj)

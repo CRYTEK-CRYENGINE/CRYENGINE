@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "SceneContextMenu.h"
@@ -105,3 +105,4 @@ void CSceneContextMenuCommon::AddGeneralSectionInternal()
 	using namespace Private_SceneContextMenu;
 	AddExpandCollapseAllContextMenu(m_pSceneView, m_pMenu);
 }
+

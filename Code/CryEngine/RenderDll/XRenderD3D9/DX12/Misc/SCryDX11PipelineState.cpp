@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "SCryDX11PipelineState.hpp"
@@ -7,11 +7,11 @@
 #include "DX12/API/DX12RootSignature.hpp"
 #include "DX12/Device/CCryDX12DeviceContext.hpp"
 
-static D3D12_SHADER_BYTECODE g_EmptyShader = { NULL, 0 };
 
 const D3D12_SHADER_BYTECODE& SCryDX11ShaderStageState::GetD3D12ShaderBytecode() const
 {
-	return Shader.m_Value ? Shader.m_Value->GetD3D12ShaderBytecode() : g_EmptyShader;
+	static D3D12_SHADER_BYTECODE emptyShader = { nullptr, 0 };
+	return Shader.m_Value ? Shader.m_Value->GetD3D12ShaderBytecode() : emptyShader;
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -458,8 +458,8 @@ void SCryDX11OutputMergerState::DebugPrint()
 
 void SCryDX11PipelineState::InitD3D12Descriptor(NCryDX12::CComputePSO::SInitParams& params, UINT nodeMask)
 {
-	D3D12_COMPUTE_PIPELINE_STATE_DESC& desc = params.m_Desc;
-	ZeroMemory(&desc, sizeof(D3D12_COMPUTE_PIPELINE_STATE_DESC));
+	auto& desc = params.m_Desc;
+	ZeroMemory(&desc, sizeof(params.m_Desc));
 
 	desc.NodeMask = nodeMask;
 
@@ -471,8 +471,8 @@ void SCryDX11PipelineState::InitD3D12Descriptor(NCryDX12::CComputePSO::SInitPara
 //---------------------------------------------------------------------------------------------------------------------
 void SCryDX11PipelineState::InitD3D12Descriptor(NCryDX12::CGraphicsPSO::SInitParams& params, UINT nodeMask)
 {
-	D3D12_GRAPHICS_PIPELINE_STATE_DESC& desc = params.m_Desc;
-	ZeroMemory(&desc, sizeof(D3D12_GRAPHICS_PIPELINE_STATE_DESC));
+	auto& desc = params.m_Desc;
+	ZeroMemory(&desc, sizeof(params.m_Desc));
 
 	desc.NodeMask = nodeMask;
 

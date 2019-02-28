@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __RayCastQueue_h__
 #define __RayCastQueue_h__
@@ -64,17 +64,19 @@ struct RayCastRequest
 	RayCastRequest()
 		: skipListCount(0)
 		, maxHitCount(1)
+		, pLastHit(nullptr)
 	{
 	}
 
 	RayCastRequest(const Vec3& _pos, const Vec3& _dir, int _objTypes, int _flags = 0, IPhysicalEntity** _skipList = 0,
-	               uint8 _skipListCount = 0, uint8 _maxHitCount = 1)
+			uint8 _skipListCount = 0, uint8 _maxHitCount = 1, ray_hit_cached* _pLastHit = nullptr)
 		: pos(_pos)
 		, dir(_dir)
 		, objTypes(_objTypes)
 		, flags(_flags)
 		, skipListCount(_skipListCount)
 		, maxHitCount(_maxHitCount)
+		, pLastHit(_pLastHit)
 	{
 		assert(maxHitCount <= RayCastResult::MaxHitCount);
 		assert(skipListCount <= MaxSkipListCount);
@@ -103,6 +105,7 @@ struct RayCastRequest
 	uint8            skipListCount;
 	IPhysicalEntity* skipList[MaxSkipListCount];
 	uint8            maxHitCount;
+	ray_hit_cached*  pLastHit;
 };
 
 template<int RayCasterID>
@@ -139,6 +142,7 @@ protected:
 		params.nMaxHits = request.maxHitCount;
 		params.pSkipEnts = request.skipListCount ? const_cast<IPhysicalEntity**>(&request.skipList[0]) : 0;
 		params.nSkipEnts = request.skipListCount;
+		params.phitLast = request.pLastHit;
 
 		return params;
 	}

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #if !defined(AFX_XCONSOLE_H__BA902011_5C47_4954_8E09_68598456912D__INCLUDED_)
 #define AFX_XCONSOLE_H__BA902011_5C47_4954_8E09_68598456912D__INCLUDED_
@@ -190,6 +190,7 @@ public:
 	virtual void                   AddCommandToHistory(const char* szCommand);
 	virtual void                   SetInputLine(const char* szLine);
 	virtual void                   LoadConfigVar(const char* sVariable, const char* sValue);
+	virtual void                   LoadConfigCommand(const char* szCommand, const char* szArguments = nullptr);
 	virtual ELoadConfigurationType SetCurrentConfigType(ELoadConfigurationType configType);
 	virtual void                   EnableActivationKey(bool bEnable);
 #if defined(DEDICATED_SERVER)
@@ -365,6 +366,7 @@ private: // ----------------------------------------------------------
 	ConsoleVarSinks                m_consoleVarSinks;
 
 	ConfigVars                     m_configVars;              // temporary data of cvars that haven't been created yet
+	std::multimap<string, string>  m_configCommands;  // temporary data of commands that haven't been created yet
 
 	int                            m_nScrollPos;
 	int                            m_nTempScrollMax;          // for currently opened console, reset to m_nScrollMax

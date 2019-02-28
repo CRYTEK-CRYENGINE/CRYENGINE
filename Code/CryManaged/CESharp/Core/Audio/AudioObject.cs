@@ -1,13 +1,10 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 using System;
-using System.Runtime.CompilerServices;
-using CryEngine.Common;
-using CryEngine.Common.CryAudio;
 
 namespace CryEngine
 {
-	using NativeAudioSystem = CryEngine.NativeInternals.IAudioSystem;
+	using NativeAudioSystem = NativeInternals.IAudioSystem;
 
 	/// <summary>
 	/// An audio object has more audio configuration options such as transformation in the 3D space.
@@ -30,6 +27,9 @@ namespace CryEngine
 			_cPtr = new System.Runtime.InteropServices.HandleRef(this, nativePtr);
 		}
 
+		/// <summary>
+		/// Destructor for the AudioObject which ensures Dispose is called.
+		/// </summary>
 		~AudioObject()
 		{
 			Dispose(false);
@@ -149,6 +149,9 @@ namespace CryEngine
 			}
 		}
 
+		/// <summary>
+		/// Disposes this instance.
+		/// </summary>
 		public void Dispose()
 		{
 			Dispose(true);

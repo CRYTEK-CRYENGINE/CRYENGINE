@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -51,13 +51,121 @@ namespace UQS
 			std::map<string, SDataEntry>         m_dataItems;
 		};
 
+		inline CVariantDict::SDataEntry::SDataEntry()
+			: pItemFactory(nullptr)
+			, pObject(nullptr)
+		{
+			// nothing
+		}
+
+		inline CVariantDict::CVariantDict()
+		{
+			// nothing
+		}
+
+		inline CVariantDict::~CVariantDict()
+		{
+			Clear();
+		}
+
+		inline void CVariantDict::AddOrReplace(const char* szKey, Client::IItemFactory& itemFactory, const void* pItemToClone)
+		{
+			assert(pItemToClone);
+
+			SDataEntry& entry = m_dataItems[szKey];
+
+			assert((entry.pItemFactory && entry.pObject) || (!entry.pItemFactory && !entry.pObject));
+
+			// same item-factory as before? -> just change the object's value
+			if (entry.pItemFactory && entry.pItemFactory == &itemFactory)
+			{
+				entry.pItemFactory->CopyItem(entry.pObject, pItemToClone);
+			}
+			else
+			{
+				// we're about to get a different item-factory, so get rid of the old potential object beforehand
+				if (entry.pItemFactory)
+				{
+					entry.pItemFactory->DestroyItems(entry.pObject);
+				}
+
+				entry.pObject = itemFactory.CloneItem(pItemToClone);
+				entry.pItemFactory = &itemFactory;
+			}
+		}
+
+		inline void CVariantDict::AddSelfToOtherAndReplace(IVariantDict& out) const
+		{
+			assert(this != &out);
+
+			for (const auto& pair : m_dataItems)
+			{
+				const char* szKey = pair.first.c_str();
+				const SDataEntry& entry = pair.second;
+
+				assert(entry.pItemFactory && entry.pObject);
+
+				out.AddOrReplace(szKey, *entry.pItemFactory, entry.pObject);
+			}
+		}
+
+		inline bool CVariantDict::Exists(const char* szKey) const
+		{
+			return (m_dataItems.find(szKey) != m_dataItems.cend());
+		}
+
+		inline Client::IItemFactory* CVariantDict::FindItemFactory(const char* szKey) const
+		{
+			auto it = m_dataItems.find(szKey);
+			return (it == m_dataItems.cend()) ? nullptr : it->second.pItemFactory;
+		}
+
+		inline bool CVariantDict::FindItemFactoryAndObject(const char* szKey, Client::IItemFactory* &pOutItemItemFactory, void* &pOutObject) const
+		{
+			auto it = m_dataItems.find(szKey);
+			if (it != m_dataItems.cend())
+			{
+				pOutItemItemFactory = it->second.pItemFactory;
+				pOutObject = it->second.pObject;
+				return true;
+			}
+			else
+			{
+				return false;
+			}
+		}
+
+		inline const std::map<string, CVariantDict::SDataEntry>& CVariantDict::GetEntries() const
+		{
+			return m_dataItems;
+		}
+
+		inline void CVariantDict::Clear()
+		{
+			for (auto pair : m_dataItems)
+			{
+				SDataEntry& entry = pair.second;
+				assert(entry.pItemFactory && entry.pObject);
+				entry.pItemFactory->DestroyItems(entry.pObject);
+			}
+			m_dataItems.clear();
+		}
+
 		template <class TItem>
 		void CVariantDict::AddOrReplaceFromOriginalValue(const char* szKey, const TItem& originalValueToClone)
 		{
+			UQS::Core::IHub* pHub = UQS::Core::IHubPlugin::GetHubPtr();
+
+			if (!pHub)
+			{
+				CryWarning(VALIDATOR_MODULE_UNKNOWN, VALIDATOR_ERROR, "UQS: CVariantDict::AddOrReplaceFromOriginalValue: UQS Plugin is not loaded. The dictionary you're trying to fill will be lacking the entry with key = '%s'.", szKey);
+				return;
+			}
+
 			// FIXME: searching for the item-factory might not be the best approach; we could have the caller pass in the item-factory and assert() type matching,
 			//        but that would also mean more responsibility on the client side
 			const CTypeInfo& typeOfOriginalValue = Shared::SDataTypeHelper<TItem>::GetTypeInfo();
-			Client::IItemFactory* pItemFactoryOfOriginalValue = UQS::Core::IHubPlugin::GetHub().GetUtils().FindItemFactoryByType(typeOfOriginalValue);
+			Client::IItemFactory* pItemFactoryOfOriginalValue = pHub->GetUtils().FindItemFactoryByType(typeOfOriginalValue);
 
 			// If this fails then there is obviously no item-factory registered that can create items of given type.
 			// Currently we do nothing about it since it should be the responsibility of the caller to ensure consistency beforehand.

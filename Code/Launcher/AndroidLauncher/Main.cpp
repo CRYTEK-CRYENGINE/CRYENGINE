@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -14,37 +14,13 @@
 #include <SDL.h>
 #include <SDL_Extension.h>
 
-#include <CryGame/IGameStartup.h>
 #include <CryEntitySystem/IEntity.h>
-#include <CryGame/IGameFramework.h>
 #include <CrySystem/IConsole.h>
 #include <sys/types.h>
 #include <netdb.h>
 #include <sys/resource.h>
 #include <sys/prctl.h>
 #include <dlfcn.h>
-
-#if defined(_LIB)
-#include <CryCore/Common_TypeInfo.h>
-STRUCT_INFO_T_INSTANTIATE(Vec2_tpl, <float>)
-STRUCT_INFO_T_INSTANTIATE(Vec2_tpl, <int>)
-STRUCT_INFO_T_INSTANTIATE(Vec4_tpl, <short>)
-STRUCT_INFO_T_INSTANTIATE(Vec3_tpl, <int>)
-STRUCT_INFO_T_INSTANTIATE(Vec3_tpl, <float>)
-STRUCT_INFO_T_INSTANTIATE(Ang3_tpl, <float>)
-STRUCT_INFO_T_INSTANTIATE(Quat_tpl, <float>)
-STRUCT_INFO_T_INSTANTIATE(QuatT_tpl, <float>)
-STRUCT_INFO_T_INSTANTIATE(Plane_tpl, <float>)
-STRUCT_INFO_T_INSTANTIATE(Matrix33_tpl, <float>)
-STRUCT_INFO_T_INSTANTIATE(Color_tpl, <float>)
-STRUCT_INFO_T_INSTANTIATE(Color_tpl, <uint8>)
-
-#endif
-
-size_t linux_autoload_level_maxsize = PATH_MAX;
-char linux_autoload_level_buf[PATH_MAX];
-char *linux_autoload_level = linux_autoload_level_buf;
-
 
 bool GetDefaultThreadStackSize(size_t* pStackSize)
 {
@@ -85,74 +61,12 @@ bool IncreaseResourceMaxLimit(int iResource, rlim_t uMax)
 	return true;
 }
 
-#if defined(_LIB)
-extern "C" DLL_IMPORT IGameFramework* CreateGameFramework();
-#endif
-
 size_t fopenwrapper_basedir_maxsize = MAX_PATH;
 namespace { char fopenwrapper_basedir_buffer[MAX_PATH] = ""; }
 char * fopenwrapper_basedir = fopenwrapper_basedir_buffer;
 bool fopenwrapper_trace_fopen = false;
 
 #define RunGame_EXIT(exitCode) (exit(exitCode))
-
-#define LINUX_LAUNCHER_CONF "launcher.cfg"
-
-static void strip(char *s)
-{
-	char *p = s, *p_end = s + strlen(s);
-
-	while (*p && isspace(*p)) ++p;
-	if (p > s) { memmove(s, p, p_end - s + 1); p_end -= p - s; }
-	for (p = p_end; p > s && isspace(p[-1]); --p);
-	*p = 0;
-}
-
-static void LoadLauncherConfig(void)
-{
-	char conf_filename[MAX_PATH];
-	char line[1024], *eq = 0;
-	int n = 0;
-
-	cry_sprintf(conf_filename, "%s/%s", fopenwrapper_basedir, LINUX_LAUNCHER_CONF);
-	FILE *fp = fopen(conf_filename, "r");
-	if (!fp) return;
-	while (true)
-	{
-		++n;
-		if (!fgets(line, sizeof line - 1, fp)) break;
-		line[sizeof line - 1] = 0;
-		strip(line);
-		if (!line[0] || line[0] == '#') continue;
-		eq = strchr(line, '=');
-		if (!eq)
-		{
-			fprintf(stderr, "'%s': syntax error in line %i\n",
-					conf_filename, n);
-			exit(EXIT_FAILURE);
-		}
-		*eq = 0;
-		strip(line);
-		strip(++eq);
-
-		if (!strcasecmp(line, "autoload"))
-		{
-			if (strlen(eq) >= linux_autoload_level_maxsize)
-			{
-				fprintf(stderr, "'%s', line %i: autoload value too long\n",
-						conf_filename, n);
-				exit(EXIT_FAILURE);
-			}
-			strcpy(linux_autoload_level, eq);
-		} else
-		{
-			fprintf(stderr, "'%s': unrecognized config variable '%s' in line %i\n",
-					conf_filename, line, n);
-			exit(EXIT_FAILURE);
-		}
-	}
-	fclose(fp);
-}
 
 int RunGame(const char *) __attribute__ ((noreturn));
 
@@ -214,27 +128,40 @@ struct COutputPrintSink : public IOutputPrintSink
 COutputPrintSink g_androidPrintSink;
 #endif
 
-int RunGame(const char *commandLine)
+//-------------------------------------------------------------------------------------
+// Name: main()
+// Desc: The application's entry point
+//-------------------------------------------------------------------------------------
+int _main(int argc, char **argv)
 {
-	char absPath[ MAX_PATH];
-	memset(absPath,0,sizeof(char)* MAX_PATH);
+	// Initialize SDL.
+	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK /*| SDL_INIT_HAPTIC*/ | SDL_INIT_GAMECONTROLLER ) < 0)
+	{
+		fprintf(stderr, "ERROR: SDL initialization failed: %s\n",
+			SDL_GetError());
+		exit(EXIT_FAILURE);
+	}
+	atexit(SDL_Quit);
 
-	if (!getcwd(absPath,sizeof(char)* MAX_PATH))
+	char absPath[MAX_PATH];
+	memset(absPath, 0, sizeof(char)* MAX_PATH);
+
+	if (!getcwd(absPath, sizeof(char)* MAX_PATH))
 		RunGame_EXIT(1);
-	LOGI( "CWD = %s", absPath );
+	LOGI("CWD = %s", absPath);
 
 	// Try to figure out where the PAK files are stored
-	const char* paths[] = {		
+	const char* paths[] = {
 		SDLExt_AndroidGetExternalStorageDirectory(),
-		SDL_AndroidGetExternalStoragePath(),		
+		SDL_AndroidGetExternalStoragePath(),
 		SDL_AndroidGetInternalStoragePath()  // user folder files e.g. "/data/user/0/com.crytek.cryengine/files"
 	};
-	for (int i = 0; i < CRY_ARRAY_COUNT(paths); ++i )
+	for (int i = 0; i < CRY_ARRAY_COUNT(paths); ++i)
 	{
 		char path[1024];
 		cry_strcpy(path, paths[i]);
 		cry_strcat(path, "/engine");
-		LOGI( "Searching for %s", path);
+		LOGI("Searching for %s", path);
 		struct stat info;
 		if (stat(path, &info) == 0 && (info.st_mode & S_IFMT) == S_IFDIR)
 		{
@@ -245,7 +172,7 @@ int RunGame(const char *commandLine)
 
 	if (strcmp(CryGetProjectStoragePath(), g_androidPakPath) != 0)
 	{
-		LOGE("Hardcoded path does not match runtime identified internal storage location: Hard coded path:%s Runtime path:%s", CryGetProjectStoragePath(),  g_androidPakPath);
+		LOGE("Hardcoded path does not match runtime identified internal storage location: Hard coded path:%s Runtime path:%s", CryGetProjectStoragePath(), g_androidPakPath);
 		RunGame_EXIT(1);
 	}
 
@@ -253,10 +180,10 @@ int RunGame(const char *commandLine)
 
 	if (strlen(g_androidPakPath) == 0)
 	{
-		LOGE( "Unable to locate system.cfg files.  Exiting!" );
+		LOGE("Unable to locate system.cfg files.  Exiting!");
 		RunGame_EXIT(1);
 	}
-	LOGI( "system.cfg found in: %s", g_androidPakPath );
+	LOGI("system.cfg found in: %s", g_androidPakPath);
 
 	size_t uDefStackSize;
 
@@ -267,7 +194,14 @@ int RunGame(const char *commandLine)
 	SSystemInitParams startupParams;
 	memset(&startupParams, 0, sizeof(SSystemInitParams));
 
-	cry_strcpy(startupParams.szSystemCmdLine, commandLine);
+	startupParams.szSystemCmdLine = "";
+
+#if CAPTURE_REPLAY_LOG
+	// Since Android doesn't support native command line argument, please
+	// uncomment the following line if -memreplay is needed.
+	// startupParams.szSystemCmdLine = "-memreplay";
+#endif
+
 	startupParams.sLogFileName = "Game.log";
 	startupParams.pUserCallback = NULL;
 
@@ -276,86 +210,16 @@ int RunGame(const char *commandLine)
 #endif
 
 #if !defined(_LIB)
-	SetModulePath((strcmp(absPath,"/") == 0) ? "" : absPath);
-	HMODULE systemlib = CryLoadLibraryDefName("CrySystem");
-	if(!systemlib)
-	{
-		LOGE("Failed to load CrySystem: %s", dlerror());
-		exit(1);
-	}
+	SetModulePath((strcmp(absPath, "/") == 0) ? "" : absPath);
 #endif
 
-	HMODULE frameworkDll = 0;
-
-#ifndef _LIB
-	frameworkDll = CryLoadLibraryDefName("CryAction");
-	if (!frameworkDll)
+	if (!CryInitializeEngine(startupParams))
 	{
-		LOGE("ERROR: failed to load CryAction! (%s)\n", dlerror());
+		LOGE("ERROR: Failed to initialize the engine!\n");
 		RunGame_EXIT(1);
 	}
-
-	// get address of startup function
-	IGameFramework::TEntryFunction CreateGameFramework = (IGameFramework::TEntryFunction)CryGetProcAddress(frameworkDll, "CreateGameFramework");
-	if (!CreateGameFramework)
-	{
-		CryFreeLibrary(frameworkDll);
-		LOGE("ERROR: Specified CryAction library is not valid!\n");
-		RunGame_EXIT(1);
-	}
-#endif //_LIB
-
-	const char *const szAutostartLevel = linux_autoload_level[0] ? linux_autoload_level : NULL;
-
-	// create the startup interface
-	IGameFramework* pFramework = CreateGameFramework();
-	if (!pFramework)
-	{
-#ifndef _LIB
-		CryFreeLibrary(frameworkDll);
-#endif
-
-		LOGE("ERROR: Failed to create the Game Framework Interface!\n");
-		RunGame_EXIT(1);
-	}
-
-	pFramework->StartEngine(startupParams);
-
-	// The main engine loop has exited at this point, shut down
-	pFramework->ShutdownEngine();
-
-#ifndef LIB
-	CryFreeLibrary(frameworkDll);
-#endif
 
 	RunGame_EXIT(0);
-}
-
-//-------------------------------------------------------------------------------------
-// Name: main()
-// Desc: The application's entry point
-//-------------------------------------------------------------------------------------
-int _main(int argc, char **argv)
-{
-	char* cmdLine = "";
-	LoadLauncherConfig();
-
-	// Initialize SDL.
-	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK /*| SDL_INIT_HAPTIC*/ | SDL_INIT_GAMECONTROLLER ) < 0)
-	{
-		fprintf(stderr, "ERROR: SDL initialization failed: %s\n",
-			SDL_GetError());
-		exit(EXIT_FAILURE);
-	}
-	atexit(SDL_Quit);
-
-#if CAPTURE_REPLAY_LOG
-	// Since Android doesn't support native command line argument, please
-	// uncomment the following line if -memreplay is needed.
-	// CryGetIMemReplay()->StartOnCommandLine("-memreplay");
-	CryGetIMemReplay()->StartOnCommandLine(cmdLine);
-#endif
-	return RunGame(cmdLine);
 }
 
 /**

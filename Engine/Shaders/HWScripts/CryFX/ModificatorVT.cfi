@@ -1,97 +1,89 @@
-// CRYENGINE Source Code File
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 
 // Note: Unfortunately we couldn't go more atomic with structures as rsx cgc compiler 
 // doesn't allow empty structures (which we might have on certain conditions with defines not existing)
 
 
-WIND_GRID_MAP
 PERLIN_NOISE_MAP
+WIND_GRID_MAP
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-cbuffer CBStaticPerInst : register(b12)
+cbuffer CBPerInstance : register(b0)
 {
+#if %_RT_ENVIRONMENT_CUBEMAP
 	struct
 	{
-		float3x4	PerInstanceWorldMatrix;
-		float4		PerInstanceCustomData;   // [x=VegetationBendingVerticalRadius, y=VegetationBendingScale, z=tessellation patch id offset, w=dissolve]
-    } SInstancingData[800];
+		float3x4	CI_WorldMatrix;
+		float4		CI_CustomData;   // [x=VegetationBendingVerticalRadius, y=VegetationBendingScale, z=tessellation patch id offset, w=dissolve]
+	} SInstancingData[800];
+#endif
 };
 
-// TODO: replace by CB definition shared between c++ and hlsl. 
-// TODO: bind to correct slot (probably c0)
-cbuffer CBPerInstanceNewBackend : register(b12)
+cbuffer CBPerDraw : register(b0)
 {
-	float3x4  PerInstanceWorldMatrix;
-	float3x4  PerInstancePrevWorldMatrix;
-	float4    PerInstanceCustomData;       // [x=VegetationBendingVerticalRadius, y=VegetationBendingScale, z=tessellation patch id offset, w=dissolve]
-	float4    PerInstanceCustomData1;      // [xyzw=ShilouetteColor]
+ #if !%_RT_ENVIRONMENT_CUBEMAP
+	float3x4  CD_WorldMatrix;
+	float3x4  CD_PrevWorldMatrix;
+	float4    CD_CustomData;       // [x=VegetationBendingVerticalRadius, y=VegetationBendingScale, z=tessellation patch id offset, w=dissolve]
+	float4    CD_CustomData1;      // [xyzw=ShilouetteColor]
 	// TODO: Should be moved after all the data below
-	float4    PerInstanceCustomData2;      // [x=selectionIDs in debug pass, y=AmbientColor, zw=Not used]
-
-#if %TEMP_TERRAIN || %TEMP_VEGETATION
-	float4    PerInstanceBlendTerrainColInfo;
-	float4x4  PerInstanceTerrainLayerInfo;
+	float4    CD_CustomData2;      // [x=selectionIDs in debug pass, y=AmbientColor, zw=Not used]
+	
+#if %TEMP_TERRAIN || (%TEMP_VEGETATION && %_RT_BLEND_WITH_TERRAIN_COLOR)
+	float4    CD_BlendTerrainColInfo;
+	float4x4  CD_TerrainLayerInfo;
 #elif %WRINKLE_BLENDING || %_RT_SKELETON_SSD_LINEAR || %_RT_SKELETON_SSD
-	float4    PerInstanceSkinningInfo;
-	float4    PerInstanceWrinklesMask0;
-	float4    PerInstanceWrinklesMask1;
-	float4    PerInstanceWrinklesMask2;
+	float4    CD_SkinningInfo;     // Additional offset
+	float4    CD_WrinklesMask0;
+	float4    CD_WrinklesMask1;
+	float4    CD_WrinklesMask2;
+#endif
 #endif
 };
 
-#if %TEMP_VEGETATION || %TEMP_TERRAIN
-	float4 Get_SPI_BlendWithTerrainColInfo()
-	{
- #if %_RT_ENVIRONMENT_CUBEMAP
-	return 1;
- #else
-	#if %_RT_PER_INSTANCE_CB_TEMP
-		return PerInstanceBlendTerrainColInfo;
-	#else
-		return BlendTerrainColInfo;
-	#endif
-#endif
-	}
-#endif
-
-#if %TEMP_TERRAIN
-	float4x4 Get_SPI_TerrainLayerInfo()
-	{
+float4 Get_SPI_BlendWithTerrainColInfo()
+{
+#if %TEMP_TERRAIN || (%TEMP_VEGETATION && %_RT_BLEND_WITH_TERRAIN_COLOR)
 	#if %_RT_ENVIRONMENT_CUBEMAP
-		return float4x4(0);
-	#elif %_RT_PER_INSTANCE_CB_TEMP
-		return PerInstanceTerrainLayerInfo;
+	return 1;
 	#else
-		return LayerTexGen;
+	return CD_BlendTerrainColInfo;
 	#endif
-	}
+#else
+	return (float4)0;
 #endif
+}
+
+float4x4 Get_SPI_TerrainLayerInfo()
+{
+#if %TEMP_TERRAIN
+	#if %_RT_ENVIRONMENT_CUBEMAP
+	return float4x4(0);
+	#else
+	return CD_TerrainLayerInfo;
+	#endif
+#else
+	return float4x4(0);
+#endif
+}
 
 float4 Get_SPI_SkinningInfo()
 {
 #if !%TEMP_TERRAIN && !%TEMP_VEGETATION && (%_RT_SKELETON_SSD || %_RT_SKELETON_SSD_LINEAR)
-	#if %_RT_PER_INSTANCE_CB_TEMP
-		return PerInstanceSkinningInfo;
-	#else
-		return float4(vSkinPrecisionOffset.xyz, fSkinningExtraWeights.x);
-	#endif
+	return CD_SkinningInfo;
 #else
-	return float4(0, 0, 0, 0);
+	return (float4)0;
 #endif
 }
 
 float3x4 Get_SPI_ObjWorldMat(int nIndex)
 {
  #if %_RT_ENVIRONMENT_CUBEMAP
-	return SInstancingData[nIndex].PerInstanceWorldMatrix;
+	return SInstancingData[nIndex].CI_WorldMatrix;
  #else
-  #if %_RT_PER_INSTANCE_CB_TEMP
-	return PerInstanceWorldMatrix;
-  #endif
-	return ObjWorldMatrix;
+	return CD_WorldMatrix;
  #endif
 }
 
@@ -125,13 +117,15 @@ float4 DecodeBending(float3 vPos, float bendingRadius,float bendingScale)
 
 float4 Get_SPI_BendInfo(int nIndex, float3 worldPos)
 {
-#if %_RT_ENVIRONMENT_CUBEMAP
-	return DecodeBending(worldPos, SInstancingData[nIndex].PerInstanceCustomData.x,SInstancingData[nIndex].PerInstanceCustomData.y);
-#elif %_RT_PER_INSTANCE_CB_TEMP
-	return DecodeBending(worldPos, PerInstanceCustomData.x,PerInstanceCustomData.y);
- #else
-	return BendInfo;
- #endif
+#if %_VT_BEND
+	#if %_RT_ENVIRONMENT_CUBEMAP
+	return DecodeBending(worldPos, SInstancingData[nIndex].CI_CustomData.x,SInstancingData[nIndex].CI_CustomData.y);
+	#else
+	return DecodeBending(worldPos, CD_CustomData.x,CD_CustomData.y); 
+	#endif
+#else
+	return (float4)0;
+#endif
 }
 
 float4 Get_SPI_RainLayerParams(int nIndex)
@@ -143,15 +137,10 @@ float4 Get_SPI_VertexAO(int nIndex)
 {
 	return g_VertexAO;
 }
-#include "ComputeSkinningUtils.cfi"
 
 float Get_MaterialAlphaTest()
 {
-#if %_RT_PER_INSTANCE_CB_TEMP
 	return CM_DetailTilingAndAlphaRef.z; // alpha ref value is stored in material CB
-#else
-	return AlphaTest.w;
-#endif
 }
 
 float Get_SPI_Dissolve()
@@ -159,13 +148,9 @@ float Get_SPI_Dissolve()
 #if %_RT_ENVIRONMENT_CUBEMAP
 	// Instancing support
 	// dissolved objects are not instanced, so we always use value from the first object
-	return SInstancingData[0].PerInstanceCustomData.w;
+	return SInstancingData[0].CI_CustomData.w;
 #else 
-	#if %_RT_PER_INSTANCE_CB_TEMP
-		return PerInstanceCustomData.w;
-	#else
-		return 0;
-	#endif
+	return CD_CustomData.w;
 #endif
 }
 
@@ -173,18 +158,16 @@ int Get_PerInstanceTessellationPatchId()
 {
 #if %_RT_ENVIRONMENT_CUBEMAP
 	// Instancing support
-	return asint(SInstancingData[0].PerInstanceCustomData.z);
+	return asint(SInstancingData[0].CI_CustomData.z);
 #else 
-	#if %_RT_PER_INSTANCE_CB_TEMP
-		return asint(PerInstanceCustomData.z);
-	#else
-		return 0;
-	#endif
+	return asint(CD_CustomData.z);
 #endif
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Common vertex attributes
+
+#include "ComputeSkinningUtils.cfi"
 
 // Note: user should #NOT# use directly any app2vert structures for vertex data modifications and
 //	use streamPos instead if any modification required
@@ -196,8 +179,8 @@ struct SSkinExtraBlendWeights
 	uint2 BlendIndices;  // short[4] -> R16G16B16A16_SINT
 };
 
-StructuredBuffer<SSkinExtraBlendWeights> sb_SkinExtraBlendWeights[1] : register(t14); // t14 = 15 - size, size is 1, 15 is the tessellation buffer
-StructuredBuffer<CSSkinVertexOut> SkinnedVertices : register(t16);
+StructuredBuffer<SSkinExtraBlendWeights> SkinExtraBlendWeights : register(t14); // !%_RT_COMPUTE_SKINNING
+StructuredBuffer<CSSkinVertexOut>        SkinnedVertices       : register(t14); //  %_RT_COMPUTE_SKINNING
 
 // compact structure to store the input assembler skinning stream + the extra 4 influences decoded in case of 8 weights skinning
 struct SSkinBlendWeightsOut
@@ -208,37 +191,33 @@ struct SSkinBlendWeightsOut
 
 struct app2vertCommon
 {
-  IN_P
+	IN_P
+	float2 baseTC   : TEXCOORDN;
+	IN_C0
 
-  float2 baseTC   : TEXCOORDN;
-
-  IN_C0
-
-		// Tangent stream - shadows dont need this, why is it used
-
+	// Tangent stream - shadows dont need this, why is it used
 #if !%TEMP_TERRAIN
- #if ENABLE_TESSELLATION && !%_RT_NO_TESSELLATION
-  float3 Normal   : NORMAL;
- #endif
-  IN_TANG_STREAM
+	#if ENABLE_TESSELLATION && !%_RT_NO_TESSELLATION
+	float3 Normal   : NORMAL;
+	#endif
+	IN_TANG_STREAM
 #else
-  float4 Normal   : NORMAL;
+	float4 Normal   : NORMAL;
+#endif
+
+	// Skinning stream related
+#if %_RT_SKELETON_SSD || %_RT_SKELETON_SSD_LINEAR
+	IN_SKIN_STREAM
+#endif
+#if %_RT_COMPUTE_SKINNING || %_RT_SKELETON_SSD || %_RT_SKELETON_SSD_LINEAR
+	uint VertexID : SV_VertexID;
+#endif  
+#if %_RT_VERTEX_VELOCITY
+	IN_VERTEX_VELOCITY_STREAM 
 #endif
 
 #if %_RT_ENVIRONMENT_CUBEMAP
-  uint InstIndex : SV_InstanceID;
-#endif
-
-// Skinning stream related
-
-#if %_RT_SKELETON_SSD || %_RT_SKELETON_SSD_LINEAR
-  IN_SKIN_STREAM
-#endif
-#if %_RT_COMPUTE_SKINNING || %_RT_SKELETON_SSD || %_RT_SKELETON_SSD_LINEAR
-  uint VertexID : SV_VertexID;
-#endif  
-#if %_RT_VERTEX_VELOCITY
-  IN_VERTEX_VELOCITY_STREAM 
+	uint InstIndex : SV_InstanceID;
 #endif
 };
 
@@ -296,7 +275,6 @@ struct app2vertRainPass
 struct app2vertEffectLayer
 { 
 	app2vertCommon vertCommon;
-
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -305,45 +283,45 @@ struct app2vertEffectLayer
 
 struct streamPos
 {
-  float4 Position;	
-  float4 WorldPos;
+	float4 Position;
+	float4 WorldPos;
 
 	float4 PositionCurr;
 	float4 PositionPrev;
 	float4 WorldPosPrev;
 
-  float4 Color;
-  float4 baseTC; 
+	float4 Color;
+	float4 baseTC; 
     
 #if !%TEMP_TERRAIN
-  float4 Tangent;
-  float4 Binormal;
- #if ENABLE_TESSELLATION && !%_RT_NO_TESSELLATION
-  float3 Normal;
- #endif
+	float4 Tangent;
+	float4 Binormal;
+	#if ENABLE_TESSELLATION && !%_RT_NO_TESSELLATION
+	float3 Normal;
+	#endif
 #else
-  float4 Normal;
+	float4 Normal;
 #endif
-  float3x3 ObjToTangentSpace;
-  float4x4 InstMatrix;
-  
-#if %_RT_ENVIRONMENT_CUBEMAP
-  int nInstance;
-#endif
+	float3x3 ObjToTangentSpace;
+	float4x4 InstMatrix;
 
 #if %_RT_SKELETON_SSD || %_RT_SKELETON_SSD_LINEAR
-  SSkinBlendWeightsOut skinBlends[2];
+	SSkinBlendWeightsOut skinBlends[2];
 #endif
 #if %_RT_COMPUTE_SKINNING
-  uint VertexID;
+	uint VertexID;
 #endif
 #if %_RT_VERTEX_VELOCITY
-  float3 VertexVelocity;
+	float3 VertexVelocity;
 #endif
-  
+
+#if %_RT_ENVIRONMENT_CUBEMAP
+	int nInstance;
+#endif
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+// No unified input struct for pixel shaders: pull the instance-ID explicitly
 
 float4 _InstancingParams;
 
@@ -379,14 +357,16 @@ void vtxStreamUnifySkinning( in app2vertCommon IN, inout streamPos OUT )
 #if %_RT_SKELETON_SSD || %_RT_SKELETON_SSD_LINEAR
 	OUT.skinBlends[0].BlendWeights = IN.BlendWeights; 
 	OUT.skinBlends[0].BlendIndices = IN.BlendIndices;
-  
-  if (Get_SPI_SkinningInfo().w)
-  {
-    SSkinExtraBlendWeights ebw = sb_SkinExtraBlendWeights[0][IN.VertexID];
-    OUT.skinBlends[1].BlendWeights = D3DX_R8G8B8A8_UNORM_TO_FLOAT4(ebw.BlendWeights);
-    OUT.skinBlends[1].BlendIndices = D3DX_R16G16B16A16_SINT_TO_UINT4(ebw.BlendIndices);
-  }
-#endif  
+
+	#if !%_RT_COMPUTE_SKINNING
+	if (Get_SPI_SkinningInfo().w)
+	{
+		SSkinExtraBlendWeights ebw = SkinExtraBlendWeights[IN.VertexID];
+		OUT.skinBlends[1].BlendWeights = D3DX_R8G8B8A8_UNORM_TO_FLOAT4(ebw.BlendWeights);
+		OUT.skinBlends[1].BlendIndices = D3DX_R16G16B16A16_SINT_TO_UINT4(ebw.BlendIndices);
+	}
+	#endif
+#endif
 
 #if %_RT_VERTEX_VELOCITY
 	OUT.VertexVelocity = IN.VertexVelocity;
@@ -458,7 +438,7 @@ void vtxStreamUnifyTangents( in app2vertCommon IN, inout streamPos OUT )
 void vtxStreamUnifyCommonInstancing( in app2vertCommon IN, inout streamPos OUT )
 {
 #if %_RT_ENVIRONMENT_CUBEMAP
-  OUT.nInstance = IN.InstIndex;
+	OUT.nInstance = IN.InstIndex;
 #endif
 }
 
@@ -476,19 +456,18 @@ ISOLATE
 #endif
 
 	OUT.baseTC = float4(IN.baseTC, 0, 1);
-
 	OUT.Color = GetInputColor(IN.Color);
 	
 #if ENABLE_TESSELLATION && !%_RT_NO_TESSELLATION
 	OUT.Normal = IN.Normal;
 #endif
+
+	// Must be first to initialize
+	vtxStreamUnifyCommonInstancing( IN, OUT );
 	
 	vtxStreamUnifyTangents( IN, OUT );
-
-	vtxStreamUnifyCommonInstancing( IN, OUT );
-
 	vtxStreamUnifySkinning( IN, OUT );
-	}
+}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1034,11 +1013,10 @@ void _VTModify(inout float4 inPos, float3 vNorm, float4x4 InstMatrix, streamPos 
   nType = VTM_BENDING;
  #endif
 
-  int nInstance = 0;
+	int nInstance = 0;
 #if %_RT_ENVIRONMENT_CUBEMAP
-  nInstance = IN.nInstance;
+	nInstance = IN.nInstance;
 #endif
-
 
   if (nType == VTM_BENDING)
   {
@@ -1070,7 +1048,11 @@ void _VTModify(inout float4 inPos, float3 vNorm, float4x4 InstMatrix, streamPos 
 #endif  
 }
 
-float4 SkinPosition(int4 indices, float4 weights, int4 extraIndices, float4 extraWeights, inout float4 position, inout float3 normal, bool bPrevFrame = false)
+float4 SkinPosition(
+	int4 indices, float4 weights,
+	int4 extraIndices, float4 extraWeights,
+	inout float4 position, inout float3 normal,
+	bool bPrevFrame = false)
 {
 #if %_RT_SKELETON_SSD
 	ISOLATE	
@@ -1339,7 +1321,7 @@ float4 SkinPositionTangent(
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-  
+
 // Vertex shaders for position
 float4x4 GetInstanceMatrix(int nInstance=0)
 {
@@ -1362,13 +1344,13 @@ float4x4 GetInstanceMatrix(int nInstance=0)
 
 void Matrix_Inst_General(inout streamPos IN)
 {
-  // Instancing support
-  int nInstance = 0;
+	// Instancing support
+	int nInstance = 0;
 #if %_RT_ENVIRONMENT_CUBEMAP
-  nInstance = IN.nInstance;
+	nInstance = IN.nInstance;
 #endif
 
-  IN.InstMatrix = GetInstanceMatrix(nInstance);
+	IN.InstMatrix = GetInstanceMatrix(nInstance);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////.
@@ -1383,7 +1365,7 @@ float4 _pos_HPos(float4x4 VPMatrix, float4x4 InstMatrix, float4 InPos)
 
 float4 _pos_Common(float4 InPos)
 {
-  float4x4 InstMatrix = GetInstanceMatrix();
+	float4x4 InstMatrix = GetInstanceMatrix();
 	
 #if !%_RT_OBJ_IDENTITY
 	// Position relative to camera
@@ -1392,7 +1374,7 @@ float4 _pos_Common(float4 InPos)
 	InstMatrix[2][3] -= g_VS_WorldViewPos.z;
 #endif
 
-  return _pos_HPos(g_VS_ViewProjZeroMatr, InstMatrix, InPos);
+	return _pos_HPos(g_VS_ViewProjZeroMatr, InstMatrix, InPos);
 }
 
 float4 _pos_WaterLevel(float4x4 VPMatrix, inout float4 InPos, float _Level)
@@ -1406,23 +1388,23 @@ float4 _pos_WaterLevel(float4x4 VPMatrix, inout float4 InPos, float _Level)
 float4 _pos_Modificators(float4x4 VPMatrix, float4x4 InstMatrix, inout streamPos IN, bool bRelativeToCam=true, bool bPrevFrame=false, float fPrevDelta = 0)
 {
   int nType = 0;
-	float4 InPos = IN.Position;
+  float4 InPos = IN.Position;
 
 #if %_VT_TYPE
   nType = %_VT_TYPE;
 #endif
 
-#if %_RT_SKELETON_SSD || %_RT_SKELETON_SSD_LINEAR
+#if %_RT_SKELETON_SSD || %_RT_SKELETON_SSD_LINEAR || %_RT_COMPUTE_SKINNING
 	#if !%TEMP_TERRAIN
 		#if ENABLE_TESSELLATION && !%_RT_NO_TESSELLATION
 			float3 vNormal = IN.Normal.xyz;
 		#else
 			float3 vNormal = 0;
 		#endif
+
+		InPos.xyz += Get_SPI_SkinningInfo().xyz;
 		
 		#if !%_RT_COMPUTE_SKINNING
-			InPos.xyz += Get_SPI_SkinningInfo().xyz;
-			
 			if (bPrevFrame == false)
 			{
 				SkinPositionTangent(
@@ -1481,7 +1463,7 @@ ISOLATE
 }
 
 // Output view space position (If skinning used, position and tangent space is skinned)
-float4 Pos_VS_General(float4x4 VPMatrix, inout streamPos IN, bool bRelativeToCam=true)
+float4 Pos_VS_General(float4x4 VPMatrix, inout streamPos IN, bool bRelativeToCam=true, bool bInstanceMatToWorld=false)
 {
 ISOLATE
 {
@@ -1498,6 +1480,15 @@ ISOLATE
 
 	// Get instanced matrix
 	Matrix_Inst_General(IN);
+	if(bInstanceMatToWorld)
+	{
+	#if !%_RT_OBJ_IDENTITY
+		IN.InstMatrix[0][3] += g_VS_WorldViewPos.x;
+		IN.InstMatrix[1][3] += g_VS_WorldViewPos.y;
+		IN.InstMatrix[2][3] += g_VS_WorldViewPos.z;
+	#endif
+	}
+	
 	if (bRelativeToCam)
 	{
 	#if !%_RT_OBJ_IDENTITY 
@@ -1565,7 +1556,7 @@ ISOLATE
 			IN.Position.z = IN.Position.z * IN.InstMatrix[0][0] + GetTexture2DLod(terrainElevTex, ssMaterialTrilinearClamp, float4(xy, 0, 0)) + terrainInfo.w;
 			HPosition = _pos_Modificators(VPMatrix, IN.InstMatrix, IN, bRelativeToCam);
 		}
-#endif
+	#endif
 
 		return HPosition;
 	}

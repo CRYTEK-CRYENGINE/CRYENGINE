@@ -1,10 +1,12 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
 #include <CryInput/IInput.h>
 
 #include <CryMath/Cry_Geo.h>
+
+#include <CryCore/optional.h>
 
 // TODO: Remove when full VR device implementation (incl. renderer) is in plugin
 enum EHmdClass
@@ -32,6 +34,13 @@ enum EEyeType
 	eEyeType_LeftEye = 0,
 	eEyeType_RightEye,
 	eEyeType_NumEyes
+};
+
+enum EVRComponent
+{
+	eVRComponent_Hmd = BIT(0),
+	eVRComponent_Controller = BIT(1),
+	eVRComponent_All = eVRComponent_Hmd | eVRComponent_Controller
 };
 
 struct HmdDeviceInfo
@@ -68,16 +77,26 @@ enum class EHmdSocialScreen
 	FirstInvalidIndex
 };
 
+enum class EHmdSocialScreenAspectMode
+{
+	Stretch = 0,
+	Center = 1,
+	Fill = 2,
+
+	FirstInvalidIndex
+};
+
 // Specifies the type of coordinates that will be returned from HMD devices
 // See the hmd_tracking_origin CVar for changing this at runtime
 enum class EHmdTrackingOrigin
 {
-	// Origin at pre-set player eye height
-	// Requires recentering on application start, or when switching users
-	EyeLevel = 0,
 	// Origin at floor height, meaning that the player in-game become as tall as they expect from real life.
 	// Recentering tracking origin will not affect the height when this is set.
-	Floor
+	Standing = 0,
+	// Origin at pre-set player eye height
+	// Requires recentering on application start, or when switching users
+	// Designed for seated experiences where the player only moves the head, e.g. cockpit, camera attached to an entity, etc..
+	Seated = 1,
 };
 
 struct HmdPoseState
@@ -116,13 +135,6 @@ struct HmdTrackingState
 	unsigned int statusFlags;
 };
 
-enum EVRComponent
-{
-	eVRComponent_Hmd        = BIT(0),
-	eVRComponent_Controller = BIT(1),
-	eVRComponent_All        = eVRComponent_Hmd | eVRComponent_Controller
-};
-
 enum EHmdController
 {
 	// Oculus
@@ -140,6 +152,73 @@ enum EHmdProjection
 	eHmdProjection_Stereo = 0,
 	eHmdProjection_Mono_Cinema,
 	eHmdProjection_Mono_HeadLocked,
+};
+
+struct HMDCameraSetup
+{
+	// Pupil distance
+	float ipd;
+
+	// Camera asymmetries
+	float l, r, t, b;
+
+	float sfov;
+
+	static HMDCameraSetup fromProjectionMatrix(const Matrix44A &projectionMatrix, float projRatio, float fnear)
+	{
+		HMDCameraSetup params;
+
+		const double x = static_cast<double>(projectionMatrix(0, 0));
+		const double y = static_cast<double>(projectionMatrix(1, 1));
+		const double z = static_cast<double>(projectionMatrix(0, 2));
+		const double w = static_cast<double>(projectionMatrix(1, 2));
+
+		const double n_x = static_cast<double>(fnear) / x;
+		const double n_y = static_cast<double>(fnear) / y;
+		params.sfov = static_cast<float>(2.0 * atan(1.0 / y));
+
+		// Compute symmetric frustum
+		const double st = n_y;
+		const double sb = -st;
+		const double sr = st * static_cast<double>(projRatio);
+		const double sl = -sr;
+
+		// Compute asymmetries
+		const double l = (z - 1) * n_x;
+		const double b = (w - 1) * n_y;
+		const double r = 2 * n_x + l;
+		const double t = 2 * n_y + b;
+
+		params.l = static_cast<float>(l - sl);
+		params.r = static_cast<float>(r - sr);
+		params.b = static_cast<float>(b - sb);
+		params.t = static_cast<float>(t - st);
+
+		return params;
+	}
+
+	static HMDCameraSetup fromAsymmetricFrustum(float r, float t, float l, float b, float projRatio, float fnear)
+	{
+		HMDCameraSetup params;
+
+		const double n = static_cast<double>(fnear);
+		const double y = 2.0 / (static_cast<double>(t) + static_cast<double>(b));
+
+		params.sfov = static_cast<float>(2.0 * atan(1.0 / y));
+
+		// Compute symmetric frustum
+		const double st = n / y;
+		const double sb = -st;
+		const double sr = st * static_cast<double>(projRatio);
+		const double sl = -sr;
+
+		params.l = static_cast<float>(-l * n - sl);
+		params.r = static_cast<float>( r * n - sr);
+		params.b = static_cast<float>(-b * n - sb);
+		params.t = static_cast<float>( t * n - st);
+
+		return params;
+	}
 };
 
 struct IHmdController
@@ -189,24 +268,22 @@ struct IHmdController
 	virtual void* GetDeviceHandle(EHmdController id) const { return nullptr; };
 
 protected:
-	virtual ~IHmdController() {}
+	virtual ~IHmdController() noexcept {}
 };
 
+//! Represents a head-mounted device (Virtual Reality) connected to the system
 struct IHmdDevice
 {
+private:
+	stl::optional<std::pair<Quat, Vec3>> m_orientationForLateCameraInjection;
+
+protected:
+	void OnEndFrame() { m_orientationForLateCameraInjection = stl::nullopt; }
+
+public:
 	enum EInternalUpdate
 	{
 		eInternalUpdate_DebugInfo = 0,
-	};
-	struct AsyncCameraContext
-	{
-		int      frameId;
-		Matrix34 outputCameraMatrix;
-	};
-	struct IAsyncCameraCallback
-	{
-		// If return false, it is not possible to accurately retrieve new camera matrix.
-		virtual bool OnAsyncCameraCallback(const HmdTrackingState& state, AsyncCameraContext& context) = 0;
 	};
 
 	virtual void      AddRef() = 0;
@@ -216,11 +293,11 @@ struct IHmdDevice
 	virtual void      GetDeviceInfo(HmdDeviceInfo& info) const = 0;
 
 	virtual void      GetCameraSetupInfo(float& fov, float& aspectRatioFactor) const = 0;
-	virtual void      GetAsymmetricCameraSetupInfo(int nEye, float& fov, float& aspectRatio, float& asymH, float& asymV, float& eyeDist) const = 0;
+	virtual HMDCameraSetup GetHMDCameraSetup(int nEye, float projRatio, float fnear) const = 0;
 
 	virtual void      UpdateInternal(EInternalUpdate) = 0;
-	virtual void RecenterPose() = 0;
-	virtual void      UpdateTrackingState(EVRComponent) = 0;
+	virtual void      RecenterPose() = 0;
+	virtual void      UpdateTrackingState(EVRComponent, uint64_t frameId) = 0;
 
 	//! \return Tracking state in Hmd's internal coordinates system.
 	virtual const HmdTrackingState& GetNativeTrackingState() const = 0;
@@ -234,8 +311,6 @@ struct IHmdDevice
 	virtual Vec2 GetPlayAreaSize() const = 0;
 
 	virtual const IHmdController*   GetController() const = 0;
-	virtual const EHmdSocialScreen  GetSocialScreenType(bool* pKeepAspect = nullptr) const = 0;
-
 	virtual int                     GetControllerCount() const = 0;
 
 	//useful for querying preferred rendering resolution for devices where the screen resolution is not the resolution the SDK wants for rendering (OSVR)
@@ -243,10 +318,14 @@ struct IHmdDevice
 	//Disables & Resets the tracking state to identity. Useful for benchmarking where we want the HMD to behave normally except that we want to force the direction of the camera.
 	virtual void DisableHMDTracking(bool disable) = 0;
 
-	// Assign a game side callback to be called asynchronously from any thread to update camera matrix
-	virtual void SetAsynCameraCallback(IAsyncCameraCallback* pCallback) {};
-	// Can be called from any thread to retrieve most up to date camera transformation
-	virtual bool RequestAsyncCameraUpdate(AsyncCameraContext& context)  { return false; };
+	//! Enables a late camera injection to the render thread based on updated HMD tracking feedback, must be called from main thread.
+	void EnableLateCameraInjectionForCurrentFrame(const std::pair<Quat, Vec3> &currentOrientation) { m_orientationForLateCameraInjection = (stl::optional<std::pair<Quat, Vec3>>) currentOrientation; }
+	const stl::optional<std::pair<Quat, Vec3>>& GetOrientationForLateCameraInjection() const { return m_orientationForLateCameraInjection; }
+
+	//! Can be called from any thread to retrieve most up to date camera transformation
+	virtual stl::optional<Matrix34> RequestAsyncCameraUpdate(uint64_t frameId, const Quat& q, const Vec3 &p) = 0;
+
 protected:
-	virtual ~IHmdDevice() {}
+	virtual ~IHmdDevice() noexcept {}
 };
+

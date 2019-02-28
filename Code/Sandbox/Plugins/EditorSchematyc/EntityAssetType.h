@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -25,9 +25,9 @@ public:
 
 	virtual CAssetEditor* Edit(CAsset* pAsset) const override;
 	virtual bool          RenameAsset(CAsset* pAsset, const char* szNewName) const override;
-	virtual bool          DeleteAssetFiles(const CAsset& asset, bool bDeleteSourceFile, size_t& numberOfFilesDeleted) const;
+	virtual bool          DeleteAssetFiles(const CAsset& asset, bool bDeleteSourceFile, size_t& numberOfFilesDeleted) const override;
 
-	virtual const char*   GetObjectClassName() const { return "Entity"; }
+	virtual const char*   GetObjectClassName() const override { return "Entity"; }
 	virtual string GetObjectFilePath(const CAsset* pAsset) const override;
 
 protected:
@@ -41,3 +41,4 @@ private:
 };
 
 }
+

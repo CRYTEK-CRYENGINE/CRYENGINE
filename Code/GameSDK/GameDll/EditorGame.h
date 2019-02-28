@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
  -------------------------------------------------------------------------
@@ -51,7 +51,6 @@ public:
 
 	virtual void OnDisplayRenderUpdated( bool displayHelpers ) override;
 	virtual void OnEntitySelectionChanged(EntityId entityId, bool isSelected) override {}
-	virtual void OnReloadScripts(EReloadScriptsType scriptsType) override {}
 
 	virtual IGamePhysicsSettings* GetIGamePhysicsSettings() override;
 

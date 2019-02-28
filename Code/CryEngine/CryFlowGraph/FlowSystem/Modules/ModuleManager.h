@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -55,7 +55,7 @@ public:
 
 	virtual void               ClearModules();
 	virtual void               ClearLevelModules();
-	virtual void               ScanAndReloadModules(bool bScanGlobalModules, bool bScanLevelModules);
+	virtual void               ScanAndReloadModules(bool bScanGlobalModules, bool bScanLevelModules, const char* szLoadedLevelName);
 
 
 	virtual bool               CreateModuleNodes(const char* moduleName, TModuleId moduleId);
@@ -80,7 +80,7 @@ private:
 
 	void              DestroyModule(TModuleMap::iterator& itModule);
 
-	void              RescanModuleNames(bool bGlobal);
+	void              RescanModuleNames(bool bGlobal, const char* szLoadedLevelName);
 	void              ScanFolder(const string& folderName, bool bGlobal);
 
 	CFlowGraphModule* PreLoadModuleFile(const char* moduleName, const char* fileName, bool bGlobal);

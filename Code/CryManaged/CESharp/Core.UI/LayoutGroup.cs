@@ -31,7 +31,7 @@ namespace CryEngine.UI
 		/// <summary>
 		/// Called when the LayoutGroup is created.
 		/// </summary>
-		public override void OnAwake()
+		protected override void OnAwake()
 		{
 			base.OnAwake();
 			_items = new List<UIElement>();
@@ -84,7 +84,7 @@ namespace CryEngine.UI
 		/// <summary>
 		/// Called when the LayoutGroup is being destroyed.
 		/// </summary>
-		public override void OnDestroy()
+		protected override void OnDestroy()
 		{
 			Clear(false);
 		}

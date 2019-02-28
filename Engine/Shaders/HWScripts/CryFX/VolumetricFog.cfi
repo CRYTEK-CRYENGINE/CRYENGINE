@@ -1,5 +1,4 @@
-// CRYENGINE Source Code File
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 float4 vfViewPos				: PB_CameraPos;
 float4 vfParams					: PB_VolumetricFogParams;
@@ -413,7 +412,7 @@ uint vfGetClipVolumeStencilID(int nStencilVal)
 {
 	const int BIT_STENCIL_STATIC = 0x0000007F;
 	const int BIT_STENCIL_INSIDE_VOLUME = 0x00000040;// originally defined in ResolveStencilPS in DeferredShading.cfx
-	return max(nStencilVal - BIT_STENCIL_INSIDE_VOLUME, 1);
+	return max(nStencilVal - BIT_STENCIL_INSIDE_VOLUME, 0);
 }
 
 float GetJitterInternal(in uint2 pixelCoord, in float2 temporalJitter)

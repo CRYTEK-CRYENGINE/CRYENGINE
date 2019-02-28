@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -49,22 +49,23 @@ public:
 	void add(int value, const char* name, const char* label = "")
 	{
 		base_.add(value, name, label);
+		nameToValue_[name] = value;
 	}
 
 	void addAlias(int value, const char* alias)
 	{
-		aliasToValue_[alias] = value;
+		nameToValue_[alias] = value;
 	}
 
 	bool serializeInt(yasli::Archive& ar, int& value, const char* name, const char* label) const
 	{
-		if (!aliasToValue_.empty() && ar.isInput() && !ar.isInPlace() && !ar.isEdit())
+		if (ar.isInput() && !ar.isInPlace() && !ar.isEdit())
 		{
 			string str;
 			if (ar(str, name, label))
 			{
-				auto it = aliasToValue_.find(str);
-				if (it != aliasToValue_.end())
+				auto it = nameToValue_.find(str);
+				if (it != nameToValue_.end())
 				{
 					value = it->second;
 					return true;
@@ -86,9 +87,15 @@ public:
 	}
 
 private:
+
+	struct LessStrCmpi : std::binary_function<const char*, const char*, bool>
+	{
+		bool operator()(const char* l, const char* r) const { return strcmpi(l, r) < 0; }
+	};
+	typedef std::map<cstr, int, LessStrCmpi> NameToValue;
+
 	yasli::EnumDescription& base_;
-	typedef std::map<cstr, int, yasli::LessStrCmp> NameToValue;
-	NameToValue             aliasToValue_;
+	NameToValue             nameToValue_;
 };
 
 // Helper object for tracking enum names and values

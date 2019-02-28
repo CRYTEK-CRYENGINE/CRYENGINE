@@ -1,0 +1,15 @@
+<AssetMetadata version="0" type="Texture" guid="e9326de8-a4e3-9d9d-c0be-523b05d603d2" source="rainfall.tif">
+ <Files>
+  <File path="rainfall.dds"/>
+  <File path="rainfall.dds.1"/>
+  <File path="rainfall.dds.2"/>
+  <File path="rainfall.dds.3"/>
+  <File path="rainfall.dds.4"/>
+  <File path="rainfall.dds.5"/>
+ </Files>
+ <Details>
+  <Detail name="width">512</Detail>
+  <Detail name="height">512</Detail>
+  <Detail name="mipCount">8</Detail>
+ </Details>
+</AssetMetadata>

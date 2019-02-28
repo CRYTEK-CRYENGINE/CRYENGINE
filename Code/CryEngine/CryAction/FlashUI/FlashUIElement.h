@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   FlashUIElement.h
@@ -84,7 +84,7 @@ public:
 	virtual void                                     LazyRendered()         { m_bNeedLazyRender = false; }
 	virtual bool                                     NeedLazyRender() const { return (m_iFlags & (uint64) eFUI_LAZY_UPDATE) == 0 || m_bNeedLazyRender; }
 
-	virtual IFlashPlayer*                            GetFlashPlayer();
+	virtual std::shared_ptr<IFlashPlayer>            GetFlashPlayer();
 
 	virtual const SUIParameterDesc*                  GetVariableDesc(int index) const                          { return index < m_variables.size() ? m_variables[index] : NULL; }
 	virtual const SUIParameterDesc*                  GetVariableDesc(const char* sVarName) const               { return m_variables(sVarName); }
@@ -232,7 +232,8 @@ private:
 	bool                      m_bUnloadRequest;
 	bool                      m_bUnloadAll;
 
-	IFlashPlayer*             m_pFlashplayer;
+	std::shared_ptr<IFlashPlayer> m_pFlashplayer;
+
 	IFlashPlayerBootStrapper* m_pBootStrapper;
 	const SUIMovieClipDesc*   m_pRoot;
 

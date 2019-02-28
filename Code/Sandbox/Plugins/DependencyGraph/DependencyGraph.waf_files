@@ -1,0 +1,22 @@
+{
+    "NoUberFile": {
+        "Root": [
+            "StdAfx.h", 
+            "StdAfx.cpp"
+        ]
+    }, 
+    "Uber_EditorPlugin_0.cpp": {
+        "Root": [
+            "MainWindow.cpp", 
+            "MainWindow.h", 
+            "GraphView.cpp", 
+            "GraphView.h", 
+            "GraphViewModel.cpp", 
+            "GraphViewModel.h", 
+            "Model.cpp", 
+            "Model.h", 
+            "Plugin.cpp", 
+            "Plugin.h"
+        ]
+    }
+}

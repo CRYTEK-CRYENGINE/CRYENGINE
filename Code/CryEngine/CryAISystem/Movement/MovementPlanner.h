@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -118,18 +118,29 @@ private:
 	bool CanReplan(const MovementRequest& request) const;
 	void StartWorkingOnRequest_Internal(const MovementRequestID& requestId, const MovementRequest& request, const MovementUpdateContext& context);
 	void OnNavigationMeshChanged(NavigationAgentTypeID navigationAgentTypeID, NavigationMeshID meshID, uint32 tileID);
+	void OnNavigationAnnotationChanged(NavigationAgentTypeID navigationAgentTypeID, NavigationMeshID meshID, uint32 tileID);
 	void CheckForNeedToPathReplanningDueToNavMeshChanges(const MovementUpdateContext& context);
 
 private:
 	/// Tiles that were affected by NavMesh changes
-	struct MeshIDAndTileID
+	struct SMeshTileChange
 	{
-		const NavigationMeshID meshID;
-		const MNM::TileID      tileID;
+		enum class EChangeType : uint8
+		{
+			AfterGeneration = 0,
+			Annotation,
+		};
+		typedef CEnumFlags<EChangeType> ChangeFlags;
+		
+		const NavigationMeshID  meshID;
+		const MNM::TileID       tileID;
+		CEnumFlags<EChangeType> changeFlags;
 
-		explicit MeshIDAndTileID(NavigationMeshID _meshID, const MNM::TileID _tileID) : meshID(_meshID), tileID(_tileID) {}
-		bool operator==(const MeshIDAndTileID& rhs) const { return (this->tileID == rhs.tileID) && (this->meshID == rhs.meshID); }
+		explicit SMeshTileChange(NavigationMeshID _meshID, const MNM::TileID _tileID, const ChangeFlags& _changeFlags) : meshID(_meshID), tileID(_tileID), changeFlags(_changeFlags) {}
+		bool operator==(const SMeshTileChange& rhs) const { return (this->tileID == rhs.tileID) && (this->meshID == rhs.meshID); }
 	};
+
+	void QueueNavigationChange(NavigationAgentTypeID navigationAgentTypeID, NavigationMeshID meshID, uint32 tileID, const SMeshTileChange::ChangeFlags& changeFlag);
 
 	// Reasons for potential path-replanning
 	struct SPendingPathReplanning
@@ -154,7 +165,7 @@ private:
 	};
 
 	const NavigationAgentTypeID  m_navigationAgentTypeID;
-	std::vector<MeshIDAndTileID> m_queuedNavMeshChanges;
+	std::vector<SMeshTileChange> m_queuedNavMeshChanges;
 	SPendingPathReplanning       m_pendingPathReplanning;   // dirty-flag to automatically re-path as soon as the possibly existing plan allows for it again
 	Plan                         m_plan;
 	MovementRequestID            m_requestId;

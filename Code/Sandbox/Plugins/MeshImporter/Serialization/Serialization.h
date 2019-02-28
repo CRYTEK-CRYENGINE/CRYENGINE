@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 #pragma once
 
 #include <CrySerialization/Forward.h>
@@ -22,3 +22,4 @@ struct SMeshInfo
 
 	void Serialize(Serialization::IArchive& ar);
 };
+

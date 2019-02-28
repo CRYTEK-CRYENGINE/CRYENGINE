@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*=============================================================================
    PostProcessDOF : depth of field post processing
@@ -14,6 +14,7 @@
 #include <Cry3DEngine/I3DEngine.h>
 #include "D3DPostProcess.h"
 
+#pragma warning(push)
 #pragma warning(disable: 4244)
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -60,7 +61,7 @@ SDepthOfFieldParams CDepthOfField::GetParams()
 		if (fFocusRange < 0.0f)
 		{
 			pParams.bGameMode = true;
-			float fFocusMin = 0.4f;//m_pFocusMin->GetParam();
+			float fFocusMin = m_pFocusMin->GetParam();
 			float fFocusMax = m_pFocusMax->GetParam();
 			float fFocusLimit = m_pFocusLimit->GetParam();
 
@@ -124,7 +125,7 @@ SDepthOfFieldParams CDepthOfField::GetParams()
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
-float ngon_rad(float theta, float n)
+static float ngon_rad(float theta, float n)
 {
 	return cosf(M_PI / n) / cosf(theta - (2 * M_PI / n) * floorf((n * theta + PI) / (2 * M_PI)));
 }
@@ -159,6 +160,8 @@ static Vec4 ToUnitDisk(Vec4& O, float blades, float fstop)
 
 void CDepthOfField::Render()
 {
+	ASSERT_LEGACY_PIPELINE
+/*
 	SDepthOfFieldParams dofParams = GetParams();
 
 	if (dofParams.vFocus.w < 0.0001f)
@@ -166,7 +169,7 @@ void CDepthOfField::Render()
 
 	CShader* pSH = CShaderMan::s_shPostMotionBlur;
 
-	const int nThreadID = gRenDev->m_RP.m_nProcessThreadID;
+	const int nThreadID = gRenDev->GetRenderThreadID();
 	gRenDev->m_cEF.mfRefreshSystemShader("MotionBlur", CShaderMan::s_shPostMotionBlur);
 
 	gcpRendD3D->FX_SetActiveRenderTargets();
@@ -205,35 +208,35 @@ void CDepthOfField::Render()
 	PROFILE_LABEL_SCOPE("DOF");
 
 	// For better blending later
-	GetUtils().StretchRect(CTexture::s_ptexHDRTarget, CTexture::s_ptexSceneTarget);
+	GetUtils().StretchRect(CRendererResources::s_ptexHDRTarget, CRendererResources::s_ptexSceneTarget);
 
-	CTexture* pTexDofLayersTmp[2] = { CTexture::s_ptexHDRTargetScaledTmp[0], CTexture::s_ptexHDRTargetScaledTempRT[0] };
+	CTexture* pTexDofLayersTmp[2] = { CRendererResources::s_ptexHDRTargetScaledTmp[0], CRendererResources::s_ptexHDRTargetScaledTempRT[0] };
 
-	assert(pTexDofLayersTmp[0]->GetWidth() == CTexture::s_ptexHDRDofLayers[0]->GetWidth() && pTexDofLayersTmp[0]->GetHeight() == CTexture::s_ptexHDRDofLayers[0]->GetHeight());
-	assert(pTexDofLayersTmp[1]->GetWidth() == CTexture::s_ptexHDRDofLayers[1]->GetWidth() && pTexDofLayersTmp[1]->GetHeight() == CTexture::s_ptexHDRDofLayers[1]->GetHeight());
-	assert(pTexDofLayersTmp[0]->GetPixelFormat() == CTexture::s_ptexHDRDofLayers[0]->GetPixelFormat() && pTexDofLayersTmp[1]->GetPixelFormat() == CTexture::s_ptexHDRDofLayers[1]->GetPixelFormat());
+	assert(pTexDofLayersTmp[0]->GetWidth() == CRendererResources::s_ptexHDRDofLayers[0]->GetWidth() && pTexDofLayersTmp[0]->GetHeight() == CRendererResources::s_ptexHDRDofLayers[0]->GetHeight());
+	assert(pTexDofLayersTmp[1]->GetWidth() == CRendererResources::s_ptexHDRDofLayers[1]->GetWidth() && pTexDofLayersTmp[1]->GetHeight() == CRendererResources::s_ptexHDRDofLayers[1]->GetHeight());
+	assert(pTexDofLayersTmp[0]->GetPixelFormat() == CRendererResources::s_ptexHDRDofLayers[0]->GetPixelFormat() && pTexDofLayersTmp[1]->GetPixelFormat() == CRendererResources::s_ptexHDRDofLayers[1]->GetPixelFormat());
 
 	{
 		// 1st downscale stage
 		{
 			PROFILE_LABEL_SCOPE("DOWNSCALE LAYERS");
 
-			gcpRendD3D->FX_PushRenderTarget(0, CTexture::s_ptexHDRDofLayers[0], NULL); // near
-			gcpRendD3D->FX_PushRenderTarget(1, CTexture::s_ptexHDRDofLayers[1], NULL); // far
-			gcpRendD3D->FX_PushRenderTarget(2, CTexture::s_ptexSceneCoC[0], NULL);     // CoC near/far
+			gcpRendD3D->FX_PushRenderTarget(0, CRendererResources::s_ptexHDRDofLayers[0], NULL); // near
+			gcpRendD3D->FX_PushRenderTarget(1, CRendererResources::s_ptexHDRDofLayers[1], NULL); // far
+			gcpRendD3D->FX_PushRenderTarget(2, CRendererResources::s_ptexSceneCoC[0], NULL);     // CoC near/far
 
 			static CCryNameTSCRC techNameDownscaleDof("DownscaleDof");
 			GetUtils().ShBeginPass(CShaderMan::s_shPostMotionBlur, techNameDownscaleDof, FEF_DONTSETTEXTURES | FEF_DONTSETSTATES);
 			gcpRendD3D->FX_SetState(GS_NODEPTHTEST);
 
-			Vec4 vParams = Vec4(CTexture::s_ptexHDRDofLayers[0]->GetWidth(), CTexture::s_ptexHDRDofLayers[0]->GetHeight(), 1.0f / CTexture::s_ptexHDRDofLayers[0]->GetWidth(), 1.0f / CTexture::s_ptexHDRDofLayers[0]->GetHeight());
+			Vec4 vParams = Vec4(CRendererResources::s_ptexHDRDofLayers[0]->GetWidth(), CRendererResources::s_ptexHDRDofLayers[0]->GetHeight(), 1.0f / CRendererResources::s_ptexHDRDofLayers[0]->GetWidth(), 1.0f / CRendererResources::s_ptexHDRDofLayers[0]->GetHeight());
 			CShaderMan::s_shPostMotionBlur->FXSetPSFloat(m_pDofFocusParam0Name, &vDofParams0, 1);
 			CShaderMan::s_shPostMotionBlur->FXSetVSFloat(m_pDofFocusParam1Name, &vParams, 1);
 			CShaderMan::s_shPostMotionBlur->FXSetPSFloat(m_pDofFocusParam1Name, &vDofParams1, 1);
 
-			GetUtils().SetTexture(CTexture::s_ptexZTarget, 0, FILTER_POINT);
-			GetUtils().SetTexture(CTexture::s_ptexHDRTarget, 1, FILTER_LINEAR);
-			SD3DPostEffectsUtils::DrawFullScreenTri(CTexture::s_ptexSceneTarget->GetWidth(), CTexture::s_ptexSceneTarget->GetHeight(), 0, &gcpRendD3D->m_FullResRect);
+			GetUtils().SetTexture(CRendererResources::s_ptexZTarget, 0, FILTER_POINT);
+			GetUtils().SetTexture(CRendererResources::s_ptexHDRTarget, 1, FILTER_LINEAR);
+			SD3DPostEffectsUtils::DrawFullScreenTri(CRendererResources::s_ptexSceneTarget->GetWidth(), CRendererResources::s_ptexSceneTarget->GetHeight(), 0, &gcpRendD3D->m_FullResRect);
 
 			GetUtils().ShEndPass();
 			gcpRendD3D->FX_PopRenderTarget(0);
@@ -247,18 +250,18 @@ void CDepthOfField::Render()
 			PROFILE_LABEL_SCOPE("MIN COC DOWNSCALE");
 			for (uint32 i = 1; i < MIN_DOF_COC_K; i++)
 			{
-				gcpRendD3D->FX_PushRenderTarget(0, CTexture::s_ptexSceneCoC[i], NULL);  // near
+				gcpRendD3D->FX_PushRenderTarget(0, CRendererResources::s_ptexSceneCoC[i], NULL);  // near
 
 				static CCryNameTSCRC techNameTileMinCoC("TileMinCoC");
 				GetUtils().ShBeginPass(CShaderMan::s_shPostMotionBlur, techNameTileMinCoC, FEF_DONTSETTEXTURES | FEF_DONTSETSTATES);
 				gcpRendD3D->FX_SetState(GS_NODEPTHTEST);
 
-				const Vec4 vParams = Vec4(CTexture::s_ptexSceneCoC[i - 1]->GetWidth(), CTexture::s_ptexSceneCoC[i - 1]->GetHeight(), 1.0f / CTexture::s_ptexSceneCoC[i - 1]->GetWidth(), 1.0f / CTexture::s_ptexSceneCoC[i - 1]->GetHeight());
+				const Vec4 vParams = Vec4(CRendererResources::s_ptexSceneCoC[i - 1]->GetWidth(), CRendererResources::s_ptexSceneCoC[i - 1]->GetHeight(), 1.0f / CRendererResources::s_ptexSceneCoC[i - 1]->GetWidth(), 1.0f / CRendererResources::s_ptexSceneCoC[i - 1]->GetHeight());
 				CShaderMan::s_shPostMotionBlur->FXSetVSFloat(m_pDofFocusParam1Name, &vParams, 1);
 				CShaderMan::s_shPostMotionBlur->FXSetPSFloat(m_pDofFocusParam1Name, &vDofParams1, 1);
 
-				GetUtils().SetTexture(CTexture::s_ptexSceneCoC[i - 1], 0, FILTER_LINEAR);
-				SD3DPostEffectsUtils::DrawFullScreenTri(CTexture::s_ptexSceneTarget->GetWidth(), CTexture::s_ptexSceneTarget->GetHeight(), 0, &gcpRendD3D->m_FullResRect);
+				GetUtils().SetTexture(CRendererResources::s_ptexSceneCoC[i - 1], 0, FILTER_LINEAR);
+				SD3DPostEffectsUtils::DrawFullScreenTri(CRendererResources::s_ptexSceneTarget->GetWidth(), CRendererResources::s_ptexSceneTarget->GetHeight(), 0, &gcpRendD3D->m_FullResRect);
 
 				GetUtils().ShEndPass();
 				gcpRendD3D->FX_PopRenderTarget(0);
@@ -286,7 +289,7 @@ void CDepthOfField::Render()
 			PROFILE_LABEL_SCOPE("FAR/NEAR LAYER");
 			gcpRendD3D->FX_PushRenderTarget(0, pTexDofLayersTmp[0], NULL);
 			gcpRendD3D->FX_PushRenderTarget(1, pTexDofLayersTmp[1], NULL);
-			gcpRendD3D->FX_PushRenderTarget(2, CTexture::s_ptexSceneCoCTemp, NULL);
+			gcpRendD3D->FX_PushRenderTarget(2, CRendererResources::s_ptexSceneCoCTemp, NULL);
 			gcpRendD3D->FX_SetActiveRenderTargets(); // Avoiding false d3d error
 
 			gRenDev->m_RP.m_FlagsShader_RT &= ~g_HWSR_MaskBit[HWSR_SAMPLE0];
@@ -298,13 +301,13 @@ void CDepthOfField::Render()
 			CShaderMan::s_shPostMotionBlur->FXSetPSFloat(m_pDofFocusParam1Name, &vDofParams1, 1);
 			CShaderMan::s_shPostMotionBlur->FXSetPSFloat(m_pDofTaps, vTaps, nSquareTapsSide * nSquareTapsSide);
 
-			GetUtils().SetTexture(CTexture::s_ptexZTargetScaled, 0, FILTER_POINT);
-			GetUtils().SetTexture(CTexture::s_ptexHDRDofLayers[0], 1, FILTER_LINEAR);
-			GetUtils().SetTexture(CTexture::s_ptexHDRDofLayers[1], 2, FILTER_LINEAR);
-			GetUtils().SetTexture(CTexture::s_ptexSceneCoC[0], 3, FILTER_LINEAR);
-			GetUtils().SetTexture(CTexture::s_ptexSceneCoC[MIN_DOF_COC_K - 1], 4, FILTER_POINT);
+			GetUtils().SetTexture(CRendererResources::s_ptexZTargetScaled[0], 0, FILTER_POINT);
+			GetUtils().SetTexture(CRendererResources::s_ptexHDRDofLayers[0], 1, FILTER_LINEAR);
+			GetUtils().SetTexture(CRendererResources::s_ptexHDRDofLayers[1], 2, FILTER_LINEAR);
+			GetUtils().SetTexture(CRendererResources::s_ptexSceneCoC[0], 3, FILTER_LINEAR);
+			GetUtils().SetTexture(CRendererResources::s_ptexSceneCoC[MIN_DOF_COC_K - 1], 4, FILTER_POINT);
 
-			SD3DPostEffectsUtils::DrawFullScreenTri(CTexture::s_ptexSceneTarget->GetWidth(), CTexture::s_ptexSceneTarget->GetHeight(), 0, &gcpRendD3D->m_FullResRect);
+			SD3DPostEffectsUtils::DrawFullScreenTri(CRendererResources::s_ptexSceneTarget->GetWidth(), CRendererResources::s_ptexSceneTarget->GetHeight(), 0, &gcpRendD3D->m_FullResRect);
 
 			GetUtils().ShEndPass();
 			gcpRendD3D->FX_PopRenderTarget(2);
@@ -329,9 +332,9 @@ void CDepthOfField::Render()
 
 			PROFILE_LABEL_SCOPE("FAR/NEAR LAYER ITERATION");
 			gcpRendD3D->FX_SetActiveRenderTargets(); // Avoiding false d3d error
-			gcpRendD3D->FX_PushRenderTarget(0, CTexture::s_ptexHDRDofLayers[0], NULL);
-			gcpRendD3D->FX_PushRenderTarget(1, CTexture::s_ptexHDRDofLayers[1], NULL);
-			gcpRendD3D->FX_PushRenderTarget(2, CTexture::s_ptexSceneCoC[0], NULL);
+			gcpRendD3D->FX_PushRenderTarget(0, CRendererResources::s_ptexHDRDofLayers[0], NULL);
+			gcpRendD3D->FX_PushRenderTarget(1, CRendererResources::s_ptexHDRDofLayers[1], NULL);
+			gcpRendD3D->FX_PushRenderTarget(2, CRendererResources::s_ptexSceneCoC[0], NULL);
 			gcpRendD3D->FX_SetActiveRenderTargets(); // Avoiding false d3d error
 
 			gRenDev->m_RP.m_FlagsShader_RT |= g_HWSR_MaskBit[HWSR_SAMPLE0];
@@ -343,12 +346,12 @@ void CDepthOfField::Render()
 			CShaderMan::s_shPostMotionBlur->FXSetPSFloat(m_pDofFocusParam1Name, &vDofParams1, 1);
 			CShaderMan::s_shPostMotionBlur->FXSetPSFloat(m_pDofTaps, vTaps, nSquareTapsSide * nSquareTapsSide);
 
-			GetUtils().SetTexture(CTexture::s_ptexZTargetScaled, 0, FILTER_POINT);
+			GetUtils().SetTexture(CRendererResources::s_ptexZTargetScaled[0], 0, FILTER_POINT);
 			GetUtils().SetTexture(pTexDofLayersTmp[0], 1, FILTER_LINEAR);
 			GetUtils().SetTexture(pTexDofLayersTmp[1], 2, FILTER_LINEAR);
-			GetUtils().SetTexture(CTexture::s_ptexSceneCoCTemp, 3, FILTER_POINT);
-			GetUtils().SetTexture(CTexture::s_ptexSceneCoC[MIN_DOF_COC_K - 1], 4, FILTER_POINT);
-			SD3DPostEffectsUtils::DrawFullScreenTri(CTexture::s_ptexSceneTarget->GetWidth(), CTexture::s_ptexSceneTarget->GetHeight(), 0, &gcpRendD3D->m_FullResRect);
+			GetUtils().SetTexture(CRendererResources::s_ptexSceneCoCTemp, 3, FILTER_POINT);
+			GetUtils().SetTexture(CRendererResources::s_ptexSceneCoC[MIN_DOF_COC_K - 1], 4, FILTER_POINT);
+			SD3DPostEffectsUtils::DrawFullScreenTri(CRendererResources::s_ptexSceneTarget->GetWidth(), CRendererResources::s_ptexSceneTarget->GetHeight(), 0, &gcpRendD3D->m_FullResRect);
 
 			GetUtils().ShEndPass();
 			gcpRendD3D->FX_PopRenderTarget(2);
@@ -360,7 +363,7 @@ void CDepthOfField::Render()
 		// Final composition
 		{
 			PROFILE_LABEL_SCOPE("COMPOSITE");
-			gcpRendD3D->FX_PushRenderTarget(0, CTexture::s_ptexHDRTarget, NULL);
+			gcpRendD3D->FX_PushRenderTarget(0, CRendererResources::s_ptexHDRTarget, NULL);
 
 			static CCryNameTSCRC techNameCompositeDof("CompositeDof");
 			GetUtils().ShBeginPass(CShaderMan::s_shPostMotionBlur, techNameCompositeDof, FEF_DONTSETTEXTURES | FEF_DONTSETSTATES);
@@ -369,21 +372,24 @@ void CDepthOfField::Render()
 			CShaderMan::s_shPostMotionBlur->FXSetPSFloat(m_pDofFocusParam0Name, &vDofParams0, 1);
 			CShaderMan::s_shPostMotionBlur->FXSetPSFloat(m_pDofFocusParam1Name, &vDofParams1, 1);
 
-			GetUtils().SetTexture(CTexture::s_ptexZTarget, 0, FILTER_POINT);
-			GetUtils().SetTexture(CTexture::s_ptexHDRDofLayers[0], 1, FILTER_LINEAR);
-			GetUtils().SetTexture(CTexture::s_ptexHDRDofLayers[1], 2, FILTER_LINEAR);
-			GetUtils().SetTexture(CTexture::s_ptexSceneCoCTemp, 3, FILTER_LINEAR);
-			GetUtils().SetTexture(CTexture::s_ptexSceneTarget, 4, FILTER_POINT);
-			SD3DPostEffectsUtils::DrawFullScreenTri(CTexture::s_ptexSceneTarget->GetWidth(), CTexture::s_ptexSceneTarget->GetHeight(), 0, &gcpRendD3D->m_FullResRect);
+			GetUtils().SetTexture(CRendererResources::s_ptexZTarget, 0, FILTER_POINT);
+			GetUtils().SetTexture(CRendererResources::s_ptexHDRDofLayers[0], 1, FILTER_LINEAR);
+			GetUtils().SetTexture(CRendererResources::s_ptexHDRDofLayers[1], 2, FILTER_LINEAR);
+			GetUtils().SetTexture(CRendererResources::s_ptexSceneCoCTemp, 3, FILTER_LINEAR);
+			GetUtils().SetTexture(CRendererResources::s_ptexSceneTarget, 4, FILTER_POINT);
+			SD3DPostEffectsUtils::DrawFullScreenTri(CRendererResources::s_ptexSceneTarget->GetWidth(), CRendererResources::s_ptexSceneTarget->GetHeight(), 0, &gcpRendD3D->m_FullResRect);
 
 			GetUtils().ShEndPass();
 
 			gcpRendD3D->FX_PopRenderTarget(0);
 		}
 
-		CTexture::s_ptexHDRTarget->SetResolved(true);
+		CRendererResources::s_ptexHDRTarget->SetResolved(true);
 		gcpRendD3D->FX_SetActiveRenderTargets();
 	}
 
 	gRenDev->m_RP.m_FlagsShader_RT = nSaveFlagsShader_RT;
+*/
 }
+
+#pragma warning(pop)

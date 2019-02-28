@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*=============================================================================
    IShader.h : Shaders common interface.
@@ -132,22 +132,22 @@ enum ETEX_TileMode : uint8
 
 //! T = applies to texture objects read from disk.
 //! R = applies to texture objects allocated for render-targets.
-enum ETextureFlags
+enum ETextureFlags : uint32
 {
 	FT_NOMIPS                  = BIT(0),  // TR: don't allocate or use any mip-maps (even if they exist)
 	FT_TEX_NORMAL_MAP          = BIT(1),  // T: indicator that a texture contains normal vectors (used for tracking statistics, debug messages and the default texture)
-	FT_TEX_WAS_NOT_PRE_TILED   = BIT(2),  // REMOVE
+	FT______________________00 = BIT(2),  // UNUSED
 	FT_USAGE_DEPTHSTENCIL      = BIT(3),  // R: use as depth-stencil render-target
 	FT_USAGE_ALLOWREADSRGB     = BIT(4),  // TR: allows the renderer to cast the texture-format to a sRGB type if available
 	FT_FILESINGLE              = BIT(5),  // T: suppress loading of additional files like _DDNDIF (faster, RC can tag the file for that)
 	FT_TEX_FONT                = BIT(6),  // T: indicator that a texture contains font glyphs (used solely for tracking statistics!)
 	FT_HAS_ATTACHED_ALPHA      = BIT(7),  // T: indicator that the texture has another texture attached (see FT_ALPHA)
 	FT_USAGE_UNORDERED_ACCESS  = BIT(8),  // R: allow write-only UAVs for the texture object
-	FT______________________   = BIT(9),  // UNUSED
+	FT______________________01 = BIT(9),  // UNUSED
 	FT_USAGE_MSAA              = BIT(10), // R: use as MSAA render-target
 	FT_FORCE_MIPS              = BIT(11), // TR: always allocate mips (even if normally this would be optimized away)
 	FT_USAGE_RENDERTARGET      = BIT(12), // R: use as render-target
-	FT_USAGE_DYNAMIC           = BIT(13), // R: indicator that the textures are provided by a generator (scaleform, procedual, ...)
+	FT_USAGE_TEMPORARY         = BIT(13), // TR: indicate that the resource is used for just one or at most a couple of frames
 	FT_STAGE_READBACK          = BIT(14), // R: allow read-back of the texture contents by the CPU through a persistent staging texture (otherwise the staging is dynamic)
 	FT_STAGE_UPLOAD            = BIT(15), // R: allow up-load of the texture contents by the CPU through a persistent staging texture (otherwise the staging is dynamic)
 	FT_DONT_RELEASE            = BIT(16), // TR: texture will not be freed automatically when ref counter goes to 0. Use ReleaseForce() to free the texture.
@@ -164,7 +164,7 @@ enum ETextureFlags
 	FT_SPLITTED                = BIT(27), // T: indicator that the texture is available splitted on disk
 	FT_STREAMED_PREPARE        = BIT(28), // REMOVE
 	FT_STREAMED_FADEIN         = BIT(29), // T: smoothly fade the texture in after MIPs have been added
-	FT_COMPOSITE               = BIT(30), // T: indicator that a texture is a composition (array) of texture slices
+	FT_USAGE_UAV_OVERLAP       = BIT(30), // R: disable compute-serialization when concurrently using this UAV
 	FT_USAGE_UAV_RWTEXTURE     = BIT(31), // R: enable RW usage for the UAV, otherwise UAVs are write-only (see FT_USAGE_UNORDERED_ACCESS)
 };
 
@@ -258,7 +258,7 @@ struct STextureStreamingStats
 
 struct STexData
 {
-	byte*       m_pData[6];
+	uint8*      m_pData[6];
 	uint16      m_nWidth;
 	uint16      m_nHeight;
 	uint16      m_nDepth;
@@ -288,7 +288,7 @@ public:
 		m_cMaxColor = 1.0f;
 		m_pFilePath = 0;
 	}
-	void AssignData(unsigned int i, byte* pNewData)
+	void AssignData(unsigned int i, uint8* pNewData)
 	{
 		assert(i < 6);
 		if (WasReallocated(i))
@@ -335,6 +335,9 @@ public:
 	virtual void            SetClamp(bool bEnable) = 0; //!< Texture addressing set.
 	virtual float           GetAvgBrightness() const = 0;
 
+	virtual bool            Clear() = 0;
+	virtual bool            Clear(const ColorF& color) = 0;
+
 	virtual int             StreamCalculateMipsSigned(float fMipFactor) const = 0;
 	virtual int             GetStreamableMipNumber() const = 0;
 	virtual int             GetStreamableMemoryUsage(int nStartMip) const = 0;
@@ -350,8 +353,6 @@ public:
 	virtual const int         GetAccessFrameId() const = 0;
 	virtual const int         GetCustomID() const = 0;
 	virtual void              SetCustomID(int nID) = 0;
-
-	virtual void              SetHighQualityFiltering(bool bState = true) = 0;
 
 	virtual const ETEX_Format GetTextureDstFormat() const = 0;
 	virtual const ETEX_Format GetTextureSrcFormat() const = 0;
@@ -436,11 +437,7 @@ public:
 	virtual uint8     GetFlags() const = 0;
 	virtual void      SetFlags(uint8 flags) {}
 	virtual bool      Update(int nNewWidth, int nNewHeight) = 0;
-	virtual void      Apply(int nTUnit, SamplerStateHandle nTS = SamplerStateHandle::Unspecified) = 0;
-	virtual bool      ClearRT() = 0;
-	virtual bool      SetRT(int nRT, bool bPush, struct SDepthTexture* pDepthSurf, bool bScreenVP = false) = 0;
 	virtual bool      SetRectStates() = 0;
-	virtual bool      RestoreRT(int nRT, bool bPop) = 0;
 	virtual ITexture* GetTexture() = 0;
 	virtual void      SetUpdateMask() = 0;
 	virtual void      ResetUpdateMask() = 0;
@@ -449,6 +446,7 @@ public:
 	// </interfuscator:shuffle>
 };
 
+//! \cond INTERNAL
 //! Animating Texture sequence definition.
 struct STexAnim
 {
@@ -530,12 +528,6 @@ struct STexAnim
 		return *this;
 	}
 };
-
-struct STexComposition
-{
-	_smart_ptr<ITexture> pTexture;
-	uint16               nSrcSlice;
-	uint16               nDstSlice;
-};
+//! \endcond
 
 #endif// _ITEXTURE_H_

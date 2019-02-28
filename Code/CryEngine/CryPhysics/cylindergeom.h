@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef cylindergeom_h
 #define cylindergeom_h
@@ -33,7 +33,7 @@ public:
 	virtual float GetVolume() { return sqr(m_cyl.r)*m_cyl.hh*(g_PI*2); }
 	virtual Vec3 GetCenter() { return m_cyl.center; }
 	virtual float GetExtent(EGeomForm eForm) const;
-	virtual void GetRandomPos(PosNorm& ran, CRndGen& seed, EGeomForm eForm) const;
+	virtual void GetRandomPoints(Array<PosNorm> points, CRndGen& seed, EGeomForm eForm) const;
 	virtual int PrepareForIntersectionTest(geometry_under_test *pGTest, CGeometry *pCollider,geometry_under_test *pGTestColl, bool bKeepPrevContacts=false);
 	virtual int GetPrimitiveList(int iStart,int nPrims, int typeCollider,primitive *pCollider,int bColliderLocal, 
 		geometry_under_test *pGTest,geometry_under_test *pGTestOp, primitive *pRes,char *pResId);

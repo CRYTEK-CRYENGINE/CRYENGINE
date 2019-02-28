@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -71,7 +71,7 @@ public:
 
 	void ClearSequenceBehavior() const
 	{
-		if (!ValidateAgent() && m_aiActor->IsEnabled())
+		if (!ValidateAgent() || !m_aiActor->IsEnabled())
 			return;
 
 		m_aiActor->SetBehaviorVariable("ExecuteSequence", false);

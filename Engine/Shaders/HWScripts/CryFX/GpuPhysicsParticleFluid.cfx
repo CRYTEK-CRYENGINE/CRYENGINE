@@ -1,5 +1,4 @@
-// CRYENGINE Source Code File
-// Copyright 2001-2016 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 float Script : STANDARDSGLOBAL<string Script = "NoPreview;"
                                                "ShaderType = Compute;"
@@ -54,12 +53,12 @@ struct SGridCell
 };
 
 #define SDF_GRADIENT_FUDGE 0.005f
-StructuredBuffer<int> adjescencyList : register(t0);
-StructuredBuffer<float> heightField : register(t1);
-StructuredBuffer<int> Volume : register(t2);
+Buffer<int> adjescencyList : register(t0);
+Buffer<float> heightField : register(t1);
+Buffer<int> Volume : register(t2);
 RWStructuredBuffer<SBody> bodies : register(u0);
 RWStructuredBuffer<SBody> bodiesTemp : register(u1);
-RWStructuredBuffer<uint> bodiesOffsets : register(u2);
+RWBuffer<uint> bodiesOffsets : register(u2);
 RWStructuredBuffer<SGridCell> grid : register(u3);
 
 float sqr(float x) { return x * x; }

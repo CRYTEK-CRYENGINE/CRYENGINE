@@ -3,6 +3,7 @@
 */
 
 #include "BasicUtils.h"
+#include <CryMath/Cry_Geo.h>
 
 template<class TSampleType>
 void NSH::NTriSub::CSampleSubTriManager_tpl<TSampleType>::Construct(const uint8 cDepth, const Vec3& rVertex0, const Vec3& rVertex1, const Vec3& rVertex2)

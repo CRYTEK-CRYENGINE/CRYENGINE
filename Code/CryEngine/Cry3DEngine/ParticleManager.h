@@ -1,19 +1,6 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  File name:   ParticleManager.h
-//  Version:     v1.00
-//  Created:     28/5/2001 by Vladimir Kajalin
-//  Compilers:   Visual Studio.NET
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//	- 03:2006				 : Modified by Jan Müller (Serialization)
-//
-////////////////////////////////////////////////////////////////////////////
-
-#ifndef PART_MANAGER
-#define PART_MANAGER
+#pragma once
 
 #include "ParticleEffect.h"
 #include <CryCore/BitFiddling.h>
@@ -149,12 +136,11 @@ public:
 	bool                       LoadLibrary(cstr sParticlesLibrary, cstr sParticlesLibraryFile = NULL, bool bLoadResources = false);
 	void                       ClearCachedLibraries();
 
-	IParticleEffectIteratorPtr GetEffectIterator();
-
 	IParticleEmitter*          CreateEmitter(const ParticleLoc& loc, const ParticleParams& Params, const SpawnParams* pSpawnParams = NULL);
 	void                       DeleteEmitter(IParticleEmitter* pEmitter);
 	void                       DeleteEmitters(FEmitterFilter filter);
 	IParticleEmitter*          SerializeEmitter(TSerialize ser, IParticleEmitter* pEmitter = NULL);
+	void                       FinishParticleRenderTasks(const SRenderingPassInfo& passInfo);
 
 	// Processing
 	void Update();
@@ -172,12 +158,14 @@ public:
 	// Stats
 	void GetMemoryUsage(ICrySizer* pSizer) const;
 	void GetCounts(SParticleCounts& counts);
+	void DisplayStats(Vec2& location, float lineHeight);
+
 	void ListEmitters(cstr sDesc = "", bool bForce = false);
 	void ListEffects();
 	void PrintParticleMemory();
 
 	typedef VectorMap<const IParticleEffect*, SParticleCounts> TEffectStats;
-	void CollectEffectStats(TEffectStats& mapEffectStats, float SParticleCounts::* pSortField) const;
+	void CollectEffectStats(TEffectStats& mapEffectStats, size_t iSortField) const;
 
 	//PerfHUD
 	virtual void CreatePerfHUDWidget();
@@ -211,12 +199,7 @@ public:
 	CParticleEmitter*   CreateEmitter(const ParticleLoc& loc, const IParticleEffect* pEffect, const SpawnParams* pSpawnParams = NULL);
 	void                UpdateEmitters(IParticleEffect* pEffect);
 
-	SPhysEnviron const& GetPhysEnviron()
-	{
-		if (!(m_PhysEnv.m_nNonUniformFlags & EFF_LOADED))
-			m_PhysEnv.GetWorldPhysAreas(~0, true);
-		return m_PhysEnv;
-	}
+	SWorldPhysEnviron const& GetPhysEnviron() { return m_PhysEnv; }
 
 #ifdef bEVENT_TIMINGS
 	struct SEventTiming
@@ -271,15 +254,7 @@ public:
 	virtual void AddVertexIndexPoolUsageEntry(uint32 nVertexMemory, uint32 nIndexMemory, const char* pContainerName);
 	virtual void MarkAsOutOfMemory();
 
-	uint32       GetPhysAreaChangedProxy(CParticleEmitter* pEmitter, uint16 uPhysicsMask);
-	void         UpdatePhysAreaChangedProxy(CParticleEmitter* pEmitter, uint32 nProxyId, bool bValid);
-	void         CleanOldPhysAreaChangedProxies();
-	void         AddUpdatedPhysArea(const SAreaChangeRecord& rec);
-	void         UpdatePhysAreasChanged();
-
 private:
-
-	friend struct CParticleEffectIterator;
 
 	struct CCompCStr
 	{
@@ -344,7 +319,9 @@ private:
 
 	bool                 m_bParticleTessellation = false;   // tessellation feature is allowed to use.
 
-	SPhysEnviron         m_PhysEnv;                         // Per-frame computed physics area information.
+	SWorldPhysEnviron    m_PhysEnv;                         // Per-frame computed physics area information.
+	std::shared_ptr<pfx2::IParticleSystem>
+		                 m_pParticleSystem;
 
 	bool IsRuntime() const
 	{
@@ -353,17 +330,6 @@ private:
 	}
 
 	void UpdateEngineData();
-
-	// Listener for physics events.
-	static int StaticOnPhysAreaChange(const EventPhys* pEvent)
-	{
-		CParticleManager::Instance()->OnPhysAreaChange(pEvent);
-		return 0;
-	}
-	void OnPhysAreaChange(const EventPhys* pEvent)
-	{
-		m_PhysEnv.OnPhysAreaChange(static_cast<const EventPhysAreaChange&>(*pEvent));
-	}
 
 	CParticleEffect* FindLoadedEffect(cstr sEffectName);
 	void             EraseEmitter(CParticleEmitter* pEmitter);
@@ -409,54 +375,6 @@ private:
 	uint32                m_nRendererParticleContainer;
 	bool                  m_bOutOfVertexIndexPoolMemory;
 #endif
-
-	struct SPhysAreaNodeProxy
-	{
-		void Reset()
-		{
-			pEmitter = (CParticleEmitter*)(intptr_t)-1;
-			bIsValid = false;
-			bbox.Reset();
-		}
-
-		CParticleEmitter* pEmitter;     // Emitter
-		uint16            uPhysicsMask; // Bit mask of physics interested in
-		bool              bIsValid;     // Does the proxy carry valid data
-		AABB              bbox;         // Bounding box of render node
-	};
-	CThreadSafeRendererContainer<SPhysAreaNodeProxy> m_physAreaChangedProxies;
-	CryCriticalSection                               m_PhysAreaChangeLock;
-	PodArray<SAreaChangeRecord>                      m_listPhysAreasChanged;
-};
-
-struct CParticleEffectIterator : public IParticleEffectIterator
-{
-	CParticleEffectIterator(CParticleManager* pManager)
-		: m_refs(0)
-	{
-		if (pManager)
-		{
-			for (CParticleManager::TEffectsList::iterator it = pManager->m_Effects.begin(); it != pManager->m_Effects.end(); ++it)
-			{
-				CParticleEffect* pEffect = it->second.get();
-				if (!pEffect->IsNull())
-					m_effects.push_back(pEffect);
-			}
-		}
-		m_iter = m_effects.begin();
-	}
-
-	virtual void             AddRef()         { m_refs++; }
-	virtual void             Release()        { if (--m_refs == 0) delete this; }
-
-	virtual IParticleEffect* Next()           { return m_iter != m_effects.end() ? *m_iter++ : NULL; }
-	virtual int              GetCount() const { return m_effects.size(); }
-
-private:
-	int                m_refs;
-	typedef std::vector<IParticleEffect*> TEffects;
-	TEffects           m_effects;
-	TEffects::iterator m_iter;
 };
 
 #ifdef bEVENT_TIMINGS
@@ -483,8 +401,6 @@ protected:
 
 #else
 
-	#define FUNCTION_PROFILER_CONTAINER(pCont) FUNCTION_PROFILER(GetISystem(), PROFILE_PARTICLE)
+	#define FUNCTION_PROFILER_CONTAINER(pCont) CRY_PROFILE_FUNCTION(PROFILE_PARTICLE)
 
 #endif
-
-#endif // PART_MANAGER

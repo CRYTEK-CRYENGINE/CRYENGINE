@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __inplacebutton_h__
 #define __inplacebutton_h__
@@ -97,3 +97,4 @@ public:
 };
 
 #endif // __inplacebutton_h__
+

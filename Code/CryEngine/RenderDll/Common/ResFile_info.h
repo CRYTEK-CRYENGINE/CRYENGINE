@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "ResFile.h"
 
@@ -8,12 +8,10 @@ STRUCT_VAR_INFO(ver, TYPE_INFO(int))
 STRUCT_VAR_INFO(num_files, TYPE_INFO(int))
 //STRUCT_VAR_INFO(num_files_ref, TYPE_INFO(int))
 STRUCT_VAR_INFO(ofs_dir, TYPE_INFO(int))
-STRUCT_VAR_INFO(num_files_ref, TYPE_INFO(uint32))
 STRUCT_INFO_END(SFileResHeader)
 
 STRUCT_INFO_BEGIN(SResFileLookupDataDisk)
 STRUCT_VAR_INFO(m_NumOfFilesUnique, TYPE_INFO(int))
-STRUCT_VAR_INFO(m_NumOfFilesRef, TYPE_INFO(int))
 STRUCT_VAR_INFO(m_OffsetDir, TYPE_INFO(uint32))
 STRUCT_VAR_INFO(m_CRC32, TYPE_INFO(uint32))
 STRUCT_VAR_INFO(m_CacheMajorVer, TYPE_INFO(uint16))
@@ -28,17 +26,12 @@ STRUCT_INFO_BEGIN(CCryNameTSCRC)
 STRUCT_VAR_INFO(m_nID, TYPE_INFO(int))
 STRUCT_INFO_END(CCryNameTSCRC)
 
-STRUCT_INFO_BEGIN(SDirEntry)
+STRUCT_INFO_BEGIN(CDirEntry)
 STRUCT_VAR_INFO(Name, TYPE_INFO(CCryNameTSCRC))
 STRUCT_BITFIELD_INFO(size, TYPE_INFO(uint32), 24)
 STRUCT_BITFIELD_INFO(flags, TYPE_INFO(uint32), 8)
 STRUCT_VAR_INFO(offset, TYPE_INFO(int32))
-STRUCT_INFO_END(SDirEntry)
-
-STRUCT_INFO_BEGIN(SDirEntryRef)
-STRUCT_VAR_INFO(Name, TYPE_INFO(CCryNameTSCRC))
-STRUCT_VAR_INFO(ref, TYPE_INFO(uint32))
-STRUCT_INFO_END(SDirEntryRef)
+STRUCT_INFO_END(CDirEntry)
 
 STRUCT_INFO_BEGIN(SShaderBinHeader)
 STRUCT_VAR_INFO(m_Magic, TYPE_INFO(FOURCC))

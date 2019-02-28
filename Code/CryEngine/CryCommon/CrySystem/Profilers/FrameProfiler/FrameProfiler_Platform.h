@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -11,14 +11,14 @@
 namespace CryProfile
 {
 void PushProfilingMarker(const EProfileDescription desc, const char* pName, ...);
-void PopProfilingMarker();
+void PopProfilingMarker(const EProfileDescription desc, const char* pName);
 
 namespace detail
 {
 void        SetThreadName(const char* pName);
 void        SetProfilingEvent(const BYTE colorId, const char* pName);
 void        PushProfilingMarker(const BYTE colorId, const char* pName);
-void        PopProfilingMarker();
+void        PopProfilingMarker(const BYTE colorId, const char* pName);
 void        ProfilerFrameStart(int nFrameId);
 void        ProfilerFrameEnd(int nFrameId);
 void        ProfilerPause();
@@ -46,9 +46,9 @@ inline void ProfilerResume()                 { detail::ProfilerResume(); }
 			#define PLATFORM_PROFILER_FUNCTION_WAITING(szName) /*not implemented*/
 			#define PLATFORM_PROFILER_SECTION(szName)          /*not implemented*/
 			#define PLATFORM_PROFILER_SECTION_WAITING(szName)  /*not implemented*/
-			#define PLATFORM_PROFILER_MARKER(szName)           do { ::CryProfile::detail::SetProfilingEvent(0, szName); } while (0)
-			#define PLATFORM_PROFILER_PUSH(szName)             do { ::CryProfile::detail::PushProfilingMarker(0, szName); } while (0)
-			#define PLATFORM_PROFILER_POP()                    do { ::CryProfile::detail::PopProfilingMarker(); } while (0)
+			#define PLATFORM_PROFILER_MARKER(szLabel)          do { ::CryProfile::detail::SetProfilingEvent(0, szLabel); } while (0)
+			#define PLATFORM_PROFILER_PUSH(szLabel)            do { ::CryProfile::detail::PushProfilingMarker(0, szLabel); } while (0)
+			#define PLATFORM_PROFILER_POP(szLabel)             do { ::CryProfile::detail::PopProfilingMarker(0,szLabel); } while (0)
 		#else                                                // profile builds take another path to allow runtime switch
 			#define PLATFORM_PROFILER_REGION(szName)           /*do nothing*/
 			#define PLATFORM_PROFILER_REGION_WAITING(szName)   /*do nothing*/
@@ -57,8 +57,8 @@ inline void ProfilerResume()                 { detail::ProfilerResume(); }
 			#define PLATFORM_PROFILER_SECTION(szName)          /*do nothing*/
 			#define PLATFORM_PROFILER_SECTION_WAITING(szName)  /*do nothing*/
 			#define PLATFORM_PROFILER_MARKER(szName)           /*do nothing*/
-			#define PLATFORM_PROFILER_PUSH(szName)             /*do nothing*/
-			#define PLATFORM_PROFILER_POP()                    /*do nothing*/
+			#define PLATFORM_PROFILER_PUSH(szLabel)            /*do nothing*/
+			#define PLATFORM_PROFILER_POP(szLabel)             /*do nothing*/
 		#endif
 
 	#else
@@ -71,9 +71,9 @@ inline void ProfilerResume()                 { detail::ProfilerResume(); }
 		#define PLATFORM_PROFILER_FUNCTION_WAITING(szName) /*do nothing*/
 		#define PLATFORM_PROFILER_SECTION(szName)          /*do nothing*/
 		#define PLATFORM_PROFILER_SECTION_WAITING(szName)  /*do nothing*/
-		#define PLATFORM_PROFILER_MARKER(szName)           /*do nothing*/
-		#define PLATFORM_PROFILER_PUSH(szName)             /*do nothing*/
-		#define PLATFORM_PROFILER_POP()                    /*do nothing*/
+		#define PLATFORM_PROFILER_MARKER(szLabel)          /*do nothing*/
+		#define PLATFORM_PROFILER_PUSH(szLabel)            /*do nothing*/
+		#define PLATFORM_PROFILER_POP(szLabel)             /*do nothing*/
 
 	#endif
 
@@ -84,8 +84,9 @@ namespace CryProfilePlatform
 // class to define a profile scope, to represent time events in profile tools
 class CScopedPlatformProfileMarker
 {
+	const char* m_name = nullptr;
 public:
-	inline CScopedPlatformProfileMarker(const EProfileDescription desc, const char* pName, ...)
+	inline CScopedPlatformProfileMarker(const EProfileDescription desc, const char* pName, ...) : m_name(pName)
 	{
 		va_list args;
 		va_start(args, pName);
@@ -103,7 +104,7 @@ public:
 		::CryProfile::detail::PushProfilingMarker(0, markerName);
 		va_end(args);
 	}
-	inline ~CScopedPlatformProfileMarker() { ::CryProfile::detail::PopProfilingMarker(); }
+	inline ~CScopedPlatformProfileMarker() { ::CryProfile::detail::PopProfilingMarker(0,m_name); }
 };
 
 } // namespace CryProfile
@@ -123,9 +124,9 @@ public:
 	#define PLATFORM_PROFILER_FUNCTION_WAITING(szName) /*do nothing*/
 	#define PLATFORM_PROFILER_SECTION(szName)          /*do nothing*/
 	#define PLATFORM_PROFILER_SECTION_WAITING(szName)  /*do nothing*/
-	#define PLATFORM_PROFILER_MARKER(szName)           /*do nothing*/
-	#define PLATFORM_PROFILER_PUSH(szName)             /*do nothing*/
-	#define PLATFORM_PROFILER_POP()                    /*do nothing*/
+	#define PLATFORM_PROFILER_MARKER(szLabel)          /*do nothing*/
+	#define PLATFORM_PROFILER_PUSH(szLabel)            /*do nothing*/
+	#define PLATFORM_PROFILER_POP(szLabel)             /*do nothing*/
 
 	#define CRYPROFILE_SCOPE_PLATFORM_MARKER(...)
 

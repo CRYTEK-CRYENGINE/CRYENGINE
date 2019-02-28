@@ -1,8 +1,6 @@
 {
-	"CryRenderer_uber_0.cpp":
-	{
-		"Source Files":
-		[
+  "CryRenderer_uber_0.cpp":{
+    "Source Files":[
 			"D3DAmbientOcclusion.cpp",
 			"D3DColorGradingController.cpp",
 			"D3DDebug.cpp",
@@ -22,16 +20,13 @@
 			"D3DMultiResRendering.cpp",
 			"D3DOsvr.cpp"
 		],
-		"Header Files":
-		[
+    "Header Files":[
 			"D3DREBreakableGlassBuffer.h",
 			"D3D_SVO.h"
 		]
 	},
-	"CryRenderer_uber_1.cpp":
-	{
-		"Source Files":
-		[
+  "CryRenderer_uber_1.cpp":{
+    "Source Files":[
 			"D3DRenderAuxGeom.cpp",
 			"D3DRenderThread.cpp",
 			"D3DRendPipeline.cpp",
@@ -52,22 +47,18 @@
 			"BenchmarkCustom/BenchmarkRendererSensor.cpp"
 		]
 	},
-	"CryRenderer_uber_2.cpp":
-	{
-		"Source Files":
-		[
+  "CryRenderer_uber_2.cpp":{
+    "Source Files":[
 			"DriverD3D.cpp",
 			"PipelineProfiler.cpp",
 			"SmartGlassContext.cpp",
 			"SmartGlassManager.cpp",
 			"StatoscopeRenderStats.cpp"
 		],
-		"Header Files":
-		[
+    "Header Files":[
 			"SmartGlassManager.h"
 		],
-		"Source Files/D3DPostProcess":
-		[
+    "Source Files/D3DPostProcess":[
 			"D3DPostProcess.cpp",
 			"PostProcessDOF.cpp",
 			"PostProcessFilters.cpp",
@@ -77,20 +68,18 @@
 			"PostProcessMotionBlur.cpp",
 			"PostProcessRenderModes.cpp",
 			"PostProcessSunShafts.cpp",
-			"PostProcessWater.cpp"
+      "PostProcessWater.cpp"
 		]
 	},
-	"CryRenderer_uber_3.cpp":
-	{
-		"Header Files":
-		[
+  "CryRenderer_uber_3.cpp":{
+    "Header Files":[
 			"ShadowTextureGroupManager.h",
 			"D3DTiledShading.h",
-			"DeviceManager/D3D11/DeviceSubmissionQueue_D3D11.inl",
+      "DeviceManager/D3D11/DeviceSubmissionQueue_D3D11.inl",
 			"../Common/Textures/ITextureStreamer.h",
 			"../Common/Shaders/ShaderAllocator.h",
 			"../Common/CryNameR.h",
-			"DeviceManager/D3D11/DeviceWrapper_D3D11.h",
+      "DeviceManager/D3D11/DeviceWrapper_D3D11.h",
 			"../Common/ISmartGlassContext.h",
 			"../Common/LightVolumeBuffer.h",
 			"../Common/ParticleBuffer.h",
@@ -115,8 +104,7 @@
 			"D3DOsvr.h",
 			"CompiledRenderObject.h"
 		],
-		"Common":
-		[
+    "Common":[
 			"../Common/Renderer_Jobs.cpp",
 			"../Common/CommonRender.cpp",
 			"../Common/DeferredRenderUtils.cpp",
@@ -140,8 +128,7 @@
 			"../Common/RenderItemDrawer.cpp",
 			"../Common/Shadow_Renderer.cpp"
 		],
-		"Common_h":
-		[
+    "Common_h":[
 			"../Common/CommonRender.h",
 			"../Common/RenderPipeline.h",
 			"../Common/DeferredRenderUtils.h",
@@ -160,8 +147,7 @@
 			"../Common/RenderItemDrawer.h",
 			"../Common/LockFreeAddVector.h"
 		],
-		"Scaleform":
-		[
+    "Scaleform":[
 			"../Scaleform/Scaleform.cpp",
 			"../Scaleform/ScaleformRender.cpp",
 			"../Scaleform/ScaleformPlayback.cpp",
@@ -170,14 +156,12 @@
 		]
 	},
 	"CryRender_resfile_uber.cpp": {
-		"Common_h" :
-		[
+    "Common_h":[
 			"../Common/ResFile.h",
 			"../Common/ResFile_info.h",
 			"../Common/ResFileLookupDataMan.h"
 		],
-		"Common":
-		[
+    "Common":[
 			"../Common/ResFile.cpp",
 			"../Common/ResFileLookupDataMan.cpp"
 		]
@@ -196,10 +180,8 @@
       "../Common/RendElements/CREGeomCache.cpp"
     ]
   },
-	"CryRenderer_render_elements_uber_1.cpp":
-	{
-		"Common/RendElements":
-		[
+  "CryRenderer_render_elements_uber_1.cpp":{
+    "Common/RendElements":[
 			"../Common/RendElements/CREParticle.cpp",
 			"../Common/RendElements/CRESky.cpp",
 			"../Common/RendElements/CREWaterOcean.cpp",
@@ -211,14 +193,12 @@
 			"../Common/RendElements/Stars.h",
 			"../Common/RendElements/CREMeshImpl.h"
 		],
-		"Common/RendElements/Utils":
-		[
+    "Common/RendElements/Utils":[
 			"../Common/RendElements/Utils/PolygonMath2D.cpp",
 			"../Common/RendElements/Utils/PolygonMath2D.h",
 			"../Common/RendElements/Utils/SpatialHashGrid.h"
 		],
-		"Common/RendElements/LensOptics":
-		[
+    "Common/RendElements/LensOptics":[
 			"../Common/RendElements/CameraOrbs.cpp",
 			"../Common/RendElements/AbstractMeshElement.cpp",
 			"../Common/RendElements/ChromaticRing.cpp",
@@ -256,10 +236,8 @@
 			"../Common/RendElements/OpticsReference.cpp"
 		]
 	},
-	"CryRenderer_textures_uber.cpp":
-	{
-		"Common/Textures":
-		[
+  "CryRenderer_textures_uber.cpp":{
+    "Common/Textures":[
 			"../Common/Textures/ITextureStreamer.cpp",
 			"../Common/Textures/PlanningTextureStreamer.cpp",
 			"../Common/Textures/PlanningTextureStreamer_Jobs.cpp",
@@ -281,29 +259,26 @@
 			"../Common/Textures/TextureHelpers.cpp",
 			"../Common/Textures/TextureHelpers.h"
 		],
-		"Common/Textures/Image":
-		[
+    "Common/Textures/Image":[
 			"../Common/Textures/Image/CImage.cpp",
 			"../Common/Textures/Image/DDSImage.cpp",
 			"../Common/Textures/Image/JpgImage.cpp",
 			"../Common/Textures/Image/TgaImage.cpp",
-			"../Common/Textures/Image/PngImage.cpp",
-      		"../Common/Textures/Image/CImage.h",
+      "../Common/Textures/Image/PngImage.cpp",
+      "../Common/Textures/Image/TifImage.cpp",
+      "../Common/Textures/Image/CImage.h",
 			"../Common/Textures/Image/DDSImage.h"
 		]
 	},
-	"CryRenderer_uber_4.cpp":
-	{
-		"Common/RenderMesh":
-		[
+  "CryRenderer_uber_4.cpp":{
+    "Common/RenderMesh":[
 			"../Common/RenderMesh_Render.cpp",
 			"../Common/RenderMesh_SetMesh.cpp",
 			"../Common/RenderMesh.cpp",
 			"../Common/RenderMesh.h",
 			"../Common/ComputeSkinningStorage.h"
 		],
-		"Common/Shaders":
-		[
+    "Common/Shaders":[
 			"../Common/Shaders/Parser.cpp",
 			"../Common/Shaders/ParserBin.cpp",
 			"../Common/Shaders/RemoteCompiler.cpp",
@@ -327,50 +302,45 @@
 			"../Common/Shaders/ShaderResources.h",
 			"../Common/Shaders/ShaderResources.cpp"
 		],
-		"Common/PostProcess":
-		[
+    "Common/PostProcess":[
 			"../Common/PostProcess/PostEffects.cpp",
 			"../Common/PostProcess/PostProcess.cpp",
 			"../Common/PostProcess/PostProcessUtils.cpp",
+			"../Common/PostProcess/PostBlurUnderUI.cpp",			
 			"../Common/PostProcess/PostEffects.h",
 			"../Common/PostProcess/PostProcess.h",
-			"../Common/PostProcess/PostProcessUtils.h"
+			"../Common/PostProcess/PostProcessUtils.h",
+			"../Common/PostProcess/PostBlurUnderUI.h"
 		]
 	},
-	"CryRenderer_uber_5.cpp":
-	{
-		"DeviceManager":
-		[
+  "CryRenderer_uber_5.cpp":{
+    "DeviceManager":[
 			"DevBuffer.cpp",
 			"../Common/DevBuffer.h",
 			"DeviceManager/TempDynBuffer.h",
 			"DeviceManager/DeviceObjects.h",
 			"DeviceManager/DeviceObjects.inl",
 			"DeviceManager/DeviceObjects.cpp",
-			"DeviceManager/DeviceObjectHelpers.h",
-			"DeviceManager/DeviceObjectHelpers.cpp",
-			"DeviceManager/DeviceResources.h",
-			"DeviceManager/DeviceResources.cpp",
-			"DeviceManager/DeviceFormats.h",
-			"DeviceManager/DeviceFormats.cpp",
-			"DeviceManager/DeviceCommandList.inl"
+      "DeviceManager/DeviceObjectHelpers.h",
+      "DeviceManager/DeviceObjectHelpers.cpp",
+      "DeviceManager/DeviceResources.h",
+      "DeviceManager/DeviceResources.cpp",
+      "DeviceManager/DeviceFormats.h",
+      "DeviceManager/DeviceFormats.cpp",
+      "DeviceManager/DeviceCommandList.inl"
 		]
 	},
-	"CryGpuParticles_uber.cpp":
-	{
-		"Source Files/Gpu":
-		[
+  "CryGpuParticles_uber.cpp":{
+    "Source Files/Gpu":[
 			"Gpu/GpuComputeBackend.cpp",
 			"Gpu/GpuBitonicSort.cpp",
 			"Gpu/GpuMergeSort.cpp"
 		],
-		"Header Files/Gpu":
-		[
+    "Header Files/Gpu":[
 			"Gpu/GpuComputeBackend.h",
 			"Gpu/GpuBitonicSort.h"
 		],
-		"Source Files/Gpu/Particles":
-		[
+    "Source Files/Gpu/Particles":[
 			"Gpu/Particles/GpuParticleComponentRuntime.cpp",
 			"Gpu/Particles/GpuParticleManager.cpp",
 			"Gpu/Particles/GpuParticleContainer.cpp",
@@ -378,16 +348,10 @@
 			"Gpu/Particles/GpuParticleFeatureColor.cpp",
 			"Gpu/Particles/GpuParticleFeatureCollision.cpp",
 			"Gpu/Particles/GpuParticleFeatureField.cpp",
-			"Gpu/Particles/GpuParticleFeatureLifeTime.cpp",
-			"Gpu/Particles/GpuParticleFeatureLocation.cpp",
 			"Gpu/Particles/GpuParticleFeatureMotion.cpp",
-			"Gpu/Particles/GpuParticleFeatureFluidDynamics.cpp",
-			"Gpu/Particles/GpuParticleFeatureRender.cpp",
-			"Gpu/Particles/GpuParticleFeatureSpawn.cpp",
-			"Gpu/Particles/GpuParticleFeatureVelocity.cpp"
+      "Gpu/Particles/GpuParticleFeatureFluidDynamics.cpp"
 		],
-		"Header Files/Gpu/Particles":
-		[
+    "Header Files/Gpu/Particles":[
 			"Gpu/Particles/GpuParticleComponentRuntime.h",
 			"Gpu/Particles/GpuParticleManager.h",
 			"Gpu/Particles/GpuParticleContainer.h",
@@ -396,27 +360,18 @@
 			"Gpu/Particles/GpuParticleFeatureColor.h",
 			"Gpu/Particles/GpuParticleFeatureCollision.h",
 			"Gpu/Particles/GpuParticleFeatureField.h",
-			"Gpu/Particles/GpuParticleFeatureLifeTime.h",
-			"Gpu/Particles/GpuParticleFeatureLocation.h",
 			"Gpu/Particles/GpuParticleFeatureMotion.h",
-			"Gpu/Particles/GpuParticleFeatureFluidDynamics.h",
-			"Gpu/Particles/GpuParticleFeatureRender.h",
-			"Gpu/Particles/GpuParticleFeatureSpawn.h",
-			"Gpu/Particles/GpuParticleFeatureVelocity.h"
+      "Gpu/Particles/GpuParticleFeatureFluidDynamics.h"
 		],
-		"Source Files/Gpu/Physics":
-		[
+    "Source Files/Gpu/Physics":[
 			"Gpu/Physics/GpuPhysicsParticleFluid.cpp"
 		],
-		"Header Files/Gpu/Physics":
-		[
+    "Header Files/Gpu/Physics":[
 			"Gpu/Physics/GpuPhysicsParticleFluid.h"
 		]
 	},
-	"CryRenderer_uber_6.cpp":
-	{
-		"GraphicsPipeline/Common":
-		[
+  "CryRenderer_uber_6.cpp":{
+    "GraphicsPipeline/Common":[
 			"GraphicsPipeline/Common/ComputeRenderPass.h",
 			"GraphicsPipeline/Common/ComputeRenderPass.cpp",
 			"GraphicsPipeline/Common/FullscreenPass.h",
@@ -425,18 +380,17 @@
 			"GraphicsPipeline/Common/GraphicsPipelineStage.h",
 			"GraphicsPipeline/Common/GraphicsPipelineStateSet.h",
 			"GraphicsPipeline/Common/GraphicsPipelineStateSet.cpp",
-			"GraphicsPipeline/Common/RenderPassScheduler.h",
-			"GraphicsPipeline/Common/RenderPassScheduler.cpp",
+      "GraphicsPipeline/Common/RenderPassScheduler.h",
+      "GraphicsPipeline/Common/RenderPassScheduler.cpp",
 			"GraphicsPipeline/Common/PrimitiveRenderPass.h",
 			"GraphicsPipeline/Common/PrimitiveRenderPass.cpp",
-			"GraphicsPipeline/Common/RenderPassBase.h",
+      "GraphicsPipeline/Common/RenderPassBase.h",
 			"GraphicsPipeline/Common/SceneRenderPass.h",
 			"GraphicsPipeline/Common/SceneRenderPass.cpp",
 			"GraphicsPipeline/Common/UtilityPasses.h",
-			"GraphicsPipeline/Common/UtilityPasses.cpp"
+      "GraphicsPipeline/Common/UtilityPasses.cpp"
 		],
-		"GraphicsPipeline":
-		[
+    "GraphicsPipeline":[
 			"GraphicsPipeline/AutoExposure.h",
 			"GraphicsPipeline/AutoExposure.cpp",
 			"GraphicsPipeline/Bloom.h",
@@ -447,30 +401,30 @@
 			"GraphicsPipeline/ColorGrading.cpp",
 			"GraphicsPipeline/ComputeSkinning.h",
 			"GraphicsPipeline/ComputeSkinning.cpp",
-			"GraphicsPipeline/DepthReadback.h",
-			"GraphicsPipeline/DepthReadback.cpp",
+      "GraphicsPipeline/DepthReadback.h",
+      "GraphicsPipeline/DepthReadback.cpp",
 			"GraphicsPipeline/GpuParticles.h",
 			"GraphicsPipeline/GpuParticles.cpp",
-			"GraphicsPipeline/DeferredDecals.h",
-			"GraphicsPipeline/DeferredDecals.cpp",
+      "GraphicsPipeline/DeferredDecals.h",
+      "GraphicsPipeline/DeferredDecals.cpp",
 			"GraphicsPipeline/DepthOfField.h",
 			"GraphicsPipeline/DepthOfField.cpp",
 			"GraphicsPipeline/Fog.h",
 			"GraphicsPipeline/Fog.cpp",
 			"GraphicsPipeline/LensOptics.h",
 			"GraphicsPipeline/LensOptics.cpp",
-			"GraphicsPipeline/MobileComposition.h",
-			"GraphicsPipeline/MobileComposition.cpp",
+      "GraphicsPipeline/MobileComposition.h",
+      "GraphicsPipeline/MobileComposition.cpp",
 			"GraphicsPipeline/MotionBlur.h",
 			"GraphicsPipeline/MotionBlur.cpp",
 			"GraphicsPipeline/HeightMapAO.h",
 			"GraphicsPipeline/HeightMapAO.cpp",
 			"GraphicsPipeline/PostAA.h",
 			"GraphicsPipeline/PostAA.cpp",
-			"GraphicsPipeline/PostEffects.h",
-			"GraphicsPipeline/PostEffects.cpp",
-			"GraphicsPipeline/Rain.h",
-			"GraphicsPipeline/Rain.cpp",
+      "GraphicsPipeline/PostEffects.h",
+      "GraphicsPipeline/PostEffects.cpp",
+      "GraphicsPipeline/Rain.h",
+      "GraphicsPipeline/Rain.cpp",
 			"GraphicsPipeline/SceneCustom.h",
 			"GraphicsPipeline/SceneCustom.cpp",
 			"GraphicsPipeline/SceneForward.h",
@@ -487,8 +441,8 @@
 			"GraphicsPipeline/ShadowMap.cpp",
 			"GraphicsPipeline/ShadowMask.h",
 			"GraphicsPipeline/ShadowMask.cpp",
-			"GraphicsPipeline/Snow.h",
-			"GraphicsPipeline/Snow.cpp",
+      "GraphicsPipeline/Snow.h",
+      "GraphicsPipeline/Snow.cpp",
 			"GraphicsPipeline/StandardGraphicsPipeline.h",
 			"GraphicsPipeline/StandardGraphicsPipeline.cpp",
 			"GraphicsPipeline/SunShafts.h",
@@ -504,16 +458,21 @@
 			"GraphicsPipeline/Water.h",
 			"GraphicsPipeline/Water.cpp",
 			"GraphicsPipeline/WaterRipples.h",
-			"GraphicsPipeline/WaterRipples.cpp"
+      "GraphicsPipeline/WaterRipples.cpp",
+      "GraphicsPipeline/OmniCamera.h",
+      "GraphicsPipeline/OmniCamera.cpp"
 		]
 	},
-	"NoUberFile":
-	{
-		"Root":
-		[
+  "NoUberFile":{
+    "Root":[
 			"../StdAfx.cpp",
 			"../StdAfx.h",
 			"ResourceCompilerHelpers.cpp"
+    ],
+    "Common":[
+      "GpuHeap.h",
+      "GpuHeap.cpp",
+      "GpuHeap.natvis"
 		]
 	}
 }

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __RESFILE_H__
 #define __RESFILE_H__
@@ -14,12 +14,13 @@
 #define RES_COMPRESSION RESVERSION_LZSS
 
 // Resource files flags
-#define RF_NOTSAVED 1
-#define RF_COMPRESS 4
-#define RF_TEMPDATA 8
-#define RF_COMPRESSED 0x80
-#define RF_RES_$TOKENS 0x20
+#define RF_NOTSAVED    BIT(0)
+#define RF_DUPLICATE   BIT(1)
+#define RF_COMPRESS    BIT(2)
+#define RF_TEMPDATA    BIT(3)
+#define RF_RES_$TOKENS BIT(5)
 #define RF_RES_$ (RF_RES_$TOKENS)
+#define RF_COMPRESSED  BIT(7)
 
 class  CResFileLookupDataMan;
 struct SResFileLookupData;
@@ -33,7 +34,6 @@ struct SFileResHeader
 	int num_files;
 	//int num_files_ref;
 	uint32 ofs_dir;
-	uint32 num_files_ref;
 	AUTO_STRUCT_INFO;
 };
 
@@ -44,45 +44,58 @@ struct SFileResHeader
 struct SDirEntryOpen
 {
 	CCryNameTSCRC Name;
-	uint32 curOffset;
-	void*  pData;
-	int nSize;
-
-	SDirEntryOpen()
-	{
-		pData = NULL;
-		nSize = 0;
-	}
+	uint32        curOffset;
+	void*         pData = nullptr;
+	int           nSize = 0;
 
 	void GetMemoryUsage(ICrySizer* pSizer) const {}
 };
 
 // Internal file entry
-struct SDirEntry
+class CDirEntry
 {
-	CCryNameTSCRC Name;
-	uint32 size  : 24;
-	uint32 flags : 8;        // RF_
-	int32  offset;
+	friend class CResFile;
 
-	SDirEntry()
+private:
+	CCryNameTSCRC Name;
+	uint32        size  : 24;
+	uint32        flags : 8;        // RF_
+	uint32        offset = 0;
+
+public:
+	CDirEntry() : size(0), flags(0) {}
+	CDirEntry(CCryNameTSCRC Name, uint32 size, uint32 flags = 0) : Name(Name), size(size), flags(flags) {}
+	CDirEntry(CCryNameTSCRC Name, uint32 size, uint32 offset, uint32 flags) : Name(Name), size(size), flags(flags), offset(offset) {}
+
+	CDirEntry(CDirEntry&&) = default;
+	CDirEntry &operator=(CDirEntry&&) = default;
+	CDirEntry(const CDirEntry&) = default;
+	CDirEntry &operator=(const CDirEntry&) = default;
+
+	void GetMemoryUsage(ICrySizer* pSizer) const {}
+
+	// IsValid() returns true if entry content was flushed
+	bool IsValid()     const { return size > 0; }
+	bool IsDuplicate() const { return (flags & RF_DUPLICATE) != 0; }
+
+	const CCryNameTSCRC& GetName() const { return Name; }
+
+	uint32 GetSize() const   { return size; }
+	uint32 GetFlags() const  { return flags; }
+	// Only meaningful for valid entries
+	uint32 GetOffset() const 
 	{
-		size   = 0;
-		flags  = 0;
-		offset = 0;
+		return offset;
 	}
 
-	void GetMemoryUsage(ICrySizer* pSizer) const {}
-
-	AUTO_STRUCT_INFO;
-};
-
-struct SDirEntryRef
-{
-	CCryNameTSCRC Name;
-	uint32 ref;
-
-	void GetMemoryUsage(ICrySizer* pSizer) const {}
+	void MarkNotSaved()
+	{
+		flags |= RF_NOTSAVED;
+	}
+	void MarkTemp()
+	{
+		flags |= RF_TEMPDATA;
+	}
 
 	AUTO_STRUCT_INFO;
 };
@@ -104,11 +117,8 @@ struct SDirEntryRef
 #define RO_SORT_ALPHA_DESC 0x10
 
 #define MAX_OPEN_RESFILES 64
-typedef std::vector<SDirEntry> ResDir;
-typedef ResDir::iterator ResDirIt;
-
-typedef std::vector<SDirEntryRef> ResDirRef;
-typedef ResDirRef::iterator ResDirRefIt;
+typedef std::vector<CDirEntry> ResDir;
+typedef ResDir::iterator       ResDirIt;
 
 typedef std::vector<SDirEntryOpen> ResDirOpen;
 typedef ResDirOpen::iterator ResDirOpenIt;
@@ -127,12 +137,10 @@ private:
 	char*  m_szAccess;
 	FILE*  m_handle;
 	ResDir m_Dir;
-	ResDirRef  m_DirRef;
 	ResDirOpen m_DirOpen;
 	byte*  m_pCompressedDir;
 	int    m_typeaccess;
 	uint32 m_nNumFilesUnique;
-	uint32 m_nNumFilesRef;
 	uint32 m_nOffsDir;
 	uint32 m_nComprDirSize;
 	int32  m_nOffset;
@@ -218,66 +226,68 @@ public:
 		return m_pLookupDataMan;
 	}
 
-	SResFileLookupData* GetLookupData(bool bCreate, uint32 CRC, float fVersion) const;
+	SResFileLookupData* GetLookupData() const;
+	void                StoreLookupData(uint32 CRC, float fVersion);
 
 	const char* mfGetError(void);
 	void        mfSetError(const char* er, ...);
 	const char* mfGetFileName() const {return m_name.c_str(); }
-	int         mfGetVersion()        { return m_version; }
+	int         mfGetVersion()  const { return m_version; }
 	void        mfDeactivate(bool bReleaseDir);
 
 	void mfTickStreaming();
 
 	int  mfOpen(int type, CResFileLookupDataMan* pMan, SResStreamInfo* pStreamInfo = NULL);
 	bool mfClose();
-	int  mfFlush(bool bCompressDir = false);
-	int  mfFlushDir(long nSeek, bool bOptimise);
+	int  mfFlush();
+	int  mfFlushDir(long nSeek);
 	bool mfPrepareDir();
 	int  mfLoadDir(SResStreamInfo* pStreamInfo);
 	void mfReleaseDir();
 
 	int mfGetNumFiles() { return m_Dir.size(); }
 
-	byte* mfFileReadCompressed(SDirEntry* de, uint32& nSizeDecomp, uint32& nSizeComp);
+	byte* mfFileReadCompressed(CDirEntry* de, uint32& nSizeDecomp, uint32& nSizeComp);
 
-	int mfFileRead(SDirEntry* de);
+	int mfFileRead(CDirEntry* de);
 	int mfFileRead(const char* name);
 	int mfFileRead(CCryNameTSCRC name);
 
 	int mfFileWrite(CCryNameTSCRC name, void* data);
 
-	void mfFileRead2(SDirEntry* de, int size, void* buf);
+	void mfFileRead2(CDirEntry* de, int size, void* buf);
 	void mfFileRead2(CCryNameTSCRC name, int size, void* buf);
 
-	void* mfFileGetBuf(SDirEntry* de);
+	void* mfFileGetBuf(CDirEntry* de);
 	void* mfFileGetBuf(CCryNameTSCRC name);
 
-	int mfFileSeek(SDirEntry* de, int offs, int type);
+	int mfFileSeek(CDirEntry* de, int offs, int type);
 	int mfFileSeek(CCryNameTSCRC name, int offs, int type);
 	int mfFileSeek(char* name, int offs, int type);
 
-	int mfFileLength(SDirEntry* de);
+	int mfFileLength(CDirEntry* de);
 	int mfFileLength(CCryNameTSCRC name);
 	int mfFileLength(char* name);
 
-	int mfFileAdd(SDirEntry* de);
+	int mfFileAdd(CDirEntry* de);
 
 	bool mfIsDirty()        { return m_bDirty; }
 	bool mfIsDirStreaming() { return m_bDirStreaming; }
 
-	//int mfFileDelete(SDirEntry *de);
+	//int mfFileDelete(CDirEntry *de);
 	//int mfFileDelete(CCryNameTSCRC name);
 	//int mfFileDelete(char* name);
 
 	bool mfFileExist(CCryNameTSCRC name);
 	bool mfFileExist(const char* name);
 
-	int            mfFileClose(SDirEntry* de);
-	bool           mfCloseEntry(SDirEntry* de, bool bEraseOpenEntry = true);
-	SDirEntryOpen* mfOpenEntry(SDirEntry* de);
-	SDirEntryOpen* mfGetOpenEntry(SDirEntry* de);
-	SDirEntry*     mfGetEntry(CCryNameTSCRC name, bool* bAsync = NULL);
-	ResDir*        mfGetDirectory();
+	int            mfFileClose(const CCryNameTSCRC &Name, uint32 flags);
+	bool           mfCloseEntry(const CCryNameTSCRC &Name, uint32 flags, bool bEraseOpenEntry = true);
+	SDirEntryOpen* mfOpenEntry(const CCryNameTSCRC &Name);
+	SDirEntryOpen* mfGetOpenEntry(const CCryNameTSCRC &Name);
+	CDirEntry*     mfGetEntry(const CCryNameTSCRC &name, bool* bAsync = NULL);
+	ResDir*        mfGetDirectory() { return &m_Dir; }
+	const ResDir*  mfGetDirectory() const { return &m_Dir; }
 
 	FILE* mfGetHandle() { return m_handle; }
 	int   mfGetResourceSize();
@@ -287,11 +297,49 @@ public:
 	int  Size();
 	void GetMemoryUsage(ICrySizer* pSizer) const;
 
+	bool RequiresSwapEndianOnRead() const { return m_bSwapEndianRead; }
+	bool RequiresSwapEndianOnWrite() const { return m_bSwapEndianWrite; }
+
 	static void Tick();
 	static bool IsStreaming();
 
 	static uint32 m_nMaxOpenResFiles;
 	static int m_nNumOpenResources;
+};
+
+class CResFileOpenScope
+{
+private:
+	CResFile * rf = nullptr;
+
+public:
+	CResFileOpenScope(CResFile* rf) : rf(rf) {}
+
+	CResFileOpenScope(const CResFileOpenScope&) = delete;
+	CResFileOpenScope& operator=(const CResFileOpenScope&) = delete;
+
+	CResFileOpenScope(CResFileOpenScope&& o) noexcept : rf(o.rf) { o.rf = nullptr; }
+	CResFileOpenScope& operator=(CResFileOpenScope&& o) noexcept { 
+		rf = o.rf;
+		o.rf = nullptr; 
+
+		return *this; 
+	}
+
+	template <typename... Ts>
+	bool open(Ts&&... args)
+	{
+		return rf->mfOpen(std::forward<Ts>(args)...) != 0;
+	}
+
+	~CResFileOpenScope()
+	{
+		if (rf)
+			rf->mfClose();
+	}
+
+	CResFile* getHandle() { return rf; }
+	const CResFile* getHandle() const { return rf; }
 };
 
 #endif //  __RESFILE_H__

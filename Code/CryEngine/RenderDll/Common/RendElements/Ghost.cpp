@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "Ghost.h"
@@ -25,7 +25,7 @@ CLensGhost::CLensGhost(const char* name, CTexture* externalTex)
 {
 	CConstantBufferPtr pcb = gcpRendD3D->m_DevBufMan.CreateConstantBuffer(sizeof(SShaderParams), true, true);
 
-	m_primitive.SetInlineConstantBuffer(eConstantBufferShaderSlot_PerBatch, pcb, EShaderStage_Vertex | EShaderStage_Pixel);
+	m_primitive.SetInlineConstantBuffer(eConstantBufferShaderSlot_PerPrimitive, pcb, EShaderStage_Vertex | EShaderStage_Pixel);
 }
 
 void CLensGhost::Load(IXmlNode* pNode)
@@ -68,7 +68,7 @@ bool CLensGhost::PreparePrimitives(const SPreparePrimitivesContext& context)
 	ApplyGeneralFlags(rtFlags);
 	ApplyOcclusionBokehFlag(rtFlags);
 
-	CTexture* pGhostTex = GetTexture() ? GetTexture() : CTexture::s_ptexBlack;
+	CTexture* pGhostTex = GetTexture() ? GetTexture() : CRendererResources::s_ptexBlack;
 	m_primitive.SetTechnique(CShaderMan::s_ShaderLensOptics, techGhost, rtFlags);
 	m_primitive.SetRenderState(GS_NODEPTHTEST | GS_BLSRC_ONE | GS_BLDST_ONE);
 	m_primitive.SetPrimitiveType(CRenderPrimitive::ePrim_FullscreenQuadCentered);
@@ -77,12 +77,12 @@ bool CLensGhost::PreparePrimitives(const SPreparePrimitivesContext& context)
 
 	// update constants
 	{
-		auto constants = m_primitive.GetConstantManager().BeginTypedConstantUpdate<SShaderParams>(eConstantBufferShaderSlot_PerBatch, EShaderStage_Vertex | EShaderStage_Pixel);
+		auto constants = m_primitive.GetConstantManager().BeginTypedConstantUpdate<SShaderParams>(eConstantBufferShaderSlot_PerPrimitive, EShaderStage_Vertex | EShaderStage_Pixel);
 
 		if (m_globalOcclusionBokeh)
 			ApplyOcclusionPattern(constants, m_primitive);
 		else
-			m_primitive.SetTexture(5, CTexture::s_ptexBlack);
+			m_primitive.SetTexture(5, CRendererResources::s_ptexBlack);
 
 		ColorF c = m_globalColor;
 		c.NormalizeCol(c);

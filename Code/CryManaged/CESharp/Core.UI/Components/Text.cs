@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 using System;
 using System.Collections.Generic;
@@ -204,7 +204,7 @@ namespace CryEngine.UI.Components
 		/// <summary>
 		/// Called by framework. Do not call directly.
 		/// </summary>
-		public override void OnAwake()
+		protected override void OnAwake()
 		{
 			var rt = Owner.GetComponent<RectTransform>();
 			if(rt == null)
@@ -217,7 +217,7 @@ namespace CryEngine.UI.Components
 		/// <summary>
 		/// Called by framework. Do not call directly.
 		/// </summary>
-		public override void OnUpdate()
+		protected override void OnRender()
 		{
 			UpdateContent();
 			var rt = Owner.GetComponent<RectTransform>();
@@ -367,7 +367,7 @@ namespace CryEngine.UI.Components
 
 			if(_texture == null)
 			{
-				_texture = new Graphic(ax, ay, data, false, true);
+				_texture = new Graphic(ax, ay, data, true, false, true, Owner.Name + "_Text");
 			}
 			else
 			{
@@ -380,7 +380,7 @@ namespace CryEngine.UI.Components
 		/// <summary>
 		/// Called by framework. Do not call directly.
 		/// </summary>
-		public override void OnDestroy()
+		protected override void OnDestroy()
 		{
 			if(_texture != null)
 			{

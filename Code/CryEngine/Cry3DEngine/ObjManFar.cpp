@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   statobjmanfar.cpp
@@ -28,39 +28,6 @@ void CObjManager::UnloadFarObjects()
 
 void CObjManager::RenderFarObjects(const SRenderingPassInfo& passInfo)
 {
-
-	FUNCTION_PROFILER_3DENGINE;
-
-	int nCount = 0;
-	for (int t = 0; t < nThreadsNum; t++)
-		nCount += m_arrVegetationSprites[passInfo.GetRecursiveLevel()][t].size();
-
-	if (!m_REFarTreeSprites)
-	{
-		m_REFarTreeSprites = (CREFarTreeSprites*)GetRenderer()->EF_CreateRE(eDATA_FarTreeSprites);
-	}
-	if (m_REFarTreeSprites && GetCVars()->e_VegetationSprites && nCount && !GetCVars()->e_DefaultMaterial)
-	{
-		arrVegetationSprites[passInfo.ThreadID()][passInfo.GetRecursiveLevel()].Clear();
-
-		for (int t = 0; t < nThreadsNum; t++)
-		{
-			CThreadSafeRendererContainer<SVegetationSpriteInfo>& rList = m_arrVegetationSprites[passInfo.GetRecursiveLevel()][t];
-			if (rList.size())
-			{
-				rList.CoalesceMemory();
-				for (size_t i = 0; i < rList.size(); ++i)
-					arrVegetationSprites[passInfo.ThreadID()][passInfo.GetRecursiveLevel()].Add(rList[i]);
-			}
-		}
-		m_REFarTreeSprites->m_arrVegetationSprites[passInfo.ThreadID()][passInfo.GetRecursiveLevel()] = &arrVegetationSprites[passInfo.ThreadID()][passInfo.GetRecursiveLevel()];
-		CRenderObject* pObj = GetRenderer()->EF_GetObject_Temp(passInfo.ThreadID());
-		if (!pObj)
-			return;
-		pObj->m_II.m_Matrix.SetIdentity();
-		SShaderItem shItem(m_p3DEngine->m_pFarTreeSprites);
-		GetRenderer()->EF_AddEf(m_REFarTreeSprites, shItem, pObj, passInfo, EFSLIST_GENERAL, 1);
-	}
 }
 /*
    static inline int Compare(CVegetation *& p1, CVegetation *& p2)

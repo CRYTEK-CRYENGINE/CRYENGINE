@@ -26,7 +26,7 @@ end_sources()
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/DPIAware.xml" "${CMAKE_CURRENT_BINARY_DIR}/DPIAware.manifest" COPYONLY)
 
 add_sources("NoUberFile" SOURCE_GROUP "Manifest" "${CMAKE_CURRENT_BINARY_DIR}/DPIAware.manifest")
-if(WIN32)
+if(WIN32 AND NOT OPTION_DEDICATED_SERVER)
 	CryLauncher(WindowsLauncher SOLUTION_FOLDER "Launcher")
 	target_link_libraries( ${THIS_PROJECT} PRIVATE Shell32)
 else()

@@ -465,7 +465,7 @@ public:
 
 	inline static LONG ATOMIC_DECREMENT(LONG volatile* x)
 	{
-		return CryInterlockedDecrement((LONG volatile*)x);
+		return CryInterlockedDecrement((int volatile*)x);
 	}
 
 	inline static LONG ATOMIC_EXCHANGE_ADD(LONG volatile* x, LONG y)

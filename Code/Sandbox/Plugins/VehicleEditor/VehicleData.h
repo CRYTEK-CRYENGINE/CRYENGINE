@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __VehicleFactory_h__
 #define __VehicleFactory_h__
@@ -85,3 +85,4 @@ IVariable* CreateDefaultVar(const char* name, bool rec = false);
 IVariable* CreateDefaultChildOf(const char* name);
 
 #endif
+

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -18,11 +18,11 @@ namespace UQS
 		//
 		//===================================================================================
 
-		CQueryBase::SCtorContext::SCtorContext(const CQueryID& _queryID, const char* _szQuerierName, const HistoricQuerySharedPtr& _pOptionalHistoryToWriteTo, std::unique_ptr<CItemList>& _pOptionalResultingItemsFromPreviousChainedQuery)
+		CQueryBase::SCtorContext::SCtorContext(const CQueryID& _queryID, const char* _szQuerierName, const HistoricQuerySharedPtr& _pOptionalHistoryToWriteTo, const std::shared_ptr<CItemList>& _pOptionalResultingItemsFromPreviousQuery)
 			: queryID(_queryID)
 			, szQuerierName(_szQuerierName)
 			, pOptionalHistoryToWriteTo(_pOptionalHistoryToWriteTo)
-			, optionalResultingItemsFromPreviousChainedQuery(_pOptionalResultingItemsFromPreviousChainedQuery)
+			, pOptionalResultingItemsFromPreviousQuery(_pOptionalResultingItemsFromPreviousQuery)
 		{}
 
 		//===================================================================================
@@ -58,6 +58,7 @@ namespace UQS
 			, totalConsumedTime()
 			, grantedAndUsedTimePerFrame()
 
+			, numDesiredItems(0)
 			, numGeneratedItems(0)
 			, numRemainingItemsToInspect(0)
 			, numItemsInFinalResultSet(0)
@@ -80,6 +81,7 @@ namespace UQS
 			ar(totalConsumedTime, "totalConsumedTime");
 			ar(grantedAndUsedTimePerFrame, "grantedAndUsedTimePerFrame");
 
+			ar(numDesiredItems, "numDesiredItems");
 			ar(numGeneratedItems, "numGeneratedItems");
 			ar(numRemainingItemsToInspect, "numRemainingItemsToInspect");
 			ar(numItemsInFinalResultSet, "numItemsInFinalResultSet");
@@ -106,9 +108,9 @@ namespace UQS
 			: m_querierName(ctorContext.szQuerierName)
 			, m_pHistory(ctorContext.pOptionalHistoryToWriteTo)
 			, m_queryID(ctorContext.queryID)
+			, m_pOptionalShuttledItems(ctorContext.pOptionalResultingItemsFromPreviousQuery)
 			, m_totalElapsedFrames(0)
 			, m_bRequiresSomeTimeBudgetForExecution(bRequiresSomeTimeBudgetForExecution)
-			, m_pOptionalShuttledItems(std::move(ctorContext.optionalResultingItemsFromPreviousChainedQuery))
 			, m_blackboard(m_globalParams, m_pOptionalShuttledItems.get(), m_timeBudgetForCurrentUpdate, ctorContext.pOptionalHistoryToWriteTo ? &ctorContext.pOptionalHistoryToWriteTo->GetDebugRenderWorldPersistent() : nullptr)
 		{
 			if (m_pHistory)
@@ -245,6 +247,12 @@ namespace UQS
 
 		CQueryBase::EUpdateState CQueryBase::Update(const CTimeValue& amountOfGrantedTime, Shared::CUqsString& error)
 		{
+			CRY_PROFILE_FUNCTION_ARG(UQS_PROFILED_SUBSYSTEM_TO_USE, m_pQueryBlueprint->GetName());
+
+			m_timeBudgetForCurrentUpdate.Restart(amountOfGrantedTime);
+
+			const CTimeValue startTime = gEnv->pTimer->GetAsyncTime();
+
 			++m_totalElapsedFrames;
 
 			// immediate debug-rendering ON/OFF
@@ -256,8 +264,6 @@ namespace UQS
 			{
 				m_blackboard.pDebugRenderWorldImmediate = nullptr;
 			}
-
-			const CTimeValue startTime = gEnv->pTimer->GetAsyncTime();
 
 			bool bCorruptionOccurred = false;
 
@@ -285,7 +291,6 @@ namespace UQS
 			// allow the derived class to update itself if no item corruption has occurred yet
 			//
 
-			m_timeBudgetForCurrentUpdate.Restart(amountOfGrantedTime);
 			const EUpdateState state = bCorruptionOccurred ? EUpdateState::ExceptionOccurred : OnUpdate(error);
 
 			//
@@ -353,6 +358,32 @@ namespace UQS
 			//
 
 			OnGetStatistics(out);
+		}
+
+		void CQueryBase::EmitTimeExcessWarningToConsoleAndQueryHistory(const CTimeValue& timeGranted, const CTimeValue& timeUsed) const
+		{
+			stack_string commonWarningMessage;
+			commonWarningMessage.Format("Exceeded time-budget in current frame: granted time = %f ms, actually consumed = %f ms", timeGranted.GetMilliSeconds(), timeUsed.GetMilliSeconds());
+
+			// print a warning to the console
+			if(SCvars::printTimeExcessWarningsToConsole == 1)
+			{
+				Shared::CUqsString queryIdAsString;
+				m_queryID.ToString(queryIdAsString);
+				CryWarning(VALIDATOR_MODULE_GAME, VALIDATOR_WARNING, "[UQS] QueryID #%s: %s / %s: %s",
+					queryIdAsString.c_str(),
+					m_pQueryBlueprint->GetName(),
+					m_querierName.c_str(),
+					commonWarningMessage.c_str());
+			}
+
+			// log the warning to the query history
+			{
+				if (m_pHistory)
+				{
+					m_pHistory->OnWarningOccurred(commonWarningMessage.c_str());
+				}
+			}
 		}
 
 		QueryResultSetUniquePtr CQueryBase::ClaimResultSet()

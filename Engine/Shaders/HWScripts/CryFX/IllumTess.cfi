@@ -1,5 +1,4 @@
-// CRYENGINE Source Code File
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #if ENABLE_TESSELLATION
 
@@ -36,12 +35,6 @@ HS_CONTROL_POINT_OUTPUT_ILLUM IllumHS(InputPatch<vert2FragGeneral, 3> inputPatch
 #endif
 #if %VERTCOLORS || %DIRTLAYER || %BLENDLAYER
 	output.Color                   = inputPatch[uCPID].Color;
-#endif
-#if %_RT_FOG ||%_RT_DECAL_TEXGEN_2D || %DECAL
-	output.Ambient                 = inputPatch[uCPID].Ambient;
-#endif
-#if %_RT_FOG && !%_RT_DECAL_TEXGEN_2D
-	output.AvgFogVolumeContrib     = inputPatch[uCPID].AvgFogVolumeContrib;
 #endif
 
 	return output;
@@ -90,12 +83,6 @@ vert2FragGeneral IllumDS(HS_CONSTANT_DATA_OUTPUT hsConstData, float3 vBaryCoords
 	Evaluate(evalInput, evalOutput);
 	ProcessEvalOutput(evalOutput, output);
 
-#if %_RT_FOG ||%_RT_DECAL_TEXGEN_2D || %DECAL
-	output.Ambient = EvalVec(TrianglePatch[0].Ambient, TrianglePatch[1].Ambient, TrianglePatch[2].Ambient, vBaryCoords);
-#endif
-#if %_RT_FOG && !%_RT_DECAL_TEXGEN_2D
-	output.AvgFogVolumeContrib = EvalVec(TrianglePatch[0].AvgFogVolumeContrib, TrianglePatch[1].AvgFogVolumeContrib, TrianglePatch[2].AvgFogVolumeContrib, vBaryCoords);
-#endif
 	output.screenProj = HPosToScreenTC(output.HPosition);
 
 	return output;

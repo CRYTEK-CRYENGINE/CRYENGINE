@@ -1,5 +1,4 @@
-// CRYENGINE Source Code File
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "Common.cfi"
 #include "IllumValidations.cfi"
@@ -86,7 +85,7 @@ DISSOLVE_NOISE_MAP
 
 // Tweakables /////////////////
 
-half EmittanceMapGamma
+float EmittanceMapGamma
 <
   register = REG_PM_PARAM_0.x;
   string UIWidget = "slider";
@@ -98,7 +97,7 @@ half EmittanceMapGamma
 > = 1.0;
 
 #if %OFFSET_BUMP_MAPPING
-half ObmDisplacement
+float ObmDisplacement
 <
   register = REG_PM_PARAM_0.y;
   string UIWidget = "slider";
@@ -110,7 +109,7 @@ half ObmDisplacement
 #endif
 
 #if %PARALLAX_OCCLUSION_MAPPING
-half PomDisplacement
+float PomDisplacement
 <
   register = REG_PM_PARAM_0.z;
   string UIWidget = "slider";
@@ -122,7 +121,7 @@ half PomDisplacement
 #endif
 
 #if %SILHOUETTE_PARALLAX_OCCLUSION_MAPPING
-half SilPomDisplacement
+float SilPomDisplacement
 <
   register = REG_PM_PARAM_0.w;
   string UIWidget = "slider";
@@ -154,7 +153,7 @@ float SilPomStepSizeViewDep
 #endif
 
 #if %OFFSET_BUMP_MAPPING || %PARALLAX_OCCLUSION_MAPPING || %SILHOUETTE_PARALLAX_OCCLUSION_MAPPING
-half HeightBias
+float HeightBias
 <
   register = REG_PM_PARAM_1.z;
   string UIWidget = "slider";
@@ -164,7 +163,7 @@ half HeightBias
   float UIStep = 0.05;
 > = 1.0;
 
-half SelfShadowStrength
+float SelfShadowStrength
 <
   register = REG_PM_PARAM_1.w;
   string UIWidget = "slider";
@@ -177,7 +176,7 @@ half SelfShadowStrength
 
 
 #if %DETAIL_MAPPING
-	half DetailBumpScale
+	float DetailBumpScale
 	<
 	  register = REG_PM_PARAM_2.x;
 	  string UIHelp = "Set detail bump scale";                     
@@ -188,7 +187,7 @@ half SelfShadowStrength
 	  float UIStep = 0.1;
 	> = 0.5;
 	
-	half DetailDiffuseScale
+	float DetailDiffuseScale
 	<
 	  register = REG_PM_PARAM_2.y;
 	  string UIHelp = "Set diffuse detail blend scale";                     
@@ -199,7 +198,7 @@ half SelfShadowStrength
 	  float UIStep = 0.1;
 	> = 0.5;
 
-	half DetailGlossScale
+	float DetailGlossScale
 	<
 	  register = REG_PM_PARAM_2.z;
 	  string UIHelp = "Set gloss detail blend scale";                     
@@ -212,7 +211,7 @@ half SelfShadowStrength
 #endif
 
 #if %DIRTLAYER
-half4 DirtTint
+float4 DirtTint
 <
   register = REG_PM_PARAM_3;
   string UIHelp = "Color tint of dirt layer";                   
@@ -222,7 +221,7 @@ half4 DirtTint
 
 
 // TODO: We should add support for overloading the alpha of a color dialog
-half DirtStrength
+float DirtStrength
 <
   register = REG_PM_PARAM_4.x;
   string UIHelp = "Fade out dirt";
@@ -233,7 +232,7 @@ half DirtStrength
   float UIStep = 0.1;
 > = 1.0;
 
-half DirtGlossFactor
+float DirtGlossFactor
 <
   register = REG_PM_PARAM_4.y;
   string UIHelp = "Fade out gloss map";
@@ -245,7 +244,7 @@ half DirtGlossFactor
 > = 1.0;
 
 
-half DirtMapAlphaInfluence
+float DirtMapAlphaInfluence
 <
   register = REG_PM_PARAM_4.z;
   string UIHelp = "Interpolate dirt map opacity between alpha value and fully opaque";
@@ -257,7 +256,7 @@ half DirtMapAlphaInfluence
 > = 1.0;
 
 
-half DirtTiling
+float DirtTiling
 <
   register = REG_PM_PARAM_4.w;
   string UIHelp = "Set tilling of dirt layer";
@@ -270,7 +269,7 @@ half DirtTiling
 #endif
 
 #if %BLENDLAYER
-half BlendFactor
+float BlendFactor
 <
   register = REG_PM_PARAM_5.x;
   string UIHelp = "Change visbility of blended layer";
@@ -281,7 +280,7 @@ half BlendFactor
   float UIStep = 0.2;
 > = 8.0;
 
-half BlendLayer2Tiling
+float BlendLayer2Tiling
 <
   register = REG_PM_PARAM_5.y;
   string UIHelp = "Change tiling of 2nd blend layer";
@@ -292,7 +291,7 @@ half BlendLayer2Tiling
   float UIStep = 0.005;
 > = 1.0;
 
-half BlendFalloff
+float BlendFalloff
 <
   register = REG_PM_PARAM_5.z;
   string UIHelp = "Change falloff of blending";
@@ -303,7 +302,7 @@ half BlendFalloff
   float UIStep = 1.0;
 > = 32.0;
 
-half BlendLayer2Specular
+float BlendLayer2Specular
 <
   register = REG_PM_PARAM_5.w;
   string UIHelp = "Change specular intensity of 2nd blend layer";
@@ -314,7 +313,7 @@ half BlendLayer2Specular
   float UIStep = 0.001;
 > = 0.04;
 
-half BlendMaskTiling
+float BlendMaskTiling
 <
   register = REG_PM_PARAM_6.x;
   string UIHelp = "Change tiling of blend mask";
@@ -328,7 +327,7 @@ half BlendMaskTiling
 
 
 #if !%DIRTLAYER && !%DECAL  // Reusing register
-half SSSIndex
+float SSSIndex
 <
   register = REG_PM_PARAM_6.y;
   string UIHelp = "Change subsurface scattering profile and amount (0.0-0.99: marble, 1.0-1.99: skin)";
@@ -341,7 +340,7 @@ half SSSIndex
 #endif
 
 #if %DECAL && !%DIRTLAYER  // Reusing DIRTLAYER registers
-half DecalFalloff
+float DecalFalloff
 <
   register = REG_PM_PARAM_6.z;
   string UIHelp = "Pow applied to decal alpha";
@@ -352,7 +351,7 @@ half DecalFalloff
   float UIStep = 1;
 > = 1;
 
-half DecalAlphaMult
+float DecalAlphaMult
 <
   register = REG_PM_PARAM_6.w;
   string UIHelp = "Multiplier applied to decal alpha";
@@ -363,9 +362,20 @@ half DecalAlphaMult
   float UIStep = 0.01;
 > = 1;
 
-half DecalDiffuseOpacity
+float DecalAngleBasedFading
 <
-  register = REG_PM_PARAM_7.x;
+	register = REG_PM_PARAM_7.x;
+	string UIHelp = "Controls fading of decal based on surface normal";
+	string UIName = "Decal Angle Based Fading";
+	string UIWidget = "slider";
+	float UIMin = 0;
+	float UIMax = 10;
+	float UIStep = 0.01;
+> = 1;
+
+float DecalDiffuseOpacity
+<
+  register = REG_PM_PARAM_7.y;
   string UIHelp = "Opacity multiplier for fading out decal diffuse color";
   string UIName = "Decal Diffuse Opacity";
   string UIWidget = "slider";
@@ -374,15 +384,26 @@ half DecalDiffuseOpacity
   float UIStep = 0.01;
 > = 1;
 
-half DecalAngleBasedFading
+float DecalNormalOpacity
 <
-  register = REG_PM_PARAM_7.y;
-  string UIHelp = "Controls fading of decal based on surface normal";
-  string UIName = "Decal Angle Based Fading";
-  string UIWidget = "slider";
-  float UIMin = 0;
-  float UIMax = 10;
-  float UIStep = 0.01;
+	register = REG_PM_PARAM_7.z;
+	string UIHelp = "Opacity multiplier for fading out decal normals";
+	string UIName = "Decal Normal Opacity";
+	string UIWidget = "slider";
+	float UIMin = 0;
+	float UIMax = 1;
+	float UIStep = 0.01;
+> = 1;
+
+float DecalSpecularOpacity
+<
+	register = REG_PM_PARAM_7.w;
+	string UIHelp = "Opacity multiplier for fading out decal specular reflectance and gloss";
+	string UIName = "Decal Spec/Gloss Opacity";
+	string UIWidget = "slider";
+	float UIMin = 0;
+	float UIMax = 1;
+	float UIStep = 0.01;
 > = 1;
 
 #endif
@@ -605,7 +626,6 @@ void Callback_ShadingDirect(in ForwardShadingAttribs attribs, in ForwardLightPar
 	specularAcc = specularAcc * light.illuminance;
 }
 
-#include "TiledShading.cfi"
 #include "ForwardShading.cfi"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -645,11 +665,7 @@ pixout IlluminationPS(vert2FragGeneral IN)
 
 	// Gather surface material attributes
 	MaterialAttribsCommon commonAttribs;
-#if %_RT_FOG || %_RT_PER_INSTANCE_CB_TEMP
 	half3x3 mTangentToWS = half3x3(IN.vTangent.xyz, IN.vBinormal.xyz, cross(IN.vTangent.xyz, IN.vBinormal.xyz) * IN.vTangent.w);
-#else
-	half3x3 mTangentToWS = half3x3(half3(1, 0, 0), half3(0, 1, 0), half3(0, 0, 1));
-#endif
 	half4 vertexColor = 0;
 #if %VERTCOLORS || %BLENDLAYER || %DIRTLAYER
 	vertexColor = IN.Color;

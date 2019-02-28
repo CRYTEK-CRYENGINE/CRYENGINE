@@ -1,12 +1,16 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
-#include "AK/SoundEngine/Common/AkTypes.h"
 #include "AK/AkWwiseSDKVersion.h"
+
+#if AK_WWISESDK_VERSION_MAJOR <= 2017 && AK_WWISESDK_VERSION_MINOR < 2
+	#error This version of Wwise is not supported, the minimum supported version is 2017.2.0
+#endif
+
+#include "AK/SoundEngine/Common/AkTypes.h"
 #include <CryAudio/IAudioSystem.h>
 
-#define WWISE_IMPL_DATA_ROOT   AUDIO_SYSTEM_DATA_ROOT CRY_NATIVE_PATH_SEPSTR "wwise"
 #define WWISE_IMPL_INFO_STRING "Wwise " AK_WWISESDK_VERSIONNAME
 
 #define ASSERT_WWISE_OK(x) (CRY_ASSERT(x == AK_Success))
@@ -18,7 +22,6 @@ namespace Impl
 {
 namespace Wwise
 {
-// several Wwise-specific helper functions
 //////////////////////////////////////////////////////////////////////////
 inline void FillAKVector(Vec3 const& vCryVector, AkVector& vAKVector)
 {
@@ -48,6 +51,9 @@ inline void FillAKListenerPosition(CObjectTransformation const& transformation, 
 	FillAKVector(transformation.GetUp(), vec2);
 	outTransformation.SetOrientation(vec1, vec2);
 }
+
+extern AkGameObjectID g_listenerId; // To be removed once multi-listener support is implemented.
+extern AkGameObjectID g_globalObjectId;
 } // namespace Wwise
 } // namespace Impl
 } // namespace CryAudio

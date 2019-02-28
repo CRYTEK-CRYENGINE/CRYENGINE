@@ -1,3 +1,5 @@
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+
 #include "StdAfx.h"
 #include "SubstancePreset.h"
 #include "SubstanceManager.h"
@@ -428,8 +430,11 @@ void CSubstancePreset::SSerializer::Serialize(Serialization::IArchive& ar)
 
 void CSubstancePreset::SetGraphResolution(const int& x, const int& y)
 {
-	SubstanceAir::InputInstanceInt2* inst = static_cast<SubstanceAir::InputInstanceInt2*>(m_pGraphInstance->findInput(m_resolutionId));
-	inst->setValue(SubstanceAir::Vec2Int(x, y));
+	SubstanceAir::InputInstanceInt2* pInput = static_cast<SubstanceAir::InputInstanceInt2*>(m_pGraphInstance->findInput(m_resolutionId));
+	if (pInput)
+	{
+		pInput->setValue(SubstanceAir::Vec2Int(x, y));
+	}
 	m_uniformResolution = x == y;
 }
 
@@ -445,10 +450,12 @@ const SubstanceAir::UInt& CSubstancePreset::GetInstanceID() const
 
 SubstanceAir::GraphInstance& CSubstancePreset::PrepareRenderInstance(ISubstanceInstanceRenderer* renderer)
 {
-	SubstanceAir::Vec2Int baseResolution;
-	SubstanceAir::InputInstanceInt2* inst = static_cast<SubstanceAir::InputInstanceInt2*>(m_pGraphInstance->findInput(m_resolutionId));
-	baseResolution = inst->getValue();
-
+	SubstanceAir::Vec2Int baseResolution = m_resolutionBackup;
+	SubstanceAir::InputInstanceInt2* pInput = static_cast<SubstanceAir::InputInstanceInt2*>(m_pGraphInstance->findInput(m_resolutionId));
+	if (pInput)
+	{
+		baseResolution = pInput->getValue();
+	}
 
 	for (auto pair : m_usedImages)
 	{
@@ -492,7 +499,6 @@ SubstanceAir::GraphInstance& CSubstancePreset::PrepareRenderInstance(ISubstanceI
 			}
 		}
 	}
-
 	
 	for (SSubstanceOutput& existingOutput : m_outputs)
 	{
@@ -517,13 +523,8 @@ SubstanceAir::GraphInstance& CSubstancePreset::PrepareRenderInstance(ISubstanceI
 			FillFormatForRender(renderData, baseResolution, newFormat);
 			newVirtual->setFormat(newFormat);
 			newVirtual->mUserData = renderData.customData;
-			
-
 		}
-
 	}
-	
-
 
 	return *m_pGraphInstance;
 }
@@ -548,8 +549,21 @@ void CSubstancePreset::Reload()
 {
 	SSerializer ar(this);
 	ISubstancePresetSerializer* iar = static_cast<ISubstancePresetSerializer*>(&ar);
-	SubstanceSerialization::Load(*iar, m_fileName);
-	m_resolutionBackup = static_cast<SubstanceAir::InputInstanceInt2*>(m_pGraphInstance->findInput(m_resolutionId))->getValue();
+	if (!SubstanceSerialization::Load(*iar, m_fileName))
+	{
+		return;
+	}
+	if (!m_pGraphInstance)
+	{
+		return;
+	}
+
+	SubstanceAir::InputInstanceInt2* pInput = static_cast<SubstanceAir::InputInstanceInt2*>(m_pGraphInstance->findInput(m_resolutionId));
+	if (pInput)
+	{
+		m_resolutionBackup = pInput->getValue();
+	}
+
 	std::vector<string> origOutputNames;
 	origOutputNames.resize(m_tempOriginalOutputs.size());
 
@@ -569,15 +583,17 @@ CSubstancePreset::CSubstancePreset(const string& fileName, const string& archive
 	, m_resolutionId(-1)
 {
 	LoadGraphInstance();
-	SubstanceAir::Vec2Int res(min(resolution.x, 12), min(resolution.y, 12));
+	SubstanceAir::Vec2Int res(std::min(resolution.x, 12), std::min(resolution.y, 12));
 	SetGraphResolution(res.x, res.y);
 	m_resolutionBackup = res;
 }
 
 CSubstancePreset::CSubstancePreset()
 	: m_pGraphInstance(0)
+	, m_resolutionBackup(0, 0)
+	, m_resolutionId(-1)
+	, m_uniformResolution(true)
 {
-
 }
 
 CSubstancePreset::~CSubstancePreset()
@@ -589,6 +605,11 @@ CSubstancePreset::~CSubstancePreset()
 void CSubstancePreset::LoadGraphInstance()
 {
 	m_pGraphInstance = CSubstanceManager::Instance()->InstantiateGraph(m_substanceArchive, m_graphName);
+	if (!m_pGraphInstance)
+	{
+		return;
+	}
+
 	for each (SubstanceAir::InputInstanceBase* inputInstance in m_pGraphInstance->getInputs())
 	{
 		if (inputInstance->mDesc.mIdentifier == "$outputsize")

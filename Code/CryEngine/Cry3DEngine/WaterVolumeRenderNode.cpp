@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "WaterVolumeRenderNode.h"
@@ -9,191 +9,6 @@
 #include <CryThreading/IJobManager_JobDelegator.h>
 
 DECLARE_JOB("CWaterVolume_Render", TCWaterVolume_Render, CWaterVolumeRenderNode::Render_JobEntry);
-
-//////////////////////////////////////////////////////////////////////////
-// private triangulation code
-namespace WaterVolumeRenderNodeUtils
-{
-template<typename T>
-size_t PosOffset();
-
-template<>
-size_t PosOffset<Vec3>()
-{
-	return 0;
-}
-
-template<>
-size_t PosOffset<SVF_P3F_C4B_T2F>()
-{
-	return offsetof(SVF_P3F_C4B_T2F, xyz);
-}
-
-template<typename T>
-struct VertexAccess
-{
-	VertexAccess(const T* pVertices, size_t numVertices)
-		: m_pVertices(pVertices)
-		, m_numVertices(numVertices)
-	{
-	}
-
-	const Vec3& operator[](size_t idx) const
-	{
-		assert(idx < m_numVertices);
-		const T* pVertex = &m_pVertices[idx];
-		return *(Vec3*) ((size_t) pVertex + PosOffset<T>());
-	}
-
-	const size_t GetNumVertices() const
-	{
-		return m_numVertices;
-	}
-
-private:
-	const T* m_pVertices;
-	size_t   m_numVertices;
-};
-
-template<typename T>
-float Area(const VertexAccess<T>& contour)
-{
-	int n = contour.GetNumVertices();
-	float area = 0.0f;
-
-	for (int p = n - 1, q = 0; q < n; p = q++)
-		area += contour[p].x * contour[q].y - contour[q].x * contour[p].y;
-
-	return area * 0.5f;
-}
-
-bool InsideTriangle(float Ax, float Ay, float Bx, float By, float Cx, float Cy, float Px, float Py)
-{
-	float ax = Cx - Bx;
-	float ay = Cy - By;
-	float bx = Ax - Cx;
-	float by = Ay - Cy;
-	float cx = Bx - Ax;
-	float cy = By - Ay;
-	float apx = Px - Ax;
-	float apy = Py - Ay;
-	float bpx = Px - Bx;
-	float bpy = Py - By;
-	float cpx = Px - Cx;
-	float cpy = Py - Cy;
-
-	float aCROSSbp = ax * bpy - ay * bpx;
-	float cCROSSap = cx * apy - cy * apx;
-	float bCROSScp = bx * cpy - by * cpx;
-
-	const float fEpsilon = -0.01f;
-	return (aCROSSbp >= fEpsilon) && (bCROSScp >= fEpsilon) && (cCROSSap >= fEpsilon);
-};
-
-template<typename T, typename S>
-bool Snip(const VertexAccess<T>& contour, int u, int v, int w, int n, const S* V)
-{
-	float Ax = contour[V[u]].x;
-	float Ay = contour[V[u]].y;
-
-	float Bx = contour[V[v]].x;
-	float By = contour[V[v]].y;
-
-	float Cx = contour[V[w]].x;
-	float Cy = contour[V[w]].y;
-
-	if ((((Bx - Ax) * (Cy - Ay)) - ((By - Ay) * (Cx - Ax))) < 1e-6f)
-		return false;
-
-	for (int p = 0; p < n; p++)
-	{
-		if ((p == u) || (p == v) || (p == w))
-			continue;
-
-		float Px = contour[V[p]].x;
-		float Py = contour[V[p]].y;
-
-		if (WaterVolumeRenderNodeUtils::InsideTriangle(Ax, Ay, Bx, By, Cx, Cy, Px, Py))
-			return false;
-	}
-
-	return true;
-}
-
-template<typename T, typename S>
-bool Triangulate(const VertexAccess<T>& contour, std::vector<S>& result)
-{
-	// reset result
-	result.resize(0);
-
-	//C6255: _alloca indicates failure by raising a stack overflow exception. Consider using _malloca instead
-	PREFAST_SUPPRESS_WARNING(6255)
-	// allocate and initialize list of vertices in polygon
-	int n = contour.GetNumVertices();
-	if (n < 3)
-		return false;
-
-	S* V = (S*) alloca(n * sizeof(S));
-
-	// we want a counter-clockwise polygon in V
-	if (0.0f < Area(contour))
-		for (int v = 0; v < n; v++)
-			V[v] = v;
-	else
-		for (int v = 0; v < n; v++)
-			V[v] = (n - 1) - v;
-
-	int nv = n;
-
-	//  remove nv-2 vertices, creating 1 triangle every time
-	int count = 2 * nv;     // error detection
-
-	for (int m = 0, v = nv - 1; nv > 2; )
-	{
-		// if we loop, it is probably a non-simple polygon
-		if (0 >= (count--))
-			return false;   // ERROR - probably bad polygon!
-
-		// three consecutive vertices in current polygon, <u,v,w>
-		int u = v;
-		if (nv <= u) u = 0;                 // previous
-		v = u + 1;
-		if (nv <= v) v = 0;                 // new v
-		int w = v + 1;
-		if (nv <= w) w = 0;                 // next
-
-		if (Snip(contour, u, v, w, nv, V))
-		{
-			// true names of the vertices
-			PREFAST_SUPPRESS_WARNING(6385)
-			S a = V[u];
-			S b = V[v];
-			S c = V[w];
-
-			// output triangle
-			result.push_back(a);
-			result.push_back(b);
-			result.push_back(c);
-
-			m++;
-
-			// remove v from remaining polygon
-			for (int s = v, t = v + 1; t < nv; s++, t++)
-			{
-				PREFAST_SUPPRESS_WARNING(6386)
-				V[s] = V[t];
-			}
-
-			nv--;
-
-			// reset error detection counter
-			count = 2 * nv;
-		}
-	}
-
-	return true;
-}
-}
 
 //////////////////////////////////////////////////////////////////////////
 // helpers
@@ -275,12 +90,12 @@ CWaterVolumeRenderNode::~CWaterVolumeRenderNode()
 	{
 		if (m_pVolumeRE[i])
 		{
-			m_pVolumeRE[i]->Release(true);
+			m_pVolumeRE[i]->Release(false);
 			m_pVolumeRE[i] = 0;
 		}
 		if (m_pSurfaceRE[i])
 		{
-			m_pSurfaceRE[i]->Release(true);
+			m_pSurfaceRE[i]->Release(false);
 			m_pSurfaceRE[i] = 0;
 		}
 	}
@@ -361,7 +176,7 @@ void CWaterVolumeRenderNode::CreateOcean(uint64 volumeID, /* TBD */ bool keepSer
 {
 }
 
-void CWaterVolumeRenderNode::CreateArea(uint64 volumeID, const Vec3* pVertices, unsigned int numVertices, const Vec2& surfUVScale, const Plane& fogPlane, bool keepSerializationParams, int nSID)
+void CWaterVolumeRenderNode::CreateArea(uint64 volumeID, const Vec3* pVertices, unsigned int numVertices, const Vec2& surfUVScale, const Plane& fogPlane, bool keepSerializationParams)
 {
 	const bool serializeWith3DEngine = keepSerializationParams && !IsAttachedToEntity();
 
@@ -431,7 +246,7 @@ void CWaterVolumeRenderNode::CreateArea(uint64 volumeID, const Vec3* pVertices, 
 
 	// generate indices.
 	//	Note: triangulation code not robust, relies on contour/vertices to be declared sequentially and no holes -> too many vertices will lead to stretched results
-	WaterVolumeRenderNodeUtils::Triangulate(WaterVolumeRenderNodeUtils::VertexAccess<SVF_P3F_C4B_T2F>(&m_waterSurfaceVertices[0], m_waterSurfaceVertices.size()), m_waterSurfaceIndices);
+	TPolygon2D<SVF_P3F_C4B_T2F, Vec3>(m_waterSurfaceVertices).Triangulate(m_waterSurfaceIndices);
 
 	// update bounding info
 	UpdateBoundingBox();
@@ -521,10 +336,10 @@ void CWaterVolumeRenderNode::CreateArea(uint64 volumeID, const Vec3* pVertices, 
 	}
 
 	// add to 3d engine
-	Get3DEngine()->RegisterEntity(this, nSID, nSID);
+	Get3DEngine()->RegisterEntity(this);
 }
 
-void CWaterVolumeRenderNode::CreateRiver(uint64 volumeID, const Vec3* pVertices, unsigned int numVertices, float uTexCoordBegin, float uTexCoordEnd, const Vec2& surfUVScale, const Plane& fogPlane, bool keepSerializationParams, int nSID)
+void CWaterVolumeRenderNode::CreateRiver(uint64 volumeID, const Vec3* pVertices, unsigned int numVertices, float uTexCoordBegin, float uTexCoordEnd, const Vec2& surfUVScale, const Plane& fogPlane, bool keepSerializationParams)
 {
 	assert(fabs(fogPlane.n.GetLengthSquared() - 1.0f) < 1e-4 && "CWaterVolumeRenderNode::CreateRiver(...) -- Fog plane normal doesn't have unit length!");
 	assert(fogPlane.n.Dot(Vec3(0, 0, 1)) > 1e-4f && "CWaterVolumeRenderNode::CreateRiver(...) -- Invalid fog plane specified!");
@@ -613,7 +428,7 @@ void CWaterVolumeRenderNode::CreateRiver(uint64 volumeID, const Vec3* pVertices,
 	}
 
 	// add to 3d engine
-	Get3DEngine()->RegisterEntity(this, nSID, nSID);
+	Get3DEngine()->RegisterEntity(this);
 }
 
 void CWaterVolumeRenderNode::SetAreaPhysicsArea(const Vec3* pVertices, unsigned int numVertices, bool keepSerializationParams)
@@ -633,7 +448,7 @@ void CWaterVolumeRenderNode::SetAreaPhysicsArea(const Vec3* pVertices, unsigned 
 	m_pPhysAreaInput->m_contour.resize(numVertices);
 
 	// map input vertices onto fog plane
-	if (WaterVolumeRenderNodeUtils::Area(WaterVolumeRenderNodeUtils::VertexAccess<Vec3>(pVertices, numVertices)) > 0.0f)
+	if (TPolygon2D<Vec3>(pVertices, numVertices).Area() > 0.0f)
 	{
 		for (unsigned int i(0); i < numVertices; ++i)
 			m_pPhysAreaInput->m_contour[i] = MapVertexToFogPlane(pVertices[i], fogPlane);   // flip vertex order as physics expects them CCW
@@ -645,7 +460,7 @@ void CWaterVolumeRenderNode::SetAreaPhysicsArea(const Vec3* pVertices, unsigned 
 	}
 
 	// triangulate contour
-	WaterVolumeRenderNodeUtils::Triangulate(WaterVolumeRenderNodeUtils::VertexAccess<Vec3>(&m_pPhysAreaInput->m_contour[0], m_pPhysAreaInput->m_contour.size()), m_pPhysAreaInput->m_indices);
+	TPolygon2D<Vec3>(m_pPhysAreaInput->m_contour).Triangulate(m_pPhysAreaInput->m_indices);
 
 	// reset flow
 	m_pPhysAreaInput->m_flowContour.resize(0);
@@ -669,7 +484,7 @@ void CWaterVolumeRenderNode::SetRiverPhysicsArea(const Vec3* pVertices, unsigned
 	m_pPhysAreaInput->m_contour.resize(numVertices);
 
 	// map input vertices onto fog plane
-	if (WaterVolumeRenderNodeUtils::Area(WaterVolumeRenderNodeUtils::VertexAccess<Vec3>(pVertices, numVertices)) > 0.0f)
+	if (TPolygon2D<Vec3>(pVertices, numVertices).Area() > 0.0f)
 	{
 		for (unsigned int i(0); i < numVertices; ++i)
 			m_pPhysAreaInput->m_contour[i] = MapVertexToFogPlane(pVertices[i], fogPlane);   // flip vertex order as physics expects them CCW
@@ -883,8 +698,8 @@ void CWaterVolumeRenderNode::Render_JobEntry(SRendParams rParam, SRenderingPassI
 	const int fillThreadID = passInfo.ThreadID();
 
 	// get render objects
-	CRenderObject* pROVol = pRenderer->EF_GetObject_Temp(fillThreadID);
-	CRenderObject* pROSurf = pRenderer->EF_GetObject_Temp(fillThreadID);
+	CRenderObject* pROVol = passInfo.GetIRenderView()->AllocateTemporaryRenderObject();
+	CRenderObject* pROSurf = passInfo.GetIRenderView()->AllocateTemporaryRenderObject();
 	if (!pROVol || !pROSurf)
 		return;
 
@@ -894,8 +709,12 @@ void CWaterVolumeRenderNode::Render_JobEntry(SRendParams rParam, SRenderingPassI
 	float distToWaterVolumeSurface(GetCameraDistToWaterVolumeSurface(passInfo));
 	bool aboveWaterVolumeSurface(distToWaterVolumeSurface > 0.0f);
 	bool belowWaterVolume(m_capFogAtVolumeDepth && distToWaterVolumeSurface < -m_volumeDepth);
-	bool insideWaterVolumeSurface2D(IsCameraInsideWaterVolumeSurface2D(passInfo));
-	bool insideWaterVolume(insideWaterVolumeSurface2D && !aboveWaterVolumeSurface && !belowWaterVolume);
+	bool insideWaterVolume = false;
+	if (!aboveWaterVolumeSurface && !belowWaterVolume) // check for z-range: early abort, since the following triangle check is more expensive
+	{
+		insideWaterVolume = IsCameraInsideWaterVolumeSurface2D(passInfo); // surface triangle check
+	}
+
 
 	// fill parameters to render elements
 	m_wvParams[fillThreadID].m_viewerInsideVolume = insideWaterVolume;
@@ -932,11 +751,11 @@ void CWaterVolumeRenderNode::Render_JobEntry(SRendParams rParam, SRenderingPassI
 			// fill in data for render object
 			if (!IsAttachedToEntity())
 			{
-				pROVol->m_II.m_Matrix.SetIdentity();
+				pROVol->SetMatrix(Matrix34::CreateIdentity(), passInfo);
 			}
 			else
 			{
-				pROVol->m_II.m_Matrix = m_parentEntityWorldTM;
+				pROVol->SetMatrix(m_parentEntityWorldTM, passInfo);
 				pROVol->m_ObjFlags |= FOB_TRANS_MASK;
 			}
 			pROVol->m_fSort = 0;
@@ -948,7 +767,7 @@ void CWaterVolumeRenderNode::Render_JobEntry(SRendParams rParam, SRenderingPassI
 			SShaderItem& shaderItem(pMaterial->GetShaderItem(0));
 
 			// add to renderer
-			GetRenderer()->EF_AddEf(m_pVolumeRE[fillThreadID], shaderItem, pROVol, passInfo, EFSLIST_WATER_VOLUMES, aboveWaterVolumeSurface ? 0 : 1);
+			passInfo.GetIRenderView()->AddRenderObject(m_pVolumeRE[fillThreadID], shaderItem, pROVol, passInfo, EFSLIST_WATER_VOLUMES, aboveWaterVolumeSurface ? 0 : 1);
 		}
 	}
 
@@ -959,11 +778,11 @@ void CWaterVolumeRenderNode::Render_JobEntry(SRendParams rParam, SRenderingPassI
 		// fill in data for render object
 		if (!IsAttachedToEntity())
 		{
-			pROSurf->m_II.m_Matrix.SetIdentity();
+			pROSurf->SetMatrix(Matrix34::CreateIdentity(), passInfo);
 		}
 		else
 		{
-			pROSurf->m_II.m_Matrix = m_parentEntityWorldTM;
+			pROSurf->SetMatrix(m_parentEntityWorldTM, passInfo);
 			pROSurf->m_ObjFlags |= FOB_TRANS_MASK;
 		}
 		pROSurf->m_fSort = 0;
@@ -974,7 +793,7 @@ void CWaterVolumeRenderNode::Render_JobEntry(SRendParams rParam, SRenderingPassI
 		SShaderItem& shaderItem(m_pMaterial->GetShaderItem(0));
 
 		// add to renderer
-		GetRenderer()->EF_AddEf(m_pSurfaceRE[fillThreadID], shaderItem, pROSurf, passInfo, EFSLIST_WATER, 1);
+		passInfo.GetIRenderView()->AddRenderObject(m_pSurfaceRE[fillThreadID], shaderItem, pROSurf, passInfo, EFSLIST_WATER, 1);
 	}
 }
 
@@ -1068,10 +887,25 @@ float CWaterVolumeRenderNode::GetCameraDistSqToWaterVolumeAABB(const SRenderingP
 	return m_WSBBox.GetDistanceSqr(camPos);
 }
 
+namespace
+{
+
+	// aabb check - only for xy-axis
+	bool IsPointInsideAABB_2d(const AABB& aabb, const Vec3& pos)
+	{
+		if (pos.x < aabb.min.x) return false;
+		if (pos.y < aabb.min.y) return false;
+		if (pos.x > aabb.max.x) return false;
+		if (pos.y > aabb.max.y) return false;
+		return true;
+	}
+
+}
+
 bool CWaterVolumeRenderNode::IsCameraInsideWaterVolumeSurface2D(const SRenderingPassInfo& passInfo) const
 {
 	const CCamera& cam(passInfo.GetCamera());
-	Vec3 camPos(cam.GetPosition());
+	const Vec3 camPosWS(cam.GetPosition());
 
 	pe_status_area sa;
 	sa.bUniformOnly = true;
@@ -1079,19 +913,26 @@ bool CWaterVolumeRenderNode::IsCameraInsideWaterVolumeSurface2D(const SRendering
 	if (m_pPhysArea && m_pPhysArea->GetStatus(&sa) && sa.pSurface)
 	{
 		pe_status_contains_point scp;
-		scp.pt = camPos;
+		scp.pt = camPosWS;
 		return m_pPhysArea->GetStatus(&scp) != 0;
 	}
 
-	WaterVolumeRenderNodeUtils::VertexAccess<SVF_P3F_C4B_T2F> ca(&m_waterSurfaceVertices[0], m_waterSurfaceVertices.size());
+	// bounding box test in world space to abort early
+	if (!IsPointInsideAABB_2d(m_WSBBox, camPosWS)) return false;
+
+	// check triangles in entity space (i.e., water volume space), to avoid transformation of each single water volume vertex - thus, transform camera pos into entity space
+	const Vec3 camPos_entitySpace = m_parentEntityWorldTM.GetInvertedFast() * camPosWS;
+	TPolygon2D<SVF_P3F_C4B_T2F, Vec3> ca(m_waterSurfaceVertices);
 	for (size_t i(0); i < m_waterSurfaceIndices.size(); i += 3)
 	{
-		const Vec3 v0 = m_parentEntityWorldTM.TransformPoint(ca[m_waterSurfaceIndices[i]]);
-		const Vec3 v1 = m_parentEntityWorldTM.TransformPoint(ca[m_waterSurfaceIndices[i + 1]]);
-		const Vec3 v2 = m_parentEntityWorldTM.TransformPoint(ca[m_waterSurfaceIndices[i + 2]]);
+		const Vec3& v0 = ca[m_waterSurfaceIndices[i]];
+		const Vec3& v1 = ca[m_waterSurfaceIndices[i + 1]];
+		const Vec3& v2 = ca[m_waterSurfaceIndices[i + 2]];
 
-		if (WaterVolumeRenderNodeUtils::InsideTriangle(v0.x, v0.y, v1.x, v1.y, v2.x, v2.y, camPos.x, camPos.y))
+		if (ca.InsideTriangle(v0.x, v0.y, v1.x, v1.y, v2.x, v2.y, camPos_entitySpace.x, camPos_entitySpace.y))
+		{
 			return true;
+		}
 	}
 
 	return false;
@@ -1257,7 +1098,7 @@ void CWaterVolumeRenderNode::SyncToPhysMesh(const QuatT& qtSurface, IGeometry* p
 
 void CWaterVolumeRenderNode::OffsetPosition(const Vec3& delta)
 {
-	if (m_pTempData) m_pTempData->OffsetPosition(delta);
+	if (const auto pTempData = m_pTempData.load()) pTempData->OffsetPosition(delta);
 	m_vOffset += delta;
 	m_center += delta;
 	m_WSBBox.Move(delta);
@@ -1308,4 +1149,9 @@ Vec3 CWaterVolumeRenderNode::GetPos(bool bWorldOnly) const
 IMaterial* CWaterVolumeRenderNode::GetMaterial(Vec3* pHitPos) const
 {
 	return m_pMaterial;
+}
+
+bool CWaterVolumeRenderNode::CanExecuteRenderAsJob()
+{
+	return !gEnv->IsEditor() && GetCVars()->e_ExecuteRenderAsJobMask & BIT(GetRenderNodeType());
 }

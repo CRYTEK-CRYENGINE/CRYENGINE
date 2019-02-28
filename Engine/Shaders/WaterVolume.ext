@@ -92,9 +92,6 @@ Property
   Mask = 0x80
   Property    (Decal map)
   Description (Use tilling decal map as separate texture)
-  DependencySet = $TEX_Custom
-  DependencyReset = $TEX_Custom
-  Hidden
 }
 
 Property

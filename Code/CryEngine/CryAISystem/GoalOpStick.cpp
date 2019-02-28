@@ -1,9 +1,8 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "GoalOpStick.h"
 #include "GoalOpTrace.h"
-#include "NavRegion.h"
 #include "Puppet.h"
 #include "DebugDrawContext.h"
 
@@ -229,21 +228,20 @@ void COPStick::SSafePoint::Serialize(TSerialize ser)
 
 //
 //----------------------------------------------------------------------------------------------------------
-COPStick::SSafePoint::SSafePoint(const Vec3& pos_, CPipeUser& pipeUser, unsigned lastNavNodeIndex)
+COPStick::SSafePoint::SSafePoint(const Vec3& pos_, CPipeUser& pipeUser)
 	: pos(pos_)
 	, time(GetAISystem()->GetFrameStartTime())
 	, requesterName(pipeUser.GetName())
 	, navCapMask(pipeUser.m_movementAbility.pathfindingProperties.navCapMask)
 	, passRadius(pipeUser.m_Parameters.m_fPassRadius)
 {
-	Reset(lastNavNodeIndex);
+	Reset();
 }
 
 //
 //----------------------------------------------------------------------------------------------------------
-void COPStick::SSafePoint::Reset(unsigned lastNavNodeIndex)
+void COPStick::SSafePoint::Reset()
 {
-	nodeIndex = 0;
 	safe = false;
 }
 
@@ -286,7 +284,7 @@ void COPStick::Serialize(TSerialize ser)
 		{
 			for (uint8 i = 0, size = m_stickTargetSafePoints.Size(); i < size; ++i)
 			{
-				m_stickTargetSafePoints[i].Reset(0);
+				m_stickTargetSafePoints[i].Reset();
 			}
 		}
 		ser.Value("m_safePointInterval", m_safePointInterval);
@@ -407,21 +405,19 @@ void COPStick::UpdateStickTargetSafePoints(CPipeUser* pPipeUser)
 	if (GetAISystem()->WouldHumanBeVisible(opPos, false))
 		m_lastVisibleTime = GetAISystem()->GetFrameStartTime();
 
-	unsigned lastNavNodeIndex = m_refStickTarget.GetAIObject()->GetNavNodeIndex();
 	if (!m_stickTargetSafePoints.Empty())
 	{
 		Vec3 delta = curPos - m_stickTargetSafePoints.Front().pos;
 		float dist = delta.GetLength();
 		if (dist < m_safePointInterval)
 			return;
-		lastNavNodeIndex = m_stickTargetSafePoints.Front().nodeIndex;
 	}
 
 	int maxNumPoints = 1 + (int)(m_pathLengthForTeleport / m_safePointInterval);
 	if (m_stickTargetSafePoints.Size() >= maxNumPoints || m_stickTargetSafePoints.Full())
 		m_stickTargetSafePoints.PopBack();
 
-	m_stickTargetSafePoints.PushFront(SSafePoint(curPos, *pPipeUser, lastNavNodeIndex));
+	m_stickTargetSafePoints.PushFront(SSafePoint(curPos, *pPipeUser));
 }
 
 //===================================================================
@@ -445,7 +441,7 @@ void COPStick::ClearTeleportData()
 //===================================================================
 bool COPStick::TryToTeleport(CPipeUser* pPipeUser)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	if (m_stickTargetSafePoints.Size() < 2)
 	{
@@ -596,7 +592,7 @@ bool COPStick::TryToTeleport(CPipeUser* pPipeUser)
 EGoalOpResult COPStick::Execute(CPipeUser* pPipeUser)
 {
 	CCCPOINT(COPStick_Execute);
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	// Check to see if objects have disappeared since last call
 	// Note that at least in the first iteration, they won't be there to start with
@@ -782,7 +778,7 @@ EGoalOpResult COPStick::Execute(CPipeUser* pPipeUser)
 
 	//////////////////////////////////////////////////////////////////////////
 	{
-		FRAME_PROFILER("OPStick::Execute(): Final Path Processing!", GetISystem(), PROFILE_AI)
+		CRY_PROFILE_REGION(PROFILE_AI, "OPStick::Execute(): Final Path Processing!")
 
 		int nPathDecision = pPipeUser->m_nPathDecision;
 
@@ -897,7 +893,7 @@ bool COPStick::GetStickAndSightTargets_CreatePathfindAndTraceGoalOps(CPipeUser* 
 
 	// Create pathfinder operation
 	{
-		FRAME_PROFILER("OPStick::Execute(): Create Pathfinder/Tracer!", GetISystem(), PROFILE_AI);
+		CRY_PROFILE_REGION(PROFILE_AI, "OPStick::Execute(): Create Pathfinder/Tracer!");
 
 		Vec3 vStickPos = pStickTarget->GetPhysicsPos();
 
@@ -938,7 +934,7 @@ bool COPStick::Trace(CPipeUser* pPipeUser, CAIObject* pStickTarget, EGoalOpResul
 		return false;
 	}
 
-	FRAME_PROFILER("OPStick::Trace(): Tracer Execute!", GetISystem(), PROFILE_AI);
+	CRY_PROFILE_REGION(PROFILE_AI, "OPStick::Trace(): Tracer Execute!");
 
 	// if using AdjustSpeed then force sprint at this point - will get overridden later
 	bool bAdjustSpeed = !m_bConstantSpeed && (m_pTraceDirective->m_Maneuver == COPTrace::eMV_None);

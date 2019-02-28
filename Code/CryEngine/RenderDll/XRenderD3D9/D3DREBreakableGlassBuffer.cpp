@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // Includes
 #include "StdAfx.h"
@@ -340,6 +340,9 @@ void CREBreakableGlassBuffer::DrawBuffer(const uint32 cyclicId, const EBufferTyp
 {
 	CRY_ASSERT_MESSAGE(indCount % 3 == 0, "Invalid number of glass indices");
 
+	ASSERT_LEGACY_PIPELINE
+		/*
+
 	const SBuffer& buffer = m_buffer[buffType][cyclicId];
 	const SVertexConst& bufferConsts = s_bufferConsts[buffType];
 
@@ -369,4 +372,5 @@ void CREBreakableGlassBuffer::DrawBuffer(const uint32 cyclicId, const EBufferTyp
 			pRenderer->FX_DrawIndexedPrimitive(eptTriangleList, 0, 0, bufferConsts.maxNumVerts, 0, indCount);
 		}
 	}
+	*/
 }//-------------------------------------------------------------------------------------------------

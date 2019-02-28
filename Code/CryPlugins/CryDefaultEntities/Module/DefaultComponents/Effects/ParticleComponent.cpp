@@ -37,7 +37,7 @@ void CParticleComponent::Initialize()
 	}
 }
 
-void CParticleComponent::ProcessEvent(SEntityEvent& event)
+void CParticleComponent::ProcessEvent(const SEntityEvent& event)
 {
 	switch (event.event)
 	{
@@ -51,7 +51,7 @@ void CParticleComponent::ProcessEvent(SEntityEvent& event)
 
 uint64 CParticleComponent::GetEventMask() const
 {
-	return BIT64(ENTITY_EVENT_COMPONENT_PROPERTY_CHANGED);
+	return ENTITY_EVENT_BIT(ENTITY_EVENT_COMPONENT_PROPERTY_CHANGED);
 }
 
 void CParticleComponent::SetEffectName(const char* szPath)
@@ -59,14 +59,10 @@ void CParticleComponent::SetEffectName(const char* szPath)
 	m_effectName = szPath;
 }
 
-bool Serialize(Serialization::IArchive& archive, CParticleComponent::SAttributes& value, const char* szName, const char* szLabel)
+bool Serialize(Serialization::IArchive& archive, CParticleComponent::SFeatures& value, const char* szName, const char* szLabel)
 {
-	return archive(*value.m_pAttributes, szName, szLabel);
+	return pfx2::GetIParticleSystem()->SerializeFeatures(archive, value, szName, szLabel);
 }
 
-bool Serialize(Serialization::IArchive& archive, CParticleComponent::SSpawnParameters& value, const char* szName, const char* szLabel)
-{
-	return archive(value.m_spawnParams, szName, szLabel);
-}
 }
 }

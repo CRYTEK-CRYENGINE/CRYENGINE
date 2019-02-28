@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -14,3 +14,4 @@ string CreateCryTif(const string& filePath, const string& settings = "");
 string TranslateFilePath(const string& originalFilePath, const string& importedFilePath, const string& sourceTexturePath);
 
 } // namespace TextureHelpers
+

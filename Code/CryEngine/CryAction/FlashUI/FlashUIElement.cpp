@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   FlashUIElement.cpp
@@ -336,7 +336,6 @@ CFlashUIElement::CFlashUIElement(CFlashUI* pFlashUI, CFlashUIElement* pBaseInsta
 	: m_refCount(1)
 	, m_pFlashUI(pFlashUI)
 	, m_bVisible(false)
-	, m_pFlashplayer(NULL)
 	, m_bCursorVisible(false)
 	, m_iFlags(0)
 	, m_fAlpha(0)
@@ -380,7 +379,7 @@ CFlashUIElement::~CFlashUIElement()
 	}
 
 	CRY_ASSERT_MESSAGE(m_variableObjects.empty(), "Variable objects not cleared!");
-	CRY_ASSERT_MESSAGE(m_pFlashplayer == NULL, "Flash player not correct unloaded!");
+	CRY_ASSERT_MESSAGE(!m_pFlashplayer, "Flash player not correct unloaded!");
 	CRY_ASSERT_MESSAGE(m_pBootStrapper == NULL, "Flash bootstrapper not correct unloaded!");
 
 #if !defined (_RELEASE)
@@ -411,7 +410,7 @@ void CFlashUIElement::Release()
 //------------------------------------------------------------------------------------
 IUIElement* CFlashUIElement::GetInstance(uint instanceID)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	if (m_pBaseInstance)
 		return m_pBaseInstance->GetInstance(instanceID);
@@ -491,7 +490,7 @@ CFlashUIElement::TUIElements::iterator CFlashUIElement::GetAllListeners(TUIEvent
 //------------------------------------------------------------------------------------
 IUIElementIteratorPtr CFlashUIElement::GetInstances() const
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	if (m_pBaseInstance)
 		return m_pBaseInstance->GetInstances();
@@ -506,11 +505,9 @@ IUIElementIteratorPtr CFlashUIElement::GetInstances() const
 bool CFlashUIElement::LazyInit()
 {
 	if (!m_pFlashplayer)
-	{
 		Init();
-		return m_pFlashplayer != NULL;
-	}
-	return m_pFlashplayer != NULL;
+
+	return !!m_pFlashplayer;
 }
 
 //------------------------------------------------------------------------------------
@@ -561,7 +558,7 @@ bool CFlashUIElement::Init(bool bLoadAsset)
 		return false;
 	}
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	IFlashPlayerBootStrapper* pBootStrapper = InitBootStrapper();
 
@@ -643,7 +640,7 @@ bool CFlashUIElement::Init(bool bLoadAsset)
 	}
 
 	for (TUIEventListener::Notifier notifier(m_eventListener); notifier.IsValid(); notifier.Next())
-		notifier->OnInit(this, m_pFlashplayer);
+		notifier->OnInit(this, m_pFlashplayer.get());
 
 	if (HasExtTexture())
 	{
@@ -658,7 +655,7 @@ bool CFlashUIElement::Init(bool bLoadAsset)
 
 void CFlashUIElement::Unload(bool bAllInstances)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	if (!CFlashUI::CV_gfx_uiaction_enable)
 		return;
@@ -697,7 +694,7 @@ void CFlashUIElement::Unload(bool bAllInstances)
 		for (TUIEventListener::Notifier notifier(m_eventListener); notifier.IsValid(); notifier.Next())
 			notifier->OnUnload(this);
 
-		SAFE_RELEASE(m_pFlashplayer);
+		m_pFlashplayer = nullptr;
 	}
 }
 
@@ -709,7 +706,7 @@ void CFlashUIElement::RequestUnload(bool bAllInstances)
 
 void CFlashUIElement::Reload(bool bAllInstances)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	if (!CFlashUI::CV_gfx_uiaction_enable)
 		return;
@@ -741,7 +738,7 @@ void CFlashUIElement::UnloadBootStrapper()
 
 void CFlashUIElement::ReloadBootStrapper()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	if (!CFlashUI::CV_gfx_uiaction_enable)
 		return;
@@ -769,7 +766,7 @@ void CFlashUIElement::ReloadBootStrapper()
 
 IFlashPlayerBootStrapper* CFlashUIElement::InitBootStrapper()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	if (!CFlashUI::CV_gfx_uiaction_enable)
 		return NULL;
@@ -804,7 +801,7 @@ IFlashPlayerBootStrapper* CFlashUIElement::InitBootStrapper()
 
 void CFlashUIElement::DestroyBootStrapper()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	if (!CFlashUI::CV_gfx_uiaction_enable)
 		return;
@@ -845,8 +842,8 @@ bool CFlashUIElement::Serialize(XmlNodeRef& xmlNode, bool bIsLoading)
 //------------------------------------------------------------------------------------
 void CFlashUIElement::Update(float fDeltaTime)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
-	if (m_pFlashplayer == NULL || ((m_iFlags & (uint64) eFUI_LAZY_UPDATE) != 0 && !m_bNeedLazyUpdate)) return;
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
+	if (!m_pFlashplayer || ((m_iFlags & (uint64) eFUI_LAZY_UPDATE) != 0 && !m_bNeedLazyUpdate)) return;
 
 	m_pFlashplayer->Advance(fDeltaTime);
 	m_bNeedLazyUpdate = false;
@@ -865,31 +862,31 @@ void CFlashUIElement::Update(float fDeltaTime)
 //------------------------------------------------------------------------------------
 void CFlashUIElement::Render()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
-	if (m_pFlashplayer == NULL) return;
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
+	if (!m_pFlashplayer) return;
 
 	if (!HasExtTexture())
 	{
-		m_pFlashplayer->Render(gEnv->pRenderer->IsStereoEnabled());
+		m_pFlashplayer->Render();
 	}
 }
 
 //------------------------------------------------------------------------------------
 void CFlashUIElement::RenderLockless()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
-	if (m_pFlashplayer == NULL) return;
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
+	if (!m_pFlashplayer) return;
 
 	if (!HasExtTexture())
 	{
-		m_pFlashplayer->Render(gEnv->pRenderer->IsStereoEnabled());
+		m_pFlashplayer->Render();
 	}
 }
 
 //------------------------------------------------------------------------------------
 void CFlashUIElement::RequestHide()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	if (!CFlashUI::CV_gfx_uiaction_enable)
 		return;
@@ -912,7 +909,7 @@ void CFlashUIElement::RequestHide()
 //------------------------------------------------------------------------------------
 void CFlashUIElement::SetVisible(bool bVisible)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	if (!CFlashUI::CV_gfx_uiaction_enable)
 		return;
@@ -954,7 +951,7 @@ void CFlashUIElement::SetVisible(bool bVisible)
 }
 
 //------------------------------------------------------------------------------------
-IFlashPlayer* CFlashUIElement::GetFlashPlayer()
+std::shared_ptr<IFlashPlayer> CFlashUIElement::GetFlashPlayer()
 {
 	LazyInit();
 	return m_pFlashplayer;
@@ -963,7 +960,7 @@ IFlashPlayer* CFlashUIElement::GetFlashPlayer()
 //------------------------------------------------------------------------------------
 void CFlashUIElement::SetLayer(int iLayer)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	if (!CFlashUI::CV_gfx_uiaction_enable)
 		return;
@@ -978,7 +975,7 @@ void CFlashUIElement::SetLayer(int iLayer)
 //------------------------------------------------------------------------------------
 void CFlashUIElement::SetConstraints(const SUIConstraints& newConstraints)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	if (!CFlashUI::CV_gfx_uiaction_enable)
 		return;
@@ -991,7 +988,7 @@ void CFlashUIElement::SetConstraints(const SUIConstraints& newConstraints)
 //------------------------------------------------------------------------------------
 void CFlashUIElement::SetAlpha(float fAlpha)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	if (!CFlashUI::CV_gfx_uiaction_enable)
 		return;
@@ -1002,7 +999,7 @@ void CFlashUIElement::SetAlpha(float fAlpha)
 	UIACTION_LOG("%s (%i): Set background alpha: %f", GetName(), m_iInstanceID, m_fAlpha);
 
 	m_fAlpha = clamp_tpl(fAlpha, 0.0f, 1.f);
-	if (m_pFlashplayer != NULL)
+	if (m_pFlashplayer)
 		m_pFlashplayer->SetBackgroundAlpha(m_fAlpha);
 	ForceLazyUpdateInl();
 }
@@ -1104,7 +1101,7 @@ bool CFlashUIElement::CallFunction(const char* pFctName, const SUIArguments& arg
 //------------------------------------------------------------------------------------
 bool CFlashUIElement::CallFunction(const SUIEventDesc* pFctDesc, const SUIArguments& args, TUIData* pDataRes, const SUIMovieClipDesc* pTmplDesc)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	SFlashObjectInfo* pInfo = NULL;
 	if (!DefaultInfoCheck(pInfo, pFctDesc, pTmplDesc))
@@ -1169,7 +1166,7 @@ IFlashVariableObject* CFlashUIElement::GetMovieClip(const char* movieClipName, c
 //------------------------------------------------------------------------------------
 IFlashVariableObject* CFlashUIElement::GetMovieClip(const SUIMovieClipDesc* pMovieClipDesc, const SUIMovieClipDesc* pTmplDesc)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	SFlashObjectInfo* pInfo = NULL;
 	if (!DefaultInfoCheck(pInfo, pMovieClipDesc, pTmplDesc))
@@ -1193,7 +1190,7 @@ IFlashVariableObject* CFlashUIElement::CreateMovieClip(const SUIMovieClipDesc*& 
 //------------------------------------------------------------------------------------
 IFlashVariableObject* CFlashUIElement::CreateMovieClip(const SUIMovieClipDesc*& pNewInstanceDesc, const SUIMovieClipDesc* pMovieClipTemplateDesc, const SUIMovieClipDesc* pParentMC, const char* mcInstanceName)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	if (!CFlashUI::CV_gfx_uiaction_enable)
 		return NULL;
@@ -1274,7 +1271,7 @@ void CFlashUIElement::RemoveMovieClip(const char* movieClipName)
 //------------------------------------------------------------------------------------
 void CFlashUIElement::RemoveMovieClip(const SUIParameterDesc* pMovieClipDesc)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	SFlashObjectInfo* pInfo = NULL;
 	if (!DefaultInfoCheck(pInfo, pMovieClipDesc, NULL))
@@ -1327,7 +1324,7 @@ bool CFlashUIElement::SetVariable(const SUIParameterDesc* pVarDesc, const TUIDat
 //------------------------------------------------------------------------------------
 bool CFlashUIElement::SetVariableInt(const SUIParameterDesc* pVarDesc, const TUIData& value, const SUIMovieClipDesc* pTmplDesc, bool bCreate /*= false*/)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	SFlashObjectInfo* pInfo = NULL;
 	if (!DefaultInfoCheck(pInfo, pVarDesc, pTmplDesc))
@@ -1370,7 +1367,7 @@ bool CFlashUIElement::GetVariable(const char* pVarName, TUIData& valueOut, const
 //------------------------------------------------------------------------------------
 bool CFlashUIElement::GetVariable(const SUIParameterDesc* pVarDesc, TUIData& valueOut, const SUIMovieClipDesc* pTmplDesc)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	SFlashObjectInfo* pInfo = NULL;
 	if (!DefaultInfoCheck(pInfo, pVarDesc, pTmplDesc))
@@ -1428,7 +1425,7 @@ bool CFlashUIElement::SetArray(const char* pArrayName, const SUIArguments& value
 //------------------------------------------------------------------------------------
 bool CFlashUIElement::SetArray(const SUIParameterDesc* pArrayDesc, const SUIArguments& values, const SUIMovieClipDesc* pTmplDesc)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	SFlashObjectInfo* pInfo = NULL;
 	if (!DefaultInfoCheck(pInfo, pArrayDesc, pTmplDesc))
@@ -1471,7 +1468,7 @@ bool CFlashUIElement::GetArray(const char* pArrayName, SUIArguments& valuesOut, 
 //------------------------------------------------------------------------------------
 bool CFlashUIElement::GetArray(const SUIParameterDesc* pArrayDesc, SUIArguments& valuesOut, const SUIMovieClipDesc* pTmplDesc)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	SFlashObjectInfo* pInfo = NULL;
 	if (!DefaultInfoCheck(pInfo, pArrayDesc, pTmplDesc))
@@ -1513,7 +1510,7 @@ bool CFlashUIElement::CreateArray(const SUIParameterDesc*& pNewDesc, const char*
 //------------------------------------------------------------------------------------
 bool CFlashUIElement::CreateArray(const SUIParameterDesc*& pNewDesc, const char* arrayName, const SUIArguments& values, const SUIMovieClipDesc* pTmplDesc)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	if (!CFlashUI::CV_gfx_uiaction_enable)
 		return false;
@@ -1574,7 +1571,7 @@ void CFlashUIElement::LoadTexIntoMc(const char* movieClip, ITexture* pTexture, c
 //------------------------------------------------------------------------------------
 void CFlashUIElement::LoadTexIntoMc(const SUIParameterDesc* pMovieClipDesc, ITexture* pTexture, const SUIMovieClipDesc* pTmplDesc)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	SFlashObjectInfo* pInfo = NULL;
 	if (!DefaultInfoCheck(pInfo, pMovieClipDesc, pTmplDesc))
@@ -1613,7 +1610,7 @@ void CFlashUIElement::UnloadTexFromMc(const char* movieClip, ITexture* pTexture,
 //------------------------------------------------------------------------------------
 void CFlashUIElement::UnloadTexFromMc(const SUIParameterDesc* pMovieClipDesc, ITexture* pTexture, const SUIMovieClipDesc* pTmplDesc)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	SFlashObjectInfo* pInfo = NULL;
 	if (!DefaultInfoCheck(pInfo, pMovieClipDesc, pTmplDesc))
@@ -1646,7 +1643,7 @@ void CFlashUIElement::ScreenToFlash(const float& px, const float& py, float& rx,
 {
 	if (m_pFlashplayer)
 	{
-		const float flashWidth = (float) m_pFlashplayer->GetWidth();
+		const float flashWidth  = (float) m_pFlashplayer->GetWidth();
 		const float flashHeigth = (float) m_pFlashplayer->GetHeight();
 		float flashVPX, flashVPY, flashVPWidth, flashVPHeight;
 		{
@@ -1667,8 +1664,8 @@ void CFlashUIElement::ScreenToFlash(const float& px, const float& py, float& rx,
 			else flashVPHeight = flashVPWidth / oAspect;
 		}
 
-		const float screenWidth = (float)gEnv->pRenderer->GetWidth();
-		const float screenHeigth = (float)gEnv->pRenderer->GetHeight();
+		const float screenWidth  = (float)gEnv->pRenderer->GetOverlayWidth();
+		const float screenHeigth = (float)gEnv->pRenderer->GetOverlayHeight();
 
 		const float screenX = px * screenWidth;
 		const float screenY = py * screenHeigth;
@@ -1698,16 +1695,17 @@ void CFlashUIElement::WorldToFlash(const Matrix34& camMat, const Vec3& worldpos,
 {
 	// calculate scale
 	const float distance = (camMat.GetTranslation() - worldpos).GetLength();
-	Matrix44 projMat;
-	gEnv->pRenderer->GetProjectionMatrix(projMat.GetData());
-	scale = MatMulVec3(projMat, Vec3(-1.f, -1.f, distance)).x;
-
+	
 	// calculate screen x,y coordinates
-	CCamera cam = gEnv->pRenderer->GetCamera();
+	CCamera cam = GetISystem()->GetViewCamera();
 	cam.SetMatrix(camMat);
 	cam.Project(worldpos, flashpos);
-	flashpos.x = flashpos.x / (f32)gEnv->pRenderer->GetWidth();
-	flashpos.y = flashpos.y / (f32)gEnv->pRenderer->GetHeight();
+	flashpos.x = flashpos.x / (f32)gEnv->pRenderer->GetOverlayWidth();
+	flashpos.y = flashpos.y / (f32)gEnv->pRenderer->GetOverlayHeight();
+
+	cam.CalculateRenderMatrices();
+	Matrix44 projMat = cam.GetRenderProjectionMatrix();
+	scale = MatMulVec3(projMat, Vec3(-1.f, -1.f, distance)).x;
 
 	// overflow
 	borders.x = flashpos.x<0 ? -1.f : flashpos.x> 1.f ? 1.f : flashpos.z < 1.f ? 0 : -1.f;
@@ -1749,7 +1747,7 @@ void CFlashUIElement::AddTexture(IDynTextureSource* pDynTexture)
 		if (m_pFlashplayer)
 		{
 			m_pFlashplayer->SetViewScaleMode(IFlashPlayer::eSM_ExactFit);
-			m_pFlashplayer->SetViewport(0, 0, m_pFlashplayer->GetWidth(), m_pFlashplayer->GetHeight(), 1.f);
+			m_pFlashplayer->SetViewport   (0, 0, m_pFlashplayer->GetWidth(), m_pFlashplayer->GetHeight(), 1.f);
 			m_pFlashplayer->SetScissorRect(0, 0, m_pFlashplayer->GetWidth(), m_pFlashplayer->GetHeight());
 		}
 	}
@@ -1770,7 +1768,7 @@ void CFlashUIElement::RemoveTexture(IDynTextureSource* pDynTexture)
 //------------------------------------------------------------------------------------
 void CFlashUIElement::SendCursorEvent(SFlashCursorEvent::ECursorState evt, int iX, int iY, int iButton /*= 0*/, float fWheel /*= 0.f*/)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	if (!CFlashUI::CV_gfx_uiaction_enable)
 		return;
@@ -1780,10 +1778,13 @@ void CFlashUIElement::SendCursorEvent(SFlashCursorEvent::ECursorState evt, int i
 
 	UpdateFlags();
 
-	if (HasExtTexture())
+	if (HasExtTexture() && gEnv->pRenderer)
 	{
-		int x, y, width, height;
-		gEnv->pRenderer->GetViewport(&x, &y, &width, &height);
+		int x = 0;
+		int y = 0;
+		int width  = gEnv->pRenderer->GetOverlayWidth();
+		int height = gEnv->pRenderer->GetOverlayHeight();
+
 		float fX = (float) iX / (float) width;
 		float fY = (float) iY / (float) height;
 		float aspect;
@@ -1800,7 +1801,7 @@ void CFlashUIElement::SendCursorEvent(SFlashCursorEvent::ECursorState evt, int i
 
 void CFlashUIElement::SendKeyEvent(const SFlashKeyEvent& evt)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	if (!CFlashUI::CV_gfx_uiaction_enable)
 		return;
@@ -1815,7 +1816,7 @@ void CFlashUIElement::SendKeyEvent(const SFlashKeyEvent& evt)
 
 void CFlashUIElement::SendCharEvent(const SFlashCharEvent& charEvent)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	if (!CFlashUI::CV_gfx_uiaction_enable)
 		return;
@@ -1830,7 +1831,7 @@ void CFlashUIElement::SendCharEvent(const SFlashCharEvent& charEvent)
 
 void CFlashUIElement::SendControllerEvent(EControllerInputEvent event, EControllerInputState state, float value)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	if (!CFlashUI::CV_gfx_uiaction_enable)
 		return;
@@ -1880,7 +1881,7 @@ void CFlashUIElement::GetMemoryUsage(ICrySizer* s) const
 //------------------------------------------------------------------------------------
 void CFlashUIElement::HandleFSCommand(const char* sCommand, const char* sArgs, void* pUserData)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	if (!CFlashUI::CV_gfx_uiaction_enable)
 		return;
@@ -1976,7 +1977,7 @@ bool CFlashUIElement::HandleInternalCommand(const char* sCommand, const SUIArgum
 	if (strcmp(sCommand, "cry_imeFocus") == 0)
 	{
 		UIACTION_LOG("%s (%i): UIElement received \"cry_imeFocus\" from ActionScript", GetName(), m_iInstanceID);
-		IFlashPlayer* pPlayer = GetFlashPlayer();
+		const auto& pPlayer = GetFlashPlayer();
 		if (pPlayer) pPlayer->SetImeFocus();
 		return true;
 	}
@@ -2245,7 +2246,7 @@ void CFlashUIElement::RemoveEventListener(IUIElementEventListener* pListener)
 //------------------------------------------------------------------------------------
 void CFlashUIElement::UpdateViewPort()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	if (!CFlashUI::CV_gfx_uiaction_enable)
 		return;

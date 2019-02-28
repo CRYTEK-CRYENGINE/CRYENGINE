@@ -1,0 +1,9 @@
+<AssetMetadata version="0" type="Material" guid="826960f2-e589-e2f9-3eb7-f34ba897c0ae">
+ <Files>
+  <File path="FogVolumeBox.mtl"/>
+ </Files>
+ <Details>
+  <Detail name="subMaterialCount">0</Detail>
+  <Detail name="textureCount">0</Detail>
+ </Details>
+</AssetMetadata>

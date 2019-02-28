@@ -1,0 +1,9 @@
+<AssetMetadata version="0" type="Material" guid="42c169b0-570d-86fc-a21c-c68efb5f5e9a">
+ <Files>
+  <File path="OceanIntoLowSpec.mtl"/>
+ </Files>
+ <Details>
+  <Detail name="subMaterialCount">0</Detail>
+  <Detail name="textureCount">0</Detail>
+ </Details>
+</AssetMetadata>

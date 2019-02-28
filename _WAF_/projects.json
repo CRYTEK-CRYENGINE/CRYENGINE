@@ -32,24 +32,24 @@
 		{
 			"data_folder"      : "/data/sdk/"
 		}
-	},
-	"GameZero" :
+	},	
+	"GameHunt" :
 	{
-		"code_folder"         : "Code/GameZero",
-		"game_data_dir"       : "GameZero",
-		"game_dll_filename"   : "CryGameZero.dll",
+		"code_folder"         : "Code/Game_Hunt",
+		"game_data_dir"       : "gamehunt",
+		"game_dll_filename"   : "GameHunt.dll",
 
-		"executable_name"     : "GameLauncher",
+		"executable_name"     : "HUNT",
 
-		"product_name"        : "CRYENGINE SDK",
+		"product_name"        : "HUNT",
 
 		"durango_settings" :
 		{
-			"app_id"            : "GameZero.app",
-			"package_name"      : "GameZero",
-			"display_name"      : "CRYENGINE Game Zero",
+			"app_id"            : "GameHunt.app",
+			"package_name"      : "GameHunt",
+			"display_name"      : "GameHunt",
 			"publisher"         : "Crytek",
-			"description"       : "CRYENGINE SDK Example",
+			"description"       : "GameHunt",
 			"foreground_text"   : "light",
 			"background_color"  : "#6495ED",
 			"version"           : "1.0.0.0",

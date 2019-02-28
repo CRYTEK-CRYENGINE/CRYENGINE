@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __GOALOP_STICK_H_
 #define __GOALOP_STICK_H_
@@ -53,15 +53,14 @@ private:
 	/// Stores when/where the stick target was
 	struct SSafePoint
 	{
-		SSafePoint() : pos(ZERO), nodeIndex(0), safe(false), passRadius(0.0f) {}
+		SSafePoint() : pos(ZERO), safe(false), passRadius(0.0f) {}
 
-		SSafePoint(const Vec3& pos_, CPipeUser& pipeUser, unsigned lastNavNodeIndex);
+		SSafePoint(const Vec3& pos_, CPipeUser& pipeUser);
 
-		void Reset(unsigned lastNavNodeIndex);
+		void Reset();
 		void Serialize(TSerialize ser);
 
 		Vec3       pos;
-		unsigned   nodeIndex;
 		bool       safe; // used to store _unsafe_ locations too
 		CTimeValue time;
 

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "ImageUserDialog.h"        // CImageUserDialog
@@ -684,7 +684,7 @@ void CImageUserDialog::CreateDialogItems()
 void CImageUserDialog::SelectPreset(const string &presetName)
 {
 	string filename = m_pImageCompiler->m_CC.config->GetAsString("overwritefilename", m_pImageCompiler->m_CC.sourceFileNameOnly, m_pImageCompiler->m_CC.sourceFileNameOnly);
-	filename = PathHelpers::RemoveExtension(filename);
+	filename = PathUtil::RemoveExtension(filename.c_str());
 
 	const HWND hwnd = GetDlgItem(m_hWindow, IDC_TEMPLATECOMBO);
 	SendMessage(hwnd, CB_RESETCONTENT, 0, 0);

@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="72af558c-e95b-0453-c689-04c5a9fb7d71" source="vol_shafts.tif">
+ <Files>
+  <File path="vol_shafts.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">96</Detail>
+  <Detail name="height">96</Detail>
+  <Detail name="mipCount">1</Detail>
+ </Details>
+</AssetMetadata>

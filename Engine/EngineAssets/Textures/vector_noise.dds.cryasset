@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="902266c8-f565-e8a8-a85c-cab7465a3e4c">
+ <Files>
+  <File path="vector_noise.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">64</Detail>
+  <Detail name="height">64</Detail>
+  <Detail name="mipCount">7</Detail>
+ </Details>
+</AssetMetadata>

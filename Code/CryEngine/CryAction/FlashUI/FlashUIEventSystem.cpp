@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   FlashUIEventSystem.cpp
@@ -48,7 +48,7 @@ void CFlashUIEventSystem::UnregisterListener(IUIEventListener* pListener)
 //------------------------------------------------------------------------------------
 SUIArgumentsRet CFlashUIEventSystem::SendEvent(const SUIEvent& event)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	SUIArguments ret;
 	if (gEnv->IsEditor())

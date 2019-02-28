@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include <CryFlowGraph/IFlowBaseNode.h>
@@ -323,7 +323,7 @@ public:
 		}
 	}
 
-	virtual void OnEntityEvent(IEntity* pEntity, SEntityEvent& event)
+	virtual void OnEntityEvent(IEntity* pEntity, const SEntityEvent& event)
 	{
 		if (event.event != ENTITY_EVENT_SCRIPT_EVENT)
 		{
@@ -398,8 +398,7 @@ private:
 				const bool getValueSuccess = pScriptTable->GetValueAny("Helicopter_FlowNodeFollowPath", value);
 				if (getValueSuccess)
 				{
-					CFlowNode_Helicopter_FollowPath* pNode = const_cast<CFlowNode_Helicopter_FollowPath*>(reinterpret_cast<const CFlowNode_Helicopter_FollowPath*>(value.ptr));
-					return pNode;
+					return reinterpret_cast<CFlowNode_Helicopter_FollowPath*>(value.GetScriptHandle().ptr);
 				}
 			}
 		}
@@ -415,8 +414,7 @@ private:
 			if (pScriptTable)
 			{
 				ScriptAnyValue value;
-				value.type = ANY_THANDLE;
-				value.ptr = pNode;
+				value.SetScriptHandle(pNode);
 				pScriptTable->SetValueAny("Helicopter_FlowNodeFollowPath", value);
 			}
 		}
@@ -633,7 +631,7 @@ public:
 		}
 	}
 
-	virtual void OnEntityEvent(IEntity* pEntity, SEntityEvent& event)
+	virtual void OnEntityEvent(IEntity* pEntity, const SEntityEvent& event)
 	{
 		if (event.event != ENTITY_EVENT_SCRIPT_EVENT)
 		{

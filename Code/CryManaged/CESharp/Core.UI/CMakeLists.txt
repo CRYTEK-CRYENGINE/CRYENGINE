@@ -1,13 +1,15 @@
-if(OPTION_BUILD_CSHARP_WITH_MCS)
+if(OPTION_BUILD_CSHARP_WITH_CSC)
 	project(CESharp NONE)
 
-	set(SDK_DIR "${CMAKE_CURRENT_LIST_DIR}/../../../SDKs")
-	set(MCS_PATH "${SDK_DIR}/Mono/bin/mcs.bat")
-	
+	set(SDK_DIR "${CMAKE_SOURCE_DIR}/Code/SDKs")
 	create_mono_compiler_settings()
-	
-		set(Components_FILES Components/ButtonCtrl.cs Components/CheckBoxCtrl.cs Components/CollapseCtrl.cs Components/ComboBoxCtrl.cs Components/Image.cs Components/RectTransform.cs Components/ScrollBarCtrl.cs Components/SplitBarCtrl.cs Components/Text.cs Components/TextCtrl.cs Components/UIComponent.cs)
+
+	set(Components_FILES Components/ButtonCtrl.cs Components/CheckBoxCtrl.cs Components/CollapseCtrl.cs Components/ComboBoxCtrl.cs Components/Image.cs Components/RectTransform.cs Components/ScrollBarCtrl.cs Components/SplitBarCtrl.cs Components/Text.cs Components/TextCtrl.cs Components/UIComponent.cs)
 	source_group("Components" FILES ${Components_FILES})
+
+
+	set(Properties_FILES Properties/AssemblyInfo.cs)
+	source_group("Properties" FILES ${Properties_FILES})
 
 
 	set(Resources_FILES Resources/Graphic.cs Resources/ImageSource.cs Resources/Resource.cs)
@@ -18,10 +20,10 @@ if(OPTION_BUILD_CSHARP_WITH_MCS)
 	source_group("Core.UI" FILES ${Core.UI_FILES})
 
 
-	set(SOURCE ${Components_FILES} ${Resources_FILES} ${Core.UI_FILES})
+	set(SOURCE ${Components_FILES} ${Properties_FILES} ${Resources_FILES} ${Core.UI_FILES})
 
 	add_custom_target(CryEngine.Core.UI ALL
-		COMMAND "${MCS_PATH}" -target:library -langversion:${MONO_LANGUAGE_VERSION} -platform:${MONO_CPU_PLATFORM} -optimize -debug -define:${MONO_PREPROCESSOR_DEFINE} -lib:${MONO_LIB_PATH} -r:System -r:System.Data -r:System.Drawing -r:System.Runtime.Serialization -r:System.Windows.Forms -r:System.Xml "${MONO_SWIG_OUTPUT_ASSEMBLY_REFERENCE}" "-r:${OUTPUT_DIRECTORY}/CryEngine.Core.dll" ${SOURCE} "-out:${OUTPUT_DIRECTORY}/CryEngine.Core.UI.dll" "-doc:${OUTPUT_DIRECTORY}/CryEngine.Core.UI.xml"
+		COMMAND "${CSC_PATH}" /target:library /langversion:${MONO_LANGUAGE_VERSION} /platform:${MONO_CPU_PLATFORM} /optimize+ /debug:portable /define:${MONO_PREPROCESSOR_DEFINE} /reference:System.dll /reference:System.Data.dll /reference:System.Drawing.dll /reference:System.Runtime.Serialization.dll /reference:System.Windows.Forms.dll /reference:System.Xml.dll ${MONO_SWIG_OUTPUT_ASSEMBLY_REFERENCE} /reference:${OUTPUT_DIRECTORY}/CryEngine.Core.dll ${SOURCE} "/out:${OUTPUT_DIRECTORY}/CryEngine.Core.UI.dll" "/doc:${OUTPUT_DIRECTORY}/CryEngine.Core.UI.xml"
 		WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
 		SOURCES ${SOURCE})
 

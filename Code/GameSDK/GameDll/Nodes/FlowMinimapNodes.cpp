@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -201,7 +201,7 @@ public:
 		return new CFlowMiniMapEntityPosInfo(pActInfo);
 	}
 
-	virtual void OnEntityEvent(IEntity* pEntity, SEntityEvent& event)
+	virtual void OnEntityEvent(IEntity* pEntity, const SEntityEvent& event)
 	{
 		if (event.event == ENTITY_EVENT_XFORM)
 		{

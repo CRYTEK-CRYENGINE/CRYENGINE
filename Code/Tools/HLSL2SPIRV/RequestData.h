@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -35,6 +35,18 @@ struct SRegisterRangeDesc
 		, count(0)
 		, shaderStageMask(0)
 	{}
+
+	void setTypeAndStage(uint8_t typeAndStageByte)
+	{
+		shaderStageMask = typeAndStageByte & 0x3F;
+		type = (ERegisterRangeType)(typeAndStageByte >> 6);
+	}
+
+	void setSlotNumberAndDescCount(uint8_t slotNumberAndDescCount)
+	{
+		start = slotNumberAndDescCount & 0x3F;
+		count = slotNumberAndDescCount >> 6;
+	}
 
 	ERegisterRangeType type;
 	uint32_t           start;

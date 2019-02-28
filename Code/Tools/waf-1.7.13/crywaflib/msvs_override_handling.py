@@ -1,4 +1,4 @@
-# Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+# Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 from waflib.TaskGen import before_method, feature
 from waflib import Utils
 
@@ -173,8 +173,8 @@ def _get_project_overrides(ctx, target):
 	# Open file
 	try:
 		file = open(vcxproj_file)
-	except:	
-		Logs.warn('warning: Unable to parse .vcxproj file to extract configuration overrides. [File:%s] [Exception:%s]' % (vcxproj_file, sys.exc_info()[0]) )
+	except Exception as e:	
+		Logs.warn('warning: Unable to parse .vcxproj file to extract configuration overrides. [File:%s] [Exception:%s, %s]' % (vcxproj_file, sys.exc_info()[0], e) )
 		return ({}, {})
  
 	# Iterate line by line 
@@ -339,8 +339,8 @@ def get_solution_overrides(self):
 	# Open sln file
 	try:
 		file = open(sln_file)		
-	except:	
-		Logs.debug('warning: Unable to parse .sln file to extract configuration overrides: [File:%s] [Exception:%s]' % (sln_file, sys.exc_info()[0]) )
+	except Exception as e:	
+		Logs.debug('warning: Unable to parse .sln file to extract configuration overrides: [File:%s] [Exception:%s,%s]' % (sln_file, sys.exc_info()[0], e) )
 		return {}
 		
 	ret_vs_project_override = {}

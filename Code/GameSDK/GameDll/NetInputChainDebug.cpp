@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -27,8 +27,7 @@ static int ypos = 0;
 static int dump = 0;
 static uint64 tstamp;
 
-typedef boost::mpl::vector<float, Vec3>                     TNetInputValueTypes;
-typedef boost::make_variant_over<TNetInputValueTypes>::type TNetInputValue;
+typedef CryVariant<float, Vec3> TNetInputValue;
 
 static const char* GetEntityName()
 {
@@ -61,7 +60,7 @@ static void Put(const char* name, const TNetInputValue& value)
 	float white[] = { 1, 1, 1, 1 };
 	char buf[256];
 
-	if (const Vec3* pVec = boost::get<const Vec3>(&value))
+	if (const Vec3* pVec = stl::get_if<const Vec3>(&value))
 	{
 		cry_sprintf(buf, "%s: %f %f %f", name, pVec->x, pVec->y, pVec->z);
 		IRenderAuxText::Draw2dLabel(10.f, (float)(ypos+=20), 2.f, white, false, "%s", buf);
@@ -71,7 +70,7 @@ static void Put(const char* name, const TNetInputValue& value)
 		if (fout) fprintf(fout, "%" PRIu64 " %s %s %f %f %f\n", tstamp, GetEntityName(), name, pVec->x, pVec->y, pVec->z);
 	#endif
 	}
-	else if (const float* pFloat = boost::get<const float>(&value))
+	else if (const float* pFloat = stl::get_if<const float>(&value))
 	{
 		cry_sprintf(buf, "%s: %f", name, *pFloat);
 		IRenderAuxText::Draw2dLabel(10.f, (float)(ypos+=20), 2, white, false, "%s", buf);

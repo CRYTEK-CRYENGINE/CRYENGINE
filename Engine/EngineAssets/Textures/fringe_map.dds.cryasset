@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="082f401f-7fe8-0def-a65e-ca61e7aa88b4">
+ <Files>
+  <File path="fringe_map.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">256</Detail>
+  <Detail name="height">1</Detail>
+  <Detail name="mipCount">1</Detail>
+ </Details>
+</AssetMetadata>

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -1620,7 +1620,7 @@ int CSaverCGF::SaveVCloth(bool bSwapEndian)
 	saver.WriteChunkHeader();
 	saver.WriteChunkVertices();
 	saver.WriteTriangleData();
-	saver.WriteLraNotAttachedOrdered();
+	saver.WriteNndcNotAttachedOrdered();
 	saver.WriteLinks();
 
 	return m_pChunkFile->AddChunk(

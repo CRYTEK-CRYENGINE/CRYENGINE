@@ -1,4 +1,4 @@
-﻿// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
 -------------------------------------------------------------------------
@@ -3481,7 +3481,7 @@ void CmdGoto(IConsoleCmdArgs *pArgs)
 	// * third person game should work by using player position
 	// * level name could be part of the string
 
-	const CCamera &rCam = gEnv->pRenderer->GetCamera();
+	const CCamera &rCam = GetISystem()->GetViewCamera();
 	Matrix33 m = Matrix33(rCam.GetMatrix());
 
 	int iArgCount = pArgs->GetArgCount();
@@ -3507,11 +3507,6 @@ void CmdGoto(IConsoleCmdArgs *pArgs)
 		&& sscanf(pArgs->GetArg(3),"%f",&vPos.z)==1)
 	{
 		Matrix34 tm = pEntity->GetWorldTM();
-
-		if(ISegmentsManager *pSM = gEnv->p3DEngine->GetSegmentsManager())
-		{
-			vPos = pSM->LocalToAbsolutePosition(vPos, -1);
-		}
 
 		tm.SetTranslation(vPos);
 
@@ -3641,7 +3636,9 @@ void CGame::RegisterConsoleCommands()
 	REGISTER_COMMAND("FlyCamSetPoint", CmdFlyCamSetPoint, VF_CHEAT, "Sets a fly cam point");
 	REGISTER_COMMAND("FlyCamPlay", CmdFlyCamPlay, VF_CHEAT, "Plays the flycam path");
 
+#if defined(USE_CRY_ASSERT)
 	REGISTER_COMMAND("IgnoreAllAsserts", CmdIgnoreAllAsserts, VF_CHEAT, "Ignore all asserts");
+#endif
 
 	REGISTER_COMMAND("pl_reload", CmdReloadPlayer, VF_CHEAT, "Reload player's data.");
 	REGISTER_COMMAND("pl_health", CmdSetPlayerHealth, VF_CHEAT, "Sets a player's health.");
@@ -3975,11 +3972,13 @@ void CGame::CmdFlyCamPlay(IConsoleCmdArgs *pArgs)
 	}
 }
 
+#if defined(USE_CRY_ASSERT)
 void CGame::CmdIgnoreAllAsserts(IConsoleCmdArgs *pArgs)
 {
-	gEnv->bIgnoreAllAsserts=true;	
-	gEnv->bTesting=true;
+	gEnv->ignoreAllAsserts = true;	
+	gEnv->bTesting = true;
 }
+#endif
 
 //------------------------------------------------------------------------
 void CGame::CmdLastInv(IConsoleCmdArgs *pArgs)

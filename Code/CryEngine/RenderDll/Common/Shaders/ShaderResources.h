@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -26,7 +26,7 @@ public:
 	CCamera*                       m_pCamera;
 	SSkyInfo*                      m_pSky;
 	SDetailDecalInfo*              m_pDetailDecalInfo;
-	CConstantBuffer*               m_pCB;
+	CConstantBufferPtr             m_pConstantBuffer;
 	uint16                         m_Id;
 	uint16                         m_IdGroup;
 
@@ -36,7 +36,6 @@ public:
 	/////////////////////////////////////////////////////
 
 	float        m_fMinMipFactorLoad;
-	volatile int m_nRefCounter;
 	int          m_nLastTexture;
 	int          m_nFrameLoad;
 	uint32       m_nUpdateFrameID;
@@ -153,7 +152,7 @@ public:
 		m_pDetailDecalInfo = NULL;
 		m_pCamera = NULL;
 		m_pSky = NULL;
-		m_pCB = NULL;
+		m_pConstantBuffer.reset();
 		m_nMtlLayerNoDrawFlags = 0;
 		m_flags = 0;
 		m_nUpdateFrameID = 0;
@@ -185,8 +184,8 @@ public:
 
 	~CShaderResources();
 	void                      RT_Release();
-	virtual void              Release() final;
-	virtual void              AddRef() final { CryInterlockedIncrement(&m_nRefCounter); }
+	virtual void              Release() const final;
+	virtual void              AddRef() const final { SBaseShaderResources::AddRef(); }
 	virtual void              ConvertToInputResource(SInputShaderResources* pDst) final;
 	virtual CShaderResources* Clone() const final;
 	virtual void              SetShaderParams(SInputShaderResources* pDst, IShader* pSH) final;

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "Tornado.h"
@@ -276,7 +276,7 @@ void CTornado::HandleEvent(const SGameObjectEvent &event)
 }
 
 //------------------------------------------------------------------------
-void CTornado::ProcessEvent(SEntityEvent &event)
+void CTornado::ProcessEvent(const SEntityEvent& event)
 {
 	switch (event.event)
 	{
@@ -284,6 +284,11 @@ void CTornado::ProcessEvent(SEntityEvent &event)
 		Reset();
 		break;
 	}
+}
+
+uint64 CTornado::GetEventMask() const
+{
+	return ENTITY_EVENT_BIT(ENTITY_EVENT_RESET);
 }
 
 //------------------------------------------------------------------------

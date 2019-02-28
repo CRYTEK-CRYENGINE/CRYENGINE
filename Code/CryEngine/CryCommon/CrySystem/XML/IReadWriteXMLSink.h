@@ -1,15 +1,6 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  File name:   IReadWriteXMLSink.h
-//  Version:     v1.00
-//  Created:     10-03-2005 by MichaelR
-//  Compilers:   Visual Studio 2005
-//  Description: Moved Craig's ReadWriteXMLSink from CryAction to CrySystem
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
+//! \cond INTERNAL
 
 #pragma once
 
@@ -97,3 +88,5 @@ struct IWriteXMLSource : public SReadWriteXMLCommon
 	virtual bool               Complete() = 0;
 	// </interfuscator:shuffle>
 };
+
+//! \endcond

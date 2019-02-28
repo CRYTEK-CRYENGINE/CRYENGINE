@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "GoalOp.h"
@@ -8,7 +8,6 @@
 #include "AILog.h"
 #include <CrySystem/IConsole.h>
 #include "AICollision.h"
-#include "NavRegion.h"
 #include "PipeUser.h"
 #include "Leader.h"
 #include "DebugDrawContext.h"
@@ -299,7 +298,7 @@ static float defaultTraceEndAccuracy = 0.1f;
 EGoalOpResult COPAcqTarget::Execute(CPipeUser* pPipeUser)
 {
 	CCCPOINT(COPAcqTarget_Execute);
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	pPipeUser->m_bLooseAttention = false;
 
@@ -375,7 +374,7 @@ void COPApproach::DebugDraw(CPipeUser* pPipeUser) const
 EGoalOpResult COPApproach::Execute(CPipeUser* pPipeUser)
 {
 	CCCPOINT(COPApproach_Execute);
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	int debugPathfinding = gAIEnv.CVars.DebugPathFinding;
 
@@ -687,7 +686,7 @@ float COPApproach::GetEndDistance(CPipeUser* pPipeUser) const
 //===================================================================
 void COPApproach::ExecuteDry(CPipeUser* pPipeUser)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 	if (m_pTraceDirective && m_bPathFound)
 		m_pTraceDirective->ExecuteTrace(pPipeUser, false);
 }
@@ -832,7 +831,7 @@ void COPFollowPath::Serialize(TSerialize ser)
 //====================================================================
 EGoalOpResult COPFollowPath::Execute(CPipeUser* pPipeUser)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 	CAIObject* pTarget = (CAIObject*)pPipeUser->GetAttentionTarget();
 	CAISystem* pSystem = GetAISystem();
 
@@ -1031,7 +1030,7 @@ EGoalOpResult COPFollowPath::Execute(CPipeUser* pPipeUser)
 //====================================================================
 void COPFollowPath::ExecuteDry(CPipeUser* pPipeUser)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 	CAISystem* pSystem = GetAISystem();
 
 	if (m_pTraceDirective)
@@ -1239,7 +1238,7 @@ void COPBackoff::ResetNavigation(CPipeUser* pPipeUser)
 //===================================================================
 void COPBackoff::ExecuteDry(CPipeUser* pPipeUser)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 	if (m_pTraceDirective)
 		m_pTraceDirective->ExecuteTrace(pPipeUser, false);
 }
@@ -1250,7 +1249,7 @@ void COPBackoff::ExecuteDry(CPipeUser* pPipeUser)
 EGoalOpResult COPBackoff::Execute(CPipeUser* pPipeUser)
 {
 	CCCPOINT(COPBackoff_Execute);
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	m_fLastUpdateTime = GetAISystem()->GetFrameStartTime();
 
@@ -1618,7 +1617,7 @@ void COPTimeout::Serialize(TSerialize ser)
 
 EGoalOpResult COPTimeout::Execute(CPipeUser* pPipeUser)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 	CTimeValue time = GetAISystem()->GetFrameStartTime();
 	if (m_startTime.GetMilliSecondsAsInt64() <= 0)
 	{
@@ -1661,7 +1660,7 @@ COPStrafe::COPStrafe(const XmlNodeRef& node) :
 
 EGoalOpResult COPStrafe::Execute(CPipeUser* pPipeUser)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 	if (CPuppet* pPuppet = pPipeUser->CastToCPuppet())
 	{
 		pPuppet->SetAllowedStrafeDistances(m_fDistanceStart, m_fDistanceEnd, m_bStrafeWhileMoving);
@@ -1712,7 +1711,7 @@ void COPFireCmd::Reset(CPipeUser* pPipeUser)
 EGoalOpResult COPFireCmd::Execute(CPipeUser* pPipeUser)
 {
 	CCCPOINT(COPFireCmd_Execute);
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	CTimeValue time = GetAISystem()->GetFrameStartTime();
 	// if this is a first time
@@ -1761,7 +1760,7 @@ COPBodyCmd::COPBodyCmd(const XmlNodeRef& node) :
 
 EGoalOpResult COPBodyCmd::Execute(CPipeUser* pPipeUser)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 	CPuppet* pPuppet = pPipeUser->CastToCPuppet();
 	if (m_bDelayed)
 	{
@@ -1840,7 +1839,7 @@ float COPRunCmd::ConvertUrgency(float speed)
 
 EGoalOpResult COPRunCmd::Execute(CPipeUser* pPipeUser)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 	pPipeUser->m_State.fMovementUrgency = m_fMaxUrgency;
 
 	if (CPuppet* pPuppet = pPipeUser->CastToCPuppet())
@@ -1911,7 +1910,7 @@ void COPLookAt::Reset(CPipeUser* pPipeUser)
 EGoalOpResult COPLookAt::Execute(CPipeUser* pPipeUser)
 {
 	CCCPOINT(COPLookAt_Execute)
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	if (m_fStartAngle < -450.f) // stop looking at - disable looseAttentionTarget
 	{
@@ -2172,7 +2171,7 @@ Vec3 COPLookAround::GetLookAtDir(CPipeUser* pPipeUser, float angle, float dz) co
 
 EGoalOpResult COPLookAround::Execute(CPipeUser* pPipeUser)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	if (!m_bInitialized)
 	{
@@ -2254,7 +2253,7 @@ EGoalOpResult COPLookAround::Execute(CPipeUser* pPipeUser)
 
 void COPLookAround::ExecuteDry(CPipeUser* pPipeUser)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 	if (!m_bInitialized)
 		return;
 
@@ -2438,7 +2437,7 @@ void COPPathFind::Reset(CPipeUser* pPipeUser)
 EGoalOpResult COPPathFind::Execute(CPipeUser* pPipeUser)
 {
 	CCCPOINT(COPPathFind_Execute);
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	if (!m_bWaitingForResult)
 	{
@@ -2547,7 +2546,7 @@ COPLocate::COPLocate(const XmlNodeRef& node) :
 EGoalOpResult COPLocate::Execute(CPipeUser* pPipeUser)
 {
 	CCCPOINT(COPLocate_Execute);
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	if (m_sName.empty())
 	{
@@ -2862,7 +2861,7 @@ EGoalOpResult COPTacticalPos::Execute(CPipeUser* pPipeUser)
 							else if (point.flags & eTPDF_CoverID)
 							{
 								assert(!gAIEnv.pCoverSystem->IsCoverOccupied(point.coverID) ||
-								       (gAIEnv.pCoverSystem->GetCoverOccupant(point.coverID) == pPipeUser->GetAIObjectID()));
+								       (gAIEnv.pCoverSystem->GetCoverOccupant(point.coverID) == pPipeUser->GetEntityID()));
 
 								pPipeUser->SetCoverRegister(point.coverID);
 
@@ -3008,7 +3007,7 @@ void COPTacticalPos::QueryDryUpdate(CPipeUser* pPipeUser)
 					else if (point.flags & eTPDF_CoverID)
 					{
 						assert(!gAIEnv.pCoverSystem->IsCoverOccupied(point.coverID) ||
-						       (gAIEnv.pCoverSystem->GetCoverOccupant(point.coverID) == pPipeUser->GetAIObjectID()));
+						       (gAIEnv.pCoverSystem->GetCoverOccupant(point.coverID) == pPipeUser->GetEntityID()));
 
 						pPipeUser->SetCoverRegister(point.coverID);
 					}
@@ -3030,7 +3029,7 @@ void COPTacticalPos::ExecuteDry(CPipeUser* pPipeUser)
 
 bool COPTacticalPos::IsBadHiding(CPipeUser* pPipeUser)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	IAIObject* pTarget = pPipeUser->GetAttentionTarget();
 
@@ -3241,7 +3240,7 @@ void COPTacticalPos::Serialize(TSerialize ser)
 
 void COPTacticalPos::SendStateSignal(CPipeUser* pPipeUser, int nState)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	CTacticalPointSystem* pTPS = gAIEnv.pTacticalPointSystem;
 	IAISignalExtraData* pEData = gEnv->pAISystem->CreateSignalExtraData();  // no leak - this will be deleted inside SetSignal
@@ -3377,7 +3376,7 @@ COPLook::COPLook(const XmlNodeRef& node)
 EGoalOpResult COPLook::Execute(CPipeUser* pPipeUser)
 {
 	CCCPOINT(COPLook_Execute);
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	// Initialisation
 	if (!m_bInitialised)
@@ -3455,7 +3454,7 @@ void COPLook::Serialize(TSerialize ser)
 
 EGoalOpResult COPForm::Execute(CPipeUser* pPipeUser)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 	pPipeUser->CreateFormation(m_sName.c_str());
 	return eGOR_DONE;
 }
@@ -3571,7 +3570,7 @@ void COPSteer::Reset(CPipeUser* pPipeUser)
 //----------------------------------------------------------------------------------------------------------
 EGoalOpResult COPSteer::Execute(CPipeUser* pPipeUser)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	if (pPipeUser->m_nPathDecision == PATHFINDER_STILLFINDING && m_pPathfindDirective != NULL)
 	{
@@ -4030,7 +4029,7 @@ void COPWaitSignal::Reset(CPipeUser* pPipeUser)
 //-------------------------------------------------------------------------------------------------------------
 EGoalOpResult COPWaitSignal::Execute(CPipeUser* pPipeUser)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 	if (m_bSignalReceived)
 	{
 		m_bSignalReceived = false;
@@ -4111,7 +4110,7 @@ void COPAnimation::Reset(CPipeUser* pPipeUser)
 //-------------------------------------------------------------------------------------------------------------
 EGoalOpResult COPAnimation::Execute(CPipeUser* pPipeUser)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 	AIAssert(pPipeUser);
 	if (!pPipeUser->GetProxy())
 		return eGOR_FAILED;
@@ -4215,7 +4214,7 @@ COPAnimTarget::COPAnimTarget(const XmlNodeRef& node)
 
 EGoalOpResult COPAnimTarget::Execute(CPipeUser* pPipeUser)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 	IAIObject* pTarget = pPipeUser->GetLastOpResult();
 	if (pTarget)
 	{
@@ -4283,7 +4282,7 @@ COPWait::COPWait(const XmlNodeRef& node) :
 //-------------------------------------------------------------------------------------------------------------
 EGoalOpResult COPWait::Execute(CPipeUser* pPipeUser)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 	int currentBlockCount = pPipeUser->CountGroupedActiveGoals();
 	bool done = false;
 	switch (m_WaitType)
@@ -4348,7 +4347,7 @@ COPProximity::COPProximity(const XmlNodeRef& node) :
 //===================================================================
 EGoalOpResult COPProximity::Execute(CPipeUser* pPipeUser)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 	if (m_triggered)
 		return eGOR_SUCCEEDED;
 
@@ -4552,7 +4551,7 @@ void COPMoveTowards::ResetNavigation(CPipeUser* pPipeUser)
 //===================================================================
 void COPMoveTowards::ExecuteDry(CPipeUser* pPipeUser)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 	if (m_pTraceDirective)
 		m_pTraceDirective->ExecuteTrace(pPipeUser, false);
 }
@@ -4579,7 +4578,7 @@ float COPMoveTowards::GetEndDistance(CPipeUser* pPipeUser) const
 EGoalOpResult COPMoveTowards::Execute(CPipeUser* pPipeUser)
 {
 	CCCPOINT(COPMoveTowards_Execute);
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	if (!m_pPathfindDirective)
 	{
@@ -4862,11 +4861,11 @@ void COPDodge::GetNearestActors(CAIActor* pSelf, const Vec3& pos, float radius, 
 EGoalOpResult COPDodge::Execute(CPipeUser* pPipeUser)
 {
 	CCCPOINT(COPDodge_Execute);
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	if (!m_pTraceDirective)
 	{
-		FRAME_PROFILER("Dodge/CalculatePathTree", gEnv->pSystem, PROFILE_AI);
+		CRY_PROFILE_REGION(PROFILE_AI, "Dodge/CalculatePathTree");
 
 		IAIObject* pTarget = pPipeUser->GetAttentionTarget();
 		CAIObject* pLastOpResult = pPipeUser->m_refLastOpResult.GetAIObject();
@@ -5016,7 +5015,7 @@ EGoalOpResult COPDodge::Execute(CPipeUser* pPipeUser)
 //====================================================================
 void COPDodge::ExecuteDry(CPipeUser* pPipeUser)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 	CAISystem* pSystem = GetAISystem();
 
 	if (m_pTraceDirective)
@@ -5134,7 +5133,7 @@ COPCompanionStick::~COPCompanionStick()
 //-------------------------------------------------------------------------------------------------------------
 EGoalOpResult COPCompanionStick::Execute(CPipeUser* pPipeUser)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	if (pPipeUser->m_nPathDecision == PATHFINDER_STILLFINDING && m_pPathfindDirective != NULL)
 	{
@@ -5282,7 +5281,7 @@ EGoalOpResult COPCompanionStick::Execute(CPipeUser* pPipeUser)
 //-------------------------------------------------------------------------------------------------------------
 void COPCompanionStick::ExecuteDry(CPipeUser* pPipeUser)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 	if (pPipeUser->m_nPathDecision == PATHFINDER_STILLFINDING && m_pPathfindDirective != NULL)
 	{
 		m_pPathfindDirective->Execute(pPipeUser);
@@ -5741,7 +5740,7 @@ void COPCommunication::OnCommunicationEvent(ICommunicationManager::ECommunicatio
 EGoalOpResult COPCommunication::Execute(CPipeUser* pPipeUser)
 {
 	CCCPOINT(COPCommunication_Execute)
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	// first time	so start the communication
 	if (!m_bInitialized)

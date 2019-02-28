@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "SkeletonPose.h"
@@ -200,7 +200,9 @@ void CSkeletonPose::UpdateBBox(uint32 update)
 				if (fabsf(absolutePoseLocation.x) > 3000.f || fabsf(absolutePoseLocation.y) > 3000.f || fabsf(absolutePoseLocation.z) > 3000.f)
 				{
 					const char* const jointName = m_pInstance->m_pDefaultSkeleton->GetJointNameByID(i);
-					gEnv->pLog->LogError("Absolute location <%.3f, %.3f, %.3f> for joint at index '%u' with name '%s' is too far away from the origin.", absolutePoseLocation.x, absolutePoseLocation.y, absolutePoseLocation.z, i, jointName);
+					const char* const filePath  = m_pSkeletonAnim->m_pInstance->GetFilePath();
+
+					gEnv->pLog->LogError("Absolute location <%.3f, %.3f, %.3f> for joint at index '%u' with name '%s' is too far away from the origin (model=%s).", absolutePoseLocation.x, absolutePoseLocation.y, absolutePoseLocation.z, i, jointName, filePath);
 				}
 			}
 		}

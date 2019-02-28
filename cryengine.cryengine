@@ -1,0 +1,167 @@
+{
+    "info": {
+        "id": "engine-5.5",
+        "name": "CRYENGINE 5.5",
+        "version": "5.5.0"
+    },
+    "dependencies": [
+        {
+            "name": "IDE and Compiler",
+            "description": "Listed in this section is the Visual Studio IDE used to compile the Engine, Editor, and game code to run your custom versions of the engine. Additionally several versions of the Visual C++ Redistributables are listed.",
+            "list": [
+                {
+                    "name": "Visual Studio IDE",
+                    "description": "Visual Studio is an integrated development environment (IDE) from Microsoft that is used to develop computer programs. This application is needed to compile the game code, however it is not required if using a template that is Schematyc only.",
+                    "documentation": "http://docs.cryengine.com/display/CEPROG/Visual+Studio+Supported+Versions",
+                    "require": "one",
+                    "versions": [
+                        {
+                            "name": "2015",
+                            "url": "https://download.microsoft.com/download/e/4/c/e4c393a9-8fff-441b-ad3a-3f4040317a1f/vs_community.exe",
+                            "localdir": "C:/Program Files (x86)/Microsoft Visual Studio 14.0/Common7/IDE",
+                            "registryKey": "HKEY_CLASSES_ROOT\\VisualStudio.DTE.14.0"
+                        },
+                        {
+                            "name": "2017",
+                            "url": "https://download.visualstudio.microsoft.com/download/pr/12390459/045b56eb413191d03850ecc425172a7d/vs_Community.exe",
+                            "localdir": "C:/Program Files (x86)/Microsoft Visual Studio/2017",
+                            "registryKey": "HKEY_CLASSES_ROOT\\VisualStudio.DTE.15.0"
+                        }
+                    ]
+                },
+                {
+                    "name": "Visual C++ Redistributable",
+					"description": "The Visual C++ Redistributable Packages install run-time components of Visual C++ libraries. These components are required to run C++ applications that are developed using Visual Studio and link dynamically to Visual C++ libraries. These packages can be used to run such applications on a computer even if it does not have Visual Studio installed.",
+                    "require": "all",
+                    "versions": [
+                        {
+                            "name": "2015 x64",
+                            "url": "https://download.microsoft.com/download/9/3/F/93FCF1E7-E6A4-478B-96E7-D4B285925B00/vc_redist.x64.exe",
+                            "localdir": "C:/Windows/SysWOW64/msvcp140.dll"
+                        },
+                        {
+                            "name": "2015 x86",
+                            "url": "https://download.microsoft.com/download/9/3/F/93FCF1E7-E6A4-478B-96E7-D4B285925B00/vc_redist.x86.exe",
+                            "localdir": "C:/Windows/System32/msvcp140.dll"
+                        },
+                        {
+                            "name": "2013 x64",
+                            "url": "http://download.microsoft.com/download/0/5/6/056dcda9-d667-4e27-8001-8a0c6971d6b1/vcredist_x64.exe",
+                            "localdir": "C:/Windows/SysWOW64/msvcp120.dll"
+                        },
+                        {
+                            "name": "2013 x86",
+                            "url": "http://download.microsoft.com/download/0/5/6/056dcda9-d667-4e27-8001-8a0c6971d6b1/vcredist_x86.exe",
+                            "localdir": "C:/Windows/System32/msvcp120.dll"
+                        }
+                    ]
+                },
+                {
+                    "name": "Windows SDK",
+					"description": "The Windows SDK is a collection of software development kits (SDKs) from Microsoft that contain documentation, header files, libraries, samples and tools required to develop applications for Microsoft Windows and .NET Framework.",
+                    "require": "one",
+                    "website": "https://developer.microsoft.com/en-us/windows/downloads/sdk-archive",
+                    "versions": [
+                        {
+                            "name": "10.0.15063.0",
+                            "url": "https://download.microsoft.com/download/E/1/B/E1B0E6C0-2FA2-4A1B-B322-714A5586BE63/windowssdk/winsdksetup.exe",
+                            "localdir": "C:/Program Files (x86)/Windows Kits/10/bin/10.0.15063.0"
+                        },
+                        {
+                            "name": "10.0.16299.0",
+                            "url": "https://download.microsoft.com/download/8/C/3/8C37C5CE-C6B9-4CC8-8B5F-149A9C976035/windowssdk/winsdksetup.exe",
+                            "localdir": "C:/Program Files (x86)/Windows Kits/10/bin/10.0.16299.0"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "SDKs and Dependencies",
+            "description": "Listed in this category are third-party software development kits (SDKs) that provide additional functionality within the CRYENGINE, Editor, and third-party tools.",
+            "list": [
+                {
+                    "name": "FBX SDK 2016.1",
+                    "description": "The Autodesk FBX SDK is a C++ software development kit (SDK) that lets you create plug-ins, converters, and other applications that use Autodesk FBX technology. FBX technology allows you to translate and exchange 3D assets and media from a variety of sources quickly and easily.",
+                    "url": "http://images.autodesk.com/adsk/files/fbx20161_fbxsdk_vs2015_win0.exe",
+                    "optional": true
+                },
+                {
+                    "name": "Substance 2.1.0",
+					"description": "The Substance SDK allows for users to extend and create C++ plugins for use in external applications. Substance is by default a procedural texture generator that allows for dynamic updating of DDS texture files directly within the Editor.",
+                    "website": "https://www.allegorithmic.com/buy/download",
+                    "optional": true
+                },
+                {
+                    "name": "FMOD 1.10.08",
+					"description": "The FMOD SDK gives you the power to customize FMOD to meet your requirements. This low-level API is intended to cover the basics/primitives of sound. This includes concepts such as 'Channels', 'Sounds', 'DSP', 'ChannelGroups', 'Sound Groups', 'Recording' and concepts for 3D Sound and occlusion.",
+                    "website": "https://www.fmod.com/download",
+                    "optional": true
+                },
+                {
+                    "name": "Wwise 2018.1.3",
+                    "description": "The Wwise SDK gives you the power to customize Wwise to meet your requirements. The Wwise sound engine consists of two sections: a cross-platform behavioral level that handles a comprehensive set of functionalities and a low level section that has been highly optimized for each platform. The sound engine was developed with ease of integration in mind making it simple to take full advantage of advanced audio features within your games.",
+                    "website": "https://www.audiokinetic.com/download",
+                    "optional": true
+                },
+                {
+                    "name": "Oculus Wwise Spatializer 1.29.0",
+					"description": "A Wwise plugin to let developers add HRTF-based spatialization and room modeling to applications. This is an add-on plugin for the Audiokinetic Wwise toolset that allows monophonic sound sources to be spatialized in 3D relative to the user's head location.",
+                    "website": "https://developer.oculus.com/downloads/package/oculus-spatializer-wwise",
+                    "optional": true
+                },
+                {
+                    "name": "Photoshop SDK",
+					"description": "Photoshop plug-in developers will need to use the SDK to update their plug-ins to run with the 64-bit version of Photoshop. Currently the CryTIFF plugin is built from this SDK to provide users access to the Resource Compiler directly in the Photoshop interface.",
+                    "optional": true,
+                    "versions": [
+                        {
+                            "name": "CS3",
+                            "url": "http://download.macromedia.com/pub/developer/photoshop/sdk/photoshop_cs3_sdk.zip"
+                        },
+                        {
+                            "name": "CS4",
+                            "url": "http://download.macromedia.com/pub/developer/photoshop/sdk/adobe_photoshop_cs4_sdk_win.zip"
+                        },
+                        {
+                            "name": "CS5",
+                            "url": "http://download.macromedia.com/pub/developer/photoshop/sdk/adobe_photoshop_cs5_sdk_win.zip"
+                        }
+                    ]
+                },
+                {
+                    "name": "PhysX 3.4 SDK",
+					"description": "The ​NVIDIA PhysX SDK is a middleware product designed to implement complex interactions in modern games, aiming to deliver a smooth environment to the end-user. Features include body and vehicle dynamics (both rigid and soft), character controllers, collision detection (discrete and continuous), as well as cloth and volumetric fluid simulation, ragdolls, raycasting and shape weeps.",
+                    "website": "https://developer.nvidia.com/physx-source-github",
+                    "optional": true
+                },
+                {
+                    "name": "Steamworks SDK 1.44",
+					"description": "The Steamworks SDK provides a range of features which are designed to help ship your application or game on Steam in an efficient manner. The Steamworks SDK is only required to upload your content to Steam, everything else provided through the SDK is optional. Keep in mind that older versions of the Steamworks SDK may contain other tools which are no longer used.",
+                    "website": "https://partner.steamgames.com",
+                    "optional": true
+                }
+            ]
+        },
+        {
+            "name": "Tools and Plugins",
+            "description": "Within this section are the various tools required to debug C# engine code and give access to custom exporters in a wide range of external DCC tools.",
+            "list": [
+                {
+                    "name": "CryEngine.Debugger.Mono",
+                    "category": "Tools and Plugins",
+                    "description": "Extension for Visual Studio 2017 that makes it possible to develop and debug C# solutions in the CRYENGINE.",
+                    "path": "Tools/VisualStudioExtensions/CryEngine.Debugger.Mono.vsix",
+                    "optional": true
+                },
+				                {
+                    "name": "CryToolsInstaller",
+                    "category": "Tools and Plugins",
+                    "description": "CryToolsInstaller is an application for plugins & tools, supporting export and content creation in various DCC packages. Applications supported include: Autodesk Maya, Autodesk Max, Autodesk Motionbuilder, xNormal, and Adobe Photoshop for texturing.",
+                    "path": "Tools/CryToolsInstaller.exe",
+                    "optional": true
+                }
+            ]
+        }
+    ]
+}

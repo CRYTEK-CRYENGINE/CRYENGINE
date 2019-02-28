@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "VertexAnimation.h"
@@ -441,4 +441,169 @@ void CVertexAnimationProfiler::DrawVertexAnimationStats(uint profileType)
 		break;
 	}
 }
-#endif
+#endif // _RELEASE
+
+void CVertexAnimation::DrawVertexDebug(IRenderMesh* pRenderMesh, const QuatT& location, const SVertexAnimationJob* pVertexAnimation) const
+{
+#ifdef EDITOR_PCDEBUGCODE
+	static const ColorB SKINNING_COLORS[8] =
+	{
+		ColorB(0x40, 0x40, 0xff, 0xff),
+		ColorB(0x40, 0x80, 0xff, 0xff),
+		ColorB(0x40, 0xff, 0x40, 0xff),
+		ColorB(0x80, 0xff, 0x40, 0xff),
+
+		ColorB(0xff, 0x80, 0x40, 0xff),
+		ColorB(0xff, 0x80, 0x80, 0xff),
+		ColorB(0xff, 0xc0, 0xc0, 0xff),
+		ColorB(0xff, 0xff, 0xff, 0xff),
+	};
+
+	const bool drawWireframe = (Console::GetInst().ca_DebugSWSkinning == 1) || (Console::GetInst().ca_DrawWireframe != 0);
+	const bool drawWireframeWeightColors = (Console::GetInst().ca_DebugSWSkinning == 1);
+	const bool drawNormals = (Console::GetInst().ca_DebugSWSkinning == 2) || (Console::GetInst().ca_DrawNormals != 0);
+	const bool drawTangents = (Console::GetInst().ca_DrawTangents != 0);
+	const bool drawBinormals = (Console::GetInst().ca_DrawBinormals != 0);
+
+	if (!drawWireframe && !drawNormals && !drawTangents && !drawBinormals)
+	{
+		return;
+	}
+
+	// wait till the SW-Skinning jobs have finished
+	while (*pVertexAnimation->pRenderMeshSyncVariable)
+		CrySleep(1);
+
+	IRenderMesh* pIRenderMesh = pRenderMesh;
+	strided_pointer<Vec3> parrDstPositions = pVertexAnimation->vertexData.pPositions;
+	strided_pointer<SPipTangents> parrDstTangents;
+	parrDstTangents.data = (SPipTangents*)pVertexAnimation->vertexData.pTangents.data;
+	parrDstTangents.iStride = sizeof(SPipTangents);
+
+	uint32 numExtVertices = pIRenderMesh->GetVerticesCount();
+	if (parrDstPositions && parrDstTangents)
+	{
+		static DynArray<Vec3>		arrDstPositions;
+		static DynArray<ColorB>	arrDstColors;
+		uint32 numDstPositions = arrDstPositions.size();
+		if (numDstPositions < numExtVertices)
+		{
+			arrDstPositions.resize(numExtVertices);
+			arrDstColors.resize(numExtVertices);
+		}
+
+		//transform vertices by world-matrix
+		for (uint32 i = 0; i < numExtVertices; ++i)
+			arrDstPositions[i] = location*parrDstPositions[i];
+
+		if (drawWireframe)
+		{
+			for (uint i = 0; i < CRY_ARRAY_COUNT(SKINNING_COLORS); ++i)
+				g_pAuxGeom->Draw2dLabel(32.0f + float(i * 16), 32.0f, 2.0f, ColorF(SKINNING_COLORS[i].r / 255.0f, SKINNING_COLORS[i].g / 255.0f, SKINNING_COLORS[i].b / 255.0f, 1.0f), false, "%d", i + 1);
+
+			for (uint32 e = 0; e < numExtVertices; e++)
+			{
+				if (drawWireframeWeightColors)
+				{
+					uint32 w = 0;
+					const SoftwareVertexBlendWeight* pBlendWeights = &m_skinData.pVertexTransformWeights[e];
+					for (uint c = 0; c < m_skinData.vertexTransformCount; ++c)
+					{
+						if (pBlendWeights[c] > 0.0f)
+							w++;
+					}
+
+					if (w) --w;
+
+					arrDstColors[e] = w < 8 ? SKINNING_COLORS[w] : ColorB(0x00, 0x00, 0x00, 0xff);
+				}
+				else
+				{
+					arrDstColors[e] = ColorB(0x00, 0xff, 0x00, 0x00);
+				}
+			}
+
+			pIRenderMesh->LockForThreadAccess();
+			uint32	numIndices = pIRenderMesh->GetIndicesCount();
+			vtx_idx* pIndices = pIRenderMesh->GetIndexPtr(FSL_READ);
+
+			IRenderAuxGeom*	pAuxGeom = gEnv->pRenderer->GetIRenderAuxGeom();
+			SAuxGeomRenderFlags renderFlags(e_Def3DPublicRenderflags);
+			renderFlags.SetFillMode(e_FillModeWireframe);
+			//		renderFlags.SetAlphaBlendMode(e_AlphaAdditive);
+			renderFlags.SetDrawInFrontMode(e_DrawInFrontOn);
+			pAuxGeom->SetRenderFlags(renderFlags);
+			//	pAuxGeom->DrawTriangles(&arrDstPositions[0],numExtVertices, pIndices,numIndices,RGBA8(0x00,0x17,0x00,0x00));		
+			pAuxGeom->DrawTriangles(&arrDstPositions[0], numExtVertices, pIndices, numIndices, &arrDstColors[0]);
+
+			pIRenderMesh->UnLockForThreadAccess();
+		}
+
+		if (drawNormals)
+		{
+			IRenderAuxGeom*	pAuxGeom = gEnv->pRenderer->GetIRenderAuxGeom();
+			static std::vector<ColorB> arrExtVColors;
+			uint32 csize = arrExtVColors.size();
+			if (csize < (numExtVertices * 2)) arrExtVColors.resize(numExtVertices * 2);
+			for (uint32 i = 0; i < numExtVertices * 2; i = i + 2)
+			{
+				arrExtVColors[i + 0] = RGBA8(0x00, 0x00, 0x3f, 0x1f);
+				arrExtVColors[i + 1] = RGBA8(0x7f, 0x7f, 0xff, 0xff);
+			}
+
+			Matrix33 WMat33 = Matrix33(location.q);
+			static std::vector<Vec3> arrExtSkinnedStream;
+			uint32 numExtSkinnedStream = arrExtSkinnedStream.size();
+			if (numExtSkinnedStream < (numExtVertices * 2)) arrExtSkinnedStream.resize(numExtVertices * 2);
+			for (uint32 i = 0, t = 0; i < numExtVertices; i++)
+			{
+				Vec3 vNormal = parrDstTangents[i].GetN().GetNormalized() * 0.03f;
+
+				arrExtSkinnedStream[t + 0] = arrDstPositions[i];
+				arrExtSkinnedStream[t + 1] = WMat33*vNormal + arrExtSkinnedStream[t];
+				t = t + 2;
+			}
+			SAuxGeomRenderFlags renderFlags(e_Def3DPublicRenderflags);
+			pAuxGeom->SetRenderFlags(renderFlags);
+			pAuxGeom->DrawLines(&arrExtSkinnedStream[0], numExtVertices * 2, &arrExtVColors[0]);
+		}
+	}
+
+	if (Console::GetInst().ca_DebugSWSkinning == 3)
+	{
+		if (!m_skinData.tangetUpdateVertIdsCount)
+			return;
+
+		uint numVertices = pRenderMesh->GetVerticesCount();
+		uint numIndices = m_skinData.tangetUpdateTriCount * 3;
+
+		static DynArray<vtx_idx> indices;
+		static DynArray<Vec3> positions;
+		static DynArray<ColorB>	colors;
+
+		indices.resize(numIndices);
+		for (uint i = 0; i < m_skinData.tangetUpdateTriCount; ++i)
+		{
+			const uint base = i * 3;
+			indices[base + 0] = m_skinData.pTangentUpdateTriangles[i].idx1;
+			indices[base + 1] = m_skinData.pTangentUpdateTriangles[i].idx2;
+			indices[base + 2] = m_skinData.pTangentUpdateTriangles[i].idx3;
+		}
+
+		positions.resize(numVertices);
+		colors.resize(numVertices);
+		for (uint i = 0; i < numVertices; ++i)
+		{
+			positions[i] = location * pVertexAnimation->vertexData.pPositions[i];
+			colors[i] = ColorB(0x00, 0x00, 0xff, 0xff);
+		}
+
+		IRenderAuxGeom*	pAuxGeom = gEnv->pRenderer->GetIRenderAuxGeom();
+		SAuxGeomRenderFlags renderFlags(e_Def3DPublicRenderflags);
+		renderFlags.SetFillMode(e_FillModeWireframe);
+		renderFlags.SetDrawInFrontMode(e_DrawInFrontOn);
+		pAuxGeom->SetRenderFlags(renderFlags);
+		pAuxGeom->DrawTriangles(&positions[0], numVertices, &indices[0], numIndices, &colors[0]);
+	}
+#endif // EDITOR_PCDEBUGCODE
+}

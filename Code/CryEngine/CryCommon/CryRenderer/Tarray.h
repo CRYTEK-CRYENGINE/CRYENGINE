@@ -1,7 +1,8 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-#ifndef __TARRAY_H__
-#define __TARRAY_H__
+//! \cond INTERNAL
+
+#pragma once
 
 #include <CrySystem/ILog.h>
 #include <CrySystem/File/ICryPak.h> //impl of fxopen
@@ -451,4 +452,4 @@ template<class T> inline void Exchange(T& X, T& Y)
 	Y = Tmp;
 }
 
-#endif // __TARRAY_H__
+//! \endcond

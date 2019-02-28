@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -30,18 +30,22 @@ public:
 	void ExchangeDepthTarget(CTexture* pNewDepthTarget, ResourceViewHandle hDepthStencilView = EDefaultResourceViews::DepthStencil);
 	void SetFlags(EPassFlags flags)  { m_passFlags = flags; }
 	void SetViewport(const D3DViewPort& viewport);
+	void SetViewport(const SRenderViewport& viewport);
 	void SetDepthBias(float constBias, float slopeBias, float biasClamp);
 
 	void BeginExecution();
 	void EndExecution();
 	void Execute();
 
-	void DrawRenderItems(CRenderView* pRenderView, ERenderListID list, int listStart = -1, int listEnd = -1, int profilingListID = -1);
+	void DrawRenderItems(CRenderView* pRenderView, ERenderListID list, int listStart = -1, int listEnd = -1);
+	void DrawTransparentRenderItems(CRenderView* pRenderView, ERenderListID list);
 
 	// Called from rendering backend (has to be threadsafe)
 	void                PrepareRenderPassForUse(CDeviceCommandListRef RESTRICT_REFERENCE commandList);
-	void                BeginRenderPass(CDeviceCommandListRef RESTRICT_REFERENCE commandList, bool bNearest, uint32 profilerSectionIndex, bool bIssueGPUTimestamp) const;
-	void                EndRenderPass(CDeviceCommandListRef RESTRICT_REFERENCE commandList, bool bNearest, uint32 profilerSectionIndex, bool bIssueGPUTimestamp) const;
+	void                BeginRenderPass(CDeviceCommandListRef RESTRICT_REFERENCE commandList, bool bNearest) const;
+	void                EndRenderPass(CDeviceCommandListRef RESTRICT_REFERENCE commandList, bool bNearest) const;
+
+	void                ResolvePass(CDeviceCommandListRef RESTRICT_REFERENCE commandList, const std::vector<TRect_tpl<uint16>>& screenBounds) const;
 
 	uint32              GetStageID()             const { return m_stageID; }
 	uint32              GetPassID()              const { return m_passID; }
@@ -52,6 +56,7 @@ public:
 	
 	CDeviceResourceLayoutPtr   GetResourceLayout() const { return m_pResourceLayout; }
 	const CDeviceRenderPassPtr GetRenderPass()     const { return m_pRenderPass; }
+	ERenderListID GetRenderList()                  const { return m_renderList; }
 
 protected:
 	static bool OnResourceInvalidated(void* pThis, SResourceBindPoint bindPoint, UResourceReference pResource, uint32 flags) threadsafe;

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   StreamIOThread.cpp
@@ -451,7 +451,7 @@ struct SCompareAsyncFileRequest
 //////////////////////////////////////////////////////////////////////////
 void CStreamingIOThread::SortRequests()
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 
 	std::sort(m_fileRequestQueue.begin(), m_fileRequestQueue.end(), SCompareAsyncFileRequest());
 

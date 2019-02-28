@@ -1,0 +1,9 @@
+<AssetMetadata version="0" type="Material" guid="ad3002ff-66ad-6dfb-0eb5-969e4ff7b249">
+ <Files>
+  <File path="WaterOceanBottom.mtl"/>
+ </Files>
+ <Details>
+  <Detail name="subMaterialCount">0</Detail>
+  <Detail name="textureCount">0</Detail>
+ </Details>
+</AssetMetadata>

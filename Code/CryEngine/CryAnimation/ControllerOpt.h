@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -415,8 +415,8 @@ public:
 	}
 
 	// Deliberately nerf'd - instance must be immutable, as it can be moved by defrag
-	void AddRef() override   {}
-	void Release()  override {}
+	void AddRef() const override   {}
+	void Release()  const override {}
 
 	~CControllerOptNonVirtual(){}
 

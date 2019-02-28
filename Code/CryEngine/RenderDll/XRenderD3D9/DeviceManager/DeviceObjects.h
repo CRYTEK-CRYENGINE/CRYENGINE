@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -13,6 +13,7 @@
 #include "Common/CommonRender.h"            // SResourceView, SSamplerState, SInputLayout
 #include "Common/Shaders/ShaderCache.h"     // UPipelineState
 
+class CRendererCVars;
 class CHWShader_D3D;
 class CShader;
 class CTexture;
@@ -25,789 +26,12 @@ class CShaderResources;
 struct SGraphicsPipelineStateDescription;
 struct SComputePipelineStateDescription;
 class CDeviceRenderPass;
-typedef std::shared_ptr<CDeviceRenderPass> CDeviceRenderPassPtr;
-/////////////////////////////////////////////////////////////////////////////////
 
-struct SProfilingStats
-{
-	int  numPSOSwitches;
-	int  numLayoutSwitches;
-	int  numResourceSetSwitches;
-	int  numInlineSets;
-	int  numPolygons;
-	int  numDIPs;
-	int  numInvalidDIPs;
+#include "DeviceResourceSet.h"
+#include "DevicePSO.h"
+#include "DeviceCommandListCommon.h"
+#include "DeviceRenderPass.h"
 
-	void Reset()
-	{
-		ZeroStruct(*this);
-	}
-
-	void Merge(const SProfilingStats& other)
-	{
-		CryInterlockedAdd(&numPSOSwitches, other.numPSOSwitches);
-		CryInterlockedAdd(&numLayoutSwitches, other.numLayoutSwitches);
-		CryInterlockedAdd(&numResourceSetSwitches, other.numResourceSetSwitches);
-		CryInterlockedAdd(&numInlineSets, other.numInlineSets);
-		CryInterlockedAdd(&numPolygons, other.numPolygons);
-		CryInterlockedAdd(&numDIPs, other.numDIPs);
-		CryInterlockedAdd(&numInvalidDIPs, other.numInvalidDIPs);
-	}
-};
-
-////////////////////////////////////////////////////////////////////////////
-struct SResourceMemoryAlignment
-{
-	UINT typeStride;   // in bytes
-	UINT rowStride;    // in bytes
-	UINT planeStride;  // in bytes
-	UINT volumeStride; // in bytes
-
-	template<typename T>
-	static inline SResourceMemoryAlignment Linear(UINT width = 1, UINT height = 1, UINT depth = 1)
-	{
-		SResourceMemoryAlignment linear =
-		{
-			sizeof(T),
-			sizeof(T) * width,
-			sizeof(T) * width * height,
-			sizeof(T) * width * height * depth
-		};
-
-		return linear;
-	}
-
-	static inline SResourceMemoryAlignment Linear(UINT type, UINT width = 1, UINT height = 1, UINT depth = 1)
-	{
-		SResourceMemoryAlignment linear =
-		{
-			type,
-			type * width,
-			type * width * height,
-			type * width * height * depth
-		};
-
-		return linear;
-	}
-};
-
-struct SResourceCoordinate
-{
-	UINT Left;         // Buffer: in bytes      Texture: in texels
-	UINT Top;          // Buffer: N/A           Texture: in texels
-	UINT Front;        // Buffer: N/A           Texture: in texels
-	UINT Subresource;  // Buffer: arraySlice    Texture: arraySlice * tex->numMips + mipSlice
-};
-
-struct SResourceDimension
-{
-	UINT Width;        // Buffer: in bytes      Texture: in texels
-	UINT Height;       // Buffer: N/A           Texture: in texels
-	UINT Depth;        // Buffer: N/A           Texture: in texels
-	UINT Subresources; // Buffer: arraySlices   Texture: arraySlices * tex->numMips + mipSlices (mipSlices currently must be a multiple of tex->numMips)
-};
-
-struct SResourceRegion
-{
-	SResourceCoordinate Offset;
-	SResourceDimension Extent;
-};
-
-struct SResourceMemoryMapping
-{
-	SResourceMemoryAlignment MemoryLayout;
-	SResourceCoordinate ResourceOffset;
-	SResourceDimension Extent;
-	UINT /*D3D11_COPY_FLAGS*/ Flags; // TODO: abstract flags
-};
-
-struct SResourceRegionMapping
-{
-	SResourceCoordinate SourceOffset;
-	SResourceCoordinate DestinationOffset;
-	SResourceDimension Extent;
-	UINT /*D3D11_COPY_FLAGS*/ Flags; // TODO: abstract flags
-};
-
-// -------------------------------------------------------------------------
-
-struct SSubresourcePayload
-{
-	SResourceMemoryAlignment m_sSysMemAlignment;
-	const void*              m_pSysMem;
-};
-
-struct STexturePayload
-{
-	SSubresourcePayload* m_pSysMemSubresourceData;
-	ETEX_TileMode        m_eSysMemTileMode;
-	uint8                m_nDstMSAASamples;
-	uint8                m_nDstMSAAQuality;
-
-	STexturePayload()
-	{
-		m_pSysMemSubresourceData = nullptr;
-		m_eSysMemTileMode = eTM_None;
-		m_nDstMSAASamples = 1;
-		m_nDstMSAAQuality = 0;
-	}
-
-	~STexturePayload()
-	{
-		SAFE_DELETE_ARRAY(m_pSysMemSubresourceData);
-	}
-};
-
-////////////////////////////////////////////////////////////////////////////
-
-const int ResourceSetBufferCount = 8;
-
-class CDeviceResourceSetDesc : NoCopy
-{
-public:
-	enum EDirtyFlags : uint32
-	{
-		eNone           = 0,
-		eDirtyBindPoint = BIT(0),
-		eDirtyBinding   = BIT(1),
-
-		eDirtyAll = eDirtyBindPoint | eDirtyBinding
-	};
-
-public:
-	CDeviceResourceSetDesc();
-	CDeviceResourceSetDesc(void* pInvalidateCallbackOwner, const SResourceBinding::InvalidateCallbackFunction& invalidateCallback);
-	CDeviceResourceSetDesc(const CDeviceResourceSetDesc& other);
-	CDeviceResourceSetDesc(const CDeviceResourceSetDesc& other, void* pInvalidateCallbackOwner, const SResourceBinding::InvalidateCallbackFunction& invalidateCallback);
-	~CDeviceResourceSetDesc();
-
-	bool IsEmpty() const;
-	EDirtyFlags GetDirtyFlags() const;
-	bool HasChanged() const;
-	void AcceptAllChanges();
-
-	void MarkBindingChanged();
-
-	bool HasChangedBindPoints();
-	void AcceptChangedBindPoints();
-
-	EDirtyFlags SetTexture(int shaderSlot, CTexture* pTexture, ResourceViewHandle hView, ::EShaderStage shaderStages);
-	EDirtyFlags SetSampler(int shaderSlot, SamplerStateHandle hState, ::EShaderStage shaderStages);
-	EDirtyFlags SetConstantBuffer(int shaderSlot, CConstantBuffer* pBuffer, ::EShaderStage shaderStages);
-	EDirtyFlags SetBuffer(int shaderSlot, CGpuBuffer* pBuffer, ResourceViewHandle hView, ::EShaderStage shaderStages);
-	EDirtyFlags ClearResources();
-
-	const VectorMap <SResourceBindPoint, SResourceBinding>& GetResources() const { return m_resources; }
-
-	static bool OnResourceInvalidated(void* pThis, SResourceBindPoint bindPoint, UResourceReference pResource, uint32 flags) threadsafe;
-
-protected:
-	EDirtyFlags SetResources(const CDeviceResourceSetDesc& other);
-
-	template<SResourceBinding::EResourceType resourceType>
-	EDirtyFlags UpdateResource(SResourceBindPoint bindPoint, const SResourceBinding& binding);
-
-private:
-	VectorMap <SResourceBindPoint, SResourceBinding> m_resources;
-	SResourceBinding::InvalidateCallbackFunction     m_invalidateCallback;
-	void*                                            m_invalidateCallbackOwner;
-
-	std::atomic<uint32>                              m_dirtyFlags;
-};
-DEFINE_ENUM_FLAG_OPERATORS(CDeviceResourceSetDesc::EDirtyFlags)
-
-class CDeviceResourceSet : NoCopy
-{
-	friend class CDeviceObjectFactory;
-	friend struct SDeviceResourceLayoutDesc;
-	friend class CDeviceResourceLayout;
-	friend class CDeviceResourceLayout_DX12;
-	friend class CRenderPassScheduler;
-
-public:
-	enum EFlags
-	{
-		EFlags_None                    = 0,
-		EFlags_ForceSetAllState        = BIT(0), // Dx11 only: don't rely on shader reflection, set all resources contained in the resource set
-	};
-
-	CDeviceResourceSet(EFlags flags);
-	virtual ~CDeviceResourceSet();
-
-	bool         IsValid()  const { return m_bValid; }
-	EFlags       GetFlags() const { return m_Flags;  }
-
-	bool         Update(CDeviceResourceSetDesc& desc);
-	static bool  UpdateWithReevaluation(std::shared_ptr<CDeviceResourceSet>/*CDeviceResourceSetPtr*/& pRenderPass, CDeviceResourceSetDesc& desc);
-
-protected:
-	virtual bool UpdateImpl(const CDeviceResourceSetDesc& desc, CDeviceResourceSetDesc::EDirtyFlags dirtyFlags) = 0;
-
-protected:
-	EFlags m_Flags;
-
-private:
-	bool   m_bValid;
-};
-DEFINE_ENUM_FLAG_OPERATORS(CDeviceResourceSet::EFlags)
-
-typedef std::shared_ptr<CDeviceResourceSet> CDeviceResourceSetPtr;
-
-////////////////////////////////////////////////////////////////////////////
-
-typedef std::bitset<EResourceLayoutSlot_Max + 1> UsedBindSlotSet;
-
-struct SDeviceResourceLayoutDesc
-{
-	enum class ELayoutSlotType : uint8
-	{
-		InlineConstantBuffer,
-		ResourceSet
-	};
-
-	struct SLayoutBindPoint
-	{
-		ELayoutSlotType slotType;
-		uint8           layoutSlot;
-
-		bool operator==(const SLayoutBindPoint& other) const;
-		bool operator< (const SLayoutBindPoint& other) const;
-	};
-
-	void            SetConstantBuffer(uint32 bindSlot, EConstantBufferShaderSlot shaderSlot, EShaderStage shaderStages);
-	void            SetResourceSet(uint32 bindSlot, const CDeviceResourceSetDesc& resourceSet);
-
-	bool            IsValid() const;
-	UsedBindSlotSet GetRequiredResourceBindings() const;
-
-	uint64          GetHash() const;
-
-	VectorMap<SLayoutBindPoint, VectorMap<SResourceBindPoint, SResourceBinding> > m_resourceBindings;
-
-	bool operator<(const SDeviceResourceLayoutDesc& other) const;
-};
-
-static_assert(sizeof(SDeviceResourceLayoutDesc::SLayoutBindPoint) == sizeof(uint8) + sizeof(SDeviceResourceLayoutDesc::ELayoutSlotType), 
-	"SDeviceResourceLayoutDesc::SLayoutBindPoint must not have padding since we directly calculate hashes based on the struct data");
-
-
-class CDeviceResourceLayout
-{
-public:
-	CDeviceResourceLayout(UsedBindSlotSet requiredBindings)
-		: m_requiredResourceBindings(requiredBindings)
-	{}
-
-	UsedBindSlotSet GetRequiredResourceBindings() const { return m_requiredResourceBindings; }
-
-protected:
-	UsedBindSlotSet m_requiredResourceBindings;
-};
-
-typedef std::shared_ptr<const CDeviceResourceLayout> CDeviceResourceLayoutConstPtr;
-typedef std::weak_ptr<const CDeviceResourceLayout>   CDeviceResourceLayoutConstWPtr;
-
-typedef std::shared_ptr<CDeviceResourceLayout>       CDeviceResourceLayoutPtr;
-typedef std::weak_ptr<CDeviceResourceLayout>         CDeviceResourceLayoutWPtr;
-
-////////////////////////////////////////////////////////////////////////////
-class CDeviceGraphicsPSODesc
-{
-public:
-	CDeviceGraphicsPSODesc();
-	CDeviceGraphicsPSODesc(const CDeviceGraphicsPSODesc& other);
-	CDeviceGraphicsPSODesc(CDeviceResourceLayoutPtr pResourceLayout, const SGraphicsPipelineStateDescription& pipelineDesc);
-
-	CDeviceGraphicsPSODesc& operator=(const CDeviceGraphicsPSODesc& other);
-	bool                    operator==(const CDeviceGraphicsPSODesc& other) const;
-
-	uint64                  GetHash() const;
-
-public:
-	void  InitWithDefaults();
-
-	void  FillDescs(D3D11_RASTERIZER_DESC& rasterizerDesc, D3D11_BLEND_DESC& blendDesc, D3D11_DEPTH_STENCIL_DESC& depthStencilDesc) const;
-	uint32 CombineVertexStreamMasks(uint32 fromShader, uint32 fromObject) const;
-
-public:
-	_smart_ptr<CShader>        m_pShader;
-	CCryNameTSCRC              m_technique;
-	uint64                     m_ShaderFlags_RT;
-	uint32                     m_ShaderFlags_MD;
-	uint32                     m_ShaderFlags_MDV;
-	EShaderQuality             m_ShaderQuality;
-	uint32                     m_RenderState;
-	uint32                     m_StencilState;
-	uint8                      m_StencilReadMask;
-	uint8                      m_StencilWriteMask;
-	InputLayoutHandle          m_VertexFormat;
-	uint32                     m_ObjectStreamMask;
-	ECull                      m_CullMode;
-	ERenderPrimitiveType       m_PrimitiveType;
-	CDeviceResourceLayoutPtr   m_pResourceLayout;
-	CDeviceRenderPassPtr       m_pRenderPass;
-	bool                       m_bDepthClip;
-	bool                       m_bAllowTesselation;
-	bool                       m_bDynamicDepthBias; // When clear, SetDepthBias() may be ignored by the PSO. This may be faster on PS4 and VK. It has no effect on DX11 (always on) and DX12 (always off).
-};
-
-class CDeviceComputePSODesc
-{
-public:
-	CDeviceComputePSODesc(const CDeviceComputePSODesc& other);
-	CDeviceComputePSODesc(CDeviceResourceLayoutPtr pResourceLayout, CShader* pShader, const CCryNameTSCRC& technique, uint64 rtFlags, uint32 mdFlags, uint32 mdvFlags);
-
-	CDeviceComputePSODesc& operator=(const CDeviceComputePSODesc& other);
-	bool                   operator==(const CDeviceComputePSODesc& other) const;
-
-	uint64                 GetHash() const;
-
-public:
-	void InitWithDefaults();
-
-public:
-	_smart_ptr<CShader>      m_pShader;
-	CCryNameTSCRC            m_technique;
-	uint64                   m_ShaderFlags_RT;
-	uint32                   m_ShaderFlags_MD;
-	uint32                   m_ShaderFlags_MDV;
-	CDeviceResourceLayoutPtr m_pResourceLayout;
-};
-
-namespace std
-{
-template<>
-struct hash<CDeviceGraphicsPSODesc>
-{
-	uint64 operator()(const CDeviceGraphicsPSODesc& psoDesc) const
-	{
-		return psoDesc.GetHash();
-	}
-};
-
-template<>
-struct equal_to<CDeviceGraphicsPSODesc>
-{
-	bool operator()(const CDeviceGraphicsPSODesc& psoDesc1, const CDeviceGraphicsPSODesc& psoDesc2) const
-	{
-		return psoDesc1 == psoDesc2;
-	}
-};
-
-template<>
-struct hash<CDeviceComputePSODesc>
-{
-	uint64 operator()(const CDeviceComputePSODesc& psoDesc) const
-	{
-		return psoDesc.GetHash();
-	}
-};
-
-template<>
-struct equal_to<CDeviceComputePSODesc>
-{
-	bool operator()(const CDeviceComputePSODesc& psoDesc1, const CDeviceComputePSODesc& psoDesc2) const
-	{
-		return psoDesc1 == psoDesc2;
-	}
-};
-
-template<>
-struct less<SDeviceResourceLayoutDesc>
-{
-	bool operator()(const SDeviceResourceLayoutDesc& layoutDesc1, const SDeviceResourceLayoutDesc& layoutDesc2) const
-	{
-		return layoutDesc1 < layoutDesc2;
-	}
-};
-}
-
-class CDeviceGraphicsPSO
-{
-public:
-	enum class EInitResult : uint8
-	{
-		Success,
-		Failure,
-		ErrorShadersAndTopologyCombination,
-	};
-
-	static bool ValidateShadersAndTopologyCombination(const CDeviceGraphicsPSODesc& psoDesc, const std::array<void*, eHWSC_Num>& hwShaderInstances);
-
-public:
-	CDeviceGraphicsPSO()
-		: m_bValid(false)
-		, m_nUpdateCount(0)
-	{}
-
-	virtual ~CDeviceGraphicsPSO() {}
-
-	virtual EInitResult Init(const CDeviceGraphicsPSODesc& psoDesc) = 0;
-	bool                IsValid() const        { return m_bValid; }
-	uint32              GetUpdateCount() const { return m_nUpdateCount;  }
-
-	std::array<void*, eHWSC_Num>          m_pHwShaderInstances;
-
-#if defined(ENABLE_PROFILING_CODE)
-	ERenderPrimitiveType m_PrimitiveTypeForProfiling;
-#endif
-
-protected:
-	bool   m_bValid;
-	uint32 m_nUpdateCount;
-};
-
-class CDeviceComputePSO
-{
-public:
-	CDeviceComputePSO()
-		: m_bValid(false)
-		, m_nUpdateCount(0)
-		, m_pHwShaderInstance(nullptr)
-	{}
-
-	virtual ~CDeviceComputePSO() {}
-
-	virtual bool Init(const CDeviceComputePSODesc& psoDesc) = 0;
-	bool         IsValid() const { return m_bValid; }
-	uint32       GetUpdateCount() const { return m_nUpdateCount; }
-
-	void*          m_pHwShaderInstance;
-
-protected:
-	bool m_bValid;
-	uint32 m_nUpdateCount;
-};
-
-typedef std::shared_ptr<const CDeviceGraphicsPSO> CDeviceGraphicsPSOConstPtr;
-typedef std::weak_ptr<const CDeviceGraphicsPSO>   CDeviceGraphicsPSOConstWPtr;
-
-typedef std::shared_ptr<const CDeviceComputePSO>  CDeviceComputePSOConstPtr;
-typedef std::weak_ptr<const CDeviceComputePSO>    CDeviceComputePSOConstWPtr;
-
-typedef std::shared_ptr<CDeviceGraphicsPSO>       CDeviceGraphicsPSOPtr;
-typedef std::weak_ptr<CDeviceGraphicsPSO>         CDeviceGraphicsPSOWPtr;
-
-typedef std::shared_ptr<CDeviceComputePSO>        CDeviceComputePSOPtr;
-typedef std::weak_ptr<CDeviceComputePSO>          CDeviceComputePSOWPtr;
-
-////////////////////////////////////////////////////////////////////////////
-
-template<class Impl>
-class CDeviceTimestampGroup_Base
-{
-public:
-	enum { kMaxTimestamps = 1024 };
-
-	void   Init();
-
-	void   BeginMeasurement();
-	void   EndMeasurement();
-
-	uint32 IssueTimestamp();
-	bool   ResolveTimestamps();
-
-	float  GetTimeMS(uint32 timestamp0, uint32 timestamp1);
-};
-
-////////////////////////////////////////////////////////////////////////////
-template<typename T>
-struct SCachedValue
-{
-	T cachedValue;
-	SCachedValue() {}
-	SCachedValue(const T& value) : cachedValue(value) {}
-
-	template<typename U>
-	ILINE bool Set(U newValue)
-	{
-		if (cachedValue == newValue)
-			return false;
-
-		cachedValue = newValue;
-		return true;
-	}
-
-	template<typename U>
-	inline bool operator!=(U otherValue) const
-	{
-		return !(cachedValue == otherValue);
-	}
-};
-
-template<typename CustomSharedState, typename CustomGraphicsState, typename CustomComputeState>
-class CDeviceCommandListCommon
-{
-protected:
-	struct SCachedResourceState
-	{
-		SCachedValue<const CDeviceResourceLayout*> pResourceLayout;
-		SCachedValue<const void*>                  pResources[EResourceLayoutSlot_Max + 1];
-
-		UsedBindSlotSet                            requiredResourceBindings;
-		UsedBindSlotSet                            validResourceBindings;
-	};
-
-	struct SCachedGraphicsState : SCachedResourceState
-	{
-		SCachedValue<const CDeviceGraphicsPSO*> pPipelineState;
-		SCachedValue<const CDeviceInputStream*> vertexStreams;
-		SCachedValue<const CDeviceInputStream*> indexStream;
-		SCachedValue<int32>                     stencilRef;
-		CustomGraphicsState                     custom;
-	};
-
-	struct SCachedComputeState : SCachedResourceState
-	{
-		SCachedValue<const CDeviceComputePSO*> pPipelineState;
-		CustomComputeState                     custom;
-	};
-
-protected:
-	SCachedGraphicsState m_graphicsState;
-	SCachedComputeState  m_computeState;
-	CustomSharedState    m_sharedState;
-
-#if defined(ENABLE_PROFILING_CODE)
-	ERenderPrimitiveType m_primitiveTypeForProfiling;
-	SProfilingStats      m_profilingStats;
-#endif
-};
-
-enum EResourceTransitionType
-{
-	eResTransition_TextureRead
-};
-
-#if CRY_RENDERER_GNM
-	#include "GNM/DeviceCommandList_GNM.h"
-#elif (CRY_RENDERER_VULKAN >= 10)
-	#include "Vulkan/DeviceCommandList_Vulkan.h"
-#elif (CRY_RENDERER_DIRECT3D >= 120)
-	#include "D3D12/DeviceCommandList_D3D12.h"
-#elif (CRY_RENDERER_DIRECT3D >= 110)
-	#include "D3D11/DeviceCommandList_D3D11.h"
-#endif
-
-class CDeviceGraphicsCommandInterface : public CDeviceGraphicsCommandInterfaceImpl
-{
-public:
-	void ClearState(bool bOutputMergerOnly) const;
-
-	void PrepareUAVsForUse(uint32 viewCount, CGpuBuffer** pViews, bool bCompute) const;
-	void PrepareRenderPassForUse(CDeviceRenderPass& renderPass) const;
-	void PrepareResourceForUse(uint32 bindSlot, CTexture* pTexture, const ResourceViewHandle TextureView, ::EShaderStage srvUsage) const;
-	void PrepareResourcesForUse(uint32 bindSlot, CDeviceResourceSet* pResources) const;
-	void PrepareInlineConstantBufferForUse(uint32 bindSlot, CConstantBuffer* pBuffer, EConstantBufferShaderSlot shaderSlot, EHWShaderClass shaderClass) const;
-	void PrepareInlineConstantBufferForUse(uint32 bindSlot, CConstantBuffer* pBuffer, EConstantBufferShaderSlot shaderSlot, ::EShaderStage shaderStages) const;
-	void PrepareVertexBuffersForUse(uint32 numStreams, uint32 lastStreamSlot, const CDeviceInputStream* vertexStreams) const;
-	void PrepareIndexBufferForUse(const CDeviceInputStream* indexStream) const;
-	void BeginResourceTransitions(uint32 numTextures, CTexture** pTextures, EResourceTransitionType type);
-
-	void BeginRenderPass(const CDeviceRenderPass& renderPass, const D3DRectangle& renderArea);
-	void EndRenderPass(const CDeviceRenderPass& renderPass);
-
-	void SetViewports(uint32 vpCount, const D3DViewPort* pViewports);
-	void SetScissorRects(uint32 rcCount, const D3DRectangle* pRects);
-	void SetPipelineState(const CDeviceGraphicsPSO* devicePSO);
-	void SetResourceLayout(const CDeviceResourceLayout* resourceLayout);
-	void SetResources(uint32 bindSlot, const CDeviceResourceSet* pResources);
-	void SetInlineConstantBuffer(uint32 bindSlot, const CConstantBuffer* pBuffer, EConstantBufferShaderSlot shaderSlot, EHWShaderClass shaderClass);
-	void SetInlineConstantBuffer(uint32 bindSlot, const CConstantBuffer* pBuffer, EConstantBufferShaderSlot shaderSlot, ::EShaderStage shaderStages);
-	void SetVertexBuffers(uint32 numStreams, uint32 lastStreamSlot, const CDeviceInputStream* vertexStreams);
-	void SetIndexBuffer(const CDeviceInputStream* indexStream); // NOTE: Take care with PSO strip cut/restart value and 32/16 bit indices
-	void SetInlineConstants(uint32 bindSlot, uint32 constantCount, float* pConstants);
-	void SetStencilRef(uint8 stencilRefValue);
-	void SetDepthBias(float constBias, float slopeBias, float biasClamp);
-	void SetModifiedWMode(bool enabled, uint32_t numViewports, const float* pA, const float* pB);
-
-	void Draw(uint32 VertexCountPerInstance, uint32 InstanceCount, uint32 StartVertexLocation, uint32 StartInstanceLocation);
-	void DrawIndexed(uint32 IndexCountPerInstance, uint32 InstanceCount, uint32 StartIndexLocation, int BaseVertexLocation, uint32 StartInstanceLocation);
-
-#define CLEAR_ZBUFFER           0x00000001l  /* Clear target z buffer, equals D3D11_CLEAR_DEPTH */
-#define CLEAR_STENCIL           0x00000002l  /* Clear stencil planes, equals D3D11_CLEAR_STENCIL */
-#define CLEAR_RTARGET           0x00000004l  /* Clear target surface */
-
-	void ClearSurface(D3DSurface* pView, const ColorF& color, uint32 numRects = 0, const D3D11_RECT* pRects = nullptr);
-	void ClearSurface(D3DDepthSurface* pView, int clearFlags, float depth = 0, uint8 stencil = 0, uint32 numRects = 0, const D3D11_RECT* pRects = nullptr);
-
-	void BeginOcclusionQuery(D3DOcclusionQuery* pQuery);
-	void EndOcclusionQuery(D3DOcclusionQuery* pQuery);
-};
-
-static_assert(sizeof(CDeviceGraphicsCommandInterface) == sizeof(CDeviceCommandListImpl), "CDeviceGraphicsCommandInterface cannot contain data members");
-
-class CDeviceComputeCommandInterface : public CDeviceComputeCommandInterfaceImpl
-{
-public:
-	void PrepareUAVsForUse(uint32 viewCount, CGpuBuffer** pViews) const;
-	void PrepareResourcesForUse(uint32 bindSlot, CDeviceResourceSet* pResources) const;
-	void PrepareInlineConstantBufferForUse(uint32 bindSlot, CConstantBuffer* pBuffer, EConstantBufferShaderSlot shaderSlots, ::EShaderStage shaderStages) const;
-
-	void SetPipelineState(const CDeviceComputePSO* pDevicePSO);
-	void SetResourceLayout(const CDeviceResourceLayout* pResourceLayout);
-	void SetResources(uint32 bindSlot, const CDeviceResourceSet* pResources);
-	void SetInlineConstantBuffer(uint32 bindSlot, const CConstantBuffer* pBuffer, EConstantBufferShaderSlot shaderSlot);
-	void SetInlineConstants(uint32 bindSlot, uint32 constantCount, float* pConstants);
-
-	void Dispatch(uint32 X, uint32 Y, uint32 Z);
-
-	void ClearUAV(D3DUAV* pView, const FLOAT Values[4], UINT NumRects, const D3D11_RECT* pRects);
-	void ClearUAV(D3DUAV* pView, const UINT Values[4], UINT NumRects, const D3D11_RECT* pRects);
-};
-
-static_assert(sizeof(CDeviceGraphicsCommandInterface) == sizeof(CDeviceCommandListImpl), "CDeviceComputeCommandInterface cannot contain data members");
-
-class CDeviceNvidiaCommandInterface : public CDeviceNvidiaCommandInterfaceImpl
-{
-public:
-	void SetModifiedWMode(bool enabled, uint32 numViewports, const float* pA, const float* pB);
-};
-
-static_assert(sizeof(CDeviceNvidiaCommandInterface) == sizeof(CDeviceCommandListImpl), "CDeviceNvidiaCommandInterface cannot contain data members");
-
-class CDeviceCopyCommandInterface : public CDeviceCopyCommandInterfaceImpl
-{
-	// TODO: CopyStructureCount    (DX11, graphics/compute queue only)
-	// TODO: ResolveSubresource    (graphics queue only)
-	// TODO: CopyResourceOvercross (MultiGPU, copy-queue)
-
-public:
-	void Copy(CDeviceBuffer*  pSrc, CDeviceBuffer*  pDst);
-	void Copy(D3DBuffer*      pSrc, D3DBuffer*      pDst);
-	void Copy(CDeviceTexture* pSrc, CDeviceTexture* pDst);
-	void Copy(CDeviceTexture* pSrc, D3DTexture*     pDst);
-	void Copy(D3DTexture*     pSrc, D3DTexture*     pDst);
-	void Copy(D3DTexture*     pSrc, CDeviceTexture* pDst);
-
-	void Copy(CDeviceBuffer*  pSrc, CDeviceBuffer*  pDst, const SResourceRegionMapping& regionMapping);
-	void Copy(D3DBuffer*      pSrc, D3DBuffer*      pDst, const SResourceRegionMapping& regionMapping);
-	void Copy(CDeviceTexture* pSrc, CDeviceTexture* pDst, const SResourceRegionMapping& regionMapping);
-	void Copy(D3DTexture*     pSrc, CDeviceTexture* pDst, const SResourceRegionMapping& regionMapping);
-
-	void Copy(const void* pSrc, CConstantBuffer* pDst, const SResourceMemoryAlignment& memoryLayout);
-	void Copy(const void* pSrc, CDeviceBuffer*   pDst, const SResourceMemoryAlignment& memoryLayout);
-	void Copy(const void* pSrc, CDeviceTexture*  pDst, const SResourceMemoryAlignment& memoryLayout);
-
-	void Copy(const void* pSrc, CConstantBuffer* pDst, const SResourceMemoryMapping& memoryMapping);
-	void Copy(const void* pSrc, CDeviceBuffer*   pDst, const SResourceMemoryMapping& memoryMapping);
-	void Copy(const void* pSrc, CDeviceTexture*  pDst, const SResourceMemoryMapping& memoryMapping);
-
-	void Copy(CDeviceBuffer*  pSrc, void* pDst, const SResourceMemoryAlignment& memoryLayout);
-	void Copy(CDeviceTexture* pSrc, void* pDst, const SResourceMemoryAlignment& memoryLayout);
-
-	void Copy(CDeviceBuffer*  pSrc, void* pDst, const SResourceMemoryMapping& memoryMapping);
-	void Copy(CDeviceTexture* pSrc, void* pDst, const SResourceMemoryMapping& memoryMapping);
-};
-
-static_assert(sizeof(CDeviceCopyCommandInterface) == sizeof(CDeviceCommandListImpl), "CDeviceCopyCommandInterface cannot contain data members");
-
-class CDeviceCommandList : public CDeviceCommandListImpl
-{
-	friend class CDeviceObjectFactory;
-
-public:
-	CDeviceCommandList() { Reset(); }
-
-	CDeviceGraphicsCommandInterface* GetGraphicsInterface();
-	CDeviceComputeCommandInterface*  GetComputeInterface();
-	CDeviceNvidiaCommandInterface*   GetNvidiaCommandInterface();
-	CDeviceCopyCommandInterface*     GetCopyInterface();
-
-	void                             Reset();
-	void                             LockToThread();
-	void                             Close();
-
-#if defined(ENABLE_PROFILING_CODE)
-	void                   BeginProfilingSection();
-	const SProfilingStats& EndProfilingSection();
-#endif
-};
-
-static_assert(sizeof(CDeviceCommandList) == sizeof(CDeviceCommandListImpl), "CDeviceCommandList cannot contain data members");
-
-typedef CDeviceCommandList&                 CDeviceCommandListRef;
-typedef std::unique_ptr<CDeviceCommandList> CDeviceCommandListUPtr;
-
-////////////////////////////////////////////////////////////////////////////
-// Device Render Pass
-
-class CDeviceRenderPassDesc : NoCopy
-{
-	friend class CDeviceObjectFactory;
-
-public:
-	enum { MaxRendertargetCount = 4 };
-	enum { MaxOutputUAVCount = 3 };
-
-	struct SHash  { uint64 operator() (const CDeviceRenderPassDesc& desc)                                  const; };
-	struct SEqual { bool   operator() (const CDeviceRenderPassDesc& lhs, const CDeviceRenderPassDesc& rhs) const; };
-
-public:
-	CDeviceRenderPassDesc();
-	CDeviceRenderPassDesc(void* pInvalidateCallbackOwner, const SResourceBinding::InvalidateCallbackFunction& invalidateCallback);
-	CDeviceRenderPassDesc(const CDeviceRenderPassDesc& other);
-	CDeviceRenderPassDesc(const CDeviceRenderPassDesc& other, void* pInvalidateCallbackOwner, const SResourceBinding::InvalidateCallbackFunction& invalidateCallback);
-	~CDeviceRenderPassDesc();
-
-	bool HasChanged() const { return m_bResourcesInvalidated; }
-	void AcceptAllChanges() { m_bResourcesInvalidated = false; }
-
-	bool SetRenderTarget(uint32 slot, CTexture* pTexture, ResourceViewHandle hView = EDefaultResourceViews::RenderTarget);
-	bool SetDepthTarget(CTexture* pTexture, ResourceViewHandle hView = EDefaultResourceViews::DepthStencil);
-	bool SetOutputUAV(uint32 slot, CGpuBuffer* pBuffer);
-	bool SetResources(const CDeviceRenderPassDesc& other);
-	bool ClearResources() threadsafe;
-
-	bool GetDeviceRendertargetViews(std::array<D3DSurface*, MaxRendertargetCount>& views, int& viewCount) const;
-	bool GetDeviceDepthstencilView(D3DDepthSurface*& pView) const;
-
-	const std::array<SResourceBinding, MaxRendertargetCount>& GetRenderTargets()           const { return m_renderTargets; }
-	const            SResourceBinding&                        GetDepthTarget()             const { return m_depthTarget; }
-	const std::array<SResourceBinding, MaxOutputUAVCount>&    GetOutputUAVs()              const { return m_outputUAVs;  }
-
-	static bool OnResourceInvalidated(void* pThis, SResourceBindPoint bindPoint, UResourceReference pResource, uint32 flags) threadsafe;
-
-protected:
-	bool UpdateResource(SResourceBindPoint bindPoint, SResourceBinding& dstResource, const SResourceBinding& srcResource);
-	
-	std::array<SResourceBinding, MaxRendertargetCount> m_renderTargets;
-	std::array<SResourceBinding, MaxOutputUAVCount>    m_outputUAVs;
-	SResourceBinding                                   m_depthTarget;
-
-	SResourceBinding::InvalidateCallbackFunction       m_invalidateCallback;
-	void*                                              m_invalidateCallbackOwner;
-
-	std::atomic<bool>                                  m_bResourcesInvalidated;
-};
-
-class CDeviceRenderPass_Base : public NoCopy
-{
-	friend class CDeviceObjectFactory;
-
-public:
-	CDeviceRenderPass_Base();
-	virtual ~CDeviceRenderPass_Base() {};
-
-	bool         IsValid() const { return m_bValid; }
-	void         Invalidate()    { m_bValid = false; }
-	uint64       GetHash() const { return m_nHash; }
-
-	bool         Update(const CDeviceRenderPassDesc& passDesc);
-	static bool  UpdateWithReevaluation(CDeviceRenderPassPtr& pRenderPass, CDeviceRenderPassDesc& passDesc);
-
-private:
-	virtual bool UpdateImpl(const CDeviceRenderPassDesc& passDesc) = 0;
-
-protected:
-	uint64                 m_nHash;
-	uint32                 m_nUpdateCount;
-	bool                   m_bValid;
-
-#if !defined(RELEASE)
-	std::array<DXGI_FORMAT, CDeviceRenderPassDesc::MaxRendertargetCount+1>  m_targetFormats;
-#endif
-};
 
 ////////////////////////////////////////////////////////////////////////////
 // Device Object Factory
@@ -822,6 +46,40 @@ protected:
 
 // Fence API (TODO: offload all to CDeviceFenceHandle)
 typedef uintptr_t DeviceFenceHandle;
+
+struct SInputLayoutCompositionDescriptor
+{
+	const InputLayoutHandle VertexFormat;
+	const uint8_t StreamMask;
+	const bool bInstanced;
+	const uint8_t ShaderMask;
+
+	static uint8_t GenerateShaderMask(const InputLayoutHandle VertexFormat, ID3D11ShaderReflection* pShaderReflection);
+
+	SInputLayoutCompositionDescriptor(InputLayoutHandle VertexFormat, int Stream, ID3D11ShaderReflection* pShaderReflection) noexcept
+		: VertexFormat(VertexFormat), StreamMask(static_cast<uint8_t>(Stream % MASK(VSF_NUM))), bInstanced((StreamMask & VSM_INSTANCED) != 0), ShaderMask(GenerateShaderMask(VertexFormat, pShaderReflection))
+	{}
+
+	SInputLayoutCompositionDescriptor(SInputLayoutCompositionDescriptor&&) = default;
+	SInputLayoutCompositionDescriptor &operator=(SInputLayoutCompositionDescriptor&&) = default;
+	SInputLayoutCompositionDescriptor(const SInputLayoutCompositionDescriptor&) = default;
+	SInputLayoutCompositionDescriptor &operator=(const SInputLayoutCompositionDescriptor&) = default;
+
+	bool operator==(const SInputLayoutCompositionDescriptor &rhs) const noexcept
+	{
+		return VertexFormat == rhs.VertexFormat && StreamMask == rhs.StreamMask && ShaderMask == rhs.ShaderMask;
+	}
+	bool operator!=(const SInputLayoutCompositionDescriptor &rhs) const noexcept { return !(*this == rhs); }
+
+	struct hasher 
+	{
+		size_t operator()(const SInputLayoutCompositionDescriptor &d) const noexcept
+		{
+			const auto x = static_cast<size_t>(d.StreamMask) | (static_cast<size_t>(d.ShaderMask) << 8) | (static_cast<size_t>(d.VertexFormat.value) << 16) | (static_cast<size_t>(d.bInstanced) << 24);
+			return std::hash<size_t>()(x);
+		}
+	};
+};
 
 class CDeviceObjectFactory
 {
@@ -855,19 +113,8 @@ public:
 		memset(&m_singleton, 0xdf, sizeof(m_singleton));
 	}
 
-	void OnEndFrame()
-	{
-#if CRY_PLATFORM_DURANGO && (CRY_RENDERER_DIRECT3D >= 110) && (CRY_RENDERER_DIRECT3D < 120)
-		m_texturePool.RT_Tick();
-#endif
-	}
-
-	void OnBeginFrame()
-	{
-#if CRY_RENDERER_VULKAN
-		UpdateDeferredUploads();
-#endif
-	}
+	void OnEndFrame(int frameID);
+	void OnBeginFrame(int frameID);
 
 	UINT64 QueryFormatSupport(D3DFormat Format);
 
@@ -879,12 +126,9 @@ public:
 	HRESULT IssueFence(DeviceFenceHandle query);
 	HRESULT SyncFence(DeviceFenceHandle query, bool block, bool flush = true);
 
-	void    SyncToGPU();
-	void    IssueFrameFences();
-	void    ReleaseFrameFences();
-
-	uint32  GetCurrentFrameCounter()   const { return m_frameFenceCounter; }
-	uint32  GetCompletedFrameCounter() const { return m_completedFrameFenceCounter; }
+	template<typename S = CRendererCVars>
+	void    SyncToGPU() const { if (S::CV_r_enable_full_gpu_sync) FlushToGPU(true); }
+	void    FlushToGPU(bool bWait = false, bool bGarbageCollect = false) const;
 
 	////////////////////////////////////////////////////////////////////////////
 	// SamplerState API
@@ -899,18 +143,21 @@ public:
 
 	////////////////////////////////////////////////////////////////////////////
 	// InputLayout API
-
+	
 	static void AllocatePredefinedInputLayouts();
 	static void TrimInputLayouts();
 	static void ReleaseInputLayouts();
-	static void ReserveInputLayouts(const uint32 hNum) { s_InputLayouts.Reserve(hNum); }
 
-	static InputLayoutHandle GetOrCreateInputLayoutHandle(const SInputLayout& pState) { return s_InputLayouts.GetOrCreateHandle(pState); }
-	static const std::pair<SInputLayout, CDeviceInputLayout*>& LookupInputLayout(const InputLayoutHandle hState) { return s_InputLayouts.Lookup(hState); }
+public:
+	using SInputLayoutPair = std::pair<SInputLayout, CDeviceInputLayout*>;
+
+	static const SInputLayout* GetInputLayoutDescriptor(const InputLayoutHandle VertexFormat);
 
 	// Higher level input-layout composition / / / / / / / / / / / / / / / / / /
-	static InputLayoutHandle GetOrCreateInputLayoutHandle(const SShaderBlob* pVS, int StreamMask, int InstAttrMask, uint32 nUsedAttr, byte Attributes[], const InputLayoutHandle VertexFormat);
-	static InputLayoutHandle GetOrCreateInputLayoutHandle(const SShaderBlob* pVS, size_t numDescs, const D3D11_INPUT_ELEMENT_DESC* inputLayout);
+	static SInputLayout            CreateInputLayoutForPermutation(const SShaderBlob* m_pConsumingVertexShader, const SInputLayoutCompositionDescriptor &compositionDescription, int StreamMask, const InputLayoutHandle VertexFormat);
+	static const SInputLayoutPair* GetOrCreateInputLayout(const SShaderBlob* pVS, int StreamMask, const InputLayoutHandle VertexFormat);
+	static const SInputLayoutPair* GetOrCreateInputLayout(const SShaderBlob* pVS, const InputLayoutHandle VertexFormat);
+	static InputLayoutHandle       CreateCustomVertexFormat(size_t numDescs, const D3D11_INPUT_ELEMENT_DESC* inputLayout);
 
 	////////////////////////////////////////////////////////////////////////////
 	// PipelineState API
@@ -918,9 +165,9 @@ public:
 	CDeviceGraphicsPSOPtr    CreateGraphicsPSO(const CDeviceGraphicsPSODesc& psoDesc);
 	CDeviceComputePSOPtr     CreateComputePSO(const CDeviceComputePSODesc& psoDesc);
 
-	void                     ReloadPipelineStates();
+	void                     ReloadPipelineStates(int currentFrameID);
 	void                     UpdatePipelineStates();
-	void                     TrimPipelineStates();
+	void                     TrimPipelineStates(int currentFrameID, int trimBeforeFrameID = std::numeric_limits<int>::max());
 
 	////////////////////////////////////////////////////////////////////////////
 	// Input dataset(s) API
@@ -933,8 +180,13 @@ public:
 	void                      TrimResourceLayouts();
 
 #if CRY_RENDERER_VULKAN
+	SDeviceResourceLayoutDesc LookupResourceLayoutDesc(uint64 layoutHash);
 	const std::vector<uint8>* LookupResourceLayoutEncoding(uint64 layoutHash);
+	void RegisterEncodedResourceLayout(uint64 layoutHash, std::vector<uint8>&& encodedLayout);
+	void UnRegisterEncodedResourceLayout(uint64 layoutHash);
+	uint32 GetEncodedResourceLayoutSize(const std::vector<uint8>& encodedLayout);
 	VkDescriptorSetLayout     GetInlineConstantBufferLayout();
+	VkDescriptorSetLayout     GetInlineShaderResourceLayout();
 #endif
 
 	////////////////////////////////////////////////////////////////////////////
@@ -990,7 +242,7 @@ public:
 		USAGE_CPU_READ                   = BIT(29),
 		USAGE_CPU_WRITE                  = BIT(30),
 
-		USAGE_HIFREQ_HEAP = BIT(31)  // Resource is reallocated every frame or multiple times each frame, use a recycling heap with delayed deletes
+		USAGE_HIFREQ_HEAP                = BIT(31)  // Resource is reallocated every frame or multiple times each frame, use a recycling heap with delayed deletes
 	};
 
 	// Resource Usage	| Default	| Dynamic	| Immutable	| Staging
@@ -1012,6 +264,9 @@ public:
 	D3DResource*   AllocateStagingResource(D3DResource* pForTex, bool bUpload, void*& pMappedAddress); // address is only set if the staging resource is persistently mapped
 	void           ReleaseStagingResource(D3DResource* pStagingTex);
 #endif
+
+	void           ReleaseResource(D3DResource* pResource);
+	void           RecycleResource(D3DResource* pResource);
 
 #define SKIP_ESRAM	-1
 	HRESULT        Create2DTexture(uint32 nWidth, uint32 nHeight, uint32 nMips, uint32 nArraySize, uint32 nUsage, const ColorF& cClearValue, D3DFormat Format, LPDEVICETEXTURE* ppDevTexture, const STexturePayload* pTI = nullptr, int32 nESRAMOffset = SKIP_ESRAM);
@@ -1073,8 +328,11 @@ public:
 	void ForfeitCommandLists(std::vector<CDeviceCommandListUPtr> pCommandLists, EQueueType eQueueType = eQueue_Graphics);
 
 #if (CRY_RENDERER_DIRECT3D >= 120)
-	NCryDX12::CDevice*           GetDX12Device   () const { return m_pDX12Device; }
-	NCryDX12::CCommandScheduler* GetDX12Scheduler() const { return m_pDX12Scheduler; }
+	NCryDX12::CDevice*             GetDX12Device() const { return m_pDX12Device; }
+	NCryDX12::CCommandScheduler*   GetDX12Scheduler() const { return m_pDX12Scheduler; }
+#elif (CRY_RENDERER_DIRECT3D >= 110)
+	NCryDX11::CDevice*             GetDX11Device() const { return m_pDX11Device; }
+	NCryDX11::CCommandScheduler*   GetDX11Scheduler() const { return m_pDX11Scheduler; }
 #elif (CRY_RENDERER_VULKAN >= 10)
 	NCryVulkan::CDevice*           GetVKDevice   () const { return m_pVKDevice; }
 	NCryVulkan::CCommandScheduler* GetVKScheduler() const { return m_pVKScheduler; }
@@ -1097,12 +355,17 @@ private:
 	void TrimResources();
 
 #if (CRY_RENDERER_DIRECT3D >= 120)
-	NCryDX12::CDevice*           m_pDX12Device;
-	NCryDX12::CCommandScheduler* m_pDX12Scheduler;
+	NCryDX12::CDevice*               m_pDX12Device;
+	NCryDX12::CCommandScheduler*     m_pDX12Scheduler;
+#elif (CRY_RENDERER_DIRECT3D >= 110)
+	NCryDX11::CDevice*               m_pDX11Device;
+	NCryDX11::CCommandScheduler*     m_pDX11Scheduler;
 #elif (CRY_RENDERER_VULKAN >= 10)
 	NCryVulkan::CDevice*             m_pVKDevice;
 	NCryVulkan::CCommandScheduler*   m_pVKScheduler;
 	VkDescriptorSetLayout            m_inlineConstantBufferLayout;
+	VkDescriptorSetLayout            m_inlineShaderResourceLayout;
+	std::map<uint64, std::vector<uint8>> m_encodedResourceLayouts;
 
 	struct SDeferredUploadData
 	{
@@ -1119,16 +382,6 @@ private:
 #endif
 
 	////////////////////////////////////////////////////////////////////////////
-	// Fence API (TODO: offload all to CDeviceFenceHandle)
-
-	// Internal handle for debugging
-	DeviceFenceHandle m_fence_handle;
-
-	uint32 m_frameFenceCounter;
-	uint32 m_completedFrameFenceCounter;
-	DeviceFenceHandle m_frameFences[MAX_FRAMES_IN_FLIGHT];
-
-	////////////////////////////////////////////////////////////////////////////
 	// SamplerState API
 
 	// A heap containing all permutations of SamplerState, they are global and are never evicted
@@ -1139,14 +392,15 @@ private:
 	// InputLayout API
 
 	// A heap containing all permutations of InputLayout, they are global and are never evicted
-	static CDeviceInputLayout* CreateInputLayout(const SInputLayout& pState);
-	static CStaticDeviceObjectStorage<InputLayoutHandle, SInputLayout, CDeviceInputLayout, true, CreateInputLayout> s_InputLayouts;
+	static CDeviceInputLayout* CreateInputLayout(const SInputLayout& pState, const SShaderBlob* m_pConsumingVertexShader);
+	static std::vector<SInputLayout> m_vertexFormatToInputLayoutCache;
 
 	// Higher level input-layout composition / / / / / / / / / / / / / / / / / /
-	static std::vector<InputLayoutHandle> s_InputLayoutPermutations[1 << VSF_NUM][3]; // [StreamMask][Morph][VertexFmt]
+	static std::unordered_map<SInputLayoutCompositionDescriptor, SInputLayoutPair, SInputLayoutCompositionDescriptor::hasher> s_InputLayoutCompositions;
 
 	////////////////////////////////////////////////////////////////////////////
 	// PipelineState API
+	static const int UnusedPsoKeepAliveFrames = MAX_FRAMES_IN_FLIGHT;
 
 	CDeviceGraphicsPSOPtr    CreateGraphicsPSOImpl(const CDeviceGraphicsPSODesc& psoDesc) const;
 	CDeviceComputePSOPtr     CreateComputePSOImpl(const CDeviceComputePSODesc& psoDesc) const;
@@ -1212,6 +466,7 @@ private:
 	struct StagingTextureDef
 	{
 		D3D11_TEXTURE2D_DESC desc;
+		uint32 lastUsedFrameID;
 		D3DTexture*          pStagingResource;
 
 		friend bool operator==(const StagingTextureDef& a, const D3D11_TEXTURE2D_DESC& b)
@@ -1266,6 +521,7 @@ private:
 	////////////////////////////////////////////////////////////////////////////
 	// Renderpass API
 	std::unordered_map<CDeviceRenderPassDesc, CDeviceRenderPassPtr, CDeviceRenderPassDesc::SHash, CDeviceRenderPassDesc::SEqual>  m_RenderPassCache; 
+	CryCriticalSectionNonRecursive m_RenderPassCacheLock;
 
 public:
 	////////////////////////////////////////////////////////////////////////////
@@ -1291,7 +547,7 @@ public:
 	// Note: temporary solution, this should be removed as soon as the device
 	// layer for Durango is available
 	static void* GetBackingStorage(D3DBuffer* buffer);
-	static void  FreebackingStorage(void* base_ptr);
+	static void  FreeBackingStorage(void* base_ptr);
 
 	struct STileRequest
 	{

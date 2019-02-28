@@ -73,6 +73,7 @@
 		<DefaultProperties AnimConfigFolder="Animations" />
 		<Job Input="*.i_caf" Refresh="1" />
 		<Job Input="*.anm" CopyOnly="1" />
+		<Job Input="*.caf" CopyOnly="1" />
 	</AnimationsJob>
 
 	<!-- Convert alembic template -->
@@ -174,8 +175,8 @@
 		<!-- Conversion -->
 		<Properties SourceRoot="${InputPath}/${DataFolder}" />
 		<Properties TargetRoot="${TempPath}/${DataFolder}_Assets" />
-		<Properties AllExtensions="*.bank;*.bnk;*.cal;*.cfg;*.dat;*.dialog;*.fdp;*.fev;*.fsb;*.gfx;*.grd;*.grp;*.lua;*.lut;*.ogg;*.pfx2;*.pfx;*.pfxp;*.response;*.thread_config;*.txt;*.usm;*.wem;*.xls;" />
-		
+		<Properties AllExtensions="*.bank;*.bnk;*.cal;*.cfg;*.schematyc_ent;*.dat;*.dialog;*.fdp;*.fev;*.fsb;*.gfx;*.grd;*.grp;*.lua;*.lut;*.ogg;*.pfx2;*.pfx;*.pfxp;*.response;*.thread_config;*.txt;*.usm;*.wem;*.xls;" />
+
 		<Run Job="AnimationsJob" />
 		<Run Job="MeshesJob" />
 		<Run Job="AlembicJob" />
@@ -196,7 +197,7 @@
 		<Properties GameDataInputs="Libs/*.*;config/*.*;Materials/*.*;Prefabs/*.*;Fonts/*.*;Difficulty/*.*;Data/*.*;Particles/*.*" />
 		<Properties CompressedExcludes="audio/*.*;Music/*.*;Libs/UI/*.*;config/*.*;${AnimationTypes};*.cgf;${TextureTypes};Levels/*.*;${CryassetType}" />
 		<Properties DefaultExcludes="Levels/*.*;${CryassetType}" />
-		
+
 		<!-- Pak all files that don't need to be compressed. -->
 		<Job Zip="${TargetRoot}/Data.pak"		Input="*.*"						Exclude="${CompressedExcludes}"	Zip_SizeSplit="1"	Zip_MaxSize="1900000"	Zip_Compression="0" />
 		<Job Zip="${TargetRoot}/Audio.pak"		Input="audio/*.*"				Exclude="${DefaultExcludes}"	Zip_SizeSplit="1"	Zip_MaxSize="1900000"	Zip_Compression="0" />
@@ -216,9 +217,9 @@
 
 		<!-- Loose files -->
 		<Properties SourceRoot="${InputPath}/${DataFolder}" />
-		<Properties EditorOnlyTypes="*.txt;*.cry;*.scry" />            <!-- Those files only have meaning for the editor, ignore them for non-editor targets -->
-		<Properties EditorOnlyLevelSubFolders="*/Layers/*.*;" />       <!-- Those folders contain files that only have meaning for the editor, ignore them for non-editor targets -->
-		<Properties AlreadyConvertedTypes="${XmlExtensions};*.tif" />  <!-- Those files have already been converted previously, ignore them now -->
+		<Properties EditorOnlyTypes="*.txt;*.cry;*.scry;*.bak;*.bak2;*.level;*.cryasset" /> <!-- Those files only have meaning for the editor, ignore them for non-editor targets -->
+		<Properties EditorOnlyLevelSubFolders="*/Layers/*.*;" />                            <!-- Those folders contain files that only have meaning for the editor, ignore them for non-editor targets -->
+		<Properties AlreadyConvertedTypes="${XmlExtensions};*.tif" />                       <!-- Those files have already been converted previously, ignore them now -->
 
 		<If TargetHasEditor="1">
 			<Run Job="CopySubfolderJob" SubFolder="Levels" Input="*.*" Exclude="${AlreadyConvertedTypes};*_list.txt" />
@@ -271,7 +272,7 @@
 	<Run Job="GameAssetsConversion" />
 	<Run Job="LocalizationConversion" />
 	<Run Job="CleanJob" />
-	
+
 	<!-- Used to generate file list -->
 	<CleanJob>
 		<Job Input="" TargetRoot="${TempPath}" Clean_TargetRoot="1" />

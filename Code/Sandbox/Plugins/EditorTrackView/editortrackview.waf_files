@@ -1,0 +1,94 @@
+{
+    "Uber_EditorTrackView.cpp": {
+        "Animators": [
+            "Animators/LayerNodeAnimator.cpp", 
+            "Animators/CommentNodeAnimator.cpp", 
+            "Animators/DirectorNodeAnimator.cpp", 
+            "Animators/LayerNodeAnimator.h", 
+            "Animators/CommentNodeAnimator.h", 
+            "Animators/DirectorNodeAnimator.h"
+        ], 
+        "Exporter": [
+            "TrackViewExporter.cpp", 
+            "TrackViewExporter.h", 
+            "Exporter/FBXImporterDlg.cpp", 
+            "Exporter/FBXImporterDlg.h", 
+            "Exporter/FBXExporterDlg.cpp", 
+            "Exporter/XMLExporterDlg.cpp", 
+            "Exporter/FBXExporterDlg.h", 
+            "Exporter/XMLExporterDlg.h"
+        ], 
+        "Nodes": [
+            "Nodes/TrackViewAnimNode.cpp", 
+            "Nodes/TrackViewTrack.cpp", 
+            "Nodes/TrackViewSequenceTrack.cpp", 
+            "Nodes/TrackViewAnimationTrack.cpp", 
+            "Nodes/TrackViewNode.cpp", 
+            "Nodes/TrackViewSequence.cpp", 
+            "Nodes/TrackViewNodeFactories.cpp", 
+            "Nodes/TrackViewGeomCacheAnimationTrack.cpp", 
+            "Nodes/TrackViewEntityNode.cpp", 
+            "Nodes/TrackViewCameraNode.cpp", 
+            "Nodes/TrackViewSplineTrack.cpp", 
+            "Nodes/TrackViewAnimNode.h", 
+            "Nodes/TrackViewTrack.h", 
+            "Nodes/TrackViewSequenceTrack.h", 
+            "Nodes/TrackViewAnimationTrack.h", 
+            "Nodes/TrackViewNode.h", 
+            "Nodes/TrackViewSequence.h", 
+            "Nodes/TrackViewNodeFactories.h", 
+            "Nodes/TrackViewGeomCacheAnimationTrack.h", 
+            "Nodes/TrackViewEntityNode.h", 
+            "Nodes/TrackViewCameraNode.h", 
+            "Nodes/TrackViewSplineTrack.h"
+        ], 
+        "Objects": [
+            "Objects/SequenceObject.cpp", 
+            "Objects/TrackGizmo.cpp", 
+            "Objects/SequenceObject.h", 
+            "Objects/TrackGizmo.h"
+        ], 
+        "Root": [
+            "AnimationContext.cpp", 
+            "TrackViewPlugin.cpp", 
+            "TrackViewPythonFuncs.cpp", 
+            "TrackViewUndo.cpp", 
+            "TrackViewSequenceManager.cpp", 
+            "TrackViewComponentsManager.cpp", 
+            "TrackViewCore.cpp", 
+            "StdAfx.cpp", 
+            "StdAfx.h", 
+            "AnimationContext.h", 
+            "TrackViewPlugin.h", 
+            "TrackViewUndo.h", 
+            "TrackViewSequenceManager.h", 
+            "TrackViewComponentsManager.h", 
+            "TrackViewCore.h", 
+            "TrackViewIcons.h"
+        ], 
+        "UI": [
+            "TrackViewWindow.cpp", 
+            "TrackViewWindow.h", 
+            "TrackViewBatchRenderDlg.cpp", 
+            "TrackViewBatchRenderDlg.h", 
+            "TrackViewSequenceDialog.cpp", 
+            "TrackViewSequenceDialog.h", 
+            "TrackViewEventsDialog.cpp", 
+            "TrackViewEventsDialog.h"
+        ], 
+        "UI/Controls": [
+            "Controls/TrackViewCoreComponent.cpp", 
+            "Controls/PlaybackControlsToolbar.cpp", 
+            "Controls/SequenceToolbar.cpp", 
+            "Controls/KeysToolbar.cpp", 
+            "Controls/PropertyTreeDockWidget.cpp", 
+            "Controls/SequenceTabWidget.cpp", 
+            "Controls/TrackViewCoreComponent.h", 
+            "Controls/PlaybackControlsToolbar.h", 
+            "Controls/SequenceToolbar.h", 
+            "Controls/KeysToolbar.h", 
+            "Controls/PropertyTreeDockWidget.h", 
+            "Controls/SequenceTabWidget.h"
+        ]
+    }
+}

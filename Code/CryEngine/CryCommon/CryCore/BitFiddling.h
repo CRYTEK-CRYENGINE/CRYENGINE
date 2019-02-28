@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -187,17 +187,21 @@ static ILINE uint64 IntegerLog2(uint64 v) { return uint64(63ULL - __builtin_clzl
 
 #else  // Windows implementation
 
-static ILINE uint8  IntegerLog2(uint8  v) { unsigned long result = ~0U; _BitScanReverse  (&result, v); return uint8 (result); }
-static ILINE uint16 IntegerLog2(uint16 v) { unsigned long result = ~0U; _BitScanReverse  (&result, v); return uint16(result); }
-static ILINE uint32 IntegerLog2(uint32 v) { unsigned long result = ~0U; _BitScanReverse  (&result, v); return uint32(result); }
+static ILINE uint8  IntegerLog2(uint8  v) { if (!v) return uint8 (~0UL ); unsigned long result; _BitScanReverse  (&result, v); return uint8 (result); }
+static ILINE uint16 IntegerLog2(uint16 v) { if (!v) return uint16(~0UL ); unsigned long result; _BitScanReverse  (&result, v); return uint16(result); }
+static ILINE uint32 IntegerLog2(uint32 v) { if (!v) return uint32(~0UL ); unsigned long result; _BitScanReverse  (&result, v); return uint32(result); }
 #if CRY_PLATFORM_X64
-static ILINE uint64 IntegerLog2(uint64 v) { unsigned long result = ~0U; _BitScanReverse64(&result, v); return uint64(result); }
+static ILINE uint64 IntegerLog2(uint64 v) { if (!v) return uint64(~0ULL); unsigned long result; _BitScanReverse64(&result, v); return uint64(result); }
 #else
 static ILINE uint64 IntegerLog2(uint64 v)
 {
-	unsigned long result = ~0U;
-	if      (v & 0xFFFFFFFF00000000ULL) _BitScanReverse(&result, uint32(v >> 32)), result += 32;
-	else if (v & 0x00000000FFFFFFFFULL) _BitScanReverse(&result, uint32(v >>  0)), result +=  0;
+	if (!v)
+		return ~0ULL;
+	unsigned long result;
+	if (uint32 w = uint32(v >> 32))
+		_BitScanReverse(&result, uint32(w)), result += 32;
+	else
+		_BitScanReverse(&result, uint32(v)), result +=  0;
 	return result;
 }
 #endif

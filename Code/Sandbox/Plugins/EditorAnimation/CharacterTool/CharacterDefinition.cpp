@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 
@@ -14,9 +14,42 @@
 #include <CrySerialization/DynArray.h>
 #include <CrySerialization/Math.h>
 #include <CryExtension/CryCreateClassInstance.h>
-#include <CrySandbox/IEditorGame.h>
+#include <Cry3DEngine/IIndexedMesh.h>
 
 #include <IEditor.h>
+
+bool ProxyDimFromGeom(IGeometry *pGeom, QuatT& trans, Vec4& dim)
+{
+	dim.zero();
+	trans.SetIdentity();
+	switch (pGeom->GetType())
+	{
+		case GEOM_BOX: 
+		{
+			const primitives::box *pbox = (const primitives::box*)pGeom->GetData();
+			trans = QuatT(!Quat(pbox->Basis), pbox->center); 
+			(Vec3&)dim = pbox->size; 
+			return true;
+		}
+		case GEOM_CAPSULE:
+		case GEOM_CYLINDER:
+		{
+			const primitives::cylinder *pcyl = (const primitives::cylinder*)pGeom->GetData();
+			trans = QuatT(Quat::CreateRotationV0V1(Vec3(0,0,1), pcyl->axis), pcyl->center);
+			dim.z = pcyl->hh; dim.w = pcyl->r;
+			return true;
+		}
+		case GEOM_SPHERE:
+		{
+			const primitives::sphere *psph = (const primitives::sphere*)pGeom->GetData();
+			trans = QuatT(Quat(IDENTITY), psph->center);
+			dim.w = psph->r;
+			return true;
+		}
+		default: return false;
+	}
+}
+
 
 namespace CharacterTool
 {
@@ -48,6 +81,7 @@ static DynArray<SJointProperty> GetPhysInfoProperties_ROPE(const CryBonePhysics&
 		res.push_back(SJointProperty("SimpleBlending", !(pi.flags & 4)));
 		res.push_back(SJointProperty("Mass", RAD2DEG(fabs_tpl(pi.min[1]))));
 		res.push_back(SJointProperty("Thickness", RAD2DEG(fabs_tpl(pi.min[2]))));
+		res.push_back(SJointProperty("SleepSpeed", pi.damping[0] - 1.0f));
 		res.push_back(SJointProperty("HingeY", (pi.flags & 8) != 0));
 		res.push_back(SJointProperty("HingeZ", (pi.flags & 16) != 0));
 		res.push_back(SJointProperty("StiffnessControlBone", (float)FtoI(pi.framemtx[0][1] - 1.0f) * (pi.framemtx[0][1] >= 2.0f && pi.framemtx[0][1] < 100.0f)));
@@ -108,15 +142,36 @@ SERIALIZATION_ENUM_END()
 SERIALIZATION_ENUM_BEGIN_NESTED(CharacterAttachment, ProxyPurpose, "Proxy Pupose")
 SERIALIZATION_ENUM(CharacterAttachment::AUXILIARY, "auxiliary", "Auxiliary")
 SERIALIZATION_ENUM(CharacterAttachment::CLOTH, "cloth", "Cloth")
-#if INCLUDE_SECONDARY_ANIMATION_RAGDOLL
 SERIALIZATION_ENUM(CharacterAttachment::RAGDOLL, "ragdoll", "Rag Doll")
-#endif
 SERIALIZATION_ENUM_END()
 
 SERIALIZATION_ENUM_BEGIN_NESTED(SJointPhysics, EType, "JointPhysics Type")
 SERIALIZATION_ENUM(SJointPhysics::EType::None, "none", "None")
 SERIALIZATION_ENUM(SJointPhysics::EType::Rope, "rope", "Rope")
 SERIALIZATION_ENUM(SJointPhysics::EType::Cloth, "cloth", "Cloth")
+SERIALIZATION_ENUM_END()
+
+SERIALIZATION_ENUM_BEGIN(geomtypes, "Geometry Type")
+SERIALIZATION_ENUM(GEOM_BOX, "box", "Box")
+SERIALIZATION_ENUM(GEOM_SPHERE, "sphere", "Sphere")
+SERIALIZATION_ENUM(GEOM_CAPSULE, "capsule", "Capsule")
+SERIALIZATION_ENUM(GEOM_CYLINDER, "cylinder", "Cylinder")
+SERIALIZATION_ENUM(GEOM_TRIMESH, "mesh", "Mesh")
+SERIALIZATION_ENUM_END()
+
+enum primtypes
+{
+	GEOM_CYLINDER = primitives::cylinder::type,
+	GEOM_CAPSULE  = primitives::capsule::type, 
+	GEOM_SPHERE   = primitives::sphere::type,
+	GEOM_BOX      = primitives::box::type
+};
+
+SERIALIZATION_ENUM_BEGIN(primtypes, "Geometry Type")
+SERIALIZATION_ENUM(GEOM_BOX, "box", "Box")
+SERIALIZATION_ENUM(GEOM_SPHERE, "sphere", "Sphere")
+SERIALIZATION_ENUM(GEOM_CAPSULE, "capsule", "Capsule")
+SERIALIZATION_ENUM(GEOM_CYLINDER, "cylinder", "Cylinder")
 SERIALIZATION_ENUM_END()
 
 enum ProjectionSelection1
@@ -177,6 +232,7 @@ SERIALIZATION_ENUM(FLAGS_ATTACH_COMPUTE_SKINNING, "compute_skinning", "Compute S
 SERIALIZATION_ENUM(FLAGS_ATTACH_COMPUTE_SKINNING_PREMORPHS, "compute_premorphs", "Apply morphs pre-skinning")
 SERIALIZATION_ENUM(FLAGS_ATTACH_COMPUTE_SKINNING_TANGENTS, "compute_tangents", "Recompute Normals")
 SERIALIZATION_ENUM(FLAGS_ATTACH_HIDE_ATTACHMENT, "hide", "Hidden                                                                     ")
+SERIALIZATION_ENUM(FLAGS_ATTACH_EXCLUDE_FROM_NEAREST, "exclude_nearest", "Exclude from nearest camera range                                                                     ")
 SERIALIZATION_ENUM(FLAGS_ATTACH_PHYSICALIZED_RAYS, "physicalized_rays", "Physicalized Rays                                                          ")
 SERIALIZATION_ENUM(FLAGS_ATTACH_PHYSICALIZED_COLLISIONS, "physicalized_collisions", "Physicalized Collisions                                                    ")
 SERIALIZATION_ENUM(FLAGS_ATTACH_SW_SKINNING, "cpu_skinning", "CPU Skinning")
@@ -575,6 +631,266 @@ void SJointPhysics::SaveToXml(XmlNodeRef node) const
 	}
 }
 
+IGeometry *CharacterAttachment::CreateProxyGeom() const
+{
+	IGeometry *pGeom = nullptr;
+	IGeomManager *pGeoman = gEnv->pPhysicalWorld->GetGeomManager();
+	switch (m_ProxyType)
+	{
+		case GEOM_BOX: {
+			primitives::box box;
+			box.Basis = Matrix33(!m_jointSpacePosition.q);
+			box.center = m_jointSpacePosition.t;
+			box.size = (Vec3&)m_ProxyParams;
+			pGeom = pGeoman->CreatePrimitive(primitives::box::type, &box);
+			break;
+		}
+		case GEOM_SPHERE: {
+			primitives::sphere sph;
+			sph.center = m_jointSpacePosition.t;
+			sph.r = m_ProxyParams.w;
+			pGeom = pGeoman->CreatePrimitive(primitives::sphere::type, &sph);
+			break;
+		}
+		case GEOM_CAPSULE: case GEOM_CYLINDER: {
+			primitives::cylinder cyl;
+			cyl.axis = m_jointSpacePosition.q * Vec3(0,0,1);
+			cyl.center = m_jointSpacePosition.t;
+			cyl.hh = m_ProxyParams.z;
+			cyl.r = m_ProxyParams.w;
+			pGeom = pGeoman->CreatePrimitive(m_ProxyType == GEOM_CYLINDER ? primitives::cylinder::type : primitives::capsule::type, &cyl);
+			break;
+		}
+		case GEOM_TRIMESH: {
+			if (!m_proxySrc || !m_proxySrc->m_proxyMesh)
+				return nullptr;
+			if ((m_jointSpacePosition.q | Quat(IDENTITY)) > 0.999f && m_jointSpacePosition.t.len2() < sqr(0.001f))
+			{
+				m_proxySrc->m_proxyMesh->AddRef();
+				return m_proxySrc->m_proxyMesh;
+			}
+			mesh_data& md = *(mesh_data*)m_proxySrc->m_proxyMesh->GetData();
+			Vec3 *vtx = new Vec3[md.nVertices];
+			for(int i = 0; i < md.nVertices; i++)
+				vtx[i] = m_jointSpacePosition * md.pVertices[i];
+			pGeom = pGeoman->CreateMesh(vtx, md.pIndices, md.pMats, md.pForeignIdx, md.nTris, md.flags, 0.0f);
+			delete[] vtx;
+		}
+	}
+	return pGeom;
+}
+
+void CharacterAttachment::ChangeProxyType()
+{
+	IGeometry *mesh = m_proxySrc ? (m_proxySrc->m_hullMesh ? m_proxySrc->m_hullMesh : m_proxySrc->m_proxyMesh) : nullptr;
+	if (mesh)
+	{
+		if (m_ProxyType != GEOM_TRIMESH)
+		{
+			mesh_data& md = *(mesh_data*)mesh->GetData();
+			int flags = mesh_approx_box;
+			switch (m_ProxyType)
+			{
+				case GEOM_CYLINDER: flags = mesh_approx_cylinder; break;
+				case GEOM_CAPSULE: flags = mesh_approx_capsule; break;
+				case GEOM_SPHERE: flags = mesh_approx_sphere; break;
+			}
+			IGeometry *pPrim = gEnv->pPhysicalWorld->GetGeomManager()->CreateMesh(md.pVertices, md.pIndices, nullptr, nullptr, md.nTris, flags, 1e10f);
+			ProxyDimFromGeom(pPrim, m_jointSpacePosition, m_ProxyParams);
+			m_ProxyParams *= min(1.0f, (1 + pow(mesh->GetVolume()/pPrim->GetVolume(), 1.0f/3)) * 0.5f);
+			pPrim->Release();
+		} 
+		else
+			m_jointSpacePosition.SetIdentity();
+	}
+	else
+	{
+		Vec3 size = (Vec3&)m_prevProxyParams, axis(ZERO);
+		float r = m_prevProxyParams.w, hh = m_prevProxyParams.z;
+		int i;
+		#define GSWITCH(a,b) ((int)(a) * 16 + (int)(b))
+		switch (GSWITCH(m_prevProxyType, m_ProxyType))
+		{
+			case GSWITCH(GEOM_BOX, GEOM_CYLINDER):
+			case GSWITCH(GEOM_BOX, GEOM_CAPSULE):
+				i = max(max(size.x,size.y),size.z)*2.5f > size.x + size.y + size.z ? idxmax3(size) : idxmin3(size);
+				hh = size[i];
+				r = sqrt(size.GetVolume() * 4 / (hh * gf_PI));
+				axis[i] = 1;
+				m_jointSpacePosition.q = m_jointSpacePosition.q * Quat::CreateRotationV0V1(Vec3(0,0,1), axis);
+				if (m_ProxyType == GEOM_CAPSULE)
+					hh = max(0.0f, hh - r * (2.0f/3));
+				m_ProxyParams = Vec4(0, 0, hh, r);
+				break;
+			case GSWITCH(GEOM_BOX, GEOM_SPHERE):
+				m_ProxyParams = Vec4(0, 0, 0, pow(size.GetVolume() * (6/gf_PI), 1.0f/3));
+				break;
+
+			case GSWITCH(GEOM_CAPSULE, GEOM_BOX):
+				m_ProxyParams.z += r * (2.0f/3);
+			case GSWITCH(GEOM_CYLINDER, GEOM_BOX):
+				m_ProxyParams.x = m_ProxyParams.y = r * sqrt(gf_PI)*0.5f;
+				m_ProxyParams.w = 0;
+				break;
+			case GSWITCH(GEOM_CYLINDER, GEOM_CAPSULE):
+				m_ProxyParams.z = max(0.0f, hh - r * (2.0f/3));
+				break;
+			case GSWITCH(GEOM_CYLINDER, GEOM_SPHERE):
+				m_ProxyParams = Vec4(0, 0, 0, pow(sqr(r)*hh*1.5f, 1.0f/3));
+				break;
+
+			case GSWITCH(GEOM_CAPSULE, GEOM_CYLINDER):
+				m_ProxyParams.z += r * (2.0f/3);
+				break;
+			case GSWITCH(GEOM_CAPSULE, GEOM_SPHERE):
+				m_ProxyParams = Vec4(0, 0, 0, pow((hh*1.5f + r)*sqr(r), 1.0f/3));
+				break;
+
+			case GSWITCH(GEOM_SPHERE, GEOM_BOX):
+				m_ProxyParams.x = m_ProxyParams.y = m_ProxyParams.z = r * pow(4*gf_PI/3, 1.0f/3) * 0.5f;
+				m_ProxyParams.w = 0;
+				break;
+			case GSWITCH(GEOM_SPHERE, GEOM_CYLINDER):
+				m_ProxyParams.z = r * (2.0f/3);
+				break;
+		}
+		#undef GSWITCH			
+	}
+	m_prevProxyType = m_ProxyType;
+	m_prevProxyParams = m_ProxyParams;
+	m_positionSpace = m_rotationSpace = SPACE_JOINT;
+}
+
+void CharacterAttachment::GenerateMesh()
+{
+	if (!m_proxySrc)
+		return;
+	if (m_proxySrc->m_hullMesh && m_meshSmooth > 0)
+	{
+		IGeometry** pGeoms;
+		IGeometry::SProxifyParams pp;
+		pp.ncells = 40;
+		pp.findPrimLines = 0;
+		pp.findPrimSurfaces = 0;
+		pp.surfMaxAndMinNorms = 1;
+		pp.reuseVox = m_proxySrc->m_proxyMesh && m_proxySrc->m_proxyMesh != m_proxySrc->m_hullMesh ? 1 : 0;
+		pp.storeVox = pp.reuseVox ^ 1;
+		pp.surfMeshIters = m_meshSmooth;
+		if (int ngeoms = m_proxySrc->m_hullMesh->Proxify(pGeoms, &pp))
+		{
+			for(int i = 1; i < ngeoms; i++)
+				if (pGeoms[i]->GetVolume() > pGeoms[0]->GetVolume())
+					std::swap(pGeoms[0], pGeoms[i]);
+			IPhysUtils *pUtils = gEnv->pPhysicalWorld->GetPhysUtils();
+			if (m_meshSmooth > 2)
+			{
+				mesh_data& md = *(mesh_data*)pGeoms[0]->GetData();
+				index_t* pTris = nullptr;
+				int nTris = pUtils->qhull(md.pVertices, md.nVertices, pTris);
+				m_proxySrc->m_proxyMesh = gEnv->pPhysicalWorld->GetGeomManager()->CreateMesh(md.pVertices, pTris, nullptr,nullptr, nTris, mesh_AABB);
+				pUtils->DeletePointer(pTris);
+				m_proxySrc->m_proxyMesh->Release();
+			}
+			else
+				m_proxySrc->m_proxyMesh = pGeoms[0];
+			for(int i = 0; i < ngeoms; i++)
+				pGeoms[i]->Release();
+			pUtils->DeletePointer(pGeoms);
+		}
+	} 
+	else
+		m_proxySrc->m_proxyMesh = m_proxySrc->m_hullMesh;
+	m_prevMeshSmooth = m_meshSmooth;
+}
+
+void CharacterAttachment::UpdateMirrorInfo(int idBone, const IDefaultSkeleton& skel)
+{
+	m_boneTransMirror.SetIdentity();
+	int idc = skel.GetJointChildIDAtIndexByID(idBone, 0);
+	m_dirChild = idc >= 0 ? skel.GetDefaultRelJointByID(idc).t : Vec3(ZERO);
+
+	// find mirror bones by left-right substring matching ('#' means string start or end)
+	const char* mirrorNames[] = { " l ", " r ",  "_l_", "_r_",  "#l ", "#r ",  "#l_", "#r_",  " l#", " r#",  "_l#", "_r#",  "left", "right" };
+	string jname0 = m_strJointName, jname1; 
+	jname0.MakeLower();
+	for(int j = 0, id1 = -1; j < CRY_ARRAY_COUNT(mirrorNames) && id1 < 0; j++)
+	{
+		int l = strlen(mirrorNames[j]) - 1;
+		if (*mirrorNames[j] == '#' && !strncmp(jname0, mirrorNames[j] + 1, l))
+			(jname1 = mirrorNames[j ^ 1] + 1).append(jname0.c_str() + l);
+		else if (mirrorNames[j][l] == '#' && !strncmp(jname0.c_str() - l, mirrorNames[j], l))
+			(jname1 = jname0.substr(0, jname0.length() - l)).append(mirrorNames[j ^ 1], l);
+		else if (const char *p = strstr(jname0, mirrorNames[j]))
+			jname1 = jname0.substr(0, p - jname0.c_str()) + string(mirrorNames[j ^ 1]) + string(p + l + 1);
+		else
+			continue;
+		m_strJointNameMirror = skel.GetJointNameByID(id1 = skel.GetJointIDByName(jname1));
+		m_boneTransMirror = skel.GetDefaultAbsJointByID(id1);
+	}
+	m_updateMirror = false;
+}
+
+void MirrorAttachment(const CharacterAttachment& att0, CharacterAttachment& att1)
+{
+	Vec3 axes[2], dir = att0.m_dirChild;
+	QuatT trans[] = { att0.m_boneTrans, att0.m_boneTransMirror };
+	if (!dir.len2()) // use the principal direction of the phys proxy primitive if child direction not available
+		dir = Quat(att0.m_jointSpacePosition.q).GetColumn(att0.m_ProxyType == GEOM_BOX ? idxmax3(&att0.m_ProxyParams.x) : 2);
+	for(int j = 0; j < 2; j++)
+		axes[j] = trans[j].q.GetColumn(idxmax3(dir.abs()));
+	Vec3 axis = ((axes[0] - axes[1]).len2() > 0.001f ? axes[0] - axes[1] : trans[0].t - trans[1].t).normalized();
+	axis *= sgnnz(axis[idxmax3(axis.abs())]);
+
+	att1.m_strJointName = att0.m_strJointNameMirror;
+	att1.m_strJointNameMirror = att0.m_strJointName;
+	att1.m_strSocketName = string("$") + att1.m_strJointName;
+	att1.m_attachmentType = CA_PROX;
+	att1.m_ProxyPurpose = CharacterAttachment::RAGDOLL;
+	att1.m_rotationSpace = CharacterAttachment::SPACE_JOINT;
+	att1.m_positionSpace = CharacterAttachment::SPACE_JOINT;
+	att1.m_boneTrans = att0.m_boneTransMirror;
+	att1.m_boneTransMirror = att0.m_boneTrans;
+	auto Mirror = [axis](const Vec3& v) { return v - axis * ((axis * v) * 2); };
+	att1.m_dirChild = Mirror(trans[0].q * att0.m_dirChild) * trans[1].q;
+	Matrix33 mtx;
+	for(int j = 0; j < 2; j++)
+		mtx.SetColumn(j + 1, !trans[1].q * Mirror(trans[0].q * Quat(att0.m_jointSpacePosition.q).GetColumn(j + 1)));
+	mtx.SetColumn(0, mtx.GetColumn1() ^ mtx.GetColumn2());
+	att1.m_jointSpacePosition.q = Quat(mtx);
+	att1.m_ProxyParams = att1.m_prevProxyParams = att0.m_ProxyParams;
+	att1.m_jointSpacePosition.t = Mirror(trans[0].q * att0.m_jointSpacePosition.t) * trans[1].q;
+	att1.m_ProxyType = att1.m_prevProxyType = att0.m_ProxyType;
+	att1.m_proxySrc = nullptr;
+	att1.m_meshSmooth = att1.m_prevMeshSmooth = 0;
+	att1.m_characterSpacePosition = trans[1] * att1.m_jointSpacePosition;
+	att1.m_limits[0] = -att0.m_limits[1]; att1.m_limits[1] = -att0.m_limits[0];
+	mtx = Matrix33(trans[0].q * Quat(att0.m_frame0));
+	Vec3 axProj, axNew;
+	for(int j = 0; j < 3; j++)
+	{
+		axProj[j] = (axes[1] * (axNew = Mirror(mtx.GetColumn(j))));
+		mtx.SetColumn(j, axNew);
+	}
+	int icorr = idxmax3(axProj.abs()), iter = 0;
+	do 
+	{	// we'll have to flip one axis of q0, choose it so that q0 (global and mirrored) is close to trans[1].q
+		icorr = inc_mod3[icorr];
+		axNew = mtx.GetColumn(inc_mod3[icorr]) ^ mtx.GetColumn(dec_mod3[icorr]);
+	} while	(++iter < 2 && (axNew * trans[1].q.GetColumn(icorr)) < 0);
+	if (mtx.GetColumn(icorr) * axNew < 0)
+		std::swap(att1.m_limits[0][icorr] *= -1, att1.m_limits[1][icorr] *= -1);
+	mtx.SetColumn(icorr, axNew);
+	att1.m_frame0 = Ang3(Matrix33(!trans[1].q) * mtx);
+	for(int j = 0; j < 3; j++)
+		att1.m_frame0[j] = ((int)fabs(att1.m_frame0[j] * 10) * 0.1f) * sgnnz(att1.m_frame0[j]);
+	att1.m_damping = att0.m_damping;
+	att1.m_tension = att0.m_tension;
+	att1.m_updateMirror = false;
+}
+
+std::map<INT_PTR,_smart_ptr<CharacterAttachment::ProxySource>> CharacterDefinition::g_meshArchive;
+int CharacterDefinition::g_meshArchiveUsed = 0;
+
 void CharacterAttachment::Serialize(Serialization::IArchive& ar)
 {
 	using Serialization::Range;
@@ -641,7 +957,7 @@ void CharacterAttachment::Serialize(Serialization::IArchive& ar)
 
 		ar(m_simulationParams, "simulation", "+Simulation");
 
-		int availableFlags = FLAGS_ATTACH_HIDE_ATTACHMENT | FLAGS_ATTACH_PHYSICALIZED_RAYS | FLAGS_ATTACH_PHYSICALIZED_COLLISIONS;
+		int availableFlags = FLAGS_ATTACH_HIDE_ATTACHMENT | FLAGS_ATTACH_PHYSICALIZED_RAYS | FLAGS_ATTACH_PHYSICALIZED_COLLISIONS | FLAGS_ATTACH_EXCLUDE_FROM_NEAREST;
 		BitFlags<AttachmentFlags>(m_nFlags, availableFlags).Serialize(ar);
 		if ((m_nFlags & FLAGS_ATTACH_HIDE_ATTACHMENT) != 0)
 			ar.warning(*this, "Hidden by default.");
@@ -674,7 +990,7 @@ void CharacterAttachment::Serialize(Serialization::IArchive& ar)
 		if (m_simulationParams.m_nClampType == SimulationParams::TRANSLATIONAL_PROJECTION)
 			m_simulationParams.m_nClampType = SimulationParams::DISABLED; //you can't choose this mode on face attachments
 
-		int availableFlags = FLAGS_ATTACH_HIDE_ATTACHMENT | FLAGS_ATTACH_PHYSICALIZED_RAYS | FLAGS_ATTACH_PHYSICALIZED_COLLISIONS;
+		int availableFlags = FLAGS_ATTACH_HIDE_ATTACHMENT | FLAGS_ATTACH_PHYSICALIZED_RAYS | FLAGS_ATTACH_PHYSICALIZED_COLLISIONS | FLAGS_ATTACH_EXCLUDE_FROM_NEAREST;
 		BitFlags<AttachmentFlags>(m_nFlags, availableFlags).Serialize(ar);
 		if ((m_nFlags & FLAGS_ATTACH_HIDE_ATTACHMENT) != 0)
 			ar.warning(*this, "Hidden by default.");
@@ -685,8 +1001,8 @@ void CharacterAttachment::Serialize(Serialization::IArchive& ar)
 		ar(ResourceFilePath(m_strGeometryFilepath, "Attachment Geometry (skin)|*.skin", "Objects"), "geometry", "<Geometry");
 		ar(ResourceFilePath(m_strMaterial, "Materials (mtl)|*.mtl", "Materials"), "material", "<Material");
 		ar(m_viewDistanceMultiplier, "viewDistanceMultiplier", "View Distance Multiplier");
-
-		int availableFlags = FLAGS_ATTACH_HIDE_ATTACHMENT;
+				
+		int availableFlags = FLAGS_ATTACH_HIDE_ATTACHMENT | FLAGS_ATTACH_EXCLUDE_FROM_NEAREST;
 		{
 			SkinningMethod skinningMethod = SKINNING_VERTEX_SHADER;
 			if (m_nFlags & FLAGS_ATTACH_SW_SKINNING)
@@ -738,9 +1054,12 @@ void CharacterAttachment::Serialize(Serialization::IArchive& ar)
 			QuatT& rel = m_jointSpacePosition;
 			bool rotJointSpace = m_rotationSpace == SPACE_JOINT;
 			bool posJointSpace = m_positionSpace == SPACE_JOINT;
-			ar(LocalFrame(rotJointSpace ? &rel.q : &abs.q, rotJointSpace ? Serialization::SPACE_SOCKET_RELATIVE_TO_JOINT : Serialization::SPACE_SOCKET_RELATIVE_TO_BINDPOSE,
-			              posJointSpace ? &rel.t : &abs.t, posJointSpace ? Serialization::SPACE_SOCKET_RELATIVE_TO_JOINT : Serialization::SPACE_SOCKET_RELATIVE_TO_BINDPOSE,
-			              m_strSocketName.c_str(), this), transformName, "+Transform");
+			ar(LocalFrame(rotJointSpace ? &rel.q : &abs.q, rotJointSpace ? Serialization::SPACE_JOINT : Serialization::SPACE_SOCKET_RELATIVE_TO_BINDPOSE,
+			              posJointSpace ? &rel.t : &abs.t, posJointSpace ? Serialization::SPACE_JOINT : Serialization::SPACE_SOCKET_RELATIVE_TO_BINDPOSE,
+			              m_strSocketName.c_str(), this),
+			   transformName,
+			   "+Transform"
+			   );
 			abs.q.Normalize();
 			rel.q.Normalize();
 		}
@@ -758,7 +1077,59 @@ void CharacterAttachment::Serialize(Serialization::IArchive& ar)
 
 		ar(m_ProxyPurpose, "proxyPurpose", "Purpose");
 
-		if (ar.openBlock("lozenge", "+Lozenge"))
+		if (m_ProxyPurpose == CharacterAttachment::RAGDOLL)
+		{
+			INT_PTR ptr = (INT_PTR)(ProxySource*)m_proxySrc;
+			ar(ptr, "src");
+			if (ar.isInput())
+				m_proxySrc = ptr ? CharacterDefinition::g_meshArchive.find(ptr)->second : nullptr;
+			else
+				CharacterDefinition::g_meshArchive.insert(std::pair<INT_PTR, _smart_ptr<ProxySource>>(ptr, m_proxySrc));
+			if (ar.isOutput() && !m_proxySrc)
+				ar((primtypes&)m_ProxyType, "geomtype", "Type");
+			else
+				ar(m_ProxyType, "geomtype", "Type");
+			ar(m_prevProxyType, "prev_geomtype");
+			if (m_ProxyType != m_prevProxyType)
+				ChangeProxyType();
+			else switch (m_ProxyType)
+			{
+				case GEOM_BOX: 
+					ar.openBlock("size", "Half-size");
+					ar(Serialization::Range(m_ProxyParams.x, 0.0f, 10.0f, 0.01f), "x", "^");
+					ar(Serialization::Range(m_ProxyParams.y, 0.0f, 10.0f, 0.01f), "y", "^");
+					ar(Serialization::Range(m_ProxyParams.z, 0.0f, 10.0f, 0.01f), "z", "^");
+					ar.closeBlock(); 
+					break;
+				case GEOM_CAPSULE: case GEOM_CYLINDER:
+					ar(Serialization::Range(m_ProxyParams.z, 0.0f, 10.0f, 0.01f), "height", "Half-height");
+				case GEOM_SPHERE:
+					ar(Serialization::Range(m_ProxyParams.w, 0.0f, 10.0f, 0.01f), "r", "Radius");
+					break;
+				case GEOM_TRIMESH:
+					ar(Serialization::Range(m_meshSmooth, 0, 5), "smooth", m_proxySrc && m_proxySrc->m_hullMesh ? "Mesh Simplification" : nullptr);
+					if (m_meshSmooth != m_prevMeshSmooth)
+						GenerateMesh();
+			}
+			for(int i = 0; i < 2; i++) 
+			{
+				ar.openBlock(&("mina\0maxa"[i * 5]), &("Min Angle\0Max Angle"[i * 10]));
+				for(int j = 0; j < 3; j++)
+					ar(Serialization::Range(m_limits[i][j], -180, 180, 5), &("x\0y\0z"[j * 2]), "^");
+				ar.closeBlock();
+			}
+			ar(Serialization::RadiansAsDeg(m_frame0), "frame0", "Rotation0");
+			ar(m_tension, "tension", "Spring Tension");
+			ar(m_damping, "damping", "Spring Damping");
+			ar(m_strJointNameMirror, "mirrorName");
+			ar(m_boneTrans, "boneTrans");
+			ar(m_boneTransMirror, "boneTransMirror");
+			ar(m_dirChild, "dirChild");
+			ar(m_prevProxyParams, "prevDim");
+			if (m_ProxyType != GEOM_TRIMESH && *m_strJointNameMirror)
+				ar(Serialization::ToggleButton(m_updateMirror), "mirrorUpd", "Update L/R Mirror");
+		}	
+		else if (ar.openBlock("lozenge", "+Lozenge"))
 		{
 			ar.doc("The Lozenge collision primitive is defined by 4 numbers.\n"
 			       "With these 4 numbers, points, spheres, capsules, line-segments,\n"
@@ -865,6 +1236,7 @@ void CharacterAttachment::Serialize(Serialization::IArchive& ar)
 			// be careful: first parameter of parameter widget should not be within an 'openBlock()', otherwise following attachments would not be shown in the GUI
 			if (ar.openBlock("animation", "+Animation Control"))
 			{
+				ar(m_vclothParams.hide, "hide", "Hide");
 				ar(m_vclothParams.forceSkinning, "forceSkinning", "Force Skinning");
 				ar.doc("If enabled, simulation is skipped and skinning is always enforced.");
 				ar(Serialization::Range(m_vclothParams.forceSkinningFpsThreshold, 5.0f, std::numeric_limits<float>::max()), "forceSkinningFpsThreshold", "Force Skinning FPS Thresh");
@@ -877,6 +1249,8 @@ void CharacterAttachment::Serialize(Serialization::IArchive& ar)
 				ar.doc("Disable simulation/enable skinning in dependance of camera distance.");
 				ar(Serialization::Range(m_vclothParams.disableSimulationTimeRange, 0.0f, 1.0f), "disableSimulationTimeRange", "Disable Simulation Time Range");
 				ar.doc("Defines the physical time [in seconds] which is used for fading between simulation and skinning, e.g., 0.5 implies half a second for fading.");
+				ar(Serialization::Range(m_vclothParams.enableSimulationSSaxisSizePerc, 0.0f, 1.0f), "enableSimulationSSaxisSizePerc", "Enable Simulation SS Size");
+				ar.doc("If the size of characters bounding box in screen space exceeds provided percentage of viewport size, simulation is enabled.\nThus, simulation can be controlled according to the characters actual size on screen. This value is used for x- and y-direction, separately.");
 				ar.closeBlock();
 			}
 
@@ -936,16 +1310,16 @@ void CharacterAttachment::Serialize(Serialization::IArchive& ar)
 				ar.closeBlock();
 			}
 
-			if (ar.openBlock("longrangeattachments", "+Long Range Attachments"))
+			if (ar.openBlock("nearestNeighborDistanceConstraints", "+Nearest Neighbor Distance Constraints"))
 			{
-				ar(m_vclothParams.longRangeAttachments, "longRangeAttachments", "Long Range Attachments");
-				ar.doc("Enables LRA for improved stiffness, while reducing elasticity.");
-				ar(Serialization::Range(m_vclothParams.longRangeAttachmentsMaximumShiftFactor, 0.0f, 0.8f), "longRangeAttachmentsMaximumShiftFactor", "LRA maximum shift factor");
-				ar.doc("Scales maximum shift per iteration in direction of closest neighbor, e.g. 0.5 -> half way to closest neighbor. Smaller values result in higher stability.");
-				ar(Serialization::Range(m_vclothParams.longRangeAttachmentsShiftCollisionFactor, -2.0f, 2.0f), "longRangeAttachmentsShiftCollisionFactor", "LRA shift collision factor");
+				ar(m_vclothParams.useNearestNeighborDistanceConstraints, "nearestNeighborDistanceConstraints", "Nearest Neighbor Distance Constraints");
+				ar.doc("Enables NNDC for improved stiffness, while reducing elasticity.");
+				ar(Serialization::Range(m_vclothParams.nndcMaximumShiftFactor, 0.0f, 0.8f), "nndcMaximumShiftFactor", "NNDC maximum shift factor");
+				ar.doc("Scales maximum shift per iteration in direction of closest neighbor, e.g. 0.5 -> half way to nearest neighbor. Smaller values result in higher stability.");
+				ar(Serialization::Range(m_vclothParams.nndcShiftCollisionFactor, -2.0f, 2.0f), "nndcShiftCollisionFactor", "NNDC shift collision factor");
 				ar.doc("Scales in case of shift the velocity, 0.0=no shift, 1.0=no velocity change, -1=increase velocity by change.");
-				ar(Serialization::Range(m_vclothParams.longRangeAttachmentsAllowedExtension, 0.0f, 1.0f), "longRangeAttachmentsAllowedExtension", "LRA allowed extension");
-				ar.doc("Allowed extension for Long Range Attachments, e.g. 0.1 = 10%");
+				ar(Serialization::Range(m_vclothParams.nndcAllowedExtension, 0.0f, 1.0f), "nndcAllowedExtension", "NNDC maximum allowed extension per neighbor");
+				ar.doc("Allowed extension for nndc, e.g. 0.1 = 10%");
 				ar.closeBlock();
 			}
 
@@ -992,7 +1366,7 @@ void CharacterAttachment::Serialize(Serialization::IArchive& ar)
 			{
 				ar(Serialization::Range(m_vclothParams.debugDrawVerticesRadius, 0.0f, 1.0f), "debugDrawVerticesRadius", "Draw Vertices Radius");
 				ar(Serialization::Range(m_vclothParams.debugDrawCloth,0, std::numeric_limits<int>::max()), "debugDrawCloth", "Draw Cloth");
-				ar(Serialization::Range(m_vclothParams.debugDrawLRA,0, std::numeric_limits<int>::max()), "debugDrawLRA", "Draw Long Range Attachments");
+				ar(Serialization::Range(m_vclothParams.debugDrawNndc,0, std::numeric_limits<int>::max()), "debugDrawNNDC", "Draw Nearest Neighbor Distance Constraints");
 				ar(Serialization::Range(m_vclothParams.debugPrint,0, std::numeric_limits<int>::max()), "debugPrint", "Debug");
 				ar.closeBlock();
 			}
@@ -1045,7 +1419,7 @@ void CharacterDefinition::Serialize(Serialization::IArchive& ar)
 {
 	Serialization::SContext definitionContext(ar, this);
 
-	ar(SkeletonPath(skeleton), "skeleton", "Skeleton");
+	ar(SkeletonOrCgaPath(skeleton), "skeleton", "Skeleton");
 	ar.doc("The main skeleton of this character. (it can optionally be extended using attachments of type 'skin')");
 	if (skeleton.empty())
 		ar.warning(skeleton, "A skeleton is required for every character.");
@@ -1054,12 +1428,32 @@ void CharacterDefinition::Serialize(Serialization::IArchive& ar)
 	// evgenya: .rig and .phys references are temporarily disabled
 	ar(CharacterPhysicsPath(physics), "physics", 0);
 	ar(CharacterRigPath(rig), "rig", 0);
+	bool physEditPrev = m_physEdit;
+	ar(m_physEdit, "physedit");
 	ar(attachments, "attachments", "Attachments");
 	m_initialized = ar.context<ICharacterInstance>() != 0;
 
+	if (ar.isInput() && !m_physEdit && physEditPrev)
+	{
+		attachments.insert(attachments.end(), origBonePhysAtt.begin(), origBonePhysAtt.end());
+		m_physEdit = m_physNeedsApply = true;
+	}
+
 	if (ar.isInput())
+	{
 		for (size_t i = 0; i < attachments.size(); ++i)
-			attachments[i].m_definition = this;
+		{
+			CharacterAttachment& att = attachments[i];
+			att.m_definition = this;
+			if (att.m_attachmentType == CA_PROX && att.m_ProxyPurpose == CharacterAttachment::RAGDOLL && att.m_updateMirror && att.m_ProxyType != GEOM_TRIMESH && *att.m_strJointNameMirror)
+			{
+				att.m_updateMirror = false;
+				auto mirror = std::find_if(attachments.begin(), attachments.end(), 
+					[att](auto &att1) { return !strcmp(att.m_strJointNameMirror, att1.m_strSocketName.c_str() + 1) && att1.m_strSocketName[0] == '$'; });
+				MirrorAttachment(att, mirror == attachments.end() ? (attachments.push_back(CharacterAttachment()), attachments.back()) : *mirror);
+			}
+		}
+	}
 
 	if (attachments.empty())
 		ar.warning(attachments, "Add attachments to the skeleton to create character geometry.\nIf you want to see the skeleton: go to 'Display Options', 'Skeleton' and select 'Joints'.");
@@ -1346,12 +1740,14 @@ bool CharacterDefinition::LoadFromXml(const XmlNodeRef& root)
 				if (Type == "CA_VCLOTH")
 				{
 					// Animation Control
+					nodeAttach->getAttr("hide", attach.m_vclothParams.hide);
 					nodeAttach->getAttr("forceSkinning", attach.m_vclothParams.forceSkinning);
 					nodeAttach->getAttr("forceSkinningFpsThreshold", attach.m_vclothParams.forceSkinningFpsThreshold);
 					nodeAttach->getAttr("forceSkinningTranslateThreshold", attach.m_vclothParams.forceSkinningTranslateThreshold);
 					nodeAttach->getAttr("checkAnimationRewind", attach.m_vclothParams.checkAnimationRewind);
 					nodeAttach->getAttr("disableSimulationAtDistance", attach.m_vclothParams.disableSimulationAtDistance);
 					nodeAttach->getAttr("disableSimulationTimeRange", attach.m_vclothParams.disableSimulationTimeRange);
+					nodeAttach->getAttr("enableSimulationSSaxisSizePerc", attach.m_vclothParams.enableSimulationSSaxisSizePerc);
 
 					// Simulation and Collision
 					nodeAttach->getAttr("timeStep", attach.m_vclothParams.timeStep);
@@ -1375,11 +1771,11 @@ bool CharacterDefinition::LoadFromXml(const XmlNodeRef& root)
 					nodeAttach->getAttr("springDampingPerSubstep", attach.m_vclothParams.springDampingPerSubstep);
 					nodeAttach->getAttr("collisionDampingTangential", attach.m_vclothParams.collisionDampingTangential);
 
-					// Long Range Attachments
-					nodeAttach->getAttr("longRangeAttachments", attach.m_vclothParams.longRangeAttachments);
-					nodeAttach->getAttr("longRangeAttachmentsAllowedExtension", attach.m_vclothParams.longRangeAttachmentsAllowedExtension);
-					nodeAttach->getAttr("longRangeAttachmentsMaximumShiftFactor", attach.m_vclothParams.longRangeAttachmentsMaximumShiftFactor);
-					nodeAttach->getAttr("longRangeAttachmentsShiftCollisionFactor", attach.m_vclothParams.longRangeAttachmentsShiftCollisionFactor);
+					// Nearest Neighbor Distance Constraints
+					nodeAttach->getAttr("nearestNeighborDistanceConstraints", attach.m_vclothParams.useNearestNeighborDistanceConstraints);
+					nodeAttach->getAttr("nndcAllowedExtension", attach.m_vclothParams.nndcAllowedExtension);
+					nodeAttach->getAttr("nndcMaximumShiftFactor", attach.m_vclothParams.nndcMaximumShiftFactor);
+					nodeAttach->getAttr("nndcShiftCollisionFactor", attach.m_vclothParams.nndcShiftCollisionFactor);
 
 					// Test Reset Damping
 					nodeAttach->getAttr("resetDampingFactor", attach.m_vclothParams.resetDampingFactor);
@@ -1401,15 +1797,14 @@ bool CharacterDefinition::LoadFromXml(const XmlNodeRef& root)
 					attach.m_vclothParams.material = nodeAttach->getAttr("Material");
 					nodeAttach->getAttr("debugDrawVerticesRadius", attach.m_vclothParams.debugDrawVerticesRadius);
 					nodeAttach->getAttr("debugDrawCloth", attach.m_vclothParams.debugDrawCloth);
-					nodeAttach->getAttr("debugDrawLRA", attach.m_vclothParams.debugDrawLRA);
+					nodeAttach->getAttr("debugDrawNNDC", attach.m_vclothParams.debugDrawNndc);
 					nodeAttach->getAttr("debugPrint", attach.m_vclothParams.debugPrint);
-
-					nodeAttach->getAttr("hide", attach.m_vclothParams.hide);
 				}
 
 				uint32 flags;
 				if (nodeAttach->getAttr("Flags", flags))
 					attach.m_nFlags = flags;
+
 				nodeAttach->getAttr("ViewDistRatio", attach.m_viewDistanceMultiplier);
 
 				attach.m_jointPhysics.LoadFromXml(nodeAttach);
@@ -1697,6 +2092,9 @@ void CharacterDefinition::ExportSkinAttachment(const CharacterAttachment& attach
 
 void CharacterDefinition::ExportProxyAttachment(const CharacterAttachment& attach, XmlNodeRef nodeAttachments)
 {
+	if (attach.m_ProxyPurpose == CharacterAttachment::RAGDOLL)
+		return;
+
 	XmlNodeRef nodeAttach = gEnv->pSystem->CreateXmlNode("Attachment");
 	nodeAttachments->addChild(nodeAttach);
 
@@ -1813,12 +2211,14 @@ void CharacterDefinition::ExportVClothAttachment(const CharacterAttachment& atta
 		nodeAttach->setAttr("AName", attach.m_strSocketName);
 
 	// Animation Control
+	nodeAttach->setAttr("hide", attach.m_vclothParams.hide);
 	nodeAttach->setAttr("forceSkinning", attach.m_vclothParams.forceSkinning);
 	nodeAttach->setAttr("forceSkinningFpsThreshold", attach.m_vclothParams.forceSkinningFpsThreshold);
 	nodeAttach->setAttr("forceSkinningTranslateThreshold", attach.m_vclothParams.forceSkinningTranslateThreshold);
 	nodeAttach->setAttr("checkAnimationRewind", attach.m_vclothParams.checkAnimationRewind);
 	nodeAttach->setAttr("disableSimulationAtDistance", attach.m_vclothParams.disableSimulationAtDistance);
 	nodeAttach->setAttr("disableSimulationTimeRange", attach.m_vclothParams.disableSimulationTimeRange);
+	nodeAttach->setAttr("enableSimulationSSaxisSizePerc", attach.m_vclothParams.enableSimulationSSaxisSizePerc);
 
 	// Simulation and Collision
 	nodeAttach->setAttr("timeStep", attach.m_vclothParams.timeStep);
@@ -1842,11 +2242,11 @@ void CharacterDefinition::ExportVClothAttachment(const CharacterAttachment& atta
 	nodeAttach->setAttr("springDampingPerSubstep", attach.m_vclothParams.springDampingPerSubstep);
 	nodeAttach->setAttr("collisionDampingTangential", attach.m_vclothParams.collisionDampingTangential);
 
-	// Long Range Attachments
-	nodeAttach->setAttr("longRangeAttachments", attach.m_vclothParams.longRangeAttachments);
-	nodeAttach->setAttr("longRangeAttachmentsAllowedExtension", attach.m_vclothParams.longRangeAttachmentsAllowedExtension);
-	nodeAttach->setAttr("longRangeAttachmentsMaximumShiftFactor", attach.m_vclothParams.longRangeAttachmentsMaximumShiftFactor);
-	nodeAttach->setAttr("longRangeAttachmentsShiftCollisionFactor", attach.m_vclothParams.longRangeAttachmentsShiftCollisionFactor);
+	// Nearest Neighbor Distance Constraints
+	nodeAttach->setAttr("nearestNeighborDistanceConstraints", attach.m_vclothParams.useNearestNeighborDistanceConstraints);
+	nodeAttach->setAttr("nndcAllowedExtension", attach.m_vclothParams.nndcAllowedExtension);
+	nodeAttach->setAttr("nndcMaximumShiftFactor", attach.m_vclothParams.nndcMaximumShiftFactor);
+	nodeAttach->setAttr("nndcShiftCollisionFactor", attach.m_vclothParams.nndcShiftCollisionFactor);
 
 	// Test Reset Damping
 	nodeAttach->setAttr("resetDampingFactor", attach.m_vclothParams.resetDampingFactor);
@@ -1868,10 +2268,8 @@ void CharacterDefinition::ExportVClothAttachment(const CharacterAttachment& atta
 	nodeAttach->setAttr("Material", attach.m_vclothParams.material); // also store material in vCloth-node - otherwise material would be lost, while saving
 	nodeAttach->setAttr("debugDrawVerticesRadius", attach.m_vclothParams.debugDrawVerticesRadius);
 	nodeAttach->setAttr("debugDrawCloth", attach.m_vclothParams.debugDrawCloth);
-	nodeAttach->setAttr("debugDrawLRA", attach.m_vclothParams.debugDrawLRA);
+	nodeAttach->setAttr("debugDrawNNDC", attach.m_vclothParams.debugDrawNndc);
 	nodeAttach->setAttr("debugPrint", attach.m_vclothParams.debugPrint);
-
-	nodeAttach->setAttr("hide", attach.m_vclothParams.hide);
 }
 
 void CharacterDefinition::ExportSimulation(const CharacterAttachment& attach, XmlNodeRef nodeAttach)
@@ -2001,6 +2399,7 @@ bool CharacterDefinition::Save(const char* filename)
 	if (!root)
 		return false;
 	bool result = root->saveToFile(filename);
+	SavePhysProxiesToCGF(PathUtil::GetGameFolder() + "/" + skeleton + ".cgf");
 	if (result)
 	{
 		GetIEditor()->RequestScriptReload(eReloadScriptsType_Entity);
@@ -2026,10 +2425,95 @@ static string NormalizeMaterialName(const char* materialName)
 	return result;
 }
 
-void CharacterDefinition::ApplyToCharacter(bool* skinSetChanged, ICharacterInstance* pICharacterInstance, ICharacterManager* characterManager, bool showDebug)
+void CharacterDefinition::ApplyPhysAttachments(ICharacterInstance* pICharacterInstance)
+{
+	IDefaultSkeleton& skel = pICharacterInstance->GetIDefaultSkeleton();
+	IGeomManager *pGeoman = gEnv->pPhysicalWorld->GetGeomManager();
+	for(int i = 0; i < skel.GetJointCount(); i++)
+		if (skel.GetJointPhysInfo(i)->pPhysGeom)
+		{
+			pGeoman->UnregisterGeometry(skel.GetJointPhysInfo(i)->pPhysGeom);
+			skel.GetJointPhysInfo(i)->pPhysGeom = nullptr;
+		}
+
+	int numAttachments = attachments.size();
+	for (int i = 0; i < numAttachments; ++i)
+	{
+		const CharacterAttachment& attachment = attachments[i];
+		if (attachment.m_attachmentType == CA_PROX && attachment.m_ProxyPurpose == CharacterAttachment::RAGDOLL)
+		{
+			if (IGeometry *pGeom = attachment.CreateProxyGeom())
+			{
+				CryBonePhysics& phys = *skel.GetJointPhysInfo(skel.GetJointIDByName(attachment.m_strJointName));
+				phys.pPhysGeom = pGeoman->RegisterGeometry(pGeom);
+				pGeom->Release();
+				phys.flags = joint_no_gravity | joint_isolated_accelerations;
+				*(Vec3*)phys.min = DEG2RAD(Vec3(attachment.m_limits[0]));
+				*(Vec3*)phys.max = DEG2RAD(Vec3(attachment.m_limits[1]));
+				for(int j = 0; j < 3; j++)
+				{
+					phys.flags |= (angle0_locked << j) * isneg(phys.max[j] - phys.min[j] - 0.01f);
+					float unlim = 1 + isneg(gf_PI*1.999f - phys.max[j] + phys.min[j]);
+					phys.max[j] *= unlim; phys.min[j] *= unlim;
+				}
+				*(Vec3*)phys.damping = attachment.m_damping;
+				*(Vec3*)phys.spring_tension = attachment.m_tension;
+			}
+		}
+	}
+
+	int nRoots = 0, idummyRoot = -1;
+	for(int i = 0, j; i < skel.GetJointCount(); i++)	if (skel.GetJointPhysGeom(i)) 
+	{
+		for(j = skel.GetJointParentIDByID(i); j >= 0 && !skel.GetJointPhysGeom(j); j = skel.GetJointParentIDByID(j))
+			skel.GetJointPhysInfo(j)->flags = 0;
+		nRoots -= j >> 31;
+	}
+	// for skeleton consistency, if multiple phys roots are present, create a temp phys root at their closest common ancestor
+	if (nRoots > 1)
+	{
+		for(int i = 0, j; i < skel.GetJointCount(); i++)	if (skel.GetJointPhysGeom(i)) 
+		{
+			for(j = skel.GetJointParentIDByID(i); j >= 0 && !skel.GetJointPhysGeom(j); j = skel.GetJointParentIDByID(j))
+				;
+			if (j < 0) for(j = skel.GetJointParentIDByID(i); j >= 0; j = skel.GetJointParentIDByID(j))
+				if (++skel.GetJointPhysInfo(j)->flags == nRoots)
+				{
+					idummyRoot = j; break;
+				}
+			if (idummyRoot >= 0)
+				break;
+		}
+		CryBonePhysics& phys = *skel.GetJointPhysInfo(idummyRoot);
+		memset(&phys, 0, sizeof(CryBonePhysics));
+		((Matrix33*)phys.framemtx)->SetIdentity();
+		IGeomManager *pGeoman = gEnv->pPhysicalWorld->GetGeomManager();
+		primitives::sphere sph;
+		sph.center.zero(); sph.r = 0.01f;
+		phys.pPhysGeom = pGeoman->RegisterGeometry(pGeoman->CreatePrimitive(primitives::sphere::type, &sph));
+		phys.pPhysGeom->pGeom->SetForeignData(nullptr, -1);
+		phys.pPhysGeom->pGeom->Release();
+	}
+
+	for (int i = 0, j; i < numAttachments; ++i)
+	{	// apply 0-angles rotations last since they need full parent-child hierarchy with physicalization
+		const CharacterAttachment& att = attachments[i];
+		if (att.m_attachmentType == CA_PROX && att.m_ProxyPurpose == CharacterAttachment::RAGDOLL)
+		{	
+			int idx = skel.GetJointIDByName(att.m_strJointName);
+			for(j = skel.GetJointParentIDByID(idx); j >= 0 && !skel.GetJointPhysGeom(j); j = skel.GetJointParentIDByID(j))
+				;
+			*(Matrix33*)skel.GetJointPhysInfo(idx)->framemtx = Matrix33((j >= 0 ? !skel.GetDefaultAbsJointByID(j).q * skel.GetDefaultAbsJointByID(idx).q : Quat(IDENTITY)) * Quat(DEG2RAD(att.m_frame0)));
+		}
+	}
+	m_physNeedsApply = false;
+}
+
+void CharacterDefinition::ApplyToCharacter(bool* skinSetChanged, ICharacterInstance* pICharacterInstance, ICharacterManager* characterManager, bool showDebug, bool applyPhys)
 {
 	if (m_initialized == 0)
 		return; //no serialization, no update
+	applyPhys = applyPhys && m_physEdit;
 
 	IAttachmentManager* pIAttachmentManager = pICharacterInstance->GetIAttachmentManager();
 
@@ -2055,6 +2539,9 @@ void CharacterDefinition::ApplyToCharacter(bool* skinSetChanged, ICharacterInsta
 		const CharacterAttachment& attachment = attachments[i];
 		const char* strSocketName = attachment.m_strSocketName.c_str();
 		int index = pIAttachmentManager->GetIndexByName(strSocketName);
+
+		if (attachment.m_attachmentType == CA_PROX && attachment.m_ProxyPurpose == CharacterAttachment::RAGDOLL)
+			continue;
 
 		IAttachment* pIAttachment = pIAttachmentManager->GetInterfaceByIndex(index);
 		if (index < 0)
@@ -2180,6 +2667,9 @@ void CharacterDefinition::ApplyToCharacter(bool* skinSetChanged, ICharacterInsta
 		names.erase(std::remove(names.begin(), names.end(), lowercaseAttachmentName.c_str()), names.end());
 	}
 
+	if (applyPhys)
+		ApplyPhysAttachments(pICharacterInstance);
+
 	// remove attachments that weren't updated
 	for (size_t i = 0; i < names.size(); ++i)
 	{
@@ -2232,6 +2722,86 @@ void CharacterDefinition::ApplyToCharacter(bool* skinSetChanged, ICharacterInsta
 
 	SynchModifiers(*pICharacterInstance);
 	m_initialized = true; //only the serialization code can set this to true.
+}
+
+void CharacterDefinition::LoadPhysProxiesFromCharacter(ICharacterInstance *character)
+{
+	IDefaultSkeleton& skel = character->GetIDefaultSkeleton();
+	origBonePhysAtt.clear();
+	for(int i = 0; i < skel.GetJointCount(); i++)
+		if (const phys_geometry *pPhys = skel.GetJointPhysGeom(i))
+		{
+			CharacterAttachment att;
+			att.m_strJointName = skel.GetJointNameByID(i);
+			att.m_strSocketName = string("$") + att.m_strJointName;
+			att.m_attachmentType = CA_PROX;
+			att.m_ProxyPurpose = CharacterAttachment::RAGDOLL;
+			att.m_rotationSpace = CharacterAttachment::SPACE_JOINT;
+			att.m_positionSpace = CharacterAttachment::SPACE_JOINT;
+			ProxyDimFromGeom(pPhys->pGeom, att.m_jointSpacePosition, att.m_ProxyParams);
+			att.m_prevProxyParams = att.m_ProxyParams;
+			att.m_ProxyType = att.m_prevProxyType = (geomtypes)pPhys->pGeom->GetType();
+			if (att.m_ProxyType == GEOM_TRIMESH)
+				(att.m_proxySrc = new CharacterAttachment::ProxySource)->m_proxyMesh = pPhys->pGeom;
+			att.m_meshSmooth = att.m_prevMeshSmooth = 0;
+			att.m_characterSpacePosition = (att.m_boneTrans = skel.GetDefaultAbsJointByID(i)) * att.m_jointSpacePosition;
+			const CryBonePhysics& bp = *skel.GetJointPhysInfo(i);
+			for(int l = 0; l < 2; l++) for(int j = 0; j < 3; j++)
+				att.m_limits[l][j] = (int)(min(180.0f, max(-180.0f, RAD2DEG(bp.min[l * 3 + j] * (~bp.flags >> j & 1)))) + 180) - 180;
+			att.m_damping = *(Vec3*)bp.damping;
+			att.m_tension = *(Vec3*)bp.spring_tension;
+			Quat q0 = Quat((Matrix33&)bp.framemtx[0][0]);
+			int j;
+			for(j = skel.GetJointParentIDByID(i); j >= 0 && !skel.GetJointPhysGeom(j); j = skel.GetJointParentIDByID(j))
+				;
+			if (j >= 0)
+				q0 = !skel.GetDefaultAbsJointByID(i).q * skel.GetDefaultAbsJointByID(j).q * q0;
+			att.m_frame0 = Ang3(q0);
+			for(j = 0; j < 3; j++)
+				att.m_frame0[j] = ((int)fabs(att.m_frame0[j] * 10) * 0.1f) * sgnnz(att.m_frame0[j]);
+			att.UpdateMirrorInfo(i, skel);
+
+			attachments.push_back(att);
+			origBonePhysAtt.push_back(att);
+		}
+	m_physEdit = true;
+}
+
+void CharacterDefinition::SavePhysProxiesToCGF(const char* fname)
+{
+	IStatObj* pSkelObj = gEnv->p3DEngine->CreateStatObj();
+	pSkelObj->FreeIndexedMesh();
+	for(int i = 0; i < attachments.size(); i++)
+	{
+		const CharacterAttachment& att = attachments[i];
+		if (att.m_attachmentType != CA_PROX || att.m_ProxyPurpose != CharacterAttachment::RAGDOLL)
+			continue;
+		IStatObj::SSubObject& subObj = pSkelObj->AddSubObject(gEnv->p3DEngine->CreateStatObj());
+		phys_geometry *pGeom = gEnv->pPhysicalWorld->GetGeomManager()->RegisterGeometry(att.CreateProxyGeom());
+		pGeom->pGeom->Release();
+		subObj.pStatObj->SetPhysGeom(pGeom);
+		subObj.pStatObj->SetBBoxMax(Vec3(0.1f));
+		subObj.name = att.m_strJointName;
+		subObj.properties.Format("%d %d %d %d %d %d %.3f %.3f %.3f %.3f %.3f %.3f %.2f %.2f %.2f",
+			att.m_limits[0].x, att.m_limits[0].y, att.m_limits[0].z, att.m_limits[1].x, att.m_limits[1].y, att.m_limits[1].z, 
+			att.m_tension.x, att.m_tension.y, att.m_tension.z, att.m_damping.x, att.m_damping.y, att.m_damping.z,
+			att.m_frame0.x, att.m_frame0.y, att.m_frame0.z);
+		subObj.pStatObj->SetGeoName(subObj.name);
+		subObj.pStatObj->SetProperties(subObj.properties);
+		subObj.bIdentityMatrix = 0;
+		subObj.tm = subObj.localTM = Matrix34(att.m_characterSpacePosition * att.m_jointSpacePosition.GetInverted());
+	}
+	if (pSkelObj->GetSubObjectCount())
+	{
+		string dir = fname;
+		dir.Truncate(min(dir.length(), dir.find_last_of('/')));
+		gEnv->pCryPak->MakeDir(dir);
+		if (!pSkelObj->SaveToCGF(fname))
+			gEnv->pLog->LogWarning("Failed to write character phys proxies to %s", fname);
+	}
+	pSkelObj->Release();
+	origBonePhysAtt.clear();
+	m_physEdit = false;
 }
 
 void CharacterDefinition::ApplyBoneAttachment(IAttachment* pIAttachment, ICharacterManager* characterManager, const CharacterAttachment& desc, ICharacterInstance* pICharacterInstance, bool showDebug) const
@@ -2604,3 +3174,4 @@ void CharacterDefinition::SynchModifiers(ICharacterInstance& character)
 }
 
 }
+

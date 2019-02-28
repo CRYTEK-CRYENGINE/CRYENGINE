@@ -1,49 +1,17 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-#ifndef _STL_UTILS_HEADER_
-#define _STL_UTILS_HEADER_
+#pragma once
 
-#include "Wrapper.h"
+#include <CryMath/Range.h>
 
 #include <map>
 #include <set>
+#include <type_traits>
 #include <algorithm>
+#include <functional>
 #include <deque>
 #include <unordered_map>
 #include <unordered_set>
-
-/*
-   {
-   typename Map::const_iterator it = mapKeyToValue.find (key);
-   if (it == mapKeyToValue.end())
-    return valueDefault;
-   else
-    return it->second;
-   }
-
-   //! Searches the given entry in the map by key, and if there is none, returns the default value.
-   //! The values are taken/returned in REFERENCEs rather than values.
-   template <typename Map>
-   inline typename Map::mapped_type& find_in_map_ref(Map& mapKeyToValue, typename Map::key_type key, typename Map::mapped_type& valueDefault)
-   {
-   typename Map::iterator it = mapKeyToValue.find (key);
-   if (it == mapKeyToValue.end())
-    return valueDefault;
-   else
-    return it->second;
-   }
- */
-
-//! Auto-cleaner: upon destruction, calls the clear() method.
-template<class T>
-class CAutoClear
-{
-public:
-	CAutoClear(T* p) : m_p(p) {}
-	~CAutoClear() { m_p->clear(); }
-protected:
-	T* m_p;
-};
 
 template<class Container>
 unsigned sizeofArray(const Container& arr)
@@ -195,6 +163,54 @@ inline void set_to_vector(const Set& theSet, Vector& array)
 	}
 }
 
+//////////////////////////////////////////////////////////////////////////
+template<typename Container, typename KeyFunc>
+void sort(Container& cont, KeyFunc key)
+{
+	using Ref = typename Container::const_reference;
+	std::sort(cont.begin(), cont.end(), [key](Ref a, Ref b)
+	{
+		return key(a) < key(b);
+	});
+}
+
+//////////////////////////////////////////////////////////////////////////
+template<typename C, typename V>
+int find_index(const C& container, const V& value)
+{
+	auto it = std::find(container.begin(), container.end(), value);
+	return it == container.end() ? -1 : int(it - container.begin());
+}
+
+template<typename C, typename P>
+int find_index_if(const C& container, const P& pred)
+{
+	auto it = std::find_if(container.begin(), container.end(), pred);
+	return it == container.end() ? -1 : int(it - container.begin());
+}
+
+template<typename C, typename V>
+bool has_value(const C& container, const V& value)
+{
+	auto it = std::find(container.begin(), container.end(), value);
+	return it != container.end();
+}
+
+template<typename C, typename P>
+bool has_value_if(const C& container, const P& pred)
+{
+	auto it = std::find_if(container.begin(), container.end(), pred);
+	return it != container.end();
+}
+
+template<typename C, typename P>
+typename C::value_type find_value_if(const C& container, const P& pred)
+{
+	auto it = std::find_if(container.begin(), container.end(), pred);
+	return it != container.end() ? *it : typename C::value_type();
+}
+
+//////////////////////////////////////////////////////////////////////////
 //! Find and erase element from container.
 //! \return true if item was find and erased, false if item not found.
 template<class Container, class Value>
@@ -237,9 +253,20 @@ template<class CONTAINER, class PREDICATE> inline bool find_and_erase_if(CONTAIN
 template<class Container>
 inline void find_and_erase_all(Container& container, const typename Container::value_type& value)
 {
-	// Shuffles all elements != value to the front and returns the start of the removed elements.
+	// Shuffles all elements == value to the end and returns the start of the removed elements.
 	typename Container::iterator endIter(container.end());
 	typename Container::iterator newEndIter(std::remove(container.begin(), endIter, value));
+
+	// Delete the removed range at the back of the container (low-cost for vector).
+	container.erase(newEndIter, endIter);
+}
+
+template<class Container, class Predicate> 
+inline void find_and_erase_all_if(Container& container, const Predicate& predicate)
+{
+	// Shuffles all elements == predicate to the front and returns the start of the removed elements.
+	typename Container::iterator endIter(container.end());
+	typename Container::iterator newEndIter(std::remove_if(container.begin(), endIter, predicate));
 
 	// Delete the removed range at the back of the container (low-cost for vector).
 	container.erase(newEndIter, endIter);
@@ -454,7 +481,7 @@ inline const char* constchar_cast(const string& type)
 
 //! Case sensetive less key for any type convertable to const char*.
 template<class Type>
-struct less_strcmp : public std::binary_function<Type, Type, bool>
+struct less_strcmp
 {
 	bool operator()(const Type& left, const Type& right) const
 	{
@@ -464,7 +491,7 @@ struct less_strcmp : public std::binary_function<Type, Type, bool>
 
 //! Case insensetive less key for any type convertable to const char*.
 template<class Type>
-struct less_stricmp : public std::binary_function<Type, Type, bool>
+struct less_stricmp
 {
 	bool operator()(const Type& left, const Type& right) const
 	{
@@ -706,44 +733,6 @@ struct SAllocatorConstruct
 #endif
 };
 
-/////////////////////////////////////////////////////////////////////
-// Iteration utilities and adaptors
-
-// Provide an arbitrary range for range-based for loops
-// Examples:
-//		for (auto& e : stl::range(B, E))  // replaces:
-//		for (auto it = B; it != E; ++it)
-//
-
-template<class IT>
-struct Range
-{
-	typedef IT iterator;
-
-	TProperty<IT> begin;
-	TProperty<IT> end;
-
-	Range(IT b, IT e)
-		: begin(b), end(e) {}
-};
-
-template<class IT>
-Range<IT> range(IT b, IT e)
-{ return Range<IT>(b, e); }
-
-// Adapter for iterating a container in reverse
-// Example:
-//		for (auto& e : stl::reverse(cont))  // replaces:
-//		for (auto it = cont.rbegin(); it != cont.rend(); ++it)
-
-template<class C>
-Range<typename C::const_reverse_iterator> reversed(const C& c)
-{ return range(c.rbegin(), c.rend()); }
-
-template<class C>
-Range<typename C::reverse_iterator> reversed(C& c)
-{ return range(c.rbegin(), c.rend()); }
-
 // Adapter for iterating over a container of non-null pointers
 // Example:
 //		stl::indirect_container<std::vector<T*>> cont;
@@ -858,4 +847,30 @@ struct SSerialCompare
 	}
 };
 
-#endif
+
+/**
+ *! Remove once we move to C++17
+ */
+namespace stl {
+
+	template <typename T> struct always_false : std::false_type {};
+
+
+	// conjuction and negation helpers
+	//! Remove once we move to C++17
+	template <typename T>
+	struct negation {
+		static constexpr bool value = !T::value;
+	};
+	template <typename... Ts>
+	struct conjuction : std::true_type {};
+	template <typename T, typename... Ts>
+	struct conjuction<T, Ts...> {
+		static constexpr bool value = T::value && conjuction<Ts...>::value;
+	};
+	template <typename T>
+	struct conjuction<T> {
+		static constexpr bool value = T::value;
+	};
+
+}

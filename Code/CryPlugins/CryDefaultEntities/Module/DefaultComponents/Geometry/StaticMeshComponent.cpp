@@ -1,5 +1,6 @@
 #include "StdAfx.h"
 #include "StaticMeshComponent.h"
+#include "DefaultComponents/ComponentHelpers/PhysicsParameters.h"
 
 #include <Cry3DEngine/IRenderNode.h>
 
@@ -29,6 +30,14 @@ void CStaticMeshComponent::Register(Schematyc::CEnvRegistrationScope& componentS
 		pFunction->SetFlags({ Schematyc::EEnvFunctionFlags::Member });
 		componentScope.Register(pFunction);
 	}
+	{
+		auto pFunction = SCHEMATYC_MAKE_ENV_FUNCTION(&CStaticMeshComponent::SetObject, "{7E31601A-2766-4F3D-AF97-65F34556C664}"_cry_guid, "SetObject");
+		pFunction->BindInput(1, 'path', "Path");
+		pFunction->BindInput(2, 'setd', "Set Default Mass");
+		pFunction->SetDescription("Changes the type of the object");
+		pFunction->SetFlags({ Schematyc::EEnvFunctionFlags::Member });
+		componentScope.Register(pFunction); 
+	}
 }
 
 void CStaticMeshComponent::Initialize()
@@ -49,17 +58,35 @@ void CStaticMeshComponent::LoadFromDisk()
 	}
 }
 
-void CStaticMeshComponent::SetObject(IStatObj* pObject, bool bSetDefaultMass)
+void CStaticMeshComponent::SetObjectDirect(IStatObj* pObject, bool bSetDefaultMass)
 {
 	m_pCachedStatObj = pObject;
 	m_filePath.value = m_pCachedStatObj->GetFilePath();
 
 	if (bSetDefaultMass)
 	{
-		if (!m_pCachedStatObj->GetPhysicalProperties(m_physics.m_mass, m_physics.m_density))
+		float mass = 0;
+		float density = 0;
+
+		// First get the mass or density from the statobj. If it's zero we should fall back to our default value/previous value.
+		if (m_pCachedStatObj->GetPhysicalProperties(mass, density) && (mass > 0 || density > 0))
 		{
-			m_physics.m_mass = 10;
+			m_physics.m_mass = mass;
+			m_physics.m_density = density;
+			m_physics.m_weightType = mass > 0 ? SPhysicsParameters::EWeightType::Mass : SPhysicsParameters::EWeightType::Density;
 		}
+	}
+
+	ResetObject();
+}
+
+void CStaticMeshComponent::SetObject(Schematyc::CSharedString path, bool bSetDefaultMass)
+{
+	IStatObj* pObject = gEnv->p3DEngine->LoadStatObj(path.c_str());
+
+	if (pObject != nullptr)
+	{
+		SetObjectDirect(pObject, bSetDefaultMass);
 	}
 }
 
@@ -82,7 +109,7 @@ void CStaticMeshComponent::ResetObject()
 	}
 }
 
-void CStaticMeshComponent::ProcessEvent(SEntityEvent& event)
+void CStaticMeshComponent::ProcessEvent(const SEntityEvent& event)
 {
 	if (event.event == ENTITY_EVENT_COMPONENT_PROPERTY_CHANGED)
 	{
@@ -101,6 +128,18 @@ void CStaticMeshComponent::ProcessEvent(SEntityEvent& event)
 
 	CBaseMeshComponent::ProcessEvent(event);
 }
+
+#ifndef RELEASE
+void CStaticMeshComponent::Render(const IEntity& entity, const IEntityComponent& component, SEntityPreviewContext &context) const
+{
+	if (m_type == EMeshType::Collider && context.bSelected)
+	{
+		context.debugDrawInfo.tm = m_pEntity->GetSlotWorldTM(GetEntitySlotId());
+		m_pCachedStatObj->DebugDraw(context.debugDrawInfo);
+	}
+
+}
+#endif
 
 void CStaticMeshComponent::SetFilePath(const char* szPath)
 {

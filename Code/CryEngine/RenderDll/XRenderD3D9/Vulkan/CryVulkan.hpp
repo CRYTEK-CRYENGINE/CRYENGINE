@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -29,7 +29,6 @@ HRESULT WINAPI VKCreateDevice(
 	CONST D3D_FEATURE_LEVEL* pFeatureLevels,
 	UINT FeatureLevels,
 	UINT SDKVersion,
-	HWND outputWindow,
 	ID3D11Device** ppDevice,
 	D3D_FEATURE_LEVEL* pFeatureLevel,
 	ID3D11DeviceContext** ppImmediateContext);

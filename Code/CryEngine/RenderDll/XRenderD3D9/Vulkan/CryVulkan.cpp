@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 #include "StdAfx.h"
 #include "CryVulkan.hpp"
 #include "API/VKInstance.hpp"
@@ -33,34 +33,11 @@ HRESULT WINAPI VKCreateDevice(
 	CONST D3D_FEATURE_LEVEL* pFeatureLevels,
 	UINT FeatureLevels,
 	UINT SDKVersion,
-	HWND outputWindow,
 	ID3D11Device** ppDevice,
 	D3D_FEATURE_LEVEL* pFeatureLevel,
 	ID3D11DeviceContext** ppImmediateContext)
 {
-
-	NCryVulkan::SSurfaceCreationInfo surfaceInfo;
-
-#ifdef CRY_PLATFORM_WINDOWS
-	surfaceInfo.windowHandle = outputWindow;
-	surfaceInfo.appHandle = (HINSTANCE)GetWindowLongPtr(surfaceInfo.windowHandle, GWLP_HINSTANCE);
-#else
-	SDL_Window* pWindowContext = reinterpret_cast<SDL_Window*>(pSwapChainDesc->OutputWindow);
-	struct SDL_SysWMinfo info;
-	ZeroStruct(info);
-	info.version.major = SDL_MAJOR_VERSION;
-	info.version.minor = SDL_MINOR_VERSION;
-	if (!SDL_GetWindowWMInfo(pWindowContext, &info))
-	{
-		return S_FALSE;
-	}
-
-	surfaceInfo.pWindow = pWindowContext;
-	surfaceInfo.pNativeWindow = info.info.android.window;
-//	surfaceInfo.hNativeSurface = info.info.android.surface;
-#endif
-
-	_smart_ptr<NCryVulkan::CDevice> pDevice = pAdapter->GetFactory()->GetVkInstance()->CreateDevice(pAdapter->GetDeviceIndex(), surfaceInfo);
+	_smart_ptr<NCryVulkan::CDevice> pDevice = pAdapter->GetFactory()->GetVkInstance()->CreateDevice(pAdapter->GetDeviceIndex());
 	if (!pDevice)
 	{
 		return S_FALSE;

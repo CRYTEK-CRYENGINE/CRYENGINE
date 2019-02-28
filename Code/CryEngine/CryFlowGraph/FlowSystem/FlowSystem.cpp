@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -533,7 +533,7 @@ void CFlowSystem::Update()
 #endif
 
 	{
-		FRAME_PROFILER("CFlowSystem::Update()", gEnv->pSystem, PROFILE_ACTION);
+		CRY_PROFILE_REGION(PROFILE_ACTION, "CFlowSystem::Update()");
 		if (m_cVars.m_enableUpdates == 0)
 		{
 			/*
@@ -659,7 +659,7 @@ void CFlowSystem::Reset(bool unload)
 void CFlowSystem::Init()
 {
 	if (gEnv->pEntitySystem)
-		gEnv->pEntitySystem->AddSink(this, IEntitySystem::OnReused | IEntitySystem::OnSpawn, 0);
+		gEnv->pEntitySystem->AddSink(this, IEntitySystem::OnReused | IEntitySystem::OnSpawn);
 }
 
 //////////////////////////////////////////////////////////////////////////

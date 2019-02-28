@@ -1,4 +1,4 @@
-# Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+# Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 from waflib.TaskGen import feature, after_method
 import os
 
@@ -58,8 +58,8 @@ def feature_copy_rc_binaries(self):
 			self.create_task('copy_outputs', orbis_host_tools_node.make_node(final_bin_name), output_node.make_node(final_bin_name))
 
 	# Copy Durango binaries
-	if os.path.isdir(Path('Code/SDKs/DurangoSDK/170300/bin')):
-		durango_bin_path_node = bld.root.make_node(bld.CreateRootRelativePath('Code/SDKs/DurangoSDK/170300/bin'))
+	if os.path.isdir(Path('Code/SDKs/DurangoSDK/171100/bin')):
+		durango_bin_path_node = bld.root.make_node(bld.CreateRootRelativePath('Code/SDKs/DurangoSDK/171100/bin'))
 		src_file = durango_bin_path_node.make_node('xg.dll')
 		self.create_task('copy_outputs', durango_bin_path_node.make_node('xg.dll'), output_node.make_node('xg.dll'))
 

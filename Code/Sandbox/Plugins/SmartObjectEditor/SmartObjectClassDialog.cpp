@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "ItemDescriptionDlg.h"
@@ -433,3 +433,4 @@ dll_string ShowDialog(const SResourceSelectorContext& context, const char* szPre
 
 REGISTER_RESOURCE_SELECTOR("SmartObjectClasses", ShowDialog, "")
 }
+

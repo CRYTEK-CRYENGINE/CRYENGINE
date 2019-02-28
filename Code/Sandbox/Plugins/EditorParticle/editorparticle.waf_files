@@ -1,0 +1,47 @@
+{
+  "NoUberFile": {
+    "Plugin": [
+      "main.cpp", 
+      "StdAfx.cpp", 
+      "StdAfx.h"
+    ]
+  }, 
+  "Uber_ParticleLibrary.cpp": {
+    "Editor": [
+      "MainEditorWindow.h", 
+      "MainEditorWindow.cpp", 
+      "ParticleAssetType.h", 
+      "ParticleAssetType.cpp", 
+      "Undo.h", 
+      "Undo.cpp", 
+      "EntityObjectWithParticleComponent.cpp", 
+      "EntityObjectWithParticleComponent.h"
+    ], 
+    "Models": [
+      "Models/ClipboardItems.h", 
+      "Models/ClipboardItems.cpp", 
+      "Models/EffectAsset.h", 
+      "Models/EffectAsset.cpp", 
+      "Models/EffectAssetModel.h", 
+      "Models/EffectAssetModel.cpp", 
+      "Models/ParticleGraphItems.h", 
+      "Models/ParticleGraphItems.cpp", 
+      "Models/ParticleGraphModel.h", 
+      "Models/ParticleGraphModel.cpp", 
+      "Models/ParticleNodeTreeModel.h", 
+      "Models/ParticleNodeTreeModel.cpp"
+    ], 
+    "Widgets": [
+      "Widgets/ViewWidget.h", 
+      "Widgets/ViewWidget.cpp", 
+      "Widgets/EffectViewWidget.h", 
+      "Widgets/EffectViewWidget.cpp"
+    ], 
+    "Widgets/View": [
+      "Widgets/FeatureGridNodeContentWidget.h", 
+      "Widgets/FeatureGridNodeContentWidget.cpp", 
+      "Widgets/NodeIcons.h", 
+      "Widgets/NodeIcons.cpp"
+    ]
+  }
+}

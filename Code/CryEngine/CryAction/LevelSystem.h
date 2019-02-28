@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __LEVELSYSTEM_H__
 #define __LEVELSYSTEM_H__
@@ -77,6 +77,7 @@ private:
 
 	string                                 m_levelPakFullPath;
 	string                                 m_levelMMPakFullPath;
+	string                                 m_levelSvoPakFullPath;
 
 	std::vector<string>                    m_gamerules;
 	int                                    m_heightmapSize;
@@ -198,7 +199,7 @@ class CLevelSystem :
 	public ISystem::ILoadingProgressListener
 {
 public:
-	CLevelSystem(ISystem* pSystem, const char* levelsFolder);
+	CLevelSystem(ISystem* pSystem);
 	virtual ~CLevelSystem();
 
 	void Release() { delete this; };
@@ -251,10 +252,7 @@ private:
 	void OnLoadingProgress(ILevelInfo* pLevel, int progressAmount);
 	void OnUnloadComplete(ILevelInfo* pLevel);
 
-	// lowercase string and replace backslashes with forward slashes
-	// TODO: move this to a more general place in CryEngine
-	string& UnifyName(string& name);
-	void    ScanFolder(const char* subfolder, bool modFolder, const uint32 tag);
+	void    ScanFolder(const string& rootFolder, bool modFolder, const uint32 tag);
 	void    LogLoadingTime();
 	bool    LoadLevelInfo(CLevelInfo& levelInfo);
 
@@ -262,6 +260,7 @@ private:
 	// directly cast to the interface
 	CLevelInfo* GetLevelInfoInternal(int level);
 	CLevelInfo* GetLevelInfoInternal(const char* levelName);
+	CLevelInfo* GetLevelInfoByPathInternal(const char* szLevelPath);
 
 	typedef std::vector<CLevelRotation> TExtendedLevelRotations;
 

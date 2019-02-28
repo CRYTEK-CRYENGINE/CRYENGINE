@@ -1,12 +1,11 @@
-// CRYENGINE Source Code File
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 ////////////////////////////////////////////////
 // shader constants
 
 #define HALFRES_DEBUG_COLOR half3(0.3h, 3.h, 0.3h)
 
-cbuffer ParticleInstance : register(b12)
+cbuffer ParticleInstance : register(b0)
 {
 	struct
 	{
@@ -18,7 +17,7 @@ cbuffer ParticleInstance : register(b12)
 	} particleInstance;
 };
 
-cbuffer ParticleParamsCB : register (b9)
+cbuffer ParticleParamsCB : register (b4)
 {
 	struct
 	{
@@ -65,27 +64,6 @@ StructuredBuffer<SParticlePosition>    positionsSRV   : register(t35);
 StructuredBuffer<SParticleAxes>        axesSRV        : register(t36);
 StructuredBuffer<SParticleColorST>     colorSTsSRV    : register(t37);
 StructuredBuffer<SDefaultParticleData> gpuParticleSRV : register(t14);
-
-// #PFX2_TODO make a tile shader header file to not duplicate this
-
-#define TILED_SHADING_MAX_NUM_LIGHTS  255
-
-struct STiledLightShadeInfo
-{
-	uint      lightType;
-	uint      resIndex;
-	uint      shadowMaskIndex;
-	uint      stencilID;
-	float4    posRad;
-	float2    attenuationParams;
-	float2    shadowParams;
-	float4    color;
-	float4x4  projectorMatrix;
-	float4x4  shadowMatrix;
-};
-StructuredBuffer<STiledLightShadeInfo> Fwd_TiledLightsShadeInfo : register(t18);
-TextureCubeArray<float4>               Fwd_SpecCubeArray        : register(t20);
-TextureCubeArray<float4>               Fwd_DiffuseCubeArray     : register(t21);
 
 // #PFX2_TODO add this to an include file for re-use
 Texture2D               texSceneTarget        : register(t25);

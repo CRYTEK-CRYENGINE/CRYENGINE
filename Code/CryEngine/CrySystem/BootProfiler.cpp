@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -6,6 +6,7 @@
 
 	#include "BootProfiler.h"
 	#include "ThreadInfo.h"
+	#include "CryMath/Cry_Math.h"
 
 namespace
 {
@@ -58,6 +59,13 @@ public:
 		assert(threadIndex < m_threadCounter);
 		return m_threadNames[threadIndex].c_str();
 	}
+	
+	ILINE threadID GetThreadIdByIndex(unsigned int threadIndex)
+	{
+		assert(threadIndex < m_threadCounter);
+		return m_threadInfo[threadIndex];
+	}
+
 
 	int GetThreadCount() const
 	{
@@ -74,10 +82,15 @@ CBootProfiler gProfilerInstance;
 CBootProfilerThreadsInterface gThreadsInterface;
 }
 
+int CBootProfiler::CV_sys_bp_enabled = 1;
+int CBootProfiler::CV_sys_bp_level_load = 1;
 int CBootProfiler::CV_sys_bp_frames_worker_thread = 0;
 int CBootProfiler::CV_sys_bp_frames = 0;
+int CBootProfiler::CV_sys_bp_frames_sample_period = 0;
+int CBootProfiler::CV_sys_bp_frames_sample_period_rnd = 0;
 float CBootProfiler::CV_sys_bp_frames_threshold = 0.0f;
 float CBootProfiler::CV_sys_bp_time_threshold = 0.0f;
+EBootProfilerFormat CBootProfiler::CV_sys_bp_output_formats = EBootProfilerFormat::XML;
 
 class CProfileBlockTimes
 {
@@ -100,11 +113,14 @@ class CBootProfilerSession;
 class CBootProfilerRecord
 {
 public:
+
+	unsigned int          m_threadIndex;
+	EProfileDescription   m_type;
+	string                m_args;
+
 	const char*           m_label;
 	LARGE_INTEGER         m_startTimeStamp;
 	LARGE_INTEGER         m_stopTimeStamp;
-
-	unsigned int          m_threadIndex;
 
 	CBootProfilerRecord*  m_pParent;
 
@@ -113,10 +129,17 @@ public:
 	CBootProfilerRecord*  m_pNextSibling;
 	CBootProfilerSession* m_pSession;
 
-	CryFixedStringT<256> m_args;
 
-	ILINE CBootProfilerRecord(const char* label, LARGE_INTEGER timestamp, unsigned int threadIndex, const char* args, CBootProfilerSession* pSession) :
-		m_label(label), m_startTimeStamp(timestamp), m_threadIndex(threadIndex), m_pParent(nullptr), m_pFirstChild(nullptr), m_pLastChild(nullptr), m_pNextSibling(nullptr), m_pSession(pSession)
+	ILINE CBootProfilerRecord(const char* label, LARGE_INTEGER timestamp, unsigned int threadIndex, const char* args, CBootProfilerSession* pSession,EProfileDescription type)
+		:	m_label(label)
+		, m_startTimeStamp(timestamp)
+		, m_threadIndex(threadIndex)
+		, m_pParent(nullptr)
+		, m_pFirstChild(nullptr)
+		, m_pLastChild(nullptr)
+		, m_pNextSibling(nullptr)
+		, m_pSession(pSession)
+		, m_type(type)
 	{
 		memset(&m_stopTimeStamp, 0, sizeof(m_stopTimeStamp));
 		if (args)
@@ -236,7 +259,7 @@ public:
 	void                 Start();
 	void                 Stop();
 
-	CBootProfilerRecord* StartBlock(const char* name, const char* args, const unsigned int threadIndex);
+	CBootProfilerRecord* StartBlock(const char* name, const char* args, const unsigned int threadIndex, EProfileDescription type);
 
 	float GetTotalTime() const
 	{
@@ -308,8 +331,7 @@ CBootProfilerSession::CBootProfilerSession(const char* szName) : m_name(szName)
 
 CBootProfilerSession::~CBootProfilerSession()
 {
-	const unsigned int nThreadCount = gThreadsInterface.GetThreadCount();
-	for (unsigned int i = 0; i < nThreadCount; ++i)
+	for (unsigned int i = 0; i < eMAX_THREADS_TO_PROFILE; ++i)
 	{
 		SThreadEntry& entry = m_threadEntry[i];
 		delete entry.m_pRecordsPool;
@@ -330,7 +352,7 @@ void CBootProfilerSession::Stop()
 	m_stopTimeStamp = time;
 }
 
-CBootProfilerRecord* CBootProfilerSession::StartBlock(const char* name, const char* args, const unsigned int threadIndex)
+CBootProfilerRecord* CBootProfilerSession::StartBlock(const char* name, const char* args, const unsigned int threadIndex, EProfileDescription type)
 {
 	assert(threadIndex < eMAX_THREADS_TO_PROFILE);
 
@@ -344,12 +366,9 @@ CBootProfilerRecord* CBootProfilerSession::StartBlock(const char* name, const ch
 		entry.m_pRecordsPool = pPool;
 
 		CBootProfilerRecord* rec = pPool->allocateRecord();
-		entry.m_pRootRecord = entry.m_pCurrentRecord = new(rec) CBootProfilerRecord("root", m_startTimeStamp, threadIndex, args, this);
+		entry.m_pRootRecord = entry.m_pCurrentRecord = new(rec) CBootProfilerRecord("root", m_startTimeStamp, threadIndex, args, this,type);
 	}
-
-	LARGE_INTEGER time;
-	QueryPerformanceCounter(&time);
-
+	
 	assert(entry.m_pRootRecord);
 
 	CRecordPool* pPool = entry.m_pRecordsPool;
@@ -364,23 +383,266 @@ CBootProfilerRecord* CBootProfilerSession::StartBlock(const char* name, const ch
 		rec = pPool->allocateRecord();
 	}
 
-	CBootProfilerRecord* pNewRecord = new(rec) CBootProfilerRecord(name, time, threadIndex, args, this);
+	LARGE_INTEGER time;
+	QueryPerformanceCounter(&time);
+
+	CBootProfilerRecord* pNewRecord = new(rec) CBootProfilerRecord(name, time, threadIndex, args, this,type);
 	entry.m_pCurrentRecord->AddChild(pNewRecord);
 	entry.m_pCurrentRecord = pNewRecord;
+
+	uint32 profilerType = type & EProfileDescription::TYPE_MASK;
+	if (profilerType == EProfileDescription::MARKER || profilerType == EProfileDescription::PUSH_MARKER || profilerType == EProfileDescription::POP_MARKER)
+	{
+		// When pushing markers immediately stop block
+		pNewRecord->StopBlock();
+	}
 
 	return pNewRecord;
 }
 
-static void SaveProfileSessionToDisk(const float funcMinTimeThreshold, CBootProfilerSession* pSession)
+struct BootProfilerSessionSerializerToJSON
 {
-	if (!(gEnv && gEnv->pCryPak))
+	CBootProfilerSession* pSession = nullptr;
+	float funcMinTimeThreshold = 0;
+
+	BootProfilerSessionSerializerToJSON() {}
+	BootProfilerSessionSerializerToJSON(CBootProfilerSession* pS,float threshold ) : pSession(pS),funcMinTimeThreshold(threshold) {}
+
+	struct SSerializeFixedStringArg
 	{
-		CBootProfiler::GetInstance().QueueSessionToDelete(pSession);
-		return;
+		string str;
+		const char *label;
+		void Serialize(Serialization::IArchive& ar)
+		{
+			ar(str,label);
+		}
+	};
+	struct SSerializeIntArg
+	{
+		uint32 arg;
+		const char *label;
+		void Serialize(Serialization::IArchive& ar)
+		{
+			ar(arg, label);
+		}
+	};
+	struct SSerializeLambda
+	{
+		std::function<void(Serialization::IArchive& ar)> lambda;
+		void Serialize(Serialization::IArchive& ar)
+		{
+			lambda(ar);
+		}
+	};
+
+	enum class EventType { RECORD,THREAD_NAME,THREAD_SORT };
+	struct BootProfilerEventSerializerToJSON
+	{
+		CBootProfilerSession* pSession = nullptr;
+		CBootProfilerRecord* pRecord = nullptr;
+		threadID threadId = 0;
+		EventType type = EventType::RECORD;
+
+		BootProfilerEventSerializerToJSON() {}
+		BootProfilerEventSerializerToJSON(CBootProfilerSession* pS,CBootProfilerRecord* pR,threadID tid,EventType et)
+			: pSession(pS),pRecord(pR),threadId(tid),type(et) {}
+
+		// Serializes into the Chrome trace compatible JSON format
+		void Serialize(Serialization::IArchive& ar)
+		{
+			static uint32 processId = 0;
+#ifdef WIN32
+			processId = ::GetCurrentProcessId();
+#endif
+			ar(processId, "pid");
+			ar(threadId,  "tid");
+
+			if (type == EventType::THREAD_NAME)
+			{
+				ar(string("thread_name"),"name");
+				ar(string("M"),"ph");
+
+				string threadName = GetISystem()->GetIThreadManager()->GetThreadName(threadId);
+				ar(SSerializeFixedStringArg{threadName,"name"},"args");
+				return;
+			}
+			else if (type == EventType::THREAD_SORT)
+			{
+				static int counter = 0;
+				ar(string("thread_sort_index"), "name");
+				ar(string("M"), "ph");
+				ar(SSerializeIntArg{(uint32)counter++,"sort_index"},"args");
+				return;
+			}
+
+			string label = pRecord->m_label;
+			label.replace("\"", "&quot;");
+			label.replace("'", "&apos;");
+
+			if (pRecord->m_args.size() > 0)
+			{
+				pRecord->m_args.replace("\"", "&quot;");
+				pRecord->m_args.replace("'", "&apos;");
+			}
+
+			{
+				double time = (double)(pRecord->m_stopTimeStamp.QuadPart - pRecord->m_startTimeStamp.QuadPart) * 1000000.0 / (double)pSession->GetFrequency().QuadPart;
+				double timeStart = (double)(pRecord->m_startTimeStamp.QuadPart) * 1000000.0 / (double)pSession->GetFrequency().QuadPart; // microseconds
+
+				//static int timeStart = 0;
+				//timeStart++;
+				//int time = 10;
+
+				static string category = "PERF";
+
+				ar(label, "name");
+
+				uint32 profilerType = pRecord->m_type & EProfileDescription::TYPE_MASK; //FUNCTIONENTRY,REGION,SECTION
+				bool bWaiting = (pRecord->m_type & EProfileDescription::WAITING) != 0;
+				
+				// Events Documentation: https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU/preview#heading=h.lenwiilchoxp
+				if (profilerType == EProfileDescription::MARKER)
+				{
+					// Instant Event
+					static string eventType = "i";
+					static string category = "MARKER";
+					ar(category, "cat");
+					ar(eventType, "ph");
+					ar(timeStart, "ts");
+				}
+				else if (profilerType == EProfileDescription::PUSH_MARKER)
+				{
+					// Complete Event
+					static string eventType = "B";
+					static string category = "MARKER";
+					ar(category, "cat");
+					ar(eventType, "ph");
+					ar(timeStart, "ts");
+				}
+				else if (profilerType == EProfileDescription::POP_MARKER)
+				{
+					// Complete Event
+					static string eventType = "E";
+					static string category = "MARKER";
+					ar(category, "cat");
+					ar(eventType, "ph");
+					ar(timeStart, "ts");
+				}
+				else if (profilerType == EProfileDescription::SECTION)
+				{
+					// Complete Event
+					static string eventType = "X";
+					static string category = "SECTION";
+					ar(category, "cat");
+					ar(eventType, "ph");
+					ar(timeStart, "ts");
+					ar(time, "dur");
+				}
+				else if (profilerType == EProfileDescription::REGION)
+				{
+					// Complete Event
+					static string eventType = "X";
+					static string category = "REGION";
+					ar(category, "cat");
+					ar(eventType, "ph");
+					ar(timeStart, "ts");
+					ar(time, "dur");
+				}
+				else
+				{
+					// Complete Event
+					static string eventType = "X";
+					static string category = "PERF";
+					ar(category, "cat");
+					ar(eventType, "ph");
+					ar(timeStart, "ts");
+					ar(time, "dur");
+				}
+				
+				if (!pRecord->m_args.empty())
+				{
+					ar(SSerializeFixedStringArg{pRecord->m_args,"arg"},"args");
+				}
+			}
+		}
+	};
+
+	void CollectProfilers(CBootProfilerRecord* pRecord,threadID threadId,std::vector<BootProfilerEventSerializerToJSON>& profilers)
+	{
+		// Serializes into the Chrome trace compatible JSON format
+		if (pRecord->m_stopTimeStamp.QuadPart == 0)
+			pRecord->m_stopTimeStamp = pSession->GetStopTimeStamp();
+
+		const double time = (double)(pRecord->m_stopTimeStamp.QuadPart - pRecord->m_startTimeStamp.QuadPart) * 1000.f / (double)pSession->GetFrequency().QuadPart;
+
+		if (funcMinTimeThreshold == 0 || time > funcMinTimeThreshold)
+		{
+			profilers.push_back(BootProfilerEventSerializerToJSON(pSession,pRecord,threadId,EventType::RECORD));
+		}
+
+		for (CBootProfilerRecord* pNewRecord = pRecord->m_pFirstChild; pNewRecord; pNewRecord = pNewRecord->m_pNextSibling)
+		{
+			CollectProfilers(pNewRecord,threadId,profilers);
+		}
 	}
 
+	void Serialize(Serialization::IArchive& ar)
+	{
+		int pid = 0;
+#ifdef WIN32
+		pid = ::GetCurrentProcessId();
+#endif
+
+		std::vector<BootProfilerEventSerializerToJSON> threadProfilers;
+
+		const size_t numThreads = gThreadsInterface.GetThreadCount();
+		for (size_t i = 0; i < numThreads; ++i)
+		{
+			const CBootProfilerSession::SThreadEntry& entry = pSession->GetThreadEntries()[i];
+
+			CBootProfilerRecord* pRoot = entry.m_pRootRecord;
+			if (pRoot)
+			{
+				pRoot->m_stopTimeStamp = pSession->GetStopTimeStamp();
+
+				const char* threadName = gThreadsInterface.GetThreadNameByIndex(i);
+				if (!threadName)
+					threadName = "UNKNOWN";
+				
+				threadID tid = gThreadsInterface.GetThreadIdByIndex(i);
+
+				threadProfilers.push_back(BootProfilerEventSerializerToJSON(pSession,nullptr,tid,EventType::THREAD_NAME));
+				threadProfilers.push_back(BootProfilerEventSerializerToJSON(pSession,nullptr,tid,EventType::THREAD_SORT));
+				for (CBootProfilerRecord* pRecord = pRoot->m_pFirstChild; pRecord; pRecord = pRecord->m_pNextSibling)
+				{
+					CollectProfilers(pRecord,tid,threadProfilers);
+				}
+			}
+		}
+
+		ar(threadProfilers,"traceEvents");
+		ar(string("ms"),"displayTimeUnit");
+		//{"name": "thread_name", "ph" : "M", "pid" : 2343, "tid" : 2347,
+			//"args" : {
+			//"name" : "RendererThread"
+		//}
+	}
+};
+
+static void SaveProfileSessionToChromeTraceJson(const float funcMinTimeThreshold, CBootProfilerSession* pSession)
+{
 	static const char* szTestResults = "%USER%/TestResults";
-	stack_string filePath; 
+	stack_string filePath;
+	filePath.Format("%s\\chrome_trace_%s.json", szTestResults, pSession->GetName());
+	gEnv->pCryPak->MakeDir(szTestResults);
+
+	GetISystem()->GetArchiveHost()->SaveJsonFile(filePath,Serialization::SStruct(BootProfilerSessionSerializerToJSON(pSession,funcMinTimeThreshold)));
+}
+
+static void SaveProfileSessionToXML(CBootProfilerSession* pSession, const float funcMinTimeThreshold)
+{
+	static const char* szTestResults = "%USER%/TestResults";
+	stack_string filePath;
 	filePath.Format("%s\\bp_%s.xml", szTestResults, pSession->GetName());
 	char path[ICryPak::g_nMaxPath] = "";
 	gEnv->pCryPak->AdjustFileName(filePath.c_str(), path, ICryPak::FLAGS_PATH_REAL | ICryPak::FLAGS_FOR_WRITING);
@@ -389,7 +651,6 @@ static void SaveProfileSessionToDisk(const float funcMinTimeThreshold, CBootProf
 	FILE* pFile = ::fopen(path, "wb");
 	if (!pFile)
 	{
-		CBootProfiler::GetInstance().QueueSessionToDelete(pSession);
 		return; //TODO: use accessible path when punning from package on durango
 	}
 
@@ -432,6 +693,24 @@ static void SaveProfileSessionToDisk(const float funcMinTimeThreshold, CBootProf
 	fprintf(pFile, "%s", buf);
 
 	::fclose(pFile);
+}
+
+static void SaveProfileSessionToDisk(const float funcMinTimeThreshold, CBootProfilerSession* pSession, EBootProfilerFormat outputFormat)
+{
+	if (!(gEnv && gEnv->pCryPak))
+	{
+		CBootProfiler::GetInstance().QueueSessionToDelete(pSession);
+		return;
+	}
+
+	if (outputFormat == EBootProfilerFormat::XML)
+	{
+		SaveProfileSessionToXML(pSession, funcMinTimeThreshold);
+	}
+	else if (outputFormat == EBootProfilerFormat::ChromeTraceJSON)
+	{
+		SaveProfileSessionToChromeTraceJson(funcMinTimeThreshold, pSession);
+	}
 
 	CBootProfiler::GetInstance().QueueSessionToDelete(pSession);
 }
@@ -444,7 +723,7 @@ void CBootProfilerSession::CollectResults(const float functionMinTimeThreshold)
 	}
 	else
 	{
-		SaveProfileSessionToDisk(functionMinTimeThreshold, this);
+		SaveProfileSessionToDisk(functionMinTimeThreshold, this, CBootProfiler::GetInstance().CV_sys_bp_output_formats);
 	}
 }
 
@@ -476,6 +755,7 @@ CBootProfiler::CBootProfiler()
 	, m_quitSaveThread(false)
 	, m_pMainThreadFrameRecord(nullptr)
 	, m_levelLoadAdditionalFrames(0)
+	, m_countdownToNextSaveSesssion(0)
 {
 }
 
@@ -498,6 +778,11 @@ CBootProfiler::~CBootProfiler()
 // start session
 void CBootProfiler::StartSession(const char* sessionName)
 {
+	if (!CV_sys_bp_enabled)
+	{
+		return;
+	}
+
 	if (m_pCurrentSession)
 	{
 		CryLogAlways("BootProfiler: failed to start session '%s' as another one is active '%s'", sessionName, m_pCurrentSession->GetName());
@@ -508,6 +793,7 @@ void CBootProfiler::StartSession(const char* sessionName)
 	CBootProfilerSession* pSession = new CBootProfilerSession(sessionName);
 	pSession->Start();
 	m_pCurrentSession = pSession;
+	gEnv->bBootProfilerEnabledFrames = true;
 }
 
 // stop session
@@ -525,13 +811,13 @@ void CBootProfiler::StopSession()
 	}
 }
 
-CBootProfilerRecord* CBootProfiler::StartBlock(const char* name, const char* args)
+CBootProfilerRecord* CBootProfiler::StartBlock(const char* name, const char* args, EProfileDescription type)
 {
 	if (CBootProfilerSession* pSession = m_pCurrentSession)
 	{
 		const threadID curThread = CryGetCurrentThreadId();
 		const unsigned int threadIndex = gThreadsInterface.GetThreadIndexByID(curThread);
-		return pSession->StartBlock(name, args, threadIndex);
+		return pSession->StartBlock(name, args, threadIndex, type);
 	}
 	return nullptr;
 }
@@ -552,10 +838,9 @@ void CBootProfiler::StartFrame(const char* name)
 		if (prev_CV_sys_bp_frames == 0)
 		{
 			StartSession("frame");
-			gEnv->bBootProfilerEnabledFrames = true;
 		}
 
-		m_pMainThreadFrameRecord = StartBlock(name, nullptr);
+		m_pMainThreadFrameRecord = StartBlock(name, nullptr,EProfileDescription::REGION);
 
 		if (CV_sys_bp_frames_threshold != 0.0f) // we can't have 2 modes enabled at the same time
 			CV_sys_bp_frames_threshold = 0.0f;
@@ -582,7 +867,7 @@ void CBootProfiler::StartFrame(const char* name)
 			CBootProfilerSession* pSession = new CBootProfilerSession("frame_threshold");
 			pSession->Start();
 			m_pCurrentSession = pSession;
-			m_pMainThreadFrameRecord = StartBlock(name, nullptr);
+			m_pMainThreadFrameRecord = StartBlock(name, nullptr,EProfileDescription::REGION);
 		}
 	}
 }
@@ -639,7 +924,16 @@ void CBootProfiler::StopFrame()
 
 		m_pCurrentSession->Stop();
 
-		if ((m_pCurrentSession->GetTotalTime() >= CV_sys_bp_frames_threshold) && !bDisablingThresholdMode)
+		--m_countdownToNextSaveSesssion;
+		const bool bShouldCollectResults = m_countdownToNextSaveSesssion < 0;
+
+		if (bShouldCollectResults)
+		{
+			const int nextOffset = cry_random(0, CV_sys_bp_frames_sample_period_rnd);
+			m_countdownToNextSaveSesssion = crymath::clamp(CV_sys_bp_frames_sample_period + nextOffset, 0, std::numeric_limits<int>::max());
+		}
+
+		if ((m_pCurrentSession->GetTotalTime() >= CV_sys_bp_frames_threshold) && !bDisablingThresholdMode && bShouldCollectResults)
 		{
 			CBootProfilerSession* pSession = m_pCurrentSession;
 			m_pCurrentSession = nullptr;
@@ -669,8 +963,16 @@ void CBootProfiler::StopFrame()
 
 void CBootProfiler::StopSaveSessionsThread()
 {
-	m_quitSaveThread = true;
-	m_saveThreadWakeUpEvent.Set();
+	if (!m_quitSaveThread)
+	{
+		m_quitSaveThread = true;
+		m_saveThreadWakeUpEvent.Set();
+
+		if (gEnv)
+		{
+			gEnv->pThreadManager->JoinThread(this, eJM_Join);
+		}
+	}
 }
 
 void CBootProfiler::QueueSessionToDelete(CBootProfilerSession*pSession)
@@ -693,7 +995,7 @@ void CBootProfiler::ThreadEntry()
 
 		for (size_t i = 0; i < m_sessionsToSave.size(); ++i)
 		{
-			SaveProfileSessionToDisk(m_sessionsToSave[i].functionMinTimeThreshold, m_sessionsToSave[i].pSession);
+			SaveProfileSessionToDisk(m_sessionsToSave[i].functionMinTimeThreshold, m_sessionsToSave[i].pSession, CV_sys_bp_output_formats);
 		}
 
 		m_sessionsToSave.clear();
@@ -708,10 +1010,15 @@ void CBootProfiler::Init(ISystem* pSystem)
 
 void CBootProfiler::RegisterCVars()
 {
+	REGISTER_CVAR2("sys_bp_enabled", &CV_sys_bp_enabled, 1, VF_DEV_ONLY, "If this is set to false, new boot profiler sessions will not be started.");
+	REGISTER_CVAR2("sys_bp_level_load", &CV_sys_bp_level_load, 1, VF_DEV_ONLY, "If this is set to true, a boot profiler session will be started to profile the level loading. Ignored if sys_bp_enabled is false.");
 	REGISTER_CVAR2("sys_bp_frames_worker_thread", &CV_sys_bp_frames_worker_thread, 0, VF_DEV_ONLY | VF_REQUIRE_APP_RESTART, "If this is set to true. The system will dump the profiled session from a different thread.");
 	REGISTER_CVAR2("sys_bp_frames", &CV_sys_bp_frames, 0, VF_DEV_ONLY, "Starts frame profiling for specified number of frames using BootProfiler");
+	REGISTER_CVAR2("sys_bp_frames_sample_period", &CV_sys_bp_frames_sample_period, 0, VF_DEV_ONLY, "When in threshold mode, the period at which we are going to dump a frame.");
+	REGISTER_CVAR2("sys_bp_frames_sample_period_rnd", &CV_sys_bp_frames_sample_period_rnd, 0, VF_DEV_ONLY, "When in threshold mode, the random offset at which we are going to dump a next frame.");
 	REGISTER_CVAR2("sys_bp_frames_threshold", &CV_sys_bp_frames_threshold, 0, VF_DEV_ONLY, "Starts frame profiling but gathers the results for frames that frame time exceeded the threshold");
 	REGISTER_CVAR2("sys_bp_time_threshold", &CV_sys_bp_time_threshold, 0.1f, VF_DEV_ONLY, "If greater than 0 don't write blocks that took less time (default 0.1 ms)");
+	REGISTER_CVAR2("sys_bp_format", &CV_sys_bp_output_formats, EBootProfilerFormat::XML, VF_DEV_ONLY, "Determines the output format for the boot profiler.\n0 = XML\n1 = Chrome Trace JSON");
 
 	if (CV_sys_bp_frames_worker_thread)
 	{
@@ -753,7 +1060,10 @@ void CBootProfiler::OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_PTR 
 	case ESYSTEM_EVENT_LEVEL_LOAD_PREPARE:
 		{
 			CV_sys_bp_time_threshold = 0.1f;
-			StartSession("level");
+			if (CV_sys_bp_level_load)
+			{
+				StartSession("level");
+			}
 			break;
 		}
 	case ESYSTEM_EVENT_LEVEL_LOAD_END:
@@ -762,9 +1072,12 @@ void CBootProfiler::OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_PTR 
 		}
 	case ESYSTEM_EVENT_LEVEL_PRECACHE_END:
 		{
-			//level loading can be stopped here, or m_levelLoadAdditionalFrames can be used to prolong dump for this amount of frames
-			StopSession();
-			//m_levelLoadAdditionalFrames = 20;
+			if (m_pCurrentSession)
+			{
+				//level loading can be stopped here, or m_levelLoadAdditionalFrames can be used to prolong dump for this amount of frames
+				StopSession();
+				//m_levelLoadAdditionalFrames = 20;
+			}
 
 			CV_sys_bp_time_threshold = 0.0f; //gather all blocks when in runtime
 			break;

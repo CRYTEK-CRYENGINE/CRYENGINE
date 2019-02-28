@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="0cb9ecad-e1df-1b20-4a86-929ff22f9739" source="arc2.tif">
+ <Files>
+  <File path="arc2.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">4</Detail>
+  <Detail name="height">4</Detail>
+  <Detail name="mipCount">1</Detail>
+ </Details>
+</AssetMetadata>

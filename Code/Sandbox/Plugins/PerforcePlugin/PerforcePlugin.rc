@@ -1,0 +1,116 @@
+// Microsoft Visual C++ generated resource script.
+//
+#include "resource.h"
+
+#define APSTUDIO_READONLY_SYMBOLS
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 2 resource.
+//
+#include "winres.h"
+
+/////////////////////////////////////////////////////////////////////////////
+#undef APSTUDIO_READONLY_SYMBOLS
+
+/////////////////////////////////////////////////////////////////////////////
+// English (United States) resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+#pragma code_page(1252)
+
+#ifdef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// TEXTINCLUDE
+//
+
+1 TEXTINCLUDE 
+BEGIN
+    "resource.h\0"
+END
+
+2 TEXTINCLUDE 
+BEGIN
+    "#include ""winres.h""\r\n"
+    "\0"
+END
+
+3 TEXTINCLUDE 
+BEGIN
+    "\r\n"
+    "\0"
+END
+
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+IDD_PASSWD DIALOGEX 0, 0, 210, 131
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | DS_CENTER | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
+EXSTYLE WS_EX_TOOLWINDOW | WS_EX_WINDOWEDGE
+CAPTION "Open Perforce Connection"
+FONT 8, "MS Shell Dlg", 0, 0, 0x0
+BEGIN
+    EDITTEXT        IDC_PORT,88,11,112,12,ES_AUTOHSCROLL
+    EDITTEXT        IDC_USERNAME,88,29,112,12,ES_AUTOHSCROLL
+    EDITTEXT        IDC_WORKSPACE,88,47,112,12,ES_AUTOHSCROLL
+    EDITTEXT        IDC_PASSWORD,88,65,112,12,ES_PASSWORD | ES_AUTOHSCROLL
+    CONTROL         "Work Online",IDC_WORKONLINE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,77,89,55,10
+    DEFPUSHBUTTON   "OK",IDOK,86,106,55,14
+    PUSHBUTTON      "Cancel",IDCANCEL,145,106,55,14
+    RTEXT           "Workspace:",IDC_STATIC,31,48,53,8
+    RTEXT           "User:",IDC_STATIC,31,31,53,8
+    RTEXT           "Server:",IDC_STATIC,31,13,53,8
+    RTEXT           "Password:",IDC_STATIC,31,67,53,8
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO
+BEGIN
+    IDD_PASSWD, DIALOG
+    BEGIN
+        LEFTMARGIN, 10
+        RIGHTMARGIN, 200
+        TOPMARGIN, 11
+        BOTTOMMARGIN, 120
+    END
+END
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Icon
+//
+
+// Icon with lowest ID value placed first to ensure application icon
+// remains consistent on all systems.
+IDI_P4                  ICON                    "res\\p4.ico"
+IDI_P4_ERROR            ICON                    "res\\p4_error.ico"
+#endif    // English (United States) resources
+/////////////////////////////////////////////////////////////////////////////
+
+
+
+#ifndef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 3 resource.
+//
+
+
+/////////////////////////////////////////////////////////////////////////////
+#endif    // not APSTUDIO_INVOKED
+
+

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*=============================================================================
    ShaderParse.cpp : implementation of the Shaders parser part of shaders manager.
@@ -334,79 +334,6 @@ bool CShaderMan::mfCompileShaderGen(SShaderGen* shg, char* scr)
 	}
 
 	return shg->m_BitMask.Num() != 0;
-}
-
-void CShaderMan::mfCompileLevelsList(std::vector<string>& List, char* scr)
-{
-	char* name;
-	long cmd;
-	char* params;
-	char* data;
-
-	enum {eName = 1, eVersion};
-	static STokenDesc commands[] =
-	{
-		{ eName, "Name" },
-		{ 0,     0      }
-	};
-
-	while ((cmd = shGetObject(&scr, commands, &name, &params)) > 0)
-	{
-		data = NULL;
-		if (name)
-			data = name;
-		else if (params)
-			data = params;
-
-		switch (cmd)
-		{
-		case eName:
-			if (data && data[0])
-				List.push_back(string("Levels/") + string(data) + string("/"));
-			break;
-		}
-	}
-}
-
-bool CShaderMan::mfCompileShaderLevelPolicies(SShaderLevelPolicies* pPL, char* scr)
-{
-	char* name;
-	long cmd;
-	char* params;
-	char* data;
-
-	enum {eGlobalList = 1, ePerLevelList, eVersion};
-	static STokenDesc commands[] =
-	{
-		{ eGlobalList,   "GlobalList"   },
-		{ ePerLevelList, "PerLevelList" },
-		{ eVersion,      "Version"      },
-		{ 0,             0              }
-	};
-
-	while ((cmd = shGetObject(&scr, commands, &name, &params)) > 0)
-	{
-		data = NULL;
-		if (name)
-			data = name;
-		else if (params)
-			data = params;
-
-		switch (cmd)
-		{
-		case eGlobalList:
-			mfCompileLevelsList(pPL->m_WhiteGlobalList, params);
-			break;
-		case ePerLevelList:
-			mfCompileLevelsList(pPL->m_WhitePerLevelList, params);
-			break;
-
-		case eVersion:
-			break;
-		}
-	}
-
-	return pPL->m_WhiteGlobalList.size() != 0;
 }
 
 string CShaderMan::mfGetShaderBitNamesFromMaskGen(const char* szFileName, uint64 nMaskGen)

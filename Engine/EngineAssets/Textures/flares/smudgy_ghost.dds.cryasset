@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="bfcb2fd7-d91f-6acb-aeaf-edb5b20086d9" source="smudgy_ghost.tif">
+ <Files>
+  <File path="smudgy_ghost.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">4</Detail>
+  <Detail name="height">4</Detail>
+  <Detail name="mipCount">1</Detail>
+ </Details>
+</AssetMetadata>

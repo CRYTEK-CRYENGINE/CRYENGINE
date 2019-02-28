@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "AreaSolid.h"
@@ -16,22 +16,17 @@ public:
 		m_numberOfPoints = numberOfVertices;
 		m_Type = segmentType;
 
-		m_Points = new Vec2[m_numberOfPoints];
+		m_Points.resize(m_numberOfPoints);
 		for (int i = 0; i < m_numberOfPoints; ++i)
 			m_Points[i] = plane.WorldToPlane(verticesOfConvexHull[i]);
 
-		m_Lines = new AreaUtil::CLine[m_numberOfPoints];
+		m_Lines.resize(m_numberOfPoints);
 		for (int i = 0; i < m_numberOfPoints; ++i)
 		{
 			int nexti = (i + 1) % m_numberOfPoints;
 			PREFAST_ASSUME(nexti >= 0 && nexti < m_numberOfPoints);
 			m_Lines[i] = AreaUtil::CLine(m_Points[i], m_Points[nexti]);
 		}
-	}
-	~CSegment()
-	{
-		delete[] m_Points;
-		delete[] m_Lines;
 	}
 	bool IsValid() const
 	{
@@ -104,7 +99,7 @@ public:
 
 	void Draw(const AreaUtil::CPlane& plane, const Matrix34& worldTM, const ColorB& color0, const ColorB& color1) const
 	{
-		IRenderAuxGeom* pRC = gEnv->pRenderer->GetIRenderAuxGeom();
+		IRenderAuxGeom* pRC = gEnv->pAuxGeomRenderer;
 
 		Vec3 worldV0 = worldTM.TransformPoint(plane.PlaneToWorld(m_Points[0]));
 		Vec3 worldV1 = worldTM.TransformPoint(plane.PlaneToWorld(m_Points[1]));
@@ -120,12 +115,13 @@ public:
 	void GetMemoryUsage(ICrySizer* pSizer) const
 	{
 		SIZER_COMPONENT_NAME(pSizer, "CSegment");
-		pSizer->Add(m_Points, m_numberOfPoints);
+		pSizer->AddContainer(m_Points);
+		pSizer->AddContainer(m_Lines);
 		pSizer->AddObject(this, sizeof(*this));
 	}
 
 	int         GetNumberOfPoints() const { return m_numberOfPoints;  }
-	const Vec2* GetPoints() const         { return m_Points;  }
+	const Vec2* GetPoints() const         { return m_Points.data();  }
 
 private:
 
@@ -161,11 +157,11 @@ private:
 
 private:
 
-	int                      m_numberOfPoints;
-	Vec2*                    m_Points;
+	int                          m_numberOfPoints;
+	std::vector<Vec2>            m_Points;
 
-	AreaUtil::CLine*         m_Lines;
-	CAreaSolid::ESegmentType m_Type;
+	std::vector<AreaUtil::CLine> m_Lines;
+	CAreaSolid::ESegmentType     m_Type;
 };
 
 // CSegmentSet is to manage coplanar segments. It makes it possible to go up the search speed.
@@ -376,16 +372,16 @@ void CAreaSolid::BuildBSP()
 void CAreaSolid::GetMemoryUsage(ICrySizer* pSizer) const
 {
 	SIZER_COMPONENT_NAME(pSizer, "CAreaSolid");
-	
+
 	if (m_BSPTree)
 	{
 		m_BSPTree->GetMemoryUsage(pSizer);
 	}
-	
+
 	for (auto const pSegmentSet : m_SegmentSets)
 	{
 		pSegmentSet->GetMemoryUsage(pSizer);
 	}
-	
+
 	pSizer->AddObject(this, sizeof(*this));
 }

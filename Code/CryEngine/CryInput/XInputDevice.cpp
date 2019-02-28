@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "XInputDevice.h"
@@ -6,6 +6,7 @@
 #include <CryCore/Platform/platform.h>
 #include <CryThreading/IThreadManager.h>
 
+#pragma warning(push)
 #pragma warning(disable: 4244)
 
 #if defined(USE_DXINPUT)
@@ -91,7 +92,7 @@ public:
 					g_bConnected[i] = r == ERROR_SUCCESS;
 				}
 			}
-			Sleep(1000);
+			CrySleep(1000);
 		}
 	}
 };
@@ -223,7 +224,7 @@ void FixDeadzone(Vec2& d)
 
 void CXInputDevice::Update(bool bFocus)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_INPUT);
+	CRY_PROFILE_FUNCTION(PROFILE_INPUT);
 
 	DEBUG_CONTROLLER_RENDER_BUTTON_ACTION;
 
@@ -652,3 +653,5 @@ void CXInputDevice::RestoreDefaultDeadZone()
 }
 
 #endif //defined(USE_DXINPUT)
+
+#pragma warning(pop)

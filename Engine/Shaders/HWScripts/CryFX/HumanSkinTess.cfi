@@ -1,5 +1,4 @@
-// CRYENGINE Source Code File
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #if ENABLE_TESSELLATION
 
@@ -33,19 +32,11 @@ HS_CONTROL_POINT_OUTPUT_ILLUM SkinHS(InputPatch<vert2FragGeneral, 3> inputPatch,
 {
 	HS_CONTROL_POINT_OUTPUT_ILLUM output = (HS_CONTROL_POINT_OUTPUT_ILLUM)0;
 
-#if %_RT_FOG ||%_RT_DECAL_TEXGEN_2D
-	output.Ambient                 = inputPatch[uCPID].Ambient;
-#endif
-#if %_RT_FOG || %_RT_PER_INSTANCE_CB_TEMP
 	output.vTangent                = inputPatch[uCPID].vTangent;
 	output.vBinormal               = inputPatch[uCPID].vBinormal;
-#endif
 	output.controlPoint.vView      = inputPatch[uCPID].vView;
 	output.controlPoint.vNormal    = inputPatch[uCPID].vNormal;
 	output.controlPoint.vBaseTC    = inputPatch[uCPID].baseTC;
-#if %_RT_FOG && !%_RT_DECAL_TEXGEN_2D
-	output.AvgFogVolumeContrib     = inputPatch[uCPID].AvgFogVolumeContrib;
-#endif
 
 	return output;
 }
@@ -57,18 +48,14 @@ void FillEvalInput(in const OutputPatch<HS_CONTROL_POINT_OUTPUT_ILLUM, 3> triPat
 	evalInput.vBaryCoords = vBaryCoords;
 	FillEvalInputControlPoint(triPatch[0].controlPoint, triPatch[1].controlPoint, triPatch[2].controlPoint, hsConstData, evalInput);
 	evalInput.bRelativePos = true;
-#if %_RT_FOG || %_RT_PER_INSTANCE_CB_TEMP
 	FillEvalInputTangentBinormal(triPatch[0].vTangent, triPatch[1].vTangent, triPatch[2].vTangent, triPatch[0].vBinormal, triPatch[1].vBinormal, triPatch[2].vBinormal, evalInput);
-#endif
 	evalInput.vViewPos = vWorldViewPos;
 }
 
 void ProcessEvalOutput(in CommonEvaluationOutputDS evalOutput, inout vert2FragGeneral dsOutput)
 {
-#if %_RT_FOG || %_RT_PER_INSTANCE_CB_TEMP
 	dsOutput.vTangent = evalOutput.vTangent;
 	dsOutput.vBinormal = evalOutput.vBinormal;
-#endif
 	dsOutput.baseTC = evalOutput.vBaseTC;
 	dsOutput.vView = evalOutput.vPos;
 
@@ -79,9 +66,6 @@ void ProcessEvalOutput(in CommonEvaluationOutputDS evalOutput, inout vert2FragGe
 vert2FragGeneral SkinDS( HS_CONSTANT_DATA_OUTPUT hsConstData, float3 vBaryCoords : SV_DomainLocation, const OutputPatch<HS_CONTROL_POINT_OUTPUT_ILLUM, 3> TrianglePatch )
 {
 	vert2FragGeneral output = (vert2FragGeneral)0;
-#if %_RT_FOG ||%_RT_DECAL_TEXGEN_2D
-	output.Ambient = EvalVec(TrianglePatch[0].Ambient, TrianglePatch[1].Ambient, TrianglePatch[2].Ambient, vBaryCoords);
-#endif
 
 	CommonEvaluationInputDS evalInput = (CommonEvaluationInputDS)0;
 	FillEvalInput(TrianglePatch, hsConstData, vBaryCoords, evalInput);
@@ -90,9 +74,6 @@ vert2FragGeneral SkinDS( HS_CONSTANT_DATA_OUTPUT hsConstData, float3 vBaryCoords
 	Evaluate(evalInput, evalOutput);
 	ProcessEvalOutput(evalOutput, output);
 
-#if %_RT_FOG && !%_RT_DECAL_TEXGEN_2D
-	output.AvgFogVolumeContrib = EvalVec(TrianglePatch[0].AvgFogVolumeContrib, TrianglePatch[1].AvgFogVolumeContrib, TrianglePatch[2].AvgFogVolumeContrib, vBaryCoords);
-#endif
 	float4 vScreenProj = HPosToScreenTC(output.HPosition);
 #if %WRINKLE_BLENDING
 	#if (%_RT_SKELETON_SSD || %_RT_SKELETON_SSD_LINEAR || %_RT_COMPUTE_SKINNING) && %_RT_VERTEX_VELOCITY

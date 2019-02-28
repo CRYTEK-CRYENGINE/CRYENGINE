@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 //
 //	File:Cry_Math.h
@@ -19,6 +19,7 @@
 //========================================================================================
 
 #include <CryCore/Platform/platform.h>
+#include <CryCore/BitFiddling.h>
 #include <cstdlib>
 #include <cfloat>
 #include <cmath>
@@ -58,8 +59,30 @@ constexpr f32 gf_ln2 = 0.69314718055994530941723212145818f;       //!< ln(2)
 constexpr f64 sqrt2 = 1.4142135623730950488016887242097;
 constexpr f64 sqrt3 = 1.7320508075688772935274463415059;
 
-#define DEG2RAD(a) ((a) * (gf_PI / 180.0f))
-#define RAD2DEG(a) ((a) * (180.0f / gf_PI))
+#if !defined(SWIG)
+template<typename T>
+constexpr auto DEG2RAD(T&& deg) -> decltype(deg * 1.f)
+{
+	return deg * (gf_PI / 180.0f);
+}
+
+constexpr f64 DEG2RAD(f64 deg)
+{
+	return deg * (g_PI / 180.0);
+}
+
+template<typename T>
+constexpr auto RAD2DEG(T&& rad) -> decltype(rad * 1.f)
+{
+	return rad * (180.0f / gf_PI);
+}
+
+constexpr f64 RAD2DEG(f64 rad)
+{
+	return rad * (180.0 / g_PI);
+}
+#endif
+
 
 // Define min and max as proper template
 #ifdef min
@@ -271,6 +294,16 @@ ILINE f64 sign(f64 op) { return if_else_zero(op, signnz(op)); }
 template<typename T> ILINE T hsum(T v) { return v; }
 template<typename T> ILINE T hmin(T v) { return v; }
 template<typename T> ILINE T hmax(T v) { return v; }
+
+// Name it so in order to avoid conflicts with cmath.h's "isfinite" function.
+template<typename T> ILINE bool valueisfinite(T val)
+{
+#if CRY_PLATFORM_ANDROID
+	return !std::isinf(val) && !std::isnan(val);   // Android NDK r16b/clang does not provide std::isfinite.
+#else
+	return std::isfinite(val);
+#endif
+}
 
 } // namespace crymath
 
@@ -531,21 +564,7 @@ ILINE float approxOneExp(float x) { return x * crymath::rcp_fast(1.f + x); }
 //! \return i if x==1<<i (i=0..63)
 ILINE int ilog2(uint64 x)
 {
-#if CRY_PLATFORM_X64 && CRY_COMPILER_MSVC
-	unsigned long i;
-	_BitScanReverse64(&i, x);
-	return i;
-#elif CRY_COMPILER_CLANG || CRY_COMPILER_GCC
-	return __builtin_clzll(x);
-#else
-	union
-	{
-		float f;
-		uint  i;
-	} u;
-	u.f = (float)x;
-	return (u.i >> 23) - 127;
-#endif
+	return (int)IntegerLog2(x);
 }
 
 const int32 inc_mod3[] = { 1, 2, 0 }, dec_mod3[] = { 2, 0, 1 };

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "DynamicResponseProxy.h"
@@ -26,7 +26,7 @@ void CEntityComponentDynamicResponse::Initialize()
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CEntityComponentDynamicResponse::ProcessEvent(SEntityEvent& event)
+void CEntityComponentDynamicResponse::ProcessEvent(const SEntityEvent& event)
 {
 	if (m_pResponseActor && event.event == ENTITY_EVENT_RESET)
 	{
@@ -42,7 +42,7 @@ void CEntityComponentDynamicResponse::ProcessEvent(SEntityEvent& event)
 //////////////////////////////////////////////////////////////////////////
 uint64 CEntityComponentDynamicResponse::GetEventMask() const
 {
-	return BIT64(ENTITY_EVENT_RESET);
+	return ENTITY_EVENT_BIT(ENTITY_EVENT_RESET);
 }
 
 //////////////////////////////////////////////////////////////////////////

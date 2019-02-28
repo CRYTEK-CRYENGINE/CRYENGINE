@@ -1,5 +1,4 @@
-// CRYENGINE Source Code File
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "Common.cfi"
 #include "ShadeLib.cfi"
@@ -30,7 +29,7 @@ struct a2v3
 
 struct v2f
 {
-	float4 hPos : POSITION; 
+	float4 hPos : SV_POSITION; 
 	float3 viewDir : TEXCOORD0_centroid;
 };
 
@@ -42,7 +41,7 @@ struct v2fIn
 
 struct v2fOutof
 {
-	float4 hPos : POSITION;
+	float4 hPos : SV_POSITION;
 	float2 baseTC : TEXCOORD0;
 };
 
@@ -58,7 +57,6 @@ float3 ComputeWaterFogShadow(
 	float2 screenTC)
 {
 	SWaterVolumeParams params = GetWaterVolumeParams();
-	SShadowSamplingParams shadowParams = GetShadowSamplingParams();
 
 	ShadowSamplingContext samplingContext;
 	samplingContext.comparisonSampler   = linearClampCompSState;
@@ -74,7 +72,7 @@ float3 ComputeWaterFogShadow(
 	shadowCascades.shadowMap3 = shadowMapTex3;
 	//shadowCascades.cloudShadowTex // not needed because of bSampleCloudShadows = false.
 
-	float shadowSample = ShadowDepthTest(shadowParams, shadowCascades, samplingContext, worldPos, false, true);
+    float shadowSample = ShadowDepthTest(GetShadowSamplingParams(), shadowCascades, samplingContext, worldPos, false, true);
 
 	const bool belowSurface = sceneDepth < waterDepth;
 	shadowSample = belowSurface ? 1.0h : shadowSample; // depth test
@@ -140,7 +138,7 @@ v2f WaterVolumeIntoVS( a2v IN )
 	OUT.hPos.z *= params.cViewerColorToWaterPlane.x; // effectively prevent any clipping and depth test rejection by muliplying homogeneous z by zero (if close enough to water surface)
 #endif
 
-	OUT.viewDir = mul( (float3x4)params.PerInstanceWorldMatrix, vPos ).xyz - g_VS_WorldViewPos.xyz;
+	OUT.viewDir = mul( (float3x4)params.WorldMatrix, vPos ).xyz - g_VS_WorldViewPos.xyz;
 
 	return OUT;
 }
@@ -228,13 +226,12 @@ technique Into
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Case: Looking out of water volume
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-v2fOutof WaterVolumeOutofVS( a2v IN )
+v2fOutof WaterVolumeOutofVS( uint VertexID : SV_VertexID )
 {
 	v2fOutof OUT = (v2fOutof) 0;
 
-	OUT.hPos = Get2dHPos(IN.Position);
-
-	OUT.baseTC.xy = IN.baseTC.xy;
+	OUT.hPos = GetHPos_FromTriVertexID(VertexID);
+	OUT.baseTC.xy = GetBaseTC_FromTriVertexID(VertexID);
 
 	return OUT;
 }

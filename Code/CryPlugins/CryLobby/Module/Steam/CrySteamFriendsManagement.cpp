@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 //
 // -------------------------------------------------------------------------
@@ -318,7 +318,17 @@ void CCrySteamFriendsManagement::StartFriendsManagementIsUserFriend(CryFriendsMa
 	STask* pTask = &m_task[fTaskID];
 	CSteamID* pSteamID = (CSteamID*)m_pLobby->MemGetPtr(pTask->paramsMem[FRIENDS_MANAGEMENT_PARAM_ID_LIST]);
 	uint32 numUserIDs = pTask->paramsNum[FRIENDS_MANAGEMENT_PARAM_NUM_IDS];
-	ECryLobbyError error = CreateTaskParamMem(fTaskID, FRIENDS_MANAGEMENT_PARAM_RESULTS, NULL, numUserIDs * sizeof(bool));
+	ECryLobbyError error;
+	ISteamFriends* pSteamFriends = SteamFriends();
+		
+	if (pSteamFriends)
+	{
+		error = CreateTaskParamMem(fTaskID, FRIENDS_MANAGEMENT_PARAM_RESULTS, NULL, numUserIDs * sizeof(bool));
+	}
+	else
+	{
+		error = eCLE_SteamInitFailed;
+	}
 
 	if (error == eCLE_Success)
 	{
@@ -326,7 +336,7 @@ void CCrySteamFriendsManagement::StartFriendsManagementIsUserFriend(CryFriendsMa
 
 		for (uint32 index = 0; index < numUserIDs; index++)
 		{
-			switch (SteamFriends()->GetFriendRelationship(pSteamID[index]))
+			switch (pSteamFriends->GetFriendRelationship(pSteamID[index]))
 			{
 			case k_EFriendRelationshipFriend:
 				pFriend[index] = true;
@@ -338,7 +348,6 @@ void CCrySteamFriendsManagement::StartFriendsManagementIsUserFriend(CryFriendsMa
 			case k_EFriendRelationshipRequestInitiator:   // Intentional fall-through
 			case k_EFriendRelationshipIgnored:            // Intentional fall-through
 			case k_EFriendRelationshipIgnoredFriend:      // Intentional fall-through
-			case k_EFriendRelationshipSuggested:          // Intentional fall-through
 			default:
 				pFriend[index] = false;
 				break;
@@ -401,7 +410,17 @@ void CCrySteamFriendsManagement::StartFriendsManagementIsUserBlocked(CryFriendsM
 	STask* pTask = &m_task[fTaskID];
 	CSteamID* pSteamID = (CSteamID*)m_pLobby->MemGetPtr(pTask->paramsMem[FRIENDS_MANAGEMENT_PARAM_ID_LIST]);
 	uint32 numUserIDs = pTask->paramsNum[FRIENDS_MANAGEMENT_PARAM_NUM_IDS];
-	ECryLobbyError error = CreateTaskParamMem(fTaskID, FRIENDS_MANAGEMENT_PARAM_RESULTS, NULL, numUserIDs * sizeof(bool));
+	ECryLobbyError error;
+	ISteamFriends* pSteamFriends = SteamFriends();
+
+	if (pSteamFriends)
+	{
+		error = CreateTaskParamMem(fTaskID, FRIENDS_MANAGEMENT_PARAM_RESULTS, NULL, numUserIDs * sizeof(bool));
+	}
+	else
+	{
+		error = eCLE_SteamInitFailed;
+	}
 
 	if (error == eCLE_Success)
 	{
@@ -409,7 +428,7 @@ void CCrySteamFriendsManagement::StartFriendsManagementIsUserBlocked(CryFriendsM
 
 		for (uint32 index = 0; index < numUserIDs; index++)
 		{
-			switch (SteamFriends()->GetFriendRelationship(pSteamID[index]))
+			switch (pSteamFriends->GetFriendRelationship(pSteamID[index]))
 			{
 			case k_EFriendRelationshipBlocked:
 				pFriend[index] = true;
@@ -421,7 +440,6 @@ void CCrySteamFriendsManagement::StartFriendsManagementIsUserBlocked(CryFriendsM
 			case k_EFriendRelationshipRequestInitiator:   // Intentional fall-through
 			case k_EFriendRelationshipIgnored:            // Intentional fall-through
 			case k_EFriendRelationshipIgnoredFriend:      // Intentional fall-through
-			case k_EFriendRelationshipSuggested:          // Intentional fall-through
 			default:
 				pFriend[index] = false;
 				break;
@@ -500,25 +518,32 @@ void CCrySteamFriendsManagement::StartFriendsManagementGetName(CryFriendsManagem
 	STask* pTask = &m_task[fTaskID];
 	CSteamID* pSteamID = (CSteamID*)m_pLobby->MemGetPtr(pTask->paramsMem[FRIENDS_MANAGEMENT_PARAM_ID_LIST]);
 	uint32 numUserIDs = pTask->paramsNum[FRIENDS_MANAGEMENT_PARAM_NUM_IDS];
-
-	UpdateTaskError(fTaskID, CreateTaskParamMem(fTaskID, FRIENDS_MANAGEMENT_PARAM_RESULTS_TO_GAME, NULL, numUserIDs * sizeof(SFriendInfo)));
-	SFriendInfo* pResults = (SFriendInfo*)m_pLobby->MemGetPtr(pTask->paramsMem[FRIENDS_MANAGEMENT_PARAM_RESULTS_TO_GAME]);
-
-	if (pResults != NULL)
+	ISteamFriends* pSteamFriends = SteamFriends();
+	if (pSteamFriends)
 	{
-		memset(pResults, 0, numUserIDs * sizeof(SFriendInfo));
+		UpdateTaskError(fTaskID, CreateTaskParamMem(fTaskID, FRIENDS_MANAGEMENT_PARAM_RESULTS_TO_GAME, NULL, numUserIDs * sizeof(SFriendInfo)));
+		SFriendInfo* pResults = (SFriendInfo*)m_pLobby->MemGetPtr(pTask->paramsMem[FRIENDS_MANAGEMENT_PARAM_RESULTS_TO_GAME]);
 
-		for (uint32 index = 0; index < numUserIDs; ++index)
+		if (pResults != NULL)
 		{
-			pResults[index].userID = new SCrySteamUserID(pSteamID[index]);
-			if (pResults[index].userID == NULL)
-			{
-				pTask->error = eCLE_OutOfMemory;
-				break;
-			}
+			memset(pResults, 0, numUserIDs * sizeof(SFriendInfo));
 
-			cry_strcpy(pResults[index].name, SteamFriends()->GetFriendPersonaName(pSteamID[index]));
+			for (uint32 index = 0; index < numUserIDs; ++index)
+			{
+				pResults[index].userID = new SCrySteamUserID(pSteamID[index]);
+				if (pResults[index].userID == NULL)
+				{
+					pTask->error = eCLE_OutOfMemory;
+					break;
+				}
+
+				cry_strcpy(pResults[index].name, pSteamFriends->GetFriendPersonaName(pSteamID[index]));
+			}
 		}
+	}
+	else
+	{
+		UpdateTaskError(fTaskID, eCLE_SteamInitFailed);
 	}
 
 	StopTaskRunning(fTaskID);
@@ -550,40 +575,47 @@ void CCrySteamFriendsManagement::StartFriendsManagementGetStatus(CryFriendsManag
 	STask* pTask = &m_task[fTaskID];
 	CSteamID* pSteamID = (CSteamID*)m_pLobby->MemGetPtr(pTask->paramsMem[FRIENDS_MANAGEMENT_PARAM_ID_LIST]);
 	uint32 numUserIDs = pTask->paramsNum[FRIENDS_MANAGEMENT_PARAM_NUM_IDS];
-
-	UpdateTaskError(fTaskID, CreateTaskParamMem(fTaskID, FRIENDS_MANAGEMENT_PARAM_RESULTS_TO_GAME, NULL, numUserIDs * sizeof(SFriendStatusInfo)));
-	SFriendStatusInfo* pResults = (SFriendStatusInfo*)m_pLobby->MemGetPtr(pTask->paramsMem[FRIENDS_MANAGEMENT_PARAM_RESULTS_TO_GAME]);
-
-	if (pResults != NULL)
+	ISteamFriends* pSteamFriends = SteamFriends();
+	if (pSteamFriends)
 	{
-		memset(pResults, 0, numUserIDs * sizeof(SFriendStatusInfo));
+		UpdateTaskError(fTaskID, CreateTaskParamMem(fTaskID, FRIENDS_MANAGEMENT_PARAM_RESULTS_TO_GAME, NULL, numUserIDs * sizeof(SFriendStatusInfo)));
+		SFriendStatusInfo* pResults = (SFriendStatusInfo*)m_pLobby->MemGetPtr(pTask->paramsMem[FRIENDS_MANAGEMENT_PARAM_RESULTS_TO_GAME]);
 
-		for (uint32 index = 0; index < numUserIDs; ++index)
+		if (pResults != NULL)
 		{
-			pResults[index].userID = new SCrySteamUserID(pSteamID[index]);
-			if (pResults[index].userID == NULL)
-			{
-				pTask->error = eCLE_OutOfMemory;
-				break;
-			}
+			memset(pResults, 0, numUserIDs * sizeof(SFriendStatusInfo));
 
-			switch (SteamFriends()->GetFriendPersonaState(pSteamID[index]))
+			for (uint32 index = 0; index < numUserIDs; ++index)
 			{
-			case k_EPersonaStateOffline:        // friend is not currently logged on
-				pResults[index].status = eFMS_Offline;
-				break;
-			case k_EPersonaStateLookingToTrade: // Online, trading
-			case k_EPersonaStateLookingToPlay:  // Online, wanting to play
-			case k_EPersonaStateOnline:         // friend is logged on
-				pResults[index].status = eFMS_Online;
-				break;
-			case k_EPersonaStateBusy:           // user is on, but busy
-			case k_EPersonaStateAway:           // auto-away feature
-			case k_EPersonaStateSnooze:         // auto-away for a long time
-				pResults[index].status = eFMS_Away;
-				break;
+				pResults[index].userID = new SCrySteamUserID(pSteamID[index]);
+				if (pResults[index].userID == NULL)
+				{
+					pTask->error = eCLE_OutOfMemory;
+					break;
+				}
+
+				switch (pSteamFriends->GetFriendPersonaState(pSteamID[index]))
+				{
+				case k_EPersonaStateOffline:        // friend is not currently logged on
+					pResults[index].status = eFMS_Offline;
+					break;
+				case k_EPersonaStateLookingToTrade: // Online, trading
+				case k_EPersonaStateLookingToPlay:  // Online, wanting to play
+				case k_EPersonaStateOnline:         // friend is logged on
+					pResults[index].status = eFMS_Online;
+					break;
+				case k_EPersonaStateBusy:           // user is on, but busy
+				case k_EPersonaStateAway:           // auto-away feature
+				case k_EPersonaStateSnooze:         // auto-away for a long time
+					pResults[index].status = eFMS_Away;
+					break;
+				}
 			}
 		}
+	}
+	else
+	{
+		UpdateTaskError(fTaskID, eCLE_SteamInitFailed);
 	}
 
 	StopTaskRunning(fTaskID);

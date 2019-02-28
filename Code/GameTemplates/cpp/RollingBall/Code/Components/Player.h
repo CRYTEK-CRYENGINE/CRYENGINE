@@ -30,10 +30,7 @@ class CPlayerComponent final : public IEntityComponent
 		Toggle
 	};
 
-	typedef uint8 TInputFlags;
-
-	enum class EInputFlag
-		: TInputFlags
+	enum class EInputFlag : uint8
 	{
 		MoveLeft = 1 << 0,
 		MoveRight = 1 << 1,
@@ -41,6 +38,8 @@ class CPlayerComponent final : public IEntityComponent
 		MoveBack = 1 << 3,
 		Jump = 1 << 4
 	};
+
+	using TInputFlags = std::underlying_type<EInputFlag>::type;
 
 	const EEntityAspects kInputAspect = eEA_GameClientD;
 
@@ -52,7 +51,10 @@ public:
 	virtual void Initialize() override;
 
 	virtual uint64 GetEventMask() const override;
-	virtual void ProcessEvent(SEntityEvent& event) override;
+	virtual void ProcessEvent(const SEntityEvent& event) override;
+
+	virtual bool NetSerialize(TSerialize ser, EEntityAspects aspect, uint8 profile, int flags) override;
+	virtual NetworkAspectType GetNetSerializeAspectMask() const override { return kInputAspect | eEA_Physics; };
 	// ~IEntityComponent
 
 	// Reflect type to set a unique identifier for this component
@@ -63,19 +65,16 @@ public:
 
 	void Revive();
 
-	// Additional initialization called only for the entity representing the current player.
-	void LocalPlayerInitialize();
-
-	virtual bool NetSerialize(TSerialize ser, EEntityAspects aspect, uint8 profile, int flags) override;
-	virtual NetworkAspectType GetNetSerializeAspectMask() const { return kInputAspect; };
-
-	bool SvJump(MovementParams&& p, INetChannel *);
-
 protected:
 	void UpdateMovementRequest(float frameTime);
 	void UpdateCamera(float frameTime);
 
 	void HandleInputFlagChange(TInputFlags flags, int activationMode, EInputFlagType type = EInputFlagType::Hold);
+
+	// Additional initialization called only for the entity representing the current player.
+	void InitializeLocalPlayer();
+
+	bool SvJump(MovementParams&& p, INetChannel *);
 
 protected:
 	Cry::DefaultComponents::CCameraComponent* m_pCameraComponent = nullptr;

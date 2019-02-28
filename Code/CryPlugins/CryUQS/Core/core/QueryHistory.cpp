@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "QueryHistory.h"
@@ -202,6 +202,11 @@ namespace UQS
 			m_exceptionMessage = szExceptionMessage;
 			m_bExceptionOccurred = true;
 			m_finalStatistics = finalStatistics;
+		}
+
+		void CHistoricQuery::OnWarningOccurred(const char* szWarningMessage)
+		{
+			m_warningMessages.push_back(szWarningMessage);
 		}
 
 		void CHistoricQuery::OnGenerationPhaseFinished(size_t numGeneratedItems, const CQueryBlueprint& queryBlueprint)
@@ -536,6 +541,14 @@ namespace UQS
 			return bFoundACloseEnoughItem;
 		}
 
+		static ColorF ScoreToColor(float bestScoreAmongAllItems, float worstScoreAmongAllItems, float accumulatedAndWeightedScoreOfMaskedEvaluators)
+		{
+			const float range = bestScoreAmongAllItems - worstScoreAmongAllItems;
+			const float itemRelativeScore = accumulatedAndWeightedScoreOfMaskedEvaluators - worstScoreAmongAllItems;
+			const float fraction = (range > FLT_EPSILON) ? itemRelativeScore / range : 1.0f;
+			return Lerp(Col_Red, Col_Green, fraction);
+		}
+
 		void CHistoricQuery::DrawDebugPrimitivesInWorld(size_t indexOfItemCurrentlyBeingFocused, const IQueryHistoryManager::SEvaluatorDrawMasks& evaluatorDrawMasks) const
 		{
 			m_debugRenderWorldPersistent.DrawAllAddedPrimitivesWithNoItemAssociation();
@@ -580,6 +593,9 @@ namespace UQS
 			// draw all items in the debug-renderworld
 			//
 
+			const float alphaValueForItemsInTheFinalResultSet = 1.0f;
+			const float alphaValueForDiscardedItems = (float)crymath::clamp(SCvars::debugDrawAlphaValueOfDiscardedItems, 0, 255) / 255.0f;
+
 			for (size_t i = 0, n = m_items.size(); i < n; ++i)
 			{
 				const SHistoricItem& item = m_items[i];
@@ -604,41 +620,34 @@ namespace UQS
 				case EItemAnalyzeStatus::ExceptionOccurred:
 					bShouldDrawAnExclamationMarkAsWarning = true;
 					color = Col_Black;
+					color.a = alphaValueForDiscardedItems;
 					break;
 
 				case EItemAnalyzeStatus::DiscardedByAtLeastOneEvaluator:
 					color = Col_Black;
+					color.a = alphaValueForDiscardedItems;
 					break;
 
 				case EItemAnalyzeStatus::DisqualifiedDueToBadScoreBeforeAllEvaluatorsHadRun:
 					color = Col_Plum;
+					color.a = alphaValueForDiscardedItems;
 					break;
 
 				case EItemAnalyzeStatus::StillBeingEvaluated:
 					color = Col_Yellow;
+					color.a = alphaValueForDiscardedItems;  // FIXME: this alpha value is actually for finished items that did not survive (and not for items still being evaluated)
 					break;
 
 				case EItemAnalyzeStatus::DisqualifiedDueToBadScoreAfterAllEvaluatorsHadRun:
-					if (0)  // TODO: currently, we don't draw items that were fully run but then disqualified due to bad score with a specific color (we just apply that nice color gradation), 
-						    // but in the future, we might wanna allow the user to tick a checkbox in the History Inspector for getting even more insight into an item)
-					{
-						bDrawScore = true;
-						color = Col_DarkGray;
-						break;
-					}
-					// fall through
+					color = ScoreToColor(bestScoreAmongAllItems, worstScoreAmongAllItems, accumulatedAndWeightedScoreOfMaskedEvaluators);
+					color.a = alphaValueForDiscardedItems;
+					bDrawScore = true;
+					break;
 
 				case EItemAnalyzeStatus::SurvivedAllEvaluators:
-					{
-						// it's one of the items in the result set (or at least one that survived all masked evaluators) => gradate its color from red to green, depending on its score
-
-						const float range = bestScoreAmongAllItems - worstScoreAmongAllItems;
-						const float itemRelativeScore = accumulatedAndWeightedScoreOfMaskedEvaluators - worstScoreAmongAllItems;
-						const float fraction = (range > FLT_EPSILON) ? itemRelativeScore / range : 1.0f;
-
-						color = Lerp(Col_Red, Col_Green, fraction);
-						bDrawScore = true;
-					}
+					color = ScoreToColor(bestScoreAmongAllItems, worstScoreAmongAllItems, accumulatedAndWeightedScoreOfMaskedEvaluators);
+					color.a = alphaValueForItemsInTheFinalResultSet;
+					bDrawScore = true;
 					break;
 
 				default:
@@ -723,6 +732,10 @@ namespace UQS
 			{
 				color = bHighlight ? Col_Red : Col_DeepPink;
 			}
+			else if (!m_warningMessages.empty())
+			{
+				color = bHighlight ? Col_OrangeRed : Col_Orange;
+			}
 			else
 			{
 				color = bHighlight ? Col_Cyan : Col_White;
@@ -735,6 +748,8 @@ namespace UQS
 			const size_t numItemsInFinalResultSet = m_finalStatistics.numItemsInFinalResultSet;
 
 			const CTimeValue elapsedTime = ComputeElapsedTimeFromQueryCreationToDestruction();
+			const bool bFoundTooFewItems = (m_finalStatistics.numItemsInFinalResultSet == 0) || (m_finalStatistics.numItemsInFinalResultSet < m_finalStatistics.numDesiredItems);
+			const bool bEncounteredSomeWarnings = !m_warningMessages.empty();
 			const IQueryHistoryConsumer::SHistoricQueryOverview overview(
 				color,
 				m_querierName.c_str(),
@@ -743,7 +758,13 @@ namespace UQS
 				m_queryBlueprintName.c_str(),
 				numGeneratedItems,
 				numItemsInFinalResultSet,
-				elapsedTime);
+				elapsedTime,
+				m_queryCreatedTimestamp,
+				m_queryDestroyedTimestamp,
+				bFoundTooFewItems,
+				m_bExceptionOccurred,
+				bEncounteredSomeWarnings
+			);
 			consumer.AddOrUpdateHistoricQuery(overview);
 		}
 
@@ -775,7 +796,23 @@ namespace UQS
 				}
 			}
 
-			// elapsed frames and time
+			// warning messages
+			{
+				if (m_warningMessages.empty())
+				{
+					consumer.AddTextLineToCurrentHistoricQuery(color, "No warnings");
+				}
+				else
+				{
+					consumer.AddTextLineToCurrentHistoricQuery(Col_Orange, "%i warnings:", (int)m_warningMessages.size());
+					for (const string& warningMessage : m_warningMessages)
+					{
+						consumer.AddTextLineToCurrentHistoricQuery(Col_Orange, "%s", warningMessage.c_str());
+					}
+				}
+			}
+
+			// elapsed frames and time, and timestamps of creation + destruction of the query
 			{
 				// elapsed frames
 				consumer.AddTextLineToCurrentHistoricQuery(color, "elapsed frames until result:  %i", (int)m_finalStatistics.totalElapsedFrames);
@@ -786,6 +823,17 @@ namespace UQS
 
 				// consumed time (this is the accumulation of the granted and consumed amounts of time per update call while the query was running)
 				consumer.AddTextLineToCurrentHistoricQuery(color, "consumed seconds:             %f (%.2f milliseconds)", m_finalStatistics.totalConsumedTime.GetSeconds(), m_finalStatistics.totalConsumedTime.GetMilliSeconds());
+
+				// timestamps of when the query was created and destroyed (notice: if the query was canceled prematurely it will miss the timestamp of query destruction)
+				// -> "h:mm:ss:mmm"
+
+				int hours, minutes, seconds, milliseconds;
+
+				UQS::Shared::CTimeValueUtil::Split(m_queryCreatedTimestamp, &hours, &minutes, &seconds, &milliseconds);
+				consumer.AddTextLineToCurrentHistoricQuery(color, "timestamp query created:      %i:%02i:%02i:%03i", hours, minutes, seconds, milliseconds);
+
+				UQS::Shared::CTimeValueUtil::Split(m_queryDestroyedTimestamp, &hours, &minutes, &seconds, &milliseconds);
+				consumer.AddTextLineToCurrentHistoricQuery(color, "timestamp query destroyed:    %i:%02i:%02i:%03i", hours, minutes, seconds, milliseconds);
 			}
 
 			// canceled: yes/no
@@ -793,16 +841,28 @@ namespace UQS
 				consumer.AddTextLineToCurrentHistoricQuery(color, "canceled prematurely:         %s", m_bGotCanceledPrematurely ? "YES" : "NO");
 			}
 
-			// number of generated items, remaining items to inspect, final items
+			// number of desired items, generated items, remaining items to inspect, final items
 			{
+				static const ColorF warningColor = Col_Yellow;
+
+				const bool bHasDesiredItemLimit = (m_finalStatistics.numDesiredItems > 0);
+				const bool bFoundTooFewItems = (m_finalStatistics.numItemsInFinalResultSet == 0) || (m_finalStatistics.numItemsInFinalResultSet < m_finalStatistics.numDesiredItems);
+
+				const ColorF& colorForItemsGenerated = (m_finalStatistics.numGeneratedItems == 0) ? warningColor : color;
+				const ColorF& colorForDesiredItems = (bHasDesiredItemLimit && bFoundTooFewItems) ? warningColor : color;
+				const ColorF& colorForItemsInFinalResultSet = bFoundTooFewItems ? warningColor : color;
+
+				// desired items
+				consumer.AddTextLineToCurrentHistoricQuery(colorForDesiredItems,          "items desired:                %s", (m_finalStatistics.numDesiredItems < 1) ? "(no limit)" : stack_string().Format("%i", (int)m_finalStatistics.numDesiredItems).c_str());
+
 				// generated items
-				consumer.AddTextLineToCurrentHistoricQuery(color, "items generated:              %i", (int)m_finalStatistics.numGeneratedItems);
+				consumer.AddTextLineToCurrentHistoricQuery(colorForItemsGenerated,        "items generated:              %i", (int)m_finalStatistics.numGeneratedItems);
 
 				// remaining items to inspect
-				consumer.AddTextLineToCurrentHistoricQuery(color, "items still to inspect:       %i", (int)m_finalStatistics.numRemainingItemsToInspect);
+				consumer.AddTextLineToCurrentHistoricQuery(color,                         "items still to inspect:       %i", (int)m_finalStatistics.numRemainingItemsToInspect);
 
 				// final items
-				consumer.AddTextLineToCurrentHistoricQuery(color, "final items:                  %i", (int)m_finalStatistics.numItemsInFinalResultSet);
+				consumer.AddTextLineToCurrentHistoricQuery(colorForItemsInFinalResultSet, "final items:                  %i", (int)m_finalStatistics.numItemsInFinalResultSet);
 			}
 
 			// memory usage
@@ -1046,6 +1106,7 @@ namespace UQS
 			ar(m_bGotCanceledPrematurely, "m_bGotCanceledPrematurely");
 			ar(m_bExceptionOccurred, "m_bExceptionOccurred");
 			ar(m_exceptionMessage, "m_exceptionMessage");
+			ar(m_warningMessages, "m_warningMessages");
 			ar(m_debugRenderWorldPersistent, "m_debugRenderWorldPersistent");
 			ar(m_items, "m_items");
 			ar(m_instantEvaluatorNames, "m_instantEvaluatorNames");
@@ -1087,21 +1148,17 @@ namespace UQS
 
 			if (parentQueryID.IsValid())
 			{
-				for (auto it = m_history.begin(); it != m_history.end(); )
+				// search backwards from the end as this will find the insert position quicker
+				// (this leverages the fact that child queries will often get started at roughly the same time as their parent, thus having them reside quite at the end)
+				for (auto rit = m_history.rbegin(), rendIt = m_history.rend(); rit != rendIt; ++rit)
 				{
-					const CHistoricQuery* pCurrentHistoricQuery = it->get();
+					const CHistoricQuery* pCurrentHistoricQuery = rit->get();
 
-					++it;
-
-					// found our parent? -> remember for possibly inserting after him
-					if (pCurrentHistoricQuery->GetQueryID() == parentQueryID)
+					// found a child of our parent or our parent itself? => insert after this query then
+					if (pCurrentHistoricQuery->GetParentQueryID() == parentQueryID || pCurrentHistoricQuery->GetQueryID() == parentQueryID)
 					{
-						insertPos = it;
-					}
-					// found another child of our parent? -> remember for possibly inserting after it
-					else if (pCurrentHistoricQuery->GetParentQueryID() == parentQueryID)
-					{
-						insertPos = it;
+						insertPos = rit.base();  // notice: this conversion from reverse- to forward-iterator will make insertPos point to exactly where we want to insert the new historic query
+						break;
 					}
 				}
 			}

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 
@@ -19,6 +19,19 @@ SERIALIZATION_ENUM_BEGIN(CompressionPreview, "Compression Preview")
 SERIALIZATION_ENUM(COMPRESSION_PREVIEW_COMPRESSED, "compressed", "Preview Compressed Only")
 SERIALIZATION_ENUM(COMPRESSION_PREVIEW_BOTH, "both", "Side by Side (Original and Compressed)")
 SERIALIZATION_ENUM_END()
+
+SERIALIZATION_ENUM_BEGIN_NESTED(DisplayPhysicsOptions, EDbgRenderProxy, "Debug Proxy")
+SERIALIZATION_ENUM(DisplayPhysicsOptions::EDbgRenderProxy::DISABLED, "none", "Disabled")
+SERIALIZATION_ENUM(DisplayPhysicsOptions::EDbgRenderProxy::SOLID, "solid", "Solid")
+SERIALIZATION_ENUM(DisplayPhysicsOptions::EDbgRenderProxy::TRANSLUCENT, "trans", "Translucent")
+SERIALIZATION_ENUM_END()
+
+SERIALIZATION_ENUM_BEGIN_NESTED(DisplayPhysicsOptions, EDbgRenderLimits, "Debug Limits")
+SERIALIZATION_ENUM(DisplayPhysicsOptions::EDbgRenderLimits::NONE, "none", "None")
+SERIALIZATION_ENUM(DisplayPhysicsOptions::EDbgRenderLimits::ALL, "all", "All")
+SERIALIZATION_ENUM(DisplayPhysicsOptions::EDbgRenderLimits::SELECTED, "sel", "Selected Bone")
+SERIALIZATION_ENUM_END()
+
 
 void DisplayAnimationOptions::Serialize(Serialization::IArchive& ar)
 {
@@ -60,6 +73,7 @@ void DisplaySkeletonOptions::Serialize(Serialization::IArchive& ar)
 	ar(jointFilter, "jointFilter", "<Joint Filter");
 	ar(showJoints, "showJoints", "Joints");
 	ar(showJointNames, "showJointNames", "Joint Names");
+	ar(yasli::Range(showJointNamesFontSize, 1.0f, 3.0f), "showJointNamesFontSize", "Joint Names Font Size");
 	ar(showSkeletonBoundingBox, "showSkeletonBoundingBox", "Bounding Box");
 }
 
@@ -123,3 +137,4 @@ void DisplayOptions::Serialize(Serialization::IArchive& ar)
 }
 
 }
+

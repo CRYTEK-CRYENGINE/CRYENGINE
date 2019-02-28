@@ -1,4 +1,4 @@
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "QScrollableBox.h"
@@ -63,7 +63,21 @@ void QScrollableBox::insertWidget(int i, QWidget * widget)
 	m_scrollArea->update();
 }
 
+void QScrollableBox::clearWidgets()
+{
+	QLayoutItem* item;
+	while ((item = m_layout->takeAt(0)) != nullptr)
+	{
+		item->widget()->deleteLater();
+		m_layout->removeItem(item);
+		delete item;
+	}
+
+	m_scrollArea->update();
+}
+
 int QScrollableBox::indexOf(QWidget* w)
 {
 	return m_layout->indexOf(w);
 }
+

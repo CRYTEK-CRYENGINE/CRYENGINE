@@ -1,12 +1,10 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
-
-#ifndef __CoverSystem_h__
-#define __CoverSystem_h__
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
 #include "Cover.h"
 #include "CoverSurface.h"
+#include "CoverUser.h"
 #include "DynamicCoverManager.h"
 
 #include <CryAISystem/HashGrid.h>
@@ -26,6 +24,13 @@ struct CachedCoverLocationValues
 
 typedef VectorMap<CoverID, CachedCoverLocationValues> CoverLocationCache;
 
+// notifies whenever cover-surfaces change or get removed
+struct ICoverSurfaceListener
+{
+	virtual ~ICoverSurfaceListener() {}
+	virtual void OnCoverSurfaceChangedOrRemoved(const CoverSurfaceID& affectedSurfaceID) = 0;
+};
+
 class CCoverSystem
 	: public ICoverSystem
 {
@@ -40,37 +45,44 @@ public:
 	typedef std::vector<CoverID> CoverCollection;
 
 	// ICoverSystem
-	virtual ICoverSampler* CreateCoverSampler(const char* samplerName = "default");
+	virtual ICoverUser*    RegisterEntity(const EntityId entityId, const ICoverUser::Params& params) override;
+	virtual void           UnregisterEntity(const EntityId entityId) override;
+	virtual ICoverUser*    GetRegisteredCoverUser(const EntityId entityId) const override;
 
-	virtual bool           ReloadConfig();
+	virtual ICoverSampler* CreateCoverSampler(const char* samplerName = "default") override;
 
-	virtual void           Reset();
-	virtual void           Clear();
-	virtual bool           ReadSurfacesFromFile(const char* fileName);
+	virtual void           Clear() override;
+	virtual bool           ReadSurfacesFromFile(const char* fileName) override;
 
-	virtual void           BreakEvent(const Vec3& position, float radius);
-	virtual void           AddCoverEntity(EntityId entityID);
-	virtual void           RemoveCoverEntity(EntityId entityID);
+	virtual CoverSurfaceID AddSurface(const SurfaceInfo& surfaceInfo) override;
+	virtual void           RemoveSurface(const CoverSurfaceID& surfaceID) override;
+	virtual void           UpdateSurface(const CoverSurfaceID& surfaceID, const SurfaceInfo& surfaceInfo) override;
 
-	virtual CoverSurfaceID AddSurface(const SurfaceInfo& surfaceInfo);
-	virtual void           RemoveSurface(const CoverSurfaceID& surfaceID);
-	virtual void           UpdateSurface(const CoverSurfaceID& surfaceID, const SurfaceInfo& surfaceInfo);
-
-	virtual uint32         GetSurfaceCount() const;
-	virtual bool           GetSurfaceInfo(const CoverSurfaceID& surfaceID, SurfaceInfo* surfaceInfo) const;
-
-	virtual void           SetCoverOccupied(const CoverID& coverID, bool occupied, const tAIObjectID& occupant);
-	virtual bool           IsCoverOccupied(const CoverID& coverID) const;
-	virtual tAIObjectID    GetCoverOccupant(const CoverID& coverID) const;
+	virtual uint32         GetSurfaceCount() const override;
+	virtual bool           GetSurfaceInfo(const CoverSurfaceID& surfaceID, SurfaceInfo* surfaceInfo) const override;
 
 	virtual uint32         GetCover(const Vec3& center, float range, const Vec3* eyes, uint32 eyeCount, float distanceToCover,
-	                                Vec3* locations, uint32 maxLocationCount, uint32 maxLocationsPerSurface) const;
+	                                Vec3* locations, uint32 maxLocationCount, uint32 maxLocationsPerSurface) const override;
 
-	virtual void DrawSurface(const CoverSurfaceID& surfaceID);
+	virtual void DrawSurface(const CoverSurfaceID& surfaceID) override;
 	//~ICoverSystem
+
+	bool                      ReloadConfig();
+	void                      Reset();
+
+	void                      BreakEvent(const Vec3& position, float radius);
+	void                      AddCoverEntity(EntityId entityID);
+	void                      RemoveCoverEntity(EntityId entityID);
+
+	void                      SetCoverOccupied(const CoverID& coverID, bool occupied, const CoverUser& occupant);
+	bool                      IsCoverOccupied(const CoverID& coverID) const;
+	EntityId                  GetCoverOccupant(const CoverID& coverID) const;
+	bool                      IsCoverPhysicallyOccupiedByAnyOtherCoverUser(const CoverID& coverID, const ICoverUser& coverUserSearchingForEmptySpace) const;
 
 	void                      Update(float updateTime);
 	void                      DebugDraw();
+	void                      DebugDrawSurfaceEffectiveHeight(const CoverSurface& surface, const Vec3* eyes, uint32 eyeCount);
+	void                      DebugDrawCoverUser(const EntityId entityId);
 
 	bool                      IsDynamicSurfaceEntity(IEntity* entity) const;
 
@@ -119,6 +131,16 @@ public:
 		return CoverSurfaceID(coverID >> CoverIDSurfaceIDShift);
 	}
 
+	ILINE void RegisterCoverSurfaceListener(ICoverSurfaceListener* pCoverSurfaceListener)
+	{
+		stl::push_back_unique(m_coverSurfaceListeners, pCoverSurfaceListener);
+	}
+
+	ILINE void UnregisterCoverSurfaceListener(ICoverSurfaceListener* pCoverSurfaceListener)
+	{
+		stl::find_and_erase(m_coverSurfaceListeners, pCoverSurfaceListener);
+	}
+
 private:
 	void             AddLocations(const CoverSurfaceID& surfaceID, const CoverSurface& surface);
 	void             RemoveLocations(const CoverSurfaceID& surfaceID, const CoverSurface& surface);
@@ -126,6 +148,7 @@ private:
 	void             ResetDynamicSurface(const CoverSurfaceID& surfaceID, CoverSurface& surface);
 	void             ResetDynamicCover();
 	void             NotifyCoverUsers(const CoverSurfaceID& surfaceID);
+	void             NotifyCoverSurfaceListeners(const CoverSurfaceID& surfaceID);
 
 	Vec3             GetAndCacheCoverLocation(const CoverID& coverID, float offset = 0.0f, float* height = 0, Vec3* normal = 0) const;
 	void             ClearAndReserveCoverLocationCache();
@@ -143,6 +166,9 @@ private:
 		}
 	};
 
+	typedef std::unordered_map<EntityId, std::shared_ptr<CoverUser>> CoverUsersMap;
+	CoverUsersMap m_coverUsers;
+
 	typedef hash_grid<256, CoverID, hash_grid_2d<Vec3, Vec3i>, location_position> Locations;
 	Locations m_locations;
 
@@ -159,7 +185,14 @@ private:
 
 	mutable CoverCollection m_externalQueryBuffer;
 
-	typedef std::unordered_map<CoverID, tAIObjectID, stl::hash_uint32> OccupiedCover;
+	struct OccupantInfo
+	{
+		EntityId entityId;  // entity (CoverUser) that is occupying the cover (or has reserved it for later occupation)
+		Vec3 pos;           // center of the *occupant*, *not* the cover! (the occupant will back off a bit from the actual cover location via its ICoverUser::Params::distanceToCover property)
+		float radius;       // size of the occupied space
+	};
+
+	typedef std::unordered_map<CoverID, OccupantInfo, stl::hash_uint32> OccupiedCover;
 	OccupiedCover m_occupied;
 
 	typedef std::vector<CoverSurfaceID> FreeIDs;
@@ -173,6 +206,8 @@ private:
 	string                      m_configName;
 
 	mutable CoverLocationCache  m_coverLocationCache;
+
+	typedef std::list<ICoverSurfaceListener*> CoverSurfaceListeners; // using a std::list<> to allow for un-registering during NotifyCoverSurfaceListeners()
+	CoverSurfaceListeners       m_coverSurfaceListeners;
 };
 
-#endif //__CoverSystem_h__

@@ -1,4 +1,4 @@
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "DeferredDecals.h"
@@ -16,6 +16,7 @@ struct SDecalConstants
 	Vec4     specularCol;
 	Vec4     mipLevels;
 	Vec4     generalParams;
+	Vec4	 opacityParams;
 };
 
 
@@ -44,15 +45,41 @@ CDeferredDecalsStage::~CDeferredDecalsStage()
 
 void CDeferredDecalsStage::Init()
 {
-	for (int i = 0; i < kMaxDeferredDecals; ++i)
-	{
-			CConstantBufferPtr pCB = gcpRendD3D->m_DevBufMan.CreateConstantBuffer(sizeof(SDecalConstants));
-			m_decalPrimitives[i].SetInlineConstantBuffer(eConstantBufferShaderSlot_PerBatch, pCB, EShaderStage_Pixel | EShaderStage_Vertex);
-	}
+	// Preallocate 64 decals
+	ResizeDecalBuffers(64);
 }
 
-void CDeferredDecalsStage::Prepare(CRenderView* pRenderView)
+void CDeferredDecalsStage::ResizeDecalBuffers(size_t requiredDecalCount)
 {
+	CRY_PROFILE_FUNCTION(PROFILE_RENDERER);
+
+	const size_t allocatedDecalCount = m_decalPrimitives.size();
+
+	if (allocatedDecalCount < requiredDecalCount)
+	{
+		m_decalPrimitives.reserve(requiredDecalCount);
+		m_decalShaderResources.reserve(requiredDecalCount);
+
+		for (int i = allocatedDecalCount; i < requiredDecalCount; ++i)
+		{
+			CConstantBufferPtr pCB = gcpRendD3D->m_DevBufMan.CreateConstantBuffer(sizeof(SDecalConstants));
+
+			m_decalPrimitives.emplace_back();
+			m_decalPrimitives.back().SetInlineConstantBuffer(eConstantBufferShaderSlot_PerPrimitive, pCB, EShaderStage_Pixel | EShaderStage_Vertex);
+
+			m_decalShaderResources.emplace_back();
+		}
+	}
+	else if (allocatedDecalCount > requiredDecalCount && allocatedDecalCount > MaxPersistentDecals)
+	{
+		const size_t desiredDecalCount = max(requiredDecalCount, size_t(MaxPersistentDecals));
+
+		for (int i = allocatedDecalCount; i > desiredDecalCount; --i)
+		{
+			m_decalPrimitives.pop_back();
+			m_decalShaderResources.pop_back();
+		}
+	}
 }
 
 void CDeferredDecalsStage::SetupDecalPrimitive(const SDeferredDecal& decal, CRenderPrimitive& primitive, _smart_ptr<IRenderShaderResources>& pShaderResources)
@@ -68,6 +95,7 @@ void CDeferredDecalsStage::SetupDecalPrimitive(const SDeferredDecal& decal, CRen
 		return;
 
 	uint64 rtFlags = g_HWSR_MaskBit[HWSR_CUBEMAP0];
+	uint32 mdFlags = 0;
 
 	ITexture* pNormalMap = TextureHelpers::LookupTexDefault(EFTT_NORMALS);
 	if (SEfResTexture* pNormalRes = shaderItem.m_pShaderResources->GetTexture(EFTT_NORMALS))
@@ -120,7 +148,7 @@ void CDeferredDecalsStage::SetupDecalPrimitive(const SDeferredDecal& decal, CRen
 
 			if (pDiffuseRes->IsHasModificators())
 			{
-				pDiffuseRes->UpdateWithModifier(EFTT_MAX);
+				pDiffuseRes->UpdateWithModifier(EFTT_MAX, mdFlags);
 				SEfTexModificator* mod = pDiffuseRes->m_Ext.m_pTexModifier;
 				texMatrix = pDiffuseRes->m_Ext.m_pTexModifier->m_TexMatrix;
 			}
@@ -131,32 +159,32 @@ void CDeferredDecalsStage::SetupDecalPrimitive(const SDeferredDecal& decal, CRen
 	primitive.SetSampler(1, diffuseMapSampler);
 	primitive.SetSampler(9, EDefaultSamplerStates::PointClamp);  // Used by gbuffer normal encoding
 
-	primitive.SetTexture(0, CTexture::s_ptexZTarget);
-	primitive.SetTexture(1, (CTexture*)CTexture::s_ptexBackBuffer);  // Contains copy of scene normals
+	primitive.SetTexture(0, CRendererResources::s_ptexLinearDepth);
+	primitive.SetTexture(1, (CTexture*)CRendererResources::s_ptexBackBuffer);  // Contains copy of scene normals
 	primitive.SetTexture(2, (CTexture*)pDiffuseMap);
 	primitive.SetTexture(3, (CTexture*)pNormalMap);
 	primitive.SetTexture(4, (CTexture*)pSmoothnessMap);
 	primitive.SetTexture(5, (CTexture*)pOpacityMap);
-	primitive.SetTexture(30, CTexture::s_ptexNormalsFitting);
+	primitive.SetTexture(30, CRendererResources::s_ptexNormalsFitting);
 
 	bool bCameraInVolume;
 
 	// Update constants
 	{
 		auto& constantManager = primitive.GetConstantManager();
-		auto constants = constantManager.BeginTypedConstantUpdate<SDecalConstants>(eConstantBufferShaderSlot_PerBatch, EShaderStage_Pixel | EShaderStage_Vertex);
+		auto constants = constantManager.BeginTypedConstantUpdate<SDecalConstants>(eConstantBufferShaderSlot_PerPrimitive, EShaderStage_Pixel | EShaderStage_Vertex);
 
-		CStandardGraphicsPipeline::SViewInfo viewInfo[2];
-		int viewInfoCount = gcpRendD3D->GetGraphicsPipeline().GetViewInfo(viewInfo);
+		SRenderViewInfo viewInfo[2];
+		size_t viewInfoCount = GetGraphicsPipeline().GenerateViewInfo(viewInfo);
 
 		const Vec3 vBasisX = decal.projMatrix.GetColumn0();
 		const Vec3 vBasisY = decal.projMatrix.GetColumn1();
 		const Vec3 vBasisZ = decal.projMatrix.GetColumn2();
 
-		Vec3 camFront = viewInfo[0].pRenderCamera->vZ.normalized();
-		Vec3 camPos = viewInfo[0].pRenderCamera->vOrigin;
-		float camFar = viewInfo[0].pRenderCamera->fFar;
-		float camNear = viewInfo[0].pRenderCamera->fNear;
+		Vec3  camFront = viewInfo[0].cameraVZ.normalized();
+		Vec3  camPos   = viewInfo[0].cameraOrigin;
+		float camFar   = viewInfo[0].farClipPlane;
+		float camNear  = viewInfo[0].nearClipPlane;
 	
 		const float r = fabs(vBasisX.dot(camFront)) + fabs(vBasisY.dot(camFront)) + fabs(vBasisZ.dot(camFront));
 		const float s = camFront.dot(decal.projMatrix.GetTranslation() - camPos);
@@ -172,7 +200,8 @@ void CDeferredDecalsStage::SetupDecalPrimitive(const SDeferredDecal& decal, CRen
 		constants->specularCol = shaderItem.m_pShaderResources->GetColorValue(EFTT_SPECULAR).toVec4();
 		constants->specularCol.w = shaderItem.m_pShaderResources->GetStrengthValue(EFTT_SMOOTHNESS);
 
-		Vec4 decalParams(1, 1, 1, decal.fGrowAlphaRef);
+		Vec4 decalParams(1, 1, decal.fGrowAlphaRef, 1);
+		Vec4 decalOpacityParams(1, 1, 1, 1);
 		DynArrayRef<SShaderParam>& shaderParams = shaderItem.m_pShaderResources->GetParameters();
 		for (uint32 i = 0, si = shaderParams.size(); i < si; ++i)
 		{
@@ -181,13 +210,18 @@ void CDeferredDecalsStage::SetupDecalPrimitive(const SDeferredDecal& decal, CRen
 				decalParams.x = shaderParams[i].m_Value.m_Float;
 			else if (strcmp(name, "DecalFalloff") == 0)
 				decalParams.y = shaderParams[i].m_Value.m_Float;
-			else if (strcmp(name, "DecalDiffuseOpacity") == 0)
-				decalParams.z = shaderParams[i].m_Value.m_Float;
 			else if (strcmp(name, "DecalAngleBasedFading") == 0 && !decal.fGrowAlphaRef)
-				decalParams.w = shaderParams[i].m_Value.m_Float;
+				decalParams.z = shaderParams[i].m_Value.m_Float;
+			else if (strcmp(name, "DecalDiffuseOpacity") == 0)
+				decalOpacityParams.x = shaderParams[i].m_Value.m_Float;
+			else if (strcmp(name, "DecalNormalOpacity") == 0)
+				decalOpacityParams.y = shaderParams[i].m_Value.m_Float;
+			else if (strcmp(name, "DecalSpecularOpacity") == 0)
+				decalOpacityParams.z = shaderParams[i].m_Value.m_Float;
 		}
 		constants->generalParams = decalParams;
-
+		constants->opacityParams = decalOpacityParams;
+		
 		const float zNear = -0.3f;
 		const float zFar = 0.5f;
 		const Matrix44A matTextureAndDepth(
@@ -218,7 +252,7 @@ void CDeferredDecalsStage::SetupDecalPrimitive(const SDeferredDecal& decal, CRen
 		// MipLevel = log2 --------------------------------------------------------
 		//                 screenResolution * dot(viewVector, decalNormal)
 
-		const float screenRes = (float)CTexture::s_ptexSceneNormalsMap->GetWidth() * 0.5f + (float)CTexture::s_ptexSceneNormalsMap->GetHeight() * 0.5f;
+		const float screenRes = (float)CRendererResources::s_ptexSceneNormalsMap->GetWidth() * 0.5f + (float)CRendererResources::s_ptexSceneNormalsMap->GetHeight() * 0.5f;
 		const float decalSize = max(vBasisX.GetLength() * 2.0f, vBasisY.GetLength() * 2.0f);
 		const float texScale = max(
 			texMatrix.GetColumn(0).GetLength() * decal.rectTexture.w,
@@ -237,7 +271,7 @@ void CDeferredDecalsStage::SetupDecalPrimitive(const SDeferredDecal& decal, CRen
 
 	ECull cullMode = eCULL_Back;
 	int renderState = GS_BLSRC_SRCALPHA | GS_BLDST_ONEMINUSSRCALPHA;
-	renderState |= GS_DEPTHFUNC_GREAT | GS_STENCIL | GS_COLMASK_RGB;
+	renderState |= GS_DEPTHFUNC_GREAT | GS_STENCIL | GS_NOCOLMASK_GBUFFER_OVERLAY;
 
 	if (bCameraInVolume)
 	{
@@ -270,32 +304,39 @@ void CDeferredDecalsStage::Execute()
 
 	CD3D9Renderer* const __restrict rd = gcpRendD3D;
 
-	auto& deferredDecals = rd->GetGraphicsPipeline().GetCurrentRenderView()->GetDeferredDecals();
-	assert(deferredDecals.size() <= kMaxDeferredDecals);
-	
+	auto& deferredDecals = RenderView()->GetDeferredDecals();
+
+	ResizeDecalBuffers(deferredDecals.size());
+
+#if !CRY_PLATFORM_ORBIS
+	// Want the buffer cleared or we'll just get black out
+	if (deferredDecals.empty())
+#endif
+		return;
+
 	PROFILE_LABEL_SCOPE("DEFERRED_DECALS");
 
 	// Create temporary copy to enable reads from normal target
-	GetDeviceObjectFactory().GetCoreCommandList().GetCopyInterface()->Copy(CTexture::s_ptexSceneNormalsMap->GetDevTexture(), CTexture::s_ptexBackBuffer->GetDevTexture());
+	GetDeviceObjectFactory().GetCoreCommandList().GetCopyInterface()->Copy(CRendererResources::s_ptexSceneNormalsMap->GetDevTexture(), CRendererResources::s_ptexBackBuffer->GetDevTexture());
 	
 	// Sort decals
 	std::stable_sort(deferredDecals.begin(), deferredDecals.end(), DecalSortComparison());
 
-	CTexture* pSceneSpecular = CTexture::s_ptexSceneSpecular;
+	CTexture* pSceneSpecular = CRendererResources::s_ptexSceneSpecular;
 #if defined(DURANGO_USE_ESRAM)
-	pSceneSpecular = CTexture::s_ptexSceneSpecularESRAM;
+	pSceneSpecular = CRendererResources::s_ptexSceneSpecularESRAM;
 #endif
-	m_decalPass.SetRenderTarget(0, CTexture::s_ptexSceneNormalsMap);
-	m_decalPass.SetRenderTarget(1, CTexture::s_ptexSceneDiffuse );
+
+	m_decalPass.SetRenderTarget(0, CRendererResources::s_ptexSceneNormalsMap);
+	m_decalPass.SetRenderTarget(1, CRendererResources::s_ptexSceneDiffuse);
 	m_decalPass.SetRenderTarget(2, pSceneSpecular);
-	m_decalPass.SetDepthTarget(rd->m_pZTexture);
+	m_decalPass.SetDepthTarget(RenderView()->GetDepthTarget());
 	
-	D3DViewPort viewport = { 0.f, 0.f, float(rd->m_MainViewport.nWidth), float(rd->m_MainViewport.nHeight), 0.0f, 1.0f };
-	m_decalPass.SetViewport(viewport);
+	m_decalPass.SetViewport(RenderView()->GetViewport());
 		
 	m_decalPass.BeginAddingPrimitives();
 		
-	for (uint32 i = 0, count = std::min(deferredDecals.size(), (size_t)kMaxDeferredDecals); i < count; i++)
+	for (uint32 i = 0, count = deferredDecals.size(); i < count; i++)
 	{
 		SetupDecalPrimitive(deferredDecals[i], m_decalPrimitives[i], m_decalShaderResources[i]);
 	}

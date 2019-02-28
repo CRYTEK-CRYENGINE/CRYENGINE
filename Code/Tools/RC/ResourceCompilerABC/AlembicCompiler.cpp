@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 //
 //  Crytek Engine Source File.
 //  Copyright (C), Crytek Studios, 2012.
@@ -595,12 +595,12 @@ bool AlembicCompiler::Process()
 string AlembicCompiler::GetOutputFileNameOnly() const
 {
 	const string sourceFileFinal = m_CC.config->GetAsString("overwritefilename", m_CC.sourceFileNameOnly.c_str(), m_CC.sourceFileNameOnly.c_str());
-	return PathHelpers::ReplaceExtension(sourceFileFinal, CRY_GEOM_CACHE_FILE_EXT);
+	return PathUtil::ReplaceExtension(sourceFileFinal, CRY_GEOM_CACHE_FILE_EXT);
 }
 
 string AlembicCompiler::GetOutputPath() const
 {
-	return PathHelpers::Join(m_CC.GetOutputFolder(), GetOutputFileNameOnly());
+	return PathUtil::Make(m_CC.GetOutputFolder(), GetOutputFileNameOnly());
 }
 
 bool AlembicCompiler::CheckTimeSampling(Alembic::Abc::IArchive &archive)

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __smartobject_h__
 #define __smartobject_h__
@@ -32,7 +32,7 @@ public:
 	virtual bool  Init(CBaseObject* prev, const string& file);
 	virtual void  InitVariables() {}
 	virtual void  Done();
-	virtual void  Display(DisplayContext& disp);
+	virtual void  Display(CObjectRenderHelper& objRenderHelper);
 	virtual bool  HitTest(HitContext& hc);
 	virtual void  GetLocalBounds(AABB& box);
 	bool          IsScalable() const override { return false; }
@@ -67,8 +67,8 @@ public:
 	const char*    ClassName()         { return "SmartObject"; }
 	const char*    Category()          { return "AI"; }
 	CRuntimeClass* GetRuntimeClass()   { return RUNTIME_CLASS(CSmartObject); }
-	int            GameCreationOrder() { return 111; }
 	virtual bool   IsCreatable() const override { return gEnv->pEntitySystem->GetClassRegistry()->FindClass("SmartObject") != nullptr; }
 };
 
 #endif // __smartobject_h__
+

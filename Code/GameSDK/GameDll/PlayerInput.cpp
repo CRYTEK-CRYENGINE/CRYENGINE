@@ -1,4 +1,4 @@
-﻿// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
 
@@ -271,7 +271,7 @@ void CPlayerInput::OnAction( const ActionId& actionId, int activationMode, float
 	// Pass action to actor telemetry.
 	m_pPlayer->m_telemetry.OnPlayerAction(actionId, activationMode, value);
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 #if defined(USER_timf)
 	CryLogAlways ("$7PLAYER INPUT:$o <FRAME %05d> $6%s $%c[MODE=0x%x] $4value=%.3f$o", gEnv->pRenderer->GetFrameID(false), actionId.c_str(), (char) ((activationMode > 7) ? '8' : (activationMode + '1')), activationMode, value);
@@ -300,7 +300,7 @@ void CPlayerInput::OnAction( const ActionId& actionId, int activationMode, float
 	bool handled = false;
 
 	{
-		FRAME_PROFILER("New Action Processing", GetISystem(), PROFILE_GAME);
+		CRY_PROFILE_REGION(PROFILE_GAME, "New Action Processing");
 
 		handled = m_actionHandler.Dispatch(this, m_pPlayer->GetEntityId(), actionId, activationMode, value, filterOut);
 	}
@@ -308,7 +308,7 @@ void CPlayerInput::OnAction( const ActionId& actionId, int activationMode, float
 	//------------------------------------
 
 	{
-		FRAME_PROFILER("Regular Action Processing", GetISystem(), PROFILE_GAME);
+		CRY_PROFILE_REGION(PROFILE_GAME, "Regular Action Processing");
 		bool inKillCam = g_pGame->GetRecordingSystem() && (g_pGame->GetRecordingSystem()->IsPlayingBack() || g_pGame->GetRecordingSystem()->IsPlaybackQueued());
 		if (!handled)
 		{
@@ -527,9 +527,6 @@ void CPlayerInput::DrawDebugInfo()
 	// process the input as in PreProcess, but without scaling
 	Ang3 processedDeltaRot(UpdateXIInputs(m_xi_deltaRotationRaw, false));
 
-	IUIDraw* pUIDraw = gEnv->pGameFramework->GetIUIDraw();
-	pUIDraw->PreRender();
-
 	// Draw enclosing circle
 	ColorF whiteColor(0.7f, 1.0f, 1.0f, 1.0f);
 	// pUIDraw->DrawCircleHollow(fX, fY, fRadius, 1.0f, whiteColor.pack_argb8888());
@@ -539,12 +536,10 @@ void CPlayerInput::DrawDebugInfo()
 
 	string sMsg;
 	sMsg.Format("Raw input: (%f, %f)", m_xi_deltaRotationRaw.z, m_xi_deltaRotationRaw.x);
-	pUIDraw->DrawTextSimple(pFont, fX - fRadius, fY + fRadius + fSize, fSize, fSize, sMsg.c_str(), Col_Green, UIDRAWHORIZONTAL_LEFT, UIDRAWVERTICAL_TOP);
+	IRenderAuxText::Draw2dLabel( fX - fRadius, fY + fRadius + fSize, fSize, Col_Green, false, "%s", sMsg.c_str());
 
 	sMsg.Format("Processed input: (%f, %f)", processedDeltaRot.z, processedDeltaRot.x);
-	pUIDraw->DrawTextSimple(pFont, fX - fRadius, fY + fRadius + (fSize * 2.f), fSize, fSize, sMsg.c_str(), Col_Orange, UIDRAWHORIZONTAL_LEFT, UIDRAWVERTICAL_TOP);
-
-	pUIDraw->PostRender();
+	IRenderAuxText::Draw2dLabel( fX - fRadius, fY + fRadius + (fSize * 2.f), fSize, Col_Orange, false, "%s", sMsg.c_str());
 
 	// to improve following the movement
 	IPersistantDebug* pPersistantDebug = gEnv->pGameFramework->GetIPersistantDebug();
@@ -567,7 +562,7 @@ void CPlayerInput::DrawDebugInfo()
 		pPersistantDebug->Add2DLine(fTraceRawXStart, fTraceRawYStart, fRawXEnd, fRawYEnd, Col_Green, fTimeOut);
 
 	// Display our aiming displacement
-	const CCamera& camera = gEnv->pRenderer->GetCamera();
+	const CCamera& camera = GetISystem()->GetViewCamera();
 	float fDepth = camera.GetNearPlane() + 0.15f;
 	Vec3 vNewAimPos = camera.GetPosition() + (camera.GetViewdir() * fDepth);
 
@@ -667,11 +662,13 @@ void CPlayerInput::PreUpdate()
 		// Applying aspect modifiers
 		if (g_pGameCVars->hud_aspectCorrection > 0)
 		{
-			int vx, vy, vw, vh;
-			gEnv->pRenderer->GetViewport(&vx, &vy, &vw, &vh);
+			int vw = gEnv->pRenderer->GetWidth();
+			int vh = gEnv->pRenderer->GetHeight();
+
 			float med=((float)vw+vh)/2.0f;
 			float crW=((float)vw)/med;
 			float crH=((float)vh)/med;
+
 			xiDeltaRot.x*=g_pGameCVars->hud_aspectCorrection == 2 ? crW : crH;
 			xiDeltaRot.z*=g_pGameCVars->hud_aspectCorrection == 2 ? crH : crW;
 		}

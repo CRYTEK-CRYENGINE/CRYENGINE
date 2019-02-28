@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "SkeletonAnim.h"
@@ -207,6 +207,8 @@ uint32 CSkeletonAnim::CheckIsCAFLoaded(CAnimationSet* pAnimationSet, int32 nAnim
 
 void CSkeletonAnim::UpdateParameters(CAnimation* arrAnimFiFo, uint32 nMaxActiveInQueue, uint32 nLayer, f32 fFrameDeltaTime)
 {
+	DEFINE_PROFILER_FUNCTION();
+
 	CAnimationSet* pAnimationSet = m_pInstance->m_pDefaultSkeleton->m_pAnimationSet;
 	for (uint32 a = 0; a < nMaxActiveInQueue; a++)
 	{
@@ -300,6 +302,8 @@ void CSkeletonAnim::UpdateParameters(CAnimation* arrAnimFiFo, uint32 nMaxActiveI
 
 void CSkeletonAnim::UpdateAnimationTime(CAnimation& rAnimation, uint32 nLayer, uint32 NumAnimsInQueue, uint32 AnimNo, uint32 idx)
 {
+	DEFINE_PROFILER_FUNCTION();
+
 	assert(rAnimation.m_fAnimTime[idx] <= 2.0f);
 
 	const bool ManualUpdate = rAnimation.HasStaticFlag(CA_MANUAL_UPDATE);
@@ -432,6 +436,13 @@ void CSkeletonAnim::UpdateAnimationTime(CAnimation& rAnimation, uint32 nLayer, u
 				}
 
 				rAnimation.m_DynFlags[idx] |= CA_LOOPED_THIS_UPDATE;
+				
+				// Update motion parameter for next iteration
+				for (uint32 i{0}; i<MAX_LMG_DIMENSIONS; ++i)
+				{
+					pParametric->m_MotionParameter[i] = pParametric->m_MotionParameterForNextIteration[i];
+					pParametric->m_MotionParameterFlags[i] |= CA_Dim_Initialized;
+				}
 			}
 			else
 			{

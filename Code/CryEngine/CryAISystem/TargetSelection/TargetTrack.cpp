@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -203,7 +203,7 @@ CWeakRef<CAIObject> CTargetTrack::GetAITarget() const
 //////////////////////////////////////////////////////////////////////////
 bool CTargetTrack::Update(float fCurrTime, TargetTrackHelpers::ITargetTrackConfigProxy* pConfigProxy)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	CAISystem* pAISystem = GetAISystem();
 	assert(pAISystem);
@@ -411,7 +411,7 @@ bool CTargetTrack::UpdateTargetType(EAITargetType& outTargetType, EAITargetThrea
 //////////////////////////////////////////////////////////////////////////
 bool CTargetTrack::InvokeStimulus(const TargetTrackHelpers::STargetTrackStimulusEvent& stimulusEvent, uint32 uStimulusNameHash)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	if (uStimulusNameHash > 0)
 	{
@@ -440,7 +440,7 @@ bool CTargetTrack::InvokeStimulus(const TargetTrackHelpers::STargetTrackStimulus
 //////////////////////////////////////////////////////////////////////////
 bool CTargetTrack::TriggerPulse(uint32 uStimulusNameHash, uint32 uPulseNameHash)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	if (uStimulusNameHash > 0 && uPulseNameHash > 0)
 	{
@@ -586,7 +586,7 @@ float CTargetTrack::GetStimulusTotalValue(float fCurrTime, float fEnvelopeValue,
 //////////////////////////////////////////////////////////////////////////
 float CTargetTrack::GetStimulusEnvelopeValue(float fCurrTime, const SStimulusInvocation& invoke, const TargetTrackHelpers::STargetTrackStimulusConfig* pStimulusConfig) const
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	assert(pStimulusConfig);
 
@@ -636,7 +636,7 @@ float CTargetTrack::GetStimulusEnvelopeValue(float fCurrTime, const SStimulusInv
 //////////////////////////////////////////////////////////////////////////
 float CTargetTrack::GetStimulusPulseValue(float fCurrTime, const SStimulusInvocation& invoke, const TargetTrackHelpers::STargetTrackStimulusConfig* pStimulusConfig) const
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	assert(pStimulusConfig);
 
@@ -670,7 +670,7 @@ float CTargetTrack::GetStimulusPulseValue(float fCurrTime, const SStimulusInvoca
 //////////////////////////////////////////////////////////////////////////
 float CTargetTrack::GetStimulusModifierValue(const SStimulusInvocation& invoke, TargetTrackHelpers::ITargetTrackConfigProxy* pConfigProxy, const TargetTrackHelpers::STargetTrackStimulusConfig* pStimulusConfig) const
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	assert(pStimulusConfig);
 	assert(pConfigProxy);

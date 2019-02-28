@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   PlatformOS_PC.cpp
@@ -25,10 +25,9 @@
 	#include <CrySystem/ZLib/IZLibCompressor.h>
 	#include <CryString/StringUtils.h>
 
-	#if USE_STEAM
-		#include "Steamworks/public/steam/steam_api.h"
-		#include "SaveReaderWriter_Steam.h"
-	#endif
+#if CRY_PLATFORM_WINDOWS
+	#include <timeapi.h>
+#endif
 
 IPlatformOS* IPlatformOS::Create(const uint8 createParams)
 {
@@ -41,22 +40,21 @@ CPlatformOS_PC::CPlatformOS_PC(const uint8 createParams)
 	, m_delayLevelStartIcon(0.0f)
 	, m_bSignedIn(false)
 	, m_bSaving(false)
-	#if defined(DEDICATED_SERVER)
-	, m_bAllowMessageBox(false)
-	#else
-	, m_bAllowMessageBox((createParams & eCF_NoDialogs) == 0)
-	#endif //defined(DEDICATED_SERVER)
 	, m_bLevelLoad(false)
 	, m_bSaveDuringLevelLoad(false)
 {
-	#if !defined(_RELEASE)
-	m_bAllowMessageBox = (GetISystem()->GetICmdLine()->FindArg(eCLAT_Pre, "noprompt") == NULL);
-	#endif // !defined(_RELEASE)
 	AddListener(this, "PC");
+
+	gEnv->pSystem->GetISystemEventDispatcher()->RegisterListener(this, "CPlatformOS_PC_SystemEventListener");
 
 	m_cachePakStatus = 0;
 	m_cachePakUser = -1;
 	//TODO: Handle early corruption detection (createParams & IPlatformOS::eCF_EarlyCorruptionDetected ) if necessary.
+}
+
+CPlatformOS_PC::~CPlatformOS_PC()
+{
+	gEnv->pSystem->GetISystemEventDispatcher()->RemoveListener(this);
 }
 
 void CPlatformOS_PC::Tick(float realFrameTime)
@@ -323,95 +321,36 @@ void CPlatformOS_PC::EndSaveLoad(unsigned int user)
 {
 }
 
-bool CPlatformOS_PC::UseSteamReadWriter() const
-{
-	#if USE_STEAM
-	ICVar* pUseCloud = gEnv->pConsole ? gEnv->pConsole->GetCVar("sys_useSteamCloudForPlatformSaving") : NULL;
-	if (pUseCloud && pUseCloud->GetIVal() != 0)
-	{
-		if (gEnv->pSystem && gEnv->pSystem->SteamInit())
-		{
-			if (SteamRemoteStorage()->IsCloudEnabledForAccount() && SteamRemoteStorage()->IsCloudEnabledForApp())
-			{
-				return true;
-			}
-		}
-	}
-	#endif // USE_STEAM
-	return false;
-}
-
 IPlatformOS::ISaveReaderPtr CPlatformOS_PC::SaveGetReader(const char* fileName, unsigned int /*user*/)
 {
-	#if USE_STEAM
-	if (UseSteamReadWriter())
-	{
-		CSaveReader_SteamPtr pSaveReader(new CSaveReader_Steam(fileName));
+	CSaveReader_CryPakPtr pSaveReader(new CSaveReader_CryPak(fileName));
 
-		if (!pSaveReader || pSaveReader->LastError() != IPlatformOS::eFOC_Success)
-		{
-			return CSaveReader_SteamPtr();
-		}
-		else
-		{
-			return pSaveReader;
-		}
+	if (!pSaveReader || pSaveReader->LastError() != IPlatformOS::eFOC_Success)
+	{
+		return CSaveReader_CryPakPtr();
 	}
 	else
-	#endif // USE_STEAM
 	{
-		CSaveReader_CryPakPtr pSaveReader(new CSaveReader_CryPak(fileName));
-
-		if (!pSaveReader || pSaveReader->LastError() != IPlatformOS::eFOC_Success)
-		{
-			return CSaveReader_CryPakPtr();
-		}
-		else
-		{
-			return pSaveReader;
-		}
+		return pSaveReader;
 	}
 }
 
 IPlatformOS::ISaveWriterPtr CPlatformOS_PC::SaveGetWriter(const char* fileName, unsigned int /*user*/)
 {
-	#if USE_STEAM
-	if (UseSteamReadWriter())
+	CSaveWriter_CryPakPtr pSaveWriter(new CSaveWriter_CryPak(fileName));
+
+	if (!pSaveWriter || pSaveWriter->LastError() != IPlatformOS::eFOC_Success)
 	{
-		CSaveWriter_SteamPtr pSaveWriter(new CSaveWriter_Steam(fileName));
-
-		if (!pSaveWriter || pSaveWriter->LastError() != IPlatformOS::eFOC_Success)
-		{
-			return CSaveWriter_SteamPtr();
-		}
-		else
-		{
-			if (m_bLevelLoad)
-			{
-				m_bSaveDuringLevelLoad = true;
-			}
-
-			return pSaveWriter;
-		}
+		return CSaveWriter_CryPakPtr();
 	}
 	else
-	#endif
 	{
-		CSaveWriter_CryPakPtr pSaveWriter(new CSaveWriter_CryPak(fileName));
-
-		if (!pSaveWriter || pSaveWriter->LastError() != IPlatformOS::eFOC_Success)
+		if (m_bLevelLoad)
 		{
-			return CSaveWriter_CryPakPtr();
+			m_bSaveDuringLevelLoad = true;
 		}
-		else
-		{
-			if (m_bLevelLoad)
-			{
-				m_bSaveDuringLevelLoad = true;
-			}
 
-			return pSaveWriter;
-		}
+		return pSaveWriter;
 	}
 }
 
@@ -436,27 +375,6 @@ void CPlatformOS_PC::GetEncryptionKey(const std::vector<char>** pMagic, const st
 void CPlatformOS_PC::AddListener(IPlatformOS::IPlatformListener* pListener, const char* szName)
 {
 	m_listeners.Add(pListener, szName);
-}
-
-IPlatformOS::EMsgBoxResult
-CPlatformOS_PC::DebugMessageBox(const char* body, const char* title, unsigned int flags) const
-{
-	if (!m_bAllowMessageBox)
-		return eMsgBox_OK;
-
-	ICVar* pCVar = gEnv->pConsole ? gEnv->pConsole->GetCVar("sys_no_crash_dialog") : NULL;
-	if (pCVar && pCVar->GetIVal() != 0)
-	{
-		return eMsgBox_OK;
-	}
-
-	#if CRY_PLATFORM_WINDOWS
-	int winresult = CryMessageBox(body, title, eMB_YesCancel);
-	return (winresult == eQR_Yes) ? eMsgBox_OK : eMsgBox_Cancel;
-	#else
-	CRY_ASSERT_MESSAGE(false, "DebugMessageBox not implemented on non-windows platforms!");
-	return eMsgBox_OK; // [AlexMcC|30.03.10]: Ok? Cancel? Dunno! Uh-oh :( This is only used in CryPak.cpp so far, and for that use it's better to return ok
-	#endif
 }
 
 bool CPlatformOS_PC::PostLocalizationBootChecks()
@@ -745,6 +663,39 @@ void CPlatformOS_PC::OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_PTR
 		m_bLevelLoad = true;
 		m_bSaveDuringLevelLoad = false;
 		break;
+	case ESYSTEM_EVENT_LEVEL_LOAD_END:
+		m_bLevelLoad = false;
+		m_bSaveDuringLevelLoad = true;
+		break;
+	case ESYSTEM_EVENT_CHANGE_FOCUS:
+	{
+#if CRY_PLATFORM_WINDOWS
+		// Handle system timer resolution
+		// The smaller the resolution, the more accurate a thread will wake up from a suspension 
+		// Example: 
+		// Timer Resolution(1 ms): Sleep(1) -> max thread suspention time 1.99ms
+		// Timer Resolution(15 ms): Sleep(1) -> max thread suspention time 15.99ms
+		//  
+		// This is due to the scheduler running more frequently.
+		// This is a system wide global though which is set to the smallest value requested by a process.
+		// When the process dies it is set back to its original value.
+		ICVar* pSystemTimerResolution = gEnv->pConsole ? gEnv->pConsole->GetCVar("sys_system_timer_resolution") : NULL;
+		TIMECAPS tc;		
+		if (timeGetDevCaps(&tc, sizeof(TIMECAPS)) == TIMERR_NOERROR)
+		{
+			const UINT minTimerRes =  std::min(std::max((UINT)pSystemTimerResolution->GetIVal(), tc.wPeriodMin), tc.wPeriodMax);
+
+			// wparam != 0 is focused, wparam == 0 is not focused
+			timeBeginPeriod(wparam != 0 ? minTimerRes : tc.wPeriodMax);
+		}
+		else
+		{
+			CryWarning(VALIDATOR_MODULE_SYSTEM, VALIDATOR_WARNING, "Warning: System Timer Resolution could not be obtained.");
+		}
+
+		break;
+#endif
+	}
 	}
 }
 
@@ -1043,13 +994,6 @@ bool CPlatformOS_PC::GetLocalIPAddress(char* ipAddress, uint32& ip, int length) 
 
 IPlatformOS::IFileFinderPtr CPlatformOS_PC::GetFileFinder(unsigned int user)
 {
-	#if USE_STEAM
-	if (UseSteamReadWriter())
-	{
-		return IFileFinderPtr(new CFileFinderSteam());
-	}
-	#endif
-
 	return IFileFinderPtr(new CFileFinderCryPak());
 }
 

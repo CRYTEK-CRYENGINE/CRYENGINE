@@ -1,0 +1,68 @@
+# Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+
+from waflib.TaskGen import feature
+
+def build(bld):	
+
+	fbx_sdk_subfolder = 'vs2012'
+	try:
+		msvc_version = bld.env['MSVC_VERSION']
+		if msvc_version == '11.0':
+			fbx_sdk_subfolder = 'vs2012'
+		if msvc_version == '12.0':
+			fbx_sdk_subfolder = 'vs2013'
+		if msvc_version == '14.0':
+			fbx_sdk_subfolder = 'vs2015'
+	except:
+		pass
+	tsk_gen = bld.CryEditor(
+		target      = 'Sandbox',
+		vs_filter   = 'Sandbox',		
+		file_list   = 'editor.waf_files',
+		
+		features		= [ 'copy_mfc_binaries', 'copy_qt_binaries', 'copy_pyside'],
+		win_module_extensions = ['toolkit_pro'],
+
+		use_module  = ['tiff', 'zlib', 'prt', 'CryDefaultEntities'],
+		use = ['MFCToolsPlugin'],
+
+		includes    = [
+			'.',
+			'..',
+			'Include',
+			Path('Code/CryEngine/CryAction'),			
+			Path('Code/Tools/'),			
+			Path('Code/SDKs/squish-ccr'),
+			Path('Code/SDKs/FbxSdk/include'),	
+			Path('Code/Sandbox/Plugins/MFCToolsPlugin')
+			],
+
+		defines     = [
+			'DONT_BAN_STD_STRING',
+			'FBXSDK_NEW_API=1',
+			'NOT_USE_CRY_MEMORY_MANAGER'
+			],
+
+		pch         = 'StdAfx.cpp',
+
+		win_profile_lib     = [ 'qtmain','libfbxsdk-md' ],
+		win_debug_lib = [ 'qtmaind','libfbxsdk-md' ],
+
+		win_x86_debug_libpath       = [ Path('Code/SDKs/FbxSdk/lib/' + fbx_sdk_subfolder + '/x86/debug') ],
+		win_x86_profile_libpath     = [ Path('Code/SDKs/FbxSdk/lib/' + fbx_sdk_subfolder + '/x86/release') ],
+		win_x86_release_libpath     = [ Path('Code/SDKs/FbxSdk/lib/' + fbx_sdk_subfolder + '/x86/release') ],
+		win_x86_performance_libpath = [ Path('Code/SDKs/FbxSdk/lib/' + fbx_sdk_subfolder + '/x86/release') ],
+		
+		win_x64_debug_libpath       = [ Path('Code/SDKs/FbxSdk/lib/' + fbx_sdk_subfolder + '/x64/debug') ],		
+		win_x64_profile_libpath     = [ Path('Code/SDKs/FbxSdk/lib/' + fbx_sdk_subfolder + '/x64/release') ],
+		win_x64_release_libpath     = [ Path('Code/SDKs/FbxSdk/lib/' + fbx_sdk_subfolder + '/x64/release') ],
+		win_x64_performance_libpath = [ Path('Code/SDKs/FbxSdk/lib/' + fbx_sdk_subfolder + '/x64/release') ],
+		winres_defines              = [ 'NDEBUG', '_AFXDLL' ],
+
+		additional_manifests = ['editor_manifest.xml'],	
+	)
+
+	# Copy Resource.g for Ribbon UI	
+	if tsk_gen != None:
+		tsk_gen.create_task('copy_outputs', tsk_gen.path.make_node('Resource.h'), bld.srcnode.make_node('Editor/UI/Resource.h') )
+

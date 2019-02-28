@@ -239,6 +239,11 @@ macro(apply_compile_settings)
 	if(MODULE_SOLUTION_FOLDER)
 		set_solution_folder("${MODULE_SOLUTION_FOLDER}" ${THIS_PROJECT})
 	endif()	
+
+	get_target_property(target_type ${THIS_PROJECT} TYPE)
+	if (target_type MATCHES "EXECUTABLE")
+		target_compile_options(${THIS_PROJECT} PRIVATE -DCRY_IS_APPLICATION)
+	endif()
 endmacro()
 
 macro(set_rc_flags)
@@ -305,7 +310,9 @@ endfunction()
 macro(use_fbx_sdk)
 	target_include_directories(${THIS_PROJECT} PRIVATE "${SDK_DIR}/FbxSdk/include")
 	target_compile_definitions(${THIS_PROJECT} PRIVATE -DFBXSDK_NEW_API=1 -DTOOLS_ENABLE_FBX_SDK)
-	if (MSVC_VERSION EQUAL 1900) # Visual Studio 2015
+	if (MSVC_VERSION GREATER 1900) # Visual Studio > 2015
+		set(FBX_SUBFOLDER vs2015)
+	elseif (MSVC_VERSION EQUAL 1900) # Visual Studio 2015
 		set(FBX_SUBFOLDER vs2015)
 	elseif (MSVC_VERSION EQUAL 1800) # Visual Studio 2013
 		set(FBX_SUBFOLDER vs2013)

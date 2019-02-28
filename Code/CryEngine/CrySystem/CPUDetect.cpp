@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*=============================================================================
    CPUDetect.cpp : CPU detection.
@@ -1618,8 +1618,7 @@ void CCpuFeatures::Detect(void)
 		CryLogAlways(" ");
 		CryLogAlways("Processor %d:", i);
 		CryLogAlways("  CPU: %s %s", p->mVendor, p->mCpuType);
-		CryLogAlways("  Family: %d, Model: %d, Stepping: %d", p->mFamily, p->mModel, p->mStepping);
-		CryLogAlways("  FPU: %s", p->mFpuType);
+		CryLogAlways("  Family: %d, Model: %d, Stepping: %d, FPU: %s", p->mFamily, p->mModel, p->mStepping, p->mFpuType);
 		string sFeatures;
 		if (p->mFeatures & CPUF_FP16) sFeatures += "FP16, ";
 		if (p->mFeatures & CPUF_MMX) sFeatures += "MMX, ";
@@ -1634,10 +1633,6 @@ void CCpuFeatures::Detect(void)
 		if (sFeatures.size())
 			sFeatures.resize(sFeatures.size() - 2);
 		CryLogAlways("  Features: %s", sFeatures.c_str());
-		if (p->mbSerialPresent)
-			CryLogAlways("  Serial number: %s", p->mSerialNumber);
-		else
-			CryLogAlways("  Serial number not present or disabled");
 	}
 
 	CryLogAlways(" ");

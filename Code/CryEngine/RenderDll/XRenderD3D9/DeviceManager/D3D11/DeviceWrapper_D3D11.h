@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 #if !defined(CRY_DEVICE_WRAPPER_H_)
@@ -24,8 +24,8 @@
 #endif
 
 ///////////////////////////////////////////////////////////////////////////////
-// convience macro for all device wrapper function
-#define CRY_DEVICE_WRAPPER_PROFILE() FRAME_PROFILER(__FUNC__, gEnv->pSystem, PROFILE_DEVICE)
+// convience macro for all device wrapper function. currently disabled as it causes too much overhead for general profiling
+#define CRY_DEVICE_WRAPPER_PROFILE()
 
 struct SRenderStatePassD3D;
 struct CRenderObjectD3D;
@@ -1040,6 +1040,7 @@ public:
 	void    CSGetConstantBuffers(UINT StartSlot, UINT NumBuffers, ID3D11Buffer** ppConstantBuffers);
 	void    CSSetShaderResources(UINT StartSlot, UINT NumViews, ID3D11ShaderResourceView* const* ppShaderResourceViews);
 	void    CSGetShaderResources(UINT StartSlot, UINT NumViews, ID3D11ShaderResourceView** ppShaderResourceViews);
+
 	void    CSSetUnorderedAccessViews(UINT StartSlot, UINT NumUAVs, ID3D11UnorderedAccessView* const* ppUnorderedAccessViews, const UINT* pUAVInitialCounts);
 	void    CSGetUnorderedAccessViews(UINT StartSlot, UINT NumUAVs, ID3D11UnorderedAccessView** ppUnorderedAccessViews);
 
@@ -1154,6 +1155,11 @@ public:
 	void DiscardView1(ID3D11View* pResourceView, UINT NumRects, const D3D11_RECT* pRects);           // Note: Argument order swapped intentionally!
 	#endif                                                                                          
 
+#if (CRY_RENDERER_DIRECT3D >= 111)
+	void    TSSetConstantBuffers1(int type, UINT StartSlot, UINT NumBuffers, ID3D11Buffer* const* ppConstantBuffers, const UINT* pFirstConstant, const UINT* pNumConstants);
+	void    TSGetConstantBuffers1(int type, UINT StartSlot, UINT NumBuffers, ID3D11Buffer** ppConstantBuffers, UINT* pFirstConstant, UINT* pNumConstants);
+#endif
+
 	// DX12-specific with DX11-fallback
 	void ClearRectsRenderTargetView(ID3D11RenderTargetView* pRenderTargetView, const FLOAT ColorRGBA[4], UINT NumRects, const D3D11_RECT* pRects);
 	void ClearRectsUnorderedAccessViewUint(ID3D11UnorderedAccessView* pUnorderedAccessView, const UINT Values[4], UINT NumRects, const D3D11_RECT* pRects);
@@ -1180,6 +1186,7 @@ public:
 	HRESULT MappedReadFromSubresource(ID3D11Resource* pResource, UINT Subresource, SIZE_T Offset, SIZE_T Size, D3D11_MAP MapType, void* pData, UINT numDataBlocks);
 
 	void    ResetCachedState(bool bGraphics = true, bool bCompute = false);
+
 private:
 	#if (CRY_RENDERER_DIRECT3D >= 120)
 	CCryDX12DeviceContext * m_pDeviceContext;  // the wrapped device context (concrete implementation)
@@ -1188,6 +1195,50 @@ private:
 	#endif
 
 	_smart_ptr<ICryDeviceWrapperHook> m_pDeviceHooks;     // linked lists of device hooks to execute
+
+public:
+	/***********************************/
+	/*** ID3DDeviceContext delegates ***/
+
+	// DX11-specific without type-branches
+	void    TSSetShader(int type, ID3D11DeviceChild* pShader, ID3D11ClassInstance* const* ppClassInstances, UINT NumClassInstances);
+	void    TSGetShader(int type, ID3D11DeviceChild** ppShader, ID3D11ClassInstance** ppClassInstances, UINT* pNumClassInstances);
+	void    TSSetSamplers(int type, UINT StartSlot, UINT NumSamplers, ID3D11SamplerState* const* ppSamplers);
+	void    TSGetSamplers(int type, UINT StartSlot, UINT NumSamplers, ID3D11SamplerState** ppSamplers);
+	void    TSSetConstantBuffers(int type, UINT StartSlot, UINT NumBuffers, ID3D11Buffer* const* ppConstantBuffers);
+	void    TSGetConstantBuffers(int type, UINT StartSlot, UINT NumBuffers, ID3D11Buffer** ppConstantBuffers);
+	void    TSSetShaderResources(int type, UINT StartSlot, UINT NumViews, ID3D11ShaderResourceView* const* ppShaderResourceViews);
+	void    TSGetShaderResources(int type, UINT StartSlot, UINT NumViews, ID3D11ShaderResourceView** ppShaderResourceViews);
+
+private:
+	// DX11-specific without type-branches
+	typedef void    (STDMETHODCALLTYPE ID3D11DeviceContext::*typeSetShader)(ID3D11DeviceChild* pShader, ID3D11ClassInstance* const* ppClassInstances, UINT NumClassInstances);
+	typedef void    (STDMETHODCALLTYPE ID3D11DeviceContext::*typeGetShader)(ID3D11DeviceChild** ppShader, ID3D11ClassInstance** ppClassInstances, UINT* pNumClassInstances);
+	typedef void    (STDMETHODCALLTYPE ID3D11DeviceContext::*typeSetSamplers)(UINT StartSlot, UINT NumSamplers, ID3D11SamplerState* const* ppSamplers);
+	typedef void    (STDMETHODCALLTYPE ID3D11DeviceContext::*typeGetSamplers)(UINT StartSlot, UINT NumSamplers, ID3D11SamplerState** ppSamplers);
+	typedef void    (STDMETHODCALLTYPE ID3D11DeviceContext::*typeSetConstantBuffers)(UINT StartSlot, UINT NumBuffers, ID3D11Buffer* const* ppConstantBuffers);
+	typedef void    (STDMETHODCALLTYPE ID3D11DeviceContext::*typeGetConstantBuffers)(UINT StartSlot, UINT NumBuffers, ID3D11Buffer** ppConstantBuffers);
+	typedef void    (STDMETHODCALLTYPE ID3D11DeviceContext::*typeSetShaderResources)(UINT StartSlot, UINT NumViews, ID3D11ShaderResourceView* const* ppShaderResourceViews);
+	typedef void    (STDMETHODCALLTYPE ID3D11DeviceContext::*typeGetShaderResources)(UINT StartSlot, UINT NumViews, ID3D11ShaderResourceView** ppShaderResourceViews);
+
+#if (CRY_RENDERER_DIRECT3D >= 111)
+	typedef void    (STDMETHODCALLTYPE ID3D11DeviceContext1::*typeSetConstantBuffers1)(UINT StartSlot, UINT NumBuffers, ID3D11Buffer* const* ppConstantBuffers, const UINT* pFirstConstant, const UINT* pNumConstants);
+	typedef void    (STDMETHODCALLTYPE ID3D11DeviceContext1::*typeGetConstantBuffers1)(UINT StartSlot, UINT NumBuffers, ID3D11Buffer** ppConstantBuffers, UINT* pFirstConstant, UINT* pNumConstants);
+#endif
+
+	typeSetShader           mapSetShader[6];
+	typeGetShader           mapGetShader[6];
+	typeSetSamplers         mapSetSamplers[6];
+	typeGetSamplers         mapGetSamplers[6];
+	typeSetConstantBuffers  mapSetConstantBuffers[6];
+	typeGetConstantBuffers  mapGetConstantBuffers[6];
+	typeSetShaderResources  mapSetShaderResources[6];
+	typeGetShaderResources  mapGetShaderResources[6];
+
+#if (CRY_RENDERER_DIRECT3D >= 111)
+	typeSetConstantBuffers1 mapSetConstantBuffers1[6];
+	typeGetConstantBuffers1 mapGetConstantBuffers1[6];
+#endif
 };
 
 	#if defined(DEVICE_SUPPORTS_PERFORMANCE_DEVICE)
@@ -2141,6 +2192,81 @@ inline void CCryDeviceContextWrapper::AssignDeviceContext(D3DDeviceContext* pDev
 	#else
 	m_pDeviceContext = (D3DDeviceContext*)pDeviceContext;
 	#endif
+
+	/***********************************/
+	/*** ID3DDeviceContext delegates ***/
+
+	mapSetShader[0] = (typeSetShader)&ID3D11DeviceContext::VSSetShader;
+	mapSetShader[1] = (typeSetShader)&ID3D11DeviceContext::PSSetShader;
+	mapSetShader[2] = (typeSetShader)&ID3D11DeviceContext::GSSetShader;
+	mapSetShader[3] = (typeSetShader)&ID3D11DeviceContext::DSSetShader;
+	mapSetShader[4] = (typeSetShader)&ID3D11DeviceContext::HSSetShader;
+	mapSetShader[5] = (typeSetShader)&ID3D11DeviceContext::CSSetShader;
+
+	mapGetShader[0] = (typeGetShader)&ID3D11DeviceContext::VSGetShader;
+	mapGetShader[1] = (typeGetShader)&ID3D11DeviceContext::PSGetShader;
+	mapGetShader[2] = (typeGetShader)&ID3D11DeviceContext::GSGetShader;
+	mapGetShader[3] = (typeGetShader)&ID3D11DeviceContext::DSGetShader;
+	mapGetShader[4] = (typeGetShader)&ID3D11DeviceContext::HSGetShader;
+	mapGetShader[5] = (typeGetShader)&ID3D11DeviceContext::CSGetShader;
+
+	mapSetSamplers[0] = (typeSetSamplers)&ID3D11DeviceContext::VSSetSamplers;
+	mapSetSamplers[1] = (typeSetSamplers)&ID3D11DeviceContext::PSSetSamplers;
+	mapSetSamplers[2] = (typeSetSamplers)&ID3D11DeviceContext::GSSetSamplers;
+	mapSetSamplers[3] = (typeSetSamplers)&ID3D11DeviceContext::DSSetSamplers;
+	mapSetSamplers[4] = (typeSetSamplers)&ID3D11DeviceContext::HSSetSamplers;
+	mapSetSamplers[5] = (typeSetSamplers)&ID3D11DeviceContext::CSSetSamplers;
+
+	mapGetSamplers[0] = (typeGetSamplers)&ID3D11DeviceContext::VSGetSamplers;
+	mapGetSamplers[1] = (typeGetSamplers)&ID3D11DeviceContext::PSGetSamplers;
+	mapGetSamplers[2] = (typeGetSamplers)&ID3D11DeviceContext::GSGetSamplers;
+	mapGetSamplers[3] = (typeGetSamplers)&ID3D11DeviceContext::DSGetSamplers;
+	mapGetSamplers[4] = (typeGetSamplers)&ID3D11DeviceContext::HSGetSamplers;
+	mapGetSamplers[5] = (typeGetSamplers)&ID3D11DeviceContext::CSGetSamplers;
+
+	mapSetConstantBuffers[0] = (typeSetConstantBuffers)&ID3D11DeviceContext::VSSetConstantBuffers;
+	mapSetConstantBuffers[1] = (typeSetConstantBuffers)&ID3D11DeviceContext::PSSetConstantBuffers;
+	mapSetConstantBuffers[2] = (typeSetConstantBuffers)&ID3D11DeviceContext::GSSetConstantBuffers;
+	mapSetConstantBuffers[3] = (typeSetConstantBuffers)&ID3D11DeviceContext::DSSetConstantBuffers;
+	mapSetConstantBuffers[4] = (typeSetConstantBuffers)&ID3D11DeviceContext::HSSetConstantBuffers;
+	mapSetConstantBuffers[5] = (typeSetConstantBuffers)&ID3D11DeviceContext::CSSetConstantBuffers;
+
+	mapGetConstantBuffers[0] = (typeGetConstantBuffers)&ID3D11DeviceContext::VSGetConstantBuffers;
+	mapGetConstantBuffers[1] = (typeGetConstantBuffers)&ID3D11DeviceContext::PSGetConstantBuffers;
+	mapGetConstantBuffers[2] = (typeGetConstantBuffers)&ID3D11DeviceContext::GSGetConstantBuffers;
+	mapGetConstantBuffers[3] = (typeGetConstantBuffers)&ID3D11DeviceContext::DSGetConstantBuffers;
+	mapGetConstantBuffers[4] = (typeGetConstantBuffers)&ID3D11DeviceContext::HSGetConstantBuffers;
+	mapGetConstantBuffers[5] = (typeGetConstantBuffers)&ID3D11DeviceContext::CSGetConstantBuffers;
+
+	mapSetShaderResources[0] = (typeSetShaderResources)&ID3D11DeviceContext::VSSetShaderResources;
+	mapSetShaderResources[1] = (typeSetShaderResources)&ID3D11DeviceContext::PSSetShaderResources;
+	mapSetShaderResources[2] = (typeSetShaderResources)&ID3D11DeviceContext::GSSetShaderResources;
+	mapSetShaderResources[3] = (typeSetShaderResources)&ID3D11DeviceContext::DSSetShaderResources;
+	mapSetShaderResources[4] = (typeSetShaderResources)&ID3D11DeviceContext::HSSetShaderResources;
+	mapSetShaderResources[5] = (typeSetShaderResources)&ID3D11DeviceContext::CSSetShaderResources;
+
+	mapGetShaderResources[0] = (typeGetShaderResources)&ID3D11DeviceContext::VSGetShaderResources;
+	mapGetShaderResources[1] = (typeGetShaderResources)&ID3D11DeviceContext::PSGetShaderResources;
+	mapGetShaderResources[2] = (typeGetShaderResources)&ID3D11DeviceContext::GSGetShaderResources;
+	mapGetShaderResources[3] = (typeGetShaderResources)&ID3D11DeviceContext::DSGetShaderResources;
+	mapGetShaderResources[4] = (typeGetShaderResources)&ID3D11DeviceContext::HSGetShaderResources;
+	mapGetShaderResources[5] = (typeGetShaderResources)&ID3D11DeviceContext::CSGetShaderResources;
+
+#if (CRY_RENDERER_DIRECT3D >= 111)
+	mapSetConstantBuffers1[0] = (typeSetConstantBuffers1)&ID3D11DeviceContext1::VSSetConstantBuffers1;
+	mapSetConstantBuffers1[1] = (typeSetConstantBuffers1)&ID3D11DeviceContext1::PSSetConstantBuffers1;
+	mapSetConstantBuffers1[2] = (typeSetConstantBuffers1)&ID3D11DeviceContext1::GSSetConstantBuffers1;
+	mapSetConstantBuffers1[3] = (typeSetConstantBuffers1)&ID3D11DeviceContext1::DSSetConstantBuffers1;
+	mapSetConstantBuffers1[4] = (typeSetConstantBuffers1)&ID3D11DeviceContext1::HSSetConstantBuffers1;
+	mapSetConstantBuffers1[5] = (typeSetConstantBuffers1)&ID3D11DeviceContext1::CSSetConstantBuffers1;
+
+	mapGetConstantBuffers1[0] = (typeGetConstantBuffers1)&ID3D11DeviceContext1::VSGetConstantBuffers1;
+	mapGetConstantBuffers1[1] = (typeGetConstantBuffers1)&ID3D11DeviceContext1::PSGetConstantBuffers1;
+	mapGetConstantBuffers1[2] = (typeGetConstantBuffers1)&ID3D11DeviceContext1::GSGetConstantBuffers1;
+	mapGetConstantBuffers1[3] = (typeGetConstantBuffers1)&ID3D11DeviceContext1::DSGetConstantBuffers1;
+	mapGetConstantBuffers1[4] = (typeGetConstantBuffers1)&ID3D11DeviceContext1::HSGetConstantBuffers1;
+	mapGetConstantBuffers1[5] = (typeGetConstantBuffers1)&ID3D11DeviceContext1::CSGetConstantBuffers1;
+#endif
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -2160,6 +2286,81 @@ inline void CCryDeviceContextWrapper::ReleaseDeviceContext()
 	{
 		m_pDeviceContext->Release();
 		m_pDeviceContext = NULL;
+
+		/***********************************/
+		/*** ID3DDeviceContext delegates ***/
+
+		mapSetShader[0] = nullptr;
+		mapSetShader[1] = nullptr;
+		mapSetShader[2] = nullptr;
+		mapSetShader[3] = nullptr;
+		mapSetShader[4] = nullptr;
+		mapSetShader[5] = nullptr;
+
+		mapGetShader[0] = nullptr;
+		mapGetShader[1] = nullptr;
+		mapGetShader[2] = nullptr;
+		mapGetShader[3] = nullptr;
+		mapGetShader[4] = nullptr;
+		mapGetShader[5] = nullptr;
+
+		mapSetSamplers[0] = nullptr;
+		mapSetSamplers[1] = nullptr;
+		mapSetSamplers[2] = nullptr;
+		mapSetSamplers[3] = nullptr;
+		mapSetSamplers[4] = nullptr;
+		mapSetSamplers[5] = nullptr;
+
+		mapGetSamplers[0] = nullptr;
+		mapGetSamplers[1] = nullptr;
+		mapGetSamplers[2] = nullptr;
+		mapGetSamplers[3] = nullptr;
+		mapGetSamplers[4] = nullptr;
+		mapGetSamplers[5] = nullptr;
+
+		mapSetConstantBuffers[0] = nullptr;
+		mapSetConstantBuffers[1] = nullptr;
+		mapSetConstantBuffers[2] = nullptr;
+		mapSetConstantBuffers[3] = nullptr;
+		mapSetConstantBuffers[4] = nullptr;
+		mapSetConstantBuffers[5] = nullptr;
+
+		mapGetConstantBuffers[0] = nullptr;
+		mapGetConstantBuffers[1] = nullptr;
+		mapGetConstantBuffers[2] = nullptr;
+		mapGetConstantBuffers[3] = nullptr;
+		mapGetConstantBuffers[4] = nullptr;
+		mapGetConstantBuffers[5] = nullptr;
+
+		mapSetShaderResources[0] = nullptr;
+		mapSetShaderResources[1] = nullptr;
+		mapSetShaderResources[2] = nullptr;
+		mapSetShaderResources[3] = nullptr;
+		mapSetShaderResources[4] = nullptr;
+		mapSetShaderResources[5] = nullptr;
+
+		mapGetShaderResources[0] = nullptr;
+		mapGetShaderResources[1] = nullptr;
+		mapGetShaderResources[2] = nullptr;
+		mapGetShaderResources[3] = nullptr;
+		mapGetShaderResources[4] = nullptr;
+		mapGetShaderResources[5] = nullptr;
+
+#if (CRY_RENDERER_DIRECT3D >= 111)
+		mapSetConstantBuffers1[0] = nullptr;
+		mapSetConstantBuffers1[1] = nullptr;
+		mapSetConstantBuffers1[2] = nullptr;
+		mapSetConstantBuffers1[3] = nullptr;
+		mapSetConstantBuffers1[4] = nullptr;
+		mapSetConstantBuffers1[5] = nullptr;
+
+		mapGetConstantBuffers1[0] = nullptr;
+		mapGetConstantBuffers1[1] = nullptr;
+		mapGetConstantBuffers1[2] = nullptr;
+		mapGetConstantBuffers1[3] = nullptr;
+		mapGetConstantBuffers1[4] = nullptr;
+		mapGetConstantBuffers1[5] = nullptr;
+#endif
 	}
 }
 
@@ -2281,6 +2482,59 @@ inline HRESULT CCryDeviceContextWrapper::SetPrivateDataInterface(REFGUID guid, c
 	_CRY_DEVICE_WRAPPER_DETAIL_INVOKE_POST_FUNCTION_HOOK_(SetPrivateDataInterface_Context, hr, guid, pData);
 	return hr;
 }
+
+///////////////////////////////////////////////////////////////////////////////
+inline void CCryDeviceContextWrapper::TSSetShader(int type, ID3D11DeviceChild* pShader, ID3D11ClassInstance* const* ppClassInstances, UINT NumClassInstances)
+{
+	(m_pDeviceContext->*mapSetShader[type])(pShader, ppClassInstances, NumClassInstances);
+}
+
+inline void CCryDeviceContextWrapper::TSGetShader(int type, ID3D11DeviceChild** ppShader, ID3D11ClassInstance** ppClassInstances, UINT* pNumClassInstances)
+{
+	(m_pDeviceContext->*mapGetShader[type])(ppShader, ppClassInstances, pNumClassInstances);
+}
+
+inline void CCryDeviceContextWrapper::TSSetSamplers(int type, UINT StartSlot, UINT NumSamplers, ID3D11SamplerState* const* ppSamplers)
+{
+	(m_pDeviceContext->*mapSetSamplers[type])(StartSlot, NumSamplers, ppSamplers);
+}
+
+inline void CCryDeviceContextWrapper::TSGetSamplers(int type, UINT StartSlot, UINT NumSamplers, ID3D11SamplerState** ppSamplers)
+{
+	(m_pDeviceContext->*mapGetSamplers[type])(StartSlot, NumSamplers, ppSamplers);
+}
+
+inline void CCryDeviceContextWrapper::TSSetConstantBuffers(int type, UINT StartSlot, UINT NumBuffers, ID3D11Buffer* const* ppConstantBuffers)
+{
+	(m_pDeviceContext->*mapSetConstantBuffers[type])(StartSlot, NumBuffers, ppConstantBuffers);
+}
+
+inline void CCryDeviceContextWrapper::TSGetConstantBuffers(int type, UINT StartSlot, UINT NumBuffers, ID3D11Buffer** ppConstantBuffers)
+{
+	(m_pDeviceContext->*mapGetConstantBuffers[type])(StartSlot, NumBuffers, ppConstantBuffers);
+}
+
+inline void CCryDeviceContextWrapper::TSSetShaderResources(int type, UINT StartSlot, UINT NumViews, ID3D11ShaderResourceView* const* ppShaderResourceViews)
+{
+	(m_pDeviceContext->*mapSetShaderResources[type])(StartSlot, NumViews, ppShaderResourceViews);
+}
+
+inline void CCryDeviceContextWrapper::TSGetShaderResources(int type, UINT StartSlot, UINT NumViews, ID3D11ShaderResourceView** ppShaderResourceViews)
+{
+	(m_pDeviceContext->*mapGetShaderResources[type])(StartSlot, NumViews, ppShaderResourceViews);
+}
+
+#if (CRY_RENDERER_DIRECT3D >= 111)
+inline void CCryDeviceContextWrapper::TSSetConstantBuffers1(int type, UINT StartSlot, UINT NumBuffers, ID3D11Buffer* const* ppConstantBuffers, const UINT* pFirstConstant, const UINT* pNumConstants)
+{
+	(m_pDeviceContext->*mapSetConstantBuffers1[type])(StartSlot, NumBuffers, ppConstantBuffers, pFirstConstant, pNumConstants);
+}
+
+inline void CCryDeviceContextWrapper::TSGetConstantBuffers1(int type, UINT StartSlot, UINT NumBuffers, ID3D11Buffer** ppConstantBuffers, UINT* pFirstConstant, UINT* pNumConstants)
+{
+	(m_pDeviceContext->*mapGetConstantBuffers1[type])(StartSlot, NumBuffers, ppConstantBuffers, pFirstConstant, pNumConstants);
+}
+#endif
 
 ///////////////////////////////////////////////////////////////////////////////
 inline void CCryDeviceContextWrapper::PSSetShader(ID3D11PixelShader* pPixelShader, ID3D11ClassInstance* const* ppClassInstances, UINT NumClassInstances)

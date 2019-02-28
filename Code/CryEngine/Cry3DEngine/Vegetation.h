@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef _CVegetation_H_
 #define _CVegetation_H_
@@ -26,17 +26,14 @@ public:
 	CDeformableNode*                            m_pDeformable;
 	PodArrayAABB<CRenderObject::SInstanceInfo>* m_pInstancingInfo;
 
-#if defined(SEG_WORLD)
-	uint16 m_nStaticTypeSlot;
-#endif
-	int    m_nObjectTypeIndex;
-	byte   m_ucAngle;
-	byte   m_ucScale;
-	byte   m_boxExtends[6];
-	byte   m_ucRadius;
-	byte   m_ucAngleX;
-	byte   m_ucAngleY;
-	byte   m_bApplyPhys;
+	int  m_nObjectTypeIndex;
+	byte m_ucAngle;
+	byte m_ucScale;
+	byte m_boxExtends[6];
+	byte m_ucRadius;
+	byte m_ucAngleX;
+	byte m_ucAngleY;
+	byte m_bApplyPhys;
 
 	static CRY_ALIGN(128) float g_scBoxDecomprTable[256];
 
@@ -45,9 +42,7 @@ public:
 	void                 SetStatObjGroupIndex(int nVegetationGroupIndex) final;
 
 	void                 CheckCreateDeformable();
-
-	virtual bool         CanExecuteRenderAsJob()              { return false; } // Running in jobs breaks foliage skinning currently
-
+	virtual bool         CanExecuteRenderAsJob() final;
 	int                  GetStatObjGroupId() const final      { return m_nObjectTypeIndex; }
 	const char*          GetEntityClassName(void) const final { return "Vegetation"; }
 	Vec3                 GetPos(bool bWorldOnly = true) const final;
@@ -86,43 +81,27 @@ public:
 	void                 UpdateRndFlags();
 	ILINE int            GetStatObjGroupSize() const
 	{
-#ifdef SEG_WORLD
-		return GetObjManager()->m_lstStaticTypes[m_nStaticTypeSlot].Count();
-#else
-		return GetObjManager()->m_lstStaticTypes[0].Count();
-#endif
+		return GetObjManager()->m_lstStaticTypes.Count();
 	}
 	ILINE StatInstGroup& GetStatObjGroup() const
 	{
-#ifdef SEG_WORLD
-		return GetObjManager()->m_lstStaticTypes[m_nStaticTypeSlot][m_nObjectTypeIndex];
-#else
-		return GetObjManager()->m_lstStaticTypes[0][m_nObjectTypeIndex];
-#endif
+		return GetObjManager()->m_lstStaticTypes[m_nObjectTypeIndex];
 	}
 	ILINE CStatObj* GetStatObj() const
 	{
-#ifdef SEG_WORLD
-		return GetObjManager()->m_lstStaticTypes[m_nStaticTypeSlot][m_nObjectTypeIndex].GetStatObj();
-#else
-		return GetObjManager()->m_lstStaticTypes[0][m_nObjectTypeIndex].GetStatObj();
-#endif
+		return GetObjManager()->m_lstStaticTypes[m_nObjectTypeIndex].GetStatObj();
 	}
 	float         GetZAngle() const;
 	AABB          CalcBBox();
 	void          CalcMatrix(Matrix34A& tm, int* pTransFags = NULL);
 	virtual uint8 GetMaterialLayers() const final
 	{
-#ifdef SEG_WORLD
-		return GetObjManager()->m_lstStaticTypes[m_nStaticTypeSlot][m_nObjectTypeIndex].nMaterialLayers;
-#else
-		return GetObjManager()->m_lstStaticTypes[0][m_nObjectTypeIndex].nMaterialLayers;
-#endif
+		return GetObjManager()->m_lstStaticTypes[m_nObjectTypeIndex].nMaterialLayers;
 	}
 	//	float GetLodForDistance(float fDistance);
 	void         Init();
 	void         ShutDown();
-	void         OnRenderNodeBecomeVisibleAsync(const SRenderingPassInfo& passInfo) final;
+	void         OnRenderNodeBecomeVisibleAsync(SRenderNodeTempData* pTempData, const SRenderingPassInfo& passInfo) final;
 	void         UpdateSpriteInfo(SVegetationSpriteInfo& properties, float fSpriteAmount, SSectorTextureSet* pTerrainTexInfo, const SRenderingPassInfo& passInfo) const;
 	void         UpdateBending();
 	static void  InitVegDecomprTable();
@@ -171,7 +150,7 @@ public:
 	}
 
 	// Apply bending parameters to the CRenderObject
-	void FillBendingData(CRenderObject* pObj) const;
+	void FillBendingData(CRenderObject* pObj, const SRenderingPassInfo& passInfo) const;
 };
 
 #endif // _CVegetation_H_

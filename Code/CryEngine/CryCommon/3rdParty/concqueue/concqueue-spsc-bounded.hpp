@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // Anyone is free to copy, modify, publish, use, compile, sell, or
 // distribute this software, either in source code form or as a compiled

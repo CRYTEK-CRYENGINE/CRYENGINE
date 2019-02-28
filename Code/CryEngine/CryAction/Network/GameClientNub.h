@@ -1,22 +1,6 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-/*************************************************************************
-   -------------------------------------------------------------------------
-   $Id$
-   $DateTime$
-   Description: Implements the IGameNub interface for the client side.
-
-   -------------------------------------------------------------------------
-   History:
-   - 11:8:2004   11:30 : Created by Marcio Martins
-
-*************************************************************************/
-#ifndef __GAMECLIENTNUB_H__
-#define __GAMECLIENTNUB_H__
-
-#if _MSC_VER > 1000
-	#pragma once
-#endif
+#pragma once
 
 #include <CryNetwork/INetwork.h>
 
@@ -24,8 +8,8 @@ class CGameClientChannel;
 class CGameContext;
 struct IGameFramework;
 
-class CGameClientNub :
-	public IGameNub
+class CGameClientNub final :
+	public IGameClientNub
 {
 public:
 	CGameClientNub(IGameFramework* pFramework) : m_pGameContext(0), m_pClientChannel(0), m_pFramework(pFramework), m_fInactivityTimeout(300.0f) {};
@@ -36,6 +20,10 @@ public:
 	virtual SCreateChannelResult CreateChannel(INetChannel* pChannel, const char* pRequest);
 	virtual void                 FailedActiveConnect(EDisconnectionCause cause, const char* description);
 	// ~IGameNub
+
+	// IGameClientNub
+	virtual INetChannel* GetNetChannel();
+	// ~IGameClientNub
 
 	void                Disconnect(EDisconnectionCause cause, const char* msg);
 	void                SetGameContext(CGameContext* pGameContext) { m_pGameContext = pGameContext; };
@@ -51,5 +39,3 @@ private:
 	IGameFramework*     m_pFramework;
 	float               m_fInactivityTimeout;
 };
-
-#endif // __GAMECLIENTNUB_H__

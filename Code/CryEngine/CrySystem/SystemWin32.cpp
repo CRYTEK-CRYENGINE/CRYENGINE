@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "System.h"
@@ -58,8 +58,6 @@
 #include "XML/XmlUtils.h"
 #include "AutoDetectSpec.h"
 #include "CryPak.h"
-
-#pragma warning(disable: 4244)
 
 #if CRY_PLATFORM_WINDOWS
 LINK_SYSTEM_LIBRARY("wininet.lib")
@@ -163,7 +161,7 @@ void CSystem::CollectMemInfo(SCryEngineStatsGlobalMemInfo& m_stats)
 	m_stats.totalAllocatedInModules = 0;
 	m_stats.totalNumAllocsInModules = 0;
 
-	const std::vector<const char*>& szModules = GetModuleNames();
+	const std::vector<string>& szModules = GetModuleNames();
 	const int numModules = szModules.size();
 
 	//////////////////////////////////////////////////////////////////////////
@@ -196,7 +194,7 @@ void CSystem::CollectMemStats(ICrySizer* pSizer, MemStatsPurposeEnum nPurpose, s
 	std::vector<SmallModuleInfo> stats;
 #if CRY_PLATFORM_WINDOWS
 	//////////////////////////////////////////////////////////////////////////
-	const std::vector<const char*>& szModules = GetModuleNames();
+	const std::vector<string>& szModules = GetModuleNames();
 	const int numModules = szModules.size();
 
 	for (int i = 0; i < numModules; i++)
@@ -230,9 +228,9 @@ void CSystem::CollectMemStats(ICrySizer* pSizer, MemStatsPurposeEnum nPurpose, s
 
 		if (nMSP_ForCrashLog == nPurpose)
 		{
-			int usedInModule = moduleInfo.memInfo.allocated - moduleInfo.memInfo.freed;
+			int64 usedInModule = static_cast<int64>(moduleInfo.memInfo.allocated - moduleInfo.memInfo.freed);
 			int numAllocations = moduleInfo.memInfo.num_allocations;
-			CryLogAlways("%s Used in module:%d Allocations:%d", szModule, usedInModule, numAllocations);
+			CryLogAlways("%s Used in module:%" PRId64 " Allocations:%d", szModule, usedInModule, numAllocations);
 		}
 		else
 		{
@@ -271,7 +269,7 @@ void CSystem::CollectMemStats(ICrySizer* pSizer, MemStatsPurposeEnum nPurpose, s
 				CryModuleMemoryInfo meminfo;
 				ZeroStruct(meminfo);
 				CryGetMemoryInfoForModule(&meminfo);
-				pSizer->AddObject((this + 2), meminfo.STL_wasted);
+				pSizer->AddObject((this + 2), static_cast<size_t>(meminfo.STL_wasted));
 			}
 #endif
 
@@ -331,7 +329,7 @@ void CSystem::CollectMemStats(ICrySizer* pSizer, MemStatsPurposeEnum nPurpose, s
 				SIZER_COMPONENT_NAME(pSizer, "$Allocations waste");
 				const SmallModuleInfo* info = FindModuleInfo(stats, "CryAnimation.dll");
 				if (info)
-					pSizer->AddObject(info, info->memInfo.allocated - info->memInfo.requested);
+					pSizer->AddObject(info, static_cast<size_t>(info->memInfo.allocated - info->memInfo.requested));
 			}
 
 			m_env.pCharacterManager->GetMemoryUsage(pSizer);
@@ -347,7 +345,7 @@ void CSystem::CollectMemStats(ICrySizer* pSizer, MemStatsPurposeEnum nPurpose, s
 				SIZER_COMPONENT_NAME(pSizer, "$Allocations waste");
 				const SmallModuleInfo* info = FindModuleInfo(stats, "CryPhysics.dll");
 				if (info)
-					pSizer->AddObject(info, info->memInfo.allocated - info->memInfo.requested);
+					pSizer->AddObject(info, static_cast<size_t>(info->memInfo.allocated - info->memInfo.requested));
 			}
 			m_env.pPhysicalWorld->GetMemoryStatistics(pSizer);
 		}
@@ -364,7 +362,7 @@ void CSystem::CollectMemStats(ICrySizer* pSizer, MemStatsPurposeEnum nPurpose, s
 				SIZER_COMPONENT_NAME(pSizer, "$Allocations waste");
 				const SmallModuleInfo* info = FindModuleInfo(stats, "Cry3DEngine.dll");
 				if (info)
-					pSizer->AddObject(info, info->memInfo.allocated - info->memInfo.requested);
+					pSizer->AddObject(info, static_cast<size_t>(info->memInfo.allocated - info->memInfo.requested));
 			}
 
 		}
@@ -379,13 +377,13 @@ void CSystem::CollectMemStats(ICrySizer* pSizer, MemStatsPurposeEnum nPurpose, s
 				SIZER_COMPONENT_NAME(pSizer, "$Allocations waste D3D9");
 				const SmallModuleInfo* info = FindModuleInfo(stats, "CryRenderD3D9.dll");
 				if (info)
-					pSizer->AddObject(info, info->memInfo.allocated - info->memInfo.requested);
+					pSizer->AddObject(info, static_cast<size_t>(info->memInfo.allocated - info->memInfo.requested));
 			}
 			{
 				SIZER_COMPONENT_NAME(pSizer, "$Allocations waste D3D10");
 				const SmallModuleInfo* info = FindModuleInfo(stats, "CryRenderD3D10.dll");
 				if (info)
-					pSizer->AddObject(info, info->memInfo.allocated - info->memInfo.requested);
+					pSizer->AddObject(info, static_cast<size_t>(info->memInfo.allocated - info->memInfo.requested));
 			}
 
 			m_env.pRenderer->GetMemoryUsage(pSizer);
@@ -401,7 +399,7 @@ void CSystem::CollectMemStats(ICrySizer* pSizer, MemStatsPurposeEnum nPurpose, s
 				SIZER_COMPONENT_NAME(pSizer, "$Allocations waste");
 				const SmallModuleInfo* info = FindModuleInfo(stats, "CryFont.dll");
 				if (info)
-					pSizer->AddObject(info, info->memInfo.allocated - info->memInfo.requested);
+					pSizer->AddObject(info, static_cast<size_t>(info->memInfo.allocated - info->memInfo.requested));
 			}
 
 			m_env.pCryFont->GetMemoryUsage(pSizer);
@@ -418,7 +416,7 @@ void CSystem::CollectMemStats(ICrySizer* pSizer, MemStatsPurposeEnum nPurpose, s
 				SIZER_COMPONENT_NAME(pSizer, "$Allocations waste");
 				const SmallModuleInfo* info = FindModuleInfo(stats, "CryAudioSystem.dll");
 				if (info)
-					pSizer->AddObject(info, info->memInfo.allocated - info->memInfo.requested);
+					pSizer->AddObject(info, static_cast<size_t>(info->memInfo.allocated - info->memInfo.requested));
 			}
 		}
 	}
@@ -431,7 +429,7 @@ void CSystem::CollectMemStats(ICrySizer* pSizer, MemStatsPurposeEnum nPurpose, s
 				SIZER_COMPONENT_NAME(pSizer, "$Allocations waste");
 				const SmallModuleInfo* info = FindModuleInfo(stats, "CryScriptSystem.dll");
 				if (info)
-					pSizer->AddObject(info, info->memInfo.allocated - info->memInfo.requested);
+					pSizer->AddObject(info, static_cast<size_t>(info->memInfo.allocated - info->memInfo.requested));
 			}
 			m_env.pScriptSystem->GetMemoryStatistics(pSizer);
 		}
@@ -446,7 +444,7 @@ void CSystem::CollectMemStats(ICrySizer* pSizer, MemStatsPurposeEnum nPurpose, s
 				SIZER_COMPONENT_NAME(pSizer, "$Allocations waste");
 				const SmallModuleInfo* info = FindModuleInfo(stats, "CryAISystem.dll");
 				if (info)
-					pSizer->AddObject(info, info->memInfo.allocated - info->memInfo.requested);
+					pSizer->AddObject(info, static_cast<size_t>(info->memInfo.allocated - info->memInfo.requested));
 			}
 			m_env.pAISystem->GetMemoryStatistics(pSizer);
 		}
@@ -461,7 +459,7 @@ void CSystem::CollectMemStats(ICrySizer* pSizer, MemStatsPurposeEnum nPurpose, s
 				SIZER_COMPONENT_NAME(pSizer, "$Allocations waste");
 				const SmallModuleInfo* info = FindModuleInfo(stats, "CryAction.dll");
 				if (info)
-					pSizer->AddObject(info, info->memInfo.allocated - info->memInfo.requested);
+					pSizer->AddObject(info, static_cast<size_t>(info->memInfo.allocated - info->memInfo.requested));
 			}
 
 			m_env.pGameFramework->GetMemoryUsage(pSizer);
@@ -475,7 +473,7 @@ void CSystem::CollectMemStats(ICrySizer* pSizer, MemStatsPurposeEnum nPurpose, s
 			SIZER_COMPONENT_NAME(pSizer, "$Allocations waste");
 			const SmallModuleInfo* info = FindModuleInfo(stats, "CryNetwork.dll");
 			if (info)
-				pSizer->AddObject(info, info->memInfo.allocated - info->memInfo.requested);
+				pSizer->AddObject(info, static_cast<size_t>(info->memInfo.allocated - info->memInfo.requested));
 		}
 
 		m_env.pNetwork->GetMemoryStatistics(pSizer);
@@ -488,7 +486,7 @@ void CSystem::CollectMemStats(ICrySizer* pSizer, MemStatsPurposeEnum nPurpose, s
 			SIZER_COMPONENT_NAME(pSizer, "$Allocations waste");
 			const SmallModuleInfo* info = FindModuleInfo(stats, "CryEntitySystem.dll");
 			if (info)
-				pSizer->AddObject(info, info->memInfo.allocated - info->memInfo.requested);
+				pSizer->AddObject(info, static_cast<size_t>(info->memInfo.allocated - info->memInfo.requested));
 		}
 
 		m_env.pEntitySystem->GetMemoryStatistics(pSizer);
@@ -860,6 +858,9 @@ struct DumpHeap32Stats
 	DWORD dwFixed;
 	DWORD dwUnknown;
 };
+
+#pragma warning(push)
+#pragma warning(disable: 4244) //conversion' conversion from 'type1' to 'type2', possible loss of data
 static void DumpHeap32(const HEAPLIST32& hl, DumpHeap32Stats& stats)
 {
 	HEAPENTRY32 he;
@@ -890,6 +891,7 @@ static void DumpHeap32(const HEAPLIST32& hl, DumpHeap32Stats& stats)
 	else
 		CryLogAlways("%08X  empty or invalid");
 }
+#pragma warning(pop)
 
 //////////////////////////////////////////////////////////////////////////
 class CStringOrder
@@ -946,10 +948,10 @@ void CSystem::GetExeSizes(ICrySizer* pSizer, MemStatsPurposeEnum nPurpose)
 			if (nPurpose == nMSP_ForDump)
 			{
 				SIZER_COMPONENT_NAME(pSizer, me.szModule);
-				pSizer->AddObject(me.modBaseAddr, me.modBaseSize);
+				pSizer->AddObject(me.modBaseAddr, static_cast<size_t>(me.modBaseSize));
 			}
 			else
-				pSizer->AddObject(me.modBaseAddr, me.modBaseSize);
+				pSizer->AddObject(me.modBaseAddr, static_cast<size_t>(me.modBaseSize));
 		}
 		while (Module32Next(hSnapshot, &me));
 	}
@@ -1133,9 +1135,7 @@ void CSystem::FatalError(const char* format, ...)
 
 	if (!g_cvars.sys_no_crash_dialog)
 	{
-#ifdef WIN32
-		::MessageBox(NULL,szBuffer,"CRYENGINE FATAL ERROR",MB_OK|MB_ICONERROR);
-#endif
+		CryMessageBox(szBuffer,"CRYENGINE FATAL ERROR", eMB_Error);
 	}
 
 	//Triggers a fatal error, so the DebugCallstack can create the error.log and terminate the application
@@ -1517,7 +1517,7 @@ void CSystem::ChangeUserPath(const char* sUserPath)
 
 		// Make the userFolder path absolute
 		char cwdBuffer[MAX_PATH];
-		_getcwd(cwdBuffer, MAX_PATH);
+		CryGetCurrentDirectory(MAX_PATH, cwdBuffer);
 		string tempBuffer;
 		tempBuffer.Format("%s\\%s", cwdBuffer, userFolder.c_str());
 		tempBuffer = PathUtil::RemoveSlash(tempBuffer);

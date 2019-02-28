@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -17,8 +17,6 @@ public:
 	virtual EAnimValue                  GetValueType() override           { return m_valueType; }
 
 	virtual CAnimParamType              GetParameterType() const override { return m_paramType; }
-
-	virtual void                        Release() override                { if (--m_nRefCounter <= 0) { delete this; } }
 
 	virtual int                         GetNumKeys() const override;
 	virtual bool                        HasKeys() const override;
@@ -53,7 +51,7 @@ public:
 
 	virtual bool Serialize(XmlNodeRef& xmlNode, bool bLoading, bool bLoadEmptyTracks = true) override;
 
-	virtual bool SerializeKeys(XmlNodeRef& xmlNode, bool bLoading, std::vector<SAnimTime>& keys, const SAnimTime time = SAnimTime(0)) override;
+    virtual bool SerializeKeys(XmlNodeRef& xmlNode, bool bLoading, std::vector<SAnimTime>& keys, const SAnimTime time = SAnimTime(0)) override { return false; };
 
 	virtual int  NextKeyByTime(int key) const override;
 

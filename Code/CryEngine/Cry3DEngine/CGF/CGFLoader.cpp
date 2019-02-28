@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   CGFLoader.cpp
@@ -3798,18 +3798,18 @@ bool CLoaderCGF::LoadVClothChunk(IChunkFile::ChunkDesc* pChunkDesc)
 		pVClothInfo->m_trianglePairs.assign(pTrianglePairs, pTrianglePairs + pChunk->bendTrianglePairCount);
 	}
 
-	// Read lraNotAttachedOrderedIdx.
+	// Read nndcNotAttachedOrderedIdx.
 	{
 		pCursor += sizeof(SVClothBendTrianglePair) * pChunk->bendTrianglePairCount;
-		SVClothLraNotAttachedOrderedIdx* const pLraNotAttachedOrderedIdx = (SVClothLraNotAttachedOrderedIdx*)pCursor;
-		SwapEndian(pLraNotAttachedOrderedIdx, pChunk->lraNotAttachedOrderedIdxCount, bSwapEndian);
+		SVClothNndcNotAttachedOrderedIdx* const pNndcNotAttachedOrderedIdx = (SVClothNndcNotAttachedOrderedIdx*)pCursor;
+		SwapEndian(pNndcNotAttachedOrderedIdx, pChunk->nndcNotAttachedOrderedIdxCount, bSwapEndian);
 
-		pVClothInfo->m_lraNotAttachedOrderedIdx.assign(pLraNotAttachedOrderedIdx, pLraNotAttachedOrderedIdx + pChunk->lraNotAttachedOrderedIdxCount);
+		pVClothInfo->m_nndcNotAttachedOrderedIdx.assign(pNndcNotAttachedOrderedIdx, pNndcNotAttachedOrderedIdx + pChunk->nndcNotAttachedOrderedIdxCount);
 	}
 
 	// Read links.
 	{
-		pCursor += sizeof(SVClothLraNotAttachedOrderedIdx) * pChunk->lraNotAttachedOrderedIdxCount;
+		pCursor += sizeof(SVClothNndcNotAttachedOrderedIdx) * pChunk->nndcNotAttachedOrderedIdxCount;
 
 		for (int lid = 0; lid < eVClothLink_COUNT; ++lid)
 		{

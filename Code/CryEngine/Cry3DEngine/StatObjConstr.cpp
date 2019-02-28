@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   statobjconstr.cpp
@@ -1392,7 +1392,7 @@ bool CStatObj::RayIntersection(SRayHitInfo& hitInfo, IMaterial* pCustomMtl)
 	      m_AABB))
 		return false;
 
-	IRenderMesh* pRenderMesh = m_pRenderMesh;
+	_smart_ptr<IRenderMesh> pRenderMesh = m_pRenderMesh;
 
 	// Sometimes, object has no base lod mesh. So need to hit test with low level mesh.
 	// If the distance from camera is larger then a base lod distance, then base lod mesh is not loaded yet.

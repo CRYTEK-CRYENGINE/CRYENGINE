@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "ResFile.h"
@@ -80,7 +80,8 @@ void CResFile::mfDeactivate(bool bReleaseDir)
 
 	if (m_handle)
 	{
-		mfFlush();
+		if (m_typeaccess != RA_READ)
+			mfFlush();
 		gEnv->pCryPak->FClose(m_handle);
 		m_handle = NULL;
 	}
@@ -150,7 +151,6 @@ CResFile::CResFile(const char* name)
 	, m_pCompressedDir(nullptr)
 	, m_typeaccess(0)
 	, m_nNumFilesUnique(0)
-	, m_nNumFilesRef(0)
 	, m_nOffsDir(0)
 	, m_nComprDirSize(0)
 	, m_nOffset(OFFSET_BIG_POSITIVE)
@@ -214,27 +214,30 @@ void CResFile::mfSetError(const char* er, ...)
 	va_end(args);
 }
 
-SResFileLookupData* CResFile::GetLookupData(bool bCreate, uint32 CRC, float fVersion) const
+SResFileLookupData* CResFile::GetLookupData() const
 {
 	if (m_pLookupDataMan)
 	{
 		CCryNameTSCRC name = m_pLookupDataMan->AdjustName(m_name.c_str());
 		SResFileLookupData* pData = m_pLookupDataMan->GetData(name);
-		uint32 nMinor = (int)(((float)fVersion - (float)(int)fVersion) * 10.1f);
-		uint32 nMajor = (int)fVersion;
-
-		if (bCreate && (!pData || (CRC && pData->m_CRC32 != CRC) || pData->m_CacheMinorVer != nMinor || pData->m_CacheMajorVer != nMajor || pData->m_OffsetDir != m_nOffsDir || pData->m_NumOfFilesUnique != m_nNumFilesUnique || pData->m_NumOfFilesRef != m_nNumFilesRef))
-		{
-			m_pLookupDataMan->AddData(this, CRC);
-			pData = m_pLookupDataMan->GetData(name);
-			m_pLookupDataMan->MarkDirty(true);
-			assert(pData);
-		}
-
 		return pData;
 	}
 
-	return NULL;
+	return nullptr;
+}
+
+void CResFile::StoreLookupData(uint32 CRC, float fVersion)
+{
+	if (m_pLookupDataMan)
+	{
+		CCryNameTSCRC name = m_pLookupDataMan->AdjustName(m_name.c_str());
+
+		m_pLookupDataMan->AddData(this, CRC);
+		SResFileLookupData* pData = m_pLookupDataMan->GetData(name);
+		m_pLookupDataMan->MarkDirty(true);
+
+		CRY_ASSERT(pData);
+	}
 }
 
 const char* CResFile::mfGetError(void)
@@ -272,7 +275,7 @@ uint64 CResFile::mfGetModifTime()
 
 bool CResFile::mfFileExist(CCryNameTSCRC name)
 {
-	SDirEntry* de = mfGetEntry(name);
+	CDirEntry* de = mfGetEntry(name);
 	if (!de)
 		return false;
 	assert(name == de->Name);
@@ -346,9 +349,6 @@ void CResStreamDirCallback::StreamOnComplete(IReadStream* pStream, unsigned nErr
 
 		pRes->m_bDirStreaming = false;
 	}
-
-	SShaderCache* pCache = pStreamInfo->m_pCache;
-	pCache->Release();
 }
 
 int CResFile::mfLoadDir(SResStreamInfo* pStreamInfo)
@@ -365,8 +365,7 @@ int CResFile::mfLoadDir(SResStreamInfo* pStreamInfo)
 			return -1;
 		m_bDirStreaming = true;
 
-		int nSizeDir = m_nNumFilesUnique * sizeof(SDirEntry);
-		int nSizeDirRef = m_nNumFilesRef * sizeof(SDirEntry);
+		int nSizeDir = m_nNumFilesUnique * sizeof(CDirEntry);
 
 		if (nSizeDir)
 		{
@@ -380,27 +379,6 @@ int CResFile::mfLoadDir(SResStreamInfo* pStreamInfo)
 			StrParams.pBuffer = &m_Dir[0];
 			StrParams.nOffset = m_nOffsDir;
 			StrParams.nSize = nSizeDir;
-			pStreamInfo->m_pCache->AddRef();
-
-			CryAutoLock<CryCriticalSection> lock(pStreamInfo->m_StreamLock);
-			pStreamInfo->m_dirReadStreams.push_back(iSystem->GetStreamEngine()->StartRead(
-			                                          eStreamTaskTypeShader, m_name.c_str(), &pStreamInfo->m_CallbackDir, &StrParams));
-			pStreamInfo->m_nDirRequestCount++;
-		}
-
-		if (nSizeDirRef)
-		{
-			m_DirRef.resize(m_nNumFilesRef);
-
-			StreamReadParams StrParams;
-			StrParams.nFlags = 0;
-			StrParams.dwUserData = (DWORD_PTR)pStreamInfo;
-			StrParams.nLoadTime = 1;
-			StrParams.nMaxLoadTime = 4;
-			StrParams.pBuffer = &m_DirRef[0];
-			StrParams.nOffset = m_nOffsDir + nSizeDir;
-			StrParams.nSize = nSizeDirRef;
-			pStreamInfo->m_pCache->AddRef();
 
 			CryAutoLock<CryCriticalSection> lock(pStreamInfo->m_StreamLock);
 			pStreamInfo->m_dirReadStreams.push_back(iSystem->GetStreamEngine()->StartRead(
@@ -418,7 +396,7 @@ int CResFile::mfLoadDir(SResStreamInfo* pStreamInfo)
 			return 0;
 		}
 
-		int nSize = m_nNumFilesUnique * sizeof(SDirEntry);
+		int nSize = m_nNumFilesUnique * sizeof(CDirEntry);
 		//int nSizeDir = m_nComprDirSize ? m_nComprDirSize : nSize;
 		if (m_nNumFilesUnique)
 		{
@@ -427,19 +405,6 @@ int CResFile::mfLoadDir(SResStreamInfo* pStreamInfo)
 			{
 				mfSetError("Open - Directory reading error");
 				m_Dir.clear();
-				return 0;
-			}
-		}
-
-		if (m_nNumFilesRef)
-		{
-			nSize = m_nNumFilesRef * sizeof(SDirEntryRef);
-			//int nSizeDir = m_nComprDirSize ? m_nComprDirSize : nSize;
-			m_DirRef.resize(m_nNumFilesRef);
-			if (gEnv->pCryPak->FReadRaw(&m_DirRef[0], 1, nSize, m_handle) != nSize)
-			{
-				mfSetError("Open - Directory reading error");
-				m_DirRef.clear();
 				return 0;
 			}
 		}
@@ -452,8 +417,6 @@ int CResFile::mfLoadDir(SResStreamInfo* pStreamInfo)
 		{
 			if (m_nNumFilesUnique)
 				SwapEndian(&m_Dir[0], (size_t)m_nNumFilesUnique, eBigEndian);
-			if (m_nNumFilesRef)
-				SwapEndian(&m_DirRef[0], (size_t)m_nNumFilesRef, eBigEndian);
 		}
 	}
 	return nRes;
@@ -464,27 +427,27 @@ bool CResFile::mfPrepareDir()
 	if (m_bDirValid)
 		return true;
 	assert(!m_Dir.size());
-	SDirEntry* pFileDir = NULL;
+	CDirEntry* pFileDir = NULL;
 	if (m_pCompressedDir)
 	{
 		assert(!m_Dir.size());
-		pFileDir = new SDirEntry[m_nNumFilesUnique];
+		pFileDir = new CDirEntry[m_nNumFilesUnique];
 		if (m_version == RESVERSION_LZSS)
 		{
-			if (!Decodem(m_pCompressedDir, (byte*)pFileDir, m_nComprDirSize, sizeof(SDirEntry) * m_nNumFilesUnique))
+			if (!Decodem(m_pCompressedDir, (byte*)pFileDir, m_nComprDirSize, sizeof(CDirEntry) * m_nNumFilesUnique))
 			{
 				CryFatalError("Compressed res file directory corrupt!");
 			}
 		}
 		else if (m_version == RESVERSION_LZMA)
 		{
-			SizeT size = sizeof(SDirEntry) * m_nNumFilesUnique;
+			SizeT size = sizeof(CDirEntry) * m_nNumFilesUnique;
 			SizeT inSize = m_nComprDirSize;
 			int res = Lzma86_Decode((byte*)pFileDir, &size, m_pCompressedDir, &inSize);
 		}
 		else if (m_version == RESVERSION_DEBUG)
 		{
-			memcpy(pFileDir, m_pCompressedDir, sizeof(SDirEntry) * m_nNumFilesUnique);
+			memcpy(pFileDir, m_pCompressedDir, sizeof(CDirEntry) * m_nNumFilesUnique);
 		}
 		else
 		{
@@ -493,8 +456,8 @@ bool CResFile::mfPrepareDir()
 		m_Dir.resize(m_nNumFilesUnique);
 		for (uint32 i = 0; i < m_nNumFilesUnique; i++)
 		{
-			SDirEntry* deS = &m_Dir[i];
-			SDirEntry& fdent = pFileDir[i];
+			CDirEntry* deS = &m_Dir[i];
+			CDirEntry& fdent = pFileDir[i];
 			if (m_bSwapEndianRead)
 				SwapEndian(fdent, eBigEndian);
 			deS->Name = fdent.Name;
@@ -529,9 +492,9 @@ void CResFile::mfReleaseDir()
 		uint32 i;
 		for (i = 0; i < m_Dir.size(); i++)
 		{
-			SDirEntry* de = &m_Dir[i];
+			CDirEntry* de = &m_Dir[i];
 			assert(!(de->flags & RF_NOTSAVED));
-			mfCloseEntry(de, false);
+			mfCloseEntry(de->GetName(), de->GetFlags(), false);
 		}
 
 		m_DirOpen.clear();
@@ -550,7 +513,7 @@ void CResFile::mfReleaseDir()
 int CResFile::mfOpen(int type, CResFileLookupDataMan* pMan, SResStreamInfo* pStreamInfo)
 {
 	SFileResHeader frh;
-	SDirEntry fden;
+	CDirEntry fden;
 
 	PROFILE_FRAME(Resource_Open);
 
@@ -636,7 +599,6 @@ int CResFile::mfOpen(int type, CResFileLookupDataMan* pMan, SResStreamInfo* pStr
 		{
 			m_version = m_pLookupDataMan->GetResVersion();
 			m_nNumFilesUnique = m_pLookupData->m_NumOfFilesUnique;
-			m_nNumFilesRef = m_pLookupData->m_NumOfFilesRef;
 			m_nOffsDir = m_pLookupData->m_OffsetDir;
 			m_nComprDirSize = 0;//m_pResDirData->size_dir;
 		}
@@ -675,7 +637,6 @@ int CResFile::mfOpen(int type, CResFileLookupDataMan* pMan, SResStreamInfo* pStr
 			}
 
 			m_nNumFilesUnique = frh.num_files;
-			m_nNumFilesRef = frh.num_files_ref;
 			m_nOffsDir = frh.ofs_dir;
 			m_nComprDirSize = 0; //frh.size_dir;
 		}
@@ -693,7 +654,6 @@ int CResFile::mfOpen(int type, CResFileLookupDataMan* pMan, SResStreamInfo* pStr
 		frh.ver = ver;
 		frh.num_files = 0;
 		frh.ofs_dir = -1;
-		frh.num_files_ref = 0;
 		m_version = ver;
 		m_nOffsDir = sizeof(frh);
 		SFileResHeader frhTemp, * pFrh;
@@ -712,7 +672,6 @@ int CResFile::mfOpen(int type, CResFileLookupDataMan* pMan, SResStreamInfo* pStr
 		m_nComprDirSize = 0;
 		m_bDirCompressed = false;
 		m_nNumFilesUnique = 0;
-		m_nNumFilesRef = 0;
 		m_pCompressedDir = NULL;
 		m_bDirValid = true;
 	}
@@ -746,34 +705,20 @@ bool CResFile::mfClose(void)
 
 struct ResDirSortByName
 {
-	bool operator()(const SDirEntry& left, const SDirEntry& right) const
+	bool operator()(const CDirEntry& left, const CDirEntry& right) const
 	{
-		return left.Name < right.Name;
+		return left.GetName() < right.GetName();
 	}
-	bool operator()(const CCryNameTSCRC left, const SDirEntry& right) const
+	bool operator()(const CCryNameTSCRC left, const CDirEntry& right) const
 	{
-		return left < right.Name;
+		return left < right.GetName();
 	}
-	bool operator()(const SDirEntry& left, CCryNameTSCRC right) const
+	bool operator()(const CDirEntry& left, CCryNameTSCRC right) const
 	{
-		return left.Name < right;
-	}
-};
-struct ResDirRefSortByName
-{
-	bool operator()(const SDirEntryRef& left, const SDirEntryRef& right) const
-	{
-		return left.Name < right.Name;
-	}
-	bool operator()(const CCryNameTSCRC left, const SDirEntryRef& right) const
-	{
-		return left < right.Name;
-	}
-	bool operator()(const SDirEntryRef& left, CCryNameTSCRC right) const
-	{
-		return left.Name < right;
+		return left.GetName() < right;
 	}
 };
+
 struct ResDirOpenSortByName
 {
 	bool operator()(const SDirEntryOpen& left, const SDirEntryOpen& right) const
@@ -790,26 +735,25 @@ struct ResDirOpenSortByName
 	}
 };
 
-SDirEntryOpen* CResFile::mfGetOpenEntry(SDirEntry* de)
+SDirEntryOpen* CResFile::mfGetOpenEntry(const CCryNameTSCRC &Name)
 {
-	ResDirOpenIt it = std::lower_bound(m_DirOpen.begin(), m_DirOpen.end(), de->Name, ResDirOpenSortByName());
-	if (it != m_DirOpen.end() && de->Name == (*it).Name)
+	ResDirOpenIt it = std::lower_bound(m_DirOpen.begin(), m_DirOpen.end(), Name, ResDirOpenSortByName());
+	if (it != m_DirOpen.end() && Name == (*it).Name)
 		return &(*it);
 	return NULL;
 }
-SDirEntryOpen* CResFile::mfOpenEntry(SDirEntry* de)
+SDirEntryOpen* CResFile::mfOpenEntry(const CCryNameTSCRC &Name)
 {
 	SDirEntryOpen* pOE = NULL;
-	ResDirOpenIt it = std::lower_bound(m_DirOpen.begin(), m_DirOpen.end(), de->Name, ResDirOpenSortByName());
-	if (it == m_DirOpen.end() || de->Name != (*it).Name)
+	ResDirOpenIt it = std::lower_bound(m_DirOpen.begin(), m_DirOpen.end(), Name, ResDirOpenSortByName());
+	if (it == m_DirOpen.end() || Name != (*it).Name)
 	{
 		AUTO_LOCK(g_cAsyncResLock);
 		SDirEntryOpen OE;
-		OE.Name = de->Name;
+		OE.Name = Name;
 		OE.curOffset = 0;
 		OE.pData = NULL;
-		m_DirOpen.insert(it, OE);
-		it = std::lower_bound(m_DirOpen.begin(), m_DirOpen.end(), de->Name, ResDirOpenSortByName());
+		it = m_DirOpen.insert(it, OE);
 		return &(*it);
 	}
 	pOE = &(*it);
@@ -819,14 +763,14 @@ SDirEntryOpen* CResFile::mfOpenEntry(SDirEntry* de)
 
 	return pOE;
 }
-bool CResFile::mfCloseEntry(SDirEntry* de, bool bEraseOpenEntry)
+bool CResFile::mfCloseEntry(const CCryNameTSCRC &Name, uint32 flags, bool bEraseOpenEntry)
 {
-	ResDirOpenIt it = std::lower_bound(m_DirOpen.begin(), m_DirOpen.end(), de->Name, ResDirOpenSortByName());
-	if (it == m_DirOpen.end() || de->Name != (*it).Name)
+	ResDirOpenIt it = std::lower_bound(m_DirOpen.begin(), m_DirOpen.end(), Name, ResDirOpenSortByName());
+	if (it == m_DirOpen.end() || Name != (*it).Name)
 		return false;
 	SDirEntryOpen& OE = (*it);
 	OE.curOffset = 0;
-	if (de->flags & RF_TEMPDATA)
+	if (flags & RF_TEMPDATA)
 	{
 		if (OE.pData)
 		{
@@ -843,7 +787,7 @@ bool CResFile::mfCloseEntry(SDirEntry* de, bool bEraseOpenEntry)
 	return true;
 }
 
-SDirEntry* CResFile::mfGetEntry(CCryNameTSCRC name, bool* pAsync)
+CDirEntry* CResFile::mfGetEntry(const CCryNameTSCRC &name, bool* pAsync)
 {
 	if (pAsync)
 	{
@@ -870,26 +814,20 @@ SDirEntry* CResFile::mfGetEntry(CCryNameTSCRC name, bool* pAsync)
 		assert(m_bDirValid);
 		return &(*it);
 	}
-	ResDirRefIt itRef = std::lower_bound(m_DirRef.begin(), m_DirRef.end(), name, ResDirRefSortByName());
-	if (itRef != m_DirRef.end() && name == (*itRef).Name)
-	{
-		assert(m_bDirValid);
-		SDirEntryRef& rref = (*itRef);
-		return &m_Dir[rref.ref];
-	}
+
 	return NULL;
 }
 
-int CResFile::mfFileClose(SDirEntry* de)
+int CResFile::mfFileClose(const CCryNameTSCRC &Name, uint32 flags)
 {
-	if (!(de->flags & RF_NOTSAVED))
+	if (!(flags & RF_NOTSAVED))
 	{
-		mfCloseEntry(de);
+		mfCloseEntry(Name, flags);
 	}
 
 	return 0;
 }
-int CResFile::mfFileAdd(SDirEntry* de)
+int CResFile::mfFileAdd(CDirEntry* de)
 {
 	AUTO_LOCK(g_cResLock); // Not thread safe without this
 
@@ -917,10 +855,7 @@ int CResFile::mfFileAdd(SDirEntry* de)
 		if (it != m_Dir.end() && name == (*it).Name)
 			return m_Dir.size();
 
-		SDirEntry newDE;
-		newDE = *de;
-		newDE.flags |= RF_NOTSAVED;
-		m_Dir.insert(it, newDE);
+		m_Dir.emplace(it, de->GetName(), de->GetSize(), de->GetOffset(), de->GetFlags() | RF_NOTSAVED);
 		m_bDirty = true;
 	}
 	return m_Dir.size();
@@ -944,13 +879,13 @@ void CResStreamCallback::StreamAsyncOnComplete(IReadStream* pStream, unsigned nE
 		return;
 	}
 
-	SDirEntry* pDE = pRes->mfGetEntry(pEntry->m_Name);
+	CDirEntry* pDE = pRes->mfGetEntry(pEntry->m_Name);
 	byte* pBuf = (byte*)pStream->GetBuffer();
 	assert(pBuf);
 	byte* pData = NULL;
 
 	int32 size;
-	if (pDE->flags & RF_COMPRESS)
+	if (pDE->GetFlags() & RF_COMPRESS)
 	{
 		assert(pRes->m_version == RESVERSION_LZSS);
 		size = *(int32*)pBuf;
@@ -959,13 +894,13 @@ void CResStreamCallback::StreamAsyncOnComplete(IReadStream* pStream, unsigned nE
 			pData = new byte[size];
 			if (!pData)
 				pRes->mfSetError("FileRead - Allocation fault");
-			else if (!Decodem(&pBuf[4], (byte*)pData, pDE->size - 4, size))
+			else if (!Decodem(&pBuf[4], (byte*)pData, pDE->GetSize() - 4, size))
 				pRes->mfSetError("FileRead - Decode fault");
 		}
 	}
 	else
 	{
-		size = pDE->size;
+		size = pDE->GetSize();
 		pData = new byte[size];
 		if (!pData)
 			pRes->mfSetError("FileRead - Allocation fault");
@@ -975,10 +910,10 @@ void CResStreamCallback::StreamAsyncOnComplete(IReadStream* pStream, unsigned nE
 	{
 		AUTO_LOCK(g_cAsyncResLock);
 
-		SDirEntryOpen* pOE = pRes->mfGetOpenEntry(pDE);
+		SDirEntryOpen* pOE = pRes->mfGetOpenEntry(pDE->GetName());
 		if (pOE)
 		{
-			pDE->flags |= RF_TEMPDATA;
+			pDE->MarkTemp();
 			pOE->nSize = size;
 			pOE->pData = pData;
 		}
@@ -996,7 +931,6 @@ void CResStreamCallback::StreamOnComplete(IReadStream* pStream, unsigned nError)
 	assert(pStreamInfo);
 	if (!pStreamInfo)
 		return;
-	SShaderCache* pCache = pStreamInfo->m_pCache;
 	uint32 i;
 	bool bFound = false;
 
@@ -1018,14 +952,13 @@ void CResStreamCallback::StreamOnComplete(IReadStream* pStream, unsigned nError)
 		}
 		assert(bFound);
 	}
-	pCache->Release();
 }
 
-int CResFile::mfFileRead(SDirEntry* de)
+int CResFile::mfFileRead(CDirEntry* de)
 {
 	uint32 size = 0;
 
-	SDirEntryOpen* pOE = mfOpenEntry(de);
+	SDirEntryOpen* pOE = mfOpenEntry(de->GetName());
 
 	if (pOE->pData)
 		return pOE->nSize;
@@ -1068,7 +1001,6 @@ int CResFile::mfFileRead(SDirEntry* de)
 		StrParams.pBuffer = NULL;
 		StrParams.nOffset = de->offset;
 		StrParams.nSize = de->size;
-		m_pStreamInfo->m_pCache->AddRef();
 		//Warning("Warning: CResFile::mfFileRead: '%s' Ref: %d", m_name.c_str(), n);
 		pEntry->m_readStream = iSystem->GetStreamEngine()->StartRead(eStreamTaskTypeShader, m_name.c_str(), &m_pStreamInfo->m_Callback, &StrParams);
 		return -1;
@@ -1099,7 +1031,7 @@ int CResFile::mfFileRead(SDirEntry* de)
 				return 0;
 			}
 			pOE->pData = new byte[size];
-			de->flags |= RF_TEMPDATA;
+			de->MarkTemp();
 			if (!pOE->pData)
 			{
 				SAFE_DELETE_ARRAY(buf);
@@ -1143,21 +1075,22 @@ int CResFile::mfFileRead(SDirEntry* de)
 				}
 				size = outSize;
 				pOE->pData = outBuffer;
-				de->flags |= RF_TEMPDATA;
+				de->MarkTemp();
 			}
 		}
 		else if (m_version == RESVERSION_DEBUG)
 		{
 			gEnv->pCryPak->FReadRaw(buf, de->size, 1, m_handle);
-			pOE->pData = new byte[de->size - 20];
-			de->flags |= RF_TEMPDATA;
-			if (!pOE->pData)
+			int allocSize = (int)de->size - 20;
+			if (allocSize < 0 || allocSize > 128*1024*1024)
 			{
+				mfSetError("FileRead - Corrupt DirEntiy size");
 				SAFE_DELETE_ARRAY(buf);
-				mfSetError("FileRead - Allocation fault");
 				return 0;
 			}
-			memcpy(pOE->pData, &buf[10], de->size - 20);
+			pOE->pData = new byte[allocSize];
+			de->MarkTemp();
+			memcpy(pOE->pData, &buf[10], allocSize);
 		}
 		else
 		{
@@ -1173,7 +1106,7 @@ int CResFile::mfFileRead(SDirEntry* de)
 
 	pOE->pData = new byte[de->size];
 	pOE->nSize = de->size;
-	de->flags |= RF_TEMPDATA;
+	de->MarkTemp();
 	if (!pOE->pData)
 	{
 		mfSetError("FileRead - Allocation fault");
@@ -1208,10 +1141,10 @@ int CResFile::mfFileRead(SDirEntry* de)
 	return de->size;
 }
 
-byte* CResFile::mfFileReadCompressed(SDirEntry* de, uint32& nSizeDecomp, uint32& nSizeComp)
+byte* CResFile::mfFileReadCompressed(CDirEntry* de, uint32& nSizeDecomp, uint32& nSizeComp)
 {
 	if (!mfActivate(false))
-		return NULL;
+		return nullptr;
 
 	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Shader, 0, "Shaders File Read Compressed");
 
@@ -1224,19 +1157,19 @@ byte* CResFile::mfFileReadCompressed(SDirEntry* de, uint32& nSizeDecomp, uint32&
 	if (de->flags & RF_COMPRESS)
 	{
 		if (de->offset >= 0x10000000)
-			return NULL;
+			return nullptr;
 
 		if (gEnv->pCryPak->FSeek(m_handle, de->offset, SEEK_SET) > 0)
 		{
 			mfSetError("FileReadCompressed - Seek error");
-			return 0;
+			return nullptr;
 		}
 
 		byte* buf = new byte[de->size];
 		if (!buf)
 		{
 			mfSetError("FileRead - Allocation fault");
-			return 0;
+			return nullptr;
 		}
 		if (m_version == RESVERSION_LZSS)
 		{
@@ -1248,7 +1181,7 @@ byte* CResFile::mfFileReadCompressed(SDirEntry* de, uint32& nSizeDecomp, uint32&
 			{
 				assert(0);
 				SAFE_DELETE_ARRAY(buf);
-				return NULL;
+				return nullptr;
 			}
 			nSizeDecomp = nSize;
 			nSizeComp = de->size - 4;
@@ -1262,7 +1195,7 @@ byte* CResFile::mfFileReadCompressed(SDirEntry* de, uint32& nSizeDecomp, uint32&
 			if (Lzma86_GetUnpackSize(buf, inSize, &outSize64) != 0)
 			{
 				mfSetError("FileRead - data error");
-				return 0;
+				return nullptr;
 			}
 			nSizeDecomp = (uint32)outSize64;
 			nSizeComp = inSize;
@@ -1277,7 +1210,7 @@ byte* CResFile::mfFileReadCompressed(SDirEntry* de, uint32& nSizeDecomp, uint32&
 		else
 		{
 			CryFatalError("Bad Version: %d!", m_version);
-			return 0;
+			return nullptr;
 		}
 		return buf;
 	}
@@ -1289,21 +1222,21 @@ byte* CResFile::mfFileReadCompressed(SDirEntry* de, uint32& nSizeDecomp, uint32&
 	{
 		mfSetError("FileReadCompressed - Seek error");
 		delete[] buf;
-		return 0;
+		return nullptr;
 	}
 
 	if (gEnv->pCryPak->FReadRaw(buf, 1, de->size, m_handle) != de->size)
 	{
 		mfSetError("FileRead - Reading fault");
 		delete[] buf;
-		return 0;
+		return nullptr;
 	}
 	return buf;
 }
 
 int CResFile::mfFileRead(CCryNameTSCRC name)
 {
-	SDirEntry* de = mfGetEntry(name);
+	CDirEntry* de = mfGetEntry(name);
 
 	if (!de)
 	{
@@ -1320,7 +1253,7 @@ int CResFile::mfFileRead(const char* name)
 
 int CResFile::mfFileWrite(CCryNameTSCRC name, void* data)
 {
-	SDirEntry* de = mfGetEntry(name);
+	CDirEntry* de = mfGetEntry(name);
 
 	if (!de)
 	{
@@ -1363,14 +1296,14 @@ int CResFile::mfFileWrite(CCryNameTSCRC name, void* data)
 	return de->size;
 }
 
-void CResFile::mfFileRead2(SDirEntry* de, int size, void* buf)
+void CResFile::mfFileRead2(CDirEntry* de, int size, void* buf)
 {
 	if (!buf)
 	{
 		mfSetError("FileRead - Wrong data");
 		return;
 	}
-	SDirEntryOpen* pOE = mfOpenEntry(de);
+	SDirEntryOpen* pOE = mfOpenEntry(de->GetName());
 
 	if (pOE->pData)
 	{
@@ -1403,7 +1336,7 @@ void CResFile::mfFileRead2(SDirEntry* de, int size, void* buf)
 
 void CResFile::mfFileRead2(CCryNameTSCRC name, int size, void* buf)
 {
-	SDirEntry* de = mfGetEntry(name);
+	CDirEntry* de = mfGetEntry(name);
 	if (!de)
 	{
 		mfSetError("FileRead2 - wrong file id");
@@ -1412,9 +1345,9 @@ void CResFile::mfFileRead2(CCryNameTSCRC name, int size, void* buf)
 	return mfFileRead2(de, size, buf);
 }
 
-void* CResFile::mfFileGetBuf(SDirEntry* de)
+void* CResFile::mfFileGetBuf(CDirEntry* de)
 {
-	SDirEntryOpen* pOE = mfGetOpenEntry(de);
+	SDirEntryOpen* pOE = mfGetOpenEntry(de->GetName());
 	if (!pOE)
 		return NULL;
 	return pOE->pData;
@@ -1422,7 +1355,7 @@ void* CResFile::mfFileGetBuf(SDirEntry* de)
 
 void* CResFile::mfFileGetBuf(CCryNameTSCRC name)
 {
-	SDirEntry* de = mfGetEntry(name);
+	CDirEntry* de = mfGetEntry(name);
 	if (!de)
 	{
 		mfSetError("FileGetBuf - wrong file id");
@@ -1431,7 +1364,7 @@ void* CResFile::mfFileGetBuf(CCryNameTSCRC name)
 	return mfFileGetBuf(de);
 }
 
-int CResFile::mfFileSeek(SDirEntry* de, int ofs, int type)
+int CResFile::mfFileSeek(CDirEntry* de, int ofs, int type)
 {
 	int m;
 
@@ -1445,7 +1378,7 @@ int CResFile::mfFileSeek(SDirEntry* de, int ofs, int type)
 
 	AUTO_LOCK(g_cResLock); // Not thread safe without this
 
-	SDirEntryOpen* pOE = mfOpenEntry(de);
+	SDirEntryOpen* pOE = mfOpenEntry(de->GetName());
 
 	switch (type)
 	{
@@ -1474,7 +1407,7 @@ int CResFile::mfFileSeek(SDirEntry* de, int ofs, int type)
 
 int CResFile::mfFileSeek(CCryNameTSCRC name, int ofs, int type)
 {
-	SDirEntry* de = mfGetEntry(name);
+	CDirEntry* de = mfGetEntry(name);
 
 	if (!de)
 	{
@@ -1489,14 +1422,14 @@ int CResFile::mfFileSeek(char* name, int ofs, int type)
 	return mfFileSeek(CCryNameTSCRC(name), ofs, type);
 }
 
-int CResFile::mfFileLength(SDirEntry* de)
+int CResFile::mfFileLength(CDirEntry* de)
 {
 	return de->size;
 }
 
 int CResFile::mfFileLength(CCryNameTSCRC name)
 {
-	SDirEntry* de = mfGetEntry(name);
+	CDirEntry* de = mfGetEntry(name);
 
 	if (!de)
 	{
@@ -1511,7 +1444,7 @@ int CResFile::mfFileLength(char* name)
 	return mfFileLength(CCryNameTSCRC(name));
 }
 
-int CResFile::mfFlushDir(long nOffset, bool bOptimise)
+int CResFile::mfFlushDir(long nOffset)
 {
 	uint32 i;
 #ifdef _DEBUG
@@ -1519,7 +1452,7 @@ int CResFile::mfFlushDir(long nOffset, bool bOptimise)
 	ResDir Sorted;
 	for (i = 0; i < m_Dir.size(); i++)
 	{
-		SDirEntry& DE = m_Dir[i];
+		CDirEntry& DE = m_Dir[i];
 		ResDirIt it = std::lower_bound(Sorted.begin(), Sorted.end(), DE.Name, ResDirSortByName());
 		if (it != Sorted.end() && DE.Name == (*it).Name)
 		{
@@ -1531,51 +1464,19 @@ int CResFile::mfFlushDir(long nOffset, bool bOptimise)
 	assert(Sorted.size() == m_Dir.size());
 	for (i = 0; i < m_Dir.size(); i++)
 	{
-		SDirEntry& DE1 = m_Dir[i];
-		SDirEntry& DE2 = Sorted[i];
+		CDirEntry& DE1 = m_Dir[i];
+		CDirEntry& DE2 = Sorted[i];
 		assert(DE1.Name == DE2.Name);
-	}
-
-	ResDirRef SortedRef;
-	for (i = 0; i < m_DirRef.size(); i++)
-	{
-		SDirEntryRef& DE = m_DirRef[i];
-		ResDirRefIt it = std::lower_bound(SortedRef.begin(), SortedRef.end(), DE.Name, ResDirRefSortByName());
-		if (it != SortedRef.end() && DE.Name == (*it).Name)
-		{
-			assert(0);  // Duplicated value
-			continue;
-		}
-		SortedRef.insert(it, DE);
-	}
-	assert(SortedRef.size() == m_DirRef.size());
-	for (i = 0; i < m_DirRef.size(); i++)
-	{
-		SDirEntryRef& DE1 = m_DirRef[i];
-		SDirEntryRef& DE2 = SortedRef[i];
-		assert(DE1.Name == DE2.Name);
-	}
-
-	// Make sure references are correct
-	if (bOptimise)
-	{
-		for (i = 0; i < m_DirRef.size(); i++)
-		{
-			SDirEntryRef& r = m_DirRef[i];
-			assert(r.ref < m_Dir.size());
-		}
 	}
 #endif
 
-	TArray<SDirEntry> FDir;
-	TArray<SDirEntryRef> FDirRef;
+	TArray<CDirEntry> FDir;
 	FDir.ReserveNoClear(m_Dir.size());
-	FDirRef.ReserveNoClear(m_DirRef.size());
 
 	for (i = 0; i < (int)m_Dir.size(); i++)
 	{
-		SDirEntry* de = &m_Dir[i];
-		SDirEntry& fden = FDir[i];
+		CDirEntry* de = &m_Dir[i];
+		CDirEntry& fden = FDir[i];
 		fden.Name = de->Name;
 		fden.size = de->size;
 		assert(de->offset > 0);
@@ -1584,19 +1485,9 @@ int CResFile::mfFlushDir(long nOffset, bool bOptimise)
 		if (m_bSwapEndianWrite)
 			SwapEndian(fden, eBigEndian);
 	}
-	for (i = 0; i < (int)m_DirRef.size(); i++)
-	{
-		SDirEntryRef* de = &m_DirRef[i];
-		SDirEntryRef& fden = FDirRef[i];
-		fden.Name = de->Name;
-		fden.ref = de->ref;
-		assert(de->ref >= 0);
-		if (m_bSwapEndianWrite)
-			SwapEndian(fden, eBigEndian);
-	}
+
 	gEnv->pCryPak->FSeek(m_handle, nOffset, SEEK_SET);
-	int sizeUn = FDir.Num() * sizeof(SDirEntry);
-	int sizeRef = FDirRef.Num() * sizeof(SDirEntryRef);
+	int sizeUn = FDir.Num() * sizeof(CDirEntry);
 	byte* buf = NULL;
 	if (m_bDirCompressed)
 	{
@@ -1634,19 +1525,18 @@ int CResFile::mfFlushDir(long nOffset, bool bOptimise)
 	}
 	else
 	{
-		buf = new byte[sizeUn + sizeRef];
+		buf = new byte[sizeUn];
 		memcpy(buf, &FDir[0], sizeUn);
-		if (sizeRef)
-			memcpy(&buf[sizeUn], &FDirRef[0], sizeRef);
 	}
-	if (gEnv->pCryPak->FWrite(buf, 1, sizeUn + sizeRef, m_handle) != sizeUn + sizeRef)
+
+	if (gEnv->pCryPak->FWrite(buf, 1, sizeUn, m_handle) != sizeUn)
 	{
 		mfSetError("FlushDir - Writing fault");
 		return false;
 	}
+
 	m_nOffsDir = nOffset;
 	m_nNumFilesUnique = FDir.Num();
-	m_nNumFilesRef = FDirRef.Num();
 	SAFE_DELETE_ARRAY(m_pCompressedDir);
 	if (m_bDirCompressed)
 	{
@@ -1657,29 +1547,22 @@ int CResFile::mfFlushDir(long nOffset, bool bOptimise)
 	SAFE_DELETE_ARRAY(buf);
 	m_bDirValid = true;
 
-	SResFileLookupData* pLookup = GetLookupData(false, 0, 0);
-
+	SResFileLookupData* pLookup = GetLookupData();
 	if (pLookup)
 	{
-		pLookup->m_NumOfFilesRef = m_nNumFilesRef;
 		pLookup->m_NumOfFilesUnique = m_nNumFilesUnique;
 		pLookup->m_OffsetDir = nOffset;
 		m_pLookupDataMan->MarkDirty(true);
 		m_pLookupDataMan->Flush();
 	}
-	return sizeUn + sizeRef;
+	return sizeUn;
 }
 
-int CResFile::mfFlush(bool bOptimise)
+int CResFile::mfFlush()
 {
-	SFileResHeader frh;
-
 	PROFILE_FRAME(Resource_Flush);
 
-	// For compatibility with old builds
-	bOptimise = false;
-
-	int nSizeDir = m_DirRef.size() * sizeof(SDirEntryRef) + m_Dir.size() * sizeof(SDirEntry);
+	const int nSizeDir = m_Dir.size() * sizeof(CDirEntry);
 
 	if (m_typeaccess == RA_READ)
 	{
@@ -1703,108 +1586,80 @@ int CResFile::mfFlush(bool bOptimise)
 		return 0;
 	}
 
-	int i;
-	uint32 j;
+	int updateCount = 0;
+	long nSeek = m_nOffsDir;
+	const int nFiles = m_Dir.size();
 
-	int nSizeCompr = 0;
+	// store list of all duplicates: pair.first = original entry, pair.second = duplicate entry
+	std::vector<std::pair<int, int>> duplicates;
+	duplicates.reserve(nFiles);
 
-	int nUpdate = 0;
-	int nSizeUpdate = 0;
-
-	const size_t numDirRefs = m_Dir.size();
-	TArray<int>* pRefs = NULL;
-	if (!bOptimise)
-		pRefs = new TArray<int>[numDirRefs];
-
-	// Make a list of all references
-	for (i = 0; i < (int)m_Dir.size(); i++)
+	for (int i = 0; i < nFiles; ++i)
 	{
-		SDirEntry* de = &m_Dir[i];
-		if (de->offset < 0)
+		const CDirEntry& curDir = m_Dir[i];
+		for (int j = i + 1; j < nFiles; ++j)
 		{
-			//assert(bOptimise);
-			assert(de->flags & RF_NOTSAVED);
-			bool bFound = false;
-			for (j = 0; j < m_Dir.size(); j++)
+			const CDirEntry& otherDir = m_Dir[j];
+			if (curDir.GetOffset() == otherDir.GetOffset())
 			{
-				if (i == j)
-					continue;
-				SDirEntry* d = &m_Dir[j];
-				if (d->offset == -de->offset)
-				{
-					if (bOptimise)
-					{
-						SDirEntryRef r;
-						r.Name = de->Name;
-						r.ref = d->offset;
-						m_DirRef.push_back(r);
-						mfCloseEntry(de);
-						m_Dir.erase(m_Dir.begin() + i);
-						i--;
-					}
-					else
-						pRefs[j].AddElem(i);
-					bFound = true;
-					break;
-				}
+				if (!curDir.IsDuplicate() && otherDir.IsDuplicate())
+					duplicates.emplace_back(i, j);
+				else if (curDir.IsDuplicate() && !otherDir.IsDuplicate())
+					duplicates.emplace_back(j, i);
 			}
-			assert(bFound);
 		}
 	}
 
-	nSizeDir = m_DirRef.size() * sizeof(SDirEntryRef) + m_Dir.size() * sizeof(SDirEntry);
-
-	const int nFiles = m_Dir.size();
-	long nSeek = m_nOffsDir;
-	for (i = 0; i < nFiles; i++)
+	for (size_t i = 0; i < nFiles; i++)
 	{
-		SDirEntry* de = &m_Dir[i];
-		//assert(de->offset >= 0);
-		if (de->flags & RF_NOTSAVED)
-		{
-			SDirEntryOpen* pOE = mfGetOpenEntry(de);
-			de->flags &= ~RF_NOTSAVED;
-			nUpdate++;
-			nSizeUpdate += de->size;
+		CDirEntry& curDir = m_Dir[i];
 
-			if (de->offset >= 0)
+		if (curDir.flags & RF_NOTSAVED)
+		{
+			SDirEntryOpen* pOE = mfGetOpenEntry(curDir.GetName());
+			CRY_ASSERT(pOE);
+
+			if (!curDir.IsDuplicate())
 			{
 				assert(pOE && pOE->pData);
 				if (!pOE || !pOE->pData)
 					continue;
 				gEnv->pCryPak->FSeek(m_handle, nSeek, SEEK_SET);
-				if (de->flags & RF_COMPRESS)
+				if (curDir.flags & RF_COMPRESS)
 				{
-					byte* buf = NULL;
+					byte* buf = static_cast<byte*>(pOE->pData);
+
 #if RES_COMPRESSION == RESVERSION_LZSS
-					if (!(de->flags & RF_COMPRESSED))
+					if (!(curDir.flags & RF_COMPRESSED))
 					{
-						buf = new byte[de->size * 2 + 128];
+						buf = new byte[curDir.size * 2 + 128];
 						if (!buf)
 						{
 							mfSetError("Flush - Allocation fault");
 							return nSizeDir;
 						}
-						int sizeEnc = Encodem((byte*)pOE->pData, &buf[4], de->size);
-						int nS = de->size;
+
+						// encode buffer size
+						int originalSize = curDir.size;
 						if (m_bSwapEndianWrite)
-							SwapEndian(nS, eBigEndian);
-						*(int*)buf = nS;
-						de->size = sizeEnc + 4;
+							SwapEndian(originalSize, eBigEndian);
+						memcpy(buf, &originalSize, sizeof(int));
+
+						// encode data
+						int sizeEnc = Encodem(static_cast<byte*>(pOE->pData), buf + sizeof(int), curDir.size);
+						curDir.size = sizeEnc + sizeof(int);
 					}
-					else
+					else if (m_bSwapEndianWrite) // swap endianness of encoded data
 					{
-						buf = (byte*)pOE->pData;
-						if (m_bSwapEndianWrite)
-						{
-							int nS = *(int*)buf;
-							SwapEndian(nS, eBigEndian);
-							*(int*)buf = nS;
-						}
+						uint32 nS;
+						memcpy(&nS, buf, sizeof(uint32));
+						SwapEndian(nS, eBigEndian);
+						memcpy(buf, &nS, sizeof(uint32));
 					}
+
 #elif RES_COMPRESSION == RESVERSION_LZMA
 					// we allocate 105% of original size for output buffer
-					if (!(de->flags & RF_COMPRESSED))
+					if (!(curDir.flags & RF_COMPRESSED))
 					{
 						uint32 outSize = de->size / 20 * 21 + (1 << 16);
 						buf = (byte*)MyAlloc(outSize);
@@ -1814,109 +1669,90 @@ int CResFile::mfFlush(bool bOptimise)
 							return nSizeDir;
 						}
 						uint32 dict = 1 << 23;
-						int res = Lzma86_Encode(buf, &outSize, (byte*)pOE->pData, de->size, 5, dict, SZ_FILTER_AUTO);
+						int res = Lzma86_Encode(buf, &outSize, static_cast<byte*>(pOE->pData), curDir.size, 5, dict, SZ_FILTER_AUTO);
 						if (res != 0)
 						{
 							mfSetError("Flush - Encoder error = %d", res);
 							return nSizeDir;
 						}
-						de->size = outSize;
+						curDir.size = outSize;
 					}
-					else
-						buf = (byte*)pOE->pData;
 #elif RES_COMPRESSION == RESVERSION_DEBUG
-					buf = new byte[de->size + 20];
+					buf = new byte[curDir.size + 20];
 					memcpy(buf, ">>rawbuf>>", 10);
-					memcpy(buf + 10, (byte*)pOE->pData, de->size);
-					memcpy(buf + 10 + de->size, "<<rawbuf<<", 10);
-					de->size += 20;
+					memcpy(buf + 10, (byte*)pOE->pData, curDir.sizesize);
+					memcpy(buf + 10 + curDir.size, "<<rawbuf<<", 10);
+					curDir.size += 20;
 #else
 					static_assert(false, "This should never be compiled...");
 #endif
-					if (gEnv->pCryPak->FWrite(buf, 1, de->size, m_handle) != de->size)
+					if (gEnv->pCryPak->FWrite(buf, 1, curDir.size, m_handle) != curDir.size)
 						mfSetError("Flush - Writing fault");
-					if (!(de->flags & RF_COMPRESSED))
+					if (!(curDir.flags & RF_COMPRESSED))
 						delete[] buf;
-					nSizeCompr += de->size;
 				}
-				else if (!pOE->pData || (gEnv->pCryPak->FWrite(pOE->pData, 1, de->size, m_handle) != de->size))
+				else if (!pOE->pData || (gEnv->pCryPak->FWrite(pOE->pData, 1, curDir.size, m_handle) != curDir.size))
 				{
 					mfSetError("Flush - Writing fault");
 					continue;
 				}
 
-				mfCloseEntry(de);
-				if (bOptimise)
-				{
-					for (j = 0; j < m_DirRef.size(); j++)
-					{
-						SDirEntryRef& r = m_DirRef[j];
-						if (r.ref == de->offset)
-						{
-							nUpdate++;
-							r.ref = i;
-						}
-					}
-				}
-				de->offset = nSeek;
-				nSeek += de->size;
+				mfCloseEntry(curDir.GetName(), curDir.flags);
+
+				curDir.offset = nSeek;
+				nSeek += curDir.size;
 			}
+
+			curDir.flags &= ~RF_NOTSAVED;
+			updateCount++;
 		}
-		// Update reference entries
-		if (pRefs)
+	}
+
+	for (const auto& it : duplicates)
+	{
+		const CDirEntry& originalEntry = m_Dir[it.first];
+		CDirEntry& duplicateEntry      = m_Dir[it.second];
+
+		CRY_ASSERT(!originalEntry.IsDuplicate() && duplicateEntry.IsDuplicate());
+	
+		duplicateEntry.offset = originalEntry.GetOffset();
+		duplicateEntry.size   = originalEntry.GetSize();
+		duplicateEntry.flags  = originalEntry.GetFlags() | RF_DUPLICATE;
+
+		updateCount++;
+	}
+
+	if (updateCount > 0)
+	{
+		m_bDirCompressed = false;
+		int sizeDir = mfFlushDir(nSeek);
+		CRY_ASSERT(sizeDir == nSizeDir);
+
+		SFileResHeader frh;
+		frh.hid = IDRESHEADER;
+		int ver = RES_COMPRESSION;
+		frh.ver = ver;
+		frh.num_files = m_Dir.size();
+		frh.ofs_dir = nSeek;
+		m_version = ver;
+		SFileResHeader frhTemp, *pFrh;
+		pFrh = &frh;
+		if (m_bSwapEndianWrite)
 		{
-			PREFAST_ASSUME(i < numDirRefs);
-			for (j = 0; j < pRefs[i].Num(); j++)
-			{
-				nUpdate++;
-				SDirEntry* d = &m_Dir[pRefs[i][j]];
-				d->offset = de->offset;
-				d->size = de->size;
-				d->flags = de->flags;
-				d->flags &= ~RF_NOTSAVED;
-			}
+			frhTemp = frh;
+			SwapEndian(frhTemp, eBigEndian);
+			pFrh = &frhTemp;
 		}
-	}
-	SAFE_DELETE_ARRAY(pRefs);
-
-	if (!nUpdate)
-		return nSizeDir;
-	m_bDirCompressed = false; //bCompressDir;
-	int sizeDir = mfFlushDir(nSeek, bOptimise);
-	assert(sizeDir == nSizeDir);
-
-	frh.hid = IDRESHEADER;
-	int ver = RES_COMPRESSION;
-	frh.ver = ver;
-	frh.num_files = m_Dir.size();
-	frh.num_files_ref = m_DirRef.size();
-	frh.ofs_dir = nSeek;
-	//frh.size_dir = sizeDir;
-	m_version = ver;
-	SFileResHeader frhTemp, * pFrh;
-	pFrh = &frh;
-	if (m_bSwapEndianWrite)
-	{
-		frhTemp = frh;
-		SwapEndian(frhTemp, eBigEndian);
-		pFrh = &frhTemp;
-	}
-	gEnv->pCryPak->FSeek(m_handle, 0, SEEK_SET);
-	if (gEnv->pCryPak->FWrite(pFrh, 1, sizeof(frh), m_handle) != sizeof(frh))
-	{
-		mfSetError("Flush - Writing fault");
-		return nSizeDir;
-	}
-	gEnv->pCryPak->FFlush(m_handle);
-	//if (strstr(m_name, "FPVS") && frh.num_files==4)
-	{
-		//gEnv->pCryPak->FSeek(m_handle, 0, SEEK_END);
-		//int nSize = gEnv->pCryPak->FTell(m_handle);
-		//mfDeactivate();
-		//int nnn = 0;
+		gEnv->pCryPak->FSeek(m_handle, 0, SEEK_SET);
+		if (gEnv->pCryPak->FWrite(pFrh, 1, sizeof(frh), m_handle) != sizeof(frh))
+		{
+			mfSetError("Flush - Writing fault");
+			return nSizeDir;
+		}
+		gEnv->pCryPak->FFlush(m_handle);
 	}
 
-	return sizeDir;
+	return nSizeDir;
 }
 
 int CResFile::Size()
@@ -1926,9 +1762,9 @@ int CResFile::Size()
 	uint32 i;
 	for (i = 0; i < m_Dir.size(); i++)
 	{
-		SDirEntry& DE = m_Dir[i];
-		nSize += sizeof(SDirEntry);
-		SDirEntryOpen* pOE = mfGetOpenEntry(&DE);
+		CDirEntry& DE = m_Dir[i];
+		nSize += sizeof(CDirEntry);
+		SDirEntryOpen* pOE = mfGetOpenEntry(DE.GetName());
 		if (pOE)
 		{
 			nSize += sizeof(SDirEntryOpen);
@@ -1947,146 +1783,6 @@ void CResFile::GetMemoryUsage(ICrySizer* pSizer) const
 	pSizer->AddObject(m_DirOpen);
 }
 
-ResDir* CResFile::mfGetDirectory()
-{
-	return &m_Dir;
-}
-
-//======================================================================
-
-void fpStripExtension(const char* const in, char* const out, const size_t bytes)
-{
-	assert(in && out && (bytes || in == out)); // if this hits, check the call site
-	const size_t inlen = strlen(in);
-	ptrdiff_t len = inlen - 1;
-
-	if (len <= 1)
-	{
-		assert(bytes >= 2); // if this hits, bad buffer was passed in
-		cry_strcpy(out, bytes, in);
-		return;
-	}
-
-	while (in[len])
-	{
-		if (in[len] == '.')
-		{
-			int n = (int)len;
-			while (in[n] != 0)
-			{
-				if (in[n] == '+')
-				{
-					assert(bytes > inlen); // if this hits, bad buffer was passed in
-					cry_strcpy(out, bytes, in);
-					return;
-				}
-				n++;
-			}
-			break;
-		}
-		len--;
-		if (!len)
-		{
-			assert(bytes > inlen); // if this hits, bad buffer was passed in
-			cry_strcpy(out, bytes, in);
-			return;
-		}
-	}
-	assert(bytes > len); // if this hits, bad buffer was passed in
-	cry_strcpy(out, bytes, in, len);
-}
-
-const char* fpGetExtension(const char* in)
-{
-	assert(in); // if this hits, check the call site
-	ptrdiff_t len = strlen(in) - 1;
-	while (len)
-	{
-		if (in[len] == '.')
-			return &in[len];
-		len--;
-	}
-	return NULL;
-}
-
-void fpAddExtension(char* path, const char* extension, size_t bytes)
-{
-	assert(path && extension && bytes); // if this hits, check the call site
-	char* src;
-
-	assert(*path); // if this hits, src underflow
-	src = path + strlen(path) - 1;
-
-	while (*src != '/' && src != path)
-	{
-		if (*src == '.')
-			return;                 // it has an extension
-		src--;
-	}
-
-	assert(bytes > strlen(path) + strlen(extension)); // if this hits, bad buffer was passed in
-	strcat(path, extension);
-}
-
-void fpConvertDOSToUnixName(char* dst, const char* src, size_t bytes)
-{
-	assert(dst && src && bytes); // if this hits, check the call site
-	assert(bytes > strlen(src)); // if this hits, bad buffer was passed in
-	while (*src)
-	{
-		if (*src == '\\')
-			*dst = '/';
-		else
-			*dst = *src;
-		dst++;
-		src++;
-	}
-	*dst = 0;
-}
-
-void fpConvertUnixToDosName(char* dst, const char* src, size_t bytes)
-{
-	assert(dst && src && bytes); // if this hits, check the call site
-	assert(bytes > strlen(src)); // if this hits, bad buffer was passed in
-	while (*src)
-	{
-		if (*src == '/')
-			*dst = '\\';
-		else
-			*dst = *src;
-		dst++;
-		src++;
-	}
-	*dst = 0;
-}
-
-void fpUsePath(const char* name, const char* path, char* dst, size_t bytes)
-{
-	assert(name && dst && bytes); // if this hits, check the call site
-
-	if (!path)
-	{
-		assert(bytes > strlen(name)); // if this hits, bad buffer was passed in
-		strcpy(dst, name);
-		return;
-	}
-
-	assert(bytes > strlen(path)); // if this hits, bad buffer was passed in
-	strcpy(dst, path);
-
-	assert(*path); // if this hits, path underflow
-	char c = path[strlen(path) - 1];
-	if (c != '/' && c != '\\')
-	{
-		assert(bytes > strlen(path) + strlen(name) + 1); // it this hits, bad buffer was passed in
-		strcat(dst, "/");
-	}
-	else
-	{
-		assert(bytes > strlen(path) + strlen(name)); // it this hits, bad buffer was passed in
-	}
-	strcat(dst, name);
-}
 
 #include <CryCore/TypeInfo_impl.h>
 #include "ResFile_info.h"

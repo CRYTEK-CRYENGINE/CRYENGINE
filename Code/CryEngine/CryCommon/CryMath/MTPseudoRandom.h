@@ -43,11 +43,7 @@
 // Feedback about the C++ port should be sent to Jasper Bedaux,
 // see http://www.bedaux.net/mtrand/ for e-mail address and info.
 
-//-------------------------------------------------------------------------
-// History:
-// - 28:7:2005: File created and minor changes by Marco Corbetta
-//
-//*************************************************************************/
+//! \cond INTERNAL
 
 #pragma once
 
@@ -198,3 +194,5 @@ private:
 	CMTRand_int32(const CMTRand_int32&);    //! Made unavailable, as it doesn't make sense.
 	void operator=(const CMTRand_int32&);   //! Made unavailable, as it doesn't make sense.
 };
+
+//! \endcond

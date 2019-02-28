@@ -1,12 +1,12 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2015-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
-namespace pfx2
-{
+#include "../ParticleFeature.h"
+#include "../ParticleDataTypes.h"
+#include "../ParticleSystem.h"
+#include "ParamMod.h"
 
-void KillOnParentDeath(const SUpdateContext& context);
+#include <CrySerialization/IArchive.h>
+#include <CrySerialization/Math.h>
 
-}
-
-#include "FeatureCommonImpl.h"

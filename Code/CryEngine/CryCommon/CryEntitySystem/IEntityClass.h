@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -36,7 +36,8 @@ enum EEntityClassFlags
 	ECLF_DO_NOT_SPAWN_AS_STATIC            = BIT(3),  //!< If set the entity of this class stored as part of the level won't be assigned a static id on creation.
 	ECLF_MODIFY_EXISTING                   = BIT(4),  //!< If set modify an existing class with the same name.
 	ECLF_SEND_SCRIPT_EVENTS_FROM_FLOWGRAPH = BIT(5),  //!< If set send script events to entity from Flowgraph.
-	ECLF_ENTITY_ARCHETYPE                  = BIT(6)   //!< If set this indicate the entity class is actually entity archetype.
+	ECLF_ENTITY_ARCHETYPE                  = BIT(6),  //!< If set this indicate the entity class is actually entity archetype.
+	ECLF_CREATE_PER_CLIENT                 = BIT(7)   //!< If set, an instance of this class will be created for each connecting client
 };
 
 struct IEntityClassRegistryListener;
@@ -114,7 +115,7 @@ struct IEntityClass
 	//! OnSpawnCallback is called when entity of that class is spawned.
 	//! When registering new entity class this callback allow user to execute custom code on entity spawn,
 	//! Like creation and initialization of some default components
-	typedef std::function<bool( IEntity& entity,SEntitySpawnParams& params )> OnSpawnCallback;
+	typedef std::function<bool (IEntity& entity, SEntitySpawnParams& params)> OnSpawnCallback;
 
 	//! UserProxyCreateFunc is a function pointer type,.
 	//! By calling this function EntitySystem can create user defined UserProxy class for an entity in SpawnEntity.
@@ -207,9 +208,9 @@ struct IEntityClass
 	virtual bool FindEventInfo(const char* sEvent, SEventInfo& event) = 0;
 
 	//! Return On spawn callback for the class
-	virtual const OnSpawnCallback&  GetOnSpawnCallback() const = 0;
+	virtual const OnSpawnCallback& GetOnSpawnCallback() const = 0;
 
-	virtual void                         GetMemoryUsage(ICrySizer* pSizer) const = 0;
+	virtual void                   GetMemoryUsage(ICrySizer* pSizer) const = 0;
 	// </interfuscator:shuffle>
 };
 
@@ -250,14 +251,14 @@ struct IEntityClassRegistry
 		IEntityScriptFileHandler*         pScriptFileHandler;
 
 		// Callback function when entity of that class spawns
-		IEntityClass::OnSpawnCallback     onSpawnCallback;
+		IEntityClass::OnSpawnCallback onSpawnCallback;
 
 		//! GUID for the Schematyc runtime class
-		CryGUID                           schematycRuntimeClassGuid;
+		CryGUID schematycRuntimeClassGuid;
 
 		//! Optional FlowGraph factory.
 		//! Entity class will store and reference count flow node factory.
-		struct IFlowNodeFactory*          pIFlowNodeFactory;
+		struct IFlowNodeFactory* pIFlowNodeFactory;
 	};
 
 	virtual ~IEntityClassRegistry(){}
@@ -281,10 +282,10 @@ struct IEntityClassRegistry
 	//! Register standard entity class, if class id not specified (is zero), generate a new class id.
 	//! \return Pointer to the new created and registered IEntityClass interface, or nullptr if failed.
 	virtual IEntityClass* RegisterStdClass(const SEntityClassDesc& entityClassDesc) = 0;
-	
+
 	//! Unregister an entity class.
-//! \return true if successfully unregistered.
-	virtual bool UnregisterStdClass(const CryGUID &classGUID) = 0;
+	//! \return true if successfully unregistered.
+	virtual bool UnregisterStdClass(const CryGUID& classGUID) = 0;
 
 	//! Register a listener.
 	virtual void RegisterListener(IEntityClassRegistryListener* pListener) = 0;

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 #include "stdafx.h"
 
 #include <assert.h>                 // assert()
@@ -953,7 +953,10 @@ ImageObject::~ImageObject()
 
 bool ImageObject::SaveImage(const char* filename, bool bForceDX10) const
 {
-	FILE* const out = fopen(filename, "wb");
+	wstring wideFilename;
+	Unicode::Convert(wideFilename, filename);
+
+	FILE* const out = _wfopen(wideFilename.c_str(), L"wb");
 	if (!out)
 	{
 		RCLogError("%s: failed to create file %s", __FUNCTION__, filename);
@@ -1083,7 +1086,10 @@ bool ImageObject::SaveExtendedData(FILE *out, bool bForceDX10) const
 
 bool ImageObject::LoadImage(const char* filename, bool bForceDX10)
 {
-	FILE* const out = fopen(filename, "rb");
+	wstring wideFilename;
+	Unicode::Convert(wideFilename, filename);
+
+	FILE* const out = _wfopen(wideFilename.c_str(), L"rb");
 	if (!out)
 	{
 		RCLogError("%s: failed to open file %s", __FUNCTION__, filename);

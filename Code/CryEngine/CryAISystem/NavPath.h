@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /********************************************************************
    -------------------------------------------------------------------------
@@ -115,9 +115,6 @@ public:
 	/// path, then std::numeric_limits<float>::max() will be returned
 	float GetDistToSmartObject(bool b2D) const override;
 
-	/// Returns a pointer to a smartobject nav data if the last path point exists and
-	/// its traversal method is one of the animation methods.
-	PathPointDescriptor::SmartObjectNavDataPtr  GetLastPathPointAnimNavSOData() const override;
 	const PathPointDescriptor::OffMeshLinkData* GetLastPathPointMNNSOData() const;
 	/// Sets the value of the previous path point, if it exists
 	void                                        SetPreviousPoint(const PathPointDescriptor& previousPoint) override;
@@ -173,7 +170,7 @@ public:
 	/// Cuts the path at the path point where the next navSO animation should be played.
 	/// The trace goalop will follow the path and play the animation at the target location
 	/// and then regenerate the path to the target.
-	void PrepareNavigationalSmartObjectsForMNM(IAIPathAgent* pAgent);
+	void PrepareNavigationalSmartObjectsForMNM(IEntity* pEntity);
 	/// Reinstates the path removed during the last PrepareNavigationalSmartObjects()
 	void ResurrectRemainingPath();
 
@@ -188,8 +185,11 @@ public:
 	/// These obstacles should already have been expanded if necessary to allow for pass
 	/// radius. Returns false if there was no way to adjust the path (in which case the path
 	/// may be partially adjusted)
-	bool AdjustPathAroundObstacles(const CPathObstacles& obstacles, IAISystem::tNavCapMask navCapMask);
-	bool AdjustPathAroundObstacles(const Vec3& currentpos, const AgentMovementAbility& movementAbility) override;
+	bool AdjustPathAroundObstacles(const CPathObstacles& obstacles, IAISystem::tNavCapMask navCapMask, const INavMeshQueryFilter* pFilter);
+	bool AdjustPathAroundObstacles(const Vec3& currentpos, const AgentMovementAbility& movementAbility, const INavMeshQueryFilter* pFilter) override;
+
+	/// Returns true if the path points can pass the specified filter starting from 'fromPointIndex'
+	virtual bool CanPassFilter(size_t fromPointIndex, const INavMeshQueryFilter* pFilter) override;
 
 	/// Advances path state until it represents agentPos. If allowPathToFinish = false then
 	/// it won't allow the path to finish
@@ -198,11 +198,6 @@ public:
 
 	/// Calculates a target position which is lookAhead along the path,
 	Vec3 CalculateTargetPos(Vec3 agentPos, float lookAhead, float minLookAheadAlongPath, float pathRadius, bool twoD) const override;
-	/// Returns true if the path can be modified to use request.targetPoint, and byproducts
-	/// of the test are cached in request.
-	ETriState CanTargetPointBeReached(CTargetPointRequest& request, const CAIActor* pAIActor, bool twoD) const override;
-	/// Returns true if the request is still valid/can be used, false otherwise.
-	bool      UseTargetPointRequest(const CTargetPointRequest& request, CAIActor* pAIActor, bool twoD) override;
 
 private:
 	// Hiding these virtual methods here, so they are only accessible through the INavPath interface
@@ -219,10 +214,10 @@ private:
 
 	/// Makes the path avoid a single obstacle - return false if this is impossible.
 	/// It only works on m_pathPoints.
-	bool  AdjustPathAroundObstacle(const CPathObstacle& obstacle, IAISystem::tNavCapMask navCapMask);
-	bool  AdjustPathAroundObstacleShape2D(const SPathObstacleShape2D& obstacle, IAISystem::tNavCapMask navCapMask);
-	bool  CheckPath(const TPathPoints& pathList, float radius) const;
-	void  MovePathEndsOutOfObstacles(const CPathObstacles& obstacles);
+	bool  AdjustPathAroundObstacle(const CPathObstacle& obstacle, IAISystem::tNavCapMask navCapMask, const INavMeshQueryFilter* pFilter);
+	bool  AdjustPathAroundObstacleShape2D(const SPathObstacleShape2D& obstacle, IAISystem::tNavCapMask navCapMask, const INavMeshQueryFilter* pFilter);
+	bool  CheckPath(const TPathPoints& pathList, float radius, const INavMeshQueryFilter* pFilter) const;
+	void  MovePathEndsOutOfObstacles(const CPathObstacles& obstacles, const INavMeshQueryFilter* pFilter);
 
 	float GetPathDeviationDistance(Vec3& deviationOut, float criticalDeviation, bool twoD);
 

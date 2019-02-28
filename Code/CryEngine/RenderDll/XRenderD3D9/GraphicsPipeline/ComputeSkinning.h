@@ -1,4 +1,4 @@
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -89,13 +89,16 @@ struct SPerMeshResources : public compute_skinning::IPerMeshDataSupply
 
 	enum SState
 	{
-		sState_NonInitialized,
-		sState_PartlyInitialized,
-		sState_FullyInitialized
+		sState_NonInitialized     = 0,
+
+		sState_PosesInitialized   = BIT(0),
+		sState_WeightsInitialized = BIT(1),
+		sState_MorphsInitialized  = BIT(2)
 	};
-	volatile int state;
-	SPerMeshResources() : state(0){}
-	bool IsFullyInitialized() const { return state == sState_FullyInitialized; }
+
+	std::atomic<uint32> uploadState;
+	SPerMeshResources() : uploadState(sState_NonInitialized) {}
+	bool IsInitialized(uint32 wantedState) const { return (uploadState & wantedState) == wantedState; }
 
 	// per mesh data supply implementation
 	virtual void PushMorphs(const int numMorps, const int numMorphsBitField, const Vec4* morphsDeltas, const uint64* morphsBitField) override;
@@ -112,13 +115,13 @@ struct SPerInstanceResources
 	CComputeRenderPass passDeformWithMorphs;
 	CComputeRenderPass passTriangleTangents;
 	CComputeRenderPass passVertexTangents;
-	int                lastFrameInUse;
+	int64              lastFrameInUse;
 
 	size_t             GetSizeBytes();
 
 	// output data
-	gpu::CTypedResource<SComputeShaderSkinVertexOut, gpu::BufferFlagsReadWrite> verticesOut;
-	gpu::CTypedResource<SComputeShaderTriangleNT, gpu::BufferFlagsReadWrite>    tangentsOut;
+	gpu::CStructuredResource<SComputeShaderSkinVertexOut, gpu::BufferFlagsReadWrite> verticesOut;
+	gpu::CStructuredResource<SComputeShaderTriangleNT, gpu::BufferFlagsReadWrite>    tangentsOut;
 };
 
 class CStorage : public compute_skinning::IComputeSkinningStorage
@@ -128,9 +131,9 @@ public:
 	virtual CGpuBuffer*                    GetOutputVertices(const void* pCustomTag) override;
 
 	void                                   RetirePerMeshResources();
-	void                                   RetirePerInstanceResources();
+	void                                   RetirePerInstanceResources(int64 frameId);
 	std::shared_ptr<SPerMeshResources>     GetPerMeshResources(CRenderMesh* pMesh);
-	std::shared_ptr<SPerInstanceResources> GetOrCreatePerInstanceResources(const void* pCustomTag, const int numVertices, const int numTriangles);
+	std::shared_ptr<SPerInstanceResources> GetOrCreatePerInstanceResources(int64 frameId,const void* pCustomTag, const int numVertices, const int numTriangles);
 	void                                   DebugDraw();
 
 private:
@@ -150,16 +153,18 @@ class CComputeSkinningStage : public CGraphicsPipelineStage
 {
 public:
 	CComputeSkinningStage();
-	virtual void                               Init() override;
-	virtual void                               Prepare(CRenderView* pRenderView) override;
 
-	void                                       Execute(CRenderView* pRenderView);
+	void Update() final;
+	void Prepare();
+	void Execute();
+	void PreDraw();
 
 	compute_skinning::IComputeSkinningStorage& GetStorage() { return m_storage; }
-private:
-	void                                       DispatchComputeShaders(CRenderView* pRenderView);
-	void                                       SetupDeformPass();
 
+private:
 	compute_skinning::CStorage m_storage;
+
+#if !defined(_RELEASE) // !NDEBUG
 	int32                      m_oldFrameIdExecute = -1;
+#endif
 };

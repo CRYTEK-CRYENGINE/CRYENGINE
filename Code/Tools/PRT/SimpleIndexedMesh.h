@@ -10,8 +10,10 @@
 #include "PRTTypes.h"
 #include "SHFrameworkBasis.h"
 #include "TransferParameters.h"
-#include "MeshCoefficientStreams.h"
 #include "ISHMaterial.h"
+#include "ObjFace.h"
+#include "SHCompressionInfo.h"
+#include "SHRotate.h"
 
 namespace NSH
 {
@@ -54,19 +56,6 @@ struct CObjCoor
 	bool operator == (CObjCoor& rOther);	//!< compare operator
 	CObjCoor(const float cS, const float cT);
 	CObjCoor();
-};
-
-/************************************************************************************************************************************************/
-
-struct CObjFace
-{
-	INSTALL_CLASS_NEW(CObjFace)
-
-	int v[3];										//!< 3 position indices
-	int t[3];										//!< 3 texture indices
-	int n[3];										//!< 3 normal indices
-	int shaderID;							//!< material identifier index into m_ObjMaterials
-	CObjFace() : shaderID(-1){};
 };
 
 /************************************************************************************************************************************************/

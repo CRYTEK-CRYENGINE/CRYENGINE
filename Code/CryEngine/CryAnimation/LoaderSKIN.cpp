@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "LoaderCHR.h"
@@ -535,18 +535,18 @@ bool CSkin::LoadNewSKIN(const char* szFilePath, uint32 nLoadingFlags)
 		// fill vcloth data
 		if (isVCloth)
 		{
-			m_VClothData.m_lra.resize(cgfs.m_arrContentCGF[0]->GetVClothInfo()->m_vertices.size());
+			m_VClothData.m_nndc.resize(cgfs.m_arrContentCGF[0]->GetVClothInfo()->m_vertices.size());
 			m_VClothData.m_listBendTriangles.resize(cgfs.m_arrContentCGF[0]->GetVClothInfo()->m_triangles.size());
 			m_VClothData.m_listBendTrianglePairs.resize(cgfs.m_arrContentCGF[0]->GetVClothInfo()->m_trianglePairs.size());
-			m_VClothData.m_lraNotAttachedOrderedIdx.resize(cgfs.m_arrContentCGF[0]->GetVClothInfo()->m_lraNotAttachedOrderedIdx.size());
+			m_VClothData.m_nndcNotAttachedOrderedIdx.resize(cgfs.m_arrContentCGF[0]->GetVClothInfo()->m_nndcNotAttachedOrderedIdx.size());
 
 			{
-				auto itLra = m_VClothData.m_lra.begin();
-				for (auto it = cgfs.m_arrContentCGF[0]->GetVClothInfo()->m_vertices.begin(); it != cgfs.m_arrContentCGF[0]->GetVClothInfo()->m_vertices.end(); it++, itLra++)
+				auto itNndc = m_VClothData.m_nndc.begin();
+				for (auto it = cgfs.m_arrContentCGF[0]->GetVClothInfo()->m_vertices.begin(); it != cgfs.m_arrContentCGF[0]->GetVClothInfo()->m_vertices.end(); it++, itNndc++)
 				{
-					itLra->lraDist = it->attributes.lraDist;
-					itLra->lraIdx = it->attributes.lraIdx;
-					itLra->lraNextParent = it->attributes.lraNextParent;
+					itNndc->nndcDist = it->attributes.nndcDist;
+					itNndc->nndcIdx = it->attributes.nndcIdx;
+					itNndc->nndcNextParent = it->attributes.nndcNextParent;
 				}
 			}
 
@@ -575,10 +575,10 @@ bool CSkin::LoadNewSKIN(const char* szFilePath, uint32 nLoadingFlags)
 			}
 
 			{
-				auto itL = m_VClothData.m_lraNotAttachedOrderedIdx.begin();
-				for (auto it = cgfs.m_arrContentCGF[0]->GetVClothInfo()->m_lraNotAttachedOrderedIdx.begin(); it != cgfs.m_arrContentCGF[0]->GetVClothInfo()->m_lraNotAttachedOrderedIdx.end(); it++, itL++)
+				auto itL = m_VClothData.m_nndcNotAttachedOrderedIdx.begin();
+				for (auto it = cgfs.m_arrContentCGF[0]->GetVClothInfo()->m_nndcNotAttachedOrderedIdx.begin(); it != cgfs.m_arrContentCGF[0]->GetVClothInfo()->m_nndcNotAttachedOrderedIdx.end(); it++, itL++)
 				{
-					*itL = it->lraNotAttachedOrderedIdx;
+					*itL = it->nndcNotAttachedOrderedIdx;
 				}
 			}
 

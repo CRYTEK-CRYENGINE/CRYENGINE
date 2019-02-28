@@ -1,16 +1,22 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 using System;
 using System.Globalization;
+using System.Runtime.InteropServices;
 using CryEngine.Common;
 
 namespace CryEngine
 {
+	[StructLayout(LayoutKind.Sequential)]
 	public struct Vector4 : IEquatable<Vector4>
 	{
+		[MarshalAs(UnmanagedType.R4)]
 		private float _x;
+		[MarshalAs(UnmanagedType.R4)]
 		private float _y;
+		[MarshalAs(UnmanagedType.R4)]
 		private float _z;
+		[MarshalAs(UnmanagedType.R4)]
 		private float _w;
 
 		public float x { get { return _x; } set { _x = value; } }

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -38,7 +38,7 @@
 #include "ItemScheduler.h"
 #include "Utility/CryWatch.h"
 
-#include <CryExtension/ICryPluginManager.h>
+#include <CrySystem/ICryPluginManager.h>
 #include <CrySystem/File/ICryPak.h>
 #include <CryString/CryPath.h>
 #include <IActionMapManager.h>
@@ -363,8 +363,8 @@ public:
 
 		if (3000 < nDrawCalls)
 		{
-			gEnv->pRenderer->SetColorOp(eCO_MODULATE, eCO_MODULATE, DEF_TEXARG0, DEF_TEXARG0);
-			gEnv->pRenderer->SetState(GS_BLSRC_SRCALPHA | GS_BLDST_ONEMINUSSRCALPHA | GS_NODEPTHTEST);
+			//gEnv->pRenderer->SetColorOp(eCO_MODULATE, eCO_MODULATE, DEF_TEXARG0, DEF_TEXARG0);
+			//gEnv->pRenderer->SetState(GS_BLSRC_SRCALPHA | GS_BLDST_ONEMINUSSRCALPHA | GS_NODEPTHTEST);
 
 			float alpha = max(0.0f, min(1.0f, (nDrawCalls - 3000) / 2000.0f));
 			float reddy = max(0.0f, min(1.0f, (nDrawCalls - 4000) / 3000.0f));
@@ -408,8 +408,8 @@ public:
 			//x = w * 0.25f - m_Textures[0]->GetWidth() * scalef * 0.5f;
 			//y = h * 0.5f - m_Textures[0]->GetHeight() * scalef * 0.5f;
 
-			gEnv->pRenderer->Draw2dImage(0.f, 200.f, m_Textures[0]->GetWidth() * scalef, m_Textures[0]->GetHeight() * scalef, m_Textures[0]->GetTextureID(), 0.0f, 0.0f, 1.0f, 1.0f, 180.0f, 1.0f, 1.0f - m_DrawCallData.redValue, 1.0f - m_DrawCallData.redValue, m_DrawCallData.lastAlpha, 0.9f);
-			gEnv->pRenderer->Draw2dImage(0.f, 200.f, m_Textures[1]->GetWidth() * scalef, m_Textures[1]->GetHeight() * scalef, m_Textures[1]->GetTextureID(), 0.0f, 0.0f, 1.0f, 1.0f, 180.0f, 1.0f, 1.0f, 1.0f, m_DrawCallData.redValue, 1.0f);
+			IRenderAuxImage::Draw2dImage(0.f, 200.f, m_Textures[0]->GetWidth() * scalef, m_Textures[0]->GetHeight() * scalef, m_Textures[0]->GetTextureID(), 0.0f, 0.0f, 1.0f, 1.0f, 180.0f, 1.0f, 1.0f - m_DrawCallData.redValue, 1.0f - m_DrawCallData.redValue, m_DrawCallData.lastAlpha, 0.9f);
+			IRenderAuxImage::Draw2dImage(0.f, 200.f, m_Textures[1]->GetWidth() * scalef, m_Textures[1]->GetHeight() * scalef, m_Textures[1]->GetTextureID(), 0.0f, 0.0f, 1.0f, 1.0f, 180.0f, 1.0f, 1.0f, 1.0f, m_DrawCallData.redValue, 1.0f);
 		}
 		else
 		{
@@ -595,7 +595,12 @@ CGame::~CGame()
 
 	gEnv->pGameFramework->EndGameContext();
 	gEnv->pGameFramework->UnregisterListener(this);
-	GetISystem()->GetPlatformOS()->RemoveListener(this);
+
+	if (IPlatformOS* pPlatformOS = GetISystem()->GetPlatformOS())
+	{
+		pPlatformOS->RemoveListener(this);
+	}
+
 	gEnv->pSystem->GetISystemEventDispatcher()->RemoveListener(this);
 	ReleaseScriptBinds();
 
@@ -705,8 +710,6 @@ CGame::~CGame()
 			pLobby->Terminate(eCLS_Online, eCLSO_All, NULL, NULL);
 		}
 	}
-
-	gEnv->pSystem->UnloadEngineModule("CryLobby");
 
 	GAME_FX_SYSTEM.Destroy();
 
@@ -862,10 +865,9 @@ bool CGame::Init(/*IGameFramework* pFramework*/)
 
 		if (gEnv->IsDedicated())
 		{
-			const char* const DEDICATED_BASE_CONFIG_NAME = "dedicated";
-			string path = gEnv->pSystem->GetRootFolder();
+			const char* const szDedicatedBaseConfigName = "dedicated.cfg";
+			const string configFileName = PathUtil::Make(gEnv->pSystem->GetRootFolder(), szDedicatedBaseConfigName);
 
-			configFileName.Format("%s%s.cfg", path.c_str(), DEDICATED_BASE_CONFIG_NAME);
 			CryLog("[dedicated] loading dedicated config %s", configFileName.c_str());
 
 			SDedicatedConfigSink sink;
@@ -927,12 +929,7 @@ bool CGame::Init(/*IGameFramework* pFramework*/)
 		}
 #endif
 
-		if (!gEnv->pSystem->InitializeEngineModule("CryLobby", cryiidof<ILobbyEngineModule>(), false))
-		{
-			CryWarning(VALIDATOR_MODULE_GAME, VALIDATOR_ERROR, "Error creating Lobby System!");
-		}
-
-		auto pLobby = gEnv->pNetwork->GetLobby();
+		ICryLobby* pLobby = gEnv->pNetwork->GetLobby();
 		if (pLobby)
 		{
 			pLobby->SetUserPacketEnd(eGUPD_End);
@@ -1420,7 +1417,9 @@ void CGame::InitGameType(bool multiplayer, bool fromInit /*= false*/)
 		EPlatform platform = GetPlatform();
 		switch (platform)
 		{
-		case ePlatform_PC:
+			case EPlatform::Windows:
+			case EPlatform::Linux:
+			case EPlatform::MacOS:
 			{
 				mpConfigName = "multiplayer_pc";
 				break;
@@ -2464,7 +2463,7 @@ int CGame::Update(bool haveFocus, unsigned int updateFlags) PREFAST_SUPPRESS_WAR
 	{
 		if (m_pRayCaster)
 		{
-			FRAME_PROFILER("GlobalRayCaster", gEnv->pSystem, PROFILE_AI);
+			CRY_PROFILE_REGION(PROFILE_GAME, "GlobalRayCaster");
 
 			m_pRayCaster->SetQuota(g_pGameCVars->g_gameRayCastQuota);
 			m_pRayCaster->Update(frameTime);
@@ -2472,7 +2471,7 @@ int CGame::Update(bool haveFocus, unsigned int updateFlags) PREFAST_SUPPRESS_WAR
 
 		if (m_pIntersectionTester)
 		{
-			FRAME_PROFILER("GlobalIntersectionTester", gEnv->pSystem, PROFILE_AI);
+			CRY_PROFILE_REGION(PROFILE_GAME, "GlobalIntersectionTester");
 
 			m_pIntersectionTester->SetQuota(g_pGameCVars->g_gameIntersectionTestQuota);
 			m_pIntersectionTester->Update(frameTime);
@@ -3144,17 +3143,7 @@ const char* CGame::GetName()
 
 EPlatform CGame::GetPlatform() const
 {
-	EPlatform platform = ePlatform_Unknown;
-
-#if CRY_PLATFORM_WINDOWS || CRY_PLATFORM_DURANGO || CRY_PLATFORM_APPLE || CRY_PLATFORM_LINUX || CRY_PLATFORM_ANDROID
-	platform = ePlatform_PC;
-#elif CRY_PLATFORM_ORBIS
-	platform = ePlatform_PS4;
-#else
-	#error Unsupported Platform
-#endif
-
-	return platform;
+	return EPlatform::Current;
 }
 
 void CGame::InitPlatformOS()
@@ -3634,7 +3623,7 @@ void CGame::OnActionEvent(const SActionEvent& event)
 		break;
 	case eAE_disconnectCommandFinished:
 #if CRY_PLATFORM_DURANGO
-		if (!g_pGame->GetGameLobby()->IsCurrentlyInSession())
+		if (g_pGame->GetGameLobby() && !g_pGame->GetGameLobby()->IsCurrentlyInSession())
 		{
 			EnsureSigninState();
 		}
@@ -4905,13 +4894,8 @@ void CGame::OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_PTR lparam)
 
 			if (gEnv->pScriptSystem)
 			{
-				static bool physicsLuaLoaded = false;
-				if (!physicsLuaLoaded)
-				{
-					// Load explosion shapes.
-					gEnv->pScriptSystem->ExecuteFile("scripts/physics.lua", true, true);
-					physicsLuaLoaded = true;
-				}
+				// Load explosion shapes.
+				gEnv->pScriptSystem->ExecuteFile("scripts/physics.lua", true, true);
 			}
 		}
 		break;

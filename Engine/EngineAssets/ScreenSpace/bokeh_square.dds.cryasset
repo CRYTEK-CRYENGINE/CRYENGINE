@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="24dba637-c03b-16e7-0608-ae28ddc012bf" source="bokeh_square.TIF">
+ <Files>
+  <File path="bokeh_square.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">64</Detail>
+  <Detail name="height">64</Detail>
+  <Detail name="mipCount">1</Detail>
+ </Details>
+</AssetMetadata>

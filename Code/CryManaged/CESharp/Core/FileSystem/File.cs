@@ -1,4 +1,6 @@
-﻿using System;
+﻿// Copyright 2001-2017 Crytek GmbH / CrytekGroup. All rights reserved.
+
+using System;
 using System.IO;
 using System.Runtime.InteropServices;
 using CryEngine.Common;
@@ -73,7 +75,7 @@ namespace CryEngine.FileSystem
 				throw new ArgumentNullException(nameof(handle));
 			}
 
-			Global.gEnv.pCryPak.FClose(handle);
+			Global.gEnv.pCryPak.FClose(handle.NativeHandle);
 		}
 
 		/// <summary>
@@ -104,7 +106,7 @@ namespace CryEngine.FileSystem
 			{
 				var cryPakHandle = GetCryPakHandle();
 				var dataHandle = new HandleRef(pinner.Handle, pinner.Handle.AddrOfPinnedObject());
-				var fileHandle = GetFileHandle(handle);
+				var fileHandle = GetFileHandle(handle.NativeHandle);
 
 				var bytesRead = GlobalPINVOKE.ICryPak_FReadRaw(cryPakHandle, dataHandle, sizeof(byte), length, fileHandle);
 
@@ -124,17 +126,17 @@ namespace CryEngine.FileSystem
 			string sMode = "";
 			switch(mode)
 			{
-			case FileMode.Binary:
-				sMode = "rb";
-				break;
+				case FileMode.Binary:
+					sMode = "rb";
+					break;
 
-			case FileMode.PlainText:
-				sMode = "rt";
-				break;
+				case FileMode.PlainText:
+					sMode = "rt";
+					break;
 
-			case FileMode.DirectAccess:
-				sMode = "rbx";
-				break;
+				case FileMode.DirectAccess:
+					sMode = "rbx";
+					break;
 			}
 
 			var fileHandle = Global.gEnv.pCryPak.FOpen(path, sMode);
@@ -154,7 +156,7 @@ namespace CryEngine.FileSystem
 				return 0;
 			}
 
-			return Global.gEnv.pCryPak.FGetSize(handle);
+			return Global.gEnv.pCryPak.FGetSize(handle.NativeHandle);
 		}
 
 		private static HandleRef GetCryPakHandle()
@@ -165,5 +167,6 @@ namespace CryEngine.FileSystem
 		private static HandleRef GetFileHandle(_CrySystem_cs_SWIGTYPE_p_FILE handle)
 		{
 			return _CrySystem_cs_SWIGTYPE_p_FILE.getCPtr(handle);
-		}	}
+		}
+	}
 }

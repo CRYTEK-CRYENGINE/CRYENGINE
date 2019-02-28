@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
 	-------------------------------------------------------------------------
@@ -1570,9 +1570,9 @@ void CGameRules::HandleEvent( const SGameObjectEvent& event)
 }
 
 //------------------------------------------------------------------------
-void CGameRules::ProcessEvent( SEntityEvent& event)
+void CGameRules::ProcessEvent( const SEntityEvent& event)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	static ICVar* pTOD = gEnv->pConsole->GetCVar("sv_timeofdayenable");
 
@@ -1673,10 +1673,6 @@ void CGameRules::ProcessEvent( SEntityEvent& event)
 
 		break;
 	}
-  case ENTITY_EVENT_POST_SERIALIZE:
-    {
-      break;
-    }
 	case ENTITY_EVENT_START_GAME:
 	{
 		m_timeOfDayInitialized = false;
@@ -1772,6 +1768,11 @@ void CGameRules::ProcessEvent( SEntityEvent& event)
 		break;
 	}
 
+}
+
+uint64 CGameRules::GetEventMask() const
+{
+	return ENTITY_EVENT_BIT(ENTITY_EVENT_PRE_SERIALIZE) | ENTITY_EVENT_BIT(ENTITY_EVENT_RESET) | ENTITY_EVENT_BIT(ENTITY_EVENT_START_GAME) | ENTITY_EVENT_BIT(ENTITY_EVENT_ENTER_SCRIPT_STATE);
 }
 
 //------------------------------------------------------------------------
@@ -5505,7 +5506,7 @@ float CGameRules::GetServerTime() const
 //------------------------------------------------------------------------
 bool CGameRules::OnCollision(const SGameCollision& event)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	CWeaponSystem* pWeaponSystem = g_pGame->GetWeaponSystem();
 	CProjectile* pProjectileSrc = pWeaponSystem && event.pSrcEntity ? pWeaponSystem->GetProjectile(event.pSrcEntity->GetId()) : 0;
@@ -5672,7 +5673,7 @@ bool CGameRules::OnCollision(const SGameCollision& event)
 
 void CGameRules::OnCollision_NotifyAI( const EventPhys * pEvent )
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 	// Skip the collision handling if there is no AI system or when in multi-player.
 	if (!gEnv->pAISystem || (gEnv->bMultiplayer && !gEnv->bServer)) // Márcio: Enabling AI in Multiplayer!
 		return;
@@ -6923,7 +6924,7 @@ void CGameRules::UpdateEntitySchedules(float frameTime)
 			AABB aabb;
 			pEntity->GetWorldBounds(aabb);
 
-			CCamera &camera=m_pSystem->GetViewCamera();
+			const CCamera &camera = m_pSystem->GetViewCamera();
 			if (camera.IsAABBVisible_F(aabb))
 			{
 				removal.timer=removal.time;
@@ -8246,7 +8247,7 @@ void CGameRules::OnComplete(SHostMigrationInfo& hostMigrationInfo)
 }
 
 //------------------------------------------------------------------------
-void CGameRules::OnEntityEvent( IEntity *pEntity, SEntityEvent &event )
+void CGameRules::OnEntityEvent( IEntity *pEntity, const SEntityEvent &event )
 {
 	if (event.event == ENTITY_EVENT_DONE)
 	{
@@ -8996,19 +8997,6 @@ void CGameRules::OnSystemEvent( ESystemEvent event,UINT_PTR wparam,UINT_PTR lpar
 				if(CEquipmentLoadout* pEquipmentLoadout = g_pGame->GetEquipmentLoadout())
 				{
 					pEquipmentLoadout->ReleaseStreamedFPGeometry( CEquipmentLoadout::ePGE_All );
-				}
-			}
-			break;
-		case ESYSTEM_EVENT_SW_SHIFT_WORLD:
-			{
-				if(!gEnv->bMultiplayer && gEnv->bServer)
-					break;
-
-				IActorIteratorPtr actorIt = g_pGame->GetIGameFramework()->GetIActorSystem()->CreateActorIterator();
-				IActor *pActor;
-				while (pActor = actorIt->Next())
-				{
-					pActor->OnShiftWorld();
 				}
 			}
 			break;

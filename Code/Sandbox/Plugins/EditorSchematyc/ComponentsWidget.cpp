@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "ComponentsWidget.h"
@@ -24,7 +24,7 @@
 #include <QAbstractItemModel>
 #include <QStyledItemDelegate>
 #include <QVBoxLayout>
-#include <QTreeView>
+#include <QAdvancedTreeView.h>
 #include <QLabel>
 #include <QString>
 #include <QHelpEvent>
@@ -324,7 +324,7 @@ CComponentsWidget::CComponentsWidget(CMainWindow& editor, QWidget* pParent)
 	pToolBar->addWidget(pSpacer);
 	pToolBar->addWidget(m_pAddButton);
 
-	m_pComponentsList = new QTreeView();
+	m_pComponentsList = new QAdvancedTreeView();
 	m_pComponentsList->setContextMenuPolicy(Qt::CustomContextMenu);
 	m_pComponentsList->setSelectionMode(QAbstractItemView::SingleSelection);
 	m_pComponentsList->setSelectionBehavior(QAbstractItemView::SelectRows);
@@ -511,7 +511,7 @@ void CComponentsWidget::OnContextMenu(const QPoint& point)
 	else
 	{
 		if (m_pModel)
-			m_pContextMenuContent->SetDictionary(m_pModel->GetAvailableComponentsDictionary());
+			m_pContextMenuContent->AddDictionary(*m_pModel->GetAvailableComponentsDictionary());
 
 		m_pContextMenu->ShowAt(menuPos);
 	}
@@ -522,7 +522,7 @@ void CComponentsWidget::OnAddButton(bool checked)
 	const QPoint menuPos = m_pAddButton->mapToGlobal(m_pAddButton->mapFromParent(m_pAddButton->pos()));
 
 	if (m_pModel)
-		m_pContextMenuContent->SetDictionary(m_pModel->GetAvailableComponentsDictionary());
+		m_pContextMenuContent->AddDictionary(*m_pModel->GetAvailableComponentsDictionary());
 
 	m_pContextMenu->ShowAt(menuPos, QPopupWidget::TopRight);
 }
@@ -596,3 +596,4 @@ void CComponentsWidget::customEvent(QEvent* pEvent)
 }
 
 }
+

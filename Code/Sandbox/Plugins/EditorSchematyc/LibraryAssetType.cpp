@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "LibraryAssetType.h"
@@ -42,7 +42,7 @@ bool CLibraryAssetType::OnCreate(CEditableAsset& editAsset, const void* /*pTypeS
 
 CAssetEditor* CLibraryAssetType::Edit(CAsset* pAsset) const
 {
-	return CAssetEditor::OpenAssetForEdit("Schematyc Editor", pAsset);
+	return CAssetEditor::OpenAssetForEdit("Schematyc Editor (Experimental)", pAsset);
 }
 
 bool CLibraryAssetType::RenameAsset(CAsset* pAsset, const char* szNewName) const
@@ -104,3 +104,4 @@ Schematyc::IScript* CLibraryAssetType::GetScript(const CAsset& asset) const
 	return nullptr;
 }
 }
+

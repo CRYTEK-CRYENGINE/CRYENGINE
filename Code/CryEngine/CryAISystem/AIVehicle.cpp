@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "AIVehicle.h"
@@ -8,7 +8,6 @@
 #include <CrySystem/ISystem.h>
 
 #include <CrySystem/IConsole.h>
-#include "VertexList.h"
 #include <vector>
 #include <algorithm>
 #include <CryMath/Cry_Vector2.h>
@@ -54,7 +53,7 @@ void CAIVehicle::UpdateDisabled(EUpdateType type)
 //---------------------------------------------------------------------------------------------------------
 void CAIVehicle::Update(EUpdateType type)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 	CCCPOINT(CAIVehicle_Update);
 
 	m_driverInsideCheck = -1;
@@ -78,7 +77,7 @@ void CAIVehicle::Update(EUpdateType type)
 
 	if (!m_bDryUpdate)
 	{
-		FRAME_PROFILER("AI system vehicle full update", gEnv->pSystem, PROFILE_AI);
+		CRY_PROFILE_REGION(PROFILE_AI, "AI system vehicle full update");
 
 		CTimeValue fCurrentTime = GetAISystem()->GetFrameStartTime();
 		if (m_fLastUpdateTime.GetSeconds() > 0.0f)
@@ -294,7 +293,7 @@ bool CAIVehicle::CheckExplosion(const Vec3& vTargetPos, const Vec3& vFirePos, co
 // decides whether fire or not
 void CAIVehicle::FireCommand(void)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	// basic filters
 
@@ -858,7 +857,7 @@ void CAIVehicle::Navigate(CAIObject* pTarget)
 
 void CAIVehicle::AlertPuppets(void)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	if (GetSubType() != CAIObject::STP_CAR)
 		return;
@@ -1144,7 +1143,7 @@ bool CAIVehicle::HandleVerticalMovement(const Vec3& targetPos)
 //------------------------------------------------------------------------------------------------------------------
 bool CAIVehicle::IsDriverInside() const
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 	if (m_bEnabled)
 		return true;
 	if (m_driverInsideCheck == -1)
@@ -1156,7 +1155,7 @@ bool CAIVehicle::IsDriverInside() const
 //------------------------------------------------------------------------------------------------------------------
 bool CAIVehicle::IsPlayerInside()
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 	if (m_bEnabled)
 		return true;
 	if (m_playerInsideCheck == -1)

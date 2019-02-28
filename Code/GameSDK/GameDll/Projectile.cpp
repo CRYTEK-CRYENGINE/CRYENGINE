@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "Game.h"
@@ -28,6 +28,7 @@
 #include "AI/HazardModule/HazardModule.h"
 #include "AI/GameAIEnv.h"
 #include <IPerceptionManager.h>
+#include <CryAISystem/IAIObjectManager.h>
 
 #include "GameCodeCoverage/GameCodeCoverageTracker.h"
 #include "Weapon.h"
@@ -633,7 +634,7 @@ void CProjectile::FullSerialize(TSerialize ser)
 //------------------------------------------------------------------------
 void CProjectile::Update(SEntityUpdateContext& ctx, int updateSlot)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	CRY_ASSERT_MESSAGE(!RequiresDelayedDestruct() || gEnv->bMultiplayer, "The mpProjectileDestructDelay ammo params should only ever be greater than zero in Multiplayer");
 
@@ -721,7 +722,7 @@ void CProjectile::HandleEvent(const SGameObjectEvent& event)
 		return;
 	}
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	if (event.event == eGFE_OnPostStep && (event.flags & eGOEF_LoggedPhysicsEvent) == 0)
 	{
@@ -823,7 +824,7 @@ bool CProjectile::ProcessCollisionEvent(IEntity* pTarget) const
 }
 
 //------------------------------------------------------------------------
-void CProjectile::ProcessEvent(SEntityEvent& event)
+void CProjectile::ProcessEvent(const SEntityEvent& event)
 {
 	switch (event.event)
 	{
@@ -858,6 +859,11 @@ void CProjectile::ProcessEvent(SEntityEvent& event)
 		}
 		break;
 	}
+}
+
+uint64 CProjectile::GetEventMask() const
+{
+	return ENTITY_EVENT_BIT(ENTITY_EVENT_TIMER);
 }
 
 //------------------------------------------------------------------------
@@ -1121,8 +1127,8 @@ void CProjectile::Destroy()
 			m_mpDestructionDelay = m_pAmmoParams->mpProjectileDestructDelay;
 		}
 		SetProjectileFlags(ePFlag_needDestruction);
-		GetEntity()->RegisterInAISystem(AIObjectParams(0));                         // unregister from AI. Will be removed from active list when hidden otherwise (see EvaluateUpdateActivation)
-		GetEntity()->SetFlags(GetEntity()->GetFlags() | ENTITY_FLAG_UPDATE_HIDDEN); // Bugfix for grenades persisting on client after exploding.
+		gEnv->pAISystem->GetAIObjectManager()->RemoveObjectByEntityId(GetEntityId()); // unregister from AI. Will be removed from active list when hidden otherwise (see EvaluateUpdateActivation)
+		GetEntity()->SetFlags(GetEntity()->GetFlags() | ENTITY_FLAG_UPDATE_HIDDEN);   // Bugfix for grenades persisting on client after exploding.
 		GetEntity()->Hide(true);
 		return;
 	}
@@ -1413,14 +1419,14 @@ void CProjectile::UpdateWhiz(const Vec3& pos, bool destroy)
 //------------------------------------------------------------------------
 void CProjectile::WhizSound(const Vec3& pos)
 {
-	CryAudio::SExecuteTriggerData const data("WhizBy", CryAudio::EOcclusionType::Ignore, pos, true, m_whizTriggerID);
+	CryAudio::SExecuteTriggerData const data(m_whizTriggerID, "WhizBy", CryAudio::EOcclusionType::Ignore, pos, INVALID_ENTITYID, true);
 	gEnv->pAudioSystem->ExecuteTriggerEx(data);
 }
 
 //------------------------------------------------------------------------
 void CProjectile::RicochetSound(const Vec3& pos)
 {
-	CryAudio::SExecuteTriggerData const data("Ricochet", CryAudio::EOcclusionType::Ignore, pos, true, m_ricochetTriggerID);
+	CryAudio::SExecuteTriggerData const data(m_ricochetTriggerID, "Ricochet", CryAudio::EOcclusionType::Ignore, pos, INVALID_ENTITYID, true);
 	gEnv->pAudioSystem->ExecuteTriggerEx(data);
 }
 
@@ -1797,7 +1803,7 @@ void CProjectile::InitWithAI()
 				unsigned short int nOwnerType = pOwnerAI->GetAIType();
 				if (nOwnerType != AIOBJECT_ACTOR)
 				{
-					GetEntity()->RegisterInAISystem(AIObjectParams(m_pAmmoParams->aiType));
+					gEnv->pAISystem->GetAIObjectManager()->CreateAIObject(AIObjectParams(m_pAmmoParams->aiType, 0, GetEntityId()));
 				}
 			}
 		}

@@ -1,5 +1,4 @@
-// CRYENGINE Source Code File
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "Common.cfi"
 #include "PostEffectsLib.cfi"
@@ -35,34 +34,36 @@ sampler2D perlinNoiseSampler : register (s6)
   AddressV = Wrap;	
 };
 
-sampler2D chartSampler = sampler_state
-{
-  Texture = $ColorChart;
-};
-
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 /// Alien Interference techniques //////////////////////////////////////////////////////////////////
 
-half4 AlienInterferenceTint;
+float4 AlienInterferenceTint;
 
 ///////////////// vertex shader //////////////////
 
 struct vtxOutAlienInterference
 {
-  float4 HPosition  : POSITION;
+  float4 HPosition  : SV_POSITION;
   float2 baseTC0    : TEXCOORDN;
   float2 baseTC1    : TEXCOORDN;
   float2 baseTC2    : TEXCOORDN;
   float2 baseTC3    : TEXCOORDN;
 };
 
+Texture2D texAlienInt_noise       : register(t0);
+Texture2D texAlienInt_perlinNoise : register(t1);
+Texture2D texAlienInt_sceneTarget : register(t2);
 
-vtxOutAlienInterference AlienInterferenceVS(vtxIn IN)
+SamplerState ssAlienInt_noise       : register(s0);
+SamplerState ssAlienInt_perlinNoise : register(s1);
+SamplerState ssAlienInt_sceneTarget : register(s2);
+
+vtxOutAlienInterference AlienInterferenceVS(uint VertexID : SV_VertexID)
 {
   vtxOutAlienInterference OUT = (vtxOutAlienInterference)0; 
-  OUT.HPosition = Get2dHPos(IN.Position);
-  OUT.baseTC0.xy = IN.baseTC.xy;
+  OUT.HPosition = GetHPos_FromTriVertexID(VertexID);
+  float2 baseTC = GetBaseTC_FromTriVertexID(VertexID);
+  OUT.baseTC0.xy = baseTC;
       
   float2 scale=float2(g_VS_ScreenSize.x, g_VS_ScreenSize.y)/256;      
   float2 pixScale=1/float2(g_VS_ScreenSize.x, g_VS_ScreenSize.y);      
@@ -70,63 +71,59 @@ vtxOutAlienInterference AlienInterferenceVS(vtxIn IN)
   float anim=g_VS_AnimGenParams.z;
   
   // make sure noise is correctly texel to pixel mapped 
-  IN.baseTC.xy*=scale;  
+  baseTC.xy*=scale;  
   return OUT;
 }
 
 ///////////////// pixel shader //////////////////
 pixout AlienInterferencePS(vtxOutAlienInterference IN)
 {
-  pixout OUT;
-  
+	pixout OUT;
 
-  half fAmount = psParams[0].w;
+	half fAmount = psParams[0].w;
 
+	float2 fScreenScale = ( PS_ScreenSize.xy / 64.0);
 
-  float2 fScreenScale = ( PS_ScreenSize.xy / 64.0);
-  
-  
-  float4 test = tex2D(noiseSampler, ((IN.baseTC0.xy  - 0.5) * (1.0 + (frac(AnimGenParams)*2-1)*0.05) + 0.5)*fScreenScale ) ;
-  test += tex2D(noiseSampler, ((IN.baseTC0.xy  - 0.5) * (1.0 + (frac(AnimGenParams + 0.1)*2-1)*0.075 ) + 0.5)*fScreenScale );
-  test += tex2D(noiseSampler, ((IN.baseTC0.xy  - 0.5) * (1.0 + (frac(AnimGenParams + 0.2)*2-1)*0.085 ) + 0.5)*fScreenScale );
-  test += tex2D(noiseSampler, ((IN.baseTC0.xy  - 0.5) * (1.0 + (frac(AnimGenParams + 0.3)*2-1)*0.095 ) + 0.5)*fScreenScale );
+	float4 test  = GetTexture2D(texAlienInt_noise, ssAlienInt_noise, ((IN.baseTC0.xy  - 0.5) * (1.0 + (frac(AnimGenParams)*2-1)*0.05) + 0.5)*fScreenScale ) ;
+	test        += GetTexture2D(texAlienInt_noise, ssAlienInt_noise, ((IN.baseTC0.xy  - 0.5) * (1.0 + (frac(AnimGenParams + 0.1)*2-1)*0.075 ) + 0.5)*fScreenScale );
+	test        += GetTexture2D(texAlienInt_noise, ssAlienInt_noise, ((IN.baseTC0.xy  - 0.5) * (1.0 + (frac(AnimGenParams + 0.2)*2-1)*0.085 ) + 0.5)*fScreenScale );
+	test        += GetTexture2D(texAlienInt_noise, ssAlienInt_noise, ((IN.baseTC0.xy  - 0.5) * (1.0 + (frac(AnimGenParams + 0.3)*2-1)*0.095 ) + 0.5)*fScreenScale );
 
-  AnimGenParams*= 4*2;//*fAmount;
+	AnimGenParams*= 4*2;//*fAmount;
 
-  test *= 0.25;
+	test *= 0.25;
 
-    float4 cScreen = tex2D(screenMapSampler, IN.baseTC0.xy);
+	float4 cScreen = GetTexture2D(texAlienInt_sceneTarget, ssAlienInt_sceneTarget, IN.baseTC0.xy);
 
+	fScreenScale = ( float2(0.01, 3) )*0.01;
+	float4 stripes  = GetTexture2D(texAlienInt_perlinNoise, ssAlienInt_perlinNoise, IN.baseTC0.xy*fScreenScale  + float2(1, 0) * (AnimGenParams*0.05) ) ;
+	stripes        += GetTexture2D(texAlienInt_perlinNoise, ssAlienInt_perlinNoise, IN.baseTC0.xy*fScreenScale*0.99  - float2(1.1, 0) * (AnimGenParams )*0.05) ;
 
-  fScreenScale = ( float2(0.01, 3) )*0.01;
-  float4 stripes = tex2D(perlinNoiseSampler, IN.baseTC0.xy*fScreenScale  + float2(1, 0) * (AnimGenParams*0.05) ) ;
-  stripes += tex2D(perlinNoiseSampler, IN.baseTC0.xy*fScreenScale*0.99  - float2(1.1, 0) * (AnimGenParams )*0.05) ;
+	stripes *= 0.5;
+	fScreenScale = ( float2(0.25,0.5) );
 
-  stripes *= 0.5;
-  fScreenScale = ( float2(0.25,0.5) );
+	stripes  = saturate(stripes.x*2-1.65)*2;
 
-  stripes  = saturate(stripes.x*2-1.65)*2;
+	test.xy *= float2(0.15,3);
+	stripes*= 2;
 
-  test.xy *= float2(0.15,3);
-  stripes*= 2;
+	stripes *= fAmount;
+	test *= fAmount;
 
-  stripes *= fAmount;
-  test *= fAmount;
-  
-  float4 cScreenInterference = tex2D(screenMapSampler, (IN.baseTC0.xy-0.5)*(1.0 - test*0.0125) +0.5 + float2(0,test.x*stripes.x)).x;
-  cScreenInterference.y = tex2D(screenMapSampler, (IN.baseTC0.xy-0.5)*(1.0 - test*0.025) +0.5+ float2(0,test.x*stripes.x)).y;
-  cScreenInterference.z = tex2D(screenMapSampler, (IN.baseTC0.xy-0.5)*(1.0 - test*0.05) +0.5+ float2(0,test.x*stripes.x)).z;
+	float4 cScreenInterference = GetTexture2D(texAlienInt_sceneTarget, ssAlienInt_sceneTarget, (IN.baseTC0.xy-0.5)*(1.0 - test*0.0125) +0.5 + float2(0,test.x*stripes.x)).x;
+	cScreenInterference.y      = GetTexture2D(texAlienInt_sceneTarget, ssAlienInt_sceneTarget, (IN.baseTC0.xy-0.5)*(1.0 - test*0.025) +0.5+ float2(0,test.x*stripes.x)).y;
+	cScreenInterference.z      = GetTexture2D(texAlienInt_sceneTarget, ssAlienInt_sceneTarget, (IN.baseTC0.xy-0.5)*(1.0 - test*0.05) +0.5+ float2(0,test.x*stripes.x)).z;
 
-  float4 cGhosting = tex2D(screenMapSampler, IN.baseTC0.xy + stripes*0.2*float2(0,1)*0.5 );
-  cGhosting.y= tex2D(screenMapSampler, IN.baseTC0.xy + stripes*0.1*float2(0,1) *0.5);
-  cGhosting.z= tex2D(screenMapSampler, IN.baseTC0.xy + stripes*0.05*float2(0,1) *0.5);
+	float4 cGhosting = GetTexture2D(texAlienInt_sceneTarget, ssAlienInt_sceneTarget, IN.baseTC0.xy + stripes*0.2*float2(0,1)*0.5 );
+	cGhosting.y      = GetTexture2D(texAlienInt_sceneTarget, ssAlienInt_sceneTarget, IN.baseTC0.xy + stripes*0.1*float2(0,1) *0.5);
+	cGhosting.z      = GetTexture2D(texAlienInt_sceneTarget, ssAlienInt_sceneTarget, IN.baseTC0.xy + stripes*0.05*float2(0,1) *0.5);
 
-  half3 cInterference = lerp(1, AlienInterferenceTint.xyz , sqrt(fAmount));
+	half3 cInterference = lerp(1, AlienInterferenceTint.xyz , sqrt(fAmount));
 
-  OUT.Color.xyz = max(lerp(cGhosting, cGhosting*0.1*fAmount+cScreenInterference, 1.2*saturate(stripes.x*0.5+0.5)*fAmount + 1- fAmount), 0) * cInterference;
-  OUT.Color.w = 1;
+	OUT.Color.xyz = max(lerp(cGhosting, cGhosting*0.1*fAmount+cScreenInterference, 1.2*saturate(stripes.x*0.5+0.5)*fAmount + 1- fAmount), 0) * cInterference;
+	OUT.Color.w = 1;
 
-  return OUT;
+	return OUT;
 }
 
 ////////////////// technique /////////////////////
@@ -164,7 +161,7 @@ sampler2D waterDropletsBumpSampler : register (s5)
 
 struct vtxOutWaterDroplets
 {
-  float4 HPosition  : POSITION;
+  float4 HPosition  : SV_POSITION;
   float2 baseTC     : TEXCOORDN;
   float4 noiseTC    : TEXCOORDN;
 };
@@ -246,7 +243,7 @@ SamplerState wfTrilinearWrapSampler : register(s1) = SS_TrilinearWrap;
 
 struct vtxOutWaterFlow
 {
-	float4 HPosition  : POSITION;
+	float4 HPosition  : SV_POSITION;
 	float2 baseTC    : TEXCOORDN;
 	float4 noiseTC    : TEXCOORDN;
 	float4 noiseTC2    : TEXCOORDN;
@@ -335,48 +332,36 @@ float4 screenFrostParamsVS;
 float4 screenFrostParamsPS;
 
 /// Samplers ////////////////////////////
+Texture2D frostBumpTex         = "%ENGINE%/EngineAssets/Textures/screenfrost_ddn.tif";
+Texture2D frostAlphaTex        = "%ENGINE%/EngineAssets/Textures/screenfrost_alpha.tif";
+Texture2D frostScreenTex       = TS_BackBuffer;
+Texture2D frostScreenScaledTex = TS_BackBufferScaled_d4;
 
-sampler2D frostBumpSampler = sampler_state
-{    
-  Texture = %ENGINE%/EngineAssets/Textures/screenfrost_ddn.tif;
-  MinFilter = LINEAR;
-  MagFilter = LINEAR;
-  MipFilter = LINEAR; 
-  AddressU = Wrap;
-  AddressV = Wrap;
-};
-
-sampler2D frostAlphaSampler = sampler_state
-{    
-  Texture = %ENGINE%/EngineAssets/Textures/screenfrost_alpha.tif;
-  MinFilter = LINEAR;
-  MagFilter = LINEAR;
-  MipFilter = LINEAR; 
-  AddressU = Wrap;
-  AddressV = Wrap;
-};
+SamplerState frostTrilinearWrapSS   = SS_TrilinearWrap;
+SamplerState frostTrilinearClamppSS = SS_TrilinearClamp;
 
 
 ///////////////// vertex shader //////////////////
 
 struct vtxOutScreenFrost
 {
-  float4 HPosition  : POSITION;
+  float4 HPosition  : SV_POSITION;
   float2 baseTC    : TEXCOORDN;
   float2 noiseTC0    : TEXCOORDN;  
   float2 noiseTC1    : TEXCOORDN;  
   float2 noiseTC2    : TEXCOORDN;  
 };
 
-vtxOutScreenFrost ScreenFrostVS(vtxIn IN)
+vtxOutScreenFrost ScreenFrostVS(uint VertexID : SV_VertexID)
 {
   vtxOutScreenFrost OUT = (vtxOutScreenFrost)0; 
-  OUT.HPosition = Get2dHPos(IN.Position);
-  OUT.baseTC.xy = IN.baseTC.xy;
+  OUT.HPosition = GetHPos_FromTriVertexID(VertexID);
+  float2 baseTC = GetBaseTC_FromTriVertexID(VertexID);
+  OUT.baseTC.xy = baseTC;
   
-  OUT.noiseTC0 = IN.baseTC.xy + float2(frac(screenFrostParamsVS.ww)); 
-  OUT.noiseTC1 = IN.baseTC.xy*2 + float2(frac(screenFrostParamsVS.ww));  
-  OUT.noiseTC2 = IN.baseTC.xy*4 + float2(frac(screenFrostParamsVS.ww));
+  OUT.noiseTC0 = baseTC + float2(frac(screenFrostParamsVS.ww)); 
+  OUT.noiseTC1 = baseTC*2 + float2(frac(screenFrostParamsVS.ww));  
+  OUT.noiseTC2 = baseTC*4 + float2(frac(screenFrostParamsVS.ww));
   return OUT;
 }
 
@@ -386,17 +371,17 @@ pixout ScreenFrostPS(vtxOutScreenFrost IN)
 
   pixout OUT;
   
-  half4 cScreen = tex2D(screenMapSampler, IN.baseTC.xy);
+  half4 cScreen = GetTexture2D(frostScreenTex, frostTrilinearWrapSS, IN.baseTC.xy);
   
   half fAttenFactor = saturate( length(IN.baseTC.xy*2-1) +  screenFrostParamsPS.z);
   
   
-  half cNoise = tex2D(frostAlphaSampler, IN.noiseTC0.xy).x;
-  cNoise += tex2D(frostAlphaSampler, IN.noiseTC1.xy).x;
+  half cNoise  = GetTexture2D(frostAlphaTex, frostTrilinearWrapSS, IN.noiseTC0.xy).x;
+  cNoise      += GetTexture2D(frostAlphaTex, frostTrilinearWrapSS, IN.noiseTC1.xy).x;
   
-  half3 cFrost0 = GetNormalMap(frostBumpSampler, IN.noiseTC0.xy);
-  half3 cFrost1 = GetNormalMap(frostBumpSampler, IN.noiseTC2.xy);
-  half cFrost1Alpha = tex2D(frostAlphaSampler, IN.noiseTC2.xy).x;
+  half3 cFrost0 = GetNormalMap(frostBumpTex, frostTrilinearWrapSS, IN.noiseTC0.xy);
+  half3 cFrost1 = GetNormalMap(frostBumpTex, frostTrilinearWrapSS, IN.noiseTC2.xy);
+  half cFrost1Alpha = GetTexture2D(frostAlphaTex, frostTrilinearWrapSS, IN.noiseTC2.xy).x;
   
   half cNoise0 = cNoise ;
   half cNoise1 = cFrost1Alpha*0.5+0.5;
@@ -417,7 +402,7 @@ pixout ScreenFrostPS(vtxOutScreenFrost IN)
   cFrost0.xy *= vCommonGrowFrost.yy;
   cFrost0.xyz = normalize(cFrost0.xyz);
   
-  half4 cScreenBlured = tex2D(screenMapScaledSampler_d4, IN.baseTC.xy +  (cFrost0.xy) *0.5);
+  half4 cScreenBlured = GetTexture2D(frostScreenScaledTex, frostTrilinearClampSS, IN.baseTC.xy +  (cFrost0.xy) *0.5);
     
   // interpolate bettwen screen and frosted areas
   half lerpp = dot(0.25, vCommonGrowFrost.xyzw);
@@ -427,21 +412,21 @@ pixout ScreenFrostPS(vtxOutScreenFrost IN)
   // fake some specularity
   float3 fakespec = normalize( (cFrost0.xyz+cFrost1.xyz) * float3( vCommonGrowFrost.xx, 1) );   
   OUT.Color += fakespec.x * fakespec.x * (lerpp)*4;    
-    
+
   return OUT;
 }
 
 ////////////////// technique /////////////////////
 
-technique ScreenFrost
-{
-  pass p0
-  {
-    VertexShader = ScreenFrostVS();
-    PixelShader = ScreenFrostPS();
-    CullMode = None;    
-  }
-}
+//technique ScreenFrost
+//{
+//  pass p0
+//  {
+//    VertexShader = ScreenFrostVS();
+//    PixelShader = ScreenFrostPS();
+//    CullMode = None;    
+//  }
+//}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 /// FlashBang technique //////////////////////////////////////////////////////////////////////
@@ -459,7 +444,6 @@ pixout FlashBangPS(vtxOut IN)
 {
 	pixout OUT;
 
-	//half4 cScreen = tex2D(_tex0, IN.baseTC.xy );
 	half4 cScreen = fbScreenTex.SampleLevel(fbPointClampSampler, IN.baseTC.xy, 0.0f);
 
 	half4 cGhostImage = 0;
@@ -499,7 +483,7 @@ float4 vRainNormalMapParams;
 
 struct vtxOutRainDrops
 {
-  float4 HPosition  : POSITION;
+  float4 HPosition  : SV_POSITION;
   float2 tcBase0 : TEXCOORDN;   
   float2 tcBase1 : TEXCOORDN;   
   float2 tcBase2 : TEXCOORDN;   
@@ -507,36 +491,44 @@ struct vtxOutRainDrops
 
 struct vtxOutRainDropsExtinction
 {
-  float4 HPosition  : POSITION;     
+  float4 HPosition  : SV_POSITION;     
   float2 tcNormal0 : TEXCOORDN;   
   float2 tcNormal1 : TEXCOORDN;   
   float2 tcNormal2 : TEXCOORDN;   
   float2 tcNormal3 : TEXCOORDN;   
 };
 
-vtxOutRainDropsExtinction RainDropsExtinctionVS(vtxIn IN)
+Texture2D texRainDrops_Target      : register(t0);
+Texture2D texRainDrops_SceneTarget : register(t1);
+
+SamplerState ssRainDrops_Target      : register(s0);
+SamplerState ssRainDrops_SceneTarget : register(s1);
+
+vtxOutRainDropsExtinction RainDropsExtinctionVS(uint VertexID : SV_VertexID)
 {
   vtxOutRainDropsExtinction OUT = (vtxOutRainDropsExtinction)0; 
-  OUT.HPosition = Get2dHPos(IN.Position);
+  OUT.HPosition = GetHPos_FromTriVertexID(VertexID);
+  float2 baseTC = GetBaseTC_FromTriVertexID(VertexID);
   
-  OUT.tcNormal0.xy = IN.baseTC.xy + (vRainNormalMapParams.xw - vRainNormalMapParams.yz)/ScrSize.xy;
-  OUT.tcNormal1.xy = IN.baseTC.xy - (vRainNormalMapParams.xw - vRainNormalMapParams.yz)/ScrSize.xy;
-  OUT.tcNormal2.xy = IN.baseTC.xy + (vRainNormalMapParams.wx - vRainNormalMapParams.yz)/ScrSize.xy;
-  OUT.tcNormal3.xy = IN.baseTC.xy - (vRainNormalMapParams.wx - vRainNormalMapParams.yz)/ScrSize.xy;
+  OUT.tcNormal0.xy = baseTC + (vRainNormalMapParams.xw - vRainNormalMapParams.yz)/ScrSize.xy;
+  OUT.tcNormal1.xy = baseTC - (vRainNormalMapParams.xw - vRainNormalMapParams.yz)/ScrSize.xy;
+  OUT.tcNormal2.xy = baseTC + (vRainNormalMapParams.wx - vRainNormalMapParams.yz)/ScrSize.xy;
+  OUT.tcNormal3.xy = baseTC - (vRainNormalMapParams.wx - vRainNormalMapParams.yz)/ScrSize.xy;
       
   return OUT;
 }
 
-vtxOutRainDrops RainDropsFinalVS(vtxIn IN)
+vtxOutRainDrops RainDropsFinalVS(uint VertexID : SV_VertexID)
 {
-  vtxOutRainDrops OUT = (vtxOutRainDrops)0; 
-  OUT.HPosition = Get2dHPos(IN.Position);
+    vtxOutRainDrops OUT = (vtxOutRainDrops) 0;
+    OUT.HPosition = GetHPos_FromTriVertexID(VertexID);
+    
+    float2 baseTC = GetBaseTC_FromTriVertexID(VertexID);
+    OUT.tcBase0.xy = baseTC.xy;
+    OUT.tcBase1.xy = baseTC.xy + float2(1.0, 0.0) * ScrSize.zw * 4;
+    OUT.tcBase2.xy = baseTC.xy + float2(0.0, 1.0) * ScrSize.zw * 4;
 
-  OUT.tcBase0.xy = IN.baseTC.xy;  
-  OUT.tcBase1.xy = IN.baseTC.xy + float2(1.0, 0.0) * ScrSize.zw*4;
-  OUT.tcBase2.xy = IN.baseTC.xy + float2(0.0, 1.0) * ScrSize.zw*4;
-
-  return OUT;
+    return OUT;
 }
 
 ///////////////// pixel shader //////////////////
@@ -566,13 +558,13 @@ pixout RainDropsExtinctionPS(vtxOutRainDropsExtinction IN)
   pixout OUT = (pixout) 0;
 
   // Apply dilation
-  float fCenterWeights = tex2D( _tex0, IN.tcNormal0.xy ).x;
+  float fCenterWeights = GetTexture2D(texRainDrops_Target, ssRainDrops_Target, IN.tcNormal0.xy ).x;
 
   float4 vWeights = 0;    
-  vWeights.x = tex2D( _tex0, IN.tcNormal0.xy ).x;
-  vWeights.y = tex2D( _tex0, IN.tcNormal1.xy ).x;
-  vWeights.z = tex2D( _tex0, IN.tcNormal2.xy ).x;
-  vWeights.w = tex2D( _tex0, IN.tcNormal3.xy ).x;
+  vWeights.x = GetTexture2D(texRainDrops_Target, ssRainDrops_Target, IN.tcNormal0.xy ).x;
+  vWeights.y = GetTexture2D(texRainDrops_Target, ssRainDrops_Target, IN.tcNormal1.xy ).x;
+  vWeights.z = GetTexture2D(texRainDrops_Target, ssRainDrops_Target, IN.tcNormal2.xy ).x;
+  vWeights.w = GetTexture2D(texRainDrops_Target, ssRainDrops_Target, IN.tcNormal3.xy ).x;
 
   vWeights.x = (vWeights.x > vWeights.y)? vWeights.x: vWeights.y;
   vWeights.y = (vWeights.z > vWeights.w)? vWeights.z: vWeights.w;  
@@ -592,22 +584,22 @@ pixout RainDropsFinalPS(vtxOutRainDrops IN)
   pixout OUT = (pixout)0;
 
   // temporary workaround for D3D11 hlsl compiler bug
-  OUT.Color = tex2D(_tex0, IN.tcBase0.xy);	//screenMapSampler
+  OUT.Color = GetTexture2D(texRainDrops_Target, ssRainDrops_Target, IN.tcBase0.xy);
 
   ///////////////////////////////////////////////////////////////////////////////////////////////////  
   // Generate rain normal map (cheap sobel filter)
       
   float3 vWeights = 0;    
-  vWeights.x = (tex2D( _tex1, IN.tcBase0.xy ).x);	//rainDropsRT
-  vWeights.y = (tex2D( _tex1, IN.tcBase1.xy ).x);	//rainDropsRT
-  vWeights.z = (tex2D( _tex1, IN.tcBase2.xy ).x);	//rainDropsRT
+  vWeights.x = GetTexture2D(texRainDrops_Target, ssRainDrops_Target, IN.tcBase0.xy ).x;	//rainDropsRT
+  vWeights.y = GetTexture2D(texRainDrops_Target, ssRainDrops_Target, IN.tcBase1.xy ).x;	//rainDropsRT
+  vWeights.z = GetTexture2D(texRainDrops_Target, ssRainDrops_Target, IN.tcBase2.xy ).x;	//rainDropsRT
   
   // make it a bit sharper (maybe add a sharpening control)
   vWeights = saturate( vWeights *2 - 1 );      
   float3 vNormal = float3( vWeights.x - vWeights.y, vWeights.x - vWeights.z, 0.5);	// 2 adds 
   vNormal = normalize(vNormal.xyz);													// 1 nrm
 
-  float3x3 tangentToWorld = float3x3( CameraRight.xyz, CameraUp.xyz, CamFront.xyz );
+  float3x3 tangentToWorld = float3x3( CV_CameraRightVector.xyz, CV_CameraUpVector.xyz, CV_CameraFrontVector.xyz );
   float3 vSunTangent = normalize( mul( tangentToWorld, g_PS_SunLightDir.xyz ) );
 
   float3 vHalf = normalize( float3(0, 0, 1) + vSunTangent.xyz);
@@ -623,9 +615,9 @@ pixout RainDropsFinalPS(vtxOutRainDrops IN)
   half2 tc2 = IN.tcBase0.xy - vNormalModifier * 0.09 * 0.5;	// 1 mad 
   
   half4 cScreen = 0;  
-  cScreen.x = tex2D(_tex0, tc0).x;	//screenMapSampler
-  cScreen.y = tex2D(_tex0, tc1).y;	//screenMapSampler
-  cScreen.z = tex2D(_tex0, tc2).z;	//screenMapSampler
+  cScreen.x = GetTexture2D(texRainDrops_SceneTarget, ssRainDrops_SceneTarget, tc0).x;
+  cScreen.y = GetTexture2D(texRainDrops_SceneTarget, ssRainDrops_SceneTarget, tc1).y;
+  cScreen.z = GetTexture2D(texRainDrops_SceneTarget, ssRainDrops_SceneTarget, tc2).z;
 
   OUT.Color.xyz = (g_PS_SunColor.xyz) * fSpec + cScreen.xyz;	// 1 add
 
@@ -671,32 +663,41 @@ technique RainDropsFinal
 
 struct vtxOutBinocularView
 {
-  float4 HPosition  : POSITION;
+  float4 HPosition  : SV_POSITION;
   float4 baseTC0     : TEXCOORD0;
   float4 baseTC1     : TEXCOORD1;
   float4 baseTC2     : TEXCOORD2;
   float4 baseTC3     : TEXCOORD3;
 };
 
-vtxOutBinocularView BinocularViewVS(vtxIn IN)
+Texture2D texBinocularView_0 : register(t0);
+Texture2D texBinocularView_1 : register(t1);
+Texture2D texBinocularView_2 : register(t2);
+
+SamplerState ssBinocularView_0 : register(s0);
+SamplerState ssBinocularView_1 : register(s1);
+SamplerState ssBinocularView_2 : register(s2);
+
+vtxOutBinocularView BinocularViewVS(uint VertexID : SV_VertexID)
 {
 	const half uvOffsetScale = vsParams[0].x;
 
   vtxOutBinocularView OUT = (vtxOutBinocularView)0; 
-	OUT.HPosition = Get2dHPos(IN.Position);
+  OUT.HPosition = GetHPos_FromTriVertexID(VertexID);
+  float2 baseTC = GetBaseTC_FromTriVertexID(VertexID);
 
-  OUT.baseTC0.xy = IN.baseTC.xy;
-	OUT.baseTC1.xy = IN.baseTC.xy + uvOffsetScale*float2(0, -1) * ScrSize.zw;
-	OUT.baseTC2.xy = IN.baseTC.xy + uvOffsetScale*float2(-1, 1) * ScrSize.zw;
-	OUT.baseTC3.xy = IN.baseTC.xy + uvOffsetScale*float2(1, 1) * ScrSize.zw;
+	OUT.baseTC0.xy = baseTC;
+	OUT.baseTC1.xy = baseTC + uvOffsetScale*float2(0, -1) * ScrSize.zw;
+	OUT.baseTC2.xy = baseTC + uvOffsetScale*float2(-1, 1) * ScrSize.zw;
+	OUT.baseTC3.xy = baseTC + uvOffsetScale*float2(1, 1) * ScrSize.zw;
 
 #if %_RT_SAMPLE0
 	// Sample points with inverse offset
 	if (GetShaderQuality() >= QUALITY_HIGH)
 	{
-		OUT.baseTC1.zw = IN.baseTC.xy + uvOffsetScale*float2(0, 1) * ScrSize.zw;
-		OUT.baseTC2.zw = IN.baseTC.xy + uvOffsetScale*float2(1, -1) * ScrSize.zw;
-		OUT.baseTC3.zw = IN.baseTC.xy + uvOffsetScale*float2(-1, -1) * ScrSize.zw;
+		OUT.baseTC1.zw = baseTC + uvOffsetScale*float2(0, 1) * ScrSize.zw;
+		OUT.baseTC2.zw = baseTC + uvOffsetScale*float2(1, -1) * ScrSize.zw;
+		OUT.baseTC3.zw = baseTC + uvOffsetScale*float2(-1, -1) * ScrSize.zw;
 	}
 #endif
 
@@ -705,12 +706,12 @@ vtxOutBinocularView BinocularViewVS(vtxIn IN)
 
 pixout BinocularViewPS(vtxOutBinocularView IN)
 {
-  pixout OUT = (pixout) 1;
+   pixout OUT = (pixout) 1;
 
-	half4 c = tex2D(_tex0, IN.baseTC0.xy);
-	half4 c0 = tex2D(_tex0, IN.baseTC1.xy);
-	half4 c1 = tex2D(_tex0, IN.baseTC2.xy);
-	half4 c2 = tex2D(_tex0, IN.baseTC3.xy);
+	half4 c  = GetTexture2D(texBinocularView_0, ssBinocularView_0, IN.baseTC0.xy);
+	half4 c0 = GetTexture2D(texBinocularView_0, ssBinocularView_0, IN.baseTC1.xy);
+	half4 c1 = GetTexture2D(texBinocularView_0, ssBinocularView_0, IN.baseTC2.xy);
+	half4 c2 = GetTexture2D(texBinocularView_0, ssBinocularView_0, IN.baseTC3.xy);
 	half3 edges = abs(c.www - float3(c0.w, c1.w, c2.w));  
 
 #if %_RT_SAMPLE0
@@ -718,47 +719,47 @@ pixout BinocularViewPS(vtxOutBinocularView IN)
 	if (GetShaderQuality() >= QUALITY_HIGH)
 	{
 		half3 c345;
-		c345.x = tex2D(_tex0, IN.baseTC1.zw).w;
-		c345.y = tex2D(_tex0, IN.baseTC2.zw).w;
-		c345.z = tex2D(_tex0, IN.baseTC3.zw).w;
+		c345.x = GetTexture2D(texBinocularView_0, ssBinocularView_0, IN.baseTC1.zw).w;
+		c345.y = GetTexture2D(texBinocularView_0, ssBinocularView_0, IN.baseTC2.zw).w;
+		c345.z = GetTexture2D(texBinocularView_0, ssBinocularView_0, IN.baseTC3.zw).w;
 		edges = max(edges, abs(c.www - c345));
 	}
 #endif
 
 	edges = edges > 0;
-	half fSilhouete = dot(edges, 1.333); // 1.333 = 0.333 avg * 4.0 for overbrighting
+	half fSilhouette = dot(edges, 1.333); // 1.333 = 0.333 avg * 4.0 for overbrighting
 
 #if %_RT_SAMPLE0
 	half4 cSilhouetteColor = (c + c0 + c1 + c2) * 0.25f;
 #else
-	float d  = GetDeviceDepth(_tex1, IN.baseTC0).x;
-	float d0 = GetDeviceDepth(_tex1, IN.baseTC1).x;
-	float d1 = GetDeviceDepth(_tex1, IN.baseTC2).x;
-	float d2 = GetDeviceDepth(_tex1, IN.baseTC3).x;
-  float3 cSilhoueteMask = float3(d0, d1, d2) < d;
+	float d  = GetDeviceDepth(texBinocularView_1, IN.baseTC0).x;
+	float d0 = GetDeviceDepth(texBinocularView_1, IN.baseTC1).x;
+	float d1 = GetDeviceDepth(texBinocularView_1, IN.baseTC2).x;
+	float d2 = GetDeviceDepth(texBinocularView_1, IN.baseTC3).x;
+	float3 cSilhouetteMask = float3(d0, d1, d2) < d;
 
-  // Silhouete color masking - need to make sure to get correct color for silhouette
+	// Silhouette color masking - need to make sure to get correct color for silhouette
 	half4 cSilhouetteColor = 0;
-  cSilhouetteColor +=  c0 * cSilhoueteMask.x;
-  cSilhouetteColor +=  c1 * cSilhoueteMask.y;
-  cSilhouetteColor +=  c2 * cSilhoueteMask.z;
-  cSilhouetteColor.xyz /= dot(cSilhoueteMask.xyz, 1) + 0.0001;
-
-  half fOpacity = saturate( dot( c.xyz + c0.xyz + c1.xyz + c2.xyz, 10) ); 
-  fSilhouete *= fOpacity * 0.5f;
-  c.xyz *= 0.2f;
+	cSilhouetteColor +=  c0 * cSilhouetteMask.x;
+	cSilhouetteColor +=  c1 * cSilhouetteMask.y;
+	cSilhouetteColor +=  c2 * cSilhouetteMask.z;
+	cSilhouetteColor.xyz /= dot(cSilhouetteMask.xyz, 1) + 0.0001;
+	
+	half fOpacity = saturate( dot( c.xyz + c0.xyz + c1.xyz + c2.xyz, 10) ); 
+	fSilhouette *= fOpacity * 0.5f;
+	c.xyz *= 0.2f;
 #endif
 
-	OUT.Color.xyz = fSilhouete * cSilhouetteColor + c.xyz * psParams[0].w;
+	OUT.Color.xyz = fSilhouette * cSilhouetteColor + c.xyz * psParams[0].w;
 
-  return OUT;
+	return OUT;
 }
 
 pixout BinocularViewGlowPS(vtxOut IN)
 {
   pixout OUT = (pixout) 1;
-  half4 c = tex2D(_tex0, IN.baseTC);
-  half4 cSilhouettes = tex2D(_tex1, IN.baseTC);
+  half4 c            = GetTexture2D(texBinocularView_0, ssBinocularView_0, IN.baseTC);
+  half4 cSilhouettes = GetTexture2D(texBinocularView_1, ssBinocularView_1, IN.baseTC);
 
   // remove body tinting from glow, only leave silhouettes
   OUT.Color = max(cSilhouettes - c * 0.2, 0.0);
@@ -770,9 +771,9 @@ pixout BinocularViewFinalPS(vtxOut IN)
 {
   pixout OUT = (pixout) 1;
     
-  half4 cScreen = tex2D(_tex0, IN.baseTC);
-  half4 cSilhouettes = tex2D(_tex1, IN.baseTC);
-  half4 cSilhouettesBlurred = tex2D(_tex2, IN.baseTC);
+  half4 cScreen             = GetTexture2D(texBinocularView_0, ssBinocularView_0, IN.baseTC);
+  half4 cSilhouettes        = GetTexture2D(texBinocularView_1, ssBinocularView_1, IN.baseTC);
+  half4 cSilhouettesBlurred = GetTexture2D(texBinocularView_2, ssBinocularView_2, IN.baseTC);
 
   half fInterlation = abs(frac((IN.baseTC.y)*PS_ScreenSize.y*0.25)*2-1)*0.5+0.5;
   half fVigneti = saturate( 1 - length(IN.baseTC.xy - 0.5)*0.6 );
@@ -790,9 +791,9 @@ pixout BinocularViewFinalNoTintingPS(vtxOut IN)
 {
   pixout OUT = (pixout) 1;
     
-  half4 cScreen = tex2D(_tex0, IN.baseTC);
-  half4 cSilhouettes = tex2D(_tex1, IN.baseTC);
-  half4 cSilhouettesBlurred = tex2D(_tex2, IN.baseTC);
+  half4 cScreen             = GetTexture2D(texBinocularView_0, ssBinocularView_0, IN.baseTC);
+  half4 cSilhouettes        = GetTexture2D(texBinocularView_1, ssBinocularView_1, IN.baseTC);
+  half4 cSilhouettesBlurred = GetTexture2D(texBinocularView_2, ssBinocularView_2, IN.baseTC);
 
   half fInterlation = abs(frac((IN.baseTC.y)*PS_ScreenSize.y*0.25)*2-1)*0.5+0.5;
 
@@ -804,15 +805,15 @@ pixout BinocularViewFinalNoTintingPS(vtxOut IN)
 
 ////////////////// technique /////////////////////
 
-technique BinocularView
-{
-  pass p0
-  {
-    VertexShader = BinocularViewVS() PostProcessGameVS;            
-    PixelShader = BinocularViewPS() PostProcessGamePS;
-    CullMode = None;        
-  }
-}
+//technique BinocularView
+//{
+//  pass p0
+//  {
+//    VertexShader = BinocularViewVS() PostProcessGameVS;            
+//    PixelShader = BinocularViewPS() PostProcessGamePS;
+//    CullMode = None;        
+//  }
+//}
 
 technique BinocularViewGlow
 {
@@ -847,12 +848,12 @@ technique BinocularViewFinalNoTinting
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-Texture2D SolidFillBufferTex : register(t0);
+Texture2D    SolidFillBufferTex     : register(t0);
 SamplerState SolidFillBufferSampler : register(s0);
 
 struct vtxOutSilhouettes
 {
-  float4 HPosition  : POSITION;
+  float4 HPosition  : SV_POSITION;
   float4 baseTC0     : TEXCOORD0;
   float4 baseTC1     : TEXCOORD1;
   float4 baseTC2     : TEXCOORD2;
@@ -887,32 +888,32 @@ vtxOutSilhouettes SilhouettesVS(uint VertexID : SV_VertexID)
 
 pixout BinocularViewTintingPS(vtxOut IN)
 {
-  pixout OUT = (pixout) 1;
-	
+	pixout OUT = (pixout) 1;
+
 	half fInterlation = frac(IN.baseTC.y * PS_ScreenSize.y * 0.25) > 0.5? 1.2: 0.8;
-  half fVignetting = saturate( 1 - length(IN.baseTC.xy - 0.5)*0.6 );
-  OUT.Color = fVignetting * fInterlation *1.5* half4( 0.7, 0.8, 1.0, 1.0);
+	half fVignetting = saturate( 1 - length(IN.baseTC.xy - 0.5)*0.6 );
+	OUT.Color = fVignetting * fInterlation *1.5* half4( 0.7, 0.8, 1.0, 1.0);
 	OUT.Color = lerp(1, OUT.Color , psParams[0].w);
 
-  return OUT;
+	return OUT;
 }
 
 pixout BinocularViewSilhouttesPS(vtxOut IN)
 {
-  pixout OUT = (pixout) 1;
-    
-  half4 cSilhouettes = tex2D(_tex0, IN.baseTC);
-  half4 cSilhouettesBlurred = tex2D(_tex1, IN.baseTC);
+	pixout OUT = (pixout) 1;
+
+	half4 cSilhouettes        = GetTexture2D(texBinocularView_0, ssBinocularView_0, IN.baseTC);
+	half4 cSilhouettesBlurred = GetTexture2D(texBinocularView_1, ssBinocularView_1, IN.baseTC);
 
 	half fInterlation = frac(IN.baseTC.y * PS_ScreenSize.y * 0.5) > 0.5? 1.2: 0.8;
-  half fVignetting = saturate( 1 - length(IN.baseTC.xy - 0.5));
+	half fVignetting = saturate( 1 - length(IN.baseTC.xy - 0.5));
 
-  OUT.Color =  (cSilhouettesBlurred + cSilhouettes)*fInterlation;
-  OUT.Color *= fVignetting;
+	OUT.Color =  (cSilhouettesBlurred + cSilhouettes)*fInterlation;
+	OUT.Color *= fVignetting;
 
-  OUT.Color *= psParams[0].w;
-  
-  return OUT;
+	OUT.Color *= psParams[0].w;
+
+	return OUT;
 }
 
 pixout DeferredSilhouettesOptimisedPS(vtxOutSilhouettes IN)
@@ -984,13 +985,13 @@ technique DeferredSilhouettesOptimised
 /// Color grading technique /////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-half4 ColorGradingParams0;
-half4 ColorGradingParams1;
-half4 ColorGradingParams2;
-half4 ColorGradingParams3;
-half4 ColorGradingParams4;
-half4 ColorGradingParams5;
-half4 mColorGradingMatrix[3];
+float4 ColorGradingParams0;
+float4 ColorGradingParams1;
+float4 ColorGradingParams2;
+float4 ColorGradingParams3;
+float4 ColorGradingParams4;
+float4 ColorGradingParams5;
+float4 mColorGradingMatrix[3];
 
 sampler2D grainSampler = sampler_state
 {
@@ -1001,18 +1002,6 @@ sampler2D grainSampler = sampler_state
   AddressU = Wrap;
   AddressV = Wrap;
 };
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void AddNoise( float2 tc, inout half3 cImage)
-{
-  float2 tcNoise = (tc.xy ) * (PS_ScreenSize.xy/64.0) +  (ColorGradingParams1.zw/PS_ScreenSize.xy);
-  float2 vNoise = tex2D(grainSampler, tcNoise)+ dot(tc.xy, 1) * 65535;
-  vNoise = frac( vNoise );
-  vNoise = vNoise*2-1;
-
-  cImage += dot(vNoise.xy, 0.1) * ColorGradingParams1.y;
-}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -1093,44 +1082,6 @@ void SelectiveColor( inout half3 cImage )
   cImage =lerp( cImage, CMYKtoRGB( cmyk ), fColorPickRange);
 }
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-pixout ColorGradingPS(vtxOut IN)
-{
-  pixout OUT = (pixout) 0;
-
-  half4 cImage = half4( tex2D(screenMapSampler, IN.baseTC.xy).xyz, 1.0);
-
-
-#if %_RT_SAMPLE1 
-
-  // Unsharpening
-  half4 cImageScaledDown = tex2D( screenMapScaledSampler_d2, IN.baseTC.xy );
-  cImage = lerp(cImageScaledDown, cImage, ColorGradingParams3.w);
-
-  // Noise filter
-  AddNoise( IN.baseTC.xy, cImage.xyz );
-
-#endif
-
-	// Always using color charts
-	TexColorChart2D(chartSampler, cImage.xyz);
-
-  OUT.Color.xyz = cImage;
-  return OUT;
-}
-
-////////////////// technique /////////////////////
-
-technique ColorGrading
-{
-  pass p0
-  {
-    VertexShader = BaseVS() PostProcessGameVS;
-    PixelShader = ColorGradingPS() PostProcessGamePS;
-    CullMode = None;        
-  }
-}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 /// Water volume texgen technique //////////////////////////////////////////////////////////////////////////
@@ -1193,7 +1144,7 @@ struct a2v_cch
 
 struct v2f_cch
 {
-	float4 HPosition : POSITION;	
+	float4 HPosition : SV_POSITION;	
 	float2 baseTC : TEXCOORD0;
 	float3 Color : TEXCOORD1;
 };
@@ -1326,14 +1277,14 @@ technique CombineColorGradingWithColorChart
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // color charts debug viz
-
-sampler2D dispChartSampler : register (s0);
+Texture2D    texDispChart : register(t0);
+SamplerState ssDispChart  : register(s0);
 
 v2f_cch DisplayColorChartsVS(a2v_cch IN)
 {
 	v2f_cch OUT = (v2f_cch)0;
 
-  OUT.baseTC.xy = IN.baseTC.xy;
+	OUT.baseTC.xy = IN.baseTC.xy;
 	OUT.HPosition = IN.Position;
 	OUT.HPosition.xy = 2 * IN.Position.xy * (2 * float2(g_VS_ScreenSize.z, -g_VS_ScreenSize.w)) + float2(-1, 1);
 
@@ -1344,8 +1295,8 @@ pixout DisplayColorChartsPS(v2f_cch IN)
 {
 	pixout OUT;
 
-	half3 col = tex2D(dispChartSampler, IN.baseTC.xy).xyz;	
-  OUT.Color = half4(col, 1);
+	half3 col = GetTexture2D(texDispChart, ssDispChart, IN.baseTC.xy).xyz;	
+	OUT.Color = half4(col, 1);
   
 	return OUT;
 }
@@ -1355,7 +1306,7 @@ technique DisplayColorCharts
   pass p0
   {
     VertexShader = DisplayColorChartsVS() PostProcessGameVS;
-    PixelShader = DisplayColorChartsPS() PostProcessGamePS;
+    PixelShader  = DisplayColorChartsPS() PostProcessGamePS;
     CullMode = None;
   }
 }
@@ -1377,7 +1328,7 @@ float4x4 sceneRainOccMtx;
 
 struct vtxOutRainOcc
 {
-	float4 HPosition    : POSITION;
+	float4 HPosition    : SV_POSITION;
 	float4 baseTC       : TEXCOORDN;
 	float3 occCoords0   : TEXCOORDN;
 	float3 occCoords1   : TEXCOORDN;
@@ -1409,7 +1360,7 @@ pixout SceneRainOccAccumulatePS(vtxOutRainOcc IN)
 {
 	pixout OUT = (pixout)0;
 
-	const float fDepth = CV_NearFarClipDist.y * roDepthTex.Load(int3(IN.HPosition.xy, 0)).x;
+	const float fDepth = CV_NearFarClipDist.y * roDepthTex.Load(int3(IN.HPosition.xy, 0)).y;
 	const half fNoise = roNoiseTex.SampleLevel(roTrilinearWrapSampler, IN.baseTC.zw, 0.0f).x;
 
 	const int nNumSamples = 40;
@@ -1460,7 +1411,7 @@ SamplerState rnTrilinearWrapSampler : register(s0) = SS_TrilinearWrap;
 SamplerState rnTrilinearClampSampler : register(s1) = SS_TrilinearClamp;
 SamplerState rnPointClampSampler : register(s2) = SS_PointClamp;
 
-cbuffer SceneRainCB : register(b0)
+cbuffer CBSceneRain : register(b0)
 {
 	float4x4 sceneRainMtx;
 	float4 unscaledFactor;
@@ -1470,7 +1421,7 @@ cbuffer SceneRainCB : register(b0)
 
 struct vtxOutRain
 {
-  float4 HPosition    : POSITION;
+  float4 HPosition    : SV_POSITION;
   float4 tcProj	      : TEXCOORDN;
   float4 scaledTCProj : TEXCOORDN;
   float4 baseTC       : TEXCOORDN;
@@ -1586,7 +1537,7 @@ technique SceneRain
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 /// SceneSnow technique //////////////////////////////////////////////////////////////////////
 
-cbuffer SnowClusterCB : register(b0)
+cbuffer CBSnowCluster : register(b0)
 {
 	float4   vWaterLevel;
 	float4   vSnowFlakeParams;
@@ -1612,7 +1563,7 @@ struct vtxInSnow
 
 struct vtxOutSnow
 {
-  float4 HPosition  : POSITION;
+  float4 HPosition  : SV_POSITION;
   float4 baseTC     : TEXCOORDN;
   float4 screenProj : TEXCOORDN;
   float4 vVelocity	: TEXCOORDN;
@@ -1624,8 +1575,8 @@ struct vtxOutSnow
 
 struct pixoutSnow
 {
-  float4 Color		: COLOR0;
-  float4 Velocity	: COLOR1;
+  float4 Color      : SV_Target0;
+  float4 Velocity   : SV_Target1;
 };
 
 void SnowParticle_ApplyTurbulence( inout float4 vPos, inout float4 vPosPrev, in half fRandPhase )
@@ -2142,11 +2093,24 @@ float4x4 mViewProj < vsregister = c0; >;
 
 struct vtxOutNanoGlass
 {  
-  OUT_P
-  float4 screenPos  : TEXCOORDN;
-  float2 baseTC     : TEXCOORDN;
+	OUT_P
+	float4 screenPos  : TEXCOORDN;
+	float2 baseTC     : TEXCOORDN;
 };
 
+Texture2D ng_hexOutlineTex : register(t0); 
+Texture2D ng_hudMaskTex    : register(t1);     
+Texture2D ng_noiseTex      : register(t2);  			
+Texture2D ng_backBufferTex : register(t3);  	
+Texture2D ng_hexRandTex    : register(t4);  		
+Texture2D ng_hexGradTex    : register(t5);    		
+
+SamplerState ng_hexOutlineSS : register(s0); 
+SamplerState ng_hudMaskSS    : register(s1);     
+SamplerState ng_noiseSS      : register(s2);  			
+SamplerState ng_backBufferSS : register(s3);  	
+SamplerState ng_hexRandSS    : register(s4);  		
+SamplerState ng_hexGradSS    : register(s5); 
 ///////////////// vertex shader //////////////////
 
 vtxOutNanoGlass NanoGlass_VS(vtxIn IN)
@@ -2164,64 +2128,57 @@ vtxOutNanoGlass NanoGlass_VS(vtxIn IN)
 
 pixout NanoGlass_PS(vtxOutNanoGlass IN)
 {
-  pixout OUT;
+	pixout OUT;
   
 #if %_RT_DEBUG1
 
-  OUT.Color.xyzw = half4(1.0,1.0,1.0,1.0);
-
+	OUT.Color.xyzw = half4(1.0,1.0,1.0,1.0);
+	
 #else
   
-  // Only use psParams for dominant and interpolating values
-  #define ng_hexTexScale					psParams[0].x
-  #define ng_backBufferBrightessScalar	psParams[0].y
-  #define ng_vignetteTexOffset				psParams[0].z
-  #define ng_vignetteSaturation			psParams[0].w
-  #define ng_animPos								psParams[1].x
-	#define ng_noiseThresh						psParams[1].y
-  #define ng_time							psParams[1].z
-  #define ng_brightnessScale				psParams[1].w
-  #define ng_noiseTime						psParams[2].x
-  #define ng_movementWaveStrength			psParams[2].y
-  #define ng_vignetteFallOffScale			psParams[2].z
-  #define ng_movementWaveFrequency			psParams[2].w
-  #define ng_movementStrength				psParams[3].xy
-  #define ng_noiseStrength					psParams[3].z
-  #define ng_vignetteStrength				psParams[3].w
-	#define ng_effectAlpha					psParams[4].x
-  #define ng_mistAlpha						psParams[4].y
-  #define ng_vignetteScreenScale			psParams[4].zw
-  #define ng_hexColor						psParams[5].xyz
-  #define ng_hitStrength					psParams[5].w
-	#define ng_overChargeStrength	psParams[6].x
-	#define ng_cornerGlowStrength	psParams[6].y
+	// Only use psParams for dominant and interpolating values
+	#define ng_hexTexScale                psParams[0].x
+	#define ng_backBufferBrightessScalar  psParams[0].y
+	#define ng_vignetteTexOffset          psParams[0].z
+	#define ng_vignetteSaturation         psParams[0].w
+	#define ng_animPos                    psParams[1].x
+	#define ng_noiseThresh                psParams[1].y
+	#define ng_time                       psParams[1].z
+	#define ng_brightnessScale            psParams[1].w
+	#define ng_noiseTime                  psParams[2].x
+	#define ng_movementWaveStrength       psParams[2].y
+	#define ng_vignetteFallOffScale       psParams[2].z
+	#define ng_movementWaveFrequency      psParams[2].w
+	#define ng_movementStrength           psParams[3].xy
+	#define ng_noiseStrength              psParams[3].z
+	#define ng_vignetteStrength           psParams[3].w
+	#define ng_effectAlpha                psParams[4].x
+	#define ng_mistAlpha                  psParams[4].y
+	#define ng_vignetteScreenScale        psParams[4].zw
+	#define ng_hexColor                   psParams[5].xyz
+	#define ng_hitStrength                psParams[5].w
+	#define ng_overChargeStrength         psParams[6].x
+	#define ng_cornerGlowStrength         psParams[6].y
 
-  #define ng_hexOutlineTex					_tex0
-  #define ng_hudMaskTex						_tex1
-  #define ng_noiseTex							_tex2
-	#define ng_backBufferTex					_tex3
-	#define ng_hexRandTex						_tex4
-	#define ng_hexGradTex						_tex5
+	// Least useful params left as defines in shader
+	#define ng_noiseTexScale                  0.8
+	#define ng_noiseScale                     18.75
+	#define ng_vignetteAlphaSaturation        0.1
+	#define ng_vignetteAlphaSaturationReScale 1.11
 
-  // Least useful params left as defines in shader
-  #define ng_noiseTexScale						0.8
-  #define ng_noiseScale						18.75
-  #define ng_vignetteAlphaSaturation			0.1
-  #define ng_vignetteAlphaSaturationReScale	1.11
+	#define ng_menuNoise                      0.5
+	#define ng_menuNoiseHighlight             0.4
+	#define ng_menuNoiseScale                 0.5
+	#define ng_maxBrightnessScale             1.7
+	#define ng_interlationHitStrengthBoost    0.25
+	#define ng_noiseHitStrengthBoost          0.1
 
-	#define ng_menuNoise							0.5
-	#define ng_menuNoiseHighlight		0.4
-	#define ng_menuNoiseScale				0.5
-	#define ng_maxBrightnessScale		1.7
-	#define ng_interlationHitStrengthBoost	0.25
-	#define ng_noiseHitStrengthBoost 0.1
-	
-  half texOffsetScale = 1.0;
-  half2 screenTC = IN.screenPos.xy / IN.screenPos.w;
-  half2 visorTC = IN.baseTC.xy;
+	half texOffsetScale = 1.0;
+	half2 screenTC = IN.screenPos.xy / IN.screenPos.w;
+	half2 visorTC = IN.baseTC.xy;
 	half2 hexTC = (visorTC - half2(0.5,0.5)) * ng_hexTexScale * texOffsetScale;
-  half2 vecDistFromCentre = abs(visorTC - half2(0.5,0.5)) * 2.0;
-  half animAlpha = 1.0;
+	half2 vecDistFromCentre = abs(visorTC - half2(0.5,0.5)) * 2.0;
+	half animAlpha = 1.0;
 
 	//*************************************************************************************************************        
   // Intro & Outro animations
@@ -2231,9 +2188,9 @@ pixout NanoGlass_PS(vtxOutNanoGlass IN)
 	const half hexGradientScale = 0.25;
 	
 	// Sample and unpack hexagon data
-	half3 hexDir = tex2D(ng_hexRandTex, hexTC).xyz;
+	half3 hexDir = GetTexture2D(ng_hexRandTex, ng_hexRandSS, hexTC).xyz;
 	hexDir.xy = normalize((hexDir.xy * 2.0) - 1.0);
-	half hexGradient = tex2D(ng_hexGradTex, hexTC * hexGradientScale).x;
+	half hexGradient = GetTexture2D(ng_hexGradTex, ng_hexGradSS, hexTC * hexGradientScale).x;
 
 	// Calculate distance from nearest hexagon center to screen center
 	half2 screenPos = abs((visorTC * 2.0) - 1.0);
@@ -2243,34 +2200,34 @@ pixout NanoGlass_PS(vtxOutNanoGlass IN)
 	// Clip hexagons outside the animation range
 	animAlpha = step(ng_animPos, screenCenterDist + hexGradient * hexAnimRange);
 #endif
-  //*************************************************************************************************************
-
-  //*************************************************************************************************************
-  // Apply vignette  
-  // Use distance from centre to calc vignette
-  half2 vecDistFromCentreSq = vecDistFromCentre * vecDistFromCentre * ng_vignetteScreenScale;
-  half vignetteAlpha = (vecDistFromCentreSq.x + vecDistFromCentreSq.y);
-  
-  vignetteAlpha += (1.0-vignetteAlpha) * (1.0-(ng_vignetteStrength)); // Apply vignette strength
-  vignetteAlpha = pow(vignetteAlpha,4); // Control vignette falloff
-  vignetteAlpha = saturate(max(vignetteAlpha-ng_vignetteAlphaSaturation,0.0) * ng_vignetteAlphaSaturationReScale); // Saturate alpha slightly
-  //*************************************************************************************************************
-
-  //*************************************************************************************************************
-  // Sin wave movement offset
-#if %_RT_SAMPLE2
-  half sinWaveOffset = sin(ng_time+((visorTC.x+visorTC.y)*ng_movementWaveFrequency))*ng_movementWaveStrength;
-  texOffsetScale += sinWaveOffset;
-#endif
-  //*************************************************************************************************************
- 
-  //*************************************************************************************************************
-  // Outline color
-  half3 vTexOutline = tex2Dlod(ng_hexOutlineTex,half4(hexTC,0.0,0.0));
-  //*************************************************************************************************************
-  
 	//*************************************************************************************************************
-  // Hex mask
+
+	//*************************************************************************************************************
+	// Apply vignette  
+	// Use distance from centre to calc vignette
+	half2 vecDistFromCentreSq = vecDistFromCentre * vecDistFromCentre * ng_vignetteScreenScale;
+	half vignetteAlpha = (vecDistFromCentreSq.x + vecDistFromCentreSq.y);
+
+	vignetteAlpha += (1.0-vignetteAlpha) * (1.0-(ng_vignetteStrength)); // Apply vignette strength
+	vignetteAlpha = pow(vignetteAlpha,4); // Control vignette falloff
+	vignetteAlpha = saturate(max(vignetteAlpha-ng_vignetteAlphaSaturation,0.0) * ng_vignetteAlphaSaturationReScale); // Saturate alpha slightly
+	//*************************************************************************************************************
+	
+	//*************************************************************************************************************
+	// Sin wave movement offset
+#if %_RT_SAMPLE2
+	half sinWaveOffset = sin(ng_time+((visorTC.x+visorTC.y)*ng_movementWaveFrequency))*ng_movementWaveStrength;
+	texOffsetScale += sinWaveOffset;
+#endif
+	//*************************************************************************************************************
+	
+	//*************************************************************************************************************
+	// Outline color
+	half3 vTexOutline = GetTexture2DLod(ng_hexOutlineTex,ng_hexOutlineSS,half4(hexTC,0.0,0.0));
+	//*************************************************************************************************************
+	
+	//*************************************************************************************************************
+	// Hex mask
 	half mistTexOutline = vTexOutline.y;
 #if %_RT_SAMPLE1
 	mistTexOutline = lerp(vTexOutline.y,vTexOutline.x,ng_overChargeStrength);
@@ -2278,22 +2235,22 @@ pixout NanoGlass_PS(vtxOutNanoGlass IN)
 	half hexMask = lerp(vTexOutline.z,mistTexOutline,ng_mistAlpha);
 	//*************************************************************************************************************
 
-  //*************************************************************************************************************
-  // Noise (2 noise samples, going in opposite directions)
-  half noise = 0.0;
+	//*************************************************************************************************************
+	// Noise (2 noise samples, going in opposite directions)
+	half noise = 0.0;
 	half mistNoiseCombined = 0.0;
-  half noiseCombined = 0.0;
-  half2 noiseTC = visorTC*ng_noiseTexScale;
-  half3 vNoise = tex2D(ng_noiseTex,noiseTC + float2(-ng_noiseTime,0.0)); // Must use floats with time        
-  noiseCombined = vNoise.x;     
-  vNoise = tex2D(ng_noiseTex,noiseTC + float2(ng_noiseTime,0.0)); // Must use floats with time       
-  noiseCombined += vNoise.x;  
-  noiseCombined *= 0.5;
-
-  noiseCombined = max(noiseCombined-ng_noiseThresh,0.0) * ng_noiseScale;
-  noiseCombined *= hexMask;
-  mistNoiseCombined = noiseCombined * ng_mistAlpha;
-  half mistNoiseCombinedx4 = mistNoiseCombined*mistNoiseCombined*mistNoiseCombined*mistNoiseCombined;
+	half noiseCombined = 0.0;
+	half2 noiseTC = visorTC*ng_noiseTexScale;
+	half3 vNoise = GetTexture2D(ng_noiseTex,ng_noiseSS,noiseTC + float2(-ng_noiseTime,0.0)); // Must use floats with time        
+	noiseCombined = vNoise.x;     
+	vNoise = GetTexture2D(ng_noiseTex,ng_noiseSS,noiseTC + float2(ng_noiseTime,0.0)); // Must use floats with time       
+	noiseCombined += vNoise.x;  
+	noiseCombined *= 0.5;
+	
+	noiseCombined = max(noiseCombined-ng_noiseThresh,0.0) * ng_noiseScale;
+	noiseCombined *= hexMask;
+	mistNoiseCombined = noiseCombined * ng_mistAlpha;
+	half mistNoiseCombinedx4 = mistNoiseCombined*mistNoiseCombined*mistNoiseCombined*mistNoiseCombined;
 	half mistNoise = ((noiseCombined*ng_menuNoise) + (mistNoiseCombinedx4*ng_menuNoiseHighlight))*ng_menuNoiseScale;
 	noise = lerp(noiseCombined,mistNoise,ng_mistAlpha-ng_overChargeStrength);
   
@@ -2312,7 +2269,7 @@ pixout NanoGlass_PS(vtxOutNanoGlass IN)
 	//*************************************************************************************************************        
   // Brightness
 #if %_RT_SAMPLE4
-	half3 backBuffer = tex2D(ng_backBufferTex, screenTC.xy).xyz;
+	half3 backBuffer = GetTexture2D(ng_backBufferTex, ng_backBufferSS, screenTC.xy).xyz;
 	half backBufferBrightness = saturate(backBuffer.x + backBuffer.y + backBuffer.z);
 	ng_brightnessScale = lerp(ng_maxBrightnessScale,ng_brightnessScale,lerp(1.0,backBufferBrightness,ng_backBufferBrightessScalar));
 #endif
@@ -2330,7 +2287,7 @@ pixout NanoGlass_PS(vtxOutNanoGlass IN)
 
   //*************************************************************************************************************        
   // Final blend
-	half hudMask = 1.0 - tex2D(ng_hudMaskTex, screenTC.xy).w;
+	half hudMask = 1.0 - GetTexture2D(ng_hudMaskTex, ng_hudMaskSS, screenTC.xy).w;
 	hexMask *= ng_brightnessScale * ng_brightnessScale;
 
 	OUT.Color.xyz = ng_hexColor * noise;

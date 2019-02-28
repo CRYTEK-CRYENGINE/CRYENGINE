@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifdef __cplusplus
 // C++
@@ -48,45 +48,45 @@ hlsl_cbuffer(PerPassConstantBuffer_Custom)
 	hlsl_float4(CP_Custom_ViewMode);
 };
 
-hlsl_cbuffer_register(PerInstanceConstantBuffer_Base, register (b12), 12) // eConstantBufferShaderSlot_PerInstance
+hlsl_cbuffer_register(PerDrawConstantBuffer_Base, register (b0), 1) // eConstantBufferShaderSlot_PerDraw
 {
-	hlsl_matrix34(PerInstanceWorldMatrix);
-	hlsl_matrix34(PerInstancePrevWorldMatrix);
-	hlsl_float4(PerInstanceCustomData);
-	hlsl_float4(PerInstanceCustomData1);
-	hlsl_float4(PerInstanceCustomData2);
+	hlsl_matrix34(CD_WorldMatrix);
+	hlsl_matrix34(CD_PrevWorldMatrix);
+	hlsl_float4(CD_CustomData);
+	hlsl_float4(CD_CustomData1);
+	hlsl_float4(CD_CustomData2);
 };
 
-hlsl_cbuffer_register(PerInstanceConstantBuffer_TerrainVegetation, register (b12), 12) // eConstantBufferShaderSlot_PerInstance
+hlsl_cbuffer_register(PerDrawConstantBuffer_TeVe, register (b0), 1) // eConstantBufferShaderSlot_PerDraw
 {
-	hlsl_matrix34(PerInstanceWorldMatrix);
-	hlsl_matrix34(PerInstancePrevWorldMatrix);
-	hlsl_float4(PerInstanceCustomData);
-	hlsl_float4(PerInstanceCustomData1);
+	hlsl_matrix34(CD_WorldMatrix);
+	hlsl_matrix34(CD_PrevWorldMatrix);
+	hlsl_float4(CD_CustomData);
+	hlsl_float4(CD_CustomData1);
 	// TODO: customdata2 should be added after terrainlayerinfo, make sure a vegetation shader is correctly detected when uploading data to
 	// constant buffer
-	hlsl_float4(PerInstanceCustomData2);
+	hlsl_float4(CD_CustomData2);
 
-	hlsl_float4(BlendTerrainColInfo);
-	hlsl_matrix44(TerrainLayerInfo);
+	hlsl_float4(CD_BlendTerrainColInfo);
+	hlsl_matrix44(CD_TerrainLayerInfo);
 };
 
-hlsl_cbuffer_register(PerInstanceConstantBuffer_Skin, register (b12), 12) // eConstantBufferShaderSlot_PerInstance
+hlsl_cbuffer_register(PerDrawConstantBuffer_Skin, register (b0), 1) // eConstantBufferShaderSlot_PerDraw
 {
-	hlsl_matrix34(PerInstanceWorldMatrix);
-	hlsl_matrix34(PerInstancePrevWorldMatrix);
-	hlsl_float4(PerInstanceCustomData);
-	hlsl_float4(PerInstanceCustomData1);
+	hlsl_matrix34(CD_WorldMatrix);
+	hlsl_matrix34(CD_PrevWorldMatrix);
+	hlsl_float4(CD_CustomData);
+	hlsl_float4(CD_CustomData1);
 	// TODO: customdata2 should be added after WrinklesMask2. Since constant buffer definition is shared with vegetation, we need this here as well
-	hlsl_float4(PerInstanceCustomData2);
+	hlsl_float4(CD_CustomData2);
 
-	hlsl_float4(SkinningInfo);
-	hlsl_float4(WrinklesMask0);
-	hlsl_float4(WrinklesMask1);
-	hlsl_float4(WrinklesMask2);
+	hlsl_float4(CD_SkinningInfo);
+	hlsl_float4(CD_WrinklesMask0);
+	hlsl_float4(CD_WrinklesMask1);
+	hlsl_float4(CD_WrinklesMask2);
 };
 
-hlsl_cbuffer_register(PerViewGlobalConstantBuffer, register (b13), 13) //eConstantBufferShaderSlot_PerView
+hlsl_cbuffer_register(PerViewGlobalConstantBuffer, register (b6), 6) //eConstantBufferShaderSlot_PerView
 {
 	hlsl_matrix44(CV_ViewProjZeroMatr);
 	hlsl_float4(CV_AnimGenParams);
@@ -125,7 +125,7 @@ hlsl_cbuffer_register(PerViewGlobalConstantBuffer, register (b13), 13) //eConsta
 	hlsl_matrix44(CV_InvViewMatr);
 };
 
-hlsl_cbuffer_register(VrProjectionConstantBuffer, register (b11), 11) // eConstantBufferShaderSlot_VrProjection
+hlsl_cbuffer_register(VrProjectionConstantBuffer, register (b7), 7) // eConstantBufferShaderSlot_VrProjection
 {
 	hlsl_float4(CVP_GeometryShaderParams)[2];
 	hlsl_float4(CVP_ProjectionParams)[12];

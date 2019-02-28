@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /********************************************************************
    -------------------------------------------------------------------------
@@ -46,12 +46,6 @@ public:
 	virtual bool                  IsClosestToUseTheSmartObject(const OffMeshLink_SmartObject& smartObjectLink) const override;
 	virtual bool                  PrepareNavigateSmartObject(CSmartObject* pSmartObject, OffMeshLink_SmartObject* pSmartObjectLink) override;
 	virtual void                  InvalidateSmartObjectLink(CSmartObject* pSmartObject, OffMeshLink_SmartObject* pSmartObjectLink) override;
-
-	virtual void                  SetInCover(const bool inCover) override;
-	virtual void                  UpdateCoverLocations() override;
-	virtual void                  InstallInLowCover(const bool inCover) override;
-	virtual void                  SetupCoverInformation() override;
-	virtual bool                  IsInCover() const override;
 
 	virtual bool                  GetDesignedPath(SShape& pathShape) const override;
 	virtual void                  CancelRequestedPath() override;

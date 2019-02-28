@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "DriverD3D.h"
@@ -11,11 +11,6 @@
 static const D3D11_INPUT_ELEMENT_DESC VertexDeclXY16i[] =
 {
 	{ "POSITION", 0, DXGI_FORMAT_R16G16_SINT,    0,  0, D3D11_INPUT_PER_VERTEX_DATA, 0 }
-};
-
-static const D3D11_INPUT_ELEMENT_DESC VertexDeclXY32f[] =
-{
-	{ "POSITION", 0, DXGI_FORMAT_R32G32_FLOAT,   0,  0, D3D11_INPUT_PER_VERTEX_DATA, 0 }
 };
 
 static const D3D11_INPUT_ELEMENT_DESC VertexDeclXY16iC32[] =
@@ -39,6 +34,16 @@ static const D3D11_INPUT_ELEMENT_DESC VertexDeclGlyph[] =
 };
 
 //////////////////////////////////////////////////////////////////////////
+
+inline uint32 SF_AdjustBlendStateForMeasureOverdraw(uint32 blendModeStates)
+{
+	if (CRenderer::CV_r_measureoverdraw)
+	{
+		blendModeStates = (blendModeStates & ~GS_BLEND_MASK) | (GS_BLSRC_ONE | GS_BLDST_ONE);
+		blendModeStates &= ~GS_ALPHATEST;
+	}
+	return blendModeStates;
+}
 
 CRenderPrimitive* SSF_ResourcesD3D::CRenderPrimitiveHeap::GetUsablePrimitive(int key)
 {
@@ -145,7 +150,6 @@ SSF_ResourcesD3D::SSF_ResourcesD3D(CD3D9Renderer* pRenderer)
 	, m_shTech_ShadowonlyMulHighlight_Box2("ShadowonlyMulHighlight_Box2")
 
 	, m_pShader(0)
-	, m_fence(0)
 {
 	m_vertexDecls[IScaleformPlayback::Vertex_None     ] = InputLayoutHandle::Unspecified;
 	m_vertexDecls[IScaleformPlayback::Vertex_XY16i    ] = InputLayoutHandle::Unspecified;
@@ -224,12 +228,10 @@ SSF_ResourcesD3D::~SSF_ResourcesD3D()
 	SAFE_RELEASE(m_pVertexDecls[IScaleformPlayback::Vertex_XY16iCF32]);
 	SAFE_RELEASE(m_pVertexDecls[IScaleformPlayback::Vertex_Glyph    ]);
 
-	GetDeviceObjectFactory().ReleaseFence(m_fence);
-
 	m_PrimitiveHeap.Clear();
 
-	for (auto& pTexture : m_renderTargets)
-		SAFE_RELEASE(pTexture);
+	FreeColorSurfaces();
+	FreeStencilSurfaces();
 }
 
 CShader* SSF_ResourcesD3D::GetShader(CD3D9Renderer* pRenderer)
@@ -237,11 +239,27 @@ CShader* SSF_ResourcesD3D::GetShader(CD3D9Renderer* pRenderer)
 	return pRenderer->m_cEF.s_ShaderScaleForm;
 }
 
+void SSF_ResourcesD3D::FreeColorSurfaces()
+{
+	for (auto& pTexture : m_renderTargets)
+		SAFE_RELEASE(pTexture);
+
+	m_renderTargets.clear();
+}
+
+void SSF_ResourcesD3D::FreeStencilSurfaces()
+{
+	for (auto& pTexture : m_depthTargets)
+		SAFE_RELEASE(pTexture);
+
+	m_depthTargets.clear();
+}
+
 CTexture* SSF_ResourcesD3D::GetColorSurface(CD3D9Renderer* pRenderer, int nWidth, int nHeight, ETEX_Format eFormat, int nMaxWidth, int nMaxHeight)
 {
 	CryCriticalSectionNonRecursive threadSafePool;
 
-	CTexture* pTex = NULL;
+	CTexture* pTex = nullptr;
 	uint32 i;
 	int nBestX = -1;
 	int nBestY = -1;
@@ -303,12 +321,7 @@ CTexture* SSF_ResourcesD3D::GetColorSurface(CD3D9Renderer* pRenderer, int nWidth
 
 	if (i == m_renderTargets.size())
 	{
-		//allocate new RT
-		int texID = pRenderer->CreateRenderTarget(nWidth, nHeight, Clr_Transparent, eFormat);
-		pTex = static_cast<CTexture*>(pRenderer->EF_GetTextureByID(texID));
-
-		CDeviceCommandListRef commandList = GetDeviceObjectFactory().GetCoreCommandList();
-		commandList.GetGraphicsInterface()->ClearSurface(pTex->GetDevTexture()->LookupRTV(EDefaultResourceViews::RasterizerTarget), Clr_Transparent);
+		pTex = CRendererResources::CreateRenderTarget(nWidth, nHeight, Clr_Transparent, eFormat);
 
 		m_renderTargets.push_back(pTex);
 	}
@@ -316,11 +329,40 @@ CTexture* SSF_ResourcesD3D::GetColorSurface(CD3D9Renderer* pRenderer, int nWidth
 	return pTex;
 }
 
-SDepthTexture* SSF_ResourcesD3D::GetStencilSurface(CD3D9Renderer* pRenderer, int nWidth, int nHeight, ETEX_Format eFormat)
+CTexture* SSF_ResourcesD3D::GetStencilSurface(CD3D9Renderer* pRenderer, int nWidth, int nHeight, ETEX_Format eFormat)
 {
 	CryCriticalSectionNonRecursive threadSafePool;
 
-	return pRenderer->FX_GetDepthSurface(nWidth, nHeight, false, false);
+	CTexture* pTex = nullptr;
+	uint32 i;
+	int nBestX = -1;
+	int nBestY = -1;
+	for (i = 0; i < m_depthTargets.size(); i++)
+	{
+		pTex = m_depthTargets[i];
+		if ((pTex->GetRefCounter() <= 1))
+		{
+			if (pTex->GetWidth() == nWidth && pTex->GetHeight() == nHeight)
+			{
+				nBestX = i;
+				nBestY = i;
+				break;
+			}
+		}
+	}
+	if (nBestX >= 0)
+		return m_depthTargets[nBestX];
+	if (nBestY >= 0)
+		return m_depthTargets[nBestY];
+
+	if (i == m_depthTargets.size())
+	{
+		pTex = CRendererResources::CreateDepthTarget(nWidth, nHeight, Clr_Transparent, eFormat);
+
+		m_depthTargets.push_back(pTex);
+	}
+
+	return pTex;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -340,10 +382,6 @@ SSF_ResourcesD3D& CD3D9Renderer::SF_GetResources()
 
 void CD3D9Renderer::SF_ResetResources()
 {
-	if (m_pSFResD3D && m_pSFResD3D->m_fence)
-	{
-		GetDeviceObjectFactory().ReleaseFence(m_pSFResD3D->m_fence);
-	}
 }
 
 void CD3D9Renderer::SF_DestroyResources()
@@ -358,26 +396,25 @@ void CD3D9Renderer::SF_PrecacheShaders()
 	if (!pShader)
 		return;
 
-	SShaderCombination cmb;
-	pShader->mfPrecache(cmb, true, NULL);
+	SDeviceObjectHelpers::THwShaderInfo shaderInfoXY16i;
+	SDeviceObjectHelpers::THwShaderInfo shaderInfoXY16iC32;
+	SDeviceObjectHelpers::THwShaderInfo shaderInfoXY16iCF32;
+	SDeviceObjectHelpers::THwShaderInfo shaderInfoGlyph;
 
-	auto shaderInfoXY16i     = SDeviceObjectHelpers::GetShaderInstanceInfo(pShader, Res.m_shTech_SolidColor             , 0, 0, 0, nullptr, false);
-	auto shaderInfoXY32f     = SDeviceObjectHelpers::GetShaderInstanceInfo(pShader, Res.m_shTech_SolidColor             , 0, 0, 0, nullptr, false);
-	auto shaderInfoXY16iC32  = SDeviceObjectHelpers::GetShaderInstanceInfo(pShader, Res.m_shTech_CxformGouraudNoAddAlpha, 0, 0, 0, nullptr, false);
-	auto shaderInfoXY16iCF32 = SDeviceObjectHelpers::GetShaderInstanceInfo(pShader, Res.m_shTech_CxformGouraud          , 0, 0, 0, nullptr, false);
-	auto shaderInfoGlyph     = SDeviceObjectHelpers::GetShaderInstanceInfo(pShader, Res.m_shTech_GlyphTexture           , 0, 0, 0, nullptr, false);
+	SDeviceObjectHelpers::GetShaderInstanceInfo(shaderInfoXY16i,     pShader, Res.m_shTech_SolidColor             , 0, 0, 0, nullptr, false);
+	SDeviceObjectHelpers::GetShaderInstanceInfo(shaderInfoXY16iC32,  pShader, Res.m_shTech_CxformGouraudNoAddAlpha, 0, 0, 0, nullptr, false);
+	SDeviceObjectHelpers::GetShaderInstanceInfo(shaderInfoXY16iCF32, pShader, Res.m_shTech_CxformGouraud          , 0, 0, 0, nullptr, false);
+	SDeviceObjectHelpers::GetShaderInstanceInfo(shaderInfoGlyph,     pShader, Res.m_shTech_GlyphTexture           , 0, 0, 0, nullptr, false);
 
 	auto* pInstanceXY16i     = reinterpret_cast<CHWShader_D3D::SHWSInstance*>(shaderInfoXY16i    [eHWSC_Vertex].pHwShaderInstance);
-	auto* pInstanceXY32f     = reinterpret_cast<CHWShader_D3D::SHWSInstance*>(shaderInfoXY32f    [eHWSC_Vertex].pHwShaderInstance);
 	auto* pInstanceXY16iC32  = reinterpret_cast<CHWShader_D3D::SHWSInstance*>(shaderInfoXY16iC32 [eHWSC_Vertex].pHwShaderInstance);
 	auto* pInstanceXY16iCF32 = reinterpret_cast<CHWShader_D3D::SHWSInstance*>(shaderInfoXY16iCF32[eHWSC_Vertex].pHwShaderInstance);
 	auto* pInstanceGlyph     = reinterpret_cast<CHWShader_D3D::SHWSInstance*>(shaderInfoGlyph    [eHWSC_Vertex].pHwShaderInstance);
-	
-	Res.m_vertexDecls[IScaleformPlayback::Vertex_XY16i    ] = CDeviceObjectFactory::GetOrCreateInputLayoutHandle(&pInstanceXY16i    ->m_Shader, 1, VertexDeclXY16i    );
-	Res.m_vertexDecls[IScaleformPlayback::Vertex_XY32f    ] = CDeviceObjectFactory::GetOrCreateInputLayoutHandle(&pInstanceXY32f    ->m_Shader, 1, VertexDeclXY32f    );
-	Res.m_vertexDecls[IScaleformPlayback::Vertex_XY16iC32 ] = CDeviceObjectFactory::GetOrCreateInputLayoutHandle(&pInstanceXY16iC32 ->m_Shader, 2, VertexDeclXY16iC32 );
-	Res.m_vertexDecls[IScaleformPlayback::Vertex_XY16iCF32] = CDeviceObjectFactory::GetOrCreateInputLayoutHandle(&pInstanceXY16iCF32->m_Shader, 3, VertexDeclXY16iCF32);
-	Res.m_vertexDecls[IScaleformPlayback::Vertex_Glyph    ] = CDeviceObjectFactory::GetOrCreateInputLayoutHandle(&pInstanceGlyph    ->m_Shader, 3, VertexDeclGlyph    );
+
+	Res.m_vertexDecls[IScaleformPlayback::Vertex_XY16i]     = CDeviceObjectFactory::CreateCustomVertexFormat(1, VertexDeclXY16i);
+	Res.m_vertexDecls[IScaleformPlayback::Vertex_XY16iC32]  = CDeviceObjectFactory::CreateCustomVertexFormat(2, VertexDeclXY16iC32);
+	Res.m_vertexDecls[IScaleformPlayback::Vertex_XY16iCF32] = CDeviceObjectFactory::CreateCustomVertexFormat(3, VertexDeclXY16iCF32);
+	Res.m_vertexDecls[IScaleformPlayback::Vertex_Glyph]     = CDeviceObjectFactory::CreateCustomVertexFormat(3, VertexDeclGlyph);
 
 	const SamplerStateHandle texStateID[8] =
 	{
@@ -412,135 +449,14 @@ void CRenderer::SF_Drain(GRendererCommandBufferReadOnly* pBuffer) const
 void CRenderer::SF_ConfigMask(int st, uint32 ref)
 {
 	// Graphics pipeline == 0
-	FX_SetStencilState(st, ref, 0xFFFFFFFF, 0xFFFFFFFF);
+	//FX_SetStencilState(st, ref, 0xFFFFFFFF, 0xFFFFFFFF);
 }
 
 //////////////////////////////////////////////////////////////////////////
 void CRenderer::SF_GetMeshMaxSize(int& numVertices, int& numIndices) const
 {
-	numVertices = m_RP.m_MaxVerts;
-	numIndices = m_RP.m_MaxTris * 3;
-}
-
-//////////////////////////////////////////////////////////////////////////
-bool CD3D9Renderer::SF_SetVertexDeclaration(IScaleformPlayback::VertexFormat vertexFmt)
-{
-	const SSF_ResourcesD3D& sfRes(SF_GetResources());
-
-	D3DVertexDeclaration* pVD = CDeviceObjectFactory::LookupInputLayout(sfRes.m_vertexDecls[vertexFmt]).second;
-	assert(pVD);
-	if (!pVD)
-		return false;
-
-	if (m_pLastVDeclaration != pVD)
-	{
-		m_pLastVDeclaration = pVD;
-		m_DevMan.BindVtxDecl(pVD);
-	}
-
-	return true;
-}
-
-//////////////////////////////////////////////////////////////////////////
-CShader* CD3D9Renderer::SF_SetTechnique(const CCryNameTSCRC& techName)
-{
-	FUNCTION_PROFILER_RENDER_FLAT
-		assert(gRenDev->m_pRT->IsRenderThread());
-
-	CShader* pShader(SF_GetResources().GetShader(this));
-	if (!pShader)
-		return 0;
-
-	SShaderTechnique* pTech(0);
-	uint32 i(0);
-	for (; i < pShader->m_HWTechniques.Num(); ++i)
-	{
-		pTech = pShader->m_HWTechniques[i];
-		if (techName == pTech->m_NameCRC)
-			break;
-	}
-
-	if (i == pShader->m_HWTechniques.Num())
-		return 0;
-
-	CRenderer* rd(gRenDev);
-	rd->m_RP.m_pShader = pShader;
-	rd->m_RP.m_nShaderTechnique = i;
-	rd->m_RP.m_pCurTechnique = pShader->m_HWTechniques[i];
-
-	return pShader;
-}
-
-//////////////////////////////////////////////////////////////////////////
-void CD3D9Renderer::SF_SetBlendOp(SSF_GlobalDrawParams::EAlphaBlendOp blendOp, bool reset)
-{
-	if (CV_r_measureoverdraw)
-		return;
-
-	if (!reset)
-	{
-		if (blendOp != SSF_GlobalDrawParams::Add)
-		{
-			switch (blendOp)
-			{
-			case SSF_GlobalDrawParams::Substract:
-			{
-				SStateBlend bl = m_StatesBL[m_nCurStateBL];
-				bl.Desc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_SUBTRACT;
-				bl.Desc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_SUBTRACT;
-				SetBlendState(&bl);
-			}
-			break;
-			case SSF_GlobalDrawParams::RevSubstract:
-			{
-				SStateBlend bl = m_StatesBL[m_nCurStateBL];
-				bl.Desc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_REV_SUBTRACT;
-				bl.Desc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_REV_SUBTRACT;
-				SetBlendState(&bl);
-			}
-			break;
-			case SSF_GlobalDrawParams::Min:
-			{
-				SStateBlend bl = m_StatesBL[m_nCurStateBL];
-				bl.Desc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_MIN;
-				bl.Desc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_MIN;
-				SetBlendState(&bl);
-			}
-			break;
-			case SSF_GlobalDrawParams::Max:
-			{
-				SStateBlend bl = m_StatesBL[m_nCurStateBL];
-				bl.Desc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_MAX;
-				bl.Desc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_MAX;
-				SetBlendState(&bl);
-			}
-			break;
-			default:
-				assert(0);
-				break;
-			}
-		}
-	}
-	else
-	{
-		if (blendOp != SSF_GlobalDrawParams::Add)
-		{
-			SStateBlend bl = m_StatesBL[m_nCurStateBL];
-			bl.Desc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
-			bl.Desc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
-			SetBlendState(&bl);
-		}
-	}
-}
-
-uint32 CD3D9Renderer::SF_AdjustBlendStateForMeasureOverdraw(uint32 blendModeStates)
-{
-	if (CV_r_measureoverdraw)
-	{
-		blendModeStates = (blendModeStates & ~GS_BLEND_MASK) | (GS_BLSRC_ONE | GS_BLDST_ONE);
-		blendModeStates &= ~GS_ALPHATEST;
-	}
-	return blendModeStates;
+	numVertices = 16384;
+	numIndices  = 16384*3;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -558,8 +474,6 @@ void CD3D9Renderer::SF_HandleClear(const SSF_GlobalDrawParams& __restrict params
 			LONG(params.viewport.TopLeftY + params.viewport.Height)
 		};
 
-		// Graphics pipeline >= 1
-		if (CRenderer::CV_r_GraphicsPipeline > 0)
 		{
 			if (rCurOutput.renderPass.GetPrimitiveCount() >= 1)
 			{
@@ -571,7 +485,7 @@ void CD3D9Renderer::SF_HandleClear(const SSF_GlobalDrawParams& __restrict params
 		if (rCurOutput.bRenderTargetClear)
 			rCurOutput.clearPass.Execute(rCurOutput.pRenderTarget, Clr_Transparent, 1, &rect);
 		if (rCurOutput.bStencilTargetClear)
-			rCurOutput.clearPass.Execute(rCurOutput.pStencilTarget, CLEAR_STENCIL, Clr_Unused.r, 0, 1, &rect);
+			rCurOutput.clearPass.Execute(rCurOutput.pStencilTarget, CLEAR_STENCIL, Clr_Unused.r, Val_Stencil, 1, &rect);
 	}
 
 	rCurOutput.bRenderTargetClear = false;
@@ -581,15 +495,12 @@ void CD3D9Renderer::SF_HandleClear(const SSF_GlobalDrawParams& __restrict params
 //////////////////////////////////////////////////////////////////////////
 void CD3D9Renderer::SF_DrawIndexedTriList(int baseVertexIndex, int minVertexIndex, int numVertices, int startIndex, int triangleCount, const SSF_GlobalDrawParams& __restrict params)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 
 	if (IsDeviceLost())
 		return;
 
-	SRenderPipeline& RESTRICT_REFERENCE rRP = m_RP;
-	SThreadInfo& RESTRICT_REFERENCE rTI = rRP.m_TI[rRP.m_nProcessThreadID];
-
-	assert(params.vtxData->VertexFormat != IScaleformPlayback::Vertex_Glyph && params.vtxData->VertexFormat != IScaleformPlayback::Vertex_None);
+	CRY_ASSERT(params.vtxData->VertexFormat != IScaleformPlayback::Vertex_Glyph && params.vtxData->VertexFormat != IScaleformPlayback::Vertex_None);
 
 	SSF_ResourcesD3D& sfRes(SF_GetResources());
 
@@ -611,7 +522,7 @@ void CD3D9Renderer::SF_DrawIndexedTriList(int baseVertexIndex, int minVertexInde
 	const CCryNameTSCRC techName = *sfRes.m_FillTechnique[fillType][params.isMultiplyDarkBlendMode];
 
 	SF_HandleClear(params);
-	if (CRenderer::CV_r_GraphicsPipeline > 0)
+
 	{
 		CPrimitiveRenderPass& __restrict primPass = params.pRenderOutput->renderPass;
 
@@ -637,128 +548,18 @@ void CD3D9Renderer::SF_DrawIndexedTriList(int baseVertexIndex, int minVertexInde
 		primInit->Compile(primPass);
 
 		primPass.AddPrimitive(primInit);
-
-		return;
 	}
-
-	CShader* pSFShader = SF_SetTechnique(techName);
-	if (!pSFShader)
-		return;
-
-	if (params.renderMaskedStates & GS_COLMASK_NONE)
-	{
-		rRP.m_PersFlags2 |= RBPF2_DISABLECOLORWRITES;
-		rRP.m_StateOr |= GS_COLMASK_NONE;
-	}
-
-	{
-		//FRAME_PROFILER("SF_DITL::FxBegin", gEnv->pSystem, PROFILE_SYSTEM);
-
-		uint32 numPasses(0);
-		pSFShader->FXBegin(&numPasses, /*FEF_DONTSETTEXTURES |*/ FEF_DONTSETSTATES);
-		if (!numPasses)
-		{
-			return;
-		}
-
-		if (!pSFShader->FXBeginPass(0))
-		{
-			rRP.m_PersFlags2 &= ~RBPF2_DISABLECOLORWRITES;
-			rRP.m_StateOr &= ~GS_COLMASK_NONE;
-			pSFShader->FXEndPass();
-			pSFShader->FXEnd();
-			return;
-		}
-	}
-	{
-		//FRAME_PROFILER("SF_DITL::SetState", gEnv->pSystem, PROFILE_SYSTEM);
-
-		// Set states
-		FX_SetState(SF_AdjustBlendStateForMeasureOverdraw(params.blendModeStates) | /*GS_NODEPTHTEST | */ params.renderMaskedStates);
-		D3DSetCull(eCULL_None);
-	}
-	{
-		//FRAME_PROFILER("SF_DITL::FX_Commit", gEnv->pSystem, PROFILE_SYSTEM);
-
-		m_DevMan.BindConstantBuffer(CSubmissionQueue_DX11::TYPE_VS, params.m_vsBuffer, 0);
-		m_DevMan.BindConstantBuffer(CSubmissionQueue_DX11::TYPE_PS, params.m_psBuffer, 0);
-
-		CTexture::SetSampler(sfRes.samplerStateHandles[params.texture[0].texState], 0, eHWSC_Pixel);
-		CTexture::SetSampler(sfRes.samplerStateHandles[params.texture[1].texState], 1, eHWSC_Pixel);
-
-		params.texture[0].pTex->ApplyTexture(0, eHWSC_Pixel, EDefaultResourceViews::Default);
-		params.texture[1].pTex->ApplyTexture(1, eHWSC_Pixel, EDefaultResourceViews::Default);
-
-		// Commit all render changes
-		FX_Commit();
-	}
-	{
-		//FRAME_PROFILER("SF_DITL::SetVertexDecl", gEnv->pSystem, PROFILE_SYSTEM);
-
-		// Set vertex declaration
-		if (!SF_SetVertexDeclaration(params.vtxData->VertexFormat))
-		{
-			rRP.m_PersFlags2 &= ~RBPF2_DISABLECOLORWRITES;
-			rRP.m_StateOr &= ~GS_COLMASK_NONE;
-			pSFShader->FXEndPass();
-			pSFShader->FXEnd();
-			return;
-		}
-	}
-
-	// Copy vertex data...
-	{
-		{
-			buffer_size_t bufferOffset = ~0;
-			D3DVertexBuffer* pVB = gRenDev->m_DevBufMan.GetD3DVB(params.vtxData->DeviceDataHandle, &bufferOffset);
-			gcpRendD3D->FX_SetVStream(0, pVB, bufferOffset, params.vtxData->StrideSize);
-		}
-
-		{
-			buffer_size_t bufferOffset = ~0;
-			D3DIndexBuffer* pIB = gRenDev->m_DevBufMan.GetD3DIB(params.idxData->DeviceDataHandle, &bufferOffset);
-			gcpRendD3D->FX_SetIStream(pIB, bufferOffset, Index16);
-		}
-	}
-	{
-		//FRAME_PROFILER("SF_DITL::BlendStateAndDraw", gEnv->pSystem, PROFILE_SYSTEM);
-
-		// Override blend op if necessary
-		SF_SetBlendOp(params.blendOp);
-
-		// Submit draw call
-		FX_DrawIndexedPrimitive(eptTriangleList, baseVertexIndex, minVertexIndex, numVertices, startIndex, triangleCount * 3);
-
-		// Reset overridden blend op if necessary
-		SF_SetBlendOp(params.blendOp, true);
-	}
-	{
-		//FRAME_PROFILER("SF_DITL::FXEnd", gEnv->pSystem, PROFILE_SYSTEM);
-
-		// End shader pass
-		pSFShader->FXEndPass();
-		pSFShader->FXEnd();
-	}
-
-	if (params.renderMaskedStates & GS_COLMASK_NONE)
-	{
-		rRP.m_PersFlags2 &= ~RBPF2_DISABLECOLORWRITES;
-		rRP.m_StateOr &= ~GS_COLMASK_NONE;
-	}
-
 }
 
 //////////////////////////////////////////////////////////////////////////
 void CD3D9Renderer::SF_DrawLineStrip(int baseVertexIndex, int lineCount, const SSF_GlobalDrawParams& __restrict params)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 
 	if (IsDeviceLost())
 		return;
 
-	assert(params.vtxData->VertexFormat == IScaleformPlayback::Vertex_XY16i);
-
-	SRenderPipeline& RESTRICT_REFERENCE rRP = m_RP;
+	CRY_ASSERT(params.vtxData->VertexFormat == IScaleformPlayback::Vertex_XY16i);
 
 	SSF_ResourcesD3D& sfRes(SF_GetResources());
 
@@ -776,7 +577,7 @@ void CD3D9Renderer::SF_DrawLineStrip(int baseVertexIndex, int lineCount, const S
 	const CCryNameTSCRC techName = *sfRes.m_FillTechnique[params.fillType][false];
 
 	SF_HandleClear(params);
-	if (CRenderer::CV_r_GraphicsPipeline > 0)
+
 	{
 		CPrimitiveRenderPass& __restrict primPass = params.pRenderOutput->renderPass;
 
@@ -802,98 +603,6 @@ void CD3D9Renderer::SF_DrawLineStrip(int baseVertexIndex, int lineCount, const S
 		primInit->Compile(primPass);
 
 		primPass.AddPrimitive(primInit);
-
-		return;
-	}
-
-	CShader* pSFShader = SF_SetTechnique(techName);
-	if (!pSFShader)
-		return;
-
-	{
-		//FRAME_PROFILER("SF_DLS::FxBegin", gEnv->pSystem, PROFILE_SYSTEM);
-
-		if (params.renderMaskedStates & GS_COLMASK_NONE)
-		{
-			rRP.m_PersFlags2 |= RBPF2_DISABLECOLORWRITES;
-			rRP.m_StateOr |= GS_COLMASK_NONE;
-		}
-		uint32 numPasses(0);
-		pSFShader->FXBegin(&numPasses, /*FEF_DONTSETTEXTURES |*/ FEF_DONTSETSTATES);
-		if (!numPasses)
-		{
-			return;
-		}
-		pSFShader->FXBeginPass(0);
-	}
-	{
-		//FRAME_PROFILER("SF_DLS::SetState", gEnv->pSystem, PROFILE_SYSTEM);
-
-		// Set states
-		FX_SetState(SF_AdjustBlendStateForMeasureOverdraw(params.blendModeStates) | /*GS_NODEPTHTEST | */ params.renderMaskedStates);
-		D3DSetCull(eCULL_None);
-	}
-	{
-		//FRAME_PROFILER("SF_DLS::FX_Commit", gEnv->pSystem, PROFILE_SYSTEM);
-		
-		m_DevMan.BindConstantBuffer(CSubmissionQueue_DX11::TYPE_VS, params.m_vsBuffer, 0);
-		m_DevMan.BindConstantBuffer(CSubmissionQueue_DX11::TYPE_PS, params.m_psBuffer, 0);
-
-		CTexture::SetSampler(sfRes.samplerStateHandles[params.texture[0].texState], 0, eHWSC_Pixel);
-		CTexture::SetSampler(sfRes.samplerStateHandles[params.texture[1].texState], 1, eHWSC_Pixel);
-
-		params.texture[0].pTex->ApplyTexture(0, eHWSC_Pixel, EDefaultResourceViews::Default);
-		params.texture[1].pTex->ApplyTexture(1, eHWSC_Pixel, EDefaultResourceViews::Default);
-
-		// Commit all render changes
-		FX_Commit();
-	}
-	{
-		//FRAME_PROFILER("SF_DLS::SetVertexDecl", gEnv->pSystem, PROFILE_SYSTEM);
-
-		// Set vertex declaration
-		if (!SF_SetVertexDeclaration(params.vtxData->VertexFormat))
-		{
-			rRP.m_PersFlags2 &= ~RBPF2_DISABLECOLORWRITES;
-			rRP.m_StateOr &= ~GS_COLMASK_NONE;
-			pSFShader->FXEndPass();
-			pSFShader->FXEnd();
-			return;
-		}
-	}
-
-	// Copy vertex data...
-	{
-		{
-			buffer_size_t bufferOffset = ~0;
-			D3DVertexBuffer* pVB = gRenDev->m_DevBufMan.GetD3DVB(params.vtxData->DeviceDataHandle, &bufferOffset);
-			gcpRendD3D->FX_SetVStream(0, pVB, bufferOffset, params.vtxData->StrideSize);
-		}
-	}
-	{
-		//FRAME_PROFILER("SF_DLS::BlendStateAndDraw", gEnv->pSystem, PROFILE_SYSTEM);
-
-		// Override blend op if necessary
-		SF_SetBlendOp(params.blendOp);
-
-		// Submit draw call
-		FX_DrawPrimitive(eptLineStrip, baseVertexIndex, params.vtxData->NumElements);
-
-		// Reset overridden blend op if necessary
-		SF_SetBlendOp(params.blendOp, true);
-	}
-	{
-		//FRAME_PROFILER("SF_DLS::FXEnd", gEnv->pSystem, PROFILE_SYSTEM);
-
-		// End shader pass
-		pSFShader->FXEndPass();
-		pSFShader->FXEnd();
-	}
-
-	if (params.renderMaskedStates & GS_COLMASK_NONE)
-	{
-		rRP.m_PersFlags2 &= ~RBPF2_DISABLECOLORWRITES;
-		rRP.m_StateOr &= ~GS_COLMASK_NONE;
 	}
 }
 
@@ -905,10 +614,7 @@ void CD3D9Renderer::SF_DrawGlyphClear(const IScaleformPlayback::DeviceData* vtxD
 	if (IsDeviceLost())
 		return;
 
-	SRenderPipeline& RESTRICT_REFERENCE rRP = m_RP;
-	SThreadInfo& RESTRICT_REFERENCE rTI = rRP.m_TI[rRP.m_nProcessThreadID];
-
-	assert(vtxData->VertexFormat == IScaleformPlayback::Vertex_Glyph || vtxData->VertexFormat == IScaleformPlayback::Vertex_XY16i);
+	CRY_ASSERT(vtxData->VertexFormat == IScaleformPlayback::Vertex_Glyph || vtxData->VertexFormat == IScaleformPlayback::Vertex_XY16i);
 
 	SSF_ResourcesD3D& sfRes(SF_GetResources());
 
@@ -926,7 +632,7 @@ void CD3D9Renderer::SF_DrawGlyphClear(const IScaleformPlayback::DeviceData* vtxD
 	const CCryNameTSCRC techName = *sfRes.m_FillTechnique[params.fillType][params.isMultiplyDarkBlendMode];
 
 	SF_HandleClear(params);
-	if (CRenderer::CV_r_GraphicsPipeline > 0)
+
 	{
 		CPrimitiveRenderPass& __restrict primPass = params.pRenderOutput->renderPass;
 
@@ -959,121 +665,13 @@ void CD3D9Renderer::SF_DrawGlyphClear(const IScaleformPlayback::DeviceData* vtxD
 		primInit->Compile(primPass);
 
 		primPass.AddPrimitive(primInit);
-
-		return;
-	}
-
-	CShader* pSFShader = SF_SetTechnique(techName);
-	if (!pSFShader)
-		return;
-
-	{
-		//FRAME_PROFILER("SF_DG::FxBegin", gEnv->pSystem, PROFILE_SYSTEM);
-
-		if (params.renderMaskedStates & GS_COLMASK_NONE)
-		{
-			rRP.m_PersFlags2 |= RBPF2_DISABLECOLORWRITES;
-			rRP.m_StateOr |= GS_COLMASK_NONE;
-		}
-
-		uint32 numPasses(0);
-		pSFShader->FXBegin(&numPasses, /*FEF_DONTSETTEXTURES |*/ FEF_DONTSETSTATES);
-		if (!numPasses)
-		{
-			return;
-		}
-
-		if (!pSFShader->FXBeginPass(0))
-		{
-			rRP.m_PersFlags2 &= ~RBPF2_DISABLECOLORWRITES;
-			rRP.m_StateOr &= ~GS_COLMASK_NONE;
-			pSFShader->FXEndPass();
-			pSFShader->FXEnd();
-			return;
-		}
-	}
-	{
-		//FRAME_PROFILER("SF_DG::SetState", gEnv->pSystem, PROFILE_SYSTEM);
-
-		// Set states
-		FX_SetState(SF_AdjustBlendStateForMeasureOverdraw(params.blendModeStates) | /*GS_NODEPTHTEST | */ params.renderMaskedStates);
-		D3DSetCull(eCULL_None);
-	}
-	{
-		//FRAME_PROFILER("SF_DG::FX_Commit", gEnv->pSystem, PROFILE_SYSTEM);
-		
-		m_DevMan.BindConstantBuffer(CSubmissionQueue_DX11::TYPE_VS, params.m_vsBuffer, 0);
-		m_DevMan.BindConstantBuffer(CSubmissionQueue_DX11::TYPE_PS, params.m_psBuffer, 0);
-
-		CTexture::SetSampler(sfRes.samplerStateHandles[params.texture[0].texState], 0, eHWSC_Pixel);
-
-		params.texture[0].pTex->ApplyTexture(0, eHWSC_Pixel, EDefaultResourceViews::Default);
-		if (params.fillType >= SSF_GlobalDrawParams::GlyphTextureYUV)
-		{
-			params.texture[1].pTex->ApplyTexture(1, eHWSC_Pixel, EDefaultResourceViews::Default);
-			params.texture[2].pTex->ApplyTexture(2, eHWSC_Pixel, EDefaultResourceViews::Default);
-			if (params.fillType >= SSF_GlobalDrawParams::GlyphTextureYUVA)
-			{
-				params.texture[3].pTex->ApplyTexture(3, eHWSC_Pixel, EDefaultResourceViews::Default);
-			}
-		}
-
-		// Commit all render changes
-		FX_Commit();
-	}
-	{
-		//FRAME_PROFILER("SF_DG::SetVertexDecl", gEnv->pSystem, PROFILE_SYSTEM);
-
-		// Set vertex declaration
-		if (!SF_SetVertexDeclaration(vtxData->VertexFormat))
-		{
-			rRP.m_PersFlags2 &= ~RBPF2_DISABLECOLORWRITES;
-			rRP.m_StateOr &= ~GS_COLMASK_NONE;
-			pSFShader->FXEndPass();
-			pSFShader->FXEnd();
-			return;
-		}
-	}
-
-	// Copy vertex data...
-	{
-		{
-			buffer_size_t bufferOffset = ~0;
-			D3DVertexBuffer* pVB = gRenDev->m_DevBufMan.GetD3DVB(vtxData->DeviceDataHandle, &bufferOffset);
-			gcpRendD3D->FX_SetVStream(0, pVB, bufferOffset, vtxData->StrideSize);
-		}
-	}
-	{
-		//FRAME_PROFILER("SF_DG::BlendStateAndDraw", gEnv->pSystem, PROFILE_SYSTEM);
-
-		// Override blend op if necessary
-		SF_SetBlendOp(params.blendOp);
-
-		// Submit draw call
-		FX_DrawPrimitive(eptTriangleStrip, baseVertexIndex, vtxData->NumElements);
-
-		// Reset overridden blend op if necessary
-		SF_SetBlendOp(params.blendOp, true);
-	}
-	{
-		//FRAME_PROFILER("SF_DG::FXEnd", gEnv->pSystem, PROFILE_SYSTEM);
-
-		// End shader pass
-		pSFShader->FXEndPass();
-		pSFShader->FXEnd();
-	}
-
-	if (params.renderMaskedStates & GS_COLMASK_NONE)
-	{
-		rRP.m_PersFlags2 &= ~RBPF2_DISABLECOLORWRITES;
-		rRP.m_StateOr &= ~GS_COLMASK_NONE;
 	}
 }
 
 void CD3D9Renderer::SF_DrawBlurRect(const IScaleformPlayback::DeviceData* vtxData, const SSF_GlobalDrawParams& __restrict params)
 {
 	//TODO figure out how many blur shaders we need
-	assert((params.blurType > SSF_GlobalDrawParams::BlurNone) && (params.blurType < SSF_GlobalDrawParams::BlurCount));
+	CRY_ASSERT((params.blurType > SSF_GlobalDrawParams::BlurNone) && (params.blurType < SSF_GlobalDrawParams::BlurCount));
 
 	SSF_ResourcesD3D& sfRes(SF_GetResources());
 
@@ -1091,7 +689,7 @@ void CD3D9Renderer::SF_DrawBlurRect(const IScaleformPlayback::DeviceData* vtxDat
 	const CCryNameTSCRC techName = *sfRes.m_FilterTechnique[params.blurType];
 
 	SF_HandleClear(params);
-	if (CRenderer::CV_r_GraphicsPipeline > 0)
+
 	{
 		CPrimitiveRenderPass& __restrict primPass = params.pRenderOutput->renderPass;
 
@@ -1117,102 +715,7 @@ void CD3D9Renderer::SF_DrawBlurRect(const IScaleformPlayback::DeviceData* vtxDat
 		primInit->Compile(primPass);
 
 		primPass.AddPrimitive(primInit);
-
-		return;
 	}
-
-	CShader* pSFShader = SF_SetTechnique(techName);
-	if (!pSFShader)
-		return;
-
-	{
-		SRenderPipeline& RESTRICT_REFERENCE rRP = m_RP;
-
-		if (params.renderMaskedStates & GS_COLMASK_NONE)
-		{
-			rRP.m_PersFlags2 |= RBPF2_DISABLECOLORWRITES;
-			rRP.m_StateOr |= GS_COLMASK_NONE;
-		}
-
-		uint32 numPasses(0);
-		pSFShader->FXBegin(&numPasses, /*FEF_DONTSETTEXTURES |*/ FEF_DONTSETSTATES);
-		if (!numPasses)
-		{
-			return;
-		}
-		pSFShader->FXBeginPass(0);
-
-		FX_SetState(SF_AdjustBlendStateForMeasureOverdraw(params.blendModeStates) | /*GS_NODEPTHTEST | */ params.renderMaskedStates);
-		D3DSetCull(eCULL_None);
-
-		{
-			m_DevMan.BindConstantBuffer(CSubmissionQueue_DX11::TYPE_VS, params.m_vsBuffer, 0);
-			m_DevMan.BindConstantBuffer(CSubmissionQueue_DX11::TYPE_PS, params.m_psBuffer, 0);
-
-			CTexture::SetSampler(sfRes.samplerStateHandles[params.texture[0].texState], 0, eHWSC_Pixel);
-			CTexture::SetSampler(sfRes.samplerStateHandles[params.texture[1].texState], 1, eHWSC_Pixel);
-
-			params.texture[0].pTex->ApplyTexture(0, eHWSC_Pixel, EDefaultResourceViews::Default);
-			params.texture[1].pTex->ApplyTexture(1, eHWSC_Pixel, EDefaultResourceViews::Default);
-
-			// Commit all render changes
-			FX_Commit();
-		}
-
-		// Set vertex declaration
-		if (!SF_SetVertexDeclaration(vtxData->VertexFormat))
-		{
-			rRP.m_PersFlags2 &= ~RBPF2_DISABLECOLORWRITES;
-			rRP.m_StateOr &= ~GS_COLMASK_NONE;
-			pSFShader->FXEndPass();
-			pSFShader->FXEnd();
-			return;
-		}
-
-		// Copy vertex data...
-		{
-			{
-				buffer_size_t bufferOffset = ~0;
-				D3DVertexBuffer* pVB = gRenDev->m_DevBufMan.GetD3DVB(vtxData->DeviceDataHandle, &bufferOffset);
-				gcpRendD3D->FX_SetVStream(0, pVB, bufferOffset, vtxData->StrideSize);
-			}
-		}
-
-		//draw
-		{
-			// Override blend op if necessary
-			SF_SetBlendOp(params.blendOp);
-
-			// Submit draw call
-			FX_DrawPrimitive(eptTriangleStrip, 0, vtxData->NumElements);
-
-			// Reset overridden blend op if necessary
-			SF_SetBlendOp(params.blendOp, true);
-		}
-
-		// End shader pass
-		pSFShader->FXEndPass();
-		pSFShader->FXEnd();
-	}
-}
-
-//////////////////////////////////////////////////////////////////////////
-void CD3D9Renderer::SF_Flush()
-{
-	if (IsDeviceLost())
-		return;
-
-	SSF_ResourcesD3D& sfRes(SF_GetResources());
-	if (!sfRes.m_fence)
-	{
-		if (FAILED(GetDeviceObjectFactory().CreateFence(sfRes.m_fence)))
-		{
-			return;
-		}
-	}
-
-	GetDeviceObjectFactory().IssueFence(sfRes.m_fence);
-	GetDeviceObjectFactory().SyncFence(sfRes.m_fence, true);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -1232,7 +735,7 @@ int CRenderer::SF_CreateTexture(int width, int height, int numMips, const unsign
 //////////////////////////////////////////////////////////////////////////
 bool CD3D9Renderer::SF_UpdateTexture(int texId, int mipLevel, int numRects, const SUpdateRect* pRects, const unsigned char* pSrcData, size_t rowPitch, size_t size, ETEX_Format eSrcFormat)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 
 	assert(texId > 0 && numRects > 0 && pRects != 0 && pSrcData != 0 && rowPitch > 0);
 
@@ -1272,7 +775,7 @@ bool CD3D9Renderer::SF_UpdateTexture(int texId, int mipLevel, int numRects, cons
 
 bool CD3D9Renderer::SF_ClearTexture(int texId, int mipLevel, int numRects, const SUpdateRect* pRects, const unsigned char* pData)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 	__debugbreak();
 
 	assert(texId > 0 && numRects > 0 && pRects != 0 && pData != 0);

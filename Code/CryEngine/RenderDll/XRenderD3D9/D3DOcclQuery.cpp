@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*=============================================================================
    D3DOcclQuery.cpp : Occlusion queries unified interface implementation
@@ -50,7 +50,7 @@ void COcclusionQuery::EndQuery()
 		return;
 
 	CD3D9Renderer* rd = gcpRendD3D;
-	m_nDrawFrame = rd->m_RP.m_TI[rd->m_RP.m_nProcessThreadID].m_nFrameUpdateID;
+	m_nDrawFrame = gRenDev->GetRenderFrameID();
 
 	D3DOcclusionQuery* pVizQuery = (D3DOcclusionQuery*)m_nOcclusionID;
 	CDeviceCommandListRef commandList = GetDeviceObjectFactory().GetCoreCommandList();
@@ -60,7 +60,7 @@ void COcclusionQuery::EndQuery()
 bool COcclusionQuery::IsReady()
 {
 	CD3D9Renderer* rd = gcpRendD3D;
-	int nFrame = rd->m_RP.m_TI[rd->m_RP.m_nProcessThreadID].m_nFrameUpdateID;
+	int nFrame = gRenDev->GetRenderFrameID();
 	return (m_nCheckFrame == nFrame);
 }
 
@@ -70,7 +70,7 @@ uint32 COcclusionQuery::GetVisibleSamples(bool bAsynchronous)
 		return ~0;
 
 	CD3D9Renderer* rd = gcpRendD3D;
-	int nFrame = rd->m_RP.m_TI[rd->m_RP.m_nProcessThreadID].m_nFrameUpdateID;
+	int nFrame = gRenDev->GetRenderFrameID();
 
 	if (m_nCheckFrame == nFrame)
 		return m_nVisSamples;

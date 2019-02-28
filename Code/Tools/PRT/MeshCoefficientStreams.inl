@@ -3,6 +3,7 @@ stream manager implementation which converts coefficient vectors to streams for 
 */
 
 #include "SHRotate.h"
+#include "ObjFace.h"
 
 #undef min
 #undef max
@@ -118,13 +119,13 @@ void NSH::CMeshCoefficientStreams<DirectCoeffType>::Compress
 					for(int comp=0; comp<CoeffType::Components(); ++comp)
 					{
 						//compress all coefficient and components
-						CoeffType::TComponentType& rCoeff = crCoeffs[c][comp];
+						typename CoeffType::TComponentType& rCoeff = crCoeffs[c][comp];
 						rCoeff += rCompressionInfo.compressionValue[c].second;	//add offset, now in range 0...
 						rCoeff *= rCompressionInfo.compressionValue[c].first;	  //scale into 0..255.0
 						assert(rCoeff > -0.1f && rCoeff < 255.1f);
 						//clamp values, it is just about some inaccuracies
-						rCoeff = std::max(rCoeff, (CoeffType::TComponentType)0.0);
-						rCoeff = std::min(rCoeff, (CoeffType::TComponentType)255.0);
+						rCoeff = std::max(rCoeff, (typename CoeffType::TComponentType)0.0);
+						rCoeff = std::min(rCoeff, (typename CoeffType::TComponentType)255.0);
 					}
 				}
 			}
@@ -198,9 +199,9 @@ void NSH::CMeshCoefficientStreams<DirectCoeffType>::PrepareCoefficientsForExport
 			double v0[4] = {cv1 * rCoeff[3], cv1 * rCoeff[1], cv1 * rCoeff[2], cv0 * rCoeff[0] - cv3 * rCoeff[6]};
 			double v1[4] = {cv4 * rCoeff[8], cv2 * rCoeff[5], 3 * cv3 * rCoeff[6], cv2 * rCoeff[7]};
 			for(int c0=0; c0<4; ++c0)
-				rCoeff[c0] = (DirectCoeffType::TComponentType)v0[c0];
+				rCoeff[c0] = (typename DirectCoeffType::TComponentType)v0[c0];
 			for(int c1=0; c1<4; ++c1)
-				rCoeff[4+c1] = (DirectCoeffType::TComponentType)v1[c1];
+				rCoeff[4+c1] = (typename DirectCoeffType::TComponentType)v1[c1];
 			rCoeff[8] = 0;
 		}
 	}
@@ -223,7 +224,7 @@ void NSH::CMeshCoefficientStreams<DirectCoeffType>::PrepareCoefficientsForExport
 			shRotMatrix.Transform(coeff, rCoeff);
 
 			for(int c=4; c<8; ++c)
-				rCoeff[c] = (DirectCoeffType::TComponentType)rCoeff[c+1];
+				rCoeff[c] = (typename DirectCoeffType::TComponentType)rCoeff[c+1];
 			rCoeff[8] = 0;			
 		}
 	}

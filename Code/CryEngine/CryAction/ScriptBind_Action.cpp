@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "GameObjects/GameObject.h"
@@ -17,6 +17,7 @@
 #include <IGameplayRecorder.h>
 #include "PersistantDebug.h"
 #include <CryAISystem/IAIObject.h>
+#include <CryAISystem/IAIObjectManager.h>
 
 //------------------------------------------------------------------------
 CScriptBind_Action::CScriptBind_Action(CCryAction* pCryAction)
@@ -923,11 +924,10 @@ int CScriptBind_Action::RegisterWithAI(IFunctionHandler* pH)
 		 */
 	}
 
-	// Remove any existing AI object
-	pEntity->RegisterInAISystem(AIObjectParams(0));
+	params.name = pEntity->GetName();
 
 	// Register in AI to get a new AI object, deregistering the old one in the process
-	pEntity->RegisterInAISystem(params);
+	gEnv->pAISystem->GetAIObjectManager()->CreateAIObject(params);
 
 	// (MATT) ? {2008/02/15:19:46:29}
 	// AI object was not created (possibly AI System is disabled)

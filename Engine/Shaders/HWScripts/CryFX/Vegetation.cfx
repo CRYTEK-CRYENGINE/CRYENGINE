@@ -1,5 +1,4 @@
-// CRYENGINE Source Code File
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "Common.cfi"
 #include "VegetationValidations.cfi"
@@ -30,9 +29,6 @@ float Script : STANDARDSGLOBAL
 >;
 
 // Un-Tweakables /////////////////
-
-float4 BaseTCMatrix        : PB_TerrainBaseMatrix;
-float4 BlendTerrainColInfo : PB_BlendTerrainColInfo;
 
 ///////////////// Samplers //////////////////
 OPACITYMAP
@@ -92,7 +88,7 @@ Texture2D smoothness2Tex : register(t7)
 // Tweakables //////////////////////
 
 #if %LEAVES
-half CapOpacityFalloff
+float CapOpacityFalloff
 <
 	register = REG_PM_PARAM_0.x;
 	string UIWidget = "slider";
@@ -106,7 +102,7 @@ half CapOpacityFalloff
 #endif
 
 #if %LEAVES  || %GRASS 
-half4 TransmittanceColor
+float4 TransmittanceColor
 <
 	register = REG_PM_PARAM_1;
 	string UIHelp = "Color tint for translucency";
@@ -160,7 +156,7 @@ float BlendTerrainColDist
 > = 0.5; 
 
 #if %DETAIL_MAPPING
-half DetailBumpScale
+float DetailBumpScale
 <
 	register = REG_PM_PARAM_3.x;
 	string UIHelp = "Set detail bump scale";                     
@@ -171,7 +167,7 @@ half DetailBumpScale
 	float UIStep = 0.1;
 > = 0.5;
 
-half DetailDiffuseScale
+float DetailDiffuseScale
 <
 	register = REG_PM_PARAM_3.y;
 	string UIHelp = "Set diffuse detail blend scale";                     
@@ -182,7 +178,7 @@ half DetailDiffuseScale
 	float UIStep = 0.1;
 > = 0.5;
 
-half DetailGlossScale
+float DetailGlossScale
 <
 	register = REG_PM_PARAM_3.z;
 	string UIHelp = "Set gloss detail blend scale";                     
@@ -195,7 +191,7 @@ half DetailGlossScale
 #endif
 
 #if %BLENDLAYER
-half BlendFactor
+float BlendFactor
 <
 	register = REG_PM_PARAM_3.w;
 	string UIHelp = "Change visbility of blended layer";
@@ -206,7 +202,7 @@ half BlendFactor
 	float UIStep = 0.2;
 > = 8.0;
 
-half BlendLayer2Tiling
+float BlendLayer2Tiling
 <
 	register = REG_PM_PARAM_4.x;
 	string UIHelp = "Change tiling of 2nd blend layer";
@@ -217,7 +213,7 @@ half BlendLayer2Tiling
 	float UIStep = 0.005;
 > = 1.0;
 
-half BlendFalloff
+float BlendFalloff
 <
 	register = REG_PM_PARAM_4.y;
 	string UIHelp = "Change falloff of blending";
@@ -228,7 +224,7 @@ half BlendFalloff
 	float UIStep = 1.0;
 > = 32.0;
 
-half BlendLayer2Specular
+float BlendLayer2Specular
 <
 	register = REG_PM_PARAM_4.z;
 	string UIHelp = "Change specular intensity of 2nd blend layer";
@@ -239,7 +235,7 @@ half BlendLayer2Specular
 	float UIStep = 0.001;
 > = 0.04;
 
-half BlendMaskTiling
+float BlendMaskTiling
 <
 	register = REG_PM_PARAM_4.w;
 	string UIHelp = "Change tiling of blend mask";
@@ -252,7 +248,7 @@ half BlendMaskTiling
 #else
 
 // <Deprecated> Will be removed post C3. This is needed for art to be able to optimize console materials (eg:disabling blend layer. Since veg uses vertex alpha as AO and blend layer uses color for layer blending => breaks look)
-half VertexAlphaBlendFactor
+float VertexAlphaBlendFactor
 <
 	register = REG_PM_PARAM_5.x;
 	string UIName = "Vtx Alpha Blend Factor";
@@ -294,7 +290,6 @@ void Callback_ShadingDirect(in ForwardShadingAttribs attribs, in ForwardLightPar
 	specularAcc = specularAcc * light.illuminance;
 }
 
-#include "TiledShading.cfi"
 #include "ForwardShading.cfi"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -320,11 +315,7 @@ struct vtxOutVegetation
 #endif
 
 #if ENABLE_TESSELLATION && !%_RT_NO_TESSELLATION
-	half4 vNormal               : TEXCOORDN;
-#endif
-
-#if %_RT_FOG
-	float4 AvgFogVolumeContrib  : TEXCOORDN;
+	float4 vNormal              : TEXCOORDN;
 #endif
 };
 
@@ -388,18 +379,6 @@ vtxOutVegetation VegetationVS(app2vertGeneral IN)
 		float alphaTest = Get_MaterialAlphaTest();
 		OUT.binormVec.w = ParallelOpacityFalloff(vertPassPos.WorldPos.xyz, worldTangentN.xyz, CapOpacityFalloff, alphaTest);
 	#endif
-
-#if !%_RT_PER_INSTANCE_CB_TEMP
-	#if !%_RT_VOLUMETRIC_FOG
-		float fVolumetricFogDensity = GetVolumetricFogDensity(vertPassPos.WorldPos.xyz);
-		OUT.vView.w = fVolumetricFogDensity;
-		OUT.AvgFogVolumeContrib = AvgFogVolumeContrib;
-	#else
-		OUT.AvgFogVolumeContrib = GetVolumetricFogAnalyticalColor(outPos.xyz).xyzw;
-	#endif
-#else
-	OUT.AvgFogVolumeContrib = Fwd_GetLocalFogColor(vertPassPos.WorldPos.xyz, OUT.vView.xyz);
-#endif
 #endif
 	return OUT;
 }
@@ -512,12 +491,6 @@ pixout VegetationPS(vtxOutVegetation IN, bool bIsFrontFace : SV_IsFrontFace)
 	OUT.Color.rgb = diffuseAcc + specularAcc;
 	OUT.Color.a = 1;
 
-#if !%_RT_PER_INSTANCE_CB_TEMP
-#if %_RT_FOG
-	Fwd_ApplyFog(In.AvgFogVolumeContrib, IN.HPosition, OUT.Color);
-#endif
-#endif
-
 	return OUT;
 }
 
@@ -535,6 +508,7 @@ technique General
 	#if !%GRASS
 		"TechniqueMotionBlur=MotionBlurPass;"         
 	#endif
+		"TechniqueCustomRender=CustomRenderVegetation;"
 		"TechniqueShadowGen=ShadowGen;" 
 		"TechniqueDebug=DebugPass;"
 >
@@ -571,3 +545,103 @@ technique General
 #include "ShadowCommon.cfi"
 #include "CommonShadowGenPass.cfi"
 #include "CommonDebugPass.cfi"
+#include "CommonViewsPass.cfi"
+
+
+
+
+vert2fragCustomRender Vegetation_CustomRenderPassVS(app2vertCustomViews IN)
+{
+	vert2fragCustomRender OUT = (vert2fragCustomRender)0;
+
+	streamPos vertPassPos = (streamPos)0;
+	streamPos_FromCustomViews(IN, vertPassPos);
+	
+#if !%_RT_ENVIRONMENT_CUBEMAP
+	OUT.cVision = CD_CustomData1;
+#else
+	OUT.cVision = 0.0f;
+#endif
+
+#if !ENABLE_TESSELLATION || %_RT_NO_TESSELLATION
+	OUT.HPosition = Pos_VS_General(g_VS_ViewProjZeroMatr, vertPassPos);
+	OUT.screenProj = HPosToScreenTC(OUT.HPosition);
+#else
+	OUT.screenProj = HPosToScreenTC(Pos_VS_General(g_VS_ViewProjZeroMatr, vertPassPos));
+#endif
+
+	// Apply texture modifiers
+	_TCModify(vertPassPos.baseTC, OUT.baseTC, vertPassPos.Position, vertPassPos.ObjToTangentSpace[2], TS_DIFFUSE);
+
+	float3 worldTangentS = normalize(mul((const float3x3)vertPassPos.InstMatrix, vertPassPos.ObjToTangentSpace[0]));
+	float3 worldTangentT = normalize(mul((const float3x3)vertPassPos.InstMatrix, vertPassPos.ObjToTangentSpace[1]));
+	float3 worldTangentN = normalize(mul((const float3x3)vertPassPos.InstMatrix, vertPassPos.ObjToTangentSpace[2]));
+
+	float3 outPos = vertPassPos.WorldPos.xyz;
+#if %_RT_OBJ_IDENTITY
+	outPos.xyz -= g_VS_WorldViewPos.xyz;
+#else
+	vertPassPos.WorldPos.xyz += g_VS_WorldViewPos.xyz;
+#endif
+
+	OUT.vView.xyz = outPos.xyz;
+
+#if ENABLE_TESSELLATION && !%_RT_NO_TESSELLATION
+	OUT.vNormal.xyz = normalize(mul((const float3x3)vertPassPos.InstMatrix, vertPassPos.Normal.xyz));
+#endif
+
+	return OUT;
+}
+
+
+pixout Vegetation_CustomRenderPassPS(vert2fragCustomRender IN)
+{
+	pixout OUT = (pixout)0;
+
+	// Switch between diferent rendering modes
+
+#if %_RT_SAMPLE0
+
+	OUT.Color = SilhouetteGeometryHighlights(IN);
+
+#elif %_RT_SAMPLE1
+
+	OUT.Color.xyz = ThermalVision(IN);
+	OUT.Color.w = 1;
+
+#elif %_RT_SAMPLE2
+
+	OUT.Color = SilhouetteVisionOptimised(IN);
+
+#else
+
+	OUT.Color = SilhouetteVision(IN);
+
+#endif
+
+#if %_RT_ALPHATEST
+	half diffuseMapAlpha = GetAlphaTex(diffuseTex, IN.baseTC.xy);
+	clip(diffuseMapAlpha - Get_MaterialAlphaTest());
+#endif
+
+	return OUT;
+}
+
+
+technique CustomRenderVegetation
+{
+	pass p0
+	{
+		VertexShader = Vegetation_CustomRenderPassVS() CustomRenderVS;
+		PixelShader = Vegetation_CustomRenderPassPS() CustomRenderPS;
+
+		ZEnable = true;
+		ZWriteEnable = true;
+
+#if %GRASS || %LEAVES
+		CullMode = None;
+#else
+		CullMode = Back;
+#endif
+	}
+}

@@ -1,4 +1,6 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+
+//! \cond INTERNAL
 
 #pragma once
 #include "UnicodeBinding.h"
@@ -1136,3 +1138,5 @@ inline size_t AppendSafe(OutputCharType* buffer, size_t length, InputIteratorTyp
 	return Detail::Convert<InputEncoding, OutputEncoding, true, InputStringType, OutputStringType>(result, its) + 1;
 }
 }
+
+//! \endcond

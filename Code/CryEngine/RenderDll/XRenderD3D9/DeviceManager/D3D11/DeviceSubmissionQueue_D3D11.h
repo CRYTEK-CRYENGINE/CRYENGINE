@@ -1,6 +1,8 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
+
+#define DEVICE_MANAGER_USE_TYPE_DELEGATES 1
 
 #if CRY_PLATFORM_ORBIS && !CRY_RENDERER_GNM
 	#define DEVICE_MANAGER_IMMEDIATE_STATE_WRITE 1
@@ -31,6 +33,15 @@ public:
 		TYPE_CS,
 		MAX_TYPE,
 	};
+
+	static_assert(
+		int(eHWSC_Vertex  ) == int(TYPE_VS) &&
+		int(eHWSC_Pixel   ) == int(TYPE_PS) &&
+		int(eHWSC_Geometry) == int(TYPE_GS) &&
+		int(eHWSC_Domain  ) == int(TYPE_DS) &&
+		int(eHWSC_Hull    ) == int(TYPE_HS) &&
+		int(eHWSC_Compute ) == int(TYPE_CS),
+		"SHADER_TYPE enumeration should match EHWShaderClass for performance reasons");
 
 	enum
 	{
@@ -171,13 +182,13 @@ private:
 	void BindIA(CCryDeviceContextWrapper& rDeviceContext);
 
 	bool ValidateDrawcall();
-	void ClearState();
 
 public:
 	CSubmissionQueue_DX11();
 	~CSubmissionQueue_DX11();
 
 	void           Init();
+	void           ClearState();
 	void           RT_Tick();
 
 	inline void    BindConstantBuffer(SHADER_TYPE type, const CConstantBuffer* Buffer, uint32 slot);

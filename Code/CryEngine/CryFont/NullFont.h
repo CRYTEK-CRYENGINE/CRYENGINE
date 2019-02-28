@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -51,6 +51,7 @@ public:
 	virtual void         GetGradientTextureCoord(float& minU, float& minV, float& maxU, float& maxV) const                                   {}
 
 	virtual unsigned int GetEffectId(const char* pEffectName) const                                                                          { return 0; }
+	virtual void         RenderCallback(float x, float y, float z, const char* pStr, const bool asciiMultiLine, const STextDrawContext& ctx, IRenderAuxGeom *pAux) {}
 };
 
 class CCryNullFont : public ICryFont

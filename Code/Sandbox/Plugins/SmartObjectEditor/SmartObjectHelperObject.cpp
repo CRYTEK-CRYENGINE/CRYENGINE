@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -102,10 +102,11 @@ bool CSmartObjectHelperObject::HitTest(HitContext& hc)
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CSmartObjectHelperObject::Display(DisplayContext& dc)
+void CSmartObjectHelperObject::Display(CObjectRenderHelper& objRenderHelper)
 {
 	COLORREF color = GetColor();
 	float radius = RADIUS;
+	DisplayContext& dc = objRenderHelper.GetDisplayContextRef();
 
 	//dc.SetColor( color, 0.5f );
 	//dc.DrawBall( GetPos(), radius );
@@ -155,3 +156,4 @@ void CSmartObjectHelperObject::GetBoundSphere(Vec3& pos, float& radius)
 	pos = GetPos();
 	radius = RADIUS;
 }
+

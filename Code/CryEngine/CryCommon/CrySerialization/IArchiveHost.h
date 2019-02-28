@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -36,9 +36,19 @@ enum class ECryXmlVersion : uint32
 struct IArchiveHost
 {
 	virtual ~IArchiveHost() {}
-	virtual bool LoadJsonFile(const SStruct& outObj, const char* filename) = 0;
+	//! Parses JSON from file into the specified object
+	//! \par Example
+	//! \include CrySystem/Examples/JsonSerialization.cpp
+	virtual bool LoadJsonFile(const SStruct& outObj, const char* filename, bool bCanBeOnDisk) = 0;
+	//! Saves JSON into a file, reading data from the specified object
+	//! \par Example
+	//! \include CrySystem/Examples/JsonSerialization.cpp
 	virtual bool SaveJsonFile(const char* filename, const SStruct& obj) = 0;
+	//! Parses JSON from buffer into the specified object
+	//! \par Example
+	//! \include CrySystem/Examples/JsonSerialization.cpp
 	virtual bool LoadJsonBuffer(const SStruct& outObj, const char* buffer, size_t bufferLength) = 0;
+	//! Saves JSON into a buffer, reading data from the specified object
 	virtual bool SaveJsonBuffer(DynArray<char>& outBuffer, const SStruct& obj) = 0;
 
 	virtual bool LoadBinaryFile(const SStruct& outObj, const char* filename) = 0;
@@ -58,11 +68,16 @@ struct IArchiveHost
 
 	virtual bool       LoadBlackBox(const SStruct& outObj, SBlackBox& box) = 0;
 };
+} // namespace Serialization
 
+#include <CrySystem/ISystem.h> // gEnv
+
+namespace Serialization
+{
 //! Syntactic sugar.
 template<class T> bool LoadJsonFile(T& instance, const char* filename)
 {
-	return gEnv->pSystem->GetArchiveHost()->LoadJsonFile(Serialization::SStruct(instance), filename);
+	return gEnv->pSystem->GetArchiveHost()->LoadJsonFile(Serialization::SStruct(instance), filename, false);
 }
 
 template<class T> bool SaveJsonFile(const char* filename, const T& instance)

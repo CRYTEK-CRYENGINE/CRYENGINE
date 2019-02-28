@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef NULL_INPUT_H
 #define NULL_INPUT_H
@@ -22,7 +22,8 @@ public:
 	virtual IInputEventListener* GetExclusiveListener() override                                                                                             { return nullptr; }
 
 	virtual bool                 AddInputDevice(IInputDevice* pDevice) override                                                                              { return false; }
-
+	virtual bool                 RemoveInputDevice(IInputDevice* pDevice) override                                                                           { return false; }
+	
 	virtual void                 EnableEventPosting(bool bEnable) override                                                                                   {}
 	virtual bool                 IsEventPostingEnabled() const override                                                                                      { return false; }
 	virtual void                 PostInputEvent(const SInputEvent& event, bool bForce = false) override                                                      {}

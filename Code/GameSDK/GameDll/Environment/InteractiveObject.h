@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
 -------------------------------------------------------------------------
@@ -72,7 +72,8 @@ public:
 	virtual void PostUpdate(float frameTime );
 	virtual void PostRemoteSpawn();
 	virtual void HandleEvent( const SGameObjectEvent &goEvent);
-	virtual void ProcessEvent(SEntityEvent &entityEvent);
+	virtual void ProcessEvent(const SEntityEvent& entityEvent);
+	virtual uint64 GetEventMask() const;
 	virtual void SetChannelId(uint16 id);
 	virtual void GetMemoryUsage(ICrySizer *pSizer) const;
 	//~IGameObjectExtension

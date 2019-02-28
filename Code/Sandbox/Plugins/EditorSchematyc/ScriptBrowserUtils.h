@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -87,3 +87,4 @@ bool                      RenameScriptElement(IScriptElement& element, const cha
 bool                      RemoveScriptElement(const IScriptElement& element);
 } // ScriptBrowserUtils
 } // Schematyc
+

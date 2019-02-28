@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   UIEntityTag.cpp
@@ -164,7 +164,7 @@ const CUIEntityTag::STagInfo* CUIEntityTag::GetTagInfo(EntityId entityId, const 
 }
 
 ////////////////////////////////////////////////////////////////////////////
-void CUIEntityTag::OnEntityEvent(IEntity* pEntity, SEntityEvent& event)
+void CUIEntityTag::OnEntityEvent(IEntity* pEntity, const SEntityEvent& event)
 {
 	assert(event.event == ENTITY_EVENT_DONE);
 	RemoveAllEntityTags(pEntity->GetId(), false);

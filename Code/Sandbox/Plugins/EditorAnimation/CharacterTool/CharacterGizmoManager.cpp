@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 
@@ -8,7 +8,7 @@
 #include "AnimationContent.h"
 #include "Expected.h"
 #include <Serialization/QPropertyTree/QPropertyTree.h>
-#include "../../EditorCommon/QPropertyTree/ContextList.h"
+#include "QPropertyTree/ContextList.h"
 #include "GizmoSink.h"
 #include "SceneContent.h"
 #include "AnimationList.h"
@@ -40,8 +40,6 @@ CharacterGizmoManager::CharacterGizmoManager(System* system)
 		EXPECTED(connect(tree.get(), &QPropertyTree::signalAboutToSerialize, this, &CharacterGizmoManager::OnTreeAboutToSerialize));
 		EXPECTED(connect(tree.get(), &QPropertyTree::signalSerialized, this, &CharacterGizmoManager::OnTreeSerialized));
 	}
-
-	m_trees[GIZMO_LAYER_SCENE]->attach(Serialization::SStruct(*system->scene));
 
 	EXPECTED(connect(system->document.get(), SIGNAL(SignalActiveCharacterChanged()), SLOT(OnActiveCharacterChanged())));
 	EXPECTED(connect(system->document.get(), SIGNAL(SignalCharacterLoaded()), SLOT(OnActiveCharacterChanged())));
@@ -132,6 +130,10 @@ QPropertyTree* CharacterGizmoManager::Tree(GizmoLayer layer)
 {
 	if (size_t(layer) >= m_trees.size())
 		return 0;
+
+	if(layer == GIZMO_LAYER_SCENE && !m_trees[GIZMO_LAYER_SCENE]->attached())
+		m_trees[GIZMO_LAYER_SCENE]->attach(Serialization::SStruct(*m_system->scene));
+
 	return m_trees[size_t(layer)].get();
 }
 
@@ -173,3 +175,4 @@ void CharacterGizmoManager::ReadGizmos()
 }
 
 }
+

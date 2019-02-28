@@ -1,16 +1,8 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-/*************************************************************************
-   -------------------------------------------------------------------------
-   Description:  Service network interface
-   -------------------------------------------------------------------------
-   History:
-   - 10/04/2013   : Tomasz Jonarski, Created
+//! \cond INTERNAL
 
-*************************************************************************/
-
-#ifndef __ISERVICENETWORK_H__
-#define __ISERVICENETWORK_H__
+#pragma once
 
 #include <CryExtension/CryGUID.h>
 //-----------------------------------------------------------------------------
@@ -323,4 +315,4 @@ public:
 	virtual IServiceNetworkConnection* Connect(const ServiceNetworkAddress& remoteAddress) = 0;
 };
 
-#endif
+//! \endcond

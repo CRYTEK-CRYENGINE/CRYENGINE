@@ -1,28 +1,33 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-/*************************************************************************
-   -------------------------------------------------------------------------
-   $Id$
-   $DateTime$
-
-   -------------------------------------------------------------------------
-   History:
-   - 2:8:2004   10:38 : Created by Márcio Martins
-
-*************************************************************************/
 #include "StdAfx.h"
 #include "CryAction.h"
 
-#define CRYACTION_API DLL_EXPORT
-
-extern "C"
+class CEngineModule_CryAction : public IGameFrameworkEngineModule
 {
-	CRYACTION_API IGameFramework* CreateGameFramework()
+	CRYINTERFACE_BEGIN()
+		CRYINTERFACE_ADD(Cry::IDefaultModule)
+		CRYINTERFACE_ADD(IGameFrameworkEngineModule)
+	CRYINTERFACE_END()
+
+	CRYGENERATE_SINGLETONCLASS_GUID(CEngineModule_CryAction, "CEngineModule_CryAction", "943C708C-F469-48AA-B573-D6A0FCE7B9CD"_cry_guid)
+
+	virtual ~CEngineModule_CryAction()
 	{
-		// at this point... we have no dynamic memory allocation, and we cannot
-		// rely on atexit() doing the right thing; the only recourse is to
-		// have a static buffer that we use for this object
-		static char cryAction_buffer[sizeof(CCryAction)];
-		return new((void*)cryAction_buffer)CCryAction();
+		SAFE_DELETE(gEnv->pGameFramework);
 	}
-}
+
+	//////////////////////////////////////////////////////////////////////////
+	virtual const char* GetName() const override { return "CryAction"; }
+	virtual const char* GetCategory() const override { return "CryEngine"; }
+
+	//////////////////////////////////////////////////////////////////////////
+	virtual bool Initialize(SSystemGlobalEnvironment& env, const SSystemInitParams& initParams) override
+	{
+		// Special case: cast away the const to maintain legacy compatibility for the game framework
+		env.pGameFramework = new CCryAction(const_cast<SSystemInitParams&>(initParams));
+		return true;
+	}
+};
+
+CRYREGISTER_SINGLETON_CLASS(CEngineModule_CryAction)

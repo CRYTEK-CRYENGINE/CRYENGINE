@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 #include "StdAfx.h"
 #include "DialogMesh_SceneUserData.h"
 #include "FbxScene.h"
@@ -60,3 +60,4 @@ const FbxTool::SMesh* CSceneUserData::GetSelectedSkin() const
 }
 
 } // namespace DialogMesh
+

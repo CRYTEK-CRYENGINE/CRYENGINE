@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "CryLANLobby.h"
@@ -2775,7 +2775,7 @@ bool CCryLANMatchMaking::GetNewHostAddress(char* address, SHostMigrationInfo* pI
 	if (success)
 	{
 		// Decode the address into an ip string
-		if (boost::get<TLocalNetAddress>(&pSession->hostMigrationInfo.m_newHostAddress))
+		if (stl::get_if<TLocalNetAddress>(&pSession->hostMigrationInfo.m_newHostAddress))
 		{
 			pSession->hostMigrationInfo.SetIsNewHost(true);
 			NetLog("[Host Migration]: " PRFORMAT_SH " becoming the new host...", PRARG_SH(sessionIndex));
@@ -2788,7 +2788,7 @@ bool CCryLANMatchMaking::GetNewHostAddress(char* address, SHostMigrationInfo* pI
 		{
 			pSession->hostMigrationInfo.SetIsNewHost(false);
 			NetLog("[Host Migration]: " PRFORMAT_SH " new host is " PRFORMAT_UID, PRARG_SH(sessionIndex), PRARG_UID(pSession->newHostUID));
-			SIPv4Addr* pAddr = boost::get<SIPv4Addr>(&pSession->hostMigrationInfo.m_newHostAddress);
+			SIPv4Addr* pAddr = stl::get_if<SIPv4Addr>(&pSession->hostMigrationInfo.m_newHostAddress);
 			if (pAddr)
 			{
 				pSession->id.m_ip = ntohl(pAddr->addr);

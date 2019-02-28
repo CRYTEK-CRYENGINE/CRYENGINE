@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -57,14 +57,14 @@ class CEntityLayer : public IEntityLayer
 		}
 
 		EntityId m_id;
-		bool     m_bIsNoAwake : 1;
-		bool     m_bIsHidden : 1;
+		bool     m_bIsNoAwake          : 1;
+		bool     m_bIsHidden           : 1;
 		bool     m_bEnableScriptUpdate : 1;
 	};
 
 	struct EntityPropFindPred
 	{
-		EntityPropFindPred(EntityId _idToFind) : idToFind(_idToFind) {}
+		explicit EntityPropFindPred(EntityId _idToFind) : idToFind(_idToFind) {}
 		bool operator()(const EntityProp& entityProp) { return entityProp.m_id == idToFind; }
 		EntityId idToFind;
 	};
@@ -108,7 +108,7 @@ private:
 
 private:
 	typedef std::unordered_map<EntityId, EntityProp, stl::hash_uint32> TEntityProps;
-	typedef CListenerSet<IEntityLayerListener*> TListenerSet;
+	typedef CListenerSet<IEntityLayerListener*>                        TListenerSet;
 
 	int                        m_specs;
 	string                     m_name;

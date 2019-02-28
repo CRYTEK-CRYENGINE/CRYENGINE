@@ -1,7 +1,6 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-#ifndef __ICRYONLINESTORAGE_H__
-#define __ICRYONLINESTORAGE_H__
+//! \cond INTERNAL
 
 #pragma once
 
@@ -77,4 +76,4 @@ struct ICryOnlineStorage
 	// </interfuscator:shuffle>
 };
 
-#endif //__ICRYONLINESTORAGE_H__
+//! \endcond

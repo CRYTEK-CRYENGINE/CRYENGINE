@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "ScriptBind_GameStatistics.h"
@@ -194,18 +194,18 @@ int CScriptBind_GameStatistics::AddGameElement(IFunctionHandler* pH)
 
 			ScriptAnyValue locVal;
 			pH->GetParamAny(4, locVal);
-			uint32 lv = locVal.type == ANY_TNUMBER ? (uint32)locVal.number : (uint32) reinterpret_cast<TRUNCATE_PTR>(locVal.ptr);
+			uint32 lv = locVal.GetType() == EScriptAnyType::Number ? static_cast<uint32>(locVal.GetNumber()) : static_cast<uint32>(locVal.GetScriptHandle().n);
 
 			if (pH->GetParamCount() == 5)
 				pH->GetParamAny(5, anydata);
 
-			if (pH->GetParamCount() == 4 || anydata.type == ANY_TNIL)
+			if (pH->GetParamCount() == 4 || anydata.GetType() == EScriptAnyType::Nil)
 			{
 				m_pGS->AddGameElement(SNodeLocator(elem, scope, locID, lv), 0);
 			}
-			else if (anydata.type == ANY_TTABLE)
+			else if (anydata.GetType() == EScriptAnyType::Table)
 			{
-				IStatsTracker* tracker = m_pGS->AddGameElement(SNodeLocator(elem, scope, locID, lv), anydata.table);
+				IStatsTracker* tracker = m_pGS->AddGameElement(SNodeLocator(elem, scope, locID, lv), anydata.GetScriptTable());
 			}
 			else
 			{
@@ -255,7 +255,7 @@ int CScriptBind_GameStatistics::RemoveGameElement(IFunctionHandler* pH)
 
 			ScriptAnyValue locVal;
 			pH->GetParamAny(4, locVal);
-			uint32 lv = locVal.type == ANY_TNUMBER ? (uint32)locVal.number : (uint32) reinterpret_cast<TRUNCATE_PTR>(locVal.ptr);
+			uint32 lv = locVal.GetType() == EScriptAnyType::Number ? static_cast<uint32>(locVal.GetNumber()) : static_cast<uint32>(locVal.GetScriptHandle().n);
 
 			m_pGS->RemoveElement(SNodeLocator(elem, scope, locID, lv));
 		}
@@ -311,7 +311,7 @@ int CScriptBind_GameStatistics::Event(IFunctionHandler* pH)
 			ScriptAnyValue p;
 			pH->GetParamAny(2, p);
 
-			if ((p.type == ANY_TTABLE || p.type == ANY_TVECTOR))
+			if ((p.GetType() == EScriptAnyType::Table || p.GetType() == EScriptAnyType::Vector))
 			{
 				XmlNodeRef node = m_pGS->CreateStatXMLNode();
 				SaveLuaStatToXML(node, p);
@@ -344,7 +344,7 @@ int CScriptBind_GameStatistics::Event(IFunctionHandler* pH)
 					return pH->EndFunction();
 			}
 
-			if ((p.type == ANY_TTABLE || p.type == ANY_TVECTOR))
+			if ((p.GetType() == EScriptAnyType::Table || p.GetType() == EScriptAnyType::Vector))
 			{
 				XmlNodeRef node = m_pGS->CreateStatXMLNode();
 				SaveLuaStatToXML(node, p);
@@ -404,7 +404,7 @@ int CScriptBind_GameStatistics::StateValue(IFunctionHandler* pH)
 			ScriptAnyValue p;
 			pH->GetParamAny(2, p);
 
-			if ((p.type == ANY_TTABLE || p.type == ANY_TVECTOR))
+			if ((p.GetType() == EScriptAnyType::Table || p.GetType() == EScriptAnyType::Vector))
 			{
 				XmlNodeRef node = m_pGS->CreateStatXMLNode();
 				SaveLuaStatToXML(node, p);
@@ -437,7 +437,7 @@ int CScriptBind_GameStatistics::StateValue(IFunctionHandler* pH)
 					return pH->EndFunction();
 			}
 
-			if ((p.type == ANY_TTABLE || p.type == ANY_TVECTOR))
+			if ((p.GetType() == EScriptAnyType::Table || p.GetType() == EScriptAnyType::Vector))
 			{
 				XmlNodeRef node = m_pGS->CreateStatXMLNode();
 				SaveLuaStatToXML(node, p);
@@ -494,28 +494,28 @@ void SaveVec3ToXML(XmlNodeRef node, const Vec3& a)
 
 void SaveLuaToXML(XmlNodeRef node, const char* name, const ScriptAnyValue& value)
 {
-	switch (value.type)
+	switch (value.GetType())
 	{
-	case ANY_TBOOLEAN:
-		node->setAttr(name, value.b);
+	case EScriptAnyType::Boolean:
+		node->setAttr(name, value.GetBool());
 		break;
-	case ANY_TNUMBER:
-		node->setAttr(name, value.number);
+	case EScriptAnyType::Number:
+		node->setAttr(name, value.GetNumber());
 		break;
-	case ANY_TSTRING:
-		node->setAttr(name, value.str);
+	case EScriptAnyType::String:
+		node->setAttr(name, value.GetString());
 		break;
-	case ANY_THANDLE:
-		node->setAttr(name, (UINT_PTR)(value.ud.ptr)); //[SergiyY] : ud.nRef contains trash atm; FIXME
+	case EScriptAnyType::Handle:
+		node->setAttr(name, (UINT_PTR)(value.GetUserData().ptr)); //[SergiyY] : ud.nRef contains trash atm; FIXME
 		break;
-	case ANY_TVECTOR:
+	case EScriptAnyType::Vector:
 		{
 			XmlNodeRef c = gEnv->pSystem->CreateXmlNode(name);
-			SaveVec3ToXML(c, Vec3(value.vec3.x, value.vec3.y, value.vec3.z));
+			SaveVec3ToXML(c, value.GetVector());
 			node->addChild(c);
 		}
 		break;
-	case ANY_TTABLE:
+	case EScriptAnyType::Table:
 		{
 			SmartScriptTable t;
 			value.CopyTo(t);

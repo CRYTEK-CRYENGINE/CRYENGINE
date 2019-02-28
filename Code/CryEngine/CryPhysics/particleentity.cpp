@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -539,7 +539,7 @@ int CParticleEntity::DoStep(float time_interval, int iCaller)
     m_timeSurplus=1;
 
 	if (IsAwake()) {
-		FUNCTION_PROFILER( GetISystem(),PROFILE_PHYSICS );
+		CRY_PROFILE_FUNCTION(PROFILE_PHYSICS );
 		PHYS_ENTITY_PROFILER
 		g_pCurParticle[iCaller] = this;
 
@@ -661,7 +661,7 @@ int CParticleEntity::DoStep(float time_interval, int iCaller)
 			nhits = m_pWorld->RayWorldIntersection(
 				rp.Init(pos0,pos-pos0+heading0*m_dim, m_collTypes|ent_water,
 					m_iPierceability|(geom_colltype_ray|geom_colltype13)<<rwi_colltype_bit|rwi_colltype_any|
-					rwi_force_pierceable_noncoll|rwi_ignore_solid_back_faces, m_collisionClass, hits,8, 
+					rwi_force_pierceable_noncoll|rwi_ignore_solid_back_faces|rwi_separate_important_hits, m_collisionClass, hits,8, 
 					pIgnoredColliders+1-bHasIgnore,1+bHasIgnore, 0,0,0, portals,CRY_ARRAY_COUNT(portals)-1),
 				"RayWorldIntersection(PhysParticles)", iCaller);
 			bHit = isneg(-nhits) & (isneg(hits[0].dist+0.5f)^1);
@@ -672,7 +672,7 @@ int CParticleEntity::DoStep(float time_interval, int iCaller)
 		}
 
 		event.pEntity[0] = this; event.pForeignData[0] = m_pForeignData; event.iForeignData[0] = m_iForeignData;
-		if (iCaller<MAX_PHYS_THREADS) for(i=0; i<nhits; i++) {	// register all hits in history 
+		for(i=0; i<nhits; i++) {	// register all hits in history 
 			j = i+1 & i-(nhits-bHit)>>31;
 			event.pt = hits[j].pt;//-heading0*m_dim;	// store not contact, but position of particle center at the time of contact
 			event.n = hits[j].n;									// it's better for explosions to be created at some distance from the wall
@@ -850,7 +850,7 @@ goto doretest; }*/
 				SetParams(&pp);
 			}
 
-			EventPhysPostStep epps;	InitEvent(&epps,this);
+			EventPhysPostStep epps;	InitEvent(&epps,this,iCaller);
 			epps.dt=time_interval; epps.pos=m_pos; epps.q=m_qrot; epps.idStep=m_pWorld->m_idStep;
 			m_pWorld->OnEvent(m_flags,&epps);
 		}

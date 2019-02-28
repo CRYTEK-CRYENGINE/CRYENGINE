@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // FbxTool main dialog
 
@@ -1009,7 +1009,7 @@ void CMainDialog::RenderSkin(const SRenderContext& rc)
 	auto pInstanceBase = m_pCharacterInstance;
 	gEnv->p3DEngine->PrecacheCharacter(NULL, 1.f, pInstanceBase, pInstanceBase->GetIMaterial(), identity, 0, 1.f, 4, true, passInfo);
 	pInstanceBase->SetViewdir(rc.camera->GetViewdir());
-	pInstanceBase->Render(rp, QuatTS(IDENTITY), passInfo);
+	pInstanceBase->Render(rp, passInfo);
 
 	DrawSkeleton(pAuxGeom, &m_pCharacterInstance->GetIDefaultSkeleton(), m_pCharacterInstance->GetISkeletonPose(),
 	             QuatT(IDENTITY), "", rc.viewport->GetState().cameraTarget);
@@ -1736,7 +1736,7 @@ namespace Private_MainDialog
 std::unique_ptr<CModelProperties::SSerializer> CreateSerializer(QAbstractItemModel* pModel, const QModelIndex& modelIndex)
 {
 	QVariant data = modelIndex.data(eItemDataRole_YasliSStruct);
-	if (data.canConvert<void*>())
+	if (data.isValid() && data.canConvert<void*>())
 	{
 		std::unique_ptr<Serialization::SStruct> sstruct((Serialization::SStruct*)data.value<void*>());
 
@@ -2057,24 +2057,6 @@ static bool FinalizeMesh(CMesh* pMesh, const char*& szError)
 	return pMesh->Validate(&szError);
 }
 
-static SShaderItem SetBumpMap(const SShaderItem& shaderItem)
-{
-	SInputShaderResources* inputShaderResources = gEnv->pRenderer->EF_CreateInputShaderResource(shaderItem.m_pShaderResources);
-
-	const EEfResTextures texId = MaterialHelpers::FindTexSlot("Bumpmap");
-	inputShaderResources->m_Textures[texId].m_Name = "Objects/pbs_reference/gloss0_ddna.tif";
-
-	const char* const szShaderName = shaderItem.m_pShader->GetName();
-	const uint64 shaderGenMask = shaderItem.m_pShader->GetGenerationMask();
-
-	SShaderItem newShaderItem = gEnv->pRenderer->EF_LoadShaderItem(
-	  szShaderName, false, 0, inputShaderResources, shaderGenMask);
-
-	gEnv->pRenderer->UpdateShaderItem(&newShaderItem, NULL);
-
-	return newShaderItem;
-}
-
 void CMainDialog::AssignScene(const MeshImporter::SImportScenePayload* pPayload)
 {
 	m_bMaterialNameWasRelative = false;
@@ -2130,11 +2112,6 @@ void CMainDialog::AssignScene(const MeshImporter::SImportScenePayload* pPayload)
 		for (int i = 0; i < materialCount; ++i)
 		{
 			m_materials[i] = pMaterialManager->CloneMaterial(pReferenceMaterial);
-
-			const EEfResTextures texId = MaterialHelpers::FindTexSlot("Bumpmap");
-
-			SShaderItem shaderItem = SetBumpMap(m_materials[i]->GetShaderItem());
-			m_materials[i]->AssignShaderItem(shaderItem);
 		}
 
 		// Create uber-materials.
@@ -3346,3 +3323,4 @@ void CMainDialog::UpdateSkin()
 	m_pSkinRcObject->SetMetaData(metaData);
 	m_pSkinRcObject->CreateAsync();
 }
+

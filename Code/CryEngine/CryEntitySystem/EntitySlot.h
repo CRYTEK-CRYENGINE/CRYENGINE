@@ -1,17 +1,5 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  File name:   EntitySlot.h
-//  Version:     v1.00
-//  Created:     18/5/2004 by Timur.
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
-
-#ifndef __EntityObject_h__
-#define __EntityObject_h__
 #pragma once
 
 // forward declaration.
@@ -37,7 +25,7 @@ typedef Vec3     CWorldPosition;
 class CEntitySlot
 {
 public:
-	CEntitySlot(CEntity *pEntity);
+	explicit CEntitySlot(CEntity* pEntity);
 	~CEntitySlot();
 
 	// Called post entity initialization.
@@ -70,43 +58,43 @@ public:
 	bool GetBoundsChanged() const;
 
 	// XForm slot.
-	void OnXForm( int nWhyFlags );
+	void OnXForm(int nWhyFlags);
 
 	//////////////////////////////////////////////////////////////////////////
 	// @see EEntitySlotFlags
-	void   SetFlags(uint32 nFlags);
+	void       SetFlags(uint32 nFlags);
 	// Flags are a combination of EEntitySlotFlags
-	uint32 GetFlags() const { return m_flags; }
-	void   SetRenderFlag( bool bEnable );
-	
-	void     SetHidemask(hidemask& mask);
-	hidemask GetHidemask() const { return m_nSubObjHideMask; };
+	uint32     GetFlags() const { return m_flags; }
+	void       SetRenderFlag(bool bEnable);
+
+	void       SetHidemask(hidemask& mask);
+	hidemask   GetHidemask() const { return m_nSubObjHideMask; };
 
 	void       SetMaterial(IMaterial* pMtl);
 	IMaterial* GetMaterial() const { return m_pMaterial; };
 
 	//! Fill SEntitySlotInfo structure with contents of the Entity Slot
-	void  GetSlotInfo(SEntitySlotInfo& slotInfo) const;
+	void GetSlotInfo(SEntitySlotInfo& slotInfo) const;
 
 	//////////////////////////////////////////////////////////////////////////
-	void UpdateRenderNode(bool bForceRecreateNode=false);
+	void                  UpdateRenderNode(bool bForceRecreateNode = false);
 
-	void SetAsLight( const CDLight &lightData,uint16 layerId=0 );
+	void                  SetAsLight(const SRenderLight& lightData, uint16 layerId = 0);
 
-	IRenderNode* GetRenderNode() const { return m_pRenderNode; }
-	void SetRenderNode(IRenderNode* pRenderNode);
+	IRenderNode*          GetRenderNode() const { return m_pRenderNode; }
+	void                  SetRenderNode(IRenderNode* pRenderNode);
 
-	EERType GetRenderNodeType() const { return m_renderNodeType; }
+	EERType               GetRenderNodeType() const { return m_renderNodeType; }
 
-	void DebugDraw(const SGeometryDebugDrawInfo& info);
+	void                  DebugDraw(const SGeometryDebugDrawInfo& info);
 
-	void ShallowCopyFrom( CEntitySlot *pSrcSlot );
+	void                  ShallowCopyFrom(CEntitySlot* pSrcSlot);
 
-	ICharacterInstance* GetCharacter() const { return m_pCharacter; }
-	void SetCharacter(ICharacterInstance* val);
+	ICharacterInstance*   GetCharacter() const { return m_pCharacter; }
+	void                  SetCharacter(ICharacterInstance* val);
 
-	IStatObj* GetStatObj() const { return m_pStatObj; }
-	void SetStatObj(IStatObj* val);
+	IStatObj*             GetStatObj() const { return m_pStatObj; }
+	void                  SetStatObj(IStatObj* val);
 
 	IParticleEmitter*     GetParticleEmitter() const;
 
@@ -117,13 +105,13 @@ public:
 			return static_cast<IGeomCacheRenderNode*>(m_pRenderNode);
 		else
 #endif
-			return nullptr;
+		return nullptr;
 	}
 
 	//! Assign parent slot index
-	void SetParent( int parent ) { m_parent = parent; };
+	void SetParent(int parent) { m_parent = parent; };
 	//! Get parent slot index
-	int  GetParent() const { return m_parent; }
+	int  GetParent() const     { return m_parent; }
 
 	void InvalidateParticleEmitter();
 
@@ -131,10 +119,10 @@ public:
 	bool IsRendered() const;
 
 	//! Render this slot fo previewing in Editor.
-	void PreviewRender(SEntityPreviewContext &context);
+	void PreviewRender(SEntityPreviewContext& context);
 
-	void SetNeedSerialize( bool bNeedSerialize ) { m_bNeedSerialize = bNeedSerialize; };
-	bool NeedSerialize() const { return m_bNeedSerialize; }
+	void SetNeedSerialize(bool bNeedSerialize) { m_bNeedSerialize = bNeedSerialize; };
+	bool NeedSerialize() const                 { return m_bNeedSerialize; }
 
 private:
 	void ComputeWorldTransform();
@@ -166,24 +154,19 @@ private:
 	Matrix34 m_localTM;
 
 	// Internal usage flags.
-	union {
-		uint16 m_internalFlags = 0;
-		struct
-		{
-			uint8 m_bNeedSerialize : 1; //! This slot needs to be serialized on save/load.
-			uint8 m_bCameraSpacePos : 1; //! Slot render in camera space (m_cameraSpacePos member variable must be set)
-			uint8 m_bRegisteredRenderNode : 1; //! RenderNode was registered to the 3D engine.
-			uint8 m_bPostInit : 1; //! Post Init was already called.
-		};
-	};
-	uint16 m_flags = 0;
+	uint8 m_bNeedSerialize        : 1; //! This slot needs to be serialized on save/load.
+	uint8 m_bCameraSpacePos       : 1; //! Slot render in camera space (m_cameraSpacePos member variable must be set)
+	uint8 m_bRegisteredRenderNode : 1; //! RenderNode was registered to the 3D engine.
+	uint8 m_bPostInit             : 1; //! Post Init was already called.
 
-	ICharacterInstance* m_pCharacter = nullptr;
+	std::underlying_type<EEntitySlotFlags>::type m_flags = 0;
 
-	IStatObj*           m_pStatObj = nullptr;
+	ICharacterInstance*                          m_pCharacter = nullptr;
 
-	IRenderNode*        m_pRenderNode = nullptr;
-	EERType             m_renderNodeType;
+	IStatObj*    m_pStatObj = nullptr;
+
+	IRenderNode* m_pRenderNode = nullptr;
+	EERType      m_renderNodeType;
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -206,5 +189,3 @@ inline void CEntitySlot::operator delete(void* ptr)
 	if (ptr)
 		g_Alloc_EntitySlot->Deallocate(ptr);
 }
-
-#endif // __EntityObject_h__

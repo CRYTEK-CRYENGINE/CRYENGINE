@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef _ITIMER_H_
 #define _ITIMER_H_
@@ -123,6 +123,7 @@ struct ITimer
 	// </interfuscator:shuffle>
 };
 
+//! \cond INTERNAL
 //! This class is used for automatic profiling of a section of the code.
 //! Creates an instance of this class, and upon exiting from the code section.
 template<typename time>
@@ -145,6 +146,7 @@ protected:
 	ITimer* m_pTimer;
 	time&   m_rTime;
 };
+//! \endcond
 
 //! Include this string AUTO_PROFILE_SECTION(pITimer, g_fTimer) for the section of code where the profiler timer must be turned on and off.
 //! The profiler timer is just some global or static float or double value that accumulates the time (in seconds) spent in the given block of code.

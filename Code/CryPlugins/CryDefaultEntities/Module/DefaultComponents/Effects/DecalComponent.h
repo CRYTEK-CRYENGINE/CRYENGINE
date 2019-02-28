@@ -27,6 +27,9 @@ namespace Cry
 	{
 		class CDecalComponent
 			: public IEntityComponent
+#ifndef RELEASE
+			, public IEntityComponentPreviewer
+#endif
 		{
 		protected:
 			friend CPlugin_CryDefaultEntities;
@@ -35,9 +38,17 @@ namespace Cry
 			// IEntityComponent
 			virtual void Initialize() final;
 
-			virtual void ProcessEvent(SEntityEvent& event) final;
+			virtual void ProcessEvent(const SEntityEvent& event) final;
 			virtual uint64 GetEventMask() const final;
 			// ~IEntityComponent
+
+#ifndef RELEASE
+			// IEntityComponentPreviewer
+			virtual IEntityComponentPreviewer* GetPreviewer() final { return this; }
+			virtual void SerializeProperties(Serialization::IArchive& archive) final {}
+			virtual void Render(const IEntity& entity, const IEntityComponent& component, SEntityPreviewContext &context) const final;
+			// ~IEntityComponentPreviewer
+#endif
 
 		public:
 			virtual ~CDecalComponent() {}
@@ -66,8 +77,6 @@ namespace Cry
 					if (pRenderNode == nullptr)
 					{
 						pRenderNode = static_cast<IDecalRenderNode*>(gEnv->p3DEngine->CreateRenderNode(eERType_Decal));
-						
-						m_pEntity->SetSlotRenderNode(GetOrMakeEntitySlotId(), pRenderNode);
 					}
 
 					bool bSelected, bHighlighted;
@@ -86,7 +95,7 @@ namespace Cry
 					}
 
 					pRenderNode->SetRndFlags(renderFlags);
-						
+					
 					SDecalProperties decalProperties;
 					decalProperties.m_projectionType = m_projectionType;
 
@@ -105,7 +114,7 @@ namespace Cry
 					decalProperties.m_normal = slotTransform.TransformVector(Vec3(0, 0, 1));
 
 					PathUtil::RemoveExtension(m_materialFileName.value);
-					decalProperties.m_pMaterialName = m_materialFileName.value.c_str();
+					decalProperties.m_pMaterialName = m_materialFileName.value.c_str();	
 
 					decalProperties.m_radius = m_projectionType != SDecalProperties::ePlanar ? decalProperties.m_normal.GetLength() : 1;
 					decalProperties.m_explicitRightUpFront = rotation;
@@ -113,17 +122,18 @@ namespace Cry
 					decalProperties.m_deferred = true;
 					decalProperties.m_depth = m_depth;
 					pRenderNode->SetDecalProperties(decalProperties);
-
 					pRenderNode->SetMatrix(slotTransform);
+					
+					m_bSpawned = true;
 
 					m_pEntity->UpdateComponentEventMask(this);
+
+					m_pEntity->SetSlotRenderNode(GetEntitySlotId(), pRenderNode);
 				}
 				else
 				{
 					Remove();
 				}
-
-				m_bSpawned = true;
 			}
 
 			virtual void Remove()

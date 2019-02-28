@@ -1,11 +1,6 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-#if !defined(AFX_STDAFX_H__2E966576_9327_4B66_9CFD_329F604BE709__INCLUDED_)
-#define AFX_STDAFX_H__2E966576_9327_4B66_9CFD_329F604BE709__INCLUDED_
-
-#if _MSC_VER > 1000
-	#pragma once
-#endif // _MSC_VER > 1000
+#pragma once
 
 #include <CryCore/Project/CryModuleDefs.h>
 #define eCryModule   eCryM_EntitySystem
@@ -56,8 +51,6 @@
 
 #include "EntityCVars.h"
 
-#include <CrySystem/Profilers/FrameProfiler/FrameProfiler_JobSystem.h>  // to be removed
-
 #if !defined(_RELEASE)
 	#define INCLUDE_ENTITYSYSTEM_PRODUCTION_CODE
 #endif // !_RELEASE
@@ -94,10 +87,8 @@ inline void EntityFileWarning(const char* file, const char* format, ...)
 	va_end(args);
 }
 
-#define ENTITY_PROFILER FUNCTION_PROFILER(GetISystem(), PROFILE_ENTITY);
-#define ENTITY_PROFILER_NAME(str) FRAME_PROFILER(str, GetISystem(), PROFILE_ENTITY);
+#define ENTITY_PROFILER CRY_PROFILE_FUNCTION(PROFILE_ENTITY);
+#define ENTITY_PROFILER_NAME(str) CRY_PROFILE_REGION(PROFILE_ENTITY, str);
 
 //{{AFX_INSERT_LOCATION}}
 // Microsoft Visual C++ will insert additional declarations immediately before the previous line.
-
-#endif // !defined(AFX_STDAFX_H__2E966576_9327_4B66_9CFD_329F604BE709__INCLUDED_)

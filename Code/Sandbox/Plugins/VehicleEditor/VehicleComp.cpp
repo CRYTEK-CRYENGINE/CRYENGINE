@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "VehicleComp.h"
@@ -29,7 +29,7 @@ CVehicleComponent::CVehicleComponent()
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CVehicleComponent::Display(DisplayContext& dc)
+void CVehicleComponent::Display(CObjectRenderHelper& objRenderHelper)
 {
 	if (!IsSelected())
 	{
@@ -37,6 +37,7 @@ void CVehicleComponent::Display(DisplayContext& dc)
 	}
 
 	float alpha = 0.4f;
+	DisplayContext& dc = objRenderHelper.GetDisplayContextRef();
 	COLORREF wireColor = dc.GetSelectedColor();
 	COLORREF solidColor = GetColor();
 
@@ -223,7 +224,7 @@ void CVehicleComponent::UpdateObjectFromVar()
 	UpdateObjectNameFromVar();
 	UpdateObjectBoundsFromVar();
 
-	SetModified(false);
+	SetModified(false, false);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -469,3 +470,4 @@ void CVehicleComponent::UpdateScale(float scale)
 
 	UpdateObjectFromVar();
 }
+

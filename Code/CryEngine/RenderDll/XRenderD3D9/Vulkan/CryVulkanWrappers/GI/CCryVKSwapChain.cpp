@@ -1,11 +1,50 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "CCryVKSwapChain.hpp"
 #include "../../API/VKSwapChain.hpp"
 
+#include "../../API/VKInstance.hpp"
+#include "../../API/VKDevice.hpp"
+
+#if USE_SDL2 && (CRY_PLATFORM_ANDROID || CRY_PLATFORM_IOS || CRY_PLATFORM_LINUX)
+#include <SDL_syswm.h>
+#endif
+
 _smart_ptr<CCryVKSwapChain> CCryVKSwapChain::Create(_smart_ptr<NCryVulkan::CDevice> pDevice, CONST DXGI_SWAP_CHAIN_DESC* pDesc)
 {
+	NCryVulkan::SSurfaceCreationInfo surfaceInfo;
+#if CRY_PLATFORM_WINDOWS
+	surfaceInfo.windowHandle = pDesc->OutputWindow;
+	surfaceInfo.appHandle = (HINSTANCE)GetWindowLongPtr(surfaceInfo.windowHandle, GWLP_HINSTANCE);
+#else
+	SDL_Window* pWindowContext = reinterpret_cast<SDL_Window*>(pDesc->OutputWindow);
+	struct SDL_SysWMinfo info;
+	ZeroStruct(info);
+	info.version.major = SDL_MAJOR_VERSION;
+	info.version.minor = SDL_MINOR_VERSION;
+	if (!SDL_GetWindowWMInfo(pWindowContext, &info))
+	{
+		return nullptr;
+	}
+
+	surfaceInfo.pWindow = pWindowContext;
+#if CRY_PLATFORM_ANDROID
+	surfaceInfo.pNativeWindow = info.info.android.window;
+	//	surfaceInfo.hNativeSurface = info.info.android.surface;
+#elif CRY_PLATFORM_LINUX
+	surfaceInfo.window = static_cast<xcb_window_t>(info.info.x11.window);
+#endif  // CRY_PLATFORM_ANDROID
+
+#endif
+
+	VkSurfaceKHR surface;
+	if (gcpRendD3D.DevInfo().Factory()->GetVkInstance()->CreateSurface(surfaceInfo, &surface) != VK_SUCCESS)
+	{
+		VK_ERROR("Failed to create KHR Surface");
+		return nullptr;
+	}
+
 	// We might not be able to create the swapchain with the desired values. Copy desired desc and update to actual values.
 	DXGI_SWAP_CHAIN_DESC correctedDesc = *pDesc;
 
@@ -15,11 +54,15 @@ _smart_ptr<CCryVKSwapChain> CCryVKSwapChain::Create(_smart_ptr<NCryVulkan::CDevi
 			correctedDesc.Windowed = true;
 	}
 
-	const bool bVsync = CRenderer::CV_r_vsync != 0;
-	VkPresentModeKHR presentMode = GetPresentMode(correctedDesc.SwapEffect, bVsync);
+	auto& commandQueue = pDevice->GetScheduler().GetCommandListPool(CMDQUEUE_GRAPHICS);
+	VkPhysicalDevice physicalDevice = commandQueue.GetDevice()->GetPhysicalDeviceInfo()->device;
 
-	_smart_ptr<NCryVulkan::CSwapChain> pVKSwapChain = NCryVulkan::CSwapChain::Create(pDevice->GetScheduler().GetCommandListPool(CMDQUEUE_GRAPHICS), VK_NULL_HANDLE,
-		pDesc->BufferCount, pDesc->BufferDesc.Width, pDesc->BufferDesc.Height, NCryVulkan::DXGIFormatToVKFormat(pDesc->BufferDesc.Format),
+	// We use the DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING DXGI flag as a vsync toggle for Vulkan
+	const bool bVsync = !(pDesc->Flags & DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING);
+	VkPresentModeKHR presentMode = GetPresentMode(physicalDevice, surface, correctedDesc.SwapEffect, bVsync);
+
+	_smart_ptr<NCryVulkan::CSwapChain> pVKSwapChain = NCryVulkan::CSwapChain::Create(commandQueue, VK_NULL_HANDLE,
+		pDesc->BufferCount, pDesc->BufferDesc.Width, pDesc->BufferDesc.Height, surface, NCryVulkan::DXGIFormatToVKFormat(pDesc->BufferDesc.Format),
 		presentMode, NCryVulkan::DXGIUsagetoVkUsage((DXGI_USAGE)pDesc->BufferUsage));
 
 	if (pVKSwapChain)
@@ -31,7 +74,7 @@ _smart_ptr<CCryVKSwapChain> CCryVKSwapChain::Create(_smart_ptr<NCryVulkan::CDevi
 		correctedDesc.BufferDesc.Format = NCryVulkan::VKFormatToDXGIFormat(vkDesc.imageFormat);
 		correctedDesc.BufferCount = pVKSwapChain->GetBackBufferCount();
 
-		return new CCryVKSwapChain(std::move(pDevice), &correctedDesc, std::move(pVKSwapChain), bVsync);
+		return new CCryVKSwapChain(std::move(pDevice), &correctedDesc, std::move(pVKSwapChain), surface, bVsync);
 	}
 
 	return nullptr;
@@ -39,9 +82,10 @@ _smart_ptr<CCryVKSwapChain> CCryVKSwapChain::Create(_smart_ptr<NCryVulkan::CDevi
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-CCryVKSwapChain::CCryVKSwapChain(_smart_ptr<NCryVulkan::CDevice> pDevice, CONST DXGI_SWAP_CHAIN_DESC* pDesc, _smart_ptr<NCryVulkan::CSwapChain> pSwapChain, bool bVSync)
+CCryVKSwapChain::CCryVKSwapChain(_smart_ptr<NCryVulkan::CDevice> pDevice, CONST DXGI_SWAP_CHAIN_DESC* pDesc, _smart_ptr<NCryVulkan::CSwapChain> pSwapChain, VkSurfaceKHR surface, bool bVSync)
 	: m_Desc(*pDesc)
 	, m_pDevice(std::move(pDevice))
+	, m_Surface(surface)
 	, m_pVKSwapChain(std::move(pSwapChain))
 	, m_bFullscreen(!pDesc->Windowed)
 	, m_bVSync(bVSync)
@@ -52,6 +96,8 @@ CCryVKSwapChain::CCryVKSwapChain(_smart_ptr<NCryVulkan::CDevice> pDevice, CONST 
 CCryVKSwapChain::~CCryVKSwapChain()
 {
 	VK_FUNC_LOG();
+
+	gcpRendD3D.DevInfo().Factory()->GetVkInstance()->DestroySurface(m_Surface);
 }
 
 /* IDXGIDeviceSubObject implementation */
@@ -107,11 +153,14 @@ HRESULT STDMETHODCALLTYPE CCryVKSwapChain::ResizeBuffers(
 			Desc.Windowed = !bWantFullscreen;
 	}
 
-	VkPresentModeKHR presentMode = GetPresentMode(Desc.SwapEffect, m_bVSync);
 	NCryVulkan::CDevice* pVKDevice = m_pDevice.get();
+	auto& commandQueue = pVKDevice->GetScheduler().GetCommandListPool(CMDQUEUE_GRAPHICS);
+	VkPhysicalDevice physicalDevice = commandQueue.GetDevice()->GetPhysicalDeviceInfo()->device;
+
+	VkPresentModeKHR presentMode = GetPresentMode(physicalDevice, m_Surface, Desc.SwapEffect, m_bVSync);
 
 	_smart_ptr<NCryVulkan::CSwapChain> pVKSwapChain = NCryVulkan::CSwapChain::Create(pVKDevice->GetScheduler().GetCommandListPool(CMDQUEUE_GRAPHICS), m_pVKSwapChain->GetKHRSwapChain(),
-		Desc.BufferCount, Desc.BufferDesc.Width, Desc.BufferDesc.Height, NCryVulkan::DXGIFormatToVKFormat(Desc.BufferDesc.Format),
+		Desc.BufferCount, Desc.BufferDesc.Width, Desc.BufferDesc.Height, m_pVKSwapChain->GetKHRSurface(), NCryVulkan::DXGIFormatToVKFormat(Desc.BufferDesc.Format),
 		presentMode, NCryVulkan::DXGIUsagetoVkUsage((DXGI_USAGE)Desc.BufferUsage));
 
 	m_pDevice->FlushAndWaitForGPU();
@@ -143,9 +192,27 @@ HRESULT STDMETHODCALLTYPE CCryVKSwapChain::SetFullscreenState(
 	return S_OK;
 }
 
-VkPresentModeKHR CCryVKSwapChain::GetPresentMode(DXGI_SWAP_EFFECT swapEffect, bool bEnableVSync)
+VkPresentModeKHR CCryVKSwapChain::GetPresentMode(const VkPhysicalDevice& physicalDevice, const VkSurfaceKHR& surface, DXGI_SWAP_EFFECT, bool bEnableVSync)
 {
-	return bEnableVSync ? VK_PRESENT_MODE_FIFO_KHR : NCryVulkan::s_presentModes[swapEffect];
+	const std::vector<VkPresentModeKHR> supportedPresentModes = NCryVulkan::CSwapChain::GetSupportedPresentModes(physicalDevice, surface);
+
+	const VkPresentModeKHR presentPriorityListWithVsync[] = { VK_PRESENT_MODE_MAILBOX_KHR };
+	const VkPresentModeKHR presentPriorityListWithoutVsync[] = { VK_PRESENT_MODE_IMMEDIATE_KHR, VK_PRESENT_MODE_MAILBOX_KHR, VK_PRESENT_MODE_FIFO_RELAXED_KHR };
+
+	if (bEnableVSync)
+	{
+		for (const auto &p : presentPriorityListWithVsync)
+			if (std::find(supportedPresentModes.begin(), supportedPresentModes.end(), p) != supportedPresentModes.end())
+				return p;
+	}
+	else
+	{
+		for (const auto &p : presentPriorityListWithoutVsync)
+			if (std::find(supportedPresentModes.begin(), supportedPresentModes.end(), p) != supportedPresentModes.end())
+				return p;
+	}
+
+	return VK_PRESENT_MODE_FIFO_KHR;
 }
 
 bool CCryVKSwapChain::ApplyFullscreenState(bool bFullscreen, uint32_t width, uint32_t height)

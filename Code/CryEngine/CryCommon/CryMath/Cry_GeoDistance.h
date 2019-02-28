@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 //
 //	File:Cry_GeoDistance.h
@@ -151,7 +151,7 @@ ILINE F Point_TriangleSq(const Vec3_tpl<F>& p, const Triangle_tpl<F>& t, Vec3_tp
 	Vec3_tpl<F> b = t.v1 - p;
 	Vec3_tpl<F> c = t.v2 - p;
 	//transform triangle into XY-plane to simplify the test
-	Matrix33_tpl<F> r33 = Matrix33_tpl<F>::CreateRotationV0(((b - a) % (a - c)).GetNormalized());
+	Matrix33_tpl<F> r33 = Matrix33_tpl<F>::CreateRotationV0V1(((b - a) % (a - c)).GetNormalized(), Vec3(0, 0, 1));
 	Vec3_tpl<F> h = Origin_Triangle2D(Triangle_tpl<F>(r33 * a, r33 * b, r33 * c));
 	output = h * r33 + p;
 	return (h | h); //return squared distance
@@ -868,7 +868,8 @@ ILINE F Lineseg_LinesegSq(const Lineseg& seg0, const Lineseg seg1, F* t0, F* t1)
 	F fDet = abs(fA00 * fA11 - fA01 * fA01);
 	F fB1, fS, fT, fSqrDist, fTmp;
 
-	if (fDet > (F) 0.0)
+	// This fanciness is needed because -ffast-math optimizes away the (fDet > 0) comparison
+	if (fDet > std::numeric_limits<F>::denorm_min())
 	{
 		// line segments are not parallel
 		fB1 = -diff.Dot(delta1);

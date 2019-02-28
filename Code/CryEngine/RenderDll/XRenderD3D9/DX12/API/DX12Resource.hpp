@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -100,6 +100,10 @@ public:
 	ILINE bool IsCompressed() const
 	{
 		return m_bCompressed;
+	}
+	ILINE bool IsPersistentMappable() const
+	{
+		return m_HeapType != D3D12_HEAP_TYPE_READBACK;
 	}
 	ILINE bool IsOffCard() const
 	{
@@ -224,6 +228,7 @@ public:
 	bool                  NeedsTransitionBarrier(CCommandList* pCmdList, const CView& view, D3D12_RESOURCE_STATES desiredState, bool bPrepare = false) const;
 	D3D12_RESOURCE_STATES DecayTransitionBarrier(CCommandList* pCmdList, D3D12_RESOURCE_STATES desiredState);
 	D3D12_RESOURCE_STATES TransitionBarrier(CCommandList* pCmdList, D3D12_RESOURCE_STATES desiredState);
+	D3D12_RESOURCE_STATES TransitionBarrierStatic(CCommandList* pCmdList, D3D12_RESOURCE_STATES desiredState, D3D12_RESOURCE_STATES& eCurrentState) const;
 	D3D12_RESOURCE_STATES TransitionBarrier(CCommandList* pCmdList, const CView& view, D3D12_RESOURCE_STATES desiredState);
 	D3D12_RESOURCE_STATES BeginTransitionBarrier(CCommandList* pCmdList, D3D12_RESOURCE_STATES desiredState);
 	D3D12_RESOURCE_STATES BeginTransitionBarrier(CCommandList* pCmdList, const CView& view, D3D12_RESOURCE_STATES desiredState);
@@ -393,6 +398,7 @@ protected:
 	bool m_bReusableResource;
 
 	// Potentially changes on every resource-use
+	D3D12_RESOURCE_STATES m_eInitialState;
 	D3D12_RESOURCE_STATES m_eCurrentState;
 	D3D12_RESOURCE_STATES m_eAnnouncedState;
 	std::vector<D3D12_RESOURCE_STATES> m_SubresourceStates;

@@ -1,4 +1,6 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+
+//! \cond INTERNAL
 
 #pragma once
 
@@ -36,7 +38,7 @@ public:
 	}
 
 #ifdef USING_BEHAVIOR_TREE_SERIALIZATION
-	void Serialize(Serialization::IArchive& archive)
+	void Serialize(Serialization::IArchive& archive) override
 	{
 		archive(m_child, "child", "+<>" NODE_COMBOBOX_FIXED_WIDTH ">");
 		if (!m_child)
@@ -99,3 +101,5 @@ protected:
 	INodePtr m_child;
 };
 }
+
+//! \endcond

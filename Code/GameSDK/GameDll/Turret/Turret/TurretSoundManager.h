@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __TURRET_SOUND_MANAGER__H__
 #define __TURRET_SOUND_MANAGER__H__
@@ -176,7 +176,7 @@ public:
 		ReleaseResources();
 	}
 
-	void ProcessEvent( SEntityEvent& event )
+	void ProcessEvent( const SEntityEvent& event )
 	{
 		switch( event.event )
 		{

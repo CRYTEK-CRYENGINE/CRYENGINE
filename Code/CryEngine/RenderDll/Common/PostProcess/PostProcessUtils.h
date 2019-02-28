@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*=============================================================================
    PostProcessUtils.h : Post processing common utilities
@@ -12,7 +12,6 @@
 #ifndef _POSTPROCESSUTILS_H_
 #define _POSTPROCESSUTILS_H_
 
-struct SDepthTexture;
 class CShader;
 
 struct SPostEffectsUtils
@@ -24,12 +23,6 @@ struct SPostEffectsUtils
 		eDepthDownsample_Min,
 		eDepthDownsample_Max,
 	};
-
-	// Create all resources
-	static bool Create();
-
-	// Release all used resources
-	static void Release();
 
 	// Create a render target
 	static bool GetOrCreateRenderTarget(const char* szTexName, CTexture*& pTex, int iWidth, int iHeight, const ColorF& cClear, bool bUseAlpha, bool bMipMaps = 0, ETEX_Format pTexFormat = eTF_R8G8B8A8, int nCustomID = -1, int nFlags = 0);
@@ -61,9 +54,6 @@ struct SPostEffectsUtils
 	static void DrawFullScreenTri(int nTexWidth, int nTexHeight, float z = 0, const RECT* pSrcRegion = NULL);
 	static void DrawFullScreenTriWPOS(int nTexWidth, int nTexHeight, float z = 0, const RECT* pSrcRegion = NULL);
 
-	// Draws static quad. Uv/size offsets handled via vertex shader.
-	virtual void DrawQuadFS(CShader* pShader, bool bOutputCamVec, int nWidth, int nHeight, float x0 = 0, float y0 = 0, float x1 = 1, float y1 = 1, float z = 0) = 0;
-
 	// Deprecated - use DrawQuadFS. Draws screen aligned quad
 	static void DrawScreenQuad(int nTexWidth, int nTexHeight, float x0 = 0, float y0 = 0, float x1 = 1, float y1 = 1);
 
@@ -81,13 +71,10 @@ struct SPostEffectsUtils
 	// Copy screen into texture
 	virtual void CopyScreenToTexture(CTexture*& pDst, const RECT* pSrcRect) = 0;
 
-	// Apply Gaussian blur a texture
-	virtual void TexBlurGaussian(CTexture* pTex, int nAmount = 1, float fScale = 1.0f, float fDistribution = 5.0f, bool bAlphaOnly = false, CTexture* pMask = 0, bool bSRGB = false, CTexture* pBlurTmp = 0) = 0;
-
 	// Clear active render target region
 	static void ClearScreen(float r, float g, float b, float a);
 
-	static void GetFrustumCorners(Vec3& vRT, Vec3& vLT, Vec3& vLB, Vec3& vRB, const CRenderCamera& rc, bool bMirrorCull);
+	static void GetFrustumCorners(Vec3& vRT, Vec3& vLT, Vec3& vLB, Vec3& vRB, const CCamera& camera, bool bMirrorCull);
 
 	static void UpdateFrustumCorners();
 	static void UpdateOverscanBorderAspectRatio();
@@ -167,17 +154,6 @@ struct SPostEffectsUtils
 		return nResize;
 	}
 
-	static void GetViewMatrix(Matrix44A& viewMatrix, bool bCameraSpace = false)
-	{
-		viewMatrix = gRenDev->m_ViewMatrix;
-		if (bCameraSpace)
-		{
-			viewMatrix.m30 = 0.0f;
-			viewMatrix.m31 = 0.0f;
-			viewMatrix.m32 = 0.0f;
-		}
-	}
-
 	static void GetTextureRect(CTexture* pTexture, RECT* pRect)
 	{
 		pRect->left = 0;
@@ -200,15 +176,10 @@ struct SPostEffectsUtils
 		return g;
 	}
 
-	static CTexture* GetTaaRT(bool bCurrentFrame = true)
+	static CTexture* GetVelocityObjectRT(CRenderView* pRenderView)
 	{
-		int index = bCurrentFrame ? (SPostEffectsUtils::m_iFrameCounter % 2) : ((SPostEffectsUtils::m_iFrameCounter + 1) % 2);
-		return CTexture::s_ptexPrevBackBuffer[index][gRenDev->m_CurRenderEye];
-	}
-
-	static CTexture* GetVelocityObjectRT()
-	{
-		return CTexture::s_ptexVelocityObjects[gRenDev->m_CurRenderEye];
+		int eye = static_cast<int>(pRenderView->GetCurrentEye());
+		return CRendererResources::s_ptexVelocityObjects[eye];
 	}
 
 	static float GetOverscanBorderAspectRatio()
@@ -218,8 +189,6 @@ struct SPostEffectsUtils
 
 public:
 
-	static SDepthTexture* m_pCurDepthSurface;
-	static RECT           m_pScreenRect;
 	static ITimer*        m_pTimer;
 	static int            m_iFrameCounter;
 	static int            m_nColorMatrixFrameID;
@@ -235,8 +204,8 @@ public:
 
 	// frustrum corners
 	static Vec3          m_vRT, m_vLT, m_vLB, m_vRB;
-	static int           m_nFrustrumFrameID;
-	static CRenderCamera m_cachedRenderCamera;
+	static int64         m_nFrustrumFrameID;
+	static CCamera       m_cachedRenderCamera;
 
 protected:
 
@@ -247,9 +216,6 @@ protected:
 		m_pViewProj.SetIdentity();
 		m_pColorMat.SetIdentity();
 
-		m_pCurDepthSurface = NULL;
-		m_pScreenRect.left = m_pScreenRect.top = 0;
-		m_pScreenRect.bottom = m_pScreenRect.right = 0;
 		m_pTimer = NULL;
 		m_iFrameCounter = 0;
 		m_nColorMatrixFrameID = -1;

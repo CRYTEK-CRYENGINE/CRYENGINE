@@ -24,7 +24,7 @@ public:
 
 	static Vec3 GetFirstSpawnPointPos()
 	{
-		auto *pEntityIterator = gEnv->pEntitySystem->GetEntityIterator();
+		IEntityItPtr pEntityIterator = gEnv->pEntitySystem->GetEntityIterator();
 		pEntityIterator->MoveFirst();
 
 		while (!pEntityIterator->IsEnd())

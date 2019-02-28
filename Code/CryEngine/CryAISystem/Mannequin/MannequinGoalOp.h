@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __MANNEQUIN_GOAL_OP__H__
 #define __MANNEQUIN_GOAL_OP__H__

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "VehicleWeapon.h"
@@ -36,22 +36,17 @@ void CVehicleWeapon::Done()
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CVehicleWeapon::BeginEditParams(int flags)
-{
-}
-
-//////////////////////////////////////////////////////////////////////////
 bool CVehicleWeapon::HitTest(HitContext& hc)
 {
 	return false;
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CVehicleWeapon::Display(DisplayContext& dc)
+void CVehicleWeapon::Display(CObjectRenderHelper& objRenderHelper)
 {
 	// todo: draw at mount helper, add rotation limits from parts
 
-	DrawDefault(dc);
+	DrawDefault(objRenderHelper.GetDisplayContextRef());
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -68,3 +63,4 @@ void CVehicleWeapon::GetLocalBounds(AABB& box)
 	// todo
 	// return local bounds
 }
+

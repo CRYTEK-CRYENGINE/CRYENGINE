@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 // Radiance format .HDR  write routines
 //
 //  based loosely on RGBE conversion code by Bruce Walter and Greg Ward

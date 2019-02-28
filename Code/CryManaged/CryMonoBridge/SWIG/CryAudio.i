@@ -5,7 +5,6 @@
 %{
 #include <CryAudio/IAudioSystem.h>
 #include <CryAudio/IListener.h>
-#include <CryAudio/IProfileData.h>
 #include <CryAudio/IObject.h>
 %}
 
@@ -18,8 +17,6 @@
 %typemap(csbase) CryAudio::ESystemEvents "uint"
 %typemap(csbase) CryAudio::EDataScope "uint"
 %typemap(csbase) CryAudio::EOcclusionType "uint"
-
-%include "../../../../CryEngine/CryCommon/CryAudio/IProfileData.h"
 
 %ignore CryAudio::SRequestInfo::pStandaloneFile;
 %ignore CryAudio::SRequestInfo::pAudioEvent;

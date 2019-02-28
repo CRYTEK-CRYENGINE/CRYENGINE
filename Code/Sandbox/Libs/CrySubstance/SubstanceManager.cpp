@@ -1,3 +1,5 @@
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+
 #include "StdAfx.h"
 #include "SubstanceManager.h"
 #include "SubstanceCommon.h"
@@ -223,4 +225,5 @@ SubstanceAir::PackageDesc* CSubstanceManager::LoadPackage(const string& archiveN
 	m_loadedPackages.emplace(CCrc32::ComputeLowercase(archiveName), package);
 	return package;
 }
+
 

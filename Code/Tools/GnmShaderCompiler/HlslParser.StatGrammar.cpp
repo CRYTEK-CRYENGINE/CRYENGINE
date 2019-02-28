@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 #include "HlslParser.inl"
 
 #define BEGIN_SCOPE phx::bind(&SParserState::BeginScope, phx::ref(state))

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   debugcallstack.cpp
@@ -15,6 +15,10 @@
 #include "DebugCallStack.h"
 #include <CryThreading/IThreadManager.h>
 
+#include <mutex>
+#include <condition_variable>
+#include <chrono>
+
 #if CRY_PLATFORM_WINDOWS
 
 	#include <CrySystem/IConsole.h>
@@ -29,7 +33,8 @@ LINK_SYSTEM_LIBRARY("version.lib")
 	#include <CryCore/Platform/CryWindows.h>
 	#include <dbghelp.h> // requires <windows.h>
 	#pragma comment( lib, "dbghelp" )
-	#pragma warning(disable: 4244)
+	#pragma warning(push)
+	#pragma warning(disable: 4244) //conversion' conversion from 'type1' to 'type2', possible loss of data
 
 	#ifdef CRY_USE_CRASHRPT
 		#include <CrashRpt.h>
@@ -86,49 +91,93 @@ BOOL CALLBACK EnumModules(
 class CCaptureCrashScreenShot : public IThread
 {
 public:
-	CCaptureCrashScreenShot() : m_bRun(true), m_threadId(THREADID_NULL) {}
-
 	void ThreadEntry()
 	{
 		m_threadId = CryGetCurrentThreadId();
-		while (true)
+
+		for (; !m_interrupt_flag;)
 		{
 			// Wait for work
-			m_mutex.Lock();
-			m_condition.Wait(m_mutex);
-			m_mutex.Unlock();
+			{
+				std::unique_lock<std::mutex> l(m);
+				m_cvSignal.wait(l, [this]() { return m_interrupt_flag || m_signal_flag; });
+			}
 
-			// Escape
-			if (!m_bRun)
-				break;
+			if (!m_interrupt_flag)
+				IDebugCallStack::Screenshot("error.jpg");
 
-			// Get screenshot
-			IDebugCallStack::Screenshot("error.jpg");
-
-			// Notify caller that work is done
-			m_mutex.Lock();
-			m_condition.Notify();
-			m_mutex.Unlock();
+			// Signal capture end
+			{
+				std::unique_lock<std::mutex> l(m);
+				m_signal_flag = false;
+				m_cvCapture.notify_all();
+			}
 		}
 	}
 
+	// Signal interrupt
 	void SignalStopWork()
 	{
-		m_bRun = false;
-
-		m_mutex.Lock();
-		m_condition.Notify();
-		m_mutex.Unlock();
+		std::unique_lock<std::mutex> l(m);
+		m_interrupt_flag = true;
+		m_cvSignal.notify_one();
+		m_cvCapture.notify_all();
 	}
 
-	CryMutex             m_mutex;
-	CryConditionVariable m_condition;
+	// Signal capture, and wait for completion.
+	// Returns true if captured, false if interrupted or timed-out.
+	template <class Rep, class Period>
+	bool SignalCaptureAndWait(const std::chrono::duration<Rep, Period> &duration = std::chrono::steady_clock::duration::max())
+	{
+		{
+			// Notify worker
+			std::unique_lock<std::mutex> l(m);
+			m_signal_flag = true;
+			m_cvSignal.notify_one();
+		}
 
-	volatile bool        m_bRun;
-	threadID             m_threadId;
+		{
+			// Wait
+			std::unique_lock<std::mutex> l(m);
+			m_cvCapture.wait_for(l, duration, [this]() { return m_interrupt_flag || !m_signal_flag; });
+			return !m_signal_flag;
+		}
+	}
+
+	const threadID& GetThreadId() const noexcept { return m_threadId; }
+
+private:
+	std::mutex              m;
+	std::condition_variable m_cvSignal, m_cvCapture;
+
+	bool                    m_interrupt_flag = false;
+	bool                    m_signal_flag = false;
+	threadID                m_threadId = THREADID_NULL;
 };
 
 CCaptureCrashScreenShot g_screenShotThread;
+
+MINIDUMP_TYPE GetMiniDumpType()
+{
+	switch (g_cvars.sys_dump_type)
+	{
+	case 0:
+		return (MINIDUMP_TYPE)(MiniDumpValidTypeFlags + 1); // guaranteed to be invalid
+		break;
+	case 1:
+		return MiniDumpNormal;
+		break;
+	case 2:
+		return (MINIDUMP_TYPE)(MiniDumpWithIndirectlyReferencedMemory | MiniDumpWithDataSegs);
+		break;
+	case 3:
+		return MiniDumpWithFullMemory;
+		break;
+	default:
+		return (MINIDUMP_TYPE)g_cvars.sys_dump_type;
+		break;
+	}
+}
 
 	#ifdef CRY_USE_CRASHRPT
 struct CCrashRptCVars
@@ -169,6 +218,11 @@ bool CCrashRpt::InstallHandler()
 	info.cb = sizeof(CR_INSTALL_INFO);
 	info.pszAppName = NULL; //NULL == Use exe filname _T("CRYENGINE");
 	info.pszAppVersion = NULL; //NULL == Extract from the executable  _T("1.0.0");
+	MINIDUMP_TYPE mdumpType = GetMiniDumpType();
+	if (mdumpType == (MINIDUMP_TYPE)(mdumpType & MiniDumpValidTypeFlags))
+	{
+		info.uMiniDumpType = mdumpType;
+	}
 	if (g_crashrpt_cvars.sys_crashrpt_appname && 0 != strlen(g_crashrpt_cvars.sys_crashrpt_appname->GetString()))
 	{
 		info.pszAppName = g_crashrpt_cvars.sys_crashrpt_appname->GetString();
@@ -535,9 +589,59 @@ void DebugCallStack::doneSymbols()
 
 void DebugCallStack::RemoveOldFiles()
 {
-	RemoveFile("error.log");
-	RemoveFile("error.jpg");
-	RemoveFile("error.dmp");
+	string baseName;
+
+	struct stat fileStat;
+	if (stat("error.log", &fileStat)>=0 && fileStat.st_mtime)
+	{
+		tm* today = localtime(&fileStat.st_mtime);
+		if (today)
+		{
+			char s[128];
+			strftime(s, 128, "%d %b %y (%H %M %S)", today);
+			baseName = "error_" + string(s);
+		}
+		else
+		{
+			baseName = "error";
+		}
+	}
+	else
+	{
+		baseName = "error";
+	}
+
+	baseName = PathUtil::Make("LogBackups", baseName);
+	string logDest = baseName + ".log";
+	string jpgDest = baseName + ".jpg";
+	string dmpDest = baseName + ".dmp";
+
+	MoveFile("error.log", logDest.c_str());
+	MoveFile("error.jpg", jpgDest.c_str());
+	MoveFile("error.dmp", dmpDest.c_str());
+}
+
+void DebugCallStack::MoveFile(const char* szFileNameOld, const char* szFileNameNew)
+{
+	FILE* const pFile = fopen(szFileNameOld, "r");
+
+	if (pFile)
+	{
+		fclose(pFile);
+
+		RemoveFile(szFileNameNew);
+
+		WriteLineToLog("Moving file \"%s\" to \"%s\"...", szFileNameOld, szFileNameNew);
+		if (rename(szFileNameOld, szFileNameNew) == 0)
+		{
+			WriteLineToLog("File successfully moved.");
+		}
+		else
+		{
+			WriteLineToLog("Couldn't move file!");
+			RemoveFile(szFileNameOld);
+		}
+	}
 }
 
 void DebugCallStack::RemoveFile(const char* szFileName)
@@ -883,7 +987,10 @@ int DebugCallStack::handleException(EXCEPTION_POINTERS* exception_pointer)
 		return EXCEPTION_EXECUTE_HANDLER;
 	}
 
-	gEnv->bIgnoreAllAsserts = true;
+#ifdef USE_CRY_ASSERT
+	gEnv->ignoreAllAsserts = true;
+#endif
+
 	gEnv->pLog->FlushAndClose();
 
 	ResetFPU(exception_pointer);
@@ -1101,9 +1208,7 @@ void ReportJiraBug()
 
 	if (!CJiraClient::ReportBug())
 	{
-	#ifndef _RELEASE
-		MessageBox(NULL, "Error running jira crash handler: bug submission failed.", "Bug submission failed", MB_OK | MB_ICONWARNING);
-	#endif
+		CryMessageBox("Error running jira crash handler: bug submission failed.", "Bug submission failed", eMB_Error);
 	}
 }
 
@@ -1267,10 +1372,9 @@ void DebugCallStack::LogExceptionInfo(EXCEPTION_POINTERS* pex)
 
 	cry_strcat(errorString, errs);
 
-	stack_string errorlogFilename(m_outputPath.c_str());
-	errorlogFilename += "error.log";
+	stack_string errorlogFilename = PathUtil::Make(stack_string(m_outputPath), stack_string("error.log"));
 
-	WriteErrorLog(errorlogFilename.c_str(),errorString);
+	WriteErrorLog(errorlogFilename.c_str(), errorString);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -1281,9 +1385,12 @@ void DebugCallStack::MinimalExceptionReport(EXCEPTION_POINTERS* exception_pointe
 
 	int prev_sys_no_crash_dialog = g_cvars.sys_no_crash_dialog;
 
-	gEnv->bIgnoreAllAsserts = true;
+#ifdef USE_CRY_ASSERT
+	gEnv->ignoreAllAsserts = true;
+	gEnv->cryAssertLevel = ECryAssertLevel::Disabled;
+#endif
+
 	g_cvars.sys_no_crash_dialog = 1;
-	g_cvars.sys_asserts = 0;
 
 	CrySpinLock(&s_exception_handler_lock, 0, 1);
 
@@ -1313,15 +1420,6 @@ void DebugCallStack::MinimalExceptionReport(EXCEPTION_POINTERS* exception_pointe
 	gEnv->pLog->SetLogMode(eLogMode_AppCrash); // Log straight to file
 
 
-	// If in full screen minimize render window
-	{
-		ICVar* pFullscreen = (gEnv && gEnv->pConsole) ? gEnv->pConsole->GetCVar("r_Fullscreen") : 0;
-		if (pFullscreen && pFullscreen->GetIVal() != 0 && gEnv->pRenderer && gEnv->pRenderer->GetHWND())
-		{
-			::ShowWindow((HWND)gEnv->pRenderer->GetHWND(), SW_MINIMIZE);
-		}
-	}
-
 	if (initSymbols())
 	{
 		// Rise exception to call updateCallStack method.
@@ -1331,7 +1429,26 @@ void DebugCallStack::MinimalExceptionReport(EXCEPTION_POINTERS* exception_pointe
 
 		doneSymbols();
 	}
-	CaptureScreenshot();
+
+	if (gEnv->pRenderer)
+	{
+		threadID renderThread = 0, mainThread = 0;
+		gEnv->pRenderer->GetThreadIDs(mainThread, renderThread);
+
+		// Resume the screenshot and render thread
+		gEnv->pThreadManager->ForEachOtherThread(ResumeTargetThread, (void*)(&g_screenShotThread.GetThreadId()));
+		gEnv->pThreadManager->ForEachOtherThread(ResumeTargetThread, (void*)(&renderThread));
+
+		gEnv->pLog->ThreadExclusiveLogAccess(false);
+		CaptureScreenshot();
+	}
+
+	// If in full screen minimize render window
+	{
+		ICVar* pFullscreen = (gEnv && gEnv->pConsole) ? gEnv->pConsole->GetCVar("r_Fullscreen") : 0;
+		if (pFullscreen && pFullscreen->GetIVal() != 0 && gEnv->pRenderer && gEnv->pRenderer->GetHWND())
+			::PostMessage((HWND)gEnv->pRenderer->GetHWND(), WM_SYSCOMMAND, SC_MINIMIZE, 0);
+	}
 
 	g_cvars.sys_no_crash_dialog = prev_sys_no_crash_dialog;
 	const bool bQuitting = !gEnv || !gEnv->pSystem || gEnv->pSystem->IsQuitting();
@@ -1391,19 +1508,12 @@ void DebugCallStack::CaptureScreenshot()
 	// Allow screenshot thread to write to log, too
 	gEnv->pLog->ThreadExclusiveLogAccess(false);
 
-	// Resume the screenshot thread
-	gEnv->pThreadManager->ForEachOtherThread(ResumeTargetThread, (void*)(&g_screenShotThread.m_threadId));
-
 	// Notify and wait for screenshot thread
-	g_screenShotThread.m_mutex.Lock();
-	g_screenShotThread.m_condition.Notify();
-
-	if (!g_screenShotThread.m_condition.TimedWait(g_screenShotThread.m_mutex, 2000))
+	if (!g_screenShotThread.SignalCaptureAndWait(std::chrono::seconds(2)))
 	{
 		WriteLineToLog("----- FAILED TO GET SCREENSHOT -----");
 	}
 
-	g_screenShotThread.m_mutex.Unlock();
 
 	// Re-enable exclusive logging for this thread
 	gEnv->pLog->ThreadExclusiveLogAccess(true);
@@ -1459,9 +1569,33 @@ void DebugCallStack::GenerateCrashReport()
 //////////////////////////////////////////////////////////////////////////
 void DebugCallStack::RegisterCVars()
 {
+	#if defined DEDICATED_SERVER
+		const int DEFAULT_DUMP_TYPE = 3;
+	#else
+		const int DEFAULT_DUMP_TYPE = 1;
+	#endif
+
 	#ifdef CRY_USE_CRASHRPT
 	CCrashRpt::RegisterCVars();
+	REGISTER_CVAR2_CB("sys_dump_type", &g_cvars.sys_dump_type, DEFAULT_DUMP_TYPE, VF_NULL,
+		"Specifies type of crash dump to create - see MINIDUMP_TYPE in dbghelp.h for full list of values\n"
+		"0: Do not create a minidump (not valid if using CrashRpt)\n"
+		"1: Create a small minidump (stacktrace)\n"
+		"2: Create a medium minidump (+ some variables)\n"
+		"3: Create a full minidump (+ all memory)\n", 
+		&CCrashRpt::ReInstallCrashRptHandler
+	);
+	#else
+	REGISTER_CVAR2("sys_dump_type", &g_cvars.sys_dump_type, DEFAULT_DUMP_TYPE, VF_NULL,
+		"Specifies type of crash dump to create - see MINIDUMP_TYPE in dbghelp.h for full list of values\n"
+		"0: Do not create a minidump (not valid if using CrashRpt)\n"
+		"1: Create a small minidump (stacktrace)\n"
+		"2: Create a medium minidump (+ some variables)\n"
+		"3: Create a full minidump (+ all memory)\n"
+	);
 	#endif
+
+
 }
 
 INT_PTR CALLBACK DebugCallStack::ExceptionDialogProc(HWND hwndDlg, UINT message, WPARAM wParam, LPARAM lParam)
@@ -1549,15 +1683,6 @@ int DebugCallStack::SubmitBug(EXCEPTION_POINTERS* exception_pointer)
 
 	assert(!hwndException);
 
-	// If in full screen minimize render window
-	{
-		ICVar* pFullscreen = (gEnv && gEnv->pConsole) ? gEnv->pConsole->GetCVar("r_Fullscreen") : 0;
-		if (pFullscreen && pFullscreen->GetIVal() != 0 && gEnv->pRenderer && gEnv->pRenderer->GetHWND())
-		{
-			::ShowWindow((HWND)gEnv->pRenderer->GetHWND(), SW_MINIMIZE);
-		}
-	}
-
 	//hwndException = CreateDialog( gDLLHandle,MAKEINTRESOURCE(IDD_EXCEPTION),NULL,NULL );
 
 	RemoveOldFiles();
@@ -1592,31 +1717,31 @@ int DebugCallStack::SubmitBug(EXCEPTION_POINTERS* exception_pointer)
 
 	LogExceptionInfo(exception_pointer);
 
-	CaptureScreenshot();
+	if (gEnv->pRenderer)
+	{
+		threadID renderThread = 0, mainThread = 0;
+		gEnv->pRenderer->GetThreadIDs(mainThread, renderThread);
+
+		// Resume the screenshot and render thread
+		gEnv->pThreadManager->ForEachOtherThread(ResumeTargetThread, (void*)(&g_screenShotThread.GetThreadId()));
+		gEnv->pThreadManager->ForEachOtherThread(ResumeTargetThread, (void*)(&renderThread));
+
+		gEnv->pLog->ThreadExclusiveLogAccess(false);
+		CaptureScreenshot();
+	}
+
+	// If in full screen minimize render window
+	{
+		ICVar* pFullscreen = (gEnv && gEnv->pConsole) ? gEnv->pConsole->GetCVar("r_Fullscreen") : 0;
+		if (pFullscreen && pFullscreen->GetIVal() != 0 && gEnv->pRenderer && gEnv->pRenderer->GetHWND())
+			::PostMessage((HWND)gEnv->pRenderer->GetHWND(), WM_SYSCOMMAND, SC_MINIMIZE, 0);
+	}
 
 	if (exception_pointer)
 	{
-		MINIDUMP_TYPE mdumpValue;
-		bool bDump = true;
-		switch (g_cvars.sys_dump_type)
-		{
-		case 0:
-			bDump = false;
-			break;
-		case 1:
-			mdumpValue = MiniDumpNormal;
-			break;
-		case 2:
-			mdumpValue = (MINIDUMP_TYPE)(MiniDumpWithIndirectlyReferencedMemory | MiniDumpWithDataSegs);
-			break;
-		case 3:
-			mdumpValue = MiniDumpWithFullMemory;
-			break;
-		default:
-			mdumpValue = (MINIDUMP_TYPE)g_cvars.sys_dump_type;
-			break;
-		}
-		if (bDump)
+		MINIDUMP_TYPE mdumpType = GetMiniDumpType();
+
+		if (mdumpType == (MINIDUMP_TYPE)(mdumpType & MiniDumpValidTypeFlags))
 		{
 			stack_string fileName = "error.dmp";
 #if defined(DEDICATED_SERVER)
@@ -1636,7 +1761,7 @@ int DebugCallStack::SubmitBug(EXCEPTION_POINTERS* exception_pointer)
 			}
 #endif // defined(DEDICATED_SERVER)
 
-			CryEngineExceptionFilterMiniDump(exception_pointer, fileName.c_str(), mdumpValue);
+			CryEngineExceptionFilterMiniDump(exception_pointer, fileName.c_str(), mdumpType);
 		}
 	}
 
@@ -1837,6 +1962,8 @@ int DebugCallStack::PrintException(EXCEPTION_POINTERS* exception_pointer)
 {
 	return DialogBoxParam(gDLLHandle, MAKEINTRESOURCE(IDD_CRITICAL_ERROR), NULL, DebugCallStack::ExceptionDialogProc, (LPARAM)exception_pointer);
 }
+
+	#pragma warning(pop)
 
 #else
 void MarkThisThreadForDebugging(const char*) {}

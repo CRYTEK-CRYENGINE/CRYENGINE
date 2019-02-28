@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -35,6 +35,24 @@ namespace UQS
 
 		//===================================================================================
 		//
+		// EHubOverrideFlags
+		//
+		// - specifies what parts of the IHub the game wants to customize, rather than having them run automatically through the CryPlugin system
+		// - the according functionality/subsystem will then have to be called by the game (unless intending to bypass it)
+		// - in other words: for each bit that is set, the game should then call the according functionality on its own
+		//
+		//===================================================================================
+
+		enum class EHubOverrideFlags
+		{
+			InstantiateStdLibFactories       = BIT(0),
+			InstallDatasourceAndLoadLibrary  = BIT(1),
+			CallUpdate                       = BIT(2),
+			CallUpdateDebugRendering3D       = BIT(3),
+		};
+
+		//===================================================================================
+		//
 		// IHub
 		//
 		//===================================================================================
@@ -44,6 +62,7 @@ namespace UQS
 			virtual                                                    ~IHub() {}
 			virtual void                                               RegisterHubEventListener(IHubEventListener* pListener) = 0;
 			virtual void                                               Update() = 0;
+			virtual CEnumFlags<EHubOverrideFlags>&                     GetOverrideFlags() = 0;
 			virtual IQueryFactoryDatabase&                             GetQueryFactoryDatabase() = 0;
 			virtual IItemFactoryDatabase&                              GetItemFactoryDatabase() = 0;
 			virtual IFunctionFactoryDatabase&                          GetFunctionFactoryDatabase() = 0;
@@ -57,6 +76,7 @@ namespace UQS
 			virtual IUtils&                                            GetUtils() = 0;
 			virtual IEditorService&                                    GetEditorService() = 0;
 			virtual IItemSerializationSupport&                         GetItemSerializationSupport() = 0;
+			virtual ISettingsManager&                                  GetSettingsManager() = 0;
 
 			// TODO pavloi 2016.04.07: maybe editor library provider doesn't really belong here.
 			// Instead, we should use other means to pass pointer from game to editor (like, register

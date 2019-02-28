@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -15,19 +15,19 @@ public:
 	virtual ~CREWaterVolume();
 
 	virtual void mfGetPlane(Plane& pl) override;
-	virtual void mfCenter(Vec3& vCenter, CRenderObject* pObj) override;
+	virtual void mfCenter(Vec3& vCenter, CRenderObject* pObj, const SRenderingPassInfo& passInfo) override;
 
 	virtual void GetMemoryUsage(ICrySizer* pSizer) const override
 	{
 		pSizer->AddObject(this, sizeof(*this));
 	}
 
-	virtual bool Compile(CRenderObject* pObj) override;
-	virtual void DrawToCommandList(CRenderObject* pObj, const struct SGraphicsPipelinePassContext& ctx) override;
+	virtual bool Compile(CRenderObject* pObj, CRenderView *pRenderView, bool updateInstanceDataOnly) override;
+	virtual void DrawToCommandList(CRenderObject* pObj, const struct SGraphicsPipelinePassContext& ctx, CDeviceCommandList* commandList) override;
 
 private:
 	void PrepareForUse(watervolume::SCompiledWaterVolume& RESTRICT_REFERENCE compiledObj, bool bInstanceOnly, CDeviceCommandList& RESTRICT_REFERENCE commandList) const;
-	void UpdatePerInstanceCB(watervolume::SCompiledWaterVolume& RESTRICT_REFERENCE compiledObj, const CRenderObject& renderObj, bool bRenderFogShadowWater, bool bCaustics) const;
+	void UpdatePerDrawCB(watervolume::SCompiledWaterVolume& RESTRICT_REFERENCE compiledObj, const CRenderObject& renderObj, bool bRenderFogShadowWater, bool bCaustics,CRenderView *pRenderView) const;
 	void UpdateVertex(watervolume::SCompiledWaterVolume& RESTRICT_REFERENCE compiledObj, bool bFullscreen);
 
 public:

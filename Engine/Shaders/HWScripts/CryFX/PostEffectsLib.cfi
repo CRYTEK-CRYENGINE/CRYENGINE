@@ -1,5 +1,4 @@
-// CRYENGINE Source Code File
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 //////////////////////////////// Common constants ////////////////
 
@@ -9,13 +8,8 @@
 float4 vsParams[16] < register = c0; >;
 float4 psParams[16] < register = c50; >;
 
-float4   RotGridScreenOffset : PB_RotGridScreenOff;
 float   AnimGenParams = { PB_time 1.0 };
 float4   WorldViewPos  : PB_CameraPos;
-
-float4   CameraUp : PB_CameraUp;
-float4   CameraRight : PB_CameraRight;
-float4   CamFront : PB_CameraFront;
 
 float4  ScrSize : PB_ScreenSize;
 
@@ -63,73 +57,12 @@ samplerCUBE _cubetex5 : register(s5);
 samplerCUBE _cubetex6 : register(s6);
 samplerCUBE _cubetex7 : register(s7);
 
-// Use for auto binding
-sampler2D screenMapSampler : register (s0)
-{
-  Texture = $BackBuffer;
-  MinFilter = POINT;
-  MagFilter = POINT;
-  MipFilter = POINT; 
-  AddressU = Clamp;
-  AddressV = Clamp;	
-};
-
-sampler2D depthMapSampler  : register (s1)
-{
-  Texture = $ZTarget;
-  MinFilter = POINT;
-  MagFilter = POINT;
-  MipFilter = POINT; 
-  AddressU = Clamp;
-  AddressV = Clamp;	
-};
-
-sampler2D screenMapScaledSampler_d2  : register (s2)
-{
-  Texture = $BackBufferScaled_d2;
-  MinFilter = LINEAR;
-  MagFilter = LINEAR;
-  MipFilter = POINT; 
-  AddressU = Clamp;
-  AddressV = Clamp;	
-};
-
-sampler2D screenMapScaledSampler_d4  : register (s3)
-{
-  Texture = $BackBufferScaled_d4;
-  MinFilter = LINEAR;
-  MagFilter = LINEAR;
-  MipFilter = POINT; 
-  AddressU = Clamp;
-  AddressV = Clamp;	
-};
-
-sampler2D screenMapScaledSampler_d8  : register (s4)
-{
-  Texture = $BackBufferScaled_d8;
-  MinFilter = LINEAR;
-  MagFilter = LINEAR;
-  MipFilter = POINT; 
-  AddressU = Clamp;
-  AddressV = Clamp;	
-};
-
-sampler2D screenTargetSampler : register (s0)
-{
-  Texture = $SceneTarget;
-  MinFilter = POINT;
-  MagFilter = POINT;
-  MipFilter = POINT; 
-  AddressU = Clamp;
-  AddressV = Clamp;	
-};
-
 //////////////////////////////// Common vertex shader stuff ////////////////
 
 struct pixout_MRT
 {
-  float4 Color  : COLOR0;
-  float4 Color1 : COLOR1;
+  float4 Color  : SV_Target0;
+  float4 Color1 : SV_Target1;
 };
 
 struct vtxIn
@@ -177,16 +110,6 @@ float3 GetCamVecFsQuad(float4 vPos)
 
 ///////////////// vertex shader //////////////////
 
-float4 GetHPos_FromTriVertexID(uint vertexID)
-{
-	return float4(float2(((vertexID << 1) & 2) * 2.0, (vertexID == 0) ? -4.0 : 0.0) + float2(-1.0, 1.0), 0.0, 1.0);
-}
-
-float2 GetBaseTC_FromTriVertexID(uint vertexID)
-{
-	return float2((vertexID << 1) & 2, (vertexID == 0) ? 2.0 : 0.0);
-}
-
 vtxOut FullscreenTriVS(uint VertexID : SV_VertexID)
 {
 	vtxOut OUT = (vtxOut)0;
@@ -215,15 +138,16 @@ vtxOutWPOS FsQuadCamVecVS(vtxIn IN)
 }
 
 // deprecated, can be removed once all dependent techniques updated to use DrawQuadFS from cpp
-vtxOut BaseVS(vtxIn IN)
+vtxOut BaseVS(uint VertexID : SV_VertexID)
 {
-  vtxOut OUT = (vtxOut)0; 
-	OUT.HPosition = Get2dHPos(IN.Position);  
-  OUT.baseTC.xy = IN.baseTC.xy;
-
-  // output with correct aspect ratio into wz
-  OUT.baseTC.wz = (IN.baseTC.xy -0.5 ) * float2(0.75*(ScrSize.x/ScrSize.y), 1.0) + 0.5;
-  return OUT;
+   vtxOut OUT = (vtxOut)0; 
+   OUT.HPosition = GetHPos_FromTriVertexID(VertexID);
+   float2 baseTC = GetBaseTC_FromTriVertexID(VertexID);  
+   OUT.baseTC.xy = baseTC;
+   
+   // output with correct aspect ratio into wz
+   OUT.baseTC.wz = (baseTC -0.5 ) * float2(0.75*(ScrSize.x/ScrSize.y), 1.0) + 0.5;
+   return OUT;
 }
 
 // deprecated
@@ -232,7 +156,7 @@ vtxOut CustomViewPortBaseVS(vtxIn IN)
   vtxOut OUT = (vtxOut)0; 
 
   float4 vPos = IN.Position;
-  OUT.HPosition = mul(vpMatrix, vPos);  
+  OUT.HPosition = mul(CV_ViewProjMatr, vPos);  
   OUT.baseTC.xy = IN.baseTC.xy;
 
   // output with correct aspect ratio into wz
@@ -254,33 +178,6 @@ vtxOutWPOS BaseWPOSVS(vtxInWPOS IN)
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// Color grading/charts tex lookup
-void TexColorChart2D(in sampler2D chartSampler, inout half3 cImage)
-{
-	const float chartDim	= 16.0;
-	const float3 scale = float3(chartDim - 1.0, chartDim - 1.0, chartDim - 1.0) / chartDim;
-	const float3 bias = float3(0.5, 0.5, 0.0) / chartDim;
-
-	//cImage = float3(0.5, 1.0, 4.0 / chartDim); // debug lookup color to test addressing of "unwrapped" chart slices
-	
-	float3 lookup = saturate(cImage) * scale + bias;
-	
-	// convert input color into 2d color chart lookup address 
-	float slice = lookup.z * chartDim;	
-	float sliceFrac = frac(slice);	
-	float sliceIdx = slice - sliceFrac;
-	
-	lookup.x = (lookup.x + sliceIdx) / chartDim;
-	
- 	// lookup adjacent slices
- 	float3 col0 = GetTexture2D(chartSampler, lookup.xy); 	
- 	lookup.x += 1.0 / chartDim;
- 	float3 col1 = GetTexture2D(chartSampler, lookup.xy);
-
-	// linearly blend between slices 	 	
-	cImage = col0 + (col1 - col0) * sliceFrac;
- 	//cImage = sliceFrac;
-}
 
 // Color grading/charts tex lookup
 void TexColorChart2D(in Texture2D chartTex, in SamplerState chartSampler, inout half3 cImage)

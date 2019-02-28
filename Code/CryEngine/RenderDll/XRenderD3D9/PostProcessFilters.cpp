@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*=============================================================================
    PostProcessFilters : image filters post processing
@@ -15,18 +15,19 @@
 #include "D3DPostProcess.h"
 #include "D3DStereo.h"
 
-#pragma warning(disable: 4244)
-
+#include "GraphicsPipeline/PostEffects.h"
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void CFilterSharpening::Render()
+void CSharpening::Render()
 {
+	ASSERT_LEGACY_PIPELINE
+/*
 	PROFILE_LABEL_SCOPE("SHARPENING");
 
 	const f32 fSharpenAmount = max(m_pAmount->GetParam(), CRenderer::CV_r_Sharpening + 1.0f);
 	if (fSharpenAmount > 1e-6f)
-		GetUtils().StretchRect(CTexture::s_ptexBackBuffer, CTexture::s_ptexBackBufferScaled[0]);
+		GetUtils().StretchRect(CRendererResources::s_ptexBackBuffer, CRendererResources::s_ptexBackBufferScaled[0]);
 
 	static CCryNameTSCRC pTechName("CA_Sharpening");
 	GetUtils().ShBeginPass(CShaderMan::s_shPostEffects, pTechName, FEF_DONTSETTEXTURES | FEF_DONTSETSTATES);
@@ -36,11 +37,12 @@ void CFilterSharpening::Render()
 	static CCryNameR pParamName("psParams");
 	CShaderMan::s_shPostEffects->FXSetPSFloat(pParamName, &pParams, 1);
 
-	GetUtils().SetTexture(CTexture::s_ptexBackBuffer, 0, FILTER_POINT);
-	GetUtils().SetTexture(CTexture::s_ptexBackBufferScaled[0], 1);
-	GetUtils().DrawFullScreenTri(CTexture::s_ptexBackBuffer->GetWidth(), CTexture::s_ptexBackBuffer->GetHeight());
+	GetUtils().SetTexture(CRendererResources::s_ptexBackBuffer, 0, FILTER_POINT);
+	GetUtils().SetTexture(CRendererResources::s_ptexBackBufferScaled[0], 1);
+	GetUtils().DrawFullScreenTri(CRendererResources::s_ptexBackBuffer->GetWidth(), CRendererResources::s_ptexBackBuffer->GetHeight());
 
 	GetUtils().ShEndPass();
+*/
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -48,8 +50,10 @@ void CFilterSharpening::Render()
 
 // todo: handle diferent blurring filters, add wavelength based blur
 
-void CFilterBlurring::Render()
+void CBlurring::Render()
 {
+	ASSERT_LEGACY_PIPELINE
+/*
 	PROFILE_LABEL_SCOPE("BLURRING");
 
 	float fType = m_pType->GetParam();
@@ -60,10 +64,10 @@ void CFilterBlurring::Render()
 	const float fMaxBlurAmount = 5.0f;
 
 	// this is uber expensive - and barely no need for this - adjusting gaussian distribution already looks quite good
-	//GetUtils().TexBlurGaussian(CTexture::s_ptexBackBuffer, 1, 1.0f, LERP(0.0f, fMaxBlurAmount, sqrtf(fAmount) ), false);
+	//GetUtils().TexBlurGaussian(CRendererResources::s_ptexBackBuffer, 1, 1.0f, LERP(0.0f, fMaxBlurAmount, sqrtf(fAmount) ), false);
 
-	GetUtils().StretchRect(CTexture::s_ptexBackBuffer, CTexture::s_ptexBackBufferScaled[0]);
-	GetUtils().TexBlurGaussian(CTexture::s_ptexBackBufferScaled[0], 1, 1.0f, LERP(0.0f, fMaxBlurAmount, fAmount), false, 0, false, CTexture::s_ptexBackBufferScaledTemp[0]);
+	GetUtils().StretchRect(CRendererResources::s_ptexBackBuffer, CRendererResources::s_ptexBackBufferScaled[0]);
+	GetUtils().TexBlurGaussian(CRendererResources::s_ptexBackBufferScaled[0], 1, 1.0f, LERP(0.0f, fMaxBlurAmount, fAmount), false, 0, false, CRendererResources::s_ptexBackBufferScaledTemp[0]);
 
 	static CCryNameTSCRC pTechName("BlurInterpolation");
 	GetUtils().ShBeginPass(CShaderMan::s_shPostEffects, pTechName, FEF_DONTSETTEXTURES | FEF_DONTSETSTATES);
@@ -75,11 +79,12 @@ void CFilterBlurring::Render()
 	static CCryNameR pParamName("psParams");
 	CShaderMan::s_shPostEffects->FXSetPSFloat(pParamName, &pParams, 1);
 
-	GetUtils().SetTexture(CTexture::s_ptexBackBufferScaled[0], 0);
-	GetUtils().SetTexture(CTexture::s_ptexBackBuffer, 1, FILTER_POINT);
-	GetUtils().DrawFullScreenTri(CTexture::s_ptexBackBuffer->GetWidth(), CTexture::s_ptexBackBuffer->GetHeight());
+	GetUtils().SetTexture(CRendererResources::s_ptexBackBufferScaled[0], 0);
+	GetUtils().SetTexture(CRendererResources::s_ptexBackBuffer, 1, FILTER_POINT);
+	GetUtils().DrawFullScreenTri(CRendererResources::s_ptexBackBuffer->GetWidth(), CRendererResources::s_ptexBackBuffer->GetHeight());
 
 	GetUtils().ShEndPass();
+*/
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -157,13 +162,13 @@ bool CColorGrading::UpdateParams(SColorGradingMergeParams& pMergeParams, bool bU
 	Matrix44 pColorMat = pSaturationMat * (pBrightMat * pContrastMat);
 
 	Vec4 pParams0 = Vec4(fMinInput, fGammaInput, fMaxInput, fMinOutput);
-	Vec4 pParams1 = Vec4(fMaxOutput, fGrain, cry_random(0, 1023), cry_random(0, 1023));
+	Vec4 pParams1 = Vec4(fMaxOutput, fGrain, cry_random(0.f, 1023.f), cry_random(0.f, 1023.f));
 	Vec4 pParams2 = Vec4(pFilterColor.x, pFilterColor.y, pFilterColor.z, fFilterColorDensity);
 	Vec4 pParams3 = Vec4(pSelectiveColor.x, pSelectiveColor.y, pSelectiveColor.z, fSharpenAmount + 1.0f);
 	Vec4 pParams4 = Vec4(fSelectiveColorCyans, fSelectiveColorMagentas, fSelectiveColorYellows, fSelectiveColorBlacks);
 
 	// Enable corresponding shader variation
-	pMergeParams.nFlagsShaderRT = gRenDev->m_RP.m_FlagsShader_RT;
+	pMergeParams.nFlagsShaderRT = 0;
 	pMergeParams.nFlagsShaderRT &= ~(g_HWSR_MaskBit[HWSR_SAMPLE0] | g_HWSR_MaskBit[HWSR_SAMPLE1] | g_HWSR_MaskBit[HWSR_SAMPLE2] | g_HWSR_MaskBit[HWSR_SAMPLE3] | g_HWSR_MaskBit[HWSR_SAMPLE4] | g_HWSR_MaskBit[HWSR_SAMPLE5]);
 
 	if (CRenderer::CV_r_colorgrading_levels && (fMinInput || fGammaInput || fMaxInput || fMinOutput || fMaxOutput))
@@ -202,7 +207,7 @@ bool CColorGrading::UpdateParams(SColorGradingMergeParams& pMergeParams, bool bU
 	// Always using color charts
 	if (bUpdateChart)
 	{
-		if (gcpRendD3D->m_pColorGradingControllerD3D && (gEnv->IsCutscenePlaying() || (gRenDev->GetFrameID(false) % max(1, CRenderer::CV_r_ColorgradingChartsCache)) == 0))
+		if (gcpRendD3D->m_pColorGradingControllerD3D && (gEnv->IsCutscenePlaying() || (gRenDev->GetRenderFrameID() % max(1, CRenderer::CV_r_ColorgradingChartsCache)) == 0))
 		{
 			if (!gcpRendD3D->m_pColorGradingControllerD3D->Update(&pMergeParams))
 				return false;
@@ -221,369 +226,23 @@ void CColorGrading::Render()
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool CPostAA::Preprocess()
-{
-	CTexture* pCurrRT = GetUtils().GetTaaRT(true);
-	CTexture* pPrevRT = GetUtils().GetTaaRT(false);
-
-	if (!pCurrRT || !pPrevRT)
-	{
-		m_bInit = true;
-		return true;
-	}
-
-	if (m_bInit)
-	{
-		GetUtils().CopyScreenToTexture(pPrevRT);
-		m_bInit = false;
-	}
-
-	if (m_pScopeZoom->GetParam() > 0.5f)
-		m_nScopeZoomTransition = 10;
-	else if (m_nScopeZoomTransition)
-		m_nScopeZoomTransition--;
-
-	return true;
-}
-
-void CPostAA::ApplySMAA(CTexture*& pCurrRT)
-{
-	CTexture* pEdgesTex = CTexture::s_ptexSceneNormalsMap; // Reusing esram resident target
-	CTexture* pBlendTex = CTexture::s_ptexHDRTarget;       // Reusing esram resident target (note that we access this FP16 RT using point filtering - full rate on GCN)
-
-	const uint32 nAAMode = gcpRendD3D->FX_GetAntialiasingType();
-	CShader* pShader = CShaderMan::s_shPostAA;
-
-	if ((nAAMode & eAT_SMAA_MASK) && pEdgesTex && pBlendTex)
-	{
-		////////////////////////////////////////////////////////////////////////////////////////////////
-		// 1st pass: generate edges texture
-		gcpRendD3D->FX_ClearTarget(pEdgesTex, Clr_Transparent);
-		gcpRendD3D->FX_PushRenderTarget(0, pEdgesTex, &gcpRendD3D->m_DepthBufferOrig);
-
-		static CCryNameTSCRC pszLumaEdgeDetectTechName("LumaEdgeDetectionSMAA");
-		static const CCryNameR pPostAAParams("PostAAParams");
-
-		const int iWidth = gcpRendD3D->GetWidth();
-		const int iHeight = gcpRendD3D->GetHeight();
-		gcpRendD3D->RT_SetViewport(0, 0, iWidth, iHeight);
-
-		GetUtils().ShBeginPass(pShader, pszLumaEdgeDetectTechName, FEF_DONTSETTEXTURES | FEF_DONTSETSTATES);
-
-		gcpRendD3D->FX_SetState(GS_NODEPTHTEST);
-		if (CRenderer::CV_r_AntialiasingModeSCull)
-			GetUtils().BeginStencilPrePass(false, true);
-
-		GetUtils().SetTexture(pCurrRT, 0, FILTER_POINT);
-		SD3DPostEffectsUtils::DrawFullScreenTri(iWidth, iHeight);
-
-		GetUtils().ShEndPass();
-
-		GetUtils().EndStencilPrePass();
-
-		gcpRendD3D->FX_PopRenderTarget(0);
-
-		////////////////////////////////////////////////////////////////////////////////////////////////
-		// 2nd pass: generate blend texture
-		gcpRendD3D->FX_ClearTarget(pBlendTex, Clr_Transparent);
-		gcpRendD3D->FX_PushRenderTarget(0, pBlendTex, &gcpRendD3D->m_DepthBufferOrig);
-
-		static CCryNameTSCRC pszBlendWeightTechName("BlendWeightSMAA");
-		GetUtils().ShBeginPass(pShader, pszBlendWeightTechName, FEF_DONTSETTEXTURES | FEF_DONTSETSTATES);
-
-		gcpRendD3D->FX_SetState(GS_NODEPTHTEST);
-
-		if (CRenderer::CV_r_AntialiasingModeSCull)
-			gcpRendD3D->FX_StencilTestCurRef(true, false);
-
-		GetUtils().SetTexture(pEdgesTex, 0, FILTER_LINEAR);
-		GetUtils().SetTexture(m_pAreaSMAA, 1, FILTER_LINEAR);
-		GetUtils().SetTexture(m_pSearchSMAA, 2, FILTER_POINT);
-
-		SD3DPostEffectsUtils::DrawFullScreenTri(iWidth, iHeight);
-
-		GetUtils().ShEndPass();
-
-		gcpRendD3D->FX_PopRenderTarget(0);
-
-		////////////////////////////////////////////////////////////////////////////////////////////////
-		// Final pass - blend neighborhood pixels
-		CTexture* pDstRT = CTexture::s_ptexSceneNormalsMap;
-		gcpRendD3D->FX_PushRenderTarget(0, pDstRT, NULL);
-
-		if (CRenderer::CV_r_AntialiasingModeSCull)
-			gcpRendD3D->FX_StencilTestCurRef(false);
-
-		static CCryNameTSCRC pszBlendNeighborhoodTechName("NeighborhoodBlendingSMAA");
-		GetUtils().ShBeginPass(pShader, pszBlendNeighborhoodTechName, FEF_DONTSETTEXTURES | FEF_DONTSETSTATES);
-
-		gcpRendD3D->FX_SetState(GS_NODEPTHTEST);
-		GetUtils().SetTexture(pBlendTex, 0, FILTER_POINT);
-		GetUtils().SetTexture(pCurrRT, 1, FILTER_LINEAR);
-
-		SD3DPostEffectsUtils::DrawFullScreenTri(iWidth, iHeight);
-
-		GetUtils().ShEndPass();
-
-		gcpRendD3D->FX_PopRenderTarget(0);
-		pCurrRT = pDstRT;
-	}
-}
-
 void CPostAA::Render()
 {
-	if (gcpRendD3D->m_nGraphicsPipeline > 0)
-	{
-		gcpRendD3D->GetGraphicsPipeline().RenderPostAA();
-		return;
-	}
-
-	const uint32 nAAMode = gcpRendD3D->FX_GetAntialiasingType();
-	CTexture* pCurrRT = CTexture::s_ptexSceneDiffuse;
-	CTexture* pMgpuRT = NULL;
-
-	PROFILE_LABEL_SCOPE("POST_AA");
-
-	static CCryNameTSCRC TechName("PostAA");
-	CShader* pShader = CShaderMan::s_shPostAA;
-
-	if (gcpRendD3D->IsHDRModeEnabled() && (nAAMode & eAT_SMAA_MASK) && pCurrRT)
-		gcpRendD3D->FX_PopRenderTarget(0);
-
-	gcpRendD3D->FX_SetActiveRenderTargets();// Avoiding d3d error (due deferred rt setup, ping-pong'ing between RTs we can bump into RTs still bound when binding it as a SRV - on this particular case, we would get a permanent black screen)
-
-	if (!CRenderer::CV_r_AntialiasingMode)
-		m_bInit = true;
-
-	uint64 nSaveFlagsShader_RT = gRenDev->m_RP.m_FlagsShader_RT;
-	gRenDev->m_RP.m_FlagsShader_RT &= ~(g_HWSR_MaskBit[HWSR_SAMPLE0] | g_HWSR_MaskBit[HWSR_SAMPLE1] | g_HWSR_MaskBit[HWSR_SAMPLE2] | g_HWSR_MaskBit[HWSR_SAMPLE3]);
-
-	gcpRendD3D->m_RP.m_PersFlags2 |= RBPF2_NOPOSTAA;
-
-	ApplySMAA(pCurrRT);
-
-	gcpRendD3D->SetFullscreenViewport();
-
-	// Temporal AA
-	if ((nAAMode & eAT_SMAA_MASK) && (nAAMode & eAT_REQUIRES_PREVIOUSFRAME_MASK))
-	{
-		CTexture* pDstRT = GetUtils().GetTaaRT(true);
-		(pMgpuRT = pDstRT)->MgpuResourceUpdate(true);
-
-		CTexture* pPrevRT = ((SPostEffectsUtils::m_iFrameCounter - m_nLastFrameID) < 10) ? GetUtils().GetTaaRT(false) : pCurrRT;
-
-		gRenDev->m_RP.m_FlagsShader_RT &= ~(g_HWSR_MaskBit[HWSR_SAMPLE2] | g_HWSR_MaskBit[HWSR_SAMPLE4]);
-		if (nAAMode & (eAT_SMAA_1TX_MASK))
-			gRenDev->m_RP.m_FlagsShader_RT |= g_HWSR_MaskBit[HWSR_SAMPLE2];
-
-		const f32 fWidthRcp = 1.0f / (float) gcpRendD3D->GetWidth();
-		const f32 fHeightRcp = 1.0f / (float) gcpRendD3D->GetHeight();
-
-		gcpRendD3D->FX_PushRenderTarget(0, pDstRT, NULL);
-		GetUtils().ShBeginPass(pShader, TechName, FEF_DONTSETTEXTURES | FEF_DONTSETSTATES);
-
-		gcpRendD3D->SetCullMode(R_CULL_NONE);
-		gcpRendD3D->FX_SetState(GS_NODEPTHTEST);
-
-		const Matrix44A mViewProjPrev = CMotionBlur::GetPrevView() * GetUtils().m_pProj * GetUtils().m_pScaleBias;
-		pShader->FXSetPSFloat(m_szViewProjPrev, (Vec4*)mViewProjPrev.GetData(), 4);
-
-		const Vec4 vRcpFrameOpt(-0.33f * fWidthRcp, -0.33f * fHeightRcp, 0.33f * fWidthRcp, 0.33f * fHeightRcp);// (1.0/sz.xy) * -0.33, (1.0/sz.xy) * 0.33. 0.5 -> softer
-		const Vec4 vRcpFrameOpt2(-2.0f * fWidthRcp, -2.0f * fHeightRcp, 2.0f * fWidthRcp, 2.0f * fHeightRcp);// (1.0/sz.xy) * -2.0, (1.0/sz.xy) * 2.0
-		static CCryNameR pRcpFrameOptParam("RcpFrameOpt");
-		pShader->FXSetPSFloat(pRcpFrameOptParam, &vRcpFrameOpt, 1);
-		static CCryNameR pRcpFrameOpt2Param("RcpFrameOpt2");
-		pShader->FXSetPSFloat(pRcpFrameOpt2Param, &vRcpFrameOpt2, 1);
-
-		const Vec4 vParams = Vec4(max(CRenderer::CV_r_AntialiasingTAASharpening + 1.0f, 1.0f), 0.0f, CRenderer::CV_r_AntialiasingTAAFalloffLowFreq + 1e-6f, CRenderer::CV_r_AntialiasingTAAFalloffHiFreq + 1e-6f);
-		pShader->FXSetPSFloat(m_szParams, &vParams, 1);
-
-		// Compute reprojection matrix with highest possible precision to minimize numeric diffusion
-		// TODO: Make sure NEAREST projection is handled correctly
-		Matrix44_tpl<f64> mReprojection64;
-		{
-			Matrix44A mProj = GetUtils().m_pProj;
-
-			// Ensure jittering is removed from projection matrix
-			assert(gcpRendD3D->GetS3DRend().GetStereoMode() == STEREO_MODE_DUAL_RENDERING || (mProj.m20 == 0 && mProj.m21 == 0));
-
-			Matrix44_tpl<f64> mViewInv, mProjInv;
-			mathMatrixLookAtInverse(&mViewInv, &GetUtils().m_pView);
-			const bool bCanInvert = mathMatrixPerspectiveFovInverse(&mProjInv, &mProj);
-			assert(bCanInvert);
-
-			mReprojection64 = mProjInv * mViewInv * Matrix44_tpl<f64>(CMotionBlur::GetPrevView()) * Matrix44_tpl<f64>(mProj);
-
-			Matrix44_tpl<f64> mScaleBias1 = Matrix44_tpl<f64>(
-			  0.5, 0, 0, 0,
-			  0, -0.5, 0, 0,
-			  0, 0, 1, 0,
-			  0.5, 0.5, 0, 1);
-
-			Matrix44_tpl<f64> mScaleBias2 = Matrix44_tpl<f64>(
-			  2.0, 0, 0, 0,
-			  0, -2.0, 0, 0,
-			  0, 0, 1, 0,
-			  -1.0, 1.0, 0, 1);
-
-			mReprojection64 = mScaleBias2 * mReprojection64 * mScaleBias1;
-		}
-
-		static CCryNameR szReprojMatrix("mReprojection");
-		const Matrix44 mReprojection = mReprojection64;
-		pShader->FXSetPSFloat(szReprojMatrix, (Vec4*)mReprojection.GetData(), 4);
-
-		assert((pCurrRT->GetFlags() & FT_USAGE_ALLOWREADSRGB) && (pPrevRT->GetFlags() & FT_USAGE_ALLOWREADSRGB));
-
-		GetUtils().SetTexture((!m_nScopeZoomTransition) ? pCurrRT : pPrevRT, 0, FILTER_LINEAR);
-		GetUtils().SetTexture(pPrevRT, 1, FILTER_LINEAR);
-		GetUtils().SetTexture(CTexture::s_ptexZTarget, 2, FILTER_POINT);
-		GetUtils().SetTexture(GetUtils().GetVelocityObjectRT(), 3, FILTER_POINT);
-		GetUtils().SetTexture((!m_nScopeZoomTransition) ? pCurrRT : pPrevRT, 4, FILTER_LINEAR, eSamplerAddressMode_Clamp, true);
-		GetUtils().SetTexture(pPrevRT, 5, FILTER_LINEAR, eSamplerAddressMode_Clamp, true);
-
-		D3DShaderResource* depthReadOnlySRV = gcpRendD3D->m_DepthBufferOrig.pTexture->GetDevTexture(/*bMSAA*/)->LookupSRV(EDefaultResourceViews::DepthOnly);
-		gcpRendD3D->m_DevMan.BindSRV(CSubmissionQueue_DX11::TYPE_PS, &depthReadOnlySRV, 16, 1);
-
-		SD3DPostEffectsUtils::DrawFullScreenTriWPOS(CTexture::s_ptexBackBuffer->GetWidth(), CTexture::s_ptexBackBuffer->GetHeight());
-
-		D3DShaderResource* pNullSRV[1] = { NULL };
-		gcpRendD3D->m_DevMan.BindSRV(CSubmissionQueue_DX11::TYPE_PS, pNullSRV, 16, 1);
-		gcpRendD3D->FX_Commit();
-
-		GetUtils().ShEndPass();
-
-		gcpRendD3D->FX_PopRenderTarget(0);
-		pCurrRT = pDstRT;
-
-		m_nLastFrameID = SPostEffectsUtils::m_iFrameCounter;
-		gRenDev->m_RP.m_FlagsShader_RT &= ~(g_HWSR_MaskBit[HWSR_SAMPLE0] | g_HWSR_MaskBit[HWSR_SAMPLE1] | g_HWSR_MaskBit[HWSR_SAMPLE2] | g_HWSR_MaskBit[HWSR_SAMPLE3]);
-	}
-
-	gcpRendD3D->SetCurDownscaleFactor(Vec2(1, 1));
-	gcpRendD3D->RT_SetViewport(0, 0, gcpRendD3D->GetWidth(), gcpRendD3D->GetHeight());
-
-	ApplyComposites(pCurrRT);
-
-	gcpRendD3D->m_RP.m_PersFlags2 |= RBPF2_NOPOSTAA;
-	CTexture::s_ptexBackBuffer->SetResolved(true);
-
-	gRenDev->m_RP.m_FlagsShader_RT = nSaveFlagsShader_RT;
-
-	if (pMgpuRT) pMgpuRT->MgpuResourceUpdate(false);
+	gcpRendD3D->GetGraphicsPipeline().ExecutePostAA();
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void CPostAA::ApplyComposites(CTexture* pCurrRT)
-{
-	PROFILE_LABEL_SCOPE("FLARES, GRAIN");
-
-	if (!CRenderer::CV_r_AntialiasingMode)
-		GetUtils().CopyScreenToTexture(pCurrRT);
-
-	gRenDev->m_RP.m_FlagsShader_RT &= ~g_HWSR_MaskBit[HWSR_SAMPLE2];
-	if (gcpRendD3D->FX_GetAntialiasingType() & eAT_SMAA_2TX_MASK)
-		gRenDev->m_RP.m_FlagsShader_RT |= g_HWSR_MaskBit[HWSR_SAMPLE2];
-
-	if (CRenderer::CV_r_colorRangeCompression)
-		gRenDev->m_RP.m_FlagsShader_RT |= g_HWSR_MaskBit[HWSR_SAMPLE4];
-	else
-		gRenDev->m_RP.m_FlagsShader_RT &= ~g_HWSR_MaskBit[HWSR_SAMPLE4];
-
-	GetUtils().ShBeginPass(CShaderMan::s_shPostAA, m_szCompositesTech, FEF_DONTSETTEXTURES | FEF_DONTSETSTATES);
-
-	float sharpening = CRenderer::CV_r_AntialiasingTAASharpening;
-
-	if (max(fabs(gRenDev->m_vProjMatrixSubPixoffset.x), fabs(gRenDev->m_vProjMatrixSubPixoffset.y)) > 0)
-	{
-		// Apply stronger unsharp masking when averaging jittered samples (tweaked for 2 samples)
-		sharpening *= 2;
-	}
-
-	const Vec4 vParams(max(1.0f + sharpening, 1.0f), 0, 0, 0);
-	CShaderMan::s_shPostAA->FXSetPSFloat(m_szParams, &vParams, 1);
-
-	CTexture* pLensOpticsComposite = CTexture::s_ptexSceneTargetR11G11B10F[0];
-	GetUtils().SetTexture(pLensOpticsComposite, 5, FILTER_POINT);
-	if (gRenDev->m_RP.m_FlagsShader_RT & g_HWSR_MaskBit[HWSR_SAMPLE3])
-	{
-		const Vec4 vLensOptics(1.0f, 1.0f, 1.0f, CRenderer::CV_r_FlaresChromaShift);
-		static CCryNameR pLensOpticsParam("vLensOpticsParams");
-		CShaderMan::s_shPostAA->FXSetPSFloat(pLensOpticsParam, &vLensOptics, 1);
-	}
-
-	// Apply grain (unfortunately final luminance texture doesn't get its final value baked, so have to replicate entire hdr eye adaption)
-	{
-		Vec4 vHDRSetupParams[5];
-		gEnv->p3DEngine->GetHDRSetupParams(vHDRSetupParams);
-
-		CEffectParam* m_pFilterGrainAmount = PostEffectMgr()->GetByName("FilterGrain_Amount");
-		CEffectParam* m_pFilterArtifactsGrain = PostEffectMgr()->GetByName("FilterArtifacts_Grain");
-		const float fFiltersGrainAmount = max(m_pFilterGrainAmount->GetParam(), m_pFilterArtifactsGrain->GetParam());
-		const Vec4 v = Vec4(0, 0, 0, max(fFiltersGrainAmount, max(vHDRSetupParams[1].w, CRenderer::CV_r_HDRGrainAmount)));
-		static CCryNameR szHDRParam("HDRParams");
-		CShaderMan::s_shPostAA->FXSetPSFloat(szHDRParam, &v, 1);
-		static CCryNameR szHDREyeAdaptationParam("HDREyeAdaptation");
-		CShaderMan::s_shPostAA->FXSetPSFloat(szHDREyeAdaptationParam, &vHDRSetupParams[4], 1);
-
-		GetUtils().SetTexture(CTexture::s_ptexFilmGrainMap, 6, FILTER_POINT, eSamplerAddressMode_Wrap);
-		if (CTexture::s_ptexCurLumTexture && !CRenderer::CV_r_HDRRangeAdapt)
-			GetUtils().SetTexture(CTexture::s_ptexCurLumTexture, 7, FILTER_POINT);
-	}
-
-	GetUtils().SetTexture(pCurrRT, 0, FILTER_LINEAR);
-	SD3DPostEffectsUtils::DrawFullScreenTri(CTexture::s_ptexBackBuffer->GetWidth(), CTexture::s_ptexBackBuffer->GetHeight());
-	GetUtils().ShEndPass();
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void CPostAA::UpscaleImage()
-{
-	if (CShaderMan::s_shPostAA == NULL)
-		return;
-
-	PROFILE_LABEL_SCOPE("NATIVE_UPSCALE");
-
-	gcpRendD3D->GetGraphicsPipeline().SwitchToLegacyPipeline();
-
-	gcpRendD3D->FX_PushWireframeMode(R_SOLID_MODE);
-
-	static CCryNameTSCRC pTechName("UpscaleImage");
-
-	SPostEffectsUtils::ShBeginPass(CShaderMan::s_shPostAA, pTechName, FEF_DONTSETTEXTURES | FEF_DONTSETSTATES);
-
-	static CCryNameR param0Name("vParams");
-	Vec4 params0((float)gcpRendD3D->GetWidth(), (float)gcpRendD3D->GetHeight(), 0, 0);
-	CShaderMan::s_shPostAA->FXSetPSFloat(param0Name, &params0, 1);
-
-	gcpRendD3D->FX_SetState(GS_NODEPTHTEST);
-
-	SSamplerState texStateLinerSRGB(FILTER_LINEAR, true);
-	texStateLinerSRGB.m_bSRGBLookup = true;
-	SamplerStateHandle nFilterLinearSRGB = CDeviceObjectFactory::GetOrCreateSamplerStateHandle(texStateLinerSRGB);
-
-	CTexture::s_ptexSceneSpecular->Apply(0, nFilterLinearSRGB);
-
-	SPostEffectsUtils::DrawFullScreenTri(gcpRendD3D->GetOverlayWidth(), gcpRendD3D->GetOverlayHeight());
-	SPostEffectsUtils::ShEndPass();
-
-	gcpRendD3D->FX_PopWireframeMode();
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool CPostStereo::Preprocess()
+bool CPostStereo::Preprocess(const SRenderViewInfo& viewInfo)
 {
 	return gcpRendD3D->GetS3DRend().IsPostStereoEnabled();
 }
 
 void CPostStereo::Render()
 {
+	ASSERT_LEGACY_PIPELINE
+/*
 	CD3DStereoRenderer* const __restrict rendS3D = &gcpRendD3D->GetS3DRend();
 
 	if (!rendS3D->IsPostStereoEnabled())
@@ -591,22 +250,22 @@ void CPostStereo::Render()
 
 	if (gcpRendD3D->m_nGraphicsPipeline == 0 &&
 	    CRenderer::CV_r_PostProcessHUD3D &&
-	    CRenderer::CV_r_PostProcessHUD3D != 2 /* temporary code - tbr */ &&
-	    !PostEffectMgr()->GetEffect(ePFX_NanoGlass)->IsActive() /* NanoGlass also updates flash */)
+	    CRenderer::CV_r_PostProcessHUD3D != 2  &&
+	    !PostEffectMgr()->GetEffect(EPostEffectID::NanoGlass)->IsActive() ) // NanoGlass also updates flash
 	{
 		// If HUD enabled, pre-process flash updates first (for performance reasons)
-		C3DHud* pPostProcessHUD3D = (C3DHud*) PostEffectMgr()->GetEffect(ePFX_3DHUD);
+		C3DHud* pPostProcessHUD3D = (C3DHud*) PostEffectMgr()->GetEffect(EPostEffectID::HUD3D);
 		pPostProcessHUD3D->FlashUpdateRT();
 	}
 
 	PROFILE_LABEL_SCOPE("POST_STEREO");
 
 	// Mask near geometry (weapon)
-	CTexture* pTmpMaskTex = CTexture::s_ptexSceneNormalsBent; // non-msaaed target
+	CTexture* pTmpMaskTex = CRendererResources::s_ptexSceneNormalsBent; // non-msaaed target
 	assert(pTmpMaskTex);
-	assert(pTmpMaskTex->GetWidth() == CTexture::s_ptexBackBuffer->GetWidth());
-	assert(pTmpMaskTex->GetHeight() == CTexture::s_ptexBackBuffer->GetHeight());
-	assert(pTmpMaskTex->GetDstFormat() == CTexture::s_ptexBackBuffer->GetDstFormat());
+	assert(pTmpMaskTex->GetWidth() == CRendererResources::s_ptexBackBuffer->GetWidth());
+	assert(pTmpMaskTex->GetHeight() == CRendererResources::s_ptexBackBuffer->GetHeight());
+	assert(pTmpMaskTex->GetDstFormat() == CRendererResources::s_ptexBackBuffer->GetDstFormat());
 
 	{
 		PROFILE_LABEL_SCOPE("NEAR_MASK");
@@ -618,7 +277,7 @@ void CPostStereo::Render()
 
 		GetUtils().ShBeginPass(CShaderMan::s_shPostEffects, TechNameMask, FEF_DONTSETTEXTURES | FEF_DONTSETSTATES);
 		gcpRendD3D->FX_SetState(GS_DEPTHFUNC_LEQUAL);
-		SD3DPostEffectsUtils::DrawFullScreenTri(CTexture::s_ptexBackBuffer->GetWidth(), CTexture::s_ptexBackBuffer->GetHeight(), CRenderer::CV_r_DrawNearZRange);
+		SD3DPostEffectsUtils::DrawFullScreenTri(CRendererResources::s_ptexBackBuffer->GetWidth(), CRendererResources::s_ptexBackBuffer->GetHeight(), CRenderer::CV_r_DrawNearZRange);
 		GetUtils().ShEndPass();
 
 		gcpRendD3D->FX_PopRenderTarget(0);
@@ -650,14 +309,15 @@ void CPostStereo::Render()
 	Vec4 hposScale(gcpRendD3D->m_CurViewportScale.x, gcpRendD3D->m_CurViewportScale.y, 0.0f, 0.0f);
 	CShaderMan::s_shPostEffects->FXSetPSFloat(pParamName2, &hposScale, 1);
 
-	GetUtils().SetTexture(CTexture::s_ptexBackBuffer, 0, FILTER_LINEAR, eSamplerAddressMode_Mirror);
-	GetUtils().SetTexture(CTexture::s_ptexZTarget, 1, FILTER_POINT);
+	GetUtils().SetTexture(CRendererResources::s_ptexBackBuffer, 0, FILTER_LINEAR, eSamplerAddressMode_Mirror);
+	GetUtils().SetTexture(CRendererResources::s_ptexZTarget, 1, FILTER_POINT);
 	GetUtils().SetTexture(pTmpMaskTex, 2, FILTER_POINT);
 
-	SD3DPostEffectsUtils::DrawFullScreenTri(CTexture::s_ptexBackBuffer->GetWidth(), CTexture::s_ptexBackBuffer->GetHeight());
+	SD3DPostEffectsUtils::DrawFullScreenTri(CRendererResources::s_ptexBackBuffer->GetWidth(), CRendererResources::s_ptexBackBuffer->GetHeight());
 
 	GetUtils().ShEndPass();
 	rendS3D->EndRenderingMRT(false);
+*/
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -665,10 +325,12 @@ void CPostStereo::Render()
 
 void CImageGhosting::Render()
 {
+	ASSERT_LEGACY_PIPELINE
+/*
 	gRenDev->m_cEF.mfRefreshSystemShader("PostEffectsGame", CShaderMan::s_shPostEffectsGame);
 
-	CTexture* pPrevFrame = CTexture::s_ptexPrevFrameScaled;
-	CTexture* pPrevFrameRead = CTexture::s_ptexPrevFrameScaled;
+	CTexture* pPrevFrame = CRendererResources::s_ptexPrevFrameScaled;
+	CTexture* pPrevFrameRead = CRendererResources::s_ptexPrevFrameScaled;
 
 	if (m_bInit)
 	{
@@ -692,13 +354,14 @@ void CImageGhosting::Render()
 
 	GetUtils().SetTexture(pPrevFrameRead, 0, FILTER_LINEAR);
 
-	GetUtils().DrawFullScreenTri(CTexture::s_ptexBackBuffer->GetWidth(), CTexture::s_ptexBackBuffer->GetHeight());
+	GetUtils().DrawFullScreenTri(CRendererResources::s_ptexBackBuffer->GetWidth(), CRendererResources::s_ptexBackBuffer->GetHeight());
 
 	GetUtils().ShEndPass();
 
 	// todo: on x360 use msaa (0.1ms overall)
-	GetUtils().CopyScreenToTexture(CTexture::s_ptexBackBuffer);     // 0.25ms / 0.4 ms
-	GetUtils().StretchRect(CTexture::s_ptexBackBuffer, pPrevFrame); // 0.25ms
+	GetUtils().CopyScreenToTexture(CRendererResources::s_ptexBackBuffer);     // 0.25ms / 0.4 ms
+	GetUtils().StretchRect(CRendererResources::s_ptexBackBuffer, pPrevFrame); // 0.25ms
+*/
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -706,6 +369,8 @@ void CImageGhosting::Render()
 
 void CUberGamePostProcess::Render()
 {
+	ASSERT_LEGACY_PIPELINE
+/*
 	PROFILE_LABEL_SCOPE("UBER_GAME_POSTPROCESS");
 
 	uint64 nSaveFlagsShader_RT = gRenDev->m_RP.m_FlagsShader_RT;
@@ -759,34 +424,18 @@ void CUberGamePostProcess::Render()
 	CShaderMan::s_shPostEffectsGame->FXSetPSFloat(pParamNamePS4, &vParamsPS[4], 1);
 	CShaderMan::s_shPostEffectsGame->FXSetPSFloat(pParamNamePS5, &vParamsPS[5], 1);
 
-	GetUtils().SetTexture(CTexture::s_ptexBackBuffer, 0, FILTER_LINEAR);
-	GetUtils().SetTexture(CTexture::s_ptexScreenNoiseMap, 1, FILTER_LINEAR, eSamplerAddressMode_Wrap);
+	GetUtils().SetTexture(CRendererResources::s_ptexBackBuffer, 0, FILTER_LINEAR);
+	GetUtils().SetTexture(CRendererResources::s_ptexScreenNoiseMap, 1, FILTER_LINEAR, eSamplerAddressMode_Wrap);
 
 	if (pMaskTex)
 		GetUtils().SetTexture(pMaskTex, 2, FILTER_LINEAR);
 	else
-		GetUtils().SetTexture(CTexture::s_ptexWhite, 2, FILTER_LINEAR);
+		GetUtils().SetTexture(CRendererResources::s_ptexWhite, 2, FILTER_LINEAR);
 
-	GetUtils().DrawFullScreenTri(CTexture::s_ptexBackBuffer->GetWidth(), CTexture::s_ptexBackBuffer->GetHeight());
+	GetUtils().DrawFullScreenTri(CRendererResources::s_ptexBackBuffer->GetWidth(), CRendererResources::s_ptexBackBuffer->GetHeight());
 
 	GetUtils().ShEndPass();
 
 	gRenDev->m_RP.m_FlagsShader_RT = nSaveFlagsShader_RT;
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void CSoftAlphaTest::Render()
-{
-	PROFILE_LABEL_SCOPE("SOFT ALPHA TEST");
-
-	CRenderElement* pPrevRE = gRenDev->m_RP.m_pRE;
-	gRenDev->m_RP.m_pRE = NULL;
-
-	PostProcessUtils().CopyScreenToTexture(CTexture::s_ptexSceneNormalsMap);
-
-	gcpRendD3D->FX_ProcessSoftAlphaTestRenderLists();
-
-	gRenDev->m_RP.m_pRE = pPrevRE;
+*/
 }

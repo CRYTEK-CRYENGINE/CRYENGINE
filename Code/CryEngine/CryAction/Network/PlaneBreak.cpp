@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -61,8 +61,8 @@ void LogPlaneBreak(const char* from, const SBreakEvent& evt)
 
 static int s_debugId = 1;
 
-	#pragma warning(push)
-	#pragma warning(disable : 6262)// 32k of stack space of CBitArray
+#pragma warning(push)
+#pragma warning(disable : 6262)// 32k of stack space of CBitArray
 void SPlaneBreakParams::SerializeWith(TSerialize ser)
 {
 	CBitArray array(&ser);
@@ -107,7 +107,7 @@ void SPlaneBreakParams::SerializeWith(TSerialize ser)
 
 	if (ser.IsWriting()) array.WriteToSerializer();
 }
-	#pragma warning(pop)
+#pragma warning(pop)
 
 void SPlaneBreak::GetAffectedRegion(AABB& rgn)
 {

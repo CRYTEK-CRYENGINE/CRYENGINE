@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "GoalPipe.h"
@@ -214,21 +214,20 @@ QGoal QGoal::Clone()
 		case eGO_HOVER:
 			goal.pGoalOp = new COPCrysis2Hover(static_cast<const COPCrysis2Hover&>(*pGoalOp));
 			break;
-		case eGO_FLY:
-			goal.pGoalOp = new COPCrysis2Fly(static_cast<const COPCrysis2Fly&>(*pGoalOp));
-			break;
 		case eGO_CHASETARGET:
 			goal.pGoalOp = new COPCrysis2ChaseTarget(static_cast<const COPCrysis2ChaseTarget&>(*pGoalOp));
 			break;
-
 		case eGO_FIREWEAPONS:
 			goal.pGoalOp = new COPCrysis2FlightFireWeapons(static_cast<COPCrysis2FlightFireWeapons&>(*pGoalOp));
 			break;
 		case eGO_ACQUIREPOSITION:
 			goal.pGoalOp = new COPAcquirePosition(static_cast<COPAcquirePosition&>(*pGoalOp));
 			break;
+		case eGO_FLY:
+			goal.pGoalOp = new COPCrysis2Fly(static_cast<const COPCrysis2Fly&>(*pGoalOp));
+			break;
 #if 0
-		// deprecated and won't compile at all...
+			// deprecated and won't compile at all...
 		case eGO_STEER:
 			goal.pGoalOp = new COPSteer(static_cast<const COPSteer&>(*pGoalOp));
 			break;
@@ -474,12 +473,12 @@ CGoalOp* CGoalPipe::CreateGoalOp(EGoalOperations op, const XmlNodeRef& goalOpNod
 		return new COPWaitSignal(goalOpNode);
 	case eGO_HOVER:
 		return new COPCrysis2Hover(goalOpNode);
-	case eGO_FLY:
-		return new COPCrysis2Fly(goalOpNode);
 	case eGO_CHASETARGET:
 		return new COPCrysis2ChaseTarget(goalOpNode);
 	case eGO_FIREWEAPONS:
 		return new COPCrysis2FlightFireWeapons(goalOpNode);
+	case eGO_FLY:
+		return new COPCrysis2Fly(goalOpNode);
 	case eGO_ACQUIREPOSITION:
 		return new COPAcquirePosition(goalOpNode);
 #if 0

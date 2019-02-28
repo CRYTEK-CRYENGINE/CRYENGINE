@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -84,6 +84,7 @@ public:
 	virtual void                 SetExclusiveListener(IInputEventListener* pListener);
 	virtual IInputEventListener* GetExclusiveListener();
 	virtual bool                 AddInputDevice(IInputDevice* pDevice);
+	virtual bool                 RemoveInputDevice(IInputDevice* pDevice);
 	virtual void                 EnableEventPosting(bool bEnable);
 	virtual bool                 IsEventPostingEnabled() const;
 	virtual void                 PostInputEvent(const SInputEvent& event, bool bForce = false);

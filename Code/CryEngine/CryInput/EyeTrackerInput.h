@@ -1,4 +1,4 @@
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 //
 // Description: EyeTracker for Windows (covering EyeX)
 // - 20/04/2016 Created by Benjamin Peters

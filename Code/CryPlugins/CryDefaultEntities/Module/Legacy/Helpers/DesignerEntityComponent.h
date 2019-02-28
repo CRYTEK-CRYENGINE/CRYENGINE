@@ -13,7 +13,7 @@ public:
 	// IEntityComponent
 	virtual void Initialize() override { OnResetState(); }
 
-	virtual void ProcessEvent(SEntityEvent& event) override
+	virtual void ProcessEvent(const SEntityEvent& event) override
 	{
 		switch (event.event)
 		{
@@ -28,7 +28,7 @@ public:
 		}
 	}
 
-	virtual uint64 GetEventMask() const override { return BIT64(ENTITY_EVENT_START_LEVEL) | BIT64(ENTITY_EVENT_RESET) | BIT64(ENTITY_EVENT_EDITOR_PROPERTY_CHANGED) | BIT64(ENTITY_EVENT_XFORM_FINISHED_EDITOR); }
+	virtual uint64 GetEventMask() const override { return ENTITY_EVENT_BIT(ENTITY_EVENT_START_LEVEL) | ENTITY_EVENT_BIT(ENTITY_EVENT_RESET) | ENTITY_EVENT_BIT(ENTITY_EVENT_EDITOR_PROPERTY_CHANGED) | ENTITY_EVENT_BIT(ENTITY_EVENT_XFORM_FINISHED_EDITOR); }
 	// ~IEntityComponent
 
 	void ActivateFlowNodeOutput(const int portIndex, const TFlowInputData& inputData)

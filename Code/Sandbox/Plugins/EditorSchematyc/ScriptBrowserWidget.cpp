@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "ScriptBrowserWidget.h"
@@ -16,7 +16,6 @@
 #include <QToolbar>
 #include <QWidgetAction>
 
-#include <QParentWndWidget.h>
 #include <QPushButton.h>
 #include <QSearchBox.h>
 #include <QAdvancedTreeView.h>
@@ -2203,3 +2202,4 @@ QModelIndex CScriptBrowserWidget::TreeViewFromModelIndex(const QModelIndex& inde
 }
 
 } // Schematyc
+

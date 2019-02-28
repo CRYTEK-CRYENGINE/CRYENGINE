@@ -1,0 +1,37 @@
+# Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+
+def build(bld):	
+
+	mfc_version = '110'
+	try:
+		msvc_version = bld.env['MSVC_VERSION']
+		if msvc_version == '11.0':
+			mfc_version = '110'
+		if msvc_version == '12.0':
+			mfc_version = '120'
+		if msvc_version == '14.0':
+			mfc_version = '140'
+	except:
+		pass
+
+	bld.CryPluginModule(
+		target      = 'EditorCommon',
+		vs_filter   = 'Sandbox',		
+		file_list   = 'editorcommon.waf_files',
+		pch         = 'stdafx.cpp',
+		
+		use_module= ['jsmn', 'zlib'],
+
+		debug_lib       = 'mfcs' + mfc_version + 'd',
+		release_lib     = 'mfcs' + mfc_version,
+		profile_lib     = 'mfcs' + mfc_version,
+		performance_lib = 'mfcs' + mfc_version,
+		defines = ['EDITOR_COMMON_EXPORTS'],
+
+		includes = [Path('Code/Sandbox/EditorQt'), 
+					Path('Code/Sandbox/EditorQt/Include'), 
+					Path('CryLink/Interface'), 
+					Path('Code/Sandbox/Libs/CryQt')]
+	)
+
+

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "RecordingSystem.h"
@@ -57,23 +57,21 @@
 #include <CryMovie/IMovieSystem.h>
 
 static AUTOENUM_BUILDNAMEARRAY(s_thirdPersonPacketList, ThirdPersonPacketList);
-const char *NIGHT_VISION_PE		= "NightVision_Active";
-
-
+const char* NIGHT_VISION_PE = "NightVision_Active";
 
 // --------------------------------------------------------------------------------
-static void DiscardingPacketStatic(SRecording_Packet *ps, float recordedTime, void *inUserData)
+static void DiscardingPacketStatic(SRecording_Packet* ps, float recordedTime, void* inUserData)
 {
 	g_pGame->GetRecordingSystem()->DiscardingPacket(ps, recordedTime);
 }
 
 #ifdef RECSYS_DEBUG
 // --------------------------------------------------------------------------------
-void CRecordingSystem::FirstPersonDiscardingPacketStatic(SRecording_Packet *ps, float recordedTime, void *inUserData)
+void CRecordingSystem::FirstPersonDiscardingPacketStatic(SRecording_Packet* ps, float recordedTime, void* inUserData)
 {
-	const float maxBufferTimeRequired = max(g_pGameCVars->kc_length-g_pGameCVars->kc_kickInTime, g_pGameCVars->kc_kickInTime);
+	const float maxBufferTimeRequired = max(g_pGameCVars->kc_length - g_pGameCVars->kc_kickInTime, g_pGameCVars->kc_kickInTime);
 	const float ageOfPacket = (gEnv->pTimer->GetFrameStartTime().GetSeconds() - recordedTime);
-	if( !s_savingHighlightsGuard && ageOfPacket<maxBufferTimeRequired && ((CRecordingSystem*)inUserData)->IsRecordingAndNotPlaying() )
+	if (!s_savingHighlightsGuard && ageOfPacket < maxBufferTimeRequired && ((CRecordingSystem*)inUserData)->IsRecordingAndNotPlaying())
 	{
 		RecSysLog("FirstPersonDiscardingPacketStatic(), shouldn't be discarding yet, must have run out of memory");
 		CRY_ASSERT_MESSAGE(false, "Recording first person buffer is out of memory, please tell Pete");
@@ -84,13 +82,12 @@ static size_t maxFirstPersonDataSeen = 0;
 static size_t latestFirstPersonDataSize = 0;
 #endif //RECSYS_DEBUG
 
-
-void CRecordingSystem::DiscardingPacket(SRecording_Packet *packet, float recordedTime)
+void CRecordingSystem::DiscardingPacket(SRecording_Packet* packet, float recordedTime)
 {
 #ifdef RECSYS_DEBUG
-	const float maxBufferTimeRequired = max(g_pGameCVars->kc_length-g_pGameCVars->kc_kickInTime, g_pGameCVars->kc_kickInTime);
+	const float maxBufferTimeRequired = max(g_pGameCVars->kc_length - g_pGameCVars->kc_kickInTime, g_pGameCVars->kc_kickInTime);
 	const float ageOfPacket = (gEnv->pTimer->GetFrameStartTime().GetSeconds() - recordedTime);
-	if( !s_savingHighlightsGuard && ageOfPacket<maxBufferTimeRequired && IsRecordingAndNotPlaying() )
+	if (!s_savingHighlightsGuard && ageOfPacket < maxBufferTimeRequired && IsRecordingAndNotPlaying())
 	{
 		RecSysLog("DiscardingPacket(), shouldn't be discarding yet, must have run out of memory");
 		CRY_ASSERT_MESSAGE(false, "Recording third person buffer is out of memory, please tell Pete");
@@ -173,7 +170,7 @@ void CRecordingSystem::DiscardingPacket(SRecording_Packet *packet, float recorde
 	case eTPP_ParticleCreated:
 		{
 			SRecording_ParticleCreated* pParticleCreated = (SRecording_ParticleCreated*)packet;
-			if (pParticleCreated->entityId != 0 || m_persistantParticleEffects.count(pParticleCreated->pParticleEffect)!=0 )
+			if (pParticleCreated->entityId != 0 || m_persistantParticleEffects.count(pParticleCreated->pParticleEffect) != 0)
 			{
 				// Only keep particle effects which are attached to entities, leave the others
 				m_recordedData.m_discardedParticleSpawns[pParticleCreated->pParticleEmitter] = std::make_pair(*pParticleCreated, recordedTime);
@@ -203,11 +200,11 @@ void CRecordingSystem::DiscardingPacket(SRecording_Packet *packet, float recorde
 	case eTPP_StopSound:
 		{
 			/*SRecording_StopSound* pStopSound = (SRecording_StopSound*)packet;
-			size_t numErased = m_recordedData.m_discardedSounds.erase(pStopSound->soundId);
-			if (numErased)
-			{
-				RecSysLogDebug(eRSD_Sound, "Removing discarded looping sounds: %d. num discarded: %" PRISIZE_T, pStopSound->soundId, m_recordedData.m_discardedSounds.size());
-			}*/
+			   size_t numErased = m_recordedData.m_discardedSounds.erase(pStopSound->soundId);
+			   if (numErased)
+			   {
+			   RecSysLogDebug(eRSD_Sound, "Removing discarded looping sounds: %d. num discarded: %" PRISIZE_T, pStopSound->soundId, m_recordedData.m_discardedSounds.size());
+			   }*/
 		}
 		break;
 	case eTPP_DrawSlotChange:
@@ -218,7 +215,7 @@ void CRecordingSystem::DiscardingPacket(SRecording_Packet *packet, float recorde
 			TEntitySpawnMap::iterator itEntitySpawn = m_recordedData.m_discardedEntitySpawns.find(pDrawSlotChange->entityId);
 			if (itEntitySpawn != m_recordedData.m_discardedEntitySpawns.end())
 			{
-				SRecording_EntitySpawn &spawnPacket = itEntitySpawn->second.first;
+				SRecording_EntitySpawn& spawnPacket = itEntitySpawn->second.first;
 				assert(pDrawSlotChange->iSlot >= 0 && pDrawSlotChange->iSlot < RECORDING_SYSTEM_MAX_SLOTS);
 				spawnPacket.slotFlags[pDrawSlotChange->iSlot] = pDrawSlotChange->flags;
 			}
@@ -232,7 +229,7 @@ void CRecordingSystem::DiscardingPacket(SRecording_Packet *packet, float recorde
 			TEntitySpawnMap::iterator itEntitySpawn = m_recordedData.m_discardedEntitySpawns.find(pStatObjChange->entityId);
 			if (itEntitySpawn != m_recordedData.m_discardedEntitySpawns.end())
 			{
-				SRecording_EntitySpawn &spawnPacket = itEntitySpawn->second.first;
+				SRecording_EntitySpawn& spawnPacket = itEntitySpawn->second.first;
 				assert(pStatObjChange->iSlot >= 0 && pStatObjChange->iSlot < RECORDING_SYSTEM_MAX_SLOTS);
 				IStatObj* pPrevStatObj = spawnPacket.pStatObj[pStatObjChange->iSlot];
 				if (pPrevStatObj)
@@ -253,7 +250,7 @@ void CRecordingSystem::DiscardingPacket(SRecording_Packet *packet, float recorde
 			TEntitySpawnMap::iterator itEntitySpawn = m_recordedData.m_discardedEntitySpawns.find(pHideMask->entityId);
 			if (itEntitySpawn != m_recordedData.m_discardedEntitySpawns.end())
 			{
-				SRecording_EntitySpawn &spawnPacket = itEntitySpawn->second.first;
+				SRecording_EntitySpawn& spawnPacket = itEntitySpawn->second.first;
 				spawnPacket.subObjHideMask = pHideMask->subObjHideMask;
 			}
 		}
@@ -295,36 +292,36 @@ void CRecordingSystem::DiscardingPacket(SRecording_Packet *packet, float recorde
 			CRY_ASSERT(m_recordedData.m_corpses.size() < m_recordedData.m_corpses.max_size());
 			if (m_recordedData.m_corpses.size() < m_recordedData.m_corpses.max_size())
 			{
-				SRecording_CorpseSpawned *pCorpsePacket = (SRecording_CorpseSpawned*) packet;
-				if(IEntity* pCorpseEntity = gEnv->pEntitySystem->GetEntity(pCorpsePacket->corpseId))
+				SRecording_CorpseSpawned* pCorpsePacket = (SRecording_CorpseSpawned*) packet;
+				if (IEntity* pCorpseEntity = gEnv->pEntitySystem->GetEntity(pCorpsePacket->corpseId))
 				{
-					if(ICharacterInstance* pChar = pCorpseEntity->GetCharacter(0))
+					if (ICharacterInstance* pChar = pCorpseEntity->GetCharacter(0))
 					{
 						ISkeletonPose* pPose = pChar->GetISkeletonPose();
 						IDefaultSkeleton& rIDefaultSkeleton = pChar->GetIDefaultSkeleton();
-						if(pPose)
+						if (pPose)
 						{
 							STrackedCorpse corpse;
 							corpse.m_corpseId = pCorpsePacket->corpseId;
 							corpse.m_numJoints = min((int32) rIDefaultSkeleton.GetJointCount(), static_cast<int32>(STrackedCorpse::k_maxJoints));
 
 							static uint8 s_ADIKJoints[STrackedCorpse::k_maxJoints];
-							memset(&s_ADIKJoints[0], 0, sizeof(s_ADIKJoints[0])*STrackedCorpse::k_maxJoints);
+							memset(&s_ADIKJoints[0], 0, sizeof(s_ADIKJoints[0]) * STrackedCorpse::k_maxJoints);
 							TCorpseADIKJointsVec::const_iterator end = m_corpseADIKJointCRCs.end();
-							for(TCorpseADIKJointsVec::const_iterator it = m_corpseADIKJointCRCs.begin(); it!=end; ++it)
+							for (TCorpseADIKJointsVec::const_iterator it = m_corpseADIKJointCRCs.begin(); it != end; ++it)
 							{
 								const int16 jointIdx = rIDefaultSkeleton.GetJointIDByCRC32(*it);
-								if(jointIdx!=-1)
+								if (jointIdx != -1)
 									s_ADIKJoints[jointIdx] = 1;
 							}
-							for (int32 i=0; i<corpse.m_numJoints; i++)
+							for (int32 i = 0; i < corpse.m_numJoints; i++)
 							{
-								if(s_ADIKJoints[i])
+								if (s_ADIKJoints[i])
 								{
 									QuatT rel(pPose->GetRelJointByID(i));
 									rel.t.x = 0.f;
 									const int32 parent = rIDefaultSkeleton.GetJointParentIDByID(i);
-									if(parent<0)
+									if (parent < 0)
 									{
 										corpse.m_jointAbsPos[i] = rel;
 									}
@@ -347,10 +344,10 @@ void CRecordingSystem::DiscardingPacket(SRecording_Packet *packet, float recorde
 		}
 	case eTPP_CorpseRemoved:
 		{
-			SRecording_CorpseRemoved *pCorpsePacket = (SRecording_CorpseRemoved*) packet;
+			SRecording_CorpseRemoved* pCorpsePacket = (SRecording_CorpseRemoved*) packet;
 			EntityId corpseId = pCorpsePacket->corpseId;
 			int numCorpses = m_recordedData.m_corpses.size();
-			for (int i = 0; i < numCorpses; ++ i)
+			for (int i = 0; i < numCorpses; ++i)
 			{
 				if (m_recordedData.m_corpses[i].m_corpseId == corpseId)
 				{
@@ -382,9 +379,9 @@ void CRecordingSystem::DiscardingPacket(SRecording_Packet *packet, float recorde
 		if (packet->type == eTPP_PlayerJoined)
 		{
 			// Find the first free index into the array
-			for (int i = 0; i < MAX_RECORDED_PLAYERS; ++ i)
+			for (int i = 0; i < MAX_RECORDED_PLAYERS; ++i)
 			{
-				SPlayerInitialState &initialState = m_recordedData.m_playerInitialStates[i];
+				SPlayerInitialState& initialState = m_recordedData.m_playerInitialStates[i];
 				if (initialState.playerId == 0)
 				{
 					initialState.Reset();
@@ -397,25 +394,25 @@ void CRecordingSystem::DiscardingPacket(SRecording_Packet *packet, float recorde
 		else
 		{
 			bool bFound = false;
-			for (int i = 0; i < MAX_RECORDED_PLAYERS; ++ i)
+			for (int i = 0; i < MAX_RECORDED_PLAYERS; ++i)
 			{
-				SPlayerInitialState &initialState = m_recordedData.m_playerInitialStates[i];
+				SPlayerInitialState& initialState = m_recordedData.m_playerInitialStates[i];
 				if (initialState.playerId == playerEntityId)
 				{
 					switch (packet->type)
 					{
 					case eTPP_MannEvent:
 						{
-							SRecording_MannEvent *mannEvent = (SRecording_MannEvent *)packet;
+							SRecording_MannEvent* mannEvent = (SRecording_MannEvent*)packet;
 
 							switch (mannEvent->historyItem.type)
 							{
 							case SMannHistoryItem::Fragment:
 								{
 									bool installed = false;
-									for (uint32 j=0; j<SPlayerInitialState::MAX_FRAGMENT_TRIGGERS; j++)
+									for (uint32 j = 0; j < SPlayerInitialState::MAX_FRAGMENT_TRIGGERS; j++)
 									{
-										SRecording_MannEvent &triggerSlot = initialState.fragmentTriggers[j];
+										SRecording_MannEvent& triggerSlot = initialState.fragmentTriggers[j];
 										ActionScopes scopeMask = triggerSlot.historyItem.scopeMask;
 
 										if (!scopeMask || (scopeMask & mannEvent->historyItem.scopeMask) != 0)
@@ -442,7 +439,7 @@ void CRecordingSystem::DiscardingPacket(SRecording_Packet *packet, float recorde
 						break;
 					case eTPP_MannSetSlaveController:
 						{
-							SRecording_MannSetSlaveController *mannSetSlave = (SRecording_MannSetSlaveController *)packet;
+							SRecording_MannSetSlaveController* mannSetSlave = (SRecording_MannSetSlaveController*)packet;
 							initialState.mannSetSlaveController = *mannSetSlave;
 							break;
 						}
@@ -543,7 +540,7 @@ CRecordingSystem::CRecordingSystem()
 	, m_bLoopHighlightsReel(false)
 	, m_autoHideIgnoreEntityId(0)
 	, m_bCanPlayWinningKill(false)
-	,m_gameCameraLinkedToEntityId(0)
+	, m_gameCameraLinkedToEntityId(0)
 {
 	RecSysLogFunc;
 
@@ -567,26 +564,26 @@ CRecordingSystem::CRecordingSystem()
 
 	REINST("needs verification!");
 	/*if (gEnv->pSoundSystem)
-		gEnv->pSoundSystem->AddEventListener(this, false);*/
+	   gEnv->pSoundSystem->AddEventListener(this, false);*/
 
-	if(g_pGame->GetIGameFramework())
+	if (g_pGame->GetIGameFramework())
 		g_pGame->GetIGameFramework()->AddBreakEventListener(this);
 
 	m_pBuffer = new CRecordingBuffer(RECORDING_BUFFER_SIZE);
-	m_pBuffer->SetPacketDiscardCallback(DiscardingPacketStatic,NULL);
+	m_pBuffer->SetPacketDiscardCallback(DiscardingPacketStatic, NULL);
 	m_pBufferFirstPerson = new CRecordingBuffer(FP_RECORDING_BUFFER_SIZE);
 #ifdef RECSYS_DEBUG
-	m_pBufferFirstPerson->SetPacketDiscardCallback(FirstPersonDiscardingPacketStatic,this);
+	m_pBufferFirstPerson->SetPacketDiscardCallback(FirstPersonDiscardingPacketStatic, this);
 #endif //RECSYS_DEBUG
 
-	for (int i = 0; i < MAX_HIGHLIGHTS; ++ i)
+	for (int i = 0; i < MAX_HIGHLIGHTS; ++i)
 	{
 		m_highlightData[i].m_bUsed = false;
 	}
 
 	Reset();
 
-	gEnv->pEntitySystem->AddSink(this, IEntitySystem::OnSpawn | IEntitySystem::OnRemove, 0);
+	gEnv->pEntitySystem->AddSink(this, IEntitySystem::OnSpawn | IEntitySystem::OnRemove);
 
 	if (IBreakableManager* pBreakMgr = gEnv->pEntitySystem->GetBreakableManager())
 		pBreakMgr->AddBreakEventListener(this);
@@ -608,17 +605,17 @@ CRecordingSystem::CRecordingSystem()
 	m_interactFragmentID = pDatabasePlayer->GetFragmentID("Interact");
 }
 
-void CRecordingSystem::Init( XmlNodeRef root )
+void CRecordingSystem::Init(XmlNodeRef root)
 {
 	IEntitySystem* pEntSys = gEnv->pEntitySystem;
-	if(!pEntSys)
+	if (!pEntSys)
 		return;
 
 	IEntityClassRegistry* pClassReg = pEntSys->GetClassRegistry();
-	if(!pClassReg)
+	if (!pClassReg)
 		return;
 
-	if(root==NULL)
+	if (root == NULL)
 		return;
 
 	m_pBreakage = pClassReg->FindClass("Breakage");
@@ -630,7 +627,7 @@ void CRecordingSystem::Init( XmlNodeRef root )
 	m_pGrenadeLauncherGrenade = pClassReg->FindClass("GrenadeLauncherGrenade");
 	m_pCorpse = pClassReg->FindClass("Corpse");
 	m_pInteractiveObjectExClass = pClassReg->FindClass("InteractiveObjectEx");
-	
+
 	// Load Filtered Entities.
 	m_recordEntityClassFilter.clear();
 	CRecordingSystem::LoadClassData(*pClassReg, root->findChild("FilteredEntities"), m_recordEntityClassFilter);
@@ -648,11 +645,11 @@ void CRecordingSystem::Init( XmlNodeRef root )
 	// Load Corpse Joint CRCs.
 	m_corpseADIKJointCRCs.clear();
 	XmlNodeRef corpseJoints = root->findChild("CorpseADIKJoints");
-	if(corpseJoints)
+	if (corpseJoints)
 	{
 		const int count = corpseJoints->getChildCount();
 		m_corpseADIKJointCRCs.resize(count);
-		for(int i=0; i<count; i++)
+		for (int i = 0; i < count; i++)
 		{
 			XmlNodeRef child = corpseJoints->getChild(i);
 			const char* pName = child->getAttr("name");
@@ -666,49 +663,49 @@ void CRecordingSystem::Init( XmlNodeRef root )
 	m_replacementParticleEffects.clear();
 	m_persistantParticleEffects.clear();
 	XmlNodeRef particles = root->findChild("ParticleEffects");
-	if(particles)
+	if (particles)
 	{
-		if(IParticleManager* pParticleMan = gEnv->pParticleManager)
+		if (IParticleManager* pParticleMan = gEnv->pParticleManager)
 		{
 			XmlNodeRef excluded = particles->findChild("Excluded");
-			if(excluded)
+			if (excluded)
 			{
 				const int count = excluded->getChildCount();
-				for(int i=0; i<count; i++)
+				for (int i = 0; i < count; i++)
 				{
 					XmlNodeRef child = excluded->getChild(i);
 					const char* pName = child->getAttr("name");
 					IParticleEffect* pEffect = pParticleMan->FindEffect(pName);
 					m_excludedParticleEffects.insert(pEffect);
-					RecSysLogDebug(eRSD_Config, "Excluding Particle Effect: [%p] %s", pEffect, pName );
+					RecSysLogDebug(eRSD_Config, "Excluding Particle Effect: [%p] %s", pEffect, pName);
 				}
 			}
 
 			XmlNodeRef replace = particles->findChild("Replace");
-			if(replace)
+			if (replace)
 			{
 				const int count = replace->getChildCount();
-				for(int i=0; i<count; i++)
+				for (int i = 0; i < count; i++)
 				{
 					XmlNodeRef child = replace->getChild(i);
 					IParticleEffect* pA = pParticleMan->FindEffect(child->getAttr("replace"));
 					IParticleEffect* pB = pParticleMan->FindEffect(child->getAttr("with"));
 					int bothWays = 0;
 					child->getAttr("bothWays", bothWays);
-					if(pA && pB)
+					if (pA && pB)
 					{
 						m_replacementParticleEffects[pA] = pB;
-						if(bothWays)
+						if (bothWays)
 							m_replacementParticleEffects[pB] = pA;
 					}
 				}
 			}
 
 			XmlNodeRef persistant = particles->findChild("Persistant");
-			if(persistant)
+			if (persistant)
 			{
 				const int count = persistant->getChildCount();
-				for(int i=0; i<count; i++)
+				for (int i = 0; i < count; i++)
 				{
 					XmlNodeRef child = persistant->getChild(i);
 					m_persistantParticleEffects.insert(pParticleMan->FindEffect(child->getAttr("name")));
@@ -724,13 +721,13 @@ void CRecordingSystem::Init( XmlNodeRef root )
 	// Load Excluded Sounds.
 	m_excludedSoundEffects.clear();
 	XmlNodeRef sounds = root->findChild("Sounds");
-	if(particles)
+	if (particles)
 	{
 		XmlNodeRef excluded = sounds->findChild("Excluded");
-		if(excluded)
+		if (excluded)
 		{
 			const int count = excluded->getChildCount();
-			for(int i=0; i<count; i++)
+			for (int i = 0; i < count; i++)
 			{
 				XmlNodeRef child = excluded->getChild(i);
 				m_excludedSoundEffects.insert(CCrc32::Compute(child->getAttr("name")));
@@ -739,7 +736,7 @@ void CRecordingSystem::Init( XmlNodeRef root )
 	}
 
 	XmlNodeRef highlightRules = root->findChild("Highlights");
-	if(highlightRules)
+	if (highlightRules)
 	{
 		m_highlightsRules.Init(highlightRules);
 	}
@@ -747,23 +744,23 @@ void CRecordingSystem::Init( XmlNodeRef root )
 
 /*static*/ void CRecordingSystem::LoadClassData(const IEntityClassRegistry& classReg, XmlNodeRef xmlData, TEntityClassSet& data)
 {
-	if(xmlData)
+	if (xmlData)
 	{
 		const int numChildren = xmlData->getChildCount();
-		for(int i=0; i<numChildren; ++i)
+		for (int i = 0; i < numChildren; ++i)
 		{
 			XmlNodeRef child = xmlData->getChild(i);
-			if(child->isTag("class"))
+			if (child->isTag("class"))
 			{
-				const char * name = child->getAttr("name");
-				if(IEntityClass* pEntityClass = classReg.FindClass(name))
+				const char* name = child->getAttr("name");
+				if (IEntityClass* pEntityClass = classReg.FindClass(name))
 				{
-					RecSysLogDebug(eRSD_Config, "%s: [%p] %s", xmlData->getTag(), pEntityClass, name );
+					RecSysLogDebug(eRSD_Config, "%s: [%p] %s", xmlData->getTag(), pEntityClass, name);
 					data.insert(pEntityClass);
 				}
 				else
 				{
-					RecSysLogAlways("Could not find class: %s",name);
+					RecSysLogAlways("Could not find class: %s", name);
 					CRY_ASSERT_MESSAGE(false, "Could not find class.");
 				}
 			}
@@ -773,7 +770,7 @@ void CRecordingSystem::Init( XmlNodeRef root )
 
 void CRecordingSystem::OnGameRulesInit()
 {
-	CGameRules*  pGameRules = g_pGame->GetGameRules();
+	CGameRules* pGameRules = g_pGame->GetGameRules();
 
 	if (pGameRules)
 	{
@@ -781,7 +778,7 @@ void CRecordingSystem::OnGameRulesInit()
 	}
 
 	XmlNodeRef xmlData = GetISystem()->LoadXmlFromFile("Scripts/KillCam/KillCam.xml");
-	CRY_ASSERT(xmlData!=NULL);
+	CRY_ASSERT(xmlData != NULL);
 	Init(xmlData);
 
 	Reset();
@@ -805,38 +802,38 @@ void CRecordingSystem::OnStartGame()
 
 	m_killCamGameEffect.Initialise();
 
-	IEntityClassRegistry *pClassRegistry = gEnv->pEntitySystem->GetClassRegistry();
-	const IEntityClass *pGeomEntity = pClassRegistry->FindClass("GeomEntity");
-	const IEntityClass *pAnimObject = pClassRegistry->FindClass("AnimObject");
-	const IEntityClass *pPowerStruggleNode = pClassRegistry->FindClass("PowerStruggleNode");
-	const IEntityClass *pParticleEffect = pClassRegistry->FindClass("ParticleEffect");
+	IEntityClassRegistry* pClassRegistry = gEnv->pEntitySystem->GetClassRegistry();
+	const IEntityClass* pGeomEntity = pClassRegistry->FindClass("GeomEntity");
+	const IEntityClass* pAnimObject = pClassRegistry->FindClass("AnimObject");
+	const IEntityClass* pPowerStruggleNode = pClassRegistry->FindClass("PowerStruggleNode");
+	const IEntityClass* pParticleEffect = pClassRegistry->FindClass("ParticleEffect");
 
 	IMovieSystem* pMovieSystem = gEnv->pMovieSystem;
 	int numSequences = pMovieSystem->GetNumSequences();
-	for (int seq = 0; seq < numSequences; ++ seq)
+	for (int seq = 0; seq < numSequences; ++seq)
 	{
 		IAnimSequence* pSequence = pMovieSystem->GetSequence(seq);
 		if (pSequence)
 		{
 			int numNodes = pSequence->GetNodeCount();
-			for (int node = 0; node < numNodes; ++ node)
+			for (int node = 0; node < numNodes; ++node)
 			{
 				IAnimNode* pNode = pSequence->GetNode(node);
 				IAnimEntityNode* pEntityNode = pNode ? pNode->QueryEntityNodeInterface() : NULL;
 
 				if (pEntityNode)
 				{
-					IEntity *pEntity = pEntityNode->GetEntity();
+					IEntity* pEntity = pEntityNode->GetEntity();
 					if (pEntity)
 					{
 						EntityId entityId = pEntity->GetId();
 						const IEntityClass* pEntityClass = pEntity->GetClass();
-						if(	(pEntityClass == pGeomEntity) || 
-								(pEntityClass == pAnimObject) || 
-								(pEntityClass == pParticleEffect) ||
-								(pEntityClass == pPowerStruggleNode))
+						if ((pEntityClass == pGeomEntity) ||
+						    (pEntityClass == pAnimObject) ||
+						    (pEntityClass == pParticleEffect) ||
+						    (pEntityClass == pPowerStruggleNode))
 						{
-							if(m_recordingEntities.count(entityId)==0)
+							if (m_recordingEntities.count(entityId) == 0)
 							{
 								const SRecordingEntity::EEntityType type = RecordEntitySpawn(pEntity);
 
@@ -869,7 +866,7 @@ void CRecordingSystem::Reset(void)
 {
 	RecSysLogFunc;
 
-	if(IsPlayingOrQueued())
+	if (IsPlayingOrQueued())
 	{
 		StopPlayback();
 	}
@@ -898,20 +895,19 @@ void CRecordingSystem::Reset(void)
 	m_fLastRotSpeed = 0.0f;
 	m_lastView = Ang3(0, 0, 0);
 
-	for (TReplayParticleMap::iterator itParticle=m_replayParticles.begin(); itParticle!=m_replayParticles.end(); ++itParticle) 
+	for (TReplayParticleMap::iterator itParticle = m_replayParticles.begin(); itParticle != m_replayParticles.end(); ++itParticle)
 	{
 		itParticle->second->Release();
 	}
 
 	const TEntitySpawnMap::iterator endSpawns = m_recordedData.m_discardedEntitySpawns.end();
-	for(TEntitySpawnMap::iterator itSpawns=m_recordedData.m_discardedEntitySpawns.begin(); itSpawns!=endSpawns; ++itSpawns)
+	for (TEntitySpawnMap::iterator itSpawns = m_recordedData.m_discardedEntitySpawns.begin(); itSpawns != endSpawns; ++itSpawns)
 	{
 		ReleaseReferences(itSpawns->second.first);
 	}
 
-
 	const uint32 numListeners = m_mannequinListeners.size();
-	for (uint32 i=0; i<numListeners; i++)
+	for (uint32 i = 0; i < numListeners; i++)
 	{
 		delete m_mannequinListeners[i];
 	}
@@ -926,7 +922,7 @@ void CRecordingSystem::Reset(void)
 	std::vector<SRecording_ParticleCreated>::iterator itParticle;
 	for (itParticle = m_newParticles.begin(); itParticle != m_newParticles.end(); ++itParticle)
 	{
-		SRecording_ParticleCreated &particle = *itParticle;
+		SRecording_ParticleCreated& particle = *itParticle;
 		particle.pParticleEmitter->Release();
 	}
 	m_newParticles.clear();
@@ -935,17 +931,17 @@ void CRecordingSystem::Reset(void)
 	CleanUpDeferredRays();
 	m_chrvelmap.clear();
 	m_eaikm.clear();
-	
+
 	ClearStringCaches();
 
 	m_hasWinningKillcam = false;
 
 	m_replacementStatObjs.clear();
-	
+
 	m_activeSoundLoop.Reset();
 	m_kvoltSoundLoop.Reset();
 
-	for (int i = 0; i < MAX_HIGHLIGHTS; ++ i)
+	for (int i = 0; i < MAX_HIGHLIGHTS; ++i)
 	{
 		CleanupHighlight(i);
 		m_highlightData[i].m_data.Reset();
@@ -967,10 +963,10 @@ void CRecordingSystem::Reset(void)
 
 void CRecordingSystem::ReleaseReferences(SRecording_EntitySpawn& entitySpawn)
 {
-	for(int i = 0; i < RECORDING_SYSTEM_MAX_SLOTS; i++)
+	for (int i = 0; i < RECORDING_SYSTEM_MAX_SLOTS; i++)
 	{
-		IStatObj * pStatObj = entitySpawn.pStatObj[i];
-		if(pStatObj)
+		IStatObj* pStatObj = entitySpawn.pStatObj[i];
+		if (pStatObj)
 		{
 			pStatObj->Release();
 		}
@@ -979,7 +975,7 @@ void CRecordingSystem::ReleaseReferences(SRecording_EntitySpawn& entitySpawn)
 
 	SAFE_RELEASE(entitySpawn.pMaterial);
 
-	if(entitySpawn.pScriptTable)
+	if (entitySpawn.pScriptTable)
 	{
 		entitySpawn.pScriptTable->Release();
 		entitySpawn.pScriptTable = NULL;
@@ -988,21 +984,21 @@ void CRecordingSystem::ReleaseReferences(SRecording_EntitySpawn& entitySpawn)
 
 void CRecordingSystem::AddReferences(SRecording_EntitySpawn& entitySpawn)
 {
-	for(int i = 0; i < RECORDING_SYSTEM_MAX_SLOTS; i++)
+	for (int i = 0; i < RECORDING_SYSTEM_MAX_SLOTS; i++)
 	{
-		IStatObj * pStatObj = entitySpawn.pStatObj[i];
-		if(pStatObj)
+		IStatObj* pStatObj = entitySpawn.pStatObj[i];
+		if (pStatObj)
 		{
 			pStatObj->AddRef();
 		}
 	}
 
-	if(entitySpawn.pMaterial)
+	if (entitySpawn.pMaterial)
 	{
 		entitySpawn.pMaterial->AddRef();
 	}
 
-	if(entitySpawn.pScriptTable)
+	if (entitySpawn.pScriptTable)
 	{
 		entitySpawn.pScriptTable->AddRef();
 	}
@@ -1024,30 +1020,29 @@ CRecordingSystem::~CRecordingSystem()
 	if (IEntitySystem* pEntSys = gEnv->pEntitySystem)
 	{
 		pEntSys->RemoveSink(this);
-		
+
 		if (IBreakableManager* pBreakMgr = pEntSys->GetBreakableManager())
 			pBreakMgr->RemoveBreakEventListener(this);
 	}
 
 	/*if (gEnv->pSoundSystem)
-		gEnv->pSoundSystem->RemoveEventListener(this);*/
+	   gEnv->pSoundSystem->RemoveEventListener(this);*/
 
-	if(g_pGame->GetIGameFramework())
+	if (g_pGame->GetIGameFramework())
 		g_pGame->GetIGameFramework()->RemoveBreakEventListener(this);
 
-
-	if (CGameRules* pGameRules=g_pGame->GetGameRules())
+	if (CGameRules* pGameRules = g_pGame->GetGameRules())
 	{
 		pGameRules->UnRegisterPickupListener(this);
 	}
 
-	for( TRecEntitiesMap::iterator it=m_recordingEntities.begin(), end=m_recordingEntities.end(); it!=end; ++it )
+	for (TRecEntitiesMap::iterator it = m_recordingEntities.begin(), end = m_recordingEntities.end(); it != end; ++it)
 	{
 		RemoveRecordingEntity(it->second);
 	}
 
 	const uint32 numListeners = m_mannequinListeners.size();
-	for (uint32 i=0; i<numListeners; i++)
+	for (uint32 i = 0; i < numListeners; i++)
 	{
 		delete m_mannequinListeners[i];
 	}
@@ -1058,24 +1053,24 @@ CRecordingSystem::~CRecordingSystem()
 	m_killCamGameEffect.Release();
 }
 
-void CRecordingSystem::RegisterListener( IRecordingSystemListener& listener )
+void CRecordingSystem::RegisterListener(IRecordingSystemListener& listener)
 {
 	m_listeners.push_back(&listener);
 }
 
-void CRecordingSystem::UnregisterListener( IRecordingSystemListener& listener )
+void CRecordingSystem::UnregisterListener(IRecordingSystemListener& listener)
 {
 	TRecordingSystemListeners::iterator found = std::find(m_listeners.begin(), m_listeners.end(), &listener);
-	if(found!=m_listeners.end())
+	if (found != m_listeners.end())
 	{
 		m_listeners.erase(found);
 	}
 }
 
-template <unsigned int N>
-void CompressVictimData(CryFixedArray<SRecording_VictimPosition, N> &victimPositions, float deathTime)
+template<unsigned int N>
+void CompressVictimData(CryFixedArray<SRecording_VictimPosition, N>& victimPositions, float deathTime)
 {
-	if( victimPositions.size()==0 )
+	if (victimPositions.size() == 0)
 	{
 		return;
 	}
@@ -1091,8 +1086,8 @@ void CompressVictimData(CryFixedArray<SRecording_VictimPosition, N> &victimPosit
 	// introducing too much loss in precision
 	for (int i = 1; i < (int)victimPositions.size(); i++)
 	{
-		SRecording_VictimPosition *prev = &victimPositions[prevKeptIndex];
-		SRecording_VictimPosition *current = &victimPositions[i];
+		SRecording_VictimPosition* prev = &victimPositions[prevKeptIndex];
+		SRecording_VictimPosition* current = &victimPositions[i];
 
 		bool discardPacket = true;
 
@@ -1106,7 +1101,7 @@ void CompressVictimData(CryFixedArray<SRecording_VictimPosition, N> &victimPosit
 			}
 			else
 			{
-				SRecording_VictimPosition *next = &victimPositions[i + 1];
+				SRecording_VictimPosition* next = &victimPositions[i + 1];
 				// Check what error would be introduced if the current packet would be removed
 				for (int j = (prevKeptIndex + 1); j <= i; j++)
 				{
@@ -1141,7 +1136,7 @@ void CompressVictimData(CryFixedArray<SRecording_VictimPosition, N> &victimPosit
 
 	victimPositions.clear();
 
-	for (int i=0; i<tempindex; ++i)
+	for (int i = 0; i < tempindex; ++i)
 	{
 		victimPositions.push_back(s_tempbuffer[i]);
 	}
@@ -1169,27 +1164,27 @@ void CRecordingSystem::GetTPCameraData(float startTime)
 	m_pPlaybackData->m_tpdatasize = m_pBuffer->GetData(m_pPlaybackData->m_tpdatabuffer, RECORDING_BUFFER_SIZE);
 }
 
-size_t CRecordingSystem::GetFirstPersonDataForTimeRange(uint8 **data, float fromTime, float toTime)
+size_t CRecordingSystem::GetFirstPersonDataForTimeRange(uint8** data, float fromTime, float toTime)
 {
-	bool bCopying=false;
-	size_t offset=0;
+	bool bCopying = false;
+	size_t offset = 0;
 	size_t datasize = 0;
-	size_t startOffset=0;
+	size_t startOffset = 0;
 	// Pick out FPChar packets (the majority)
 	while (offset < m_pBufferFirstPerson->size())
 	{
-		SRecording_Packet *pPacket = (SRecording_Packet*)m_pBufferFirstPerson->at(offset);
+		SRecording_Packet* pPacket = (SRecording_Packet*)m_pBufferFirstPerson->at(offset);
 		if (pPacket->type == eFPP_FPChar)
 		{
-			SRecording_FPChar *pChar = (SRecording_FPChar*)pPacket;
-			if (pChar->frametime>=toTime)
+			SRecording_FPChar* pChar = (SRecording_FPChar*)pPacket;
+			if (pChar->frametime >= toTime)
 			{
 				break;
 			}
-			else if (!bCopying && pChar->frametime>=fromTime)
+			else if (!bCopying && pChar->frametime >= fromTime)
 			{
-				startOffset=offset;
-				bCopying=true;
+				startOffset = offset;
+				bCopying = true;
 			}
 			if (bCopying)
 			{
@@ -1201,12 +1196,12 @@ size_t CRecordingSystem::GetFirstPersonDataForTimeRange(uint8 **data, float from
 		offset += pPacket->size;
 	}
 	// Add any other first person packets at the end
-	size_t endOffset=offset;
+	size_t endOffset = offset;
 	offset = startOffset;
 	while (offset < endOffset)
 	{
-		SRecording_Packet *pPacket = (SRecording_Packet*)m_pBufferFirstPerson->at(offset);
-		if (pPacket->type != eFPP_FPChar && pPacket->type!=eFPP_KillHitPosition)
+		SRecording_Packet* pPacket = (SRecording_Packet*)m_pBufferFirstPerson->at(offset);
+		if (pPacket->type != eFPP_FPChar && pPacket->type != eFPP_KillHitPosition)
 		{
 			memcpy(m_firstPersonSendBuffer + datasize, pPacket, pPacket->size);
 			datasize += pPacket->size;
@@ -1214,21 +1209,21 @@ size_t CRecordingSystem::GetFirstPersonDataForTimeRange(uint8 **data, float from
 		}
 		offset += pPacket->size;
 	}
-	*data=m_firstPersonSendBuffer;
+	*data = m_firstPersonSendBuffer;
 
 	return CRecordingSystemCompressor::CompressRaw(m_firstPersonSendBuffer, datasize, m_firstPersonSendBuffer, sizeof(m_firstPersonSendBuffer));
 }
 
-size_t CRecordingSystem::GetVictimDataForTimeRange(uint8 **data, EntityId victimID, float fromTime, float toTime, bool bulletTimeKill, float timeOffset)
-{	
-	size_t offset=0;
+size_t CRecordingSystem::GetVictimDataForTimeRange(uint8** data, EntityId victimID, float fromTime, float toTime, bool bulletTimeKill, float timeOffset)
+{
+	size_t offset = 0;
 	size_t datasize = 0;
-	bool bInRange=false;
+	bool bInRange = false;
 	// Get victim's position data
 	CryFixedArray<SRecording_VictimPosition, 500> victimPositions;
 	ExtractVictimPositions(victimPositions, fromTime, victimID, toTime);
 
-	if( victimPositions.size() )
+	if (victimPositions.size())
 	{
 		// Add on victim position packets
 		size_t victimBytes = victimPositions.size() * sizeof(SRecording_VictimPosition);
@@ -1244,40 +1239,40 @@ size_t CRecordingSystem::GetVictimDataForTimeRange(uint8 **data, EntityId victim
 	// Get kill hit position
 	while (offset < m_pBufferFirstPerson->size())
 	{
-		SRecording_Packet *pPacket = (SRecording_Packet*)m_pBufferFirstPerson->at(offset);
+		SRecording_Packet* pPacket = (SRecording_Packet*)m_pBufferFirstPerson->at(offset);
 		if (pPacket->type == eFPP_FPChar)
 		{
-			SRecording_FPChar *pChar = (SRecording_FPChar*)pPacket;
-			if (pChar->frametime>=toTime)
+			SRecording_FPChar* pChar = (SRecording_FPChar*)pPacket;
+			if (pChar->frametime >= toTime)
 			{
 				break;
 			}
-			else if (pChar->frametime>=fromTime)
+			else if (pChar->frametime >= fromTime)
 			{
-				bInRange=true;
+				bInRange = true;
 			}
 		}
 		else if (pPacket->type == eFPP_KillHitPosition)
 		{
-			if(!bInRange)
+			if (!bInRange)
 			{
-					size_t localOffset = offset + pPacket->size;
-				while(localOffset<m_pBufferFirstPerson->size())
+				size_t localOffset = offset + pPacket->size;
+				while (localOffset < m_pBufferFirstPerson->size())
 				{
-					SRecording_Packet *pLocalPacket = (SRecording_Packet*)m_pBufferFirstPerson->at(localOffset);
+					SRecording_Packet* pLocalPacket = (SRecording_Packet*)m_pBufferFirstPerson->at(localOffset);
 					if (pLocalPacket->type == eFPP_FPChar)
 					{
-						SRecording_FPChar *pChar = (SRecording_FPChar*)pLocalPacket;
-						bInRange = (pChar->frametime>=fromTime) && (pChar->frametime<toTime);
+						SRecording_FPChar* pChar = (SRecording_FPChar*)pLocalPacket;
+						bInRange = (pChar->frametime >= fromTime) && (pChar->frametime < toTime);
 						break;
 					}
-					localOffset+=pLocalPacket->size;
+					localOffset += pLocalPacket->size;
 				}
 			}
-			if(bInRange)
+			if (bInRange)
 			{
-				SRecording_KillHitPosition* pKillHit=(SRecording_KillHitPosition*)pPacket;
-				if (pKillHit->victimId==victimID)
+				SRecording_KillHitPosition* pKillHit = (SRecording_KillHitPosition*)pPacket;
+				if (pKillHit->victimId == victimID)
 				{
 					memcpy(m_firstPersonSendBuffer + datasize, pPacket, pPacket->size);
 					datasize += pPacket->size;
@@ -1289,28 +1284,28 @@ size_t CRecordingSystem::GetVictimDataForTimeRange(uint8 **data, EntityId victim
 		offset += pPacket->size;
 	}
 
-	if (timeOffset!=0.0f)
+	if (timeOffset != 0.0f)
 	{
 		SRecording_PlaybackTimeOffset packet;
-		packet.timeOffset=timeOffset;
+		packet.timeOffset = timeOffset;
 		memcpy(m_firstPersonSendBuffer + datasize, &packet, packet.size);
 		datasize += packet.size;
 		CRY_ASSERT_MESSAGE(datasize < sizeof(m_firstPersonSendBuffer), "Ran out of memory in m_firstPersonSendBuffer");
 	}
-	*data=m_firstPersonSendBuffer;
+	*data = m_firstPersonSendBuffer;
 
 	return CRecordingSystemCompressor::CompressRaw(m_firstPersonSendBuffer, datasize, m_firstPersonSendBuffer, sizeof(m_firstPersonSendBuffer));
 }
 
-size_t CRecordingSystem::GetFirstPersonData(uint8 **data, EntityId victimId, float deathTime, bool bulletTimeKill, const float length)
-{	
+size_t CRecordingSystem::GetFirstPersonData(uint8** data, EntityId victimId, float deathTime, bool bulletTimeKill, const float length)
+{
 	float timeNow = gEnv->pTimer->GetFrameStartTime().GetSeconds();
 	float startTime = timeNow - length;
 
 	// Remove all packets before the start time (i.e. 5 seconds ago)
 	while (m_pBufferFirstPerson->size() > 0)
 	{
-		SRecording_Packet *pPacket = (SRecording_Packet*)m_pBufferFirstPerson->at(0);
+		SRecording_Packet* pPacket = (SRecording_Packet*)m_pBufferFirstPerson->at(0);
 		if (pPacket->type == eFPP_FPChar)
 		{
 			SRecording_FPChar* pFPChar = (SRecording_FPChar*)pPacket;
@@ -1328,11 +1323,11 @@ size_t CRecordingSystem::GetFirstPersonData(uint8 **data, EntityId victimId, flo
 		ExtractVictimPositions(victimPositions, startTime, victimId, deathTime);
 	}
 	*data = m_firstPersonSendBuffer;
-	return CRecordingSystemCompressor::Compress(m_pBufferFirstPerson, m_firstPersonSendBuffer, sizeof(m_firstPersonSendBuffer), victimPositions.begin(), victimPositions.end(), bulletTimeKill?victimId:0);
+	return CRecordingSystemCompressor::Compress(m_pBufferFirstPerson, m_firstPersonSendBuffer, sizeof(m_firstPersonSendBuffer), victimPositions.begin(), victimPositions.end(), bulletTimeKill ? victimId : 0);
 }
 
-template <unsigned int N>
-void CRecordingSystem::ExtractVictimPositions(CryFixedArray<SRecording_VictimPosition, N> &victimPositions, float startTime, EntityId victimId, float deathTime, float endTime)
+template<unsigned int N>
+void CRecordingSystem::ExtractVictimPositions(CryFixedArray<SRecording_VictimPosition, N>& victimPositions, float startTime, EntityId victimId, float deathTime, float endTime)
 {
 	float frametime = 0;
 	for (CRecordingBuffer::iterator itPacket = m_pBuffer->begin(); itPacket != m_pBuffer->end(); ++itPacket)
@@ -1343,7 +1338,7 @@ void CRecordingSystem::ExtractVictimPositions(CryFixedArray<SRecording_VictimPos
 		}
 		else if (itPacket->type == eTPP_TPChar)
 		{
-			if (endTime>=0.0f && endTime<frametime)
+			if (endTime >= 0.0f && endTime < frametime)
 			{
 				break;
 			}
@@ -1363,7 +1358,7 @@ void CRecordingSystem::ExtractVictimPositions(CryFixedArray<SRecording_VictimPos
 	CompressVictimData(victimPositions, deathTime);
 }
 
-/*static*/ void CRecordingSystem::SetFirstPersonData(uint8 *data, size_t datasize, SPlaybackInstanceData& rPlaybackInstanceData, SFirstPersonDataContainer& rFirstPersonDataContainer)
+/*static*/ void CRecordingSystem::SetFirstPersonData(uint8* data, size_t datasize, SPlaybackInstanceData& rPlaybackInstanceData, SFirstPersonDataContainer& rFirstPersonDataContainer)
 {
 	CRY_ASSERT_MESSAGE(datasize <= sizeof(rFirstPersonDataContainer.m_firstPersonData), "Ran out of memory in m_firstPersonData");
 
@@ -1372,11 +1367,11 @@ void CRecordingSystem::ExtractVictimPositions(CryFixedArray<SRecording_VictimPos
 	latestFirstPersonDataSize = datasize;
 #endif //RECSYS_DEBUG
 
-	const int k_packetDataSize=CActor::KillCamFPData::DATASIZE;
+	const int k_packetDataSize = CActor::KillCamFPData::DATASIZE;
 	if (!rFirstPersonDataContainer.m_isDecompressed)
 	{
 		rFirstPersonDataContainer.m_firstPersonDataSize = CRecordingSystemCompressor::Decompress(data, datasize, rFirstPersonDataContainer.m_firstPersonData, sizeof(rFirstPersonDataContainer.m_firstPersonData), k_packetDataSize);
-		rFirstPersonDataContainer.m_isDecompressed=true;
+		rFirstPersonDataContainer.m_isDecompressed = true;
 	}
 
 	// Extract out the start time on the remote machine (this will be different to m_recordedStartTime because clocks are not synchronised)
@@ -1434,7 +1429,7 @@ void CRecordingSystem::OnPartRemoveEvent(int iPartRemovalEventIndex)
 	BreakLogAlways("OnPartRemoveEvent(), PartRemoveEvent Index: %d", iPartRemovalEventIndex);
 }
 
-void CRecordingSystem::OnEntityDrawSlot(IEntity * pEntity, int32 slot, int32 flags)
+void CRecordingSystem::OnEntityDrawSlot(IEntity* pEntity, int32 slot, int32 flags)
 {
 	if (m_recordEntityClassFilter.count(pEntity->GetClass()))
 	{
@@ -1446,7 +1441,7 @@ void CRecordingSystem::OnEntityDrawSlot(IEntity * pEntity, int32 slot, int32 fla
 	}
 }
 
-void CRecordingSystem::ClearBreakageSpawn(IEntity * pEntity, EntityId entityId)
+void CRecordingSystem::ClearBreakageSpawn(IEntity* pEntity, EntityId entityId)
 {
 	if (pEntity->GetClass() == m_pBreakage)
 	{
@@ -1461,7 +1456,7 @@ void CRecordingSystem::ClearBreakageSpawn(IEntity * pEntity, EntityId entityId)
 					if (pEntitySpawn->entityId == entityId)
 					{
 						m_recordedData.m_discardedEntitySpawns[pEntitySpawn->entityId] = std::make_pair(*pEntitySpawn, gEnv->pTimer->GetFrameStartTime().GetSeconds());
-						*pEntitySpawn = SRecording_EntitySpawn();		// Empty the packet in the buffer, so it will get ignored (essentially removing it)
+						*pEntitySpawn = SRecording_EntitySpawn();   // Empty the packet in the buffer, so it will get ignored (essentially removing it)
 						break;
 					}
 				}
@@ -1470,23 +1465,23 @@ void CRecordingSystem::ClearBreakageSpawn(IEntity * pEntity, EntityId entityId)
 	}
 }
 
-void CRecordingSystem::OnEntityChangeStatObj(IEntity * pEntity, int32 iBrokenObjectIndex, int32 slot, IStatObj * pOldStatObj, IStatObj * pNewStatObj)
+void CRecordingSystem::OnEntityChangeStatObj(IEntity* pEntity, int32 iBrokenObjectIndex, int32 slot, IStatObj* pOldStatObj, IStatObj* pNewStatObj)
 {
 	EntityId entityId = pEntity->GetId();
 	ClearBreakageSpawn(pEntity, entityId);
-	
+
 	SRecording_StatObjChange statObjChange;
-	
-	statObjChange.entityId					= entityId;
-	statObjChange.iSlot							= slot;
-	statObjChange.pNewStatObj				= pNewStatObj;
+
+	statObjChange.entityId = entityId;
+	statObjChange.iSlot = slot;
+	statObjChange.pNewStatObj = pNewStatObj;
 
 	pNewStatObj->AddRef();
-	
+
 	m_pBuffer->AddPacket(statObjChange);
 }
 
-void CRecordingSystem::OnSetSubObjHideMask(IEntity *pEntity, int nSlot, hidemask nSubObjHideMask)
+void CRecordingSystem::OnSetSubObjHideMask(IEntity* pEntity, int nSlot, hidemask nSubObjHideMask)
 {
 	EntityId entityId = pEntity->GetId();
 	ClearBreakageSpawn(pEntity, entityId);
@@ -1504,7 +1499,7 @@ void CRecordingSystem::StartRecording()
 	if (!CRecordingSystem::KillCamEnabled())
 		return;
 
-	if(IsPlayingOrQueued())
+	if (IsPlayingOrQueued())
 	{
 		StopPlayback();
 	}
@@ -1516,7 +1511,7 @@ void CRecordingSystem::StartRecording()
 	m_streamer.ClearAllStreamData();
 }
 
-bool CRecordingSystem::QueueStartPlayback( const SPlaybackRequest& request )
+bool CRecordingSystem::QueueStartPlayback(const SPlaybackRequest& request)
 {
 	CCCPOINT(CRecordingSystem_StartPlayback);
 
@@ -1533,15 +1528,14 @@ bool CRecordingSystem::QueueStartPlayback( const SPlaybackRequest& request )
 		const char* victimName = pVictim ? pVictim->GetName() : "unknown";
 
 		RecSysLog("QueueStartPlayback: killer: %s(%d), victim: %s(%d), projectileId: %d, hitType: %d, impulse: %f, %f, %f, deathtime: %f, bulletTimeKill: %d, pProjectileClass: %s",
-			killerName, request.kill.killerId, victimName, request.kill.victimId, request.kill.projectileId, request.kill.hitType,
-			request.kill.impulse.x, request.kill.impulse.y, request.kill.impulse.z,
-			request.kill.deathTime, (int)request.kill.bulletTimeKill, 
-			request.kill.pProjectileClass ? request.kill.pProjectileClass->GetName():"NULL");
+		          killerName, request.kill.killerId, victimName, request.kill.victimId, request.kill.projectileId, request.kill.hitType,
+		          request.kill.impulse.x, request.kill.impulse.y, request.kill.impulse.z,
+		          request.kill.deathTime, (int)request.kill.bulletTimeKill,
+		          request.kill.pProjectileClass ? request.kill.pProjectileClass->GetName() : "NULL");
 	}
 #endif
 
-
-	if(IsPlayingOrQueued())
+	if (IsPlayingOrQueued())
 	{
 		// Don't do anything if we are already playing a killcam
 		RecSysLog("Playback request ignored");
@@ -1555,8 +1549,8 @@ bool CRecordingSystem::QueueStartPlayback( const SPlaybackRequest& request )
 	{
 		m_highlightsReel = true;
 		m_pPlaybackData = &m_pHighlightData->m_data;
-		
-		if(IForceFeedbackSystem * pForceFeedback = g_pGame->GetIGameFramework()->GetIForceFeedbackSystem())
+
+		if (IForceFeedbackSystem* pForceFeedback = g_pGame->GetIGameFramework()->GetIForceFeedbackSystem())
 		{
 			pForceFeedback->SuppressEffects(true);
 		}
@@ -1567,7 +1561,7 @@ bool CRecordingSystem::QueueStartPlayback( const SPlaybackRequest& request )
 		m_pPlaybackData = &m_recordedData;
 	}
 
-	CGameRules *pGameRules = g_pGame->GetGameRules();
+	CGameRules* pGameRules = g_pGame->GetGameRules();
 
 	if (request.kill.winningKill)
 	{
@@ -1582,7 +1576,7 @@ bool CRecordingSystem::QueueStartPlayback( const SPlaybackRequest& request )
 	}
 	else
 	{
-		IGameRulesRoundsModule*  pRoundsModule = pGameRules->GetRoundsModule();
+		IGameRulesRoundsModule* pRoundsModule = pGameRules->GetRoundsModule();
 		if (pRoundsModule != NULL && !pRoundsModule->IsInProgress())
 		{
 			// if we're in a rounds-based game and this kill ended the round (eg. Defender killed last Attacker in Assault) then we don't play a Killcam at all because there's no time to do so before the end-of-round screen's meant to appear
@@ -1602,7 +1596,7 @@ bool CRecordingSystem::QueueStartPlayback( const SPlaybackRequest& request )
 
 	if (request.kill.pProjectileClass)
 	{
-		const SAmmoParams *pAmmoParams = g_pGame->GetWeaponSystem()->GetAmmoParams(request.kill.pProjectileClass);
+		const SAmmoParams* pAmmoParams = g_pGame->GetWeaponSystem()->GetAmmoParams(request.kill.pProjectileClass);
 		if (pAmmoParams)
 		{
 			SBulletTimeParams* pBulletTimeParams = pAmmoParams->pBulletTimeParams;
@@ -1621,16 +1615,16 @@ bool CRecordingSystem::QueueStartPlayback( const SPlaybackRequest& request )
 	NotifyOnPlaybackRequested(request);
 
 	// Store the Request data and Set the extra playback info.
-	m_playInfo.Init( request, *m_pPlaybackData, *m_pBuffer );
-	if(request.highlights)
+	m_playInfo.Init(request, *m_pPlaybackData, *m_pBuffer);
+	if (request.highlights)
 	{
 		m_playInfo.m_timings.Set(m_pHighlightData->m_details.m_startTime, m_pHighlightData->m_endTime, m_pHighlightData->m_details.m_kill.deathTime);
 	}
 	else
 	{
 		const float currTime = gEnv->pTimer->GetFrameStartTime().GetSeconds();
-		const float endTime = currTime+g_pGameCVars->kc_kickInTime;
-		const float startTime = endTime-g_pGameCVars->kc_length;
+		const float endTime = currTime + g_pGameCVars->kc_kickInTime;
+		const float startTime = endTime - g_pGameCVars->kc_length;
 		m_playInfo.m_timings.Set(startTime, endTime, currTime);
 	}
 
@@ -1651,17 +1645,17 @@ bool CRecordingSystem::QueueStartPlayback( const SPlaybackRequest& request )
 			m_projectileId = request.kill.projectileId;
 		}
 		else if (request.kill.pProjectileClass == m_pExplosiveGrenade ||
-						 request.kill.pProjectileClass == m_pLTagGrenade ||
-						 request.kill.pProjectileClass == m_pFlashbang ||
-						 request.kill.pProjectileClass == m_pGrenadeLauncherGrenade)
+		         request.kill.pProjectileClass == m_pLTagGrenade ||
+		         request.kill.pProjectileClass == m_pFlashbang ||
+		         request.kill.pProjectileClass == m_pGrenadeLauncherGrenade)
 		{
 			m_projectileType = ePT_Grenade;
 			m_projectileId = request.kill.projectileId;
 		}
-	}	
+	}
 
 	m_playInfo.m_view.currView = SPlaybackInfo::eVM_FirstPerson;
-	
+
 	m_cameraSmoothing = false;
 	CActor* pActor = (CActor*)g_pGame->GetIGameFramework()->GetClientActor();
 	m_killerIsFriendly = pActor != NULL && pActor->IsFriendlyEntity(m_killer);
@@ -1679,44 +1673,43 @@ bool CRecordingSystem::QueueStartPlayback( const SPlaybackRequest& request )
 	return true;
 }
 
-void CRecordingSystem::UpdateRecordedData(SRecordedData *pRecordingData)
+void CRecordingSystem::UpdateRecordedData(SRecordedData* pRecordingData)
 {
 	// Update player's rank information to be the latest
 	if (CGameLobby* pLobby = g_pGame->GetGameLobby())
 	{
-		for (int i = 0; i < MAX_RECORDED_PLAYERS; ++ i)
+		for (int i = 0; i < MAX_RECORDED_PLAYERS; ++i)
 		{
-			SPlayerInitialState &initialState = pRecordingData->m_playerInitialStates[i];
+			SPlayerInitialState& initialState = pRecordingData->m_playerInitialStates[i];
 			if (initialState.playerId != 0)
 			{
-				if (CPlayer *pPlayer = static_cast<CPlayer*>(g_pGame->GetIGameFramework()->GetIActorSystem()->GetActor(initialState.playerId)))
+				if (CPlayer* pPlayer = static_cast<CPlayer*>(g_pGame->GetIGameFramework()->GetIActorSystem()->GetActor(initialState.playerId)))
 				{
 					uint16 channelId = pPlayer->GetChannelId();
 
-					uint8 rank=0, reincarnations=0;
+					uint8 rank = 0, reincarnations = 0;
 					pLobby->GetProgressionInfoByChannel(channelId, rank, reincarnations);
 
-					initialState.playerJoined.rank = rank;	
-					initialState.playerJoined.reincarnations = reincarnations;	
+					initialState.playerJoined.rank = rank;
+					initialState.playerJoined.reincarnations = reincarnations;
 				}
 			}
 		}
 	}
 }
 
-
 //////////////////////////////////
-// RevertBrokenObjectsToStateAtTime() works out what objects changed their broken state during the 
-// 		duration of the kill cam, then triggers CryAction to make copies of them so that they can
+// RevertBrokenObjectsToStateAtTime() works out what objects changed their broken state during the
+//    duration of the kill cam, then triggers CryAction to make copies of them so that they can
 //		have the breaks re-played on them during the killcam
 void CRecordingSystem::RevertBrokenObjectsToStateAtTime(float fTime)
 {
 	//Clone all of the objects and re-set them to their original state, then apply the breaks that have
 	//	taken place up to fTime
-	if(gEnv->pEntitySystem && gEnv->pEntitySystem->GetBreakableManager())
+	if (gEnv->pEntitySystem && gEnv->pEntitySystem->GetBreakableManager())
 	{
 		//Get the list of all procedural breaks that have occurred in the current kill-cam buffer, in the form of
-		//	indicies into the m_brokenObjs list in CActionGame		
+		//	indicies into the m_brokenObjs list in CActionGame
 		GetProceduralBreaksDuringKillcam(m_breakEventIndicies);
 
 		int32 iNumProceduralBreakEvents = m_breakEventIndicies.size();
@@ -1726,17 +1719,17 @@ void CRecordingSystem::RevertBrokenObjectsToStateAtTime(float fTime)
 
 		m_renderNodeLookup.UpdateStoragePointers(m_renderNodeLookupStorage_original, m_renderNodeLookupStorage_clone);
 
-		if(iNumProceduralBreakEvents > 0)
+		if (iNumProceduralBreakEvents > 0)
 		{
 			//////////////////////////////////
 			// GLASS BREAKS
 
 			const int32 kFirstProceduralBreakEventIndex = m_breakEventIndicies[0];
-			uint16 * pBreakEventIndicies					= &(m_breakEventIndicies[0]);
+			uint16* pBreakEventIndicies = &(m_breakEventIndicies[0]);
 
 			m_clonedNodes.resize(iNumProceduralBreakEvents);
 
-			IRenderNode ** pClonedNodes = &(m_clonedNodes[0]);
+			IRenderNode** pClonedNodes = &(m_clonedNodes[0]);
 			int32 iNumClonedNodes = 0;
 
 			//Clone all of the objects and re-set them to their original state, then apply the breaks that have
@@ -1746,7 +1739,6 @@ void CRecordingSystem::RevertBrokenObjectsToStateAtTime(float fTime)
 			m_breakEventIndicies.resize(iNumProceduralBreakEvents);
 			m_clonedNodes.resize(iNumClonedNodes);
 		}
-
 
 		//Resize the render node lookup arrays to avoid memory wastage
 		m_renderNodeLookupStorage_clone.resize(m_renderNodeLookup.iNumPairs);
@@ -1763,15 +1755,15 @@ void CRecordingSystem::RevertBrokenObjectsToStateAtTime(float fTime)
 //		during the period of time that is going to be displayed during the kill cam
 void CRecordingSystem::GetProceduralBreaksDuringKillcam(std::vector<uint16>& indices)
 {
-	uint8 *startingplace = m_pTPDataBuffer;
-	uint8 *endingplace = startingplace + m_tpDataBufferSize;
+	uint8* startingplace = m_pTPDataBuffer;
+	uint8* endingplace = startingplace + m_tpDataBufferSize;
 
 	while (startingplace < endingplace)
 	{
-		SRecording_Packet *packet = (SRecording_Packet *) startingplace;
-		if(packet->type == eTPP_ProceduralBreakHappened)
+		SRecording_Packet* packet = (SRecording_Packet*) startingplace;
+		if (packet->type == eTPP_ProceduralBreakHappened)
 		{
-			const SRecording_ProceduralBreakHappened * pProceduralBreak = static_cast<const SRecording_ProceduralBreakHappened*>(&*packet);
+			const SRecording_ProceduralBreakHappened* pProceduralBreak = static_cast<const SRecording_ProceduralBreakHappened*>(&*packet);
 			BreakLogAlways("Procedural Break occured during killcam, break index: %d", pProceduralBreak->uBreakEventIndex);
 			indices.push_back(pProceduralBreak->uBreakEventIndex);
 		}
@@ -1782,7 +1774,7 @@ void CRecordingSystem::GetProceduralBreaksDuringKillcam(std::vector<uint16>& ind
 
 void CRecordingSystem::CleanUpBrokenObjects()
 {
-	uint16 * pBreakEventIndices = m_breakEventIndicies.empty() ? NULL : &(m_breakEventIndicies[0]);
+	uint16* pBreakEventIndices = m_breakEventIndicies.empty() ? NULL : &(m_breakEventIndicies[0]);
 	const int32 iNumBreakEventIndices = m_breakEventIndicies.size();
 
 	gEnv->pGameFramework->UnhideBrokenObjectsByIndex(pBreakEventIndices, iNumBreakEventIndices);
@@ -1793,7 +1785,7 @@ void CRecordingSystem::CleanUpBrokenObjects()
 	}
 
 	const int iNumClonedNodes = m_clonedNodes.size();
-	for(int i = 0; i < iNumClonedNodes; i++)
+	for (int i = 0; i < iNumClonedNodes; i++)
 	{
 		gEnv->p3DEngine->UnRegisterEntityDirect(m_clonedNodes[i]);
 		gEnv->p3DEngine->DeleteRenderNode(m_clonedNodes[i]);
@@ -1803,7 +1795,7 @@ void CRecordingSystem::CleanUpBrokenObjects()
 	m_clonedNodes.clear();
 	m_renderNodeLookup.Reset();
 	m_renderNodeLookupStorage_original.clear();
-	m_renderNodeLookupStorage_clone.clear();	
+	m_renderNodeLookupStorage_clone.clear();
 }
 
 void CRecordingSystem::StopPlayback()
@@ -1815,7 +1807,7 @@ void CRecordingSystem::StopPlayback()
 		return;
 
 	RecSysLogFunc;
-	
+
 	// Notify Listeners.
 	NotifyOnPlaybackEnd(m_playInfo);
 
@@ -1844,7 +1836,7 @@ void CRecordingSystem::StopPlayback()
 		}
 	}
 #if ENABLE_STATOSCOPE
-	if(gEnv->pStatoscope)
+	if (gEnv->pStatoscope)
 	{
 		CryFixedStringT<128> buffer;
 		buffer.Format("Stop playback for victim %s from killer %s", victimName, killerName);
@@ -1893,7 +1885,7 @@ void CRecordingSystem::StopPlayback()
 	m_replayActors.clear();
 
 	// Remove all the replay entities
-	for (TReplayEntityMap::iterator itEntity=m_replayEntities.begin(); itEntity!=m_replayEntities.end(); ++itEntity) 
+	for (TReplayEntityMap::iterator itEntity = m_replayEntities.begin(); itEntity != m_replayEntities.end(); ++itEntity)
 	{
 		gEnv->pEntitySystem->RemoveEntity(itEntity->second);
 	}
@@ -1908,7 +1900,7 @@ void CRecordingSystem::StopPlayback()
 	{
 		REPLAY_EVENT_GUARD
 		// Remove all the replay particles
-		for (TReplayParticleMap::iterator itParticle=m_replayParticles.begin(); itParticle!=m_replayParticles.end(); ++itParticle) 
+		for (TReplayParticleMap::iterator itParticle = m_replayParticles.begin(); itParticle != m_replayParticles.end(); ++itParticle)
 		{
 			gEnv->pParticleManager->DeleteEmitter(itParticle->second);
 			itParticle->second->Release();
@@ -1916,24 +1908,24 @@ void CRecordingSystem::StopPlayback()
 		m_replayParticles.clear();
 
 		// Stop all replay sounds
-		/*for (TReplaySoundMap::iterator itSound=m_replaySounds.begin(); itSound!=m_replaySounds.end(); ++itSound) 
-		{
-			ISound* pSound = gEnv->pSoundSystem->GetSound(itSound->second);
-			if (pSound)
-			{
-				pSound->Stop();
-			}
-		}
-		m_replaySounds.clear();*/
+		/*for (TReplaySoundMap::iterator itSound=m_replaySounds.begin(); itSound!=m_replaySounds.end(); ++itSound)
+		   {
+		   ISound* pSound = gEnv->pSoundSystem->GetSound(itSound->second);
+		   if (pSound)
+		   {
+		    pSound->Stop();
+		   }
+		   }
+		   m_replaySounds.clear();*/
 	}
 
 	// Show all the entities that should be shown.
-	for (TRecEntitiesMap::iterator it=m_recordingEntities.begin(), end=m_recordingEntities.end(); it!=end; ++it) 
+	for (TRecEntitiesMap::iterator it = m_recordingEntities.begin(), end = m_recordingEntities.end(); it != end; ++it)
 	{
 		SRecordingEntity& recEnt = it->second;
-		if(gEnv->pEntitySystem && recEnt.hiddenState==SRecordingEntity::eHS_Unhide)
+		if (gEnv->pEntitySystem && recEnt.hiddenState == SRecordingEntity::eHS_Unhide)
 		{
-			if(IEntity *pEntity = gEnv->pEntitySystem->GetEntity(recEnt.entityId))
+			if (IEntity* pEntity = gEnv->pEntitySystem->GetEntity(recEnt.entityId))
 			{
 				HideEntityKeepingPhysics(pEntity, false);
 			}
@@ -1954,7 +1946,7 @@ void CRecordingSystem::StopPlayback()
 
 	//gEnv->pSoundSystem->SetPlaybackFilter(0);
 
-	if(!m_highlightsReel)
+	if (!m_highlightsReel)
 	{
 		GoIntoSpectatorMode();
 	}
@@ -1967,20 +1959,20 @@ void CRecordingSystem::StopPlayback()
 	gEnv->p3DEngine->SetPostEffectParam(NIGHT_VISION_PE, 0.0f);
 
 	CPlayer* pPlayer = (CPlayer*)g_pGame->GetIGameFramework()->GetClientActor();
-	if(pPlayer)
+	if (pPlayer)
 	{
 		pPlayer->OnStopRecordingPlayback();
 		// Reset all post effects including flash bang, night vision, thermal vision, etc...
 		pPlayer->ResetScreenFX();
 		pPlayer->ResetFPView();
-		pPlayer->GetPlayerHealthGameEffect().SetKillCamData(0,1.f,1.f);
+		pPlayer->GetPlayerHealthGameEffect().SetKillCamData(0, 1.f, 1.f);
 	}
 
 	if (m_highlightsReel)
 	{
 		m_highlightsReel = false;
 
-		if(IForceFeedbackSystem * pForceFeedback = g_pGame->GetIGameFramework()->GetIForceFeedbackSystem())
+		if (IForceFeedbackSystem* pForceFeedback = g_pGame->GetIGameFramework()->GetIForceFeedbackSystem())
 		{
 			pForceFeedback->SuppressEffects(false);
 		}
@@ -1994,7 +1986,7 @@ void CRecordingSystem::StopPlayback()
 			event.eventIntData = currentItemId;
 
 			CHUDEventDispatcher::CallEvent(event);
-			
+
 			if (!m_bShowAllHighlights)
 			{
 				g_pGame->GetUI()->ActivateDefaultStateImmediate();
@@ -2011,12 +2003,12 @@ void CRecordingSystem::StopPlayback()
 		const float previousTime = m_highlightData[m_highlightIndex].m_endTime;
 		float nextTime = FLT_MAX;
 		int bestIndex = -1;
-		for (int i = 0; i < MAX_HIGHLIGHTS; ++ i)
+		for (int i = 0; i < MAX_HIGHLIGHTS; ++i)
 		{
-			if ((i != m_highlightIndex) && 
-				m_highlightData[i].m_bUsed && 
-				(m_highlightData[i].m_endTime > previousTime) && 
-				(m_highlightData[i].m_endTime < nextTime))
+			if ((i != m_highlightIndex) &&
+			    m_highlightData[i].m_bUsed &&
+			    (m_highlightData[i].m_endTime > previousTime) &&
+			    (m_highlightData[i].m_endTime < nextTime))
 			{
 				bestIndex = i;
 				nextTime = m_highlightData[i].m_endTime;
@@ -2048,10 +2040,10 @@ void CRecordingSystem::StopPlayback()
 
 void CRecordingSystem::ExitWeaponZoom()
 {
-	IItemSystem *pItemSystem = g_pGame->GetIGameFramework()->GetIItemSystem();
+	IItemSystem* pItemSystem = g_pGame->GetIGameFramework()->GetIItemSystem();
 	CReplayActor* pReplayActor = GetReplayActor(m_killer, true);
-	IItem *pItem = pReplayActor ? pItemSystem->GetItem(pReplayActor->GetGunId()) : NULL;
-	CWeapon *pWeapon = pItem ? static_cast<CWeapon *>(pItem->GetIWeapon()) : NULL;
+	IItem* pItem = pReplayActor ? pItemSystem->GetItem(pReplayActor->GetGunId()) : NULL;
+	CWeapon* pWeapon = pItem ? static_cast<CWeapon*>(pItem->GetIWeapon()) : NULL;
 
 	if (pWeapon)
 	{
@@ -2080,7 +2072,7 @@ void CRecordingSystem::SetTimeScale(float timeScale)
 {
 	if (m_timeScale == timeScale)
 		return;
-	const float slowMoLimit = 0.1f;		// If the time scale passes lower than this value then activate the slow motion mood
+	const float slowMoLimit = 0.1f;   // If the time scale passes lower than this value then activate the slow motion mood
 	if (timeScale < slowMoLimit && !(m_timeScale < slowMoLimit))
 	{
 		if (CPlayer* pClientPlayer = (CPlayer*)g_pGame->GetIGameFramework()->GetClientActor())
@@ -2095,7 +2087,6 @@ void CRecordingSystem::SetTimeScale(float timeScale)
 			pClientPlayer->OnRecordingPlaybackBulletTime(false);
 		}
 	}
-
 
 	m_replayTimer->SetTimeScale(timeScale);
 
@@ -2118,21 +2109,21 @@ void CRecordingSystem::SetTimeScale(float timeScale)
 
 void CRecordingSystem::GoIntoSpectatorMode()
 {
-	if( CRecordingSystem::KillCamEnabled() )
+	if (CRecordingSystem::KillCamEnabled())
 	{
 		// Go into spectator mode if we are still dead
 		CActor* pLocalActor = (CActor*)g_pGame->GetIGameFramework()->GetClientActor();
 		if (pLocalActor != NULL && (pLocalActor->IsDead() || m_highlightsReel))
 		{
-			CGameRules *pGameRules = g_pGame->GetGameRules();
-			IGameRulesSpectatorModule *specmod = pGameRules->GetSpectatorModule();
+			CGameRules* pGameRules = g_pGame->GetGameRules();
+			IGameRulesSpectatorModule* specmod = pGameRules->GetSpectatorModule();
 
 			EntityId specEntity = 0;
-			if(m_highlightsReel && specmod->ModeIsAvailable(pLocalActor->GetEntityId(), CActor::eASM_Fixed, &specEntity))
+			if (m_highlightsReel && specmod->ModeIsAvailable(pLocalActor->GetEntityId(), CActor::eASM_Fixed, &specEntity))
 			{
 				specmod->ChangeSpectatorMode(pLocalActor, CActor::eASM_Fixed, specEntity, true, true);
 			}
-			else if(!m_highlightsReel)
+			else if (!m_highlightsReel)
 			{
 				specmod->ChangeSpectatorModeBestAvailable(pLocalActor, false);
 			}
@@ -2158,9 +2149,9 @@ void CRecordingSystem::OnPlayerFirstPersonChange(IEntity* pPlayerEntity, EntityI
 		pReplayActor->SetFirstPerson(firstPerson);
 	}
 
-	if(CItem* pItem = (CItem*)g_pGame->GetIGameFramework()->GetIItemSystem()->GetItem(weaponId))
+	if (CItem* pItem = (CItem*)g_pGame->GetIGameFramework()->GetIItemSystem()->GetItem(weaponId))
 	{
-		CWeapon *pWeapon = static_cast<CWeapon *>(pItem->GetIWeapon());
+		CWeapon* pWeapon = static_cast<CWeapon*>(pItem->GetIWeapon());
 		if (pWeapon)
 		{
 			pWeapon->SetOwnerClientOverride(firstPerson);
@@ -2171,7 +2162,7 @@ void CRecordingSystem::OnPlayerFirstPersonChange(IEntity* pPlayerEntity, EntityI
 			pItem->OnEnterThirdPerson();
 	}
 
-	if(firstPerson)
+	if (firstPerson)
 	{
 		m_torsoAimIK.Enable(true);
 	}
@@ -2180,10 +2171,9 @@ void CRecordingSystem::OnPlayerFirstPersonChange(IEntity* pPlayerEntity, EntityI
 		m_torsoAimIK.Disable(true);
 	}
 
-
 	{
 		SHUDEvent event(eHUDEvent_FadeCrosshair);
-		event.AddData(SHUDEventData(firstPerson?1.f:0.f));
+		event.AddData(SHUDEventData(firstPerson ? 1.f : 0.f));
 		event.AddData(SHUDEventData(0.3f));
 		event.AddData(SHUDEventData(0.f));
 		event.AddData(SHUDEventData(eFadeCrosshair_KillCam));
@@ -2191,44 +2181,44 @@ void CRecordingSystem::OnPlayerFirstPersonChange(IEntity* pPlayerEntity, EntityI
 	}
 }
 
-void CRecordingSystem::ApplyWeaponShoot(const SRecording_OnShoot *pShoot)
+void CRecordingSystem::ApplyWeaponShoot(const SRecording_OnShoot* pShoot)
 {
 	// Prevent the killer from firing more bullets while in bullet time mode
 	// otherwise we get tracer fire shooting past the bullet which ruins the effect
 	IEntity* pReplayEntity = GetReplayEntity(pShoot->weaponId);
-	if(pReplayEntity)
+	if (pReplayEntity)
 	{
-		IGameFramework *pGameFramework = gEnv->pGameFramework;
-		IItemSystem		*pItemSystem = pGameFramework->GetIItemSystem();
-		IItem * pItem = pItemSystem->GetItem(pReplayEntity->GetId());
+		IGameFramework* pGameFramework = gEnv->pGameFramework;
+		IItemSystem* pItemSystem = pGameFramework->GetIItemSystem();
+		IItem* pItem = pItemSystem->GetItem(pReplayEntity->GetId());
 		if (pItem)
 		{
 			IEntity* pFiringReplayEntity = GetReplayEntity(pItem->GetOwnerId());
-			if(m_playInfo.m_view.currView == SPlaybackInfo::eVM_BulletTime || !pFiringReplayEntity || pFiringReplayEntity->GetId() != m_killer)
+			if (m_playInfo.m_view.currView == SPlaybackInfo::eVM_BulletTime || !pFiringReplayEntity || pFiringReplayEntity->GetId() != m_killer)
 			{
-				CWeapon *pWeapon = static_cast<CWeapon *>(pItem->GetIWeapon());
+				CWeapon* pWeapon = static_cast<CWeapon*>(pItem->GetIWeapon());
 				if (pWeapon)
 				{
-					IFireMode *pFireMode = pWeapon->GetFireMode(pWeapon->GetCurrentFireMode());
+					IFireMode* pFireMode = pWeapon->GetFireMode(pWeapon->GetCurrentFireMode());
 					if (pFireMode)
 					{
 						pFireMode->ReplayShoot();
 
-						if(!pFiringReplayEntity && m_playInfo.m_view.currView == SPlaybackInfo::eVM_FirstPerson)
+						if (!pFiringReplayEntity && m_playInfo.m_view.currView == SPlaybackInfo::eVM_FirstPerson)
 						{
-							if(const SFireModeParams* pParams = (static_cast<CFireMode*>(pFireMode))->GetShared())
+							if (const SFireModeParams* pParams = (static_cast<CFireMode*>(pFireMode))->GetShared())
 							{
-								if(IEntity* pKiller = gEnv->pEntitySystem->GetEntity(pItem->GetOwnerId()))
+								if (IEntity* pKiller = gEnv->pEntitySystem->GetEntity(pItem->GetOwnerId()))
 								{
-									if(ICharacterInstance* pCharInst = pKiller->GetCharacter(0))
+									if (ICharacterInstance* pCharInst = pKiller->GetCharacter(0))
 									{
-										if(ISkeletonPose* pPose = pCharInst->GetISkeletonPose())
+										if (ISkeletonPose* pPose = pCharInst->GetISkeletonPose())
 										{
 											pPose->ApplyRecoilAnimation(
-												pParams->proceduralRecoilParams.duration,
-												0.f,
-												pParams->proceduralRecoilParams.kickIn,
-												pParams->proceduralRecoilParams.arms==1 || pParams->proceduralRecoilParams.arms==2 ? pParams->proceduralRecoilParams.arms : 3 );
+											  pParams->proceduralRecoilParams.duration,
+											  0.f,
+											  pParams->proceduralRecoilParams.kickIn,
+											  pParams->proceduralRecoilParams.arms == 1 || pParams->proceduralRecoilParams.arms == 2 ? pParams->proceduralRecoilParams.arms : 3);
 										}
 									}
 								}
@@ -2241,13 +2231,13 @@ void CRecordingSystem::ApplyWeaponShoot(const SRecording_OnShoot *pShoot)
 	}
 }
 
-void CRecordingSystem::ApplyWeaponAccessories(const SRecording_WeaponAccessories *weaponAccessories)
+void CRecordingSystem::ApplyWeaponAccessories(const SRecording_WeaponAccessories* weaponAccessories)
 {
-	CItem *pItem = GetReplayItem(weaponAccessories->weaponId);
+	CItem* pItem = GetReplayItem(weaponAccessories->weaponId);
 	if (pItem)
 	{
 		pItem->RemoveAllAccessories();
-		for (int i=0; i<MAX_WEAPON_ACCESSORIES; i++)
+		for (int i = 0; i < MAX_WEAPON_ACCESSORIES; i++)
 		{
 			IEntityClass* pAccessoryClass = weaponAccessories->pAccessoryClasses[i];
 			if (pAccessoryClass)
@@ -2261,9 +2251,9 @@ void CRecordingSystem::ApplyWeaponAccessories(const SRecording_WeaponAccessories
 	}
 }
 
-void CRecordingSystem::ApplyWeaponSelect(const SRecording_WeaponSelect *weaponSelect)
+void CRecordingSystem::ApplyWeaponSelect(const SRecording_WeaponSelect* weaponSelect)
 {
-	IEntity *pReplayEntity = NULL;
+	IEntity* pReplayEntity = NULL;
 	CReplayActor* pReplayActor = NULL;
 	TReplayActorMap::iterator find_iterator = m_replayActors.find(weaponSelect->ownerId);
 	if (find_iterator != m_replayActors.end())
@@ -2305,21 +2295,21 @@ void CRecordingSystem::ApplyWeaponSelect(const SRecording_WeaponSelect *weaponSe
 		}
 	}
 
-	if (pReplayEntity && weaponSelect->weaponId && weaponSelect->isSelected)	
+	if (pReplayEntity && weaponSelect->weaponId && weaponSelect->isSelected)
 	{
 		IEntity* pItemEnt = GetReplayEntity(weaponSelect->weaponId);
 		if (pItemEnt)
 		{
 			IWeapon* pIWeapon = NULL;
 			EntityId itemEntId = pItemEnt->GetId();
-			IItemSystem *pItemSystem = g_pGame->GetIGameFramework()->GetIItemSystem();
-			IItem *pItem = pItemSystem->GetItem(itemEntId);
+			IItemSystem* pItemSystem = g_pGame->GetIGameFramework()->GetIItemSystem();
+			IItem* pItem = pItemSystem->GetItem(itemEntId);
 			if (pItem)
 			{
-				CItem *cItem = (CItem *) pItem;
+				CItem* cItem = (CItem*) pItem;
 				if (weaponSelect->isRippedOff)
 				{
-					if(m_mountedWeaponClasses.count(pItemEnt->GetClass()))
+					if (m_mountedWeaponClasses.count(pItemEnt->GetClass()))
 					{
 						CHeavyMountedWeapon* pHmg = (CHeavyMountedWeapon*)pItem;
 						pHmg->FinishRipOff();
@@ -2331,7 +2321,7 @@ void CRecordingSystem::ApplyWeaponSelect(const SRecording_WeaponSelect *weaponSe
 				{
 					cItem->SetOwnerId(pReplayEntity->GetId());
 				}
-				if(pReplayActor)
+				if (pReplayActor)
 				{
 					pReplayActor->AddItem(itemEntId);
 				}
@@ -2342,7 +2332,7 @@ void CRecordingSystem::ApplyWeaponSelect(const SRecording_WeaponSelect *weaponSe
 					if (m_playInfo.m_view.currView == SPlaybackInfo::eVM_FirstPerson)
 					{
 						pIWeapon = pItem->GetIWeapon();
-						CWeapon *pWeapon = static_cast<CWeapon *>(pIWeapon);
+						CWeapon* pWeapon = static_cast<CWeapon*>(pIWeapon);
 						if (pWeapon)
 						{
 							pWeapon->SetCurrentFireMode("Single");
@@ -2359,9 +2349,9 @@ void CRecordingSystem::ApplyWeaponSelect(const SRecording_WeaponSelect *weaponSe
 				cItem->SetBusy(false);
 			}
 
-			if (weaponSelect->ownerId == m_killer && m_playInfo.m_view.currView==SPlaybackInfo::eVM_FirstPerson)
+			if (weaponSelect->ownerId == m_killer && m_playInfo.m_view.currView == SPlaybackInfo::eVM_FirstPerson)
 			{
-				SHUDEventWrapper::FireModeChanged( pIWeapon, pIWeapon ? pIWeapon->GetCurrentFireMode() : -1 );
+				SHUDEventWrapper::FireModeChanged(pIWeapon, pIWeapon ? pIWeapon->GetCurrentFireMode() : -1);
 			}
 
 			//pItemEnt->GetCharacter(0)->GetISkeletonAnim()->SetDebugging(1);
@@ -2388,27 +2378,27 @@ void CRecordingSystem::ApplyWeaponSelect(const SRecording_WeaponSelect *weaponSe
 	}
 }
 
-void CRecordingSystem::ApplyFiremodeChanged(const SRecording_FiremodeChanged *firemodeChanged)
+void CRecordingSystem::ApplyFiremodeChanged(const SRecording_FiremodeChanged* firemodeChanged)
 {
-	if(firemodeChanged->ownerId == m_killer && m_playInfo.m_view.currView==SPlaybackInfo::eVM_FirstPerson)
+	if (firemodeChanged->ownerId == m_killer && m_playInfo.m_view.currView == SPlaybackInfo::eVM_FirstPerson)
 	{
-		IItemSystem *pItemSystem = g_pGame->GetIGameFramework()->GetIItemSystem();
-		IItem *pItem = pItemSystem->GetItem(firemodeChanged->weaponId);
+		IItemSystem* pItemSystem = g_pGame->GetIGameFramework()->GetIItemSystem();
+		IItem* pItem = pItemSystem->GetItem(firemodeChanged->weaponId);
 		if (pItem)
 		{
-			SHUDEventWrapper::FireModeChanged( pItem->GetIWeapon(), firemodeChanged->firemode );
+			SHUDEventWrapper::FireModeChanged(pItem->GetIWeapon(), firemodeChanged->firemode);
 		}
 	}
 }
 
-void CRecordingSystem::RegisterReplayMannListener( CReplayMannListener& listener )
+void CRecordingSystem::RegisterReplayMannListener(CReplayMannListener& listener)
 {
 	m_mannequinListeners.push_back(&listener);
 }
 
-void CRecordingSystem::UnregisterReplayMannListener( const EntityId entityId )
+void CRecordingSystem::UnregisterReplayMannListener(const EntityId entityId)
 {
-	for (std::vector<CReplayMannListener*>::iterator itListener=m_mannequinListeners.begin(); itListener != m_mannequinListeners.end(); ++itListener)
+	for (std::vector<CReplayMannListener*>::iterator itListener = m_mannequinListeners.begin(); itListener != m_mannequinListeners.end(); ++itListener)
 	{
 		if ((*itListener)->GetEntityID() == entityId)
 		{
@@ -2418,7 +2408,7 @@ void CRecordingSystem::UnregisterReplayMannListener( const EntityId entityId )
 	}
 }
 
-void CRecordingSystem::ApplyMannequinEvent(const SRecording_MannEvent *pMannEvent, float animTime)
+void CRecordingSystem::ApplyMannequinEvent(const SRecording_MannEvent* pMannEvent, float animTime)
 {
 	CReplayActor* pReplayActor = GetReplayActor(pMannEvent->eid, true);
 	if (pReplayActor)
@@ -2427,38 +2417,38 @@ void CRecordingSystem::ApplyMannequinEvent(const SRecording_MannEvent *pMannEven
 	}
 }
 
-void CRecordingSystem::ApplyMannequinSetSlaveController(const SRecording_MannSetSlaveController *pMannSetSlave)
+void CRecordingSystem::ApplyMannequinSetSlaveController(const SRecording_MannSetSlaveController* pMannSetSlave)
 {
-	CReplayActor *pMasterActor = GetReplayActor(pMannSetSlave->masterActorId, true);
-	CReplayActor *pSlaveActor = GetReplayActor(pMannSetSlave->slaveActorId, true);
+	CReplayActor* pMasterActor = GetReplayActor(pMannSetSlave->masterActorId, true);
+	CReplayActor* pSlaveActor = GetReplayActor(pMannSetSlave->slaveActorId, true);
 
 	if (pMasterActor && pSlaveActor)
 	{
-		IActionController *pMasterActionController = pMasterActor->GetActionController();
-		IActionController *pSlaveActionController = pSlaveActor->GetActionController();
+		IActionController* pMasterActionController = pMasterActor->GetActionController();
+		IActionController* pSlaveActionController = pSlaveActor->GetActionController();
 
 		if (pMasterActionController && pSlaveActionController)
 		{
 			const IAnimationDatabaseManager& animationDatabase = gEnv->pGameFramework->GetMannequinInterface().GetAnimationDatabaseManager();
-			const IAnimationDatabase* piOptionalDatabase = animationDatabase.FindDatabase( pMannSetSlave->optionalDatabaseFilenameCRC );
+			const IAnimationDatabase* piOptionalDatabase = animationDatabase.FindDatabase(pMannSetSlave->optionalDatabaseFilenameCRC);
 
 			pMasterActionController->SetSlaveController(*pSlaveActionController, pMannSetSlave->targetContext, pMannSetSlave->enslave, piOptionalDatabase);
 		}
 	}
-	else if(pMasterActor)
+	else if (pMasterActor)
 	{
 		IActionController* pMasterActionController = pMasterActor->GetActionController();
 
-		if(pMannSetSlave->enslave)
+		if (pMannSetSlave->enslave)
 		{
 			IEntity* pSlaveEntity = GetReplayEntity(pMannSetSlave->slaveActorId);
-			if(pMasterActionController && pSlaveEntity)
+			if (pMasterActionController && pSlaveEntity)
 			{
 				ICharacterInstance* pSlaveCharacterInstance = pSlaveEntity->GetCharacter(0);
-				if(pSlaveCharacterInstance)
+				if (pSlaveCharacterInstance)
 				{
 					const IAnimationDatabaseManager& animationDatabase = gEnv->pGameFramework->GetMannequinInterface().GetAnimationDatabaseManager();
-					const IAnimationDatabase* piOptionalDatabase = animationDatabase.FindDatabase( pMannSetSlave->optionalDatabaseFilenameCRC );
+					const IAnimationDatabase* piOptionalDatabase = animationDatabase.FindDatabase(pMannSetSlave->optionalDatabaseFilenameCRC);
 
 					pMasterActionController->SetScopeContext(pMannSetSlave->targetContext, *pSlaveEntity, pSlaveCharacterInstance, piOptionalDatabase);
 				}
@@ -2471,17 +2461,17 @@ void CRecordingSystem::ApplyMannequinSetSlaveController(const SRecording_MannSet
 	}
 }
 
-void CRecordingSystem::ApplyMannequinSetParam(const SRecording_MannSetParam *pMannSetParam)
+void CRecordingSystem::ApplyMannequinSetParam(const SRecording_MannSetParam* pMannSetParam)
 {
-	if(IActionController* pActionController = GetActionController(pMannSetParam->entityId))
+	if (IActionController* pActionController = GetActionController(pMannSetParam->entityId))
 	{
 		pActionController->SetParam(pMannSetParam->paramNameCRC, pMannSetParam->quat);
 	}
 }
 
-void CRecordingSystem::ApplyMannequinSetParamFloat(const SRecording_MannSetParamFloat *pMannSetParamFloat)
+void CRecordingSystem::ApplyMannequinSetParamFloat(const SRecording_MannSetParamFloat* pMannSetParamFloat)
 {
-	if(IActionController* pActionController = GetActionController(pMannSetParamFloat->entityId))
+	if (IActionController* pActionController = GetActionController(pMannSetParamFloat->entityId))
 	{
 		pActionController->SetParam(pMannSetParamFloat->paramNameCRC, pMannSetParamFloat->param);
 	}
@@ -2489,11 +2479,11 @@ void CRecordingSystem::ApplyMannequinSetParamFloat(const SRecording_MannSetParam
 
 IActionController* CRecordingSystem::GetActionController(EntityId entityId)
 {
-	if(CReplayActor *pActor = GetReplayActor(entityId, true))
+	if (CReplayActor* pActor = GetReplayActor(entityId, true))
 	{
 		return pActor->GetActionController();
 	}
-	else if(CReplayActor *pActor2 = GetReplayActor(entityId, false))
+	else if (CReplayActor* pActor2 = GetReplayActor(entityId, false))
 	{
 		return pActor2->GetActionController();
 	}
@@ -2501,10 +2491,10 @@ IActionController* CRecordingSystem::GetActionController(EntityId entityId)
 	return NULL;
 }
 
-void CRecordingSystem::HideEntityKeepingPhysics(IEntity *pEntity, bool hide)
+void CRecordingSystem::HideEntityKeepingPhysics(IEntity* pEntity, bool hide)
 {
 	REPLAY_EVENT_GUARD;
-	RecSysLogDebug(eRSD_Visibility, "%s [%d: %s]", hide ? "HideKeepPhys" : "ShowKeepPhys", pEntity->GetId(), pEntity->GetName() );
+	RecSysLogDebug(eRSD_Visibility, "%s [%d: %s]", hide ? "HideKeepPhys" : "ShowKeepPhys", pEntity->GetId(), pEntity->GetName());
 
 	SEntityEvent event(hide ? ENTITY_EVENT_INVISIBLE : ENTITY_EVENT_VISIBLE);
 	event.nParam[0] = 1; // 1 tels physics to ignore it.
@@ -2517,22 +2507,22 @@ void CRecordingSystem::HideEntityKeepingPhysics(IEntity *pEntity, bool hide)
 		IEntity* pChild = pEntity->GetChild(i);
 		if (pChild)
 		{
-			IActor *pActor = g_pGame->GetIGameFramework()->GetIActorSystem()->GetActor(pChild->GetId());
-			if (!pActor || !pActor->IsPlayer())		// Players are explicitly dealt with elsewhere
+			IActor* pActor = g_pGame->GetIGameFramework()->GetIActorSystem()->GetActor(pChild->GetId());
+			if (!pActor || !pActor->IsPlayer())   // Players are explicitly dealt with elsewhere
 			{
 				HideEntityKeepingPhysics(pChild, hide);
 			}
 			else
 			{
-				RecSysLogDebug(eRSD_Visibility, "Not %s child [%d: %s]", hide?"hiding":"showing", pChild->GetId(), pChild->GetName());
+				RecSysLogDebug(eRSD_Visibility, "Not %s child [%d: %s]", hide ? "hiding" : "showing", pChild->GetId(), pChild->GetName());
 			}
 		}
 	}
 }
 
-bool CRecordingSystem::GetWeaponAudioCacheDetailsForWeaponId(EntityId inWeaponId, SWeaponAudioCacheDetails &outDetails)
+bool CRecordingSystem::GetWeaponAudioCacheDetailsForWeaponId(EntityId inWeaponId, SWeaponAudioCacheDetails& outDetails)
 {
-	bool foundWeapon=false;
+	bool foundWeapon = false;
 
 	outDetails.Clear();
 
@@ -2548,25 +2538,25 @@ bool CRecordingSystem::GetWeaponAudioCacheDetailsForWeaponId(EntityId inWeaponId
 		{
 			// found this weapon spawn
 			outDetails.pWeaponClass = pEntitySpawn->pClass;
-			foundWeapon=true;
+			foundWeapon = true;
 		}
 	}
 	else
 	{
 		// we failed to find this weapon being spawned in the discarded entity spawns. now search directly within our active recorded buffer
-		uint8 *pPos = m_pPlaybackData->m_tpdatabuffer;
-		uint8 *pEnd = m_pPlaybackData->m_tpdatabuffer + m_pPlaybackData->m_tpdatasize;		
-		while( pPos < pEnd )
+		uint8* pPos = m_pPlaybackData->m_tpdatabuffer;
+		uint8* pEnd = m_pPlaybackData->m_tpdatabuffer + m_pPlaybackData->m_tpdatasize;
+		while (pPos < pEnd)
 		{
-			const SRecording_Packet *pPacket = (SRecording_Packet*)pPos;
+			const SRecording_Packet* pPacket = (SRecording_Packet*)pPos;
 			if (pPacket->type == eTPP_EntitySpawn)
 			{
-				const SRecording_EntitySpawn *pEntitySpawn = static_cast<const SRecording_EntitySpawn*>(pPacket);
+				const SRecording_EntitySpawn* pEntitySpawn = static_cast<const SRecording_EntitySpawn*>(pPacket);
 				if (pEntitySpawn->entityId == inWeaponId)
 				{
 					// found this weapon spawn
 					outDetails.pWeaponClass = pEntitySpawn->pClass;
-					foundWeapon=true;
+					foundWeapon = true;
 					break;
 				}
 			}
@@ -2580,9 +2570,9 @@ bool CRecordingSystem::GetWeaponAudioCacheDetailsForWeaponId(EntityId inWeaponId
 		TWeaponAccessoryMap::iterator itDiscardedAccessory = m_pPlaybackData->m_discardedWeaponAccessories.find(inWeaponId);
 		if (itDiscardedAccessory != m_pPlaybackData->m_discardedWeaponAccessories.end())
 		{
-			SRecording_WeaponAccessories *pWeaponAccessory = &itDiscardedAccessory->second;
+			SRecording_WeaponAccessories* pWeaponAccessory = &itDiscardedAccessory->second;
 			CRY_ASSERT(pWeaponAccessory->weaponId == inWeaponId);
-			for (int i=0; i<MAX_WEAPON_ACCESSORIES; i++)
+			for (int i = 0; i < MAX_WEAPON_ACCESSORIES; i++)
 			{
 				outDetails.pAccessoryClasses[i] = pWeaponAccessory->pAccessoryClasses[i];
 			}
@@ -2590,18 +2580,18 @@ bool CRecordingSystem::GetWeaponAudioCacheDetailsForWeaponId(EntityId inWeaponId
 		else
 		{
 			// we failed to find this weapons accessories in the discarded weapon accessories, now search directly within our active playback buffer
-			uint8 *pPos = m_pPlaybackData->m_tpdatabuffer;
-			uint8 *pEnd = m_pPlaybackData->m_tpdatabuffer + m_pPlaybackData->m_tpdatasize;			
-			while( pPos < pEnd )
+			uint8* pPos = m_pPlaybackData->m_tpdatabuffer;
+			uint8* pEnd = m_pPlaybackData->m_tpdatabuffer + m_pPlaybackData->m_tpdatasize;
+			while (pPos < pEnd)
 			{
-				const SRecording_Packet *pPacket = (SRecording_Packet*)pPos;
+				const SRecording_Packet* pPacket = (SRecording_Packet*)pPos;
 				if (pPacket->type == eTPP_WeaponAccessories)
 				{
-					const SRecording_WeaponAccessories *pWeaponAccessory = static_cast<const SRecording_WeaponAccessories*>(pPacket);
+					const SRecording_WeaponAccessories* pWeaponAccessory = static_cast<const SRecording_WeaponAccessories*>(pPacket);
 					if (pWeaponAccessory->weaponId == inWeaponId)
 					{
 						// found this weapon's accessories
-						for (int i=0; i<MAX_WEAPON_ACCESSORIES; i++)
+						for (int i = 0; i < MAX_WEAPON_ACCESSORIES; i++)
 						{
 							outDetails.pAccessoryClasses[i] = pWeaponAccessory->pAccessoryClasses[i];
 						}
@@ -2618,20 +2608,20 @@ bool CRecordingSystem::GetWeaponAudioCacheDetailsForWeaponId(EntityId inWeaponId
 
 void CRecordingSystem::ActuallyAudioCacheWeaponDetails(bool enable)
 {
-	int len=m_cachedWeaponAudioDetails.size();
-	for (int i=0; i<len; i++)
+	int len = m_cachedWeaponAudioDetails.size();
+	for (int i = 0; i < len; i++)
 	{
-		SWeaponAudioCacheDetails &details = m_cachedWeaponAudioDetails[i];
+		SWeaponAudioCacheDetails& details = m_cachedWeaponAudioDetails[i];
 
 		// handle weapon (aliasing required as some classes are grouped together and handled as one parent class
-		IEntityClass *pClass = details.pWeaponClass;
+		IEntityClass* pClass = details.pWeaponClass;
 		g_pGame->GetWeaponSystem()->GetWeaponAlias().UpdateClass(&pClass);
 		CItem::AudioCacheItem(enable, pClass, "", "_fp");
 
 		// handle accessories
-		for (int j=0; j<MAX_WEAPON_ACCESSORIES; j++)
+		for (int j = 0; j < MAX_WEAPON_ACCESSORIES; j++)
 		{
-			const IEntityClass *pAccClass = details.pAccessoryClasses[j];
+			const IEntityClass* pAccClass = details.pAccessoryClasses[j];
 			if (pAccClass)
 			{
 				CItem::AudioCacheItem(enable, pAccClass, "att_", "_fp");
@@ -2645,9 +2635,9 @@ void CRecordingSystem::HandleAudioCachingOfKillersWeapons()
 	m_cachedWeaponAudioDetails.clear();
 
 	// work on initial weapon
-	for (int i = 0; i < MAX_RECORDED_PLAYERS; ++ i)
+	for (int i = 0; i < MAX_RECORDED_PLAYERS; ++i)
 	{
-		SPlayerInitialState &initialState = m_pPlaybackData->m_playerInitialStates[i];
+		SPlayerInitialState& initialState = m_pPlaybackData->m_playerInitialStates[i];
 		if (initialState.playerId == m_killer)
 		{
 			CRY_ASSERT(initialState.weapon.ownerId == m_killer);
@@ -2666,25 +2656,25 @@ void CRecordingSystem::HandleAudioCachingOfKillersWeapons()
 	}
 
 	// work on any weapon selects during the recording
-	uint8 *pPos = m_pPlaybackData->m_tpdatabuffer;
-	uint8 *pEnd = m_pPlaybackData->m_tpdatabuffer + m_pPlaybackData->m_tpdatasize;
-	while( pPos < pEnd )
+	uint8* pPos = m_pPlaybackData->m_tpdatabuffer;
+	uint8* pEnd = m_pPlaybackData->m_tpdatabuffer + m_pPlaybackData->m_tpdatasize;
+	while (pPos < pEnd)
 	{
-		const SRecording_Packet *pPacket = (SRecording_Packet*)pPos;
+		const SRecording_Packet* pPacket = (SRecording_Packet*)pPos;
 		if (pPacket->type == eTPP_WeaponSelect)
 		{
-			const SRecording_WeaponSelect *pWeaponSelect = static_cast<const SRecording_WeaponSelect*>(pPacket);
+			const SRecording_WeaponSelect* pWeaponSelect = static_cast<const SRecording_WeaponSelect*>(pPacket);
 			if (pWeaponSelect->ownerId == m_killer)
 			{
 				// found the killer performing a select.
-				bool doIt=true;
+				bool doIt = true;
 
 				// ensure we haven't already cached this weapon
-				for (unsigned int i=0; i<m_cachedWeaponAudioDetails.size(); i++)
+				for (unsigned int i = 0; i < m_cachedWeaponAudioDetails.size(); i++)
 				{
 					if (m_cachedWeaponAudioDetails[i].weaponId == pWeaponSelect->weaponId)
 					{
-						doIt=false;
+						doIt = false;
 						break;
 					}
 				}
@@ -2710,12 +2700,12 @@ void CRecordingSystem::HandleAudioCachingOfKillersWeapons()
 
 void CRecordingSystem::OnPlaybackStart(void)
 {
-	CGameRules *pGameRules = g_pGame->GetGameRules();
+	CGameRules* pGameRules = g_pGame->GetGameRules();
 
 	REPLAY_EVENT_GUARD
 
 #if ENABLE_STATOSCOPE
-	if(m_playbackSetupStage == ePSS_FIRST)
+	if (m_playbackSetupStage == ePSS_FIRST)
 	{
 		const char* killerName = "unknown";
 		const char* victimName = "unknown";
@@ -2725,14 +2715,14 @@ void CRecordingSystem::OnPlaybackStart(void)
 			{
 				killerName = pKiller->GetName();
 			}
-			
+
 			if (IEntity* pVictim = gEnv->pEntitySystem->GetEntity(m_playInfo.m_request.kill.victimId))
 			{
 				victimName = pVictim->GetName();
 			}
 		}
 
-		if(gEnv->pStatoscope)
+		if (gEnv->pStatoscope)
 		{
 			CryFixedStringT<128> buffer;
 			buffer.Format("Start playback for victim %s from killer %s", victimName, killerName);
@@ -2741,7 +2731,7 @@ void CRecordingSystem::OnPlaybackStart(void)
 	}
 #endif // ENABLE_STATOSCOPE
 
-	switch(m_playbackSetupStage)
+	switch (m_playbackSetupStage)
 	{
 	case ePSS_AudioAndTracers:
 		{
@@ -2760,7 +2750,7 @@ void CRecordingSystem::OnPlaybackStart(void)
 			m_tpDataBufferSize = m_pPlaybackData->m_tpdatasize;
 
 #ifdef RECSYS_DEBUG
-			if(m_pDebug)
+			if (m_pDebug)
 			{
 				m_pDebug->PrintThirdPersonPacketData(m_pTPDataBuffer, m_tpDataBufferSize, "TP Playback Buffer");
 			}
@@ -2802,14 +2792,14 @@ void CRecordingSystem::OnPlaybackStart(void)
 			m_killCamGameEffect.SetActive(true);
 
 			// The health effect needs to be restarted in order to show any effects that the killer was experiencing.
-			if(pClientPlayer)
+			if (pClientPlayer)
 			{
 				pClientPlayer->GetPlayerHealthGameEffect().SetKillCamData(m_killer, CKillCamGameEffect::GetBaseBrightness(CKillCamGameEffect::eKCEM_KillCam), CKillCamGameEffect::GetBaseContrast(CKillCamGameEffect::eKCEM_KillCam));
 				pClientPlayer->GetPlayerHealthGameEffect().ReStart();
 			}
 
 			// remove the existing hud straight away, it will be reshown when we have data
-			g_pGame->GetUI()->ActivateStateImmediate("no_hud"); 
+			g_pGame->GetUI()->ActivateStateImmediate("no_hud");
 
 			break;
 		}
@@ -2819,13 +2809,13 @@ void CRecordingSystem::OnPlaybackStart(void)
 			//This takes approx 4ms
 			// Hide all the recorded entities
 			IEntitySystem* pEntSys = gEnv->pEntitySystem;
-			for (TRecEntitiesMap::iterator it=m_recordingEntities.begin(), end=m_recordingEntities.end(); it!=end; ++it)
+			for (TRecEntitiesMap::iterator it = m_recordingEntities.begin(), end = m_recordingEntities.end(); it != end; ++it)
 			{
 				SRecordingEntity& recEnt = it->second;
-				RecSysLogDebug(eRSD_Visibility, "RecordingEntity: [%s: %d]", (recEnt.hiddenState==SRecordingEntity::eHS_Hide) ? "Hidden" : "Showin", recEnt.entityId );
-				if(recEnt.hiddenState==SRecordingEntity::eHS_Unhide)
+				RecSysLogDebug(eRSD_Visibility, "RecordingEntity: [%s: %d]", (recEnt.hiddenState == SRecordingEntity::eHS_Hide) ? "Hidden" : "Showin", recEnt.entityId);
+				if (recEnt.hiddenState == SRecordingEntity::eHS_Unhide)
 				{
-					if(IEntity *pEntity = pEntSys->GetEntity(recEnt.entityId))
+					if (IEntity* pEntity = pEntSys->GetEntity(recEnt.entityId))
 					{
 						HideEntityKeepingPhysics(pEntity, true);
 					}
@@ -2839,10 +2829,10 @@ void CRecordingSystem::OnPlaybackStart(void)
 			// Spawn any entities that were created before the start of the playback
 			//	This takes ~20ms
 			const int numCorpses = m_pPlaybackData->m_corpses.size();
-			for( TEntitySpawnMap::iterator it=m_pPlaybackData->m_discardedEntitySpawns.begin(), end=m_pPlaybackData->m_discardedEntitySpawns.end(); it!=end; ++it )
+			for (TEntitySpawnMap::iterator it = m_pPlaybackData->m_discardedEntitySpawns.begin(), end = m_pPlaybackData->m_discardedEntitySpawns.end(); it != end; ++it)
 			{
-				const SRecording_EntitySpawn *pEntitySpawn = &it->second.first;
-				
+				const SRecording_EntitySpawn* pEntitySpawn = &it->second.first;
+
 				if (pEntitySpawn->pClass != m_pCorpse)
 				{
 					ApplyEntitySpawn(pEntitySpawn, m_playInfo.m_timings.recStart - it->second.second);
@@ -2850,24 +2840,24 @@ void CRecordingSystem::OnPlaybackStart(void)
 				else
 				{
 					// If this entity is a corpse, we have to do the spawn a bit differently
-					for (int i = 0; i < numCorpses; ++ i)
+					for (int i = 0; i < numCorpses; ++i)
 					{
-					  STrackedCorpse &corpse = m_pPlaybackData->m_corpses[i];
+						STrackedCorpse& corpse = m_pPlaybackData->m_corpses[i];
 						if (corpse.m_corpseId == pEntitySpawn->entityId)
 						{
-							if(IEntity* pCorpseEntity = SpawnCorpse(corpse.m_corpseId, pEntitySpawn->entitylocation.t, pEntitySpawn->entitylocation.q, pEntitySpawn->entityScale))
+							if (IEntity* pCorpseEntity = SpawnCorpse(corpse.m_corpseId, pEntitySpawn->entitylocation.t, pEntitySpawn->entitylocation.q, pEntitySpawn->entityScale))
 							{
 								CRY_ASSERT(pEntitySpawn->szCharacterSlot[0]);
 								if (pEntitySpawn->szCharacterSlot[0])
 								{
 									pCorpseEntity->LoadCharacter(0, pEntitySpawn->szCharacterSlot[0]);
 									pCorpseEntity->SetFlags(pCorpseEntity->GetFlags() | (ENTITY_FLAG_CASTSHADOW));
-									
-									if(ICharacterInstance *pChar = pCorpseEntity->GetCharacter(0))
+
+									if (ICharacterInstance* pChar = pCorpseEntity->GetCharacter(0))
 									{
-										if(ISkeletonAnim* pAnim = pChar->GetISkeletonAnim())
+										if (ISkeletonAnim* pAnim = pChar->GetISkeletonAnim())
 										{
-											if(ISkeletonPose* pPose = pChar->GetISkeletonPose())
+											if (ISkeletonPose* pPose = pChar->GetISkeletonPose())
 											{
 												int32 numJoints = corpse.m_numJoints;
 												IAnimationOperatorQueuePtr poseModifier;
@@ -2876,7 +2866,7 @@ void CRecordingSystem::OnPlaybackStart(void)
 												IAnimationPoseModifierPtr modPtr = poseModifier;
 												pAnim->PushPoseModifier(1, modPtr, "RecordingSystem");
 
-												for (int32 k = 0; k < numJoints; ++ k)
+												for (int32 k = 0; k < numJoints; ++k)
 												{
 													poseModifier->PushPosition(k, IAnimationOperatorQueue::eOp_Override, corpse.m_jointAbsPos[k].t);
 													poseModifier->PushOrientation(k, IAnimationOperatorQueue::eOp_Override, corpse.m_jointAbsPos[k].q);
@@ -2905,7 +2895,7 @@ void CRecordingSystem::OnPlaybackStart(void)
 			}
 
 			// Remove all temporary particle emitters
-			gEnv->pParticleManager->DeleteEmitters( [](IParticleEmitter& e) { return e.GetSpawnParams().bNowhere; } );
+			gEnv->pParticleManager->DeleteEmitters([](IParticleEmitter& e) { return e.GetSpawnParams().bNowhere; });
 
 			// Spawn any particles that were created before the start of the playback	0.075ms
 			TParticleCreatedMap::iterator itParticleSpawn;
@@ -2933,13 +2923,13 @@ void CRecordingSystem::OnPlaybackStart(void)
 			RecSysLog("OnPlaybackStart: ePSS_SpawnRecordingSystemActors\n");
 			// Create clones of the players so that we can do what we want with them.
 			// Takes 22ms
-			static IEntityClass *pEntityClass =  gEnv->pEntitySystem->GetClassRegistry()->FindClass("ReplayActor");
+			static IEntityClass* pEntityClass = gEnv->pEntitySystem->GetClassRegistry()->FindClass("ReplayActor");
 			assert(pEntityClass);
 			int killerTeam = pGameRules->GetTeam(m_killer);
 
-			for (int i = 0; i < MAX_RECORDED_PLAYERS; ++ i)
+			for (int i = 0; i < MAX_RECORDED_PLAYERS; ++i)
 			{
-				SPlayerInitialState &initialState = m_pPlaybackData->m_playerInitialStates[i];
+				SPlayerInitialState& initialState = m_pPlaybackData->m_playerInitialStates[i];
 				if (initialState.playerId && initialState.playerJoined.bIsPlayer)
 				{
 					const EntityId playerId = initialState.playerId;
@@ -2954,13 +2944,13 @@ void CRecordingSystem::OnPlaybackStart(void)
 					params.vPosition.Set(0.f, 0.f, 0.f);
 					params.qRotation.SetIdentity();
 
-					params.nFlags |= (ENTITY_FLAG_NEVER_NETWORK_STATIC|ENTITY_FLAG_CLIENT_ONLY);
-					
-					IEntity *pCloneEntity = gEnv->pEntitySystem->SpawnEntity(params, true);
+					params.nFlags |= (ENTITY_FLAG_NEVER_NETWORK_STATIC | ENTITY_FLAG_CLIENT_ONLY);
+
+					IEntity* pCloneEntity = gEnv->pEntitySystem->SpawnEntity(params, true);
 					if (pCloneEntity)
 					{
 						const EntityId cloneEntityId = pCloneEntity->GetId();
-						const char *pModelName = initialState.changedModel.pModelName;
+						const char* pModelName = initialState.changedModel.pModelName;
 						if (pModelName)
 						{
 							pCloneEntity->LoadCharacter(0, pModelName);
@@ -2985,11 +2975,6 @@ void CRecordingSystem::OnPlaybackStart(void)
 								}
 							}
 
-							// [RW - 08/11/10]	All characters need to have the pre-physics event so that the head position can be
-							//									recorded (thread safe) - This is used for the HUD Tagnames.
-							// Hook into the pre-physics update event so the shadow character physics can be updated earlier in the frame
-							pCloneEntity->PrePhysicsActivate(true);
-
 							pCloneEntity->SetFlags(pCloneEntity->GetFlags() | (ENTITY_FLAG_CASTSHADOW));
 
 							{
@@ -3012,7 +2997,7 @@ void CRecordingSystem::OnPlaybackStart(void)
 							CRecordingSystem::RemoveEntityPhysics(*pCloneEntity);
 
 							const int team = initialState.teamChange.entityId ? initialState.teamChange.teamId : 0;
-							const bool isFriendly = pGameRules->GetTeamCount()==0 ? (playerId==gEnv->pGameFramework->GetClientActorId()) : team==m_playInfo.m_request.kill.localPlayerTeam;
+							const bool isFriendly = pGameRules->GetTeamCount() == 0 ? (playerId == gEnv->pGameFramework->GetClientActorId()) : team == m_playInfo.m_request.kill.localPlayerTeam;
 
 							typedef CryFixedStringT<DISPLAY_NAME_LENGTH> TPlayerDisplayName;
 							TPlayerDisplayName playerDisplayname = initialState.playerJoined.displayName;
@@ -3021,7 +3006,7 @@ void CRecordingSystem::OnPlaybackStart(void)
 							int rank = (int) initialState.playerJoined.rank;
 							int reincarnations = (int) initialState.playerJoined.reincarnations;
 
-							class IActionController *pActionController = NULL;
+							class IActionController* pActionController = NULL;
 							// Setup the replay actor's data.
 							{
 								CReplayActor* pReplayActor = GetReplayActor(cloneEntityId, false);
@@ -3037,9 +3022,9 @@ void CRecordingSystem::OnPlaybackStart(void)
 								pActionController = pReplayActor->GetActionController();
 
 								CTeamVisualizationManager* pTeamVisManager = pGameRules->GetTeamVisualizationManager();
-								if(pTeamVisManager)
+								if (pTeamVisManager)
 								{
-									pTeamVisManager->RefreshTeamMaterial(pCloneEntity, true, isFriendly ); 
+									pTeamVisManager->RefreshTeamMaterial(pCloneEntity, true, isFriendly);
 								}
 
 								m_replayActors[playerId] = pCloneEntity->GetId();
@@ -3062,7 +3047,7 @@ void CRecordingSystem::OnPlaybackStart(void)
 							{
 								// ensure the replayEntity will trigger areas so that during replay reverb areas are updated to the killers perspective rather than where the victim was at death
 								// also ensure that it will trigger new reverb areas that the killer is in, rather than just turning off the victim's one
-								pCloneEntity->AddFlags(ENTITY_FLAG_TRIGGER_AREAS|ENTITY_FLAG_CAMERA_SOURCE);
+								pCloneEntity->AddFlags(ENTITY_FLAG_TRIGGER_AREAS | ENTITY_FLAG_CAMERA_SOURCE);
 							}
 						}
 						else
@@ -3084,24 +3069,24 @@ void CRecordingSystem::OnPlaybackStart(void)
 			break;
 		}
 	case ePSS_StartExistingSounds:
-			{
-				//RecSysLog("OnPlaybackStart: ePSS_StartExistingSounds\n");
-				//// Play any sounds that were created before the start of playback. Takes ~3ms
-				//TPlaySoundMap::iterator itSound;
-				//for (itSound = m_pPlaybackData->m_discardedSounds.begin(); itSound != m_pPlaybackData->m_discardedSounds.end(); ++itSound)
-				//{
-				//	ApplyPlaySound(&itSound->second.first, m_playInfo.m_timings.recStart - itSound->second.second);
-				//}
-				break;
-			}
+		{
+			//RecSysLog("OnPlaybackStart: ePSS_StartExistingSounds\n");
+			//// Play any sounds that were created before the start of playback. Takes ~3ms
+			//TPlaySoundMap::iterator itSound;
+			//for (itSound = m_pPlaybackData->m_discardedSounds.begin(); itSound != m_pPlaybackData->m_discardedSounds.end(); ++itSound)
+			//{
+			//	ApplyPlaySound(&itSound->second.first, m_playInfo.m_timings.recStart - itSound->second.second);
+			//}
+			break;
+		}
 	case ePSS_ApplyBreaks:
 		{
 			RecSysLog("OnPlaybackStart: ePSS_ApplyBreaksAndItemSuffixes\n");
 			//	approx 11ms
 			//Any breakable objects need to be reverted to the state that they were in at the start
-			//	of the killcam, so we can replay breaks on them. This needs to occur after any entity 
+			//	of the killcam, so we can replay breaks on them. This needs to occur after any entity
 			//	cloning by the rest of the system, to avoid objects being cloned twice
-			RevertBrokenObjectsToStateAtTime(m_playInfo.m_timings.recStart);	
+			RevertBrokenObjectsToStateAtTime(m_playInfo.m_timings.recStart);
 
 			// Apply the initial entity attachments
 			TEntityAttachedVec::iterator itEntityAttached;
@@ -3129,7 +3114,7 @@ void CRecordingSystem::OnPlaybackStart(void)
 			SHUDEvent killCamStart(eHUDEvent_OnKillCamStartPlay);
 			killCamStart.AddData(static_cast<void*>(&m_replayActors));
 			killCamStart.AddData((int)m_killer);
-			
+
 			CHUDEventDispatcher::CallEvent(killCamStart);
 
 			SHUDEvent event;
@@ -3139,7 +3124,7 @@ void CRecordingSystem::OnPlaybackStart(void)
 
 			TReplayActorMap::const_iterator itReplayActor = m_replayActors.begin();
 			TReplayActorMap::const_iterator itEnd = m_replayActors.end();
-			for ( ; itReplayActor != itEnd; ++itReplayActor)
+			for (; itReplayActor != itEnd; ++itReplayActor)
 			{
 				if (itReplayActor->first != m_killer)
 				{
@@ -3147,7 +3132,7 @@ void CRecordingSystem::OnPlaybackStart(void)
 				}
 			}
 
-			gEnv->p3DEngine->SetPostEffectParam( "HUD3D_Interference", 0.0f, true );
+			gEnv->p3DEngine->SetPostEffectParam("HUD3D_Interference", 0.0f, true);
 			g_pGame->GetUI()->ActivateStateImmediate("mp_killcam");
 			//m_activeSoundLoop.Play();
 
@@ -3156,11 +3141,11 @@ void CRecordingSystem::OnPlaybackStart(void)
 			m_hasWinningKillcam = false;
 
 			CPlayer* pClientPlayer = (CPlayer*)g_pGame->GetIGameFramework()->GetClientActor();
-			if(pClientPlayer)
+			if (pClientPlayer)
 			{
 				pClientPlayer->OnStartRecordingPlayback();
 			}
-	
+
 			// Re-apply the PostEffects to stop solve the render thread overwriting them from earlier.
 			m_killCamGameEffect.SetActive(true);
 
@@ -3171,34 +3156,34 @@ void CRecordingSystem::OnPlaybackStart(void)
 	default:
 		break;
 	}
- 
+
 	m_playedFrame = false;
 }
 
 void CRecordingSystem::SetPlayBackCameraView(bool bSetView)
 {
-	// Need to set capture view and "linked to" entity for camera space rendering to work 
+	// Need to set capture view and "linked to" entity for camera space rendering to work
 	IView* pActiveView = gEnv->pGameFramework->GetIViewSystem()->GetActiveView();
-	if(pActiveView)
+	if (pActiveView)
 	{
 		const bool bOriginalEntity = true;
-		CReplayActor* pKillerReplayActor = GetReplayActor(m_killer,bOriginalEntity);
-		if(pKillerReplayActor)
+		CReplayActor* pKillerReplayActor = GetReplayActor(m_killer, bOriginalEntity);
+		if (pKillerReplayActor)
 		{
 			IEntity* pKillerReplayEntity = pKillerReplayActor->GetEntity();
-			if(pKillerReplayEntity)
+			if (pKillerReplayEntity)
 			{
-				CGameObject* pKillerReplayGameObject = (CGameObject*) pKillerReplayEntity->GetProxy( ENTITY_PROXY_USER );
-				if(pKillerReplayGameObject)
+				CGameObject* pKillerReplayGameObject = (CGameObject*) pKillerReplayEntity->GetProxy(ENTITY_PROXY_USER);
+				if (pKillerReplayGameObject)
 				{
-					if(bSetView)
+					if (bSetView)
 					{
 						m_gameCameraLinkedToEntityId = pActiveView->GetLinkedId();
 						IEntity* pGameCameraLinkedToEntity = gEnv->pEntitySystem->GetEntity(m_gameCameraLinkedToEntityId);
-						if(pGameCameraLinkedToEntity)
+						if (pGameCameraLinkedToEntity)
 						{
 							CGameObject* pGameCameraLinkedToGameObject = (CGameObject*)pGameCameraLinkedToEntity->GetProxy(ENTITY_PROXY_USER);
-							if(pGameCameraLinkedToGameObject)
+							if (pGameCameraLinkedToGameObject)
 							{
 								// Creates new view, sets it as active and links to it.
 								pKillerReplayGameObject->CaptureView(pGameCameraLinkedToGameObject->GetViewDelegate());
@@ -3224,22 +3209,22 @@ void CRecordingSystem::SetPlayBackCameraView(bool bSetView)
 
 bool CRecordingSystem::ApplyPlayerInitialState(EntityId entityId)
 {
-	for (int i = 0; i < MAX_RECORDED_PLAYERS; ++ i)
+	for (int i = 0; i < MAX_RECORDED_PLAYERS; ++i)
 	{
-		SPlayerInitialState &initialState = m_pPlaybackData->m_playerInitialStates[i];
+		SPlayerInitialState& initialState = m_pPlaybackData->m_playerInitialStates[i];
 		if (initialState.playerId == entityId)
 		{
 			// If any of the initial state packets don't exist then entity id should be 0
-			if(initialState.changedModel.pModelName != NULL)
+			if (initialState.changedModel.pModelName != NULL)
 				ApplyPlayerChangedModel(&initialState.changedModel);
 			if (initialState.weapon.ownerId != 0)
 				ApplyWeaponSelect(&initialState.weapon);
-			if(initialState.firemode.ownerId != 0)
+			if (initialState.firemode.ownerId != 0)
 				ApplyFiremodeChanged(&initialState.firemode);
 			if (initialState.pickAndThrowUsed.playerId != 0)
 				ApplyPickAndThrowUsed(&initialState.pickAndThrowUsed);
 			ApplyMannequinEvent(&initialState.tagSetting);
-			for (uint32 j=0; j<SPlayerInitialState::MAX_FRAGMENT_TRIGGERS; j++)
+			for (uint32 j = 0; j < SPlayerInitialState::MAX_FRAGMENT_TRIGGERS; j++)
 			{
 				ApplyMannequinEvent(&initialState.fragmentTriggers[j]);
 			}
@@ -3249,7 +3234,7 @@ bool CRecordingSystem::ApplyPlayerInitialState(EntityId entityId)
 			}
 			if (initialState.mountedGunEnter.ownerId != 0)
 				ApplyMountedGunEnter(&initialState.mountedGunEnter);
-			if(initialState.objCloakParams.cloakPlayerId)
+			if (initialState.objCloakParams.cloakPlayerId)
 				ApplyObjectCloakSync(&initialState.objCloakParams);
 
 			return true;
@@ -3279,28 +3264,28 @@ float CRecordingSystem::GetLiveBufferLenSeconds(void)
 
 float CRecordingSystem::GetBufferLenSeconds(void)
 {
-	uint8 *startingplace = m_pTPDataBuffer;
-	uint8 *endingplace = startingplace + m_tpDataBufferSize;
+	uint8* startingplace = m_pTPDataBuffer;
+	uint8* endingplace = startingplace + m_tpDataBufferSize;
 
 	float starttime = -1.f;
 	float endtime = -1.f;
 
 	while (startingplace < endingplace)
 	{
-		SRecording_Packet *packet = (SRecording_Packet *) startingplace;
+		SRecording_Packet* packet = (SRecording_Packet*) startingplace;
 
-		switch(packet->type)
+		switch (packet->type)
 		{
-			case eRBPT_FrameData:
+		case eRBPT_FrameData:
 			{
-				SRecording_FrameData *sfd = (SRecording_FrameData *) startingplace;
+				SRecording_FrameData* sfd = (SRecording_FrameData*) startingplace;
 				if (starttime == -1.f)
 					starttime = sfd->frametime;
 				endtime = sfd->frametime;
 				break;
 			}
-			default:
-				break;
+		default:
+			break;
 		}
 
 		startingplace = startingplace + packet->size;
@@ -3319,11 +3304,11 @@ void CRecordingSystem::AdjustDeathTime()
 	// this is what happens to the animation. And we want the bullet hit to coincide with the death animation.
 	float unmodifiedDeathTime = m_playInfo.m_timings.relDeathTime;
 
-	uint8 *startingplace = m_pTPDataBuffer;
-	uint8 *endingplace = startingplace + m_tpDataBufferSize;
+	uint8* startingplace = m_pTPDataBuffer;
+	uint8* endingplace = startingplace + m_tpDataBufferSize;
 	while (startingplace < endingplace)
 	{
-		SRecording_Packet *packet = (SRecording_Packet *) startingplace;
+		SRecording_Packet* packet = (SRecording_Packet*) startingplace;
 		if (packet->type == eRBPT_FrameData)
 		{
 			float frameTime = ((SRecording_FrameData*)startingplace)->frametime - m_playInfo.m_timings.recStart;
@@ -3366,7 +3351,7 @@ void CRecordingSystem::ExtractBulletPositions()
 	m_bulletHoverStartTime = m_playInfo.m_timings.relDeathTime - (frac * m_bulletTravelTime);
 }
 
-void CRecordingSystem::FillOutFPCamera(SRecording_FPChar *cam, float playbacktime)
+void CRecordingSystem::FillOutFPCamera(SRecording_FPChar* cam, float playbacktime)
 {
 	int upperoffset = 0;
 
@@ -3379,7 +3364,7 @@ void CRecordingSystem::FillOutFPCamera(SRecording_FPChar *cam, float playbacktim
 			upperoffset--;
 			break;
 		}
-		
+
 		float fptime = pFPCharData[upperoffset].frametime - m_PlaybackInstanceData.m_remoteStartTime;
 
 		if (fptime > playbacktime)
@@ -3458,7 +3443,7 @@ bool CRecordingSystem::GetVictimPosition(float playbackTime, Vec3& victimPositio
 	return false;
 }
 
-/*static*/ const SRecording_Packet * CRecordingSystem::GetFirstFPActionPacketOfType(const SFirstPersonDataContainer& rFirstPersonData, const SPlaybackInstanceData& rPlaybackInstanceData, uint8 type)
+/*static*/ const SRecording_Packet* CRecordingSystem::GetFirstFPActionPacketOfType(const SFirstPersonDataContainer& rFirstPersonData, const SPlaybackInstanceData& rPlaybackInstanceData, uint8 type)
 {
 	const uint8* pPos = rFirstPersonData.m_firstPersonData + rPlaybackInstanceData.m_firstPersonActionsOffset;
 	while (pPos < rFirstPersonData.m_firstPersonData + rFirstPersonData.m_firstPersonDataSize)
@@ -3479,8 +3464,8 @@ bool CRecordingSystem::GetKillHitPosition(Vec3& killHitPos) const
 	Vec3 victimEntityPos;
 	if (GetVictimPosition(m_playInfo.m_timings.relDeathTime, victimEntityPos))
 	{
-		const SRecording_Packet * pPacket = CRecordingSystem::GetFirstFPActionPacketOfType(m_pPlaybackData->m_FirstPersonDataContainer, m_PlaybackInstanceData, eFPP_KillHitPosition);
-		if(pPacket)
+		const SRecording_Packet* pPacket = CRecordingSystem::GetFirstFPActionPacketOfType(m_pPlaybackData->m_FirstPersonDataContainer, m_PlaybackInstanceData, eFPP_KillHitPosition);
+		if (pPacket)
 		{
 			SRecording_KillHitPosition* pHitPos = (SRecording_KillHitPosition*)pPacket;
 			killHitPos = victimEntityPos + pHitPos->hitRelativePos;
@@ -3493,8 +3478,8 @@ bool CRecordingSystem::GetKillHitPosition(Vec3& killHitPos) const
 
 float CRecordingSystem::GetPlaybackTimeOffset() const
 {
-	const SRecording_Packet * pPacket = CRecordingSystem::GetFirstFPActionPacketOfType(m_pPlaybackData->m_FirstPersonDataContainer, m_PlaybackInstanceData, eFPP_PlaybackTimeOffset);
-	if(pPacket)
+	const SRecording_Packet* pPacket = CRecordingSystem::GetFirstFPActionPacketOfType(m_pPlaybackData->m_FirstPersonDataContainer, m_PlaybackInstanceData, eFPP_PlaybackTimeOffset);
+	if (pPacket)
 	{
 		SRecording_PlaybackTimeOffset* pTimeOffset = (SRecording_PlaybackTimeOffset*)pPacket;
 		return pTimeOffset->timeOffset;
@@ -3527,7 +3512,7 @@ void CRecordingSystem::PlaybackRecordedFirstPersonActions(float playbacktime)
 		case eFPP_RenderNearest:
 			{
 				SRecording_RenderNearest* pRenderPacket = (SRecording_RenderNearest*)pPacket;
-				if(pRenderPacket->frametime <= adjustedTime)
+				if (pRenderPacket->frametime <= adjustedTime)
 				{
 					ApplyRenderNearestChange(pRenderPacket);
 					packetProcessed = true;
@@ -3578,17 +3563,17 @@ void CRecordingSystem::PlaybackRecordedFirstPersonActions(float playbacktime)
 
 void CRecordingSystem::DropTPFrame()
 {
-	uint8 *startingplace = m_pTPDataBuffer;
-	uint8 *endingplace = startingplace + m_tpDataBufferSize;
+	uint8* startingplace = m_pTPDataBuffer;
+	uint8* endingplace = startingplace + m_tpDataBufferSize;
 
-	int frame = 0;	
+	int frame = 0;
 	while (startingplace < endingplace)
 	{
-		SRecording_Packet *packet = (SRecording_Packet *) startingplace;
+		SRecording_Packet* packet = (SRecording_Packet*) startingplace;
 
 		if (packet->type == eRBPT_FrameData)
 		{
-			SRecording_FrameData *sfd = (SRecording_FrameData *) startingplace;			
+			SRecording_FrameData* sfd = (SRecording_FrameData*) startingplace;
 			frame++;
 			if (frame == 2)
 			{
@@ -3603,7 +3588,7 @@ void CRecordingSystem::DropTPFrame()
 	m_tpDataBufferSize = (uint32) (endingplace - startingplace);
 }
 
-void CRecordingSystem::RecordTPCharPacket(IEntity *pEntity, CActor *pActor)
+void CRecordingSystem::RecordTPCharPacket(IEntity* pEntity, CActor* pActor)
 {
 	SRecording_TPChar chr;
 	chr.eid = pEntity->GetId();
@@ -3623,9 +3608,9 @@ void CRecordingSystem::RecordTPCharPacket(IEntity *pEntity, CActor *pActor)
 	ChrVelocityMap::iterator itChrVel = m_chrvelmap.find(chr.eid);
 	if (itChrVel != m_chrvelmap.end())
 		chr.velocity = itChrVel->second;
-	if(pActor->IsDead())
+	if (pActor->IsDead())
 		chr.playerFlags |= eTPF_Dead;
-	if(const SActorStats *pActorStats = pActor->GetActorStats())
+	if (const SActorStats* pActorStats = pActor->GetActorStats())
 	{
 		chr.playerFlags |= (pActorStats->isRagDoll ? eTPF_Ragdoll : 0);
 		chr.playerFlags |= (pActorStats->bStealthKilling ? eTPF_StealthKilling : 0);
@@ -3635,14 +3620,14 @@ void CRecordingSystem::RecordTPCharPacket(IEntity *pEntity, CActor *pActor)
 	if (pActor->IsPlayer())
 	{
 		CPlayer* pPlayer = static_cast<CPlayer*>(pActor);
-		
+
 		if (pPlayer->IsOnGround())
 		{
 			chr.playerFlags |= eTPF_OnGround;
 		}
 	}
 
-	if (pEntity->IsInvisible()||pEntity->IsHidden())
+	if (pEntity->IsInvisible() || pEntity->IsHidden())
 	{
 		chr.playerFlags |= eTPF_Invisible;
 	}
@@ -3650,7 +3635,7 @@ void CRecordingSystem::RecordTPCharPacket(IEntity *pEntity, CActor *pActor)
 	m_pBuffer->AddPacket(chr);
 }
 
-void CRecordingSystem::AddPacket(const SRecording_Packet &packet)
+void CRecordingSystem::AddPacket(const SRecording_Packet& packet)
 {
 	if (CRecordingSystem::KillCamEnabled())
 	{
@@ -3658,7 +3643,7 @@ void CRecordingSystem::AddPacket(const SRecording_Packet &packet)
 	}
 }
 
-void CRecordingSystem::QueueAddPacket(const SRecording_Packet &packet)
+void CRecordingSystem::QueueAddPacket(const SRecording_Packet& packet)
 {
 	if (CRecordingSystem::KillCamEnabled())
 	{
@@ -3675,11 +3660,11 @@ void CRecordingSystem::QueueAddPacket(const SRecording_Packet &packet)
 }
 
 void CRecordingSystem::AddQueuedPackets()
-{	
+{
 	uint8* pPacket = m_pQueuedPackets;
 	while (pPacket < m_pQueuedPackets + m_queuedPacketsSize)
 	{
-		SRecording_Packet &packet = *(SRecording_Packet*)pPacket;
+		SRecording_Packet& packet = *(SRecording_Packet*)pPacket;
 		m_pBuffer->AddPacket(packet);
 		pPacket += packet.size;
 	}
@@ -3687,7 +3672,7 @@ void CRecordingSystem::AddQueuedPackets()
 }
 
 void CRecordingSystem::Update(const float frameTime)
-{	
+{
 #ifdef RECSYS_DEBUG
 	if (CRecordingSystem::KillCamEnabled() && g_pGameCVars->kc_debugStressTest)
 	{
@@ -3700,15 +3685,15 @@ void CRecordingSystem::Update(const float frameTime)
 		else
 			m_stressTestTimer -= frameTime;
 	}
-	if(g_pGameCVars->kc_debugStream)
+	if (g_pGameCVars->kc_debugStream)
 	{
 		m_streamer.DebugStreamData();
 	}
 
-	if(g_pGameCVars->kc_debug==eRSD_General && (IsPlayingBack() || IsPlaybackQueued()))
+	if (g_pGameCVars->kc_debug == eRSD_General && (IsPlayingBack() || IsPlaybackQueued()))
 	{
-		RecSysWatch("Precached Killer FirstPerson Weapon: [%s]", m_playInfo.m_view.streamingWeaponFPModel.c_str() );
-		RecSysWatch("Precached Victim ThirdPerson Weapon: [%s]", m_playInfo.m_view.streamingWeaponTPModel.c_str() );
+		RecSysWatch("Precached Killer FirstPerson Weapon: [%s]", m_playInfo.m_view.streamingWeaponFPModel.c_str());
+		RecSysWatch("Precached Victim ThirdPerson Weapon: [%s]", m_playInfo.m_view.streamingWeaponTPModel.c_str());
 	}
 #endif //RECSYS_DEBUG
 
@@ -3723,9 +3708,9 @@ void CRecordingSystem::Update(const float frameTime)
 		return;
 	}
 
-	if(IsRecording())
+	if (IsRecording())
 	{
-		const float RecordFrequency = 1.f/20.f;
+		const float RecordFrequency = 1.f / 20.f;
 		m_timeSinceLastRecord += frameTime;
 		if (m_timeSinceLastRecord >= RecordFrequency)
 		{
@@ -3736,14 +3721,14 @@ void CRecordingSystem::Update(const float frameTime)
 			RecordSoundParameters();
 			m_timeSinceLastRecord = 0.f;
 		}
-		
+
 		RecordParticleInfo();
 		AddQueuedPackets();
 
-		if(m_recordKillQueue.m_timeTilRecord > 0.f)
+		if (m_recordKillQueue.m_timeTilRecord > 0.f)
 		{
 			m_recordKillQueue.m_timeTilRecord -= frameTime;
-			if(m_recordKillQueue.m_timeTilRecord <= 0.f)
+			if (m_recordKillQueue.m_timeTilRecord <= 0.f)
 			{
 				SaveHighlight(m_recordKillQueue);
 			}
@@ -3757,18 +3742,18 @@ void CRecordingSystem::Update(const float frameTime)
 #endif //RECSYS_DEBUG
 	}
 
-	if(IsRecordingAndNotPlaying())
+	if (IsRecordingAndNotPlaying())
 	{
 		m_timeSinceLastFPRecord += frameTime;
 
 		//This was being done anyway; need to check the view vector to allow us to have higher temporal resolution if required
-		IViewSystem *cvs = gEnv->pGameFramework->GetIViewSystem();
-		IView *activeView = cvs->GetActiveView();
+		IViewSystem* cvs = gEnv->pGameFramework->GetIViewSystem();
+		IView* activeView = cvs->GetActiveView();
 		if (activeView)
 		{
-			const SViewParams *vp = activeView->GetCurrentParams();
+			const SViewParams* vp = activeView->GetCurrentParams();
 			Ang3 currentView = Ang3(vp->rotation);
-			QuatT view( vp->position, vp->rotation );
+			QuatT view(vp->position, vp->rotation);
 
 			Ang3 rotLastFrame = (currentView - m_lastView);
 			float fAngDiff = ((Vec3)rotLastFrame).len();
@@ -3779,12 +3764,12 @@ void CRecordingSystem::Update(const float frameTime)
 
 			bool bRotationOverride = fabsf(fRotSpeed - m_fLastRotSpeed) > kRotationAccelerationThreshold;
 
-			const float RecordFrequency = 1.f/20.f;
+			const float RecordFrequency = 1.f / 20.f;
 
 #if RECSYS_INCREASED_ACCURACY
 			const bool bShotOverride = m_clientShot;
 #else
-			const bool bShotOverride = false;			
+			const bool bShotOverride = false;
 #endif
 
 			if (m_timeSinceLastFPRecord >= RecordFrequency || bRotationOverride || bShotOverride)
@@ -3796,14 +3781,14 @@ void CRecordingSystem::Update(const float frameTime)
 				m_timeSinceLastFPRecord = 0.f;
 			}
 
-			m_lastView				= currentView;
-			m_fLastRotSpeed		= fRotSpeed;
+			m_lastView = currentView;
+			m_fLastRotSpeed = fRotSpeed;
 		}
 	}
 
 	m_streamer.Update(frameTime);
-	
-	if(IsPlaybackQueued())
+
+	if (IsPlaybackQueued())
 	{
 		const float currentTime = gEnv->pTimer->GetFrameStartTime().GetSeconds();
 		const float expectedPlaybackTime = m_playInfo.m_timings.recEnd + m_playInfo.m_request.playbackDelay;
@@ -3811,21 +3796,21 @@ void CRecordingSystem::Update(const float frameTime)
 		m_playInfo.m_view.Precache(timeTilPlayback);
 
 		bool dataReady = m_pPlaybackData && m_pPlaybackData->m_FirstPersonDataContainer.m_firstPersonDataSize;
-		if( !dataReady )
+		if (!dataReady)
 		{
 			SKillCamStreamData* pStreamData = m_streamer.GetExpectedStreamData(m_victim);
-			if(pStreamData)
+			if (pStreamData)
 			{
 				// When the current kill stream is completely received, extract the data ready to be played.
-				if(pStreamData->GetFinalSize())
+				if (pStreamData->GetFinalSize())
 				{
 					ExtractCompleteStreamData(*pStreamData, m_PlaybackInstanceData, m_recordedData.m_FirstPersonDataContainer);
 #ifdef RECSYS_DEBUG
-					if(m_pDebug)
+					if (m_pDebug)
 					{
 						m_pDebug->PrintFirstPersonPacketData(m_recordedData.m_FirstPersonDataContainer.m_firstPersonData, m_recordedData.m_FirstPersonDataContainer.m_firstPersonDataSize, "RecordingSystem: Playback Data Fully Received");
 					}
-#endif //RECSYS_DEBUG
+#endif    //RECSYS_DEBUG
 					// Set the playback data.
 					m_pPlaybackData = &m_recordedData;
 					dataReady = true;
@@ -3842,12 +3827,12 @@ void CRecordingSystem::Update(const float frameTime)
 			}
 		}
 
-		if(dataReady)
+		if (dataReady)
 		{
 			bool bCanPlay = m_hasWinningKillcam && m_bCanPlayWinningKill;
 			if (!m_hasWinningKillcam)
 			{
-				bCanPlay = ( currentTime > expectedPlaybackTime );
+				bCanPlay = (currentTime > expectedPlaybackTime);
 			}
 
 			if (bCanPlay)
@@ -3862,27 +3847,27 @@ void CRecordingSystem::Update(const float frameTime)
 		}
 	}
 
-	if(IsPlayingBack())
+	if (IsPlayingBack())
 	{
-		if(m_playbackSetupStage<ePSS_DONE)
+		if (m_playbackSetupStage < ePSS_DONE)
 		{
 			// Called 8 times over 8 frames.
 			OnPlaybackStart();
-			m_playbackSetupStage = (EPlaybackSetupStage)(m_playbackSetupStage+1);
+			m_playbackSetupStage = (EPlaybackSetupStage)(m_playbackSetupStage + 1);
 		}
-		
-		if( m_tpDataBufferSize <= 0 || m_timeSincePlaybackStart > (m_playInfo.m_timings.recEnd-m_playInfo.m_timings.recStart) )
+
+		if (m_tpDataBufferSize <= 0 || m_timeSincePlaybackStart > (m_playInfo.m_timings.recEnd - m_playInfo.m_timings.recStart))
 		{
 			StopPlayback();
 		}
-		else if(m_playbackSetupStage==ePSS_DONE)
+		else if (m_playbackSetupStage == ePSS_DONE)
 		{
 			UpdatePlayback(frameTime);
 		}
 	}
 }
 
-void CRecordingSystem::RecordFPCameraPos( const QuatT& view, const float fov, IEntity* pLinkedEntity, IActor* pLinkedActor )
+void CRecordingSystem::RecordFPCameraPos(const QuatT& view, const float fov, IEntity* pLinkedEntity, IActor* pLinkedActor)
 {
 	SRecording_FPChar cam;
 	cam.camlocation = view;
@@ -3901,7 +3886,7 @@ void CRecordingSystem::RecordFPCameraPos( const QuatT& view, const float fov, IE
 		cam.relativePosition.t = pLinkedEntity->GetPos() - cam.camlocation.t;
 		cam.relativePosition.q = cam.camlocation.q.GetInverted() * pLinkedEntity->GetRotation();
 
-		if(pLinkedActor)
+		if (pLinkedActor)
 		{
 			CActor* pCActor = static_cast<CActor*>(pLinkedActor);
 			SActorStats* actorStats = pCActor->GetActorStats();
@@ -3913,7 +3898,7 @@ void CRecordingSystem::RecordFPCameraPos( const QuatT& view, const float fov, IE
 				cam.playerFlags |= eFPF_ThirdPerson;
 			SMovementState movementState;
 			pCActor->GetMovementController()->GetMovementState(movementState);
-			if(CWeapon* pWeapon = pCActor->GetWeapon(pCActor->GetCurrentItemId()))
+			if (CWeapon* pWeapon = pCActor->GetWeapon(pCActor->GetCurrentItemId()))
 			{
 				EZoomState zoomState = pWeapon->GetZoomState();
 				if (zoomState == eZS_ZoomingIn || zoomState == eZS_ZoomedIn)
@@ -3958,14 +3943,14 @@ float CRecordingSystem::GetFPCamDataTime()
 	return endTime - startTime;
 }
 
-void CRecordingSystem::RecordFPKillHitPos( IActor& victimActor, const HitInfo& hitInfo )
+void CRecordingSystem::RecordFPKillHitPos(IActor& victimActor, const HitInfo& hitInfo)
 {
 	IEntity* pVictimEntity = victimActor.GetEntity();
-	if(ICharacterInstance* pCharInstance = pVictimEntity->GetCharacter(0))
+	if (ICharacterInstance* pCharInstance = pVictimEntity->GetCharacter(0))
 	{
-		if(ISkeletonPose* pSkeletonPose = pCharInstance->GetISkeletonPose())
+		if (ISkeletonPose* pSkeletonPose = pCharInstance->GetISkeletonPose())
 		{
-			if(IPhysicalEntity* pPhysicalEntity = pSkeletonPose->GetCharacterPhysics())
+			if (IPhysicalEntity* pPhysicalEntity = pSkeletonPose->GetCharacterPhysics())
 			{
 				pe_status_pos physicsPos;
 				physicsPos.partid = hitInfo.partId;
@@ -3977,7 +3962,7 @@ void CRecordingSystem::RecordFPKillHitPos( IActor& victimActor, const HitInfo& h
 						hitPos += physicsPos.q * physicsPos.pGeom->GetCenter();
 					}
 					Vec3 entityLoc(pVictimEntity->GetPos());
-					if(IAnimatedCharacter* pAnimatedCharacter = victimActor.GetAnimatedCharacter())
+					if (IAnimatedCharacter* pAnimatedCharacter = victimActor.GetAnimatedCharacter())
 					{
 						entityLoc = pAnimatedCharacter->GetAnimLocation().t;
 					}
@@ -3993,15 +3978,15 @@ void CRecordingSystem::RecordFPKillHitPos( IActor& victimActor, const HitInfo& h
 	}
 }
 
-bool CRecordingSystem::GetFrameTimes(float &lowerTime, float &upperTime)
+bool CRecordingSystem::GetFrameTimes(float& lowerTime, float& upperTime)
 {
-	uint8 *startingplace = m_pTPDataBuffer;
-	uint8 *endingplace = startingplace + m_tpDataBufferSize;
+	uint8* startingplace = m_pTPDataBuffer;
+	uint8* endingplace = startingplace + m_tpDataBufferSize;
 	bool first = true;
 
 	while (startingplace < endingplace)
 	{
-		SRecording_Packet *packet = (SRecording_Packet *) startingplace;
+		SRecording_Packet* packet = (SRecording_Packet*) startingplace;
 
 		if (packet->type == eRBPT_FrameData)
 		{
@@ -4033,7 +4018,7 @@ void CRecordingSystem::UpdateBulletPosition()
 	{
 		if (m_bulletEntityId == 0 && m_bulletTimePhase == eBTP_Approach)
 		{
-			IEntityClass *pEntityClass = gEnv->pEntitySystem->GetClassRegistry()->GetDefaultClass();
+			IEntityClass* pEntityClass = gEnv->pEntitySystem->GetClassRegistry()->GetDefaultClass();
 
 			SEntitySpawnParams params;
 			params.pClass = pEntityClass;
@@ -4043,19 +4028,19 @@ void CRecordingSystem::UpdateBulletPosition()
 			params.vPosition = m_bulletOrigin;
 			params.qRotation = m_bulletOrientation * Quat::CreateRotationZ(gf_PI);
 
-			params.nFlags |= (ENTITY_FLAG_NEVER_NETWORK_STATIC|ENTITY_FLAG_CLIENT_ONLY);
+			params.nFlags |= (ENTITY_FLAG_NEVER_NETWORK_STATIC | ENTITY_FLAG_CLIENT_ONLY);
 
-			IEntity *pBulletEntity = gEnv->pEntitySystem->SpawnEntity(params, true);
+			IEntity* pBulletEntity = gEnv->pEntitySystem->SpawnEntity(params, true);
 			pBulletEntity->LoadGeometry(0, m_bulletGeometryName);
 			m_bulletEntityId = pBulletEntity->GetId();
 
-			IParticleEffect *pParticleEffect = gEnv->pParticleManager->FindEffect(m_bulletEffectName);
+			IParticleEffect* pParticleEffect = gEnv->pParticleManager->FindEffect(m_bulletEffectName);
 			pBulletEntity->LoadParticleEmitter(1, pParticleEffect);
 
 			m_playInfo.m_view.currView = SPlaybackInfo::eVM_BulletTime;
 			SetTimeScale(g_pGameCVars->kc_bulletTravelTimeScale);
 
-			const CCamera& camera = gEnv->pRenderer->GetCamera();
+			const CCamera& camera = GetISystem()->GetViewCamera();
 			Vec3 relative = camera.GetPosition() - m_bulletTarget;
 			float focusDist = relative.len();
 
@@ -4064,9 +4049,9 @@ void CRecordingSystem::UpdateBulletPosition()
 
 			SetDofFocusDistance(focusDist);
 			/*if (m_projectileType == ePT_Kvolt)
-			{
-				m_kvoltSoundLoop.Play();
-			}*/
+			   {
+			   m_kvoltSoundLoop.Play();
+			   }*/
 
 			CAudioSignalPlayer::JustPlay("Killcam_Tracer");
 		}
@@ -4089,8 +4074,8 @@ void CRecordingSystem::UpdateBulletPosition()
 					// Let's spawn a blood splat particle effect
 					char effectName[] = "bullet.hit_flesh.a";
 					// Randomly change the a into either a, b or c to get a different blood effect each time
-					effectName[sizeof(effectName)-2] = cry_random('a', 'c');
-					IParticleEffect *pParticle = gEnv->pParticleManager->FindEffect(effectName);
+					effectName[sizeof(effectName) - 2] = cry_random('a', 'c');
+					IParticleEffect* pParticle = gEnv->pParticleManager->FindEffect(effectName);
 					if (pParticle)
 					{
 						Vec3 direction = m_bulletOrientation.GetColumn1();
@@ -4136,17 +4121,17 @@ void CRecordingSystem::UpdateBulletPosition()
 							//m_kvoltSoundLoop.Stop();
 						}
 					}
-					const CCamera& camera = gEnv->pRenderer->GetCamera();
+					const CCamera& camera = GetISystem()->GetViewCamera();
 					Vec3 relative = camera.GetPosition() - m_newBulletPosition;
 					focusDist = relative.len();
 				}
 				else
 				{
-					const CCamera& camera = gEnv->pRenderer->GetCamera();
+					const CCamera& camera = GetISystem()->GetViewCamera();
 					Vec3 relative = camera.GetPosition() - m_bulletTarget;
 					focusDist = relative.len();
 				}
-				
+
 				SetDofFocusDistance(focusDist);
 			}
 		}
@@ -4179,25 +4164,25 @@ void CRecordingSystem::UpdatePlayback(const float frameTime)
 	}
 
 #ifdef RECSYS_DEBUG
-	if(g_pGameCVars->kc_debug==eRSD_Particles)
+	if (g_pGameCVars->kc_debug == eRSD_Particles)
 	{
-		for( TReplayParticleMap::const_iterator it=m_replayParticles.begin(), end=m_replayParticles.end(); it!=end; ++it )
+		for (TReplayParticleMap::const_iterator it = m_replayParticles.begin(), end = m_replayParticles.end(); it != end; ++it)
 		{
-			if(IParticleEmitter* pEmitter = it->second)
+			if (IParticleEmitter* pEmitter = it->second)
 			{
 				IEntity* pAtt = gEnv->pEntitySystem->GetEntity(pEmitter->GetAttachedEntityId());
-				RecSysWatch("Effect[%s] Attached[%s:%s]", pEmitter->GetName(), pAtt?pAtt->GetClass()->GetName():"", pAtt?pAtt->GetName():"" );
+				RecSysWatch("Effect[%s] Attached[%s:%s]", pEmitter->GetName(), pAtt ? pAtt->GetClass()->GetName() : "", pAtt ? pAtt->GetName() : "");
 			}
 		}
 	}
 #endif //RECSYS_DEBUG
 
-	const float scaledFrameTime = frameTime*m_timeScale;
+	const float scaledFrameTime = frameTime * m_timeScale;
 	float prevPlaybackStartTime = m_timeSincePlaybackStart;
 	m_timeSincePlaybackStart += scaledFrameTime;
 
 	// Clear the Precached weapons after you have selected them, to avoid hogging memory.
-	if(m_timeSincePlaybackStart > max(m_playInfo.m_timings.relDeathTime-1.5f, 0.2f))
+	if (m_timeSincePlaybackStart > max(m_playInfo.m_timings.relDeathTime - 1.5f, 0.2f))
 	{
 		m_playInfo.m_view.ClearPrecachedWeapons();
 	}
@@ -4213,12 +4198,12 @@ void CRecordingSystem::UpdatePlayback(const float frameTime)
 	}
 
 	// Update game effect timing for fade out.
-	if(m_playInfo.m_view.fadeOut<1.f)
+	if (m_playInfo.m_view.fadeOut < 1.f)
 	{
-		const float fadeOutKillerRate = (m_playInfo.m_view.fadeOutRate*frameTime);
-		m_playInfo.m_view.fadeOut = min(m_playInfo.m_view.fadeOut+fadeOutKillerRate, 1.f);
+		const float fadeOutKillerRate = (m_playInfo.m_view.fadeOutRate * frameTime);
+		m_playInfo.m_view.fadeOut = min(m_playInfo.m_view.fadeOut + fadeOutKillerRate, 1.f);
 	}
-	m_killCamGameEffect.SetRemainingTime( max( min( (m_playInfo.m_timings.recEnd-(m_playInfo.m_timings.recStart+m_timeSincePlaybackStart))-0.1f, (1.f-m_playInfo.m_view.fadeOut)*m_killCamGameEffect.GetFadeOutTimeInv() ),0.f) );
+	m_killCamGameEffect.SetRemainingTime(max(min((m_playInfo.m_timings.recEnd - (m_playInfo.m_timings.recStart + m_timeSincePlaybackStart)) - 0.1f, (1.f - m_playInfo.m_view.fadeOut) * m_killCamGameEffect.GetFadeOutTimeInv()), 0.f));
 
 	FillOutFPCamera(&m_firstPersonCharacter, m_timeSincePlaybackStart);
 	PlaybackRecordedFirstPersonActions(m_timeSincePlaybackStart);
@@ -4243,7 +4228,7 @@ void CRecordingSystem::UpdatePlayback(const float frameTime)
 			IEntity* pKillerEntity = pReplayActor->GetEntity();
 			if (pKillerEntity)
 			{
-				OnPlayerFirstPersonChange(pKillerEntity, pReplayActor->GetGunId(), view.currView==SPlaybackInfo::eVM_FirstPerson);
+				OnPlayerFirstPersonChange(pKillerEntity, pReplayActor->GetGunId(), view.currView == SPlaybackInfo::eVM_FirstPerson);
 			}
 		}
 	}
@@ -4265,7 +4250,7 @@ void CRecordingSystem::UpdatePlayback(const float frameTime)
 
 	const int MaxIterations = g_pGameCVars->kc_maxFramesToPlayAtOnce;
 	int i;
-	for (i=0; i<MaxIterations; i++)
+	for (i = 0; i < MaxIterations; i++)
 	{
 		if (m_timeSincePlaybackStart >= upperTime)
 		{
@@ -4284,8 +4269,8 @@ void CRecordingSystem::InterpolateRecordedPositions(float frameTime, float playb
 	CRY_ASSERT_MESSAGE(lerpValue >= 0.f && lerpValue <= 1.f, "Lerp value should be between 0 and 1");
 
 	int frameCount = -1;
-	uint8 *startingplace = m_pTPDataBuffer;
-	uint8 *endingplace = startingplace + m_tpDataBufferSize;
+	uint8* startingplace = m_pTPDataBuffer;
+	uint8* endingplace = startingplace + m_tpDataBufferSize;
 
 	// Extract out the relevant packets so that they can be processed
 	CryFixedArray<SRecording_TPChar, MAX_RECORDED_PLAYERS> tpCharPackets[2];
@@ -4293,9 +4278,9 @@ void CRecordingSystem::InterpolateRecordedPositions(float frameTime, float playb
 
 	while (startingplace < endingplace)
 	{
-		SRecording_Packet *packet = (SRecording_Packet *) startingplace;
+		SRecording_Packet* packet = (SRecording_Packet*) startingplace;
 
-		switch(packet->type)
+		switch (packet->type)
 		{
 		case eRBPT_FrameData:
 			++frameCount;
@@ -4323,7 +4308,7 @@ ExitLoop:
 	bool foundMatch;
 	// This logic assumes the order of the packets won't change between frames, but it does allow
 	// for removal or insertion of packets
-	for (i=0; i < (int)tpCharPackets[0].size(); ++i)
+	for (i = 0; i < (int)tpCharPackets[0].size(); ++i)
 	{
 		SRecording_TPChar* lowerPacket = &tpCharPackets[0][i];
 		prevJ = j;
@@ -4352,7 +4337,7 @@ ExitLoop:
 
 	i = 0;
 	j = 0;
-	for (i=0; i < (int)entityLocationPackets[0].size(); ++i)
+	for (i = 0; i < (int)entityLocationPackets[0].size(); ++i)
 	{
 		SRecording_EntityLocation* lowerPacket = &entityLocationPackets[0][i];
 		prevJ = j;
@@ -4391,14 +4376,14 @@ float CRecordingSystem::PlaybackRecordedFrame(float frameTime)
 	}
 
 	float recordedFrameTime = 0.f;
-	uint8 *startingplace = m_pTPDataBuffer;
-	uint8 *endingplace = startingplace + m_tpDataBufferSize;
+	uint8* startingplace = m_pTPDataBuffer;
+	uint8* endingplace = startingplace + m_tpDataBufferSize;
 
 	while (startingplace < endingplace)
 	{
-		SRecording_Packet *packet = (SRecording_Packet *) startingplace;
+		SRecording_Packet* packet = (SRecording_Packet*) startingplace;
 
-		switch(packet->type)
+		switch (packet->type)
 		{
 		case eRBPT_FrameData:
 			recordedFrameTime = ((SRecording_FrameData*)startingplace)->frametime - m_playInfo.m_timings.recStart;
@@ -4510,7 +4495,7 @@ float CRecordingSystem::PlaybackRecordedFrame(float frameTime)
 		case eTPP_EntityRemoved:
 			{
 				ApplyEntityRemoved((SRecording_EntityRemoved*)startingplace);
-				break;	
+				break;
 			}
 		case eTPP_EntityLocation:
 			{
@@ -4613,7 +4598,7 @@ float CRecordingSystem::PlaybackRecordedFrame(float frameTime)
 				ApplyPlayerChangedModel((SRecording_PlayerChangedModel*)startingplace);
 			}
 			break;
-		case eTPP_CorpseSpawned:			// Deliberate fall through
+		case eTPP_CorpseSpawned:      // Deliberate fall through
 		case eTPP_CorpseRemoved:
 		case eTPP_PlayerJoined:
 		case eTPP_PlayerLeft:
@@ -4649,7 +4634,7 @@ void CRecordingSystem::PostUpdate()
 			if (itProjectile != m_replayEntities.end())
 			{
 				EntityId replayEntityId = itProjectile->second;
-				IEntity *pReplayEntity = gEnv->pEntitySystem->GetEntity(replayEntityId);
+				IEntity* pReplayEntity = gEnv->pEntitySystem->GetEntity(replayEntityId);
 				if (pReplayEntity)
 				{
 					pReplayEntity->SetPosRotScale(m_newProjectilePosition.t, m_newProjectilePosition.q, Vec3(1.0f));
@@ -4658,7 +4643,7 @@ void CRecordingSystem::PostUpdate()
 		}
 		if (m_bulletEntityId != 0 && !m_newBulletPosition.IsZero())
 		{
-			IEntity *pBulletEntity = gEnv->pEntitySystem->GetEntity(m_bulletEntityId);
+			IEntity* pBulletEntity = gEnv->pEntitySystem->GetEntity(m_bulletEntityId);
 			if (pBulletEntity)
 			{
 				pBulletEntity->SetPos(m_newBulletPosition);
@@ -4671,7 +4656,7 @@ void CRecordingSystem::PostUpdate()
 	}
 }
 
-void CRecordingSystem::UpdateView(SViewParams &viewParams)
+void CRecordingSystem::UpdateView(SViewParams& viewParams)
 {
 #ifdef RECSYS_DEBUG
 	if (g_pGameCVars->g_detachCamera)
@@ -4710,7 +4695,7 @@ void CRecordingSystem::UpdateView(SViewParams &viewParams)
 							}
 							Vec3 camPos = projPos - relative * cameraDist;
 
-							switch(m_projectileType)
+							switch (m_projectileType)
 							{
 							case ePT_Rocket:
 								camPos.z += g_pGameCVars->kc_largeProjectileHeightOffset;
@@ -4728,12 +4713,12 @@ void CRecordingSystem::UpdateView(SViewParams &viewParams)
 								camPos.z += g_pGameCVars->kc_projectileHeightOffset;
 								break;
 							}
-							
+
 							victimFocusPos.z += g_pGameCVars->kc_projectileVictimHeightOffset;
 							Vec3 direction = victimFocusPos - camPos;
 							ray_hit rayHit;
 							// TODO: Could defer this line test if it proves to be a performance problem
-							if (gEnv->pPhysicalWorld->RayWorldIntersection(victimFocusPos, -direction, ent_static|ent_terrain, rwi_stop_at_pierceable, &rayHit, 1))
+							if (gEnv->pPhysicalWorld->RayWorldIntersection(victimFocusPos, -direction, ent_static | ent_terrain, rwi_stop_at_pierceable, &rayHit, 1))
 							{
 								camPos = rayHit.pt + rayHit.n * 0.1f;
 							}
@@ -4781,12 +4766,12 @@ void CRecordingSystem::UpdateView(SViewParams &viewParams)
 		{
 			CReplayActor* pKiller = GetReplayActor(m_killer, true);
 			IEntity* pKillerEntity = pKiller ? pKiller->GetEntity() : NULL;
-			if(pKillerEntity)
+			if (pKillerEntity)
 			{
 				const int slotIndex = 0;
 				const uint32 killerEntityFlags = pKillerEntity->GetSlotFlags(slotIndex);
 
-				if(killerEntityFlags & ENTITY_SLOT_RENDER_NEAREST)
+				if (killerEntityFlags & ENTITY_SLOT_RENDER_NEAREST)
 				{
 					targetCameraPosition.q = m_firstPersonCharacter.camlocation.q /** m_playInfo.m_view.lastSTAPCameraDelta.q*/;
 
@@ -4907,15 +4892,15 @@ void CRecordingSystem::UpdateView(SViewParams &viewParams)
 		const float fFrameTime = gEnv->pTimer->GetFrameTime();
 		const QuatT prevLoc(viewParams.GetPositionLast(), viewParams.GetRotationLast());
 		QuatT smoothedLoc(prevLoc);
-		SmoothCD<Vec3>( smoothedLoc.t, m_playInfo.m_view.camSmoothingRate, fFrameTime, targetCameraPosition.t, g_pGameCVars->kc_smoothing );
-		const Vec3 totalDiff(targetCameraPosition.t-prevLoc.t);
-		const Vec3 appliedDiff(smoothedLoc.t-prevLoc.t);
+		SmoothCD<Vec3>(smoothedLoc.t, m_playInfo.m_view.camSmoothingRate, fFrameTime, targetCameraPosition.t, g_pGameCVars->kc_smoothing);
+		const Vec3 totalDiff(targetCameraPosition.t - prevLoc.t);
+		const Vec3 appliedDiff(smoothedLoc.t - prevLoc.t);
 		const float lenSqr = totalDiff.GetLengthSquared();
-		if(lenSqr>FLT_EPSILON)
+		if (lenSqr > FLT_EPSILON)
 		{
 			viewParams.position = smoothedLoc.t;
 			const float invlen = isqrt_tpl(lenSqr);
-			viewParams.rotation = Quat::CreateNlerp(prevLoc.q, targetCameraPosition.q, (appliedDiff*invlen).Dot(totalDiff*invlen) );
+			viewParams.rotation = Quat::CreateNlerp(prevLoc.q, targetCameraPosition.q, (appliedDiff * invlen).Dot(totalDiff * invlen));
 		}
 		else
 		{
@@ -4938,7 +4923,7 @@ const float CRecordingSystem::CalculateSafeRaiseDistance(const Vec3& pos)
 	// Test if we can raise the camera, in order to prevent tracking through the floor,
 	// e.g. When the victim's body happens to fall off an edge or the camera is following C4.
 	ray_hit rayHit;
-	if (gEnv->pPhysicalWorld->RayWorldIntersection(pos, upVec, ent_static|ent_terrain, rwi_ignore_back_faces, &rayHit, 1))
+	if (gEnv->pPhysicalWorld->RayWorldIntersection(pos, upVec, ent_static | ent_terrain, rwi_ignore_back_faces, &rayHit, 1))
 	{
 		return (rayHit.dist * 0.5f);
 	}
@@ -4955,7 +4940,7 @@ void CRecordingSystem::UpdateFirstPersonPosition()
 		CReplayActor* pReplayActor = GetReplayActor(m_killer, true);
 		if (pReplayActor)
 		{
-			IEntity *replayEntity = pReplayActor->GetEntity();
+			IEntity* replayEntity = pReplayActor->GetEntity();
 			// If this is the killer then we need to synchronise the position with the camera position
 			QuatT entityLocation = m_firstPersonCharacter.camlocation;
 			entityLocation.t += m_firstPersonCharacter.relativePosition.t;
@@ -4971,13 +4956,13 @@ void CRecordingSystem::UpdateFirstPersonPosition()
 			m_weaponParams.skelAnim = pCharacter->GetISkeletonAnim();
 
 			bool isZoomed = false;
-			IGameFramework *pGameFramework = gEnv->pGameFramework;
-			IItemSystem *pItemSystem = pGameFramework->GetIItemSystem();
+			IGameFramework* pGameFramework = gEnv->pGameFramework;
+			IItemSystem* pItemSystem = pGameFramework->GetIItemSystem();
 			bool enableWeaponAim = false;
-			if (IItem *pItem = pItemSystem->GetItem(pReplayActor->GetGunId()))
+			if (IItem* pItem = pItemSystem->GetItem(pReplayActor->GetGunId()))
 			{
 				((CItem*)pItem)->GetFPOffset(viewOffset);
-				CWeapon *pWeapon = static_cast<CWeapon *>(pItem->GetIWeapon());
+				CWeapon* pWeapon = static_cast<CWeapon*>(pItem->GetIWeapon());
 				if (pWeapon)
 				{
 					enableWeaponAim = pWeapon->UpdateAimAnims(m_weaponParams);
@@ -4996,11 +4981,10 @@ void CRecordingSystem::UpdateFirstPersonPosition()
 						}
 					}
 					isZoomed = pWeapon->IsZoomed();
-					m_weaponParams.zoomTransitionFactor = pWeapon->GetZoomTransition();	
+					m_weaponParams.zoomTransitionFactor = pWeapon->GetZoomTransition();
 				}
 			}
 
-			
 			replayEntity->SetPosRotScale(entityLocation.t, entityLocation.q, unitVector);
 
 			if (enableWeaponAim)
@@ -5012,14 +4996,13 @@ void CRecordingSystem::UpdateFirstPersonPosition()
 				m_torsoAimIK.Disable();
 			}
 
-			Vec3 relAimDir		= !entityLocation.q * aimDirection;
-			Vec3 relTorsoPos	= !entityLocation.q * (m_firstPersonCharacter.camlocation.t - entityLocation.t);
+			Vec3 relAimDir = !entityLocation.q * aimDirection;
+			Vec3 relTorsoPos = !entityLocation.q * (m_firstPersonCharacter.camlocation.t - entityLocation.t);
 
 			ICharacterInstance* pShadowCharacter = replayEntity->GetCharacter(CReplayActor::ShadowCharacterSlot);
 			CIKTorsoAim_Helper::SIKTorsoParams IKParams(pCharacter, pShadowCharacter, relAimDir, viewOffset, relTorsoPos);
 			m_torsoAimIK.Update(IKParams);
 
-			
 			if (m_torsoAimIK.GetBlendFactor() > 0.9f)
 			{
 				const QuatT& cameraTran = pReplayActor->GetCameraTran();
@@ -5030,7 +5013,6 @@ void CRecordingSystem::UpdateFirstPersonPosition()
 				m_playInfo.m_view.lastSTAPCameraDelta.SetIdentity();
 			}
 
-
 			float value = 0.0f;
 			gEnv->p3DEngine->GetPostEffectParam(NIGHT_VISION_PE, value);
 			if ((value > 0.0f) != ((m_firstPersonCharacter.playerFlags & eFPF_NightVision) != 0))
@@ -5038,19 +5020,18 @@ void CRecordingSystem::UpdateFirstPersonPosition()
 				gEnv->p3DEngine->SetPostEffectParam(NIGHT_VISION_PE, (m_firstPersonCharacter.playerFlags & eFPF_NightVision) ? 1.0f : 0.0f);
 			}
 
-
 			// This code is mirrored from CPlayer::UpdateFPAiming()
 			m_weaponParams.flags.ClearAllFlags();
 			m_weaponParams.aimDirection = relAimDir;
 			m_weaponParams.groundDistance = fabs_tpl(gEnv->p3DEngine->GetTerrainElevation(entityLocation.t.x, entityLocation.t.y) - entityLocation.t.z);
-			m_weaponParams.flags.AddFlags( (m_firstPersonCharacter.playerFlags & eFPF_OnGround) != 0 ? eWFPAF_onGround : 0 );
-			m_weaponParams.flags.AddFlags( (m_firstPersonCharacter.playerFlags & eFPF_Sprinting) != 0 ? eWFPAF_sprinting : 0 );
-			m_weaponParams.flags.AddFlags( isZoomed ? eWFPAF_zoomed : 0 );
+			m_weaponParams.flags.AddFlags((m_firstPersonCharacter.playerFlags & eFPF_OnGround) != 0 ? eWFPAF_onGround : 0);
+			m_weaponParams.flags.AddFlags((m_firstPersonCharacter.playerFlags & eFPF_Sprinting) != 0 ? eWFPAF_sprinting : 0);
+			m_weaponParams.flags.AddFlags(isZoomed ? eWFPAF_zoomed : 0);
 			m_weaponParams.position = entityLocation.t;
 			m_weaponFPAiming.SetActive(enableWeaponAim);
 			m_weaponFPAiming.Update(m_weaponParams);
 
-			if (CItem *pItem = (CItem*)g_pGame->GetIGameFramework()->GetIItemSystem()->GetItem(pReplayActor->GetGunId()))
+			if (CItem* pItem = (CItem*)g_pGame->GetIGameFramework()->GetIItemSystem()->GetItem(pReplayActor->GetGunId()))
 			{
 				if (pItem->IsMounted())
 				{
@@ -5079,14 +5060,14 @@ void CRecordingSystem::UpdateFirstPersonPosition()
 				}
 			}
 		}
-		else if(m_playbackSetupStage>ePSS_SpawnRecordingSystemActors)
+		else if (m_playbackSetupStage > ePSS_SpawnRecordingSystemActors)
 		{
 			RecSysLogDebug(eRSD_General, "RecordingSystem Could not find killer with ID: %d", m_killer);
 		}
 	}
 }
 
-void CRecordingSystem::UpdateThirdPersonPosition(const SRecording_TPChar *tpchar, float frameTime, float playbackTime, const SRecording_TPChar *tpchar2, float lerpValue)
+void CRecordingSystem::UpdateThirdPersonPosition(const SRecording_TPChar* tpchar, float frameTime, float playbackTime, const SRecording_TPChar* tpchar2, float lerpValue)
 {
 	CReplayActor* pReplayActor = NULL;
 	TReplayActorMap::const_iterator find_iterator = m_replayActors.find(tpchar->eid);
@@ -5095,8 +5076,8 @@ void CRecordingSystem::UpdateThirdPersonPosition(const SRecording_TPChar *tpchar
 		pReplayActor = GetReplayActor(find_iterator->second, false);
 	}
 
-	IEntity *pReplayEntity = NULL;
-	if(pReplayActor)
+	IEntity* pReplayEntity = NULL;
+	if (pReplayActor)
 	{
 		pReplayEntity = pReplayActor->GetEntity();
 	}
@@ -5109,12 +5090,12 @@ void CRecordingSystem::UpdateThirdPersonPosition(const SRecording_TPChar *tpchar
 		}
 	}
 
-	const bool bHasTPFlagsToTriggerRagdoll =	(tpchar->playerFlags&eTPF_Ragdoll) ||
-																						(tpchar->playerFlags&(eTPF_Dead|eTPF_Invisible))==(eTPF_Dead|eTPF_Invisible) ||
-																						(tpchar2 && ( (tpchar2->playerFlags&eTPF_Ragdoll) || (tpchar2->playerFlags&(eTPF_Dead|eTPF_Invisible))==(eTPF_Dead|eTPF_Invisible) ) );
+	const bool bHasTPFlagsToTriggerRagdoll = (tpchar->playerFlags & eTPF_Ragdoll) ||
+	                                         (tpchar->playerFlags & (eTPF_Dead | eTPF_Invisible)) == (eTPF_Dead | eTPF_Invisible) ||
+	                                         (tpchar2 && ((tpchar2->playerFlags & eTPF_Ragdoll) || (tpchar2->playerFlags & (eTPF_Dead | eTPF_Invisible)) == (eTPF_Dead | eTPF_Invisible)));
 
-	const bool shouldBeRagdoll = pReplayActor && ( bHasTPFlagsToTriggerRagdoll || (pReplayActor->m_flags&eRAF_HaveSpawnedMyCorpse) );
-	bool updatePosition = !shouldBeRagdoll && (tpchar->playerFlags&eTPF_Invisible)==0;
+	const bool shouldBeRagdoll = pReplayActor && (bHasTPFlagsToTriggerRagdoll || (pReplayActor->m_flags & eRAF_HaveSpawnedMyCorpse));
+	bool updatePosition = !shouldBeRagdoll && (tpchar->playerFlags & eTPF_Invisible) == 0;
 
 	if (pReplayActor)
 	{
@@ -5130,26 +5111,27 @@ void CRecordingSystem::UpdateThirdPersonPosition(const SRecording_TPChar *tpchar
 
 		uint16 prevRAFlags = pReplayActor->m_flags;
 
-#define SetFlags(o,i,oF,iF) { const uint32 mask = -iszero(i&iF); o = ((o|((~mask)&oF))&~(mask&oF)); }
+#define SetFlags(o, i, oF, iF) { const uint32 mask = -iszero(i & iF); o = ((o | ((~mask) & oF)) & ~(mask & oF)); \
+  }
 
 		SetFlags(pReplayActor->m_flags, tpchar->playerFlags, eRAF_StealthKilling, eTPF_StealthKilling);
 		SetFlags(pReplayActor->m_flags, tpchar->playerFlags, eRAF_Dead, eTPF_Dead);
-	
+
 #undef SetFlags
 
-		if(tpchar->eid==m_killer)
+		if (tpchar->eid == m_killer)
 		{
 			// Just Died.
-			if((prevRAFlags&eRAF_Dead)==0 && (pReplayActor->m_flags&eRAF_Dead)!=0)
+			if ((prevRAFlags & eRAF_Dead) == 0 && (pReplayActor->m_flags & eRAF_Dead) != 0)
 			{
 				static const float fadeOutTime = 0.5f;
-				m_playInfo.m_view.fadeOutRate = 1.f/fadeOutTime;
+				m_playInfo.m_view.fadeOutRate = 1.f / fadeOutTime;
 			}
 
 			// Stopped or started StealthKill.
-			if(((prevRAFlags^pReplayActor->m_flags)&eRAF_StealthKilling)!=0)
+			if (((prevRAFlags ^ pReplayActor->m_flags) & eRAF_StealthKilling) != 0)
 			{
-				if((prevRAFlags&eRAF_StealthKilling)!=0)
+				if ((prevRAFlags & eRAF_StealthKilling) != 0)
 				{
 					SHUDEvent weaponSwitch(eHUDEvent_OnKillCamWeaponSwitch);
 					weaponSwitch.AddData((int)pReplayActor->GetGunId());
@@ -5170,12 +5152,12 @@ void CRecordingSystem::UpdateThirdPersonPosition(const SRecording_TPChar *tpchar
 
 		pReplayActor->SetOnGround((tpchar->playerFlags & eTPF_OnGround) != 0);
 
-		const Vec3 velocity(tpchar2?LERP(tpchar->velocity, tpchar2->velocity, lerpValue):tpchar->velocity);
+		const Vec3 velocity(tpchar2 ? LERP(tpchar->velocity, tpchar2->velocity, lerpValue) : tpchar->velocity);
 		pReplayActor->SetVelocity(velocity);
-		
+
 		if (tpchar->playerFlags & eTPF_Invisible)
 		{
-			if ((pReplayActor->m_flags & (eRAF_Invisible|eRAF_Dead)) == 0)
+			if ((pReplayActor->m_flags & (eRAF_Invisible | eRAF_Dead)) == 0)
 			{
 				HideEntityKeepingPhysics(pReplayEntity, true);
 				pReplayActor->m_flags |= eRAF_Invisible;
@@ -5192,26 +5174,26 @@ void CRecordingSystem::UpdateThirdPersonPosition(const SRecording_TPChar *tpchar
 
 		// Ragdollize or Spawn Corpse.
 		IPhysicalEntity* pPhysicalEntity = pReplayEntity->GetPhysics();
-		bool isRagdoll = (pPhysicalEntity && pPhysicalEntity->GetType()==PE_ARTICULATED);
-		if( isRagdoll != shouldBeRagdoll )
+		bool isRagdoll = (pPhysicalEntity && pPhysicalEntity->GetType() == PE_ARTICULATED);
+		if (isRagdoll != shouldBeRagdoll)
 		{
-			if(shouldBeRagdoll)
+			if (shouldBeRagdoll)
 			{
 				pReplayActor->Ragdollize();
 			}
 			else
 			{
 				// Player is no longer a ragdoll, check if we need to replace with a corpse
-				uint8 *startingplace = m_pPlaybackData->m_tpdatabuffer;		// Annoyingly we can't use the current buffer pos since the packet ordering is not guaranteed
-				uint8 *endingplace = startingplace + m_pPlaybackData->m_tpdatasize;
+				uint8* startingplace = m_pPlaybackData->m_tpdatabuffer;   // Annoyingly we can't use the current buffer pos since the packet ordering is not guaranteed
+				uint8* endingplace = startingplace + m_pPlaybackData->m_tpdatasize;
 				bool bSpawnedCorpse = false;
 				while (startingplace < endingplace)
 				{
-					SRecording_Packet *pPacket = (SRecording_Packet *) startingplace;
+					SRecording_Packet* pPacket = (SRecording_Packet*) startingplace;
 
 					if (pPacket->type == eTPP_CorpseSpawned)
 					{
-						SRecording_CorpseSpawned *pCorpsePacket = (SRecording_CorpseSpawned*) pPacket;
+						SRecording_CorpseSpawned* pCorpsePacket = (SRecording_CorpseSpawned*) pPacket;
 						if (pCorpsePacket->playerId == tpchar->eid)
 						{
 							ApplyCorpseSpawned(pCorpsePacket);
@@ -5239,10 +5221,10 @@ void CRecordingSystem::UpdateThirdPersonPosition(const SRecording_TPChar *tpchar
 		bool fade = true;
 
 		IEntityRender* pIEntityRender = (pReplayEntity->GetRenderInterface());
-		
+
 		{
 			//pIEntityRender->SetEffectLayerParams( tpchar->layerEffectParams );
-			
+
 			bool wasCloaked = false; //((pIEntityRender->GetMaterialLayersMask() & MTL_LAYER_CLOAK) != 0);
 			if (pReplayActor && (isCloaked != wasCloaked))
 			{
@@ -5253,12 +5235,12 @@ void CRecordingSystem::UpdateThirdPersonPosition(const SRecording_TPChar *tpchar
 
 				// Update the player cloak state
 				const EntityId replayEntityId = pReplayEntity->GetId();
-				const bool bIgnoreCloakRefractionColor = (m_killer==tpchar->eid);
-				EntityEffects::Cloak::CloakEntity(replayEntityId,isCloaked,fade,g_pGameCVars->g_cloakBlendSpeedScale,bCloakFadeByDistance,cloakColorChannel,bIgnoreCloakRefractionColor);
+				const bool bIgnoreCloakRefractionColor = (m_killer == tpchar->eid);
+				EntityEffects::Cloak::CloakEntity(replayEntityId, isCloaked, fade, g_pGameCVars->g_cloakBlendSpeedScale, bCloakFadeByDistance, cloakColorChannel, bIgnoreCloakRefractionColor);
 
-				IGameFramework *pGameFramework = gEnv->pGameFramework;
-				IItemSystem *pItemSystem = pGameFramework->GetIItemSystem();
-				if (CItem *pItem = (CItem*)pItemSystem->GetItem(pReplayActor->GetGunId()))
+				IGameFramework* pGameFramework = gEnv->pGameFramework;
+				IItemSystem* pItemSystem = pGameFramework->GetIItemSystem();
+				if (CItem* pItem = (CItem*)pItemSystem->GetItem(pReplayActor->GetGunId()))
 				{
 					// Also update the cloak state of the weapon and its attachments
 					pItem->CloakSync(fade);
@@ -5288,10 +5270,10 @@ void CRecordingSystem::UpdateThirdPersonPosition(const SRecording_TPChar *tpchar
 #ifdef RECSYS_DEBUG
 				if (g_pGameCVars->kc_debugVictimPos)
 				{
-					IRenderAuxGeom* pRender = gEnv->pRenderer->GetIRenderAuxGeom();
-					pRender->DrawCylinder(location.t + Vec3(0, 0, 0.75f), Vec3(0, 0, 1), 0.1f, 1.5f, ColorB(255,0,0,255));
+					IRenderAuxGeom* pRender = gEnv->pAuxGeomRenderer;
+					pRender->DrawCylinder(location.t + Vec3(0, 0, 0.75f), Vec3(0, 0, 1), 0.1f, 1.5f, ColorB(255, 0, 0, 255));
 				}
-#endif //RECSYS_DEBUG
+#endif  //RECSYS_DEBUG
 
 				// Let's use the position of the victim sent from the killer to ensure it looks like the
 				// killer is hitting the player
@@ -5300,13 +5282,13 @@ void CRecordingSystem::UpdateThirdPersonPosition(const SRecording_TPChar *tpchar
 #ifdef RECSYS_DEBUG
 				if (g_pGameCVars->kc_debugVictimPos)
 				{
-					IRenderAuxGeom* pRender = gEnv->pRenderer->GetIRenderAuxGeom();
-					pRender->DrawCylinder(location.t + Vec3(0, 0, 0.75f), Vec3(0, 0, 1), 0.1f, 1.5f, ColorB(255,255,255,255));
+					IRenderAuxGeom* pRender = gEnv->pAuxGeomRenderer;
+					pRender->DrawCylinder(location.t + Vec3(0, 0, 0.75f), Vec3(0, 0, 1), 0.1f, 1.5f, ColorB(255, 255, 255, 255));
 				}
-#endif //RECSYS_DEBUG
+#endif  //RECSYS_DEBUG
 			}
 
-			if(pReplayEntity)
+			if (pReplayEntity)
 			{
 				if (pReplayEntity->IsHidden() && (pReplayActor && !(pReplayActor->m_flags & eRAF_HaveSpawnedMyCorpse)))
 				{
@@ -5321,8 +5303,8 @@ void CRecordingSystem::UpdateThirdPersonPosition(const SRecording_TPChar *tpchar
 			}
 		}
 
-		const bool bCanMoveAndAim = (pReplayActor && !shouldBeRagdoll && updatePosition && (pReplayActor->m_flags&eRAF_HaveSpawnedMyCorpse)==0);
-		if(bCanMoveAndAim)
+		const bool bCanMoveAndAim = (pReplayActor && !shouldBeRagdoll && updatePosition && (pReplayActor->m_flags & eRAF_HaveSpawnedMyCorpse) == 0);
+		if (bCanMoveAndAim)
 		{
 			ICharacterInstance* ici = pReplayEntity->GetCharacter(0);
 			if (ici)
@@ -5353,8 +5335,8 @@ void CRecordingSystem::UpdateThirdPersonPosition(const SRecording_TPChar *tpchar
 
 				velocity = !location.q * velocity;
 
-				SBasicReplayMovementParams* pMovement = pReplayActor?&pReplayActor->GetBasicMovement():NULL;
-				if(pMovement)
+				SBasicReplayMovementParams* pMovement = pReplayActor ? &pReplayActor->GetBasicMovement() : NULL;
+				if (pMovement)
 				{
 					pMovement->SetDesiredLocalLocation2(isa, QuatT(velocity, IDENTITY), 1, frameTime, 1.0f);
 				}
@@ -5376,7 +5358,7 @@ void CRecordingSystem::UpdateThirdPersonPosition(const SRecording_TPChar *tpchar
 						pIPoseBlenderAimShadow->SetTarget(aimTarget);
 						pIPoseBlenderAimShadow->SetPolarCoordinatesSmoothTimeSeconds(0.f);
 					}
-					if(pMovement)
+					if (pMovement)
 					{
 						pMovement->SetDesiredLocalLocation2(pCharacterShadow->GetISkeletonAnim(), QuatT(velocity, IDENTITY), 1, frameTime, 1.0f);
 					}
@@ -5394,7 +5376,7 @@ void CRecordingSystem::CloakEnable(IEntityRender* pIEntityRender, bool enable, b
 {
 }
 
-void CRecordingSystem::ApplyEntitySpawn(const SRecording_EntitySpawn *entitySpawn, float time)
+void CRecordingSystem::ApplyEntitySpawn(const SRecording_EntitySpawn* entitySpawn, float time)
 {
 	if (entitySpawn->pClass == m_pCorpse)
 	{
@@ -5419,7 +5401,7 @@ void CRecordingSystem::ApplyEntitySpawn(const SRecording_EntitySpawn *entitySpaw
 	else
 	{
 		params.pClass = entitySpawn->pClass;
-		if(entitySpawn->pScriptTable)
+		if (entitySpawn->pScriptTable)
 		{
 			entitySpawn->pScriptTable->GetValue("Properties", pPropertiesTable);
 			if (pPropertiesTable)
@@ -5427,17 +5409,17 @@ void CRecordingSystem::ApplyEntitySpawn(const SRecording_EntitySpawn *entitySpaw
 				params.pPropertiesTable = pPropertiesTable;
 			}
 		}
-		
+
 		if (IEntity* pOrigEntity = gEnv->pEntitySystem->GetEntity(entitySpawn->entityId))
 		{
 			params.pArchetype = pOrigEntity->GetArchetype();
 		}
 	}
 	char sName[64];
-	cry_sprintf(sName, "%s%s%d", entitySpawn->useOriginalClass?"Replay":"", params.pClass->GetName(), m_nReplayEntityNumber);
+	cry_sprintf(sName, "%s%s%d", entitySpawn->useOriginalClass ? "Replay" : "", params.pClass->GetName(), m_nReplayEntityNumber);
 	m_nReplayEntityNumber++;
 	params.sName = sName;
-	params.nFlags = (ENTITY_FLAG_NO_PROXIMITY|ENTITY_FLAG_CLIENT_ONLY | entitySpawn->entityFlags);
+	params.nFlags = (ENTITY_FLAG_NO_PROXIMITY | ENTITY_FLAG_CLIENT_ONLY | entitySpawn->entityFlags);
 	params.vPosition = entitySpawn->entitylocation.t;
 	params.qRotation = entitySpawn->entitylocation.q;
 	params.vScale = entitySpawn->entityScale;
@@ -5453,7 +5435,7 @@ void CRecordingSystem::ApplyEntitySpawn(const SRecording_EntitySpawn *entitySpaw
 			return;
 		}
 
-		if(entitySpawn->useOriginalClass)
+		if (entitySpawn->useOriginalClass)
 		{
 			pEntity->EnablePhysics(false);
 		}
@@ -5464,16 +5446,16 @@ void CRecordingSystem::ApplyEntitySpawn(const SRecording_EntitySpawn *entitySpaw
 		{
 			if (pGameObject = (CGameObject*)pEntity->GetProxy(ENTITY_PROXY_USER))
 			{
-				if(pReplayObject = (CReplayObject*)pGameObject->QueryExtension(sClassType))
+				if (pReplayObject = (CReplayObject*)pGameObject->QueryExtension(sClassType))
 				{
 					pReplayObject->SetTimeSinceSpawn(time);
 				}
 			}
 		}
 
-		if(!entitySpawn->useOriginalClass)
+		if (!entitySpawn->useOriginalClass)
 		{
-			for(int i = 0; i < RECORDING_SYSTEM_MAX_SLOTS; i++)
+			for (int i = 0; i < RECORDING_SYSTEM_MAX_SLOTS; i++)
 			{
 				if (entitySpawn->szCharacterSlot[i])
 				{
@@ -5498,7 +5480,7 @@ void CRecordingSystem::ApplyEntitySpawn(const SRecording_EntitySpawn *entitySpaw
 						}
 					}
 
-					pEntity->SetStatObj(pStatObj, i|ENTITY_SLOT_ACTUAL, false);
+					pEntity->SetStatObj(pStatObj, i | ENTITY_SLOT_ACTUAL, false);
 					pEntity->SetSlotFlags(i, entitySpawn->slotFlags[i]);
 				}
 				Matrix34 localTM = IDENTITY;
@@ -5507,47 +5489,47 @@ void CRecordingSystem::ApplyEntitySpawn(const SRecording_EntitySpawn *entitySpaw
 			}
 		}
 
-		if(entitySpawn->pClass == m_pInteractiveObjectExClass)
+		if (entitySpawn->pClass == m_pInteractiveObjectExClass)
 		{
 			TInteractiveObjectAnimationMap::const_iterator result = m_interactiveObjectAnimations.find(entitySpawn->entityId);
-			if(result != m_interactiveObjectAnimations.end())
+			if (result != m_interactiveObjectAnimations.end())
 			{
 				if (m_pDatabaseInteractiveObjects && m_pPlayerControllerDef && pReplayObject && pGameObject)
 				{
-					IMannequin &mannequinSys = gEnv->pGameFramework->GetMannequinInterface();
+					IMannequin& mannequinSys = gEnv->pGameFramework->GetMannequinInterface();
 					SAnimationContext animContext(*m_pPlayerControllerDef);
 
-					IActionController *pActionController = mannequinSys.CreateActionController(pEntity, animContext);
+					IActionController* pActionController = mannequinSys.CreateActionController(pEntity, animContext);
 					const uint32 scopeContextID = PlayerMannequin.contextIDs.SlaveObject;
 					ICharacterInstance* pCharacter = pEntity->GetCharacter(0);
 					TagState fragTags = TAG_STATE_EMPTY;
 
 					// Set up the ActionController to play the correct animation.
 					pActionController->SetScopeContext(scopeContextID, *pEntity, pCharacter, m_pDatabaseInteractiveObjects);
-					if(const CTagDefinition *pTagDef = m_pPlayerControllerDef->GetFragmentTagDef(m_interactFragmentID))
+					if (const CTagDefinition* pTagDef = m_pPlayerControllerDef->GetFragmentTagDef(m_interactFragmentID))
 					{
 						pTagDef->Set(fragTags, result->second.m_interactionTypeTag, true);
 					}
-					IAction *pAction = new TAction<SAnimationContext>(0, m_interactFragmentID, fragTags);
+					IAction* pAction = new TAction<SAnimationContext>(0, m_interactFragmentID, fragTags);
 					pAction->SetOptionIdx(result->second.m_interactionIndex);
 					pActionController->Queue(*pAction);
 
 					// Set the time increments to non-zero to force the ActionController::Update() to drive the animation to the end.
 					// When time increment is zero, animation position will not update. This will be changed to a simpler process by Tom Berry at some point.
 					const uint32 totalScopes = pActionController->GetTotalScopes();
-					for(uint32 s=0; s<totalScopes; s++)
+					for (uint32 s = 0; s < totalScopes; s++)
 					{
 						pActionController->GetScope(s)->IncrementTime(0.001f);
 					}
 					pActionController->Update(1000.0f);
-					
+
 					// "false" here leaves the anim on the transition queue in the animation system so it isn't cleared on pActionController->Release().
 					pActionController->ClearScopeContext(scopeContextID, false);
 
 					pActionController->Release();
 
 					// Activate the Entity. Without this, the animation won't play or process.
-					if(pReplayObject && pGameObject)
+					if (pReplayObject && pGameObject)
 					{
 						pGameObject->EnableUpdateSlot(pReplayObject, 0);
 						pGameObject->SetUpdateSlotEnableCondition(pReplayObject, 0, eUEC_Always);
@@ -5559,7 +5541,7 @@ void CRecordingSystem::ApplyEntitySpawn(const SRecording_EntitySpawn *entitySpaw
 		if (entitySpawn->hidden)
 			HideItem(pEntity, true);
 
-		if(entitySpawn->pMaterial)
+		if (entitySpawn->pMaterial)
 		{
 			pEntity->SetMaterial(entitySpawn->pMaterial);
 		}
@@ -5573,11 +5555,11 @@ void CRecordingSystem::ApplyEntitySpawn(const SRecording_EntitySpawn *entitySpaw
 	}
 }
 
-void CRecordingSystem::ApplyEntityRemoved(const SRecording_EntityRemoved *entityRemoved)
+void CRecordingSystem::ApplyEntityRemoved(const SRecording_EntityRemoved* entityRemoved)
 {
-	if(CReplayActor* pReplayActor = GetReplayActor(entityRemoved->entityId, true))
+	if (CReplayActor* pReplayActor = GetReplayActor(entityRemoved->entityId, true))
 	{
-		if((pReplayActor->m_flags&eRAF_HaveSpawnedMyCorpse)!=0)
+		if ((pReplayActor->m_flags & eRAF_HaveSpawnedMyCorpse) != 0)
 		{
 			return;
 		}
@@ -5592,7 +5574,7 @@ void CRecordingSystem::ApplyEntityRemoved(const SRecording_EntityRemoved *entity
 	}
 }
 
-void CRecordingSystem::ApplyEntityLocation(const SRecording_EntityLocation *entityLocation, const SRecording_EntityLocation *entityLocation2, float lerpValue)
+void CRecordingSystem::ApplyEntityLocation(const SRecording_EntityLocation* entityLocation, const SRecording_EntityLocation* entityLocation2, float lerpValue)
 {
 	QuatT location;
 	if (entityLocation2)
@@ -5610,7 +5592,7 @@ void CRecordingSystem::ApplyEntityLocation(const SRecording_EntityLocation *enti
 		if (itEntity != m_replayEntities.end())
 		{
 			EntityId replayEntityId = itEntity->second;
-			if(IEntity *pReplayEntity = gEnv->pEntitySystem->GetEntity(replayEntityId))
+			if (IEntity* pReplayEntity = gEnv->pEntitySystem->GetEntity(replayEntityId))
 			{
 				if (pReplayEntity->GetClass() != m_pCorpse)
 				{
@@ -5626,7 +5608,7 @@ void CRecordingSystem::ApplyEntityLocation(const SRecording_EntityLocation *enti
 	}
 }
 
-void CRecordingSystem::ApplyEntityHide(const SRecording_EntityHide *entityHide)
+void CRecordingSystem::ApplyEntityHide(const SRecording_EntityHide* entityHide)
 {
 	IEntity* pReplayEntity = GetReplayEntity(entityHide->entityId);
 	if (pReplayEntity)
@@ -5643,7 +5625,7 @@ void CRecordingSystem::HideItem(IEntity* pEntity, bool hide)
 	{
 		const CItem::TAccessoryArray& accessories = pItem->GetAccessories();
 		const int numAccessories = accessories.size();
-		for(int i = 0; i < numAccessories; i++)
+		for (int i = 0; i < numAccessories; i++)
 		{
 			IEntity* pAccessory = gEnv->pEntitySystem->GetEntity(accessories[i].accessoryId);
 			if (pAccessory)
@@ -5682,7 +5664,7 @@ const STracerParams* CRecordingSystem::GetKillerTracerParams()
 	return NULL;
 }
 
-void CRecordingSystem::ApplySpawnCustomParticle(const SRecording_SpawnCustomParticle *spawnCustomParticle)
+void CRecordingSystem::ApplySpawnCustomParticle(const SRecording_SpawnCustomParticle* spawnCustomParticle)
 {
 	if (spawnCustomParticle->pParticleEffect)
 	{
@@ -5690,7 +5672,7 @@ void CRecordingSystem::ApplySpawnCustomParticle(const SRecording_SpawnCustomPart
 	}
 }
 
-bool CRecordingSystem::ApplyParticleCreated(const SRecording_ParticleCreated *particleCreated, float time)
+bool CRecordingSystem::ApplyParticleCreated(const SRecording_ParticleCreated* particleCreated, float time)
 {
 	bool success = false;
 	if (particleCreated->pParticleEffect)
@@ -5711,10 +5693,10 @@ bool CRecordingSystem::ApplyParticleCreated(const SRecording_ParticleCreated *pa
 			TReplayEntityMap::iterator itReplayEntity = m_replayEntities.find(particleCreated->entityId);
 			if (itReplayEntity != m_replayEntities.end())
 			{
-				IEntity *pEntity = gEnv->pEntitySystem->GetEntity(itReplayEntity->second);
+				IEntity* pEntity = gEnv->pEntitySystem->GetEntity(itReplayEntity->second);
 				if (pEntity)
 				{
-					if(pEntity->GetWorldPos().IsZero())
+					if (pEntity->GetWorldPos().IsZero())
 					{
 						pEntity->SetWorldTM(Matrix34(particleCreated->location));
 					}
@@ -5743,7 +5725,7 @@ bool CRecordingSystem::ApplyParticleCreated(const SRecording_ParticleCreated *pa
 			{
 				// The particle effect is not attached to any entity
 				IParticleEmitter* pParticleEmitter = pParticleEffect->Spawn(false, particleCreated->location);
-				if(pParticleEmitter)
+				if (pParticleEmitter)
 				{
 					// We need to keep track of it so that it can be removed at the right time
 					m_replayParticles[particleCreated->pParticleEmitter] = pParticleEmitter;
@@ -5756,7 +5738,7 @@ bool CRecordingSystem::ApplyParticleCreated(const SRecording_ParticleCreated *pa
 	return success;
 }
 
-void CRecordingSystem::ApplyParticleDeleted(const SRecording_ParticleDeleted *particleDeleted)
+void CRecordingSystem::ApplyParticleDeleted(const SRecording_ParticleDeleted* particleDeleted)
 {
 	TReplayParticleMap::iterator itParticle = m_replayParticles.find(particleDeleted->pParticleEmitter);
 	if (itParticle != m_replayParticles.end())
@@ -5768,7 +5750,7 @@ void CRecordingSystem::ApplyParticleDeleted(const SRecording_ParticleDeleted *pa
 	}
 }
 
-void CRecordingSystem::ApplyParticleLocation(const SRecording_ParticleLocation *particleLocation)
+void CRecordingSystem::ApplyParticleLocation(const SRecording_ParticleLocation* particleLocation)
 {
 	TReplayParticleMap::iterator itParticle = m_replayParticles.find(particleLocation->pParticleEmitter);
 	if (itParticle != m_replayParticles.end())
@@ -5778,7 +5760,7 @@ void CRecordingSystem::ApplyParticleLocation(const SRecording_ParticleLocation *
 	}
 }
 
-void CRecordingSystem::ApplyParticleTarget(const SRecording_ParticleTarget *particleTarget)
+void CRecordingSystem::ApplyParticleTarget(const SRecording_ParticleTarget* particleTarget)
 {
 	TReplayParticleMap::iterator itParticle = m_replayParticles.find(particleTarget->pParticleEmitter);
 	if (itParticle != m_replayParticles.end())
@@ -5795,7 +5777,7 @@ void CRecordingSystem::ApplyParticleTarget(const SRecording_ParticleTarget *part
 }
 
 #ifdef RECSYS_DEBUG
-bool CRecordingSystem::OnInputEvent(const SInputEvent &rInputEvent)
+bool CRecordingSystem::OnInputEvent(const SInputEvent& rInputEvent)
 {
 	if (gEnv->pConsole->IsOpened() || !CRecordingSystem::KillCamEnabled() || !g_pGameCVars->kc_debug)
 		return false;
@@ -5845,10 +5827,10 @@ bool CRecordingSystem::OnInputEvent(const SInputEvent &rInputEvent)
 	return false;
 }
 
-void CRecordingSystem::DebugStoreHighlight( const float length, const int highlightIndex )
+void CRecordingSystem::DebugStoreHighlight(const float length, const int highlightIndex)
 {
 	const float currTime = gEnv->pTimer->GetFrameStartTime().GetSeconds();
-	const float startTime = currTime-length;
+	const float startTime = currTime - length;
 	SKillInfo kill;
 	kill.deathTime = startTime + g_pGameCVars->kc_kickInTime;
 	kill.killerId = gEnv->pGameFramework->GetClientActorId();
@@ -5863,13 +5845,13 @@ SRecordingEntity::EEntityType CRecordingSystem::RecordEntitySpawn(IEntity* pEnti
 {
 	SRecording_EntitySpawn entitySpawn;
 	entitySpawn.pClass = pEntity->GetClass();
-	entitySpawn.entityFlags = pEntity->GetFlags() & ENTITY_FLAG_CASTSHADOW;	// Just record certain flags (just shadow casting for now)
+	entitySpawn.entityFlags = pEntity->GetFlags() & ENTITY_FLAG_CASTSHADOW; // Just record certain flags (just shadow casting for now)
 	entitySpawn.entitylocation.t = pEntity->GetWorldPos();
 	entitySpawn.entitylocation.q = pEntity->GetWorldRotation();
 	entitySpawn.entityScale = pEntity->GetScale();
 	entitySpawn.entityId = pEntity->GetId();
 	entitySpawn.hidden = pEntity->IsHidden();
-	if(entitySpawn.pMaterial = pEntity->GetMaterial())
+	if (entitySpawn.pMaterial = pEntity->GetMaterial())
 	{
 		entitySpawn.pMaterial->AddRef();
 	}
@@ -5877,7 +5859,7 @@ SRecordingEntity::EEntityType CRecordingSystem::RecordEntitySpawn(IEntity* pEnti
 	RecordEntitySpawnGeometry(&entitySpawn, pEntity);
 
 	SRecordingEntity::EEntityType entityType = SRecordingEntity::eET_Generic;
-	CActor *pActor = (CActor*)gEnv->pGameFramework->GetIActorSystem()->GetActor(pEntity->GetId());
+	CActor* pActor = (CActor*)gEnv->pGameFramework->GetIActorSystem()->GetActor(pEntity->GetId());
 	if (pActor)
 	{
 		// If it is an actor then record the initial weapon
@@ -5915,12 +5897,12 @@ SRecordingEntity::EEntityType CRecordingSystem::RecordEntitySpawn(IEntity* pEnti
 void CRecordingSystem::UpdateEntitySpawnGeometry(IEntity* pEntity)
 {
 	const EntityId entityId = pEntity->GetId();
-	for (CRecordingBuffer::iterator it=m_pBuffer->begin(), end=m_pBuffer->end(); it!=end; ++it)
+	for (CRecordingBuffer::iterator it = m_pBuffer->begin(), end = m_pBuffer->end(); it != end; ++it)
 	{
-		if(it->type == eTPP_EntitySpawn)
+		if (it->type == eTPP_EntitySpawn)
 		{
 			SRecording_EntitySpawn* pEntitySpawn = (SRecording_EntitySpawn*)&*it;
-			if(pEntitySpawn->entityId==entityId)
+			if (pEntitySpawn->entityId == entityId)
 			{
 				ClearEntitySpawnGeometry(pEntitySpawn);
 				RecordEntitySpawnGeometry(pEntitySpawn, pEntity);
@@ -5931,7 +5913,7 @@ void CRecordingSystem::UpdateEntitySpawnGeometry(IEntity* pEntity)
 	if (itDiscarded != m_recordedData.m_discardedEntitySpawns.end())
 	{
 		SRecording_EntitySpawn* pEntitySpawn = &itDiscarded->second.first;
-		if(pEntitySpawn->entityId==entityId)
+		if (pEntitySpawn->entityId == entityId)
 		{
 			ClearEntitySpawnGeometry(pEntitySpawn);
 			RecordEntitySpawnGeometry(pEntitySpawn, pEntity);
@@ -5942,7 +5924,7 @@ void CRecordingSystem::UpdateEntitySpawnGeometry(IEntity* pEntity)
 void CRecordingSystem::ClearEntitySpawnGeometry(SRecording_EntitySpawn* pEntitySpawn)
 {
 	// Clear out the existing geometry from the spawn packet
-	for (int i=0; i<RECORDING_SYSTEM_MAX_SLOTS; ++i)
+	for (int i = 0; i < RECORDING_SYSTEM_MAX_SLOTS; ++i)
 	{
 		if (pEntitySpawn->pStatObj[i])
 		{
@@ -5965,21 +5947,21 @@ void CRecordingSystem::RecordEntitySpawnGeometry(SRecording_EntitySpawn* pEntity
 	if (numSlots > RECORDING_SYSTEM_MAX_SLOTS)
 	{
 		CryWarning(VALIDATOR_MODULE_GAME, VALIDATOR_WARNING, "CRecordingSystem::RecordEntitySpawn, %s has %d slots but only recording %d of them",
-			pEntity->GetClass()->GetName(), numSlots, RECORDING_SYSTEM_MAX_SLOTS);
+		           pEntity->GetClass()->GetName(), numSlots, RECORDING_SYSTEM_MAX_SLOTS);
 	}
 
 	int maxSlots = min(numSlots, RECORDING_SYSTEM_MAX_SLOTS);
 
 	enum EScaling
 	{
-		eS_INVALID		= 0,
-		eS_NotScaled	= 1,
-		eS_Scaled			= 2
+		eS_INVALID   = 0,
+		eS_NotScaled = 1,
+		eS_Scaled    = 2
 	};
 
-	EScaling	currentScaling	= eS_INVALID;
-	float			fFoundScale			= 0.0f;
-	for (int i=0; i<maxSlots; ++i)
+	EScaling currentScaling = eS_INVALID;
+	float fFoundScale = 0.0f;
+	for (int i = 0; i < maxSlots; ++i)
 	{
 		if (pEntity->GetSlotInfo(i, slotInfo))
 		{
@@ -5999,18 +5981,18 @@ void CRecordingSystem::RecordEntitySpawnGeometry(SRecording_EntitySpawn* pEntity
 			const float fScaleXSqr = slotInfo.pLocalTM->GetColumn0().GetLengthSquared();
 			const float fScaleYSqr = slotInfo.pLocalTM->GetColumn1().GetLengthSquared();
 			const float fScaleZSqr = slotInfo.pLocalTM->GetColumn2().GetLengthSquared();
-			if(fabsf(1.f-fScaleXSqr) > 0.001f && fabsf(fScaleXSqr-fScaleYSqr) < 0.001f && fabsf(fScaleXSqr-fScaleZSqr) < 0.001f )
+			if (fabsf(1.f - fScaleXSqr) > 0.001f && fabsf(fScaleXSqr - fScaleYSqr) < 0.001f && fabsf(fScaleXSqr - fScaleZSqr) < 0.001f)
 			{
 				CRY_ASSERT_MESSAGE(currentScaling != eS_NotScaled, "A previous slot has no scaling, but this one does!");
 
-				if(currentScaling == eS_INVALID)
+				if (currentScaling == eS_INVALID)
 				{
 					const float fScaleX = sqrtf(fScaleXSqr);
 					fFoundScale = fScaleX;
 					pEntitySpawn->entityScale *= fScaleX;
 					currentScaling = eS_Scaled;
 				}
-				else if(currentScaling == eS_Scaled )
+				else if (currentScaling == eS_Scaled)
 				{
 					CRY_ASSERT_MESSAGE(fabsf(sqr(fFoundScale) - fScaleXSqr) < 0.001f, "More than one different scale being applied to entity slots");
 				}
@@ -6018,22 +6000,22 @@ void CRecordingSystem::RecordEntitySpawnGeometry(SRecording_EntitySpawn* pEntity
 			else
 			{
 				CRY_ASSERT_MESSAGE(currentScaling == eS_NotScaled || currentScaling == eS_INVALID, "Non scaled slot on the same render proxy as a scaled slot");
-				currentScaling = eS_NotScaled;				
+				currentScaling = eS_NotScaled;
 			}
 		}
 	}
 
 #if defined(_DEBUG)
 	bool geometryFound = false;
-	for (int i=0; i<maxSlots; ++i)
+	for (int i = 0; i < maxSlots; ++i)
 	{
-		if (pEntitySpawn->pStatObj[i] ||  pEntitySpawn->szCharacterSlot[i])
+		if (pEntitySpawn->pStatObj[i] || pEntitySpawn->szCharacterSlot[i])
 		{
 			geometryFound = true;
 			break;
 		}
 	}
-	if(!geometryFound && m_validWithNoGeometry.count(pEntitySpawn->pClass)==0)
+	if (!geometryFound && m_validWithNoGeometry.count(pEntitySpawn->pClass) == 0)
 	{
 		RecSysLog("Tried to record geometry spawn for class[%s]. If this class can validly contain no geometry, please add it to the \"NoGeometryValid\" block in KillCam.xml", pEntitySpawn->pClass->GetName());
 		CRY_ASSERT_MESSAGE(false, "Neither a character nor a statobj found in the entity.");
@@ -6046,12 +6028,12 @@ void CRecordingSystem::RecordActorWeapon()
 	std::vector<EntityId>::iterator itEntity;
 	for (itEntity = m_newActorEntities.begin(); itEntity != m_newActorEntities.end(); ++itEntity)
 	{
-		CActor *pActor = (CActor*)gEnv->pGameFramework->GetIActorSystem()->GetActor(*itEntity);
+		CActor* pActor = (CActor*)gEnv->pGameFramework->GetIActorSystem()->GetActor(*itEntity);
 		if (pActor)
 		{
 			// If it is an actor then record the initial weapon
 			EntityId itemId = pActor->GetCurrentItemId(false);
-			CWeapon *pCurrentWeapon = pActor->GetWeapon(itemId);
+			CWeapon* pCurrentWeapon = pActor->GetWeapon(itemId);
 			if (pCurrentWeapon)
 			{
 				RecordWeaponSelection(pCurrentWeapon, true);
@@ -6087,13 +6069,13 @@ void CRecordingSystem::RecordWeaponAccessories(CItem* pItem)
 	weaponAccessories.weaponId = pItem->GetEntityId();
 	const CItem::TAccessoryArray& accessories = pItem->GetAccessories();
 	const int numAccessories = accessories.size();
-	
+
 	if (numAccessories == 0)
 	{
 		return;
 	}
-	
-	for (int i=0; i<MAX_WEAPON_ACCESSORIES; i++)
+
+	for (int i = 0; i < MAX_WEAPON_ACCESSORIES; i++)
 	{
 		if (i < numAccessories)
 		{
@@ -6108,7 +6090,7 @@ void CRecordingSystem::RecordWeaponAccessories(CItem* pItem)
 	m_pBuffer->AddPacket(weaponAccessories);
 }
 
-void CRecordingSystem::RecordWeaponSelection(CWeapon *pWeapon, bool selected)
+void CRecordingSystem::RecordWeaponSelection(CWeapon* pWeapon, bool selected)
 {
 	if (m_replayEventGuard == 0)
 	{
@@ -6126,23 +6108,23 @@ void CRecordingSystem::RecordWeaponSelection(CWeapon *pWeapon, bool selected)
 
 void CRecordingSystem::RecordEntityInfo()
 {
-	for( TRecEntitiesMap::iterator it=m_recordingEntities.begin(), end=m_recordingEntities.end(); it!=end; )
+	for (TRecEntitiesMap::iterator it = m_recordingEntities.begin(), end = m_recordingEntities.end(); it != end; )
 	{
 		SRecordingEntity& recEnt = it->second;
-		if(IEntity* pEntity = gEnv->pEntitySystem->GetEntity(recEnt.entityId))
+		if (IEntity* pEntity = gEnv->pEntitySystem->GetEntity(recEnt.entityId))
 		{
-			if(recEnt.type == SRecordingEntity::eET_Actor)
+			if (recEnt.type == SRecordingEntity::eET_Actor)
 			{
 				// If this entity is an actor then record it as a TPChar packet which contains more information
 				// such as cloak state, aim IK and velocity
-				CActor *pActor = (CActor*)gEnv->pGameFramework->GetIActorSystem()->GetActor(recEnt.entityId);
+				CActor* pActor = (CActor*)gEnv->pGameFramework->GetIActorSystem()->GetActor(recEnt.entityId);
 				if (pActor)
 				{
 					RecordTPCharPacket(pEntity, pActor);
 				}
 			}
 			// Don't record the location of hidden entities.
-			else if(recEnt.hiddenState==SRecordingEntity::eHS_Unhide)
+			else if (recEnt.hiddenState == SRecordingEntity::eHS_Unhide)
 			{
 				Matrix34 currentTM = pEntity->GetWorldTM();
 				currentTM.OrthonormalizeFast();
@@ -6151,7 +6133,7 @@ void CRecordingSystem::RecordEntityInfo()
 				// Don't record the position of entities which have not moved since the last frame
 				if (currentLocation.t != recEnt.location.t || currentLocation.q != recEnt.location.q)
 				{
-					IItem *pItem = NULL;
+					IItem* pItem = NULL;
 					if (recEnt.type == SRecordingEntity::eET_Item)
 					{
 						pItem = gEnv->pGameFramework->GetIItemSystem()->GetItem(recEnt.entityId);
@@ -6185,19 +6167,19 @@ void CRecordingSystem::RecordEntityInfo()
 	std::vector<SRecordingAnimObject>::iterator itAnimObject;
 	for (itAnimObject = m_recordingAnimEntities.begin(); itAnimObject != m_recordingAnimEntities.end(); )
 	{
-		IEntity *pEntity = gEnv->pEntitySystem->GetEntity(itAnimObject->entityId);
+		IEntity* pEntity = gEnv->pEntitySystem->GetEntity(itAnimObject->entityId);
 		if (pEntity)
 		{
-			ICharacterInstance *pCharacter = pEntity->GetCharacter(0);
+			ICharacterInstance* pCharacter = pEntity->GetCharacter(0);
 			if (pCharacter)
 			{
-				ISkeletonAnim *pSkeletonAnim = pCharacter->GetISkeletonAnim();
+				ISkeletonAnim* pSkeletonAnim = pCharacter->GetISkeletonAnim();
 				if (pSkeletonAnim)
 				{
 					int numAnims = pSkeletonAnim->GetNumAnimsInFIFO(0);
 					if (numAnims)
 					{
-						CAnimation &anim = pSkeletonAnim->GetAnimFromFIFO(0, 0);
+						CAnimation& anim = pSkeletonAnim->GetAnimFromFIFO(0, 0);
 						float time = pSkeletonAnim->GetLayerNormalizedTime(0);
 
 						if ((itAnimObject->animId != anim.GetAnimationId()) || (itAnimObject->fTime != time))
@@ -6214,7 +6196,7 @@ void CRecordingSystem::RecordEntityInfo()
 					}
 				}
 			}
-			++ itAnimObject;
+			++itAnimObject;
 		}
 		else
 		{
@@ -6228,7 +6210,7 @@ void CRecordingSystem::RecordParticleInfo()
 	std::vector<SRecording_ParticleCreated>::iterator itParticle;
 	for (itParticle = m_newParticles.begin(); itParticle != m_newParticles.end(); ++itParticle)
 	{
-		SRecording_ParticleCreated &particle = *itParticle;
+		SRecording_ParticleCreated& particle = *itParticle;
 		IParticleEmitter* pEmitter = particle.pParticleEmitter;
 
 		if (IsPlayingBack())
@@ -6245,18 +6227,18 @@ void CRecordingSystem::RecordParticleInfo()
 			{
 				// Record if the particle is attached to any entity or not
 #ifdef RECSYS_DEBUG
-				if(IEntity* pParentEntity = gEnv->pEntitySystem->GetEntity(pEmitter->GetAttachedEntityId()))
+				if (IEntity* pParentEntity = gEnv->pEntitySystem->GetEntity(pEmitter->GetAttachedEntityId()))
 				{
 					RecSysLogDebug(eRSD_Particles, "Emitter[%s: %s] Attached to Entity[%s: %s]", particle.pParticleEffect->GetName(), particle.pParticleEmitter->GetName(), pParentEntity->GetClass()->GetName(), pParentEntity->GetName());
-					RecSysLogDebugIf(eRSD_General, 
-						(m_recordingEntities.find(pEmitter->GetAttachedEntityId())==m_recordingEntities.end()),
-							"NOT RECORDING PARENT ENTITY[%s: %s] FOR PARTICLE[%s: %s]!",
-							pParentEntity->GetClass()->GetName(), pParentEntity->GetName(),
-							particle.pParticleEffect->GetName(), particle.pParticleEmitter->GetName());
+					RecSysLogDebugIf(eRSD_General,
+					                 (m_recordingEntities.find(pEmitter->GetAttachedEntityId()) == m_recordingEntities.end()),
+					                 "NOT RECORDING PARENT ENTITY[%s: %s] FOR PARTICLE[%s: %s]!",
+					                 pParentEntity->GetClass()->GetName(), pParentEntity->GetName(),
+					                 particle.pParticleEffect->GetName(), particle.pParticleEmitter->GetName());
 				}
-#endif //RECSYS_DEBUG
+#endif  //RECSYS_DEBUG
 				particle.entityId = pEmitter->GetAttachedEntityId();
-				if(IEntity* pParentEntity = gEnv->pEntitySystem->GetEntity(particle.entityId))
+				if (IEntity* pParentEntity = gEnv->pEntitySystem->GetEntity(particle.entityId))
 				{
 					particle.location = QuatTS(pParentEntity->GetWorldTM());
 				}
@@ -6269,28 +6251,28 @@ void CRecordingSystem::RecordParticleInfo()
 	m_newParticles.clear();
 }
 
-bool CRecordingSystem::OnBeforeSpawn(SEntitySpawnParams &params)
+bool CRecordingSystem::OnBeforeSpawn(SEntitySpawnParams& params)
 {
 	CRY_ASSERT_MESSAGE(false, "Shouldn't be getting these events");
 	return true;
 }
 
-void CRecordingSystem::OnSpawn(IEntity *pEntity, SEntitySpawnParams &params)
+void CRecordingSystem::OnSpawn(IEntity* pEntity, SEntitySpawnParams& params)
 {
-	if(!IsRecording())
+	if (!IsRecording())
 		return;
-	
+
 	const EntityId entityId = pEntity->GetId();
 
 	static const IEntityClass* kPlayerClass = gEnv->pEntitySystem->GetClassRegistry()->FindClass("Player");
-	const bool bIsPlayer = params.pClass==kPlayerClass;
-	if(!m_replayEventGuard && (m_recordEntityClassFilter.count(params.pClass)))
+	const bool bIsPlayer = params.pClass == kPlayerClass;
+	if (!m_replayEventGuard && (m_recordEntityClassFilter.count(params.pClass)))
 	{
-		AddRecordingEntity( pEntity, bIsPlayer ? SRecordingEntity::eET_Actor : RecordEntitySpawn(pEntity) );
+		AddRecordingEntity(pEntity, bIsPlayer ? SRecordingEntity::eET_Actor : RecordEntitySpawn(pEntity));
 	}
 	else
 	{
-		if(!m_replayEventGuard)
+		if (!m_replayEventGuard)
 		{
 			RecSysLogDebug(eRSD_General, "Not recording Entity spawn of Class[%s:%s]", params.pClass->GetName(), pEntity->GetName());
 		}
@@ -6301,18 +6283,18 @@ void CRecordingSystem::OnSpawn(IEntity *pEntity, SEntitySpawnParams &params)
 	}
 }
 
-bool CRecordingSystem::OnRemove(IEntity *pEntity)
+bool CRecordingSystem::OnRemove(IEntity* pEntity)
 {
-	if (IsRecording() && m_recordEntityClassFilter.count(pEntity->GetClass()) )
+	if (IsRecording() && m_recordEntityClassFilter.count(pEntity->GetClass()))
 	{
 		RecSysLogDebug(eRSD_General, "Removing entity (%s) of type: %s", pEntity->GetName(), pEntity->GetClass()->GetName());
 		RecSysLogDebug(eRSD_Visibility, "Removing entity (%s) of type: %s", pEntity->GetName(), pEntity->GetClass()->GetName());
 		EntityId removedEntityId = pEntity->GetId();
 		TRecEntitiesMap::iterator find = m_recordingEntities.find(removedEntityId);
-		if(find!=m_recordingEntities.end())
+		if (find != m_recordingEntities.end())
 		{
 			static const IEntityClass* kPlayerClass = gEnv->pEntitySystem->GetClassRegistry()->FindClass("Player");
-			if(pEntity->GetClass()!=kPlayerClass)
+			if (pEntity->GetClass() != kPlayerClass)
 			{
 				SRecording_EntityRemoved entityRemoved;
 				entityRemoved.entityId = removedEntityId;
@@ -6326,51 +6308,46 @@ bool CRecordingSystem::OnRemove(IEntity *pEntity)
 	return true;
 }
 
-void CRecordingSystem::OnEvent(IEntity *pEntity, SEntityEvent &event)
-{
-	CRY_ASSERT_MESSAGE(false, "Shouldn't be getting these events");
-}
-
-void CRecordingSystem::OnReused(IEntity *pEntity, SEntitySpawnParams &params)
+void CRecordingSystem::OnReused(IEntity* pEntity, SEntitySpawnParams& params)
 {
 	CRY_ASSERT_MESSAGE(false, "CRecordingSystem::OnReused needs implementing");
 }
 
-void CRecordingSystem::OnEntityEvent( IEntity *pEntity,SEntityEvent &event )
+void CRecordingSystem::OnEntityEvent(IEntity* pEntity, const SEntityEvent& event)
 {
 	const EntityId entityId = pEntity->GetId();
 
-	switch(event.event)
+	switch (event.event)
 	{
 	case ENTITY_EVENT_UNHIDE:
 	case ENTITY_EVENT_HIDE:
 		{
-			const bool bHiding = (event.event==ENTITY_EVENT_HIDE);
-			m_recordingEntities[entityId].hiddenState = bHiding?SRecordingEntity::eHS_Hide:SRecordingEntity::eHS_Unhide;
+			const bool bHiding = (event.event == ENTITY_EVENT_HIDE);
+			m_recordingEntities[entityId].hiddenState = bHiding ? SRecordingEntity::eHS_Hide : SRecordingEntity::eHS_Unhide;
 
 			if (m_replayEventGuard)
 				return;
 
-			if(IsPlayingBack())
+			if (IsPlayingBack())
 			{
-				RecSysLogDebug(eRSD_Visibility, "OnEvent %s during playback [%d: %s]%s", 
-						event.event==ENTITY_EVENT_HIDE?"Hide":event.event==ENTITY_EVENT_UNHIDE?"Show":"????",
-						entityId, pEntity->GetName(), bHiding?"":" Suppressing" );
+				RecSysLogDebug(eRSD_Visibility, "OnEvent %s during playback [%d: %s]%s",
+				               event.event == ENTITY_EVENT_HIDE ? "Hide" : event.event == ENTITY_EVENT_UNHIDE ? "Show" : "????",
+				               entityId, pEntity->GetName(), bHiding ? "" : " Suppressing");
 
 				// Suppress the showing of entities while we are replaying.
-				if(!bHiding)
+				if (!bHiding)
 				{
 					HideEntityKeepingPhysics(pEntity, true);
 				}
 			}
-			if(IsRecording())
+			if (IsRecording())
 			{
 				SRecording_EntityHide hideEvent;
 				hideEvent.entityId = pEntity->GetId();
 				hideEvent.hide = bHiding;
 				m_pBuffer->AddPacket(hideEvent);
 
-				RecSysLogDebug(eRSD_Visibility, "Recorded %s Event [%d: %s]", bHiding?"Hide":"Show", pEntity->GetId(), pEntity->GetName() );
+				RecSysLogDebug(eRSD_Visibility, "Recorded %s Event [%d: %s]", bHiding ? "Hide" : "Show", pEntity->GetId(), pEntity->GetName());
 			}
 		}
 		break;
@@ -6382,7 +6359,7 @@ void CRecordingSystem::OnCreateEmitter(IParticleEmitter* pEmitter)
 	// Only record particles which are not being spawned by a killcam replay
 	if (m_replayEventGuard == 0 && IsRecording())
 	{
-		ILevelSystem *pLevelSystem = g_pGame->GetIGameFramework()->GetILevelSystem();
+		ILevelSystem* pLevelSystem = g_pGame->GetIGameFramework()->GetILevelSystem();
 		if (pLevelSystem->IsLevelLoaded())
 		{
 			IParticleEffect* pEffectNonConst = const_cast<IParticleEffect*>(pEmitter->GetEffect());
@@ -6394,7 +6371,7 @@ void CRecordingSystem::OnCreateEmitter(IParticleEmitter* pEmitter)
 					particle.pParticleEmitter = pEmitter;
 					particle.pParticleEffect = pEffectNonConst;
 					particle.location = pEmitter->GetLocation();
-					particle.entityId = 0; //pEmitter->GetAttachedEntityId(); This won't have been set yet
+					particle.entityId = 0;   //pEmitter->GetAttachedEntityId(); This won't have been set yet
 					particle.entitySlot = 0; //pEmitter->GetAttachedEntitySlot();
 					pEmitter->AddRef();
 					m_newParticles.push_back(particle);
@@ -6432,20 +6409,20 @@ void CRecordingSystem::OnDeleteEmitter(IParticleEmitter* pEmitter)
 				++itParticle;
 			}
 		}
-		
+
 		/*TReplayParticleMap::iterator itReplayParticle;
-		for (itReplayParticle = m_replayParticles.begin(); itReplayParticle != m_replayParticles.end(); )
-		{
-			if (itReplayParticle->second == pEmitter)
-			{
-				pEmitter->Release();
-				itReplayParticle = m_replayParticles.erase(itReplayParticle);
-			}
-			else
-			{
-				itReplayParticle++;
-			}
-		}*/
+		   for (itReplayParticle = m_replayParticles.begin(); itReplayParticle != m_replayParticles.end(); )
+		   {
+		   if (itReplayParticle->second == pEmitter)
+		   {
+		    pEmitter->Release();
+		    itReplayParticle = m_replayParticles.erase(itReplayParticle);
+		   }
+		   else
+		   {
+		    itReplayParticle++;
+		   }
+		   }*/
 
 		if (!deleted)
 		{
@@ -6459,7 +6436,7 @@ void CRecordingSystem::OnDeleteEmitter(IParticleEmitter* pEmitter)
 	}
 }
 
-void CRecordingSystem::OnParticleEmitterMoved(IParticleEmitter* pEmitter, const Matrix34 &loc)
+void CRecordingSystem::OnParticleEmitterMoved(IParticleEmitter* pEmitter, const Matrix34& loc)
 {
 	if (m_replayEventGuard == 0 && IsRecording())
 	{
@@ -6489,16 +6466,16 @@ void CRecordingSystem::OnSetTeam(EntityId entityId, int team)
 {
 	if (m_replayEventGuard == 0 && IsRecording())
 	{
-		static IEntityClass *s_pPlayerClass = gEnv->pEntitySystem->GetClassRegistry()->FindClass("Player");
-		static IEntityClass *s_pDummyPlayerClass = gEnv->pEntitySystem->GetClassRegistry()->FindClass("DummyPlayer");
+		static IEntityClass* s_pPlayerClass = gEnv->pEntitySystem->GetClassRegistry()->FindClass("Player");
+		static IEntityClass* s_pDummyPlayerClass = gEnv->pEntitySystem->GetClassRegistry()->FindClass("DummyPlayer");
 		IEntity* pEntity = gEnv->pEntitySystem->GetEntity(entityId);
-		if (pEntity && ((pEntity->GetClass() == s_pPlayerClass) || (pEntity->GetClass() == s_pDummyPlayerClass) || (m_recordEntityClassFilter.count(pEntity->GetClass())) ))
+		if (pEntity && ((pEntity->GetClass() == s_pPlayerClass) || (pEntity->GetClass() == s_pDummyPlayerClass) || (m_recordEntityClassFilter.count(pEntity->GetClass()))))
 		{
 			SRecording_TeamChange teamChange;
 			teamChange.entityId = entityId;
 			teamChange.teamId = (uint8)team;
 			CGameRules* pGameRules = g_pGame->GetGameRules();
-			teamChange.isFriendly = pGameRules ? pGameRules->GetThreatRating(gEnv->pGameFramework->GetClientActorId(), entityId)==CGameRules::eFriendly : false;
+			teamChange.isFriendly = pGameRules ? pGameRules->GetThreatRating(gEnv->pGameFramework->GetClientActorId(), entityId) == CGameRules::eFriendly : false;
 			m_pBuffer->AddPacket(teamChange);
 			// Sometimes the models get changed when setting the team, so we'll update
 			// the entity spawn packet with the new models
@@ -6625,10 +6602,10 @@ void CRecordingSystem::OnItemSwitchToHand(CItem* pItem, int hand)
 
 /*static*/ CRecordingSystem::EKillCamHandling CRecordingSystem::ShouldHandleKillcam(IActor* pVictimActor, const HitInfo& hitInfo, bool bBulletTimeKill, float& outKillCamDelayTime)
 {
-	outKillCamDelayTime = 0.0f;		//Shouldn't be required if we're going to early out, but doing it for safety
+	outKillCamDelayTime = 0.0f;   //Shouldn't be required if we're going to early out, but doing it for safety
 
 	// KillCam is Disabled.
-	if(!CRecordingSystem::KillCamEnabled())
+	if (!CRecordingSystem::KillCamEnabled())
 		return CRecordingSystem::eKCH_None;
 
 	// Get EntityIds.
@@ -6636,34 +6613,34 @@ void CRecordingSystem::OnItemSwitchToHand(CItem* pItem, int hand)
 	const EntityId victimId = pVictimActor->GetEntityId();
 
 	// Not interested in suicides.
-	if(killerId==victimId)
+	if (killerId == victimId)
 		return CRecordingSystem::eKCH_None;
 
 	// Not interested if there is no Killer.
-	if(killerId==0)
+	if (killerId == 0)
 		return CRecordingSystem::eKCH_None;
 
 	// Not interested if there is no killer Actor.
 	IActor* pKillerActor = g_pGame->GetIGameFramework()->GetIActorSystem()->GetActor(killerId);
-	if(!pKillerActor)
+	if (!pKillerActor)
 		return CRecordingSystem::eKCH_None;
 
 	// Not interested if the Victim is not a Player.
-	if(!pVictimActor->IsPlayer())
+	if (!pVictimActor->IsPlayer())
 		return CRecordingSystem::eKCH_None;
 
 	//Work out if there is sufficient time for display of the kill cam, or if it will just end up in the highlights reel (custom games can have
 	//		non-standard respawn times)
-	if(CGameRules * pGameRules = g_pGame->GetGameRules())
+	if (CGameRules* pGameRules = g_pGame->GetGameRules())
 	{
-		if(IGameRulesSpectatorModule *pSpectatorModule = pGameRules->GetSpectatorModule() )
+		if (IGameRulesSpectatorModule* pSpectatorModule = pGameRules->GetSpectatorModule())
 		{
 			float killerCam, deathCam, killCam;
-			pSpectatorModule->GetPostDeathDisplayDurations( victimId, static_cast<CPlayer*>(pVictimActor)->GetTeamWhenKilled(), false, bBulletTimeKill, deathCam, killerCam, killCam);
+			pSpectatorModule->GetPostDeathDisplayDurations(victimId, static_cast<CPlayer*>(pVictimActor)->GetTeamWhenKilled(), false, bBulletTimeKill, deathCam, killerCam, killCam);
 
-			outKillCamDelayTime = max((killerCam+deathCam)-g_pGameCVars->kc_kickInTime, 0.0f );
+			outKillCamDelayTime = max((killerCam + deathCam) - g_pGameCVars->kc_kickInTime, 0.0f);
 
-			if( killCam < 0.1f )
+			if (killCam < 0.1f)
 			{
 				return CRecordingSystem::eKCH_StoreHighlight;
 			}
@@ -6681,8 +6658,8 @@ void CRecordingSystem::OnKill(IActor* pVictimActor, const HitInfo& hitInfo, bool
 
 	float fKillCamDelayTime;
 	EKillCamHandling handling = CRecordingSystem::ShouldHandleKillcam(pVictimActor, hitInfo, bBulletTimeKill, fKillCamDelayTime);
-	
-	if(handling == eKCH_None)
+
+	if (handling == eKCH_None)
 		return;
 
 	const EntityId killerId = hitInfo.shooterId;
@@ -6690,28 +6667,27 @@ void CRecordingSystem::OnKill(IActor* pVictimActor, const HitInfo& hitInfo, bool
 
 	// Who is the client?
 	const EntityId localPlayerId = gEnv->pGameFramework->GetClientActorId();
-	const bool bKillerIsClient = (killerId==localPlayerId);
-	const bool bVictimIsClient = (victimId==localPlayerId);
+	const bool bKillerIsClient = (killerId == localPlayerId);
+	const bool bVictimIsClient = (victimId == localPlayerId);
 
 #ifdef RECSYS_DEBUG
 	// CVars to set as a winning or skill kill.
-	bWinningKill |= (g_pGameCVars->kc_debugWinningKill!=0);
-	bBulletTimeKill |= (g_pGameCVars->kc_debugSkillKill!=0);
+	bWinningKill |= (g_pGameCVars->kc_debugWinningKill != 0);
+	bBulletTimeKill |= (g_pGameCVars->kc_debugSkillKill != 0);
 #endif //RECSYS_DEBUG
 
-	CGameRules *pGameRules = g_pGame->GetGameRules();
+	CGameRules* pGameRules = g_pGame->GetGameRules();
 
 	// If not allowed, disable winning kill.
-	bool bWinningKillAllowed = (g_pGameCVars->kc_enableWinningKill!=0);
-	if(pGameRules)
+	bool bWinningKillAllowed = (g_pGameCVars->kc_enableWinningKill != 0);
+	if (pGameRules)
 	{
-		if(IGameRulesRoundsModule *pRoundsModule = pGameRules->GetRoundsModule())
+		if (IGameRulesRoundsModule* pRoundsModule = pGameRules->GetRoundsModule())
 		{
 			bWinningKillAllowed = pRoundsModule->ShowKillcamAtEndOfRound();
 		}
 	}
 	bWinningKill &= bWinningKillAllowed;
-
 
 	//////////////////////////////////////////////////////////////////////////
 	// What are we actually going to do?
@@ -6733,17 +6709,17 @@ void CRecordingSystem::OnKill(IActor* pVictimActor, const HitInfo& hitInfo, bool
 	kill.winningKill = bWinningKill;
 
 	// Request Playback
-	if( bRequestPlayback )
+	if (bRequestPlayback)
 	{
 		SPlaybackRequest request;
 		request.highlights = false;
 		request.playbackDelay = fKillCamDelayTime;
 		request.kill = kill;
-		QueueStartPlayback( request );
+		QueueStartPlayback(request);
 	}
 
 	// Send FP Data
-	if(bSendData)
+	if (bSendData)
 	{
 		IActor* pKillerActor = g_pGame->GetIGameFramework()->GetIActorSystem()->GetActor(killerId);
 		AddKillCamData(pKillerActor, victimId, bBulletTimeKill, bWinningKill);
@@ -6751,15 +6727,15 @@ void CRecordingSystem::OnKill(IActor* pVictimActor, const HitInfo& hitInfo, bool
 	}
 
 	// Save as a highlight.
-	if(bSaveHighlight)
+	if (bSaveHighlight)
 	{
 		SaveHighlight_Queue(kill, g_pGameCVars->kc_length);
 	}
 }
 
-bool CRecordingSystem::OnEmitTracer(const CTracerManager::STracerParams &params)
+bool CRecordingSystem::OnEmitTracer(const CTracerManager::STracerParams& params)
 {
-	if(IsPlayingBack())
+	if (IsPlayingBack())
 	{
 		if (m_replayEventGuard == 0)
 		{
@@ -6773,15 +6749,15 @@ bool CRecordingSystem::OnEmitTracer(const CTracerManager::STracerParams &params)
 	return true;
 }
 
-void CRecordingSystem::OnPlayerPluginEvent(CPlayer* pPlayer, EPlayerPlugInEvent pluginEvent, void *pData)
+void CRecordingSystem::OnPlayerPluginEvent(CPlayer* pPlayer, EPlayerPlugInEvent pluginEvent, void* pData)
 {
 	if (pluginEvent == EPE_BulletTrail)
 	{
 		STrailInfo* pTrailInfo = (STrailInfo*)pData;
 		const SAmmoParams& ammoParams = pTrailInfo->pProjectile->GetAmmoParams();
 		if ((ammoParams.bulletType != -1) &&
-			ammoParams.physicalizationType == ePT_Particle &&
-			!pTrailInfo->pProjectile->CheckAnyProjectileFlags(CProjectile::ePFlag_threatTrailEmitted))
+		    ammoParams.physicalizationType == ePT_Particle &&
+		    !pTrailInfo->pProjectile->CheckAnyProjectileFlags(CProjectile::ePFlag_threatTrailEmitted))
 		{
 			SRecording_BulletTrail bulletTrail;
 			bulletTrail.start = pTrailInfo->pProjectile->GetInitialPos();
@@ -6831,7 +6807,7 @@ void CRecordingSystem::OnMountedGunLeave(CPlayer* pPlayer)
 	m_pBuffer->AddPacket(mountedGun);
 }
 
-void CRecordingSystem::OnShoot(IWeapon *pWeapon, EntityId shooterId, EntityId ammoId, IEntityClass* pAmmoType, const Vec3 &pos, const Vec3 &dir, const Vec3 &vel)
+void CRecordingSystem::OnShoot(IWeapon* pWeapon, EntityId shooterId, EntityId ammoId, IEntityClass* pAmmoType, const Vec3& pos, const Vec3& dir, const Vec3& vel)
 {
 	if (shooterId == g_pGame->GetIGameFramework()->GetClientActorId())
 	{
@@ -6842,12 +6818,12 @@ void CRecordingSystem::OnShoot(IWeapon *pWeapon, EntityId shooterId, EntityId am
 	AddPacket(packet);
 }
 
-void CRecordingSystem::OnSelected(IWeapon *pWeapon, bool selected)
+void CRecordingSystem::OnSelected(IWeapon* pWeapon, bool selected)
 {
 	RecordWeaponSelection((CWeapon*)pWeapon, selected);
 }
 
-void CRecordingSystem::OnFireModeChanged(IWeapon *pWeapon, int currentFireMode)
+void CRecordingSystem::OnFireModeChanged(IWeapon* pWeapon, int currentFireMode)
 {
 	CWeapon* pWeaponImpl = static_cast<CWeapon*>(pWeapon);
 
@@ -6858,12 +6834,12 @@ void CRecordingSystem::OnFireModeChanged(IWeapon *pWeapon, int currentFireMode)
 	m_pBuffer->AddPacket(firemodeChanged);
 }
 
-void CRecordingSystem::OnWeaponRippedOff(CWeapon *pWeapon)
+void CRecordingSystem::OnWeaponRippedOff(CWeapon* pWeapon)
 {
 	// CE-10971: Killing a player with a ripped-off HMG would trigger an assertion
 	// and the gun would be missing in the kill cam. The gun entity wasn't present
 	// in the replay buffer.
-	IEntity *pEntity = pWeapon->GetEntity();
+	IEntity* pEntity = pWeapon->GetEntity();
 	AddRecordingEntity(pEntity, RecordEntitySpawn(pEntity));
 
 	RecordWeaponSelection(pWeapon, true);
@@ -6877,7 +6853,7 @@ void CRecordingSystem::OnBattleChatter(EBattlechatter chatter, EntityId actorId,
 		battleChatter.entityNetId = EntityIdToNetId(actorId);
 		battleChatter.frametime = gEnv->pTimer->GetFrameStartTime().GetSeconds();
 		battleChatter.chatterType = chatter;
-		battleChatter.chatterVariation = (uint8)variation+1;
+		battleChatter.chatterVariation = (uint8)variation + 1;
 		m_pBufferFirstPerson->AddPacket(battleChatter);
 	}
 }
@@ -6888,10 +6864,10 @@ void CRecordingSystem::DebugDrawAnimationData(void)
 	CRY_ASSERT_MESSAGE(false, "This function has not been implemented yet");
 #if 0
 	const float FONT_SIZE = 1.0f;
-	const float FONT_COLOUR[4] = {0.0f, 1.0f, 1.0f, 1.0f};
+	const float FONT_COLOUR[4] = { 0.0f, 1.0f, 1.0f, 1.0f };
 	const float TEXT_XPOS = 100.0f;
 	const float TEXT_YPOS = 400.0f;
-	const float TEXT_INC  = 16.0f;
+	const float TEXT_INC = 16.0f;
 
 	if (m_pBuffer->GetNumPackets() > 0)
 	{
@@ -6902,21 +6878,21 @@ void CRecordingSystem::DebugDrawAnimationData(void)
 		it--;
 		while (1)
 		{
-			CRecordingBuffer::packetStruct *ps = *it;
-			SRecording_Packet *packet = (SRecording_Packet *) ps->data;
+			CRecordingBuffer::packetStruct* ps = *it;
+			SRecording_Packet* packet = (SRecording_Packet*) ps->data;
 
-			switch(packet->type)
+			switch (packet->type)
 			{
 			case eTPP_TPAnim:
 				{
-					SRecording_TPAnim *sad = (SRecording_TPAnim *) ps->data;
+					SRecording_TPAnim* sad = (SRecording_TPAnim*) ps->data;
 
-					IEntity *replayEntity = gEnv->pEntitySystem->GetEntity(sad->eid);
+					IEntity* replayEntity = gEnv->pEntitySystem->GetEntity(sad->eid);
 					if (replayEntity)
 					{
 						ICharacterInstance* ici = replayEntity->GetCharacter(0);
 						IAnimationSet* pAnimationSet = ici->GetIAnimationSet();
-						const char *animName = pAnimationSet->GetNameByAnimID( sad->animID );
+						const char* animName = pAnimationSet->GetNameByAnimID(sad->animID);
 
 						IRenderAuxText::Draw2dLabel(xPos, yPos, FONT_SIZE, FONT_COLOUR, false, animName);
 
@@ -6942,7 +6918,7 @@ void CRecordingSystem::DebugDrawMemoryUsage()
 	if (g_pGameCVars->kc_memStats == 1)
 	{
 		static int memory[eTPP_Last];
-		for (int i=0; i<eTPP_Last; ++i)
+		for (int i = 0; i < eTPP_Last; ++i)
 		{
 			memory[i] = 0;
 		}
@@ -6980,7 +6956,7 @@ void CRecordingSystem::DebugDrawMemoryUsage()
 		{
 			if (itPacket->type == eFPP_FPChar)
 			{
-				SRecording_FPChar *pFPChar = (SRecording_FPChar*)&*itPacket;
+				SRecording_FPChar* pFPChar = (SRecording_FPChar*)&*itPacket;
 				if (firstFPFrameTime == 0)
 				{
 					firstFPFrameTime = pFPChar->frametime;
@@ -6990,23 +6966,23 @@ void CRecordingSystem::DebugDrawMemoryUsage()
 			}
 		}
 
-		float red[] = {1.f, 0.f, 0.f, 1.f};
-		float green[] = {0.f, 1.f, 0.f, 1.f};
-		float white[] = {1.f, 1.f, 1.f, 1.f};
+		float red[] = { 1.f, 0.f, 0.f, 1.f };
+		float green[] = { 0.f, 1.f, 0.f, 1.f };
+		float white[] = { 1.f, 1.f, 1.f, 1.f };
 
 		float yPos = 10.f;
 		const float xPos = 70.f;
 		const float ySpacing = 18.0f;
 
 		const int divisions = 20;
-		char progress[divisions+1];
+		char progress[divisions + 1];
 		progress[divisions] = 0;
 
 		if (IsRecordingAndNotPlaying())
 		{
 			IRenderAuxText::Draw2dLabel(70.f, yPos, 2, red, false, "RECORDING");
 		}
-		else if(IsPlayingBack())
+		else if (IsPlayingBack())
 		{
 			IRenderAuxText::Draw2dLabel(70.f, yPos, 2, green, false, "PLAYBACK");
 		}
@@ -7020,11 +6996,11 @@ void CRecordingSystem::DebugDrawMemoryUsage()
 		IRenderAuxText::Draw2dLabel(xPos, yPos, 2, red, false, "Recording buffer size: %" PRISIZE_T ", Frames: %d, Time: %f", m_pBuffer->size(), numFrames, lastFrameTime - firstFrameTime);
 		yPos += 30.f;
 
-		for (int i=0; i<eTPP_Last; ++i)
+		for (int i = 0; i < eTPP_Last; ++i)
 		{
 			float percentage = (float)memory[i] / (float)totalMemory;
 
-			for (int j=0; j<divisions; ++j)
+			for (int j = 0; j < divisions; ++j)
 			{
 				progress[j] = (j < divisions * percentage) ? '+' : '_';
 			}
@@ -7072,7 +7048,6 @@ void CRecordingSystem::DebugDrawMemoryUsage()
 			maxUsedMemory = max(maxUsedMemory, usedMemoryInBuffer);
 			CryWatch("CRecordingSystem main buffer usage at %u, most used is %u", usedMemoryInBuffer, maxUsedMemory);
 
-
 			usedSize = m_pBufferFirstPerson->size();
 			pos = 0;
 			while (pos < usedSize)
@@ -7103,7 +7078,7 @@ void CRecordingSystem::DebugDrawMemoryUsage()
 void CRecordingSystem::SwapFPCameraEndian(uint8* pBuffer, size_t size, bool sending)
 {
 #if !defined(_RELEASE)
-	if (eBigEndian)	// Swap endian on PC
+	if (eBigEndian) // Swap endian on PC
 	{
 		for (uint8* pPos = pBuffer; pPos < pBuffer + size; )
 		{
@@ -7209,7 +7184,7 @@ void CRecordingSystem::OnPlayerFlashed(float duration, float blindAmount)
 	}
 }
 
-void CRecordingSystem::ApplyFlashed(const SRecording_Flashed *pFlashed)
+void CRecordingSystem::ApplyFlashed(const SRecording_Flashed* pFlashed)
 {
 	gEnv->p3DEngine->SetPostEffectParam("Flashbang_Time", pFlashed->duration * 2);
 	gEnv->p3DEngine->SetPostEffectParam("FlashBang_BlindAmount", pFlashed->blindAmount);
@@ -7219,7 +7194,7 @@ void CRecordingSystem::ApplyFlashed(const SRecording_Flashed *pFlashed)
 
 void CRecordingSystem::OnPlayerRenderNearestChange(bool renderNearest)
 {
-	if(IsRecordingAndNotPlaying())
+	if (IsRecordingAndNotPlaying())
 	{
 		SRecording_RenderNearest packet;
 		packet.frametime = gEnv->pTimer->GetFrameStartTime().GetSeconds();
@@ -7228,12 +7203,12 @@ void CRecordingSystem::OnPlayerRenderNearestChange(bool renderNearest)
 	}
 }
 
-void CRecordingSystem::ApplyRenderNearestChange(const SRecording_RenderNearest *pRenderNearest)
+void CRecordingSystem::ApplyRenderNearestChange(const SRecording_RenderNearest* pRenderNearest)
 {
 	CReplayActor* pKiller = GetReplayActor(m_killer, true);
 	IEntity* pKillerEntity = pKiller ? pKiller->GetEntity() : NULL;
 
-	if(pKillerEntity)
+	if (pKillerEntity)
 	{
 		uint32 flags = pKillerEntity->GetSlotFlags(0);
 
@@ -7252,25 +7227,25 @@ void CRecordingSystem::ApplyRenderNearestChange(const SRecording_RenderNearest *
 void CRecordingSystem::StopFirstPersonWeaponSounds()
 {
 	/*if (m_killerReplayGunId != 0)
-	{
-		TReplaySoundMap::iterator itReplaySound;
-		for (itReplaySound = m_replaySounds.begin(); itReplaySound != m_replaySounds.end(); ++itReplaySound)
-		{
-			ISound* pSound = gEnv->pSoundSystem->GetSound(itReplaySound->second);
-			if (pSound)
-			{
-				ISound_Extended* pExtended = pSound->GetInterfaceExtended();
-				if (pExtended)
-				{
-					EntityId entityId = pExtended->GetAudioProxyEntityID();
-					if (entityId == m_killerReplayGunId)
-					{
-						pSound->Stop();
-					}
-				}
-			}
-		}
-	}*/
+	   {
+	   TReplaySoundMap::iterator itReplaySound;
+	   for (itReplaySound = m_replaySounds.begin(); itReplaySound != m_replaySounds.end(); ++itReplaySound)
+	   {
+	    ISound* pSound = gEnv->pSoundSystem->GetSound(itReplaySound->second);
+	    if (pSound)
+	    {
+	      ISound_Extended* pExtended = pSound->GetInterfaceExtended();
+	      if (pExtended)
+	      {
+	        EntityId entityId = pExtended->GetAudioProxyEntityID();
+	        if (entityId == m_killerReplayGunId)
+	        {
+	          pSound->Stop();
+	        }
+	      }
+	    }
+	   }
+	   }*/
 }
 
 void CRecordingSystem::ApplyPlaySound(const SRecording_PlaySound* pPlaySound, float time)
@@ -7279,7 +7254,7 @@ void CRecordingSystem::ApplyPlaySound(const SRecording_PlaySound* pPlaySound, fl
 	//if (itReplaySound == m_replaySounds.end())
 	//{
 	//	stack_string adjustedSoundName = pPlaySound->szName;
-	//	IEntity* pEntity = NULL;		
+	//	IEntity* pEntity = NULL;
 
 	//	if (pPlaySound->entityId)
 	//	{
@@ -7289,7 +7264,7 @@ void CRecordingSystem::ApplyPlaySound(const SRecording_PlaySound* pPlaySound, fl
 	//		{
 	//			if(CReplayActor* pActor = GetReplayActor(pPlaySound->entityId, true))
 	//			{
-	//				pEntity = pActor->GetEntity();	
+	//				pEntity = pActor->GetEntity();
 	//				entityIsActor = true;
 	//			}
 	//		}
@@ -7303,7 +7278,7 @@ void CRecordingSystem::ApplyPlaySound(const SRecording_PlaySound* pPlaySound, fl
 	//		else // Not FP view, or not FP sound.
 	//		{
 	//			if(pEntity)
-	//			{					
+	//			{
 	//				if (entityIsActor)
 	//				{
 	//					// Only replace if this is a weapon sound
@@ -7349,34 +7324,34 @@ void CRecordingSystem::ApplyPlaySound(const SRecording_PlaySound* pPlaySound, fl
 void CRecordingSystem::ApplyStopSound(const SRecording_StopSound* pStopSound)
 {
 	/*TReplaySoundMap::iterator itReplaySound = m_replaySounds.find(pStopSound->soundId);
-	if (itReplaySound != m_replaySounds.end())
-	{
-		ISound* pSound = gEnv->pSoundSystem->GetSound(itReplaySound->second);
-		if (pSound)
-		{
-			RecSysLogDebug(eRSD_Sound, "Stop: %d, %s", pSound->GetId(), pSound->GetName());
-			pSound->Stop();
-		}
-		m_replaySounds.erase(itReplaySound);
-	}*/
+	   if (itReplaySound != m_replaySounds.end())
+	   {
+	   ISound* pSound = gEnv->pSoundSystem->GetSound(itReplaySound->second);
+	   if (pSound)
+	   {
+	    RecSysLogDebug(eRSD_Sound, "Stop: %d, %s", pSound->GetId(), pSound->GetName());
+	    pSound->Stop();
+	   }
+	   m_replaySounds.erase(itReplaySound);
+	   }*/
 }
 
 void CRecordingSystem::ApplySoundParameter(const SRecording_SoundParameter* pSoundParameter)
 {
 	/*TReplaySoundMap::iterator itReplaySound = m_replaySounds.find(pSoundParameter->soundId);
-	if (itReplaySound != m_replaySounds.end())
-	{
-		ISound* pSound = gEnv->pSoundSystem->GetSound(itReplaySound->second);
-		if (pSound)
-		{
-			RecSysLogDebug(eRSD_Sound, "SetParam: %d, %s, param: %d, %f", pSound->GetId(), pSound->GetName(), pSoundParameter->index, pSoundParameter->value);
-			bool success = pSound->SetParam(pSoundParameter->index, pSoundParameter->value);
-			if (!success)
-			{
-				RecSysLogDebug(eRSD_Sound, "Failed to set replay sound parameter: %d, %s, param: %d, %f", pSound->GetId(), pSound->GetName(), pSoundParameter->index, pSoundParameter->value);
-			}
-		}
-	}*/
+	   if (itReplaySound != m_replaySounds.end())
+	   {
+	   ISound* pSound = gEnv->pSoundSystem->GetSound(itReplaySound->second);
+	   if (pSound)
+	   {
+	    RecSysLogDebug(eRSD_Sound, "SetParam: %d, %s, param: %d, %f", pSound->GetId(), pSound->GetName(), pSoundParameter->index, pSoundParameter->value);
+	    bool success = pSound->SetParam(pSoundParameter->index, pSoundParameter->value);
+	    if (!success)
+	    {
+	      RecSysLogDebug(eRSD_Sound, "Failed to set replay sound parameter: %d, %s, param: %d, %f", pSound->GetId(), pSound->GetName(), pSoundParameter->index, pSoundParameter->value);
+	    }
+	   }
+	   }*/
 }
 
 void CRecordingSystem::ApplyBattleChatter(const SRecording_BattleChatter* pPacket)
@@ -7389,16 +7364,16 @@ void CRecordingSystem::ApplyBattleChatter(const SRecording_BattleChatter* pPacke
 		if (actorId)
 		{
 			CBattlechatter::SVoiceInfo* pInfo = pBattleChatter->GetVoiceInfo(actorId);
-			if(pInfo)
+			if (pInfo)
 			{
 				TReplayActorMap::iterator itReplayActor = m_replayActors.find(actorId);
 				if (itReplayActor != m_replayActors.end())
 				{
 					const float currentTime = gEnv->pTimer->GetCurrTime();
 					CActor* pActor = static_cast<CActor*>(gEnv->pGameFramework->GetIActorSystem()->GetActor(actorId));
-					
-					int killerTeam=-1;
-					CReplayActor *pKillerReplayActor = GetReplayActor(m_killer, true);
+
+					int killerTeam = -1;
+					CReplayActor* pKillerReplayActor = GetReplayActor(m_killer, true);
 					if (pKillerReplayActor)
 					{
 						killerTeam = pKillerReplayActor->GetTeam();
@@ -7421,7 +7396,7 @@ void CRecordingSystem::ClearStringCaches()
 
 const char* CRecordingSystem::CacheString(const char* name, eStringCache cache)
 {
-	char *pBuffer = NULL;
+	char* pBuffer = NULL;
 	int bufferSize = 0;
 	if (cache == eSC_Sound)
 	{
@@ -7437,10 +7412,10 @@ const char* CRecordingSystem::CacheString(const char* name, eStringCache cache)
 	// Store the name in a buffer so that it will still be valid when we want to play it back again
 	// alternatively if the name is already in the buffer then return a pointer to that.
 	// Ideally the sound system would allow you to create a sound by ID rather than by name, but that
-	// is currently not possible.	
-	if( pBuffer != NULL )
+	// is currently not possible.
+	if (pBuffer != NULL)
 	{
-		const uint16 newLength = static_cast<uint16> (strlen(name));
+		const uint16 newLength = static_cast<uint16>(strlen(name));
 		int offset = 0;
 		while (true)
 		{
@@ -7448,7 +7423,7 @@ const char* CRecordingSystem::CacheString(const char* name, eStringCache cache)
 			if (stringLength > 0)
 			{
 				offset += 2;
-				if( newLength==stringLength && strcmp(pBuffer + offset, name)==0 )
+				if (newLength == stringLength && strcmp(pBuffer + offset, name) == 0)
 				{
 					return pBuffer + offset;
 				}
@@ -7459,15 +7434,15 @@ const char* CRecordingSystem::CacheString(const char* name, eStringCache cache)
 				break;
 			}
 		}
-		uint16 stringLength = static_cast<uint16> (strlen(name));
+		uint16 stringLength = static_cast<uint16>(strlen(name));
 		// +1 for NULL terminator, +2 for string size, +2 for string size of next string
 		if (offset + stringLength + 5 <= bufferSize)
 		{
-			*(uint16*)(pBuffer + offset) = stringLength;		// Set the size of the new string
+			*(uint16*)(pBuffer + offset) = stringLength;    // Set the size of the new string
 			offset += 2;
-			memcpy(pBuffer + offset, name, stringLength + 1);		// Copy the new string into the buffer
-			*(uint16*)(pBuffer + offset + stringLength + 1) = 0;		// Assign zero size to the next string
-			return pBuffer + offset;		// Return a pointer to the cached string
+			memcpy(pBuffer + offset, name, stringLength + 1);    // Copy the new string into the buffer
+			*(uint16*)(pBuffer + offset + stringLength + 1) = 0; // Assign zero size to the next string
+			return pBuffer + offset;                             // Return a pointer to the cached string
 		}
 		else
 		{
@@ -7573,7 +7548,7 @@ void CRecordingSystem::ApplyMountedGunAnimation(const SRecording_MountedGunAnima
 		ICharacterInstance* pCharacterInstance = pReplayActor->GetEntity()->GetCharacter(0);
 		if (pCharacterInstance)
 		{
-			CMountedGunController::ReplayUpdateThirdPersonAnimations(pCharacterInstance, pMountedGunAnimation->aimrad, pMountedGunAnimation->aimUp, pMountedGunAnimation->aimDown, pMountedGunAnimation->ownerId == m_killer && m_playInfo.m_view.currView==SPlaybackInfo::eVM_FirstPerson);
+			CMountedGunController::ReplayUpdateThirdPersonAnimations(pCharacterInstance, pMountedGunAnimation->aimrad, pMountedGunAnimation->aimUp, pMountedGunAnimation->aimDown, pMountedGunAnimation->ownerId == m_killer && m_playInfo.m_view.currView == SPlaybackInfo::eVM_FirstPerson);
 		}
 	}
 }
@@ -7601,21 +7576,21 @@ void CRecordingSystem::ApplyMountedGunEnter(const SRecording_MountedGunEnter* pM
 
 void CRecordingSystem::ApplyMountedGunLeave(const SRecording_MountedGunLeave* pMountedGunLeave)
 {
-	if(CReplayActor* pReplayActor = GetReplayActor(pMountedGunLeave->ownerId, true))
+	if (CReplayActor* pReplayActor = GetReplayActor(pMountedGunLeave->ownerId, true))
 	{
-		if(ICharacterInstance* pCharacterInstance = pReplayActor->GetEntity()->GetCharacter(0))
+		if (ICharacterInstance* pCharacterInstance = pReplayActor->GetEntity()->GetCharacter(0))
 		{
 			CMountedGunController::ReplayStopThirdPersonAnimations(pCharacterInstance);
 		}
 	}
 }
 
-void CRecordingSystem::ApplyCorpseSpawned( const SRecording_CorpseSpawned *pCorpsePacket )
+void CRecordingSystem::ApplyCorpseSpawned(const SRecording_CorpseSpawned* pCorpsePacket)
 {
 	if (CReplayActor* pPlayerActor = GetReplayActor(pCorpsePacket->playerId, true))
 	{
 		IEntity* pPlayerEntity = pPlayerActor->GetEntity();
-		if(IEntity* pCorpseEntity = SpawnCorpse(pCorpsePacket->corpseId, pPlayerEntity->GetWorldPos(), pPlayerEntity->GetWorldRotation(), pPlayerEntity->GetScale()))
+		if (IEntity* pCorpseEntity = SpawnCorpse(pCorpsePacket->corpseId, pPlayerEntity->GetWorldPos(), pPlayerEntity->GetWorldRotation(), pPlayerEntity->GetScale()))
 		{
 			pPlayerActor->TransitionToCorpse(*pCorpseEntity);
 		}
@@ -7628,18 +7603,18 @@ void CRecordingSystem::ApplySingleProceduralBreakEvent(const SRecording_Procedur
 }
 
 void CRecordingSystem::ApplyDrawSlotChange(const SRecording_DrawSlotChange* pDrawSlotChangePacket)
-{	
+{
 	BreakLogAlways("DS: ApplyDrawSlot: Original EntityID: 0x%08X", pDrawSlotChangePacket->entityId);
-	
-	IEntity * pEntity = GetReplayEntity(pDrawSlotChangePacket->entityId);
+
+	IEntity* pEntity = GetReplayEntity(pDrawSlotChangePacket->entityId);
 
 	//pEntity should always be valid, but we've been having some crashes here. Need to find out under what
 	//	circumstances it can break.
 	assert(pEntity);
-	if(pEntity)
+	if (pEntity)
 	{
 		BreakLogAlways("DS: > Found Replay Entity: 0x%p   ID: 0x%p, applying flags (%d) to slot %d",
-																pEntity, pEntity->GetId(), pDrawSlotChangePacket->flags, pDrawSlotChangePacket->iSlot);
+		               pEntity, pEntity->GetId(), pDrawSlotChangePacket->flags, pDrawSlotChangePacket->iSlot);
 		pEntity->SetSlotFlags(pDrawSlotChangePacket->iSlot, pDrawSlotChangePacket->flags);
 	}
 	else
@@ -7652,10 +7627,10 @@ void CRecordingSystem::ApplyStatObjChange(const SRecording_StatObjChange* pStatO
 {
 	BreakLogAlways("Applying Stat Obj Change during killcam playback");
 
-	if(IEntity* pClonedEntity = GetReplayEntity(pStatObjChange->entityId))
+	if (IEntity* pClonedEntity = GetReplayEntity(pStatObjChange->entityId))
 	{
 		pClonedEntity->SetStatObj(pStatObjChange->pNewStatObj, pStatObjChange->iSlot, false);
-		
+
 		BreakLogAlways("TB: > Replay, found ReplayEntity : 0x%p, clone of original %d", pClonedEntity, pStatObjChange->entityId);
 	}
 	else
@@ -7666,7 +7641,7 @@ void CRecordingSystem::ApplyStatObjChange(const SRecording_StatObjChange* pStatO
 
 void CRecordingSystem::ApplySubObjHideMask(const SRecording_SubObjHideMask* pHideMask)
 {
-	if(IEntity* pEntity = GetReplayEntity(pHideMask->entityId))
+	if (IEntity* pEntity = GetReplayEntity(pHideMask->entityId))
 	{
 		pEntity->SetSubObjHideMask(pHideMask->slot, pHideMask->subObjHideMask);
 	}
@@ -7678,7 +7653,7 @@ void CRecordingSystem::ApplyTeamChange(const SRecording_TeamChange* pTeamChange)
 
 void CRecordingSystem::ApplyItemSwitchHand(const SRecording_ItemSwitchHand* pSwitchHand)
 {
-	if(CItem* pItem = GetReplayItem(pSwitchHand->entityId))
+	if (CItem* pItem = GetReplayItem(pSwitchHand->entityId))
 	{
 		pItem->SwitchToHand(pSwitchHand->hand);
 	}
@@ -7688,21 +7663,21 @@ bool CRecordingSystem::ApplyEntityAttached(const SRecording_EntityAttached* pEnt
 {
 	IEntity* pEntity = GetReplayEntity(pEntityAttached->entityId);
 	CReplayActor* pActor = GetReplayActor(pEntityAttached->actorId, true);
-	if(pEntity && pActor)
+	if (pEntity && pActor)
 	{
 		static const uint32 crcAttachmentName = CCrc32::ComputeLowercase("left_weapon");
-		const bool bFirstPerson = (pEntityAttached->actorId == m_killer && m_playInfo.m_view.currView==SPlaybackInfo::eVM_FirstPerson);
-		AttachmentUtils::AttachObject( bFirstPerson, pActor->GetEntity(), pEntity, crcAttachmentName, AttachmentUtils::eAF_Default&(~AttachmentUtils::eAF_SyncCloak) );
+		const bool bFirstPerson = (pEntityAttached->actorId == m_killer && m_playInfo.m_view.currView == SPlaybackInfo::eVM_FirstPerson);
+		AttachmentUtils::AttachObject(bFirstPerson, pActor->GetEntity(), pEntity, crcAttachmentName, AttachmentUtils::eAF_Default & (~AttachmentUtils::eAF_SyncCloak));
 	}
 	return false;
 }
 
 void CRecordingSystem::ApplyEntityDetached(const SRecording_EntityDetached* pEntityDetached)
 {
-	if(CReplayActor* pActor = GetReplayActor(pEntityDetached->actorId, true))
+	if (CReplayActor* pActor = GetReplayActor(pEntityDetached->actorId, true))
 	{
 		static const uint32 crcAttachmentName = CCrc32::ComputeLowercase("left_weapon");
-		AttachmentUtils::DetachObject( pActor->GetEntity(), GetReplayEntity(pEntityDetached->entityId), crcAttachmentName );
+		AttachmentUtils::DetachObject(pActor->GetEntity(), GetReplayEntity(pEntityDetached->entityId), crcAttachmentName);
 	}
 }
 
@@ -7715,18 +7690,18 @@ void CRecordingSystem::ApplyPlayerHealthEffect(const SRecording_PlayerHealthEffe
 	}
 }
 
-void CRecordingSystem::ApplyAnimObjectUpdated( const SRecording_AnimObjectUpdated* pAnimObjectUpdated )
+void CRecordingSystem::ApplyAnimObjectUpdated(const SRecording_AnimObjectUpdated* pAnimObjectUpdated)
 {
-	IEntity *pEntity = GetReplayEntity(pAnimObjectUpdated->entityId);
+	IEntity* pEntity = GetReplayEntity(pAnimObjectUpdated->entityId);
 	if (pEntity)
 	{
-		ICharacterInstance *pCharacter = pEntity->GetCharacter(0);
+		ICharacterInstance* pCharacter = pEntity->GetCharacter(0);
 		if (pCharacter)
 		{
-			ISkeletonAnim *pSkeletonAnim = pCharacter->GetISkeletonAnim();
+			ISkeletonAnim* pSkeletonAnim = pCharacter->GetISkeletonAnim();
 			if (pSkeletonAnim)
 			{
-				CAnimation &anim = pSkeletonAnim->GetAnimFromFIFO(0, 0);
+				CAnimation& anim = pSkeletonAnim->GetAnimFromFIFO(0, 0);
 				if ((pSkeletonAnim->GetNumAnimsInFIFO(0) == 0) || (anim.GetAnimationId() != pAnimObjectUpdated->animId))
 				{
 					pSkeletonAnim->ClearFIFOLayer(0);
@@ -7739,26 +7714,26 @@ void CRecordingSystem::ApplyAnimObjectUpdated( const SRecording_AnimObjectUpdate
 	}
 }
 
-void CRecordingSystem::ApplyObjectCloakSync( const SRecording_ObjectCloakSync* pObjectCloakSync )
+void CRecordingSystem::ApplyObjectCloakSync(const SRecording_ObjectCloakSync* pObjectCloakSync)
 {
 	// Grab replay entitities (we expect both to be valid)
-	CReplayActor *pCloakMasterActor  = GetReplayActor( pObjectCloakSync->cloakPlayerId, true );
-	IEntity *pCloakSlave			 = GetReplayEntity(pObjectCloakSync->cloakObjectId);
-	if(pCloakSlave && pCloakMasterActor)
+	CReplayActor* pCloakMasterActor = GetReplayActor(pObjectCloakSync->cloakPlayerId, true);
+	IEntity* pCloakSlave = GetReplayEntity(pObjectCloakSync->cloakObjectId);
+	if (pCloakSlave && pCloakMasterActor)
 	{
 		IEntity* pCloakMaster = pCloakMasterActor->GetEntity();
 
 		// Grab render proxies
-		IEntityRender* pCloakSlaveRP	 = (pCloakSlave->GetRenderInterface());
+		IEntityRender* pCloakSlaveRP = (pCloakSlave->GetRenderInterface());
 		if (!pCloakSlaveRP)
 		{
 			GameWarning("CRecordingSystem::ApplyObjectCloakSync() - cloak Master/Slave Render proxy ID invalid, aborting cloak sync");
 			return;
 		}
-	
-		bool bSlaveIsCloaked	  = false; //(pCloakSlaveRP->GetMaterialLayersMask()&MTL_LAYER_CLOAK) != 0;
-		
-		if(bSlaveIsCloaked == pObjectCloakSync->cloakSlave)
+
+		bool bSlaveIsCloaked = false;    //(pCloakSlaveRP->GetMaterialLayersMask()&MTL_LAYER_CLOAK) != 0;
+
+		if (bSlaveIsCloaked == pObjectCloakSync->cloakSlave)
 		{
 			return; // Done
 		}
@@ -7774,11 +7749,10 @@ void CRecordingSystem::ApplyObjectCloakSync( const SRecording_ObjectCloakSync* p
 	}
 }
 
-
-void CRecordingSystem::ApplyPickAndThrowUsed( const SRecording_PickAndThrowUsed* pPickAndThrowUsed )
+void CRecordingSystem::ApplyPickAndThrowUsed(const SRecording_PickAndThrowUsed* pPickAndThrowUsed)
 {
-	IEntity *pEntity = GetReplayEntity(pPickAndThrowUsed->pickAndThrowId);
-	IEntity *pObject = GetReplayEntity(pPickAndThrowUsed->environmentEntityId);
+	IEntity* pEntity = GetReplayEntity(pPickAndThrowUsed->pickAndThrowId);
+	IEntity* pObject = GetReplayEntity(pPickAndThrowUsed->environmentEntityId);
 	if (pEntity != NULL && pObject != NULL)
 	{
 		CPickAndThrowWeapon* pPickAndThrow = static_cast<CPickAndThrowWeapon*>(g_pGame->GetIGameFramework()->GetIItemSystem()->GetItem(pEntity->GetId()));
@@ -7791,9 +7765,9 @@ void CRecordingSystem::ApplyPickAndThrowUsed( const SRecording_PickAndThrowUsed*
 				pPickAndThrow->DecideGrabType();
 				pPickAndThrow->QuickAttach();
 
-				if(pPickAndThrowUsed->playerId == m_killer)
+				if (pPickAndThrowUsed->playerId == m_killer)
 				{
-					SHUDEventWrapper::ForceCrosshairType( pPickAndThrow, (ECrosshairTypes)pPickAndThrow->GetGrabTypeParams().crossHairType );
+					SHUDEventWrapper::ForceCrosshairType(pPickAndThrow, (ECrosshairTypes)pPickAndThrow->GetGrabTypeParams().crossHairType);
 				}
 			}
 			else
@@ -7812,28 +7786,28 @@ void CRecordingSystem::ApplyPickAndThrowUsed( const SRecording_PickAndThrowUsed*
 	}
 }
 
-void CRecordingSystem::ApplyPlayerChangedModel( const SRecording_PlayerChangedModel *pData )
+void CRecordingSystem::ApplyPlayerChangedModel(const SRecording_PlayerChangedModel* pData)
 {
 }
 
-void CRecordingSystem::ApplyForcedRagdollAndImpulse( const SRecording_ForcedRagdollAndImpulse* pImportantImpulse )
+void CRecordingSystem::ApplyForcedRagdollAndImpulse(const SRecording_ForcedRagdollAndImpulse* pImportantImpulse)
 {
-	if(CReplayActor* pActor = GetReplayActor( pImportantImpulse->playerEntityId, true))
+	if (CReplayActor* pActor = GetReplayActor(pImportantImpulse->playerEntityId, true))
 	{
 		pActor->Ragdollize();
 
 		pe_action_impulse impulse;
-		impulse.impulse    = pImportantImpulse->vecImpulse;
-		impulse.point      = pImportantImpulse->pos;
-		impulse.partid     = pImportantImpulse->partid;
+		impulse.impulse = pImportantImpulse->vecImpulse;
+		impulse.point = pImportantImpulse->pos;
+		impulse.partid = pImportantImpulse->partid;
 		impulse.iApplyTime = pImportantImpulse->iApplyTime;
 		pActor->ApplyRagdollImpulse(impulse);
 	}
 }
 
-void CRecordingSystem::ApplyImpulseToRagdoll( const SRecording_RagdollImpulse* pRagdollImpulse )
+void CRecordingSystem::ApplyImpulseToRagdoll(const SRecording_RagdollImpulse* pRagdollImpulse)
 {
-	if(CReplayActor *pActor = GetReplayActor(pRagdollImpulse->playerId, true))
+	if (CReplayActor* pActor = GetReplayActor(pRagdollImpulse->playerId, true))
 	{
 		pe_action_impulse impulse;
 		impulse.impulse = pRagdollImpulse->impulse;
@@ -7896,18 +7870,18 @@ void CRecordingSystem::OnPickupEntityDetached(EntityId entityId, EntityId actorI
 
 void CRecordingSystem::OnPlayerHealthEffect(const CPlayerHealthGameEffect::SQueuedHit& hitParams)
 {
-	if (m_replayEventGuard == 0 && IsRecording() && hitParams.m_hitStrength>0.1f )
+	if (m_replayEventGuard == 0 && IsRecording() && hitParams.m_hitStrength > 0.1f)
 	{
 		SRecording_PlayerHealthEffect hitEffect;
-		hitEffect.frametime = gEnv->pTimer->GetFrameStartTime().GetSeconds();	
-		hitEffect.hitDirection =	hitParams.m_hitDirection;
+		hitEffect.frametime = gEnv->pTimer->GetFrameStartTime().GetSeconds();
+		hitEffect.hitDirection = hitParams.m_hitDirection;
 		hitEffect.hitStrength = clamp_tpl<float>(hitParams.m_hitStrength, 0.f, 500.f);
 		hitEffect.hitSpeed = hitParams.m_hitSpeed;
 		m_pBufferFirstPerson->AddPacket(hitEffect);
 	}
 }
 
-void CRecordingSystem::OnPlayerJoined( EntityId playerId )
+void CRecordingSystem::OnPlayerJoined(EntityId playerId)
 {
 	if (m_replayEventGuard == 0 && IsRecording())
 	{
@@ -7915,7 +7889,7 @@ void CRecordingSystem::OnPlayerJoined( EntityId playerId )
 		joinedPacket.playerId = playerId;
 
 		// Get the squad status relative to the client actor.
-		CPlayer *pPlayer = static_cast<CPlayer*>(g_pGame->GetIGameFramework()->GetIActorSystem()->GetActor(playerId));
+		CPlayer* pPlayer = static_cast<CPlayer*>(g_pGame->GetIGameFramework()->GetIActorSystem()->GetActor(playerId));
 		CGameLobby* pLobby = g_pGame->GetGameLobby();
 		CSquadManager* pSM = g_pGame->GetSquadManager();
 		if (pLobby && pPlayer && pSM)
@@ -7923,14 +7897,14 @@ void CRecordingSystem::OnPlayerJoined( EntityId playerId )
 			// Uses the lobby & userIds as the player actor isn't fully created yet. Note then that some params don't work in LAN mode - i.e. isLocalPlayer
 			uint16 channelId = pPlayer->GetChannelId();
 			CryUserID userId = pLobby->GetUserIDFromChannelID(channelId);
-			joinedPacket.bSameSquad = pSM->IsSquadMateByUserId( userId );
+			joinedPacket.bSameSquad = pSM->IsSquadMateByUserId(userId);
 
 			CryFixedStringT<DISPLAY_NAME_LENGTH> name;
 			pLobby->GetPlayerDisplayNameFromEntity(playerId, name);
 
 			cry_strcpy(joinedPacket.displayName, name.c_str());
 
-			uint8 rank=0, reincarnations=0;
+			uint8 rank = 0, reincarnations = 0;
 			pLobby->GetProgressionInfoByChannel(channelId, rank, reincarnations);
 
 			joinedPacket.rank = rank;
@@ -7942,19 +7916,19 @@ void CRecordingSystem::OnPlayerJoined( EntityId playerId )
 
 		if (pPlayer)
 		{
-			IAnimatedCharacter *ac = pPlayer->GetAnimatedCharacter();
+			IAnimatedCharacter* ac = pPlayer->GetAnimatedCharacter();
 			if (ac && ac->GetActionController())
 			{
 
-				IActionController *pActionController = ac->GetActionController();
-				CReplayMannListener *pListener = new CReplayMannListener(playerId, *this);
+				IActionController* pActionController = ac->GetActionController();
+				CReplayMannListener* pListener = new CReplayMannListener(playerId, *this);
 				pActionController->RegisterListener(pListener);
 				RegisterReplayMannListener(*pListener);
 
-				IEntity *pEntity = pPlayer->GetEntity();
+				IEntity* pEntity = pPlayer->GetEntity();
 				SmartScriptTable pScriptTable = pEntity ? pEntity->GetScriptTable() : NULL;
 
-				const char *szAnimDatabase = NULL;
+				const char* szAnimDatabase = NULL;
 				pScriptTable->GetValue("AnimDatabase1P", szAnimDatabase);
 				joinedPacket.pAnimDB1P = szAnimDatabase;
 				szAnimDatabase = NULL;
@@ -7970,7 +7944,7 @@ void CRecordingSystem::OnPlayerJoined( EntityId playerId )
 	}
 }
 
-void CRecordingSystem::OnPlayerLeft( EntityId playerId )
+void CRecordingSystem::OnPlayerLeft(EntityId playerId)
 {
 	if (m_replayEventGuard == 0 && IsRecording())
 	{
@@ -7982,7 +7956,7 @@ void CRecordingSystem::OnPlayerLeft( EntityId playerId )
 	}
 }
 
-void CRecordingSystem::OnPlayerChangedModel( CPlayer *pPlayer )
+void CRecordingSystem::OnPlayerChangedModel(CPlayer* pPlayer)
 {
 	if (m_replayEventGuard == 0 && IsRecording())
 	{
@@ -7991,7 +7965,7 @@ void CRecordingSystem::OnPlayerChangedModel( CPlayer *pPlayer )
 		SRecording_PlayerChangedModel changedModelPacket;
 		changedModelPacket.playerId = playerId;
 
-		ICharacterInstance* pCharInstance = pPlayer->GetEntity()->GetCharacter(0); 
+		ICharacterInstance* pCharInstance = pPlayer->GetEntity()->GetCharacter(0);
 		if (pCharInstance)
 		{
 			changedModelPacket.pModelName = CacheString(pCharInstance->GetFilePath(), eSC_Model);
@@ -8002,7 +7976,7 @@ void CRecordingSystem::OnPlayerChangedModel( CPlayer *pPlayer )
 	}
 }
 
-void CRecordingSystem::OnCorpseSpawned( EntityId corpseId, EntityId playerId )
+void CRecordingSystem::OnCorpseSpawned(EntityId corpseId, EntityId playerId)
 {
 	if (m_replayEventGuard == 0 && IsRecording())
 	{
@@ -8013,7 +7987,7 @@ void CRecordingSystem::OnCorpseSpawned( EntityId corpseId, EntityId playerId )
 	}
 }
 
-void CRecordingSystem::OnCorpseRemoved( EntityId corpseId )
+void CRecordingSystem::OnCorpseRemoved(EntityId corpseId)
 {
 	if (m_replayEventGuard == 0 && IsRecording())
 	{
@@ -8023,15 +7997,15 @@ void CRecordingSystem::OnCorpseRemoved( EntityId corpseId )
 	}
 }
 
-void CRecordingSystem::OnObjectCloakSync( const EntityId objectId, const EntityId ownerId, const bool cloakSlave, const bool fade)
+void CRecordingSystem::OnObjectCloakSync(const EntityId objectId, const EntityId ownerId, const bool cloakSlave, const bool fade)
 {
 	if ((m_replayEventGuard == 0) && (IsRecording()))
 	{
 		SRecording_ObjectCloakSync objCloakPacket;
-		objCloakPacket.cloakPlayerId  = ownerId;
-		objCloakPacket.cloakObjectId  = objectId; 
+		objCloakPacket.cloakPlayerId = ownerId;
+		objCloakPacket.cloakObjectId = objectId;
 		objCloakPacket.fadeToDesiredCloakTarget = fade;
-		objCloakPacket.cloakSlave = cloakSlave; 
+		objCloakPacket.cloakSlave = cloakSlave;
 		m_pBuffer->AddPacket(objCloakPacket);
 	}
 }
@@ -8046,7 +8020,7 @@ void CRecordingSystem::OnMannequinSetSlaveController(EntityId inMasterActorId, E
 		CRY_ASSERT_MESSAGE(inTargetContext < 256, "targetContext is stored in a u8 in killcam, yet the targetContext being set is out of range!");
 		mannSetSlaveControllerPacket.targetContext = static_cast<uint8>(inTargetContext);
 		mannSetSlaveControllerPacket.enslave = inEnslave;
-		if( piOptionalDatabase )
+		if (piOptionalDatabase)
 		{
 			const char* pDBName = piOptionalDatabase->GetFilename();
 			mannSetSlaveControllerPacket.optionalDatabaseFilenameCRC = CCrc32::ComputeLowercase(pDBName);
@@ -8055,7 +8029,7 @@ void CRecordingSystem::OnMannequinSetSlaveController(EntityId inMasterActorId, E
 	}
 }
 
-void CRecordingSystem::OnMannequinSetParam(EntityId inEntityId, const char *inParamName, QuatT &inQuatParam)
+void CRecordingSystem::OnMannequinSetParam(EntityId inEntityId, const char* inParamName, QuatT& inQuatParam)
 {
 	if ((m_replayEventGuard == 0) && (IsRecording()))
 	{
@@ -8079,24 +8053,24 @@ void CRecordingSystem::OnMannequinSetParamFloat(EntityId inEntityId, uint32 inPa
 	}
 }
 
-void CRecordingSystem::OnMannequinRecordHistoryItem( const SMannHistoryItem &historyItem, const IActionController& actionController, const EntityId entityId )
+void CRecordingSystem::OnMannequinRecordHistoryItem(const SMannHistoryItem& historyItem, const IActionController& actionController, const EntityId entityId)
 {
 	SRecording_MannEvent manEvent;
-	manEvent.eid				 = entityId;
+	manEvent.eid = entityId;
 	manEvent.historyItem = historyItem;
 
 	// Always set scope
-	if(historyItem.fragment >= 0)
+	if (historyItem.fragment >= 0)
 	{
-		const SAnimationContext &animContext = actionController.GetContext();
+		const SAnimationContext& animContext = actionController.GetContext();
 		SFragTagState fragTagState(animContext.state.GetMask(), historyItem.tagState);
-		manEvent.historyItem.scopeMask = animContext.controllerDef.GetScopeMask(historyItem.fragment, fragTagState); 
+		manEvent.historyItem.scopeMask = animContext.controllerDef.GetScopeMask(historyItem.fragment, fragTagState);
 	}
 
 	AddPacket(manEvent);
 }
 
-void CRecordingSystem::OnPickAndThrowUsed( EntityId playerId, EntityId pickAndThrowId, EntityId enviromentEntityId, bool bPickedUp )
+void CRecordingSystem::OnPickAndThrowUsed(EntityId playerId, EntityId pickAndThrowId, EntityId enviromentEntityId, bool bPickedUp)
 {
 	if ((m_replayEventGuard == 0) && (IsRecording()))
 	{
@@ -8109,7 +8083,7 @@ void CRecordingSystem::OnPickAndThrowUsed( EntityId playerId, EntityId pickAndTh
 	}
 }
 
-void CRecordingSystem::OnForcedRagdollAndImpulse( EntityId playerId, Vec3 vecImpulse, Vec3 pos, int partid, int applyTime )
+void CRecordingSystem::OnForcedRagdollAndImpulse(EntityId playerId, Vec3 vecImpulse, Vec3 pos, int partid, int applyTime)
 {
 	if ((m_replayEventGuard == 0) && (IsRecording()))
 	{
@@ -8124,7 +8098,7 @@ void CRecordingSystem::OnForcedRagdollAndImpulse( EntityId playerId, Vec3 vecImp
 	}
 }
 
-void CRecordingSystem::OnApplyImpulseToRagdoll( const EntityId playerId, pe_action_impulse& impulse )
+void CRecordingSystem::OnApplyImpulseToRagdoll(const EntityId playerId, pe_action_impulse& impulse)
 {
 	if ((m_replayEventGuard == 0) && (IsRecording()))
 	{
@@ -8139,7 +8113,7 @@ void CRecordingSystem::OnApplyImpulseToRagdoll( const EntityId playerId, pe_acti
 
 void CRecordingSystem::CameraCollisionAdjustment(const IEntity* target, Vec3& cameraPos) const
 {
-	if(!target || !g_pGameCVars->kc_cameraCollision)
+	if (!target || !g_pGameCVars->kc_cameraCollision)
 		return;
 
 	Vec3 targetWorldPos = target->GetWorldPos();
@@ -8153,31 +8127,31 @@ void CRecordingSystem::CameraCollisionAdjustment(const IEntity* target, Vec3& ca
 	sphere.center = targetWorldPos;
 	sphere.r = wallSafeDistance;
 
-	geom_contact *pContact = 0;          
-	const float hitDist = gEnv->pPhysicalWorld->PrimitiveWorldIntersection(sphere.type, &sphere, dir, ent_static|ent_terrain|ent_rigid|ent_sleeping_rigid|ent_independent,
-		&pContact, 0, (geom_colltype_player<<rwi_colltype_bit) | rwi_stop_at_pierceable);
+	geom_contact* pContact = 0;
+	const float hitDist = gEnv->pPhysicalWorld->PrimitiveWorldIntersection(sphere.type, &sphere, dir, ent_static | ent_terrain | ent_rigid | ent_sleeping_rigid | ent_independent,
+	                                                                       &pContact, 0, (geom_colltype_player << rwi_colltype_bit) | rwi_stop_at_pierceable);
 
 	// even when we have contact, keep the camera the same height above the target
 	const float minHeightDiff = dir.z;
 
-	if(hitDist > 0 && pContact)
+	if (hitDist > 0 && pContact)
 	{
 		const Vec3 normalizedDir = dir.GetNormalizedSafe();
 		cameraPos = targetWorldPos + (hitDist * normalizedDir);
 
-		if(cameraPos.z - targetWorldPos.z < minHeightDiff)
+		if (cameraPos.z - targetWorldPos.z < minHeightDiff)
 		{
-			// can't move the camera far enough away from the player in this direction. Try moving it directly up a bit			
+			// can't move the camera far enough away from the player in this direction. Try moving it directly up a bit
 			sphere.center = cameraPos;
 
 			// (move back just slightly to avoid colliding with the wall we've already found...)
 			sphere.center -= normalizedDir * 0.05f;
 
-			const float newHitDist = gEnv->pPhysicalWorld->PrimitiveWorldIntersection(sphere.type, &sphere, Vec3(0,0,minHeightDiff), ent_static|ent_terrain|ent_rigid|ent_sleeping_rigid|ent_independent,
-				&pContact, 0, (geom_colltype_player<<rwi_colltype_bit) | rwi_stop_at_pierceable);
+			const float newHitDist = gEnv->pPhysicalWorld->PrimitiveWorldIntersection(sphere.type, &sphere, Vec3(0, 0, minHeightDiff), ent_static | ent_terrain | ent_rigid | ent_sleeping_rigid | ent_independent,
+			                                                                          &pContact, 0, (geom_colltype_player << rwi_colltype_bit) | rwi_stop_at_pierceable);
 
 			float raiseDist = minHeightDiff - (cameraPos.z - targetWorldPos.z) - wallSafeDistance;
-			if(newHitDist != 0)
+			if (newHitDist != 0)
 			{
 				raiseDist = std::min(minHeightDiff, newHitDist);
 			}
@@ -8191,7 +8165,7 @@ void CRecordingSystem::CameraCollisionAdjustment(const IEntity* target, Vec3& ca
 
 void CRecordingSystem::ReRecord(const EntityId entityId)
 {
-	if (IEntity* entity = gEnv->pEntitySystem->GetEntity(entityId) )
+	if (IEntity* entity = gEnv->pEntitySystem->GetEntity(entityId))
 	{
 		OnRemove(entity);
 		SRecordingEntity::EEntityType type = RecordEntitySpawn(entity);
@@ -8201,7 +8175,7 @@ void CRecordingSystem::ReRecord(const EntityId entityId)
 
 void CRecordingSystem::ProcessReplayEntityInfo(float& updateTimer, Vec3& lastPosition, bool onGround, const Vec3& forwardDirection, const Vec3& currentPosition, float individualUpdateRate, float individualMinMovementSqrd)
 {
-	if(onGround && lastPosition.GetSquaredDistance(currentPosition) > individualMinMovementSqrd)
+	if (onGround && lastPosition.GetSquaredDistance(currentPosition) > individualMinMovementSqrd)
 	{
 		updateTimer += individualUpdateRate;
 		lastPosition = currentPosition;
@@ -8216,23 +8190,23 @@ void CRecordingSystem::RequestTrackerRaycast(const Vec3& position, const Vec3& f
 	const Vec3 dir = Vec3(0.f, 0.f, -1.0f);
 
 	const int objTypes = ent_all & ~ent_living;
-	const int flags = (geom_colltype_ray<<rwi_colltype_bit)|rwi_colltype_any|rwi_force_pierceable_noncoll|rwi_ignore_solid_back_faces|rwi_pierceability(15);
-	
+	const int flags = (geom_colltype_ray << rwi_colltype_bit) | rwi_colltype_any | rwi_force_pierceable_noncoll | rwi_ignore_solid_back_faces | rwi_pierceability(15);
+
 	const uint32 rayID = g_pGame->GetRayCaster().Queue(
-			RayCastRequest::HighPriority,
-			RayCastRequest(startPos, dir,
-			objTypes,
-			flags),
-			functor(*this, &CRecordingSystem::OnTrackerRayCastDataReceived));
+	  RayCastRequest::HighPriority,
+	  RayCastRequest(startPos, dir,
+	                 objTypes,
+	                 flags),
+	  functor(*this, &CRecordingSystem::OnTrackerRayCastDataReceived));
 
 	m_PendingTrackerRays[rayID] = forwardDirection;
 }
 
-void CRecordingSystem::OnTrackerRayCastDataReceived( const QueuedRayID& rayID, const RayCastResult& result )
+void CRecordingSystem::OnTrackerRayCastDataReceived(const QueuedRayID& rayID, const RayCastResult& result)
 {
 }
 
-void CRecordingSystem::OnInteractiveObjectFinishedUse( EntityId objectId, TagID interactionTypeTag, uint8 interactionIndex )
+void CRecordingSystem::OnInteractiveObjectFinishedUse(EntityId objectId, TagID interactionTypeTag, uint8 interactionIndex)
 {
 	if ((m_replayEventGuard == 0) && (IsRecording()))
 	{
@@ -8247,7 +8221,7 @@ void CRecordingSystem::OnInteractiveObjectFinishedUse( EntityId objectId, TagID 
 void CRecordingSystem::CleanUpDeferredRays()
 {
 	TPendingRaycastMap::iterator pendingRaycast = m_PendingTrackerRays.begin();
-	for(; pendingRaycast != m_PendingTrackerRays.end(); ++pendingRaycast)
+	for (; pendingRaycast != m_PendingTrackerRays.end(); ++pendingRaycast)
 	{
 		g_pGame->GetRayCaster().Cancel(pendingRaycast->first);
 	}
@@ -8255,7 +8229,7 @@ void CRecordingSystem::CleanUpDeferredRays()
 	m_PendingTrackerRays.clear();
 }
 
-void CRecordingSystem::GetVictimAimTarget( Vec3 &aimTarget, const Vec3 &localPosition, const Vec3 &remotePosition, float lerpValue )
+void CRecordingSystem::GetVictimAimTarget(Vec3& aimTarget, const Vec3& localPosition, const Vec3& remotePosition, float lerpValue)
 {
 	// This function attempts to modify the victim's aim direction to reduce the visual effect of lag
 	// Steps:
@@ -8264,18 +8238,18 @@ void CRecordingSystem::GetVictimAimTarget( Vec3 &aimTarget, const Vec3 &localPos
 	//	3: Adjust aim direction to achieve the same angle
 
 	// First get the position that the killer had locally
-	const uint8 *startingplace = m_pTPDataBuffer;
-	const uint8 *endingplace = startingplace + m_tpDataBufferSize;
+	const uint8* startingplace = m_pTPDataBuffer;
+	const uint8* endingplace = startingplace + m_tpDataBufferSize;
 
 	// Extract out the relevant packets so that they can be processed
-	const SRecording_TPChar *killerPackets[2];
+	const SRecording_TPChar* killerPackets[2];
 	int index = 0;
 
 	while ((startingplace < endingplace) && (index < 2))
 	{
-		const SRecording_Packet *packet = (const SRecording_Packet *) startingplace;
+		const SRecording_Packet* packet = (const SRecording_Packet*) startingplace;
 
-		switch(packet->type)
+		switch (packet->type)
 		{
 		case eTPP_TPChar:
 			{
@@ -8283,7 +8257,7 @@ void CRecordingSystem::GetVictimAimTarget( Vec3 &aimTarget, const Vec3 &localPos
 				if (tpPacket->eid == m_killer)
 				{
 					killerPackets[index] = tpPacket;
-					++ index;
+					++index;
 				}
 			}
 			break;
@@ -8349,7 +8323,7 @@ void CRecordingSystem::GetVictimAimTarget( Vec3 &aimTarget, const Vec3 &localPos
 	aimTarget += remotePosition;
 }
 
-void CRecordingSystem::SaveHighlight( const SRecordedKill& details, const int indexOverride /*= -1*/ )
+void CRecordingSystem::SaveHighlight(const SRecordedKill& details, const int indexOverride /*= -1*/)
 {
 	SStackGuard guard(s_savingHighlightsGuard);
 
@@ -8357,34 +8331,34 @@ void CRecordingSystem::SaveHighlight( const SRecordedKill& details, const int in
 	const float fun = AnalysePotentialHighlight(details, earliestTime);
 
 	RecSysLogDebug(eRSD_General, "Highlight Fun Factors: New[%.2f] Curr[%.2f][%.2f][%.2f][%.2f]"
-		, fun
-		, m_highlightData[0].m_fun
-		, m_highlightData[1].m_fun
-		, m_highlightData[2].m_fun
-		, m_highlightData[3].m_fun );
+	               , fun
+	               , m_highlightData[0].m_fun
+	               , m_highlightData[1].m_fun
+	               , m_highlightData[2].m_fun
+	               , m_highlightData[3].m_fun);
 
 	const float currTime = gEnv->pTimer->GetFrameStartTime().GetSeconds();
 
-	if( earliestTime > details.m_kill.deathTime )
+	if (earliestTime > details.m_kill.deathTime)
 	{
-		RecSysLog("Not enough data in the buffers to record this far back. Trying to record %.2fseconds.", currTime-earliestTime);
+		RecSysLog("Not enough data in the buffers to record this far back. Trying to record %.2fseconds.", currTime - earliestTime);
 		return;
 	}
-	
-	if( earliestTime > details.m_startTime )
+
+	if (earliestTime > details.m_startTime)
 	{
 		// Adjusting the start time. We can still fit the kill in though!
-		RecSysLogDebug(eRSD_General, "Reducing highlight length to %.2fseconds, because there is not enough data in the buffers.", currTime-earliestTime);
+		RecSysLogDebug(eRSD_General, "Reducing highlight length to %.2fseconds, because there is not enough data in the buffers.", currTime - earliestTime);
 	}
 	const float startTime = max(earliestTime, details.m_startTime);
 
 	int highlightIndex = indexOverride;
-	if( highlightIndex == -1 )
+	if (highlightIndex == -1)
 	{
 		float leastFunHighlight = FLT_MAX;
-		for(int i=0; i<MAX_HIGHLIGHTS; i++)
+		for (int i = 0; i < MAX_HIGHLIGHTS; i++)
 		{
-			if(!m_highlightData[i].m_bUsed)
+			if (!m_highlightData[i].m_bUsed)
 			{
 				highlightIndex = i;
 				leastFunHighlight = -1.f;
@@ -8392,7 +8366,7 @@ void CRecordingSystem::SaveHighlight( const SRecordedKill& details, const int in
 			}
 			else
 			{
-				if(m_highlightData[i].m_fun<leastFunHighlight)
+				if (m_highlightData[i].m_fun < leastFunHighlight)
 				{
 					leastFunHighlight = m_highlightData[i].m_fun;
 					highlightIndex = i;
@@ -8400,17 +8374,17 @@ void CRecordingSystem::SaveHighlight( const SRecordedKill& details, const int in
 			}
 		}
 
-		if( fun < leastFunHighlight )
+		if (fun < leastFunHighlight)
 		{
 			RecSysLog("Not Recording highlight because you were too boring!");
 			return;
 		}
 
-		if(highlightIndex<0 || highlightIndex>=MAX_HIGHLIGHTS)
+		if (highlightIndex < 0 || highlightIndex >= MAX_HIGHLIGHTS)
 			highlightIndex = 0;
 	}
 
-	SHighlightData &data = m_highlightData[highlightIndex];
+	SHighlightData& data = m_highlightData[highlightIndex];
 
 	if (data.m_bUsed)
 	{
@@ -8440,8 +8414,8 @@ void CRecordingSystem::SaveHighlight( const SRecordedKill& details, const int in
 
 	data.m_data.m_tpdatasize = m_pBuffer->GetData(data.m_data.m_tpdatabuffer, RECORDING_BUFFER_SIZE);
 
-	uint8 *dataptr;
-	size_t s = GetFirstPersonData(&dataptr, details.m_kill.victimId, details.m_kill.deathTime, details.m_kill.bulletTimeKill, data.m_endTime-startTime );
+	uint8* dataptr;
+	size_t s = GetFirstPersonData(&dataptr, details.m_kill.victimId, details.m_kill.deathTime, details.m_kill.bulletTimeKill, data.m_endTime - startTime);
 	if (s)
 	{
 		memcpy(data.m_data.m_FirstPersonDataContainer.m_firstPersonData, dataptr, s);
@@ -8455,22 +8429,22 @@ void CRecordingSystem::SaveHighlight( const SRecordedKill& details, const int in
 	UpdateRecordedData(&data.m_data);
 
 	// Sort out reference counting
-	uint8 *startingplace = data.m_data.m_tpdatabuffer;
-	uint8 *endingplace = startingplace + data.m_data.m_tpdatasize;
+	uint8* startingplace = data.m_data.m_tpdatabuffer;
+	uint8* endingplace = startingplace + data.m_data.m_tpdatasize;
 
 	while (startingplace < endingplace)
 	{
-		SRecording_Packet *pPacket = (SRecording_Packet*) startingplace;
+		SRecording_Packet* pPacket = (SRecording_Packet*) startingplace;
 
 		switch (pPacket->type)
 		{
-			case eTPP_StatObjChange:
+		case eTPP_StatObjChange:
 			{
-				SRecording_StatObjChange *pStatObjPacket = (SRecording_StatObjChange*) pPacket;
+				SRecording_StatObjChange* pStatObjPacket = (SRecording_StatObjChange*) pPacket;
 				pStatObjPacket->pNewStatObj->AddRef();
 				break;
 			}
-			case eTPP_EntitySpawn:
+		case eTPP_EntitySpawn:
 			{
 				SRecording_EntitySpawn* pEntitySpawnPacket = (SRecording_EntitySpawn*) pPacket;
 				AddReferences(*pEntitySpawnPacket);
@@ -8482,7 +8456,7 @@ void CRecordingSystem::SaveHighlight( const SRecordedKill& details, const int in
 	}
 
 	const TEntitySpawnMap::iterator endSpawns = data.m_data.m_discardedEntitySpawns.end();
-	for(TEntitySpawnMap::iterator itSpawns= data.m_data.m_discardedEntitySpawns.begin(); itSpawns!=endSpawns; ++itSpawns)
+	for (TEntitySpawnMap::iterator itSpawns = data.m_data.m_discardedEntitySpawns.begin(); itSpawns != endSpawns; ++itSpawns)
 	{
 		AddReferences(itSpawns->second.first);
 	}
@@ -8515,28 +8489,28 @@ void CRecordingSystem::PlayHighlight(int index)
 	}
 }
 
-void CRecordingSystem::CleanupHighlight( int index )
+void CRecordingSystem::CleanupHighlight(int index)
 {
 	RecSysLogDebug(eRSD_General, "Cleanup Highlight: %d", index);
 	if (m_highlightData[index].m_bUsed)
 	{
 		// Sort out reference counting
-		uint8 *startingplace = m_highlightData[index].m_data.m_tpdatabuffer;
-		uint8 *endingplace = startingplace + m_highlightData[index].m_data.m_tpdatasize;
+		uint8* startingplace = m_highlightData[index].m_data.m_tpdatabuffer;
+		uint8* endingplace = startingplace + m_highlightData[index].m_data.m_tpdatasize;
 
 		while (startingplace < endingplace)
 		{
-			SRecording_Packet *pPacket = (SRecording_Packet*) startingplace;
+			SRecording_Packet* pPacket = (SRecording_Packet*) startingplace;
 
 			switch (pPacket->type)
 			{
-				case eTPP_StatObjChange:
+			case eTPP_StatObjChange:
 				{
-					SRecording_StatObjChange *pStatObjPacket = (SRecording_StatObjChange*) pPacket;
+					SRecording_StatObjChange* pStatObjPacket = (SRecording_StatObjChange*) pPacket;
 					pStatObjPacket->pNewStatObj->Release();
 					break;
 				}
-				case eTPP_EntitySpawn:
+			case eTPP_EntitySpawn:
 				{
 					SRecording_EntitySpawn* pEntitySpawnPacket = (SRecording_EntitySpawn*) pPacket;
 					ReleaseReferences(*pEntitySpawnPacket);
@@ -8548,7 +8522,7 @@ void CRecordingSystem::CleanupHighlight( int index )
 		}
 
 		const TEntitySpawnMap::iterator endSpawns = m_highlightData[index].m_data.m_discardedEntitySpawns.end();
-		for(TEntitySpawnMap::iterator itSpawns= m_highlightData[index].m_data.m_discardedEntitySpawns.begin(); itSpawns!=endSpawns; ++itSpawns)
+		for (TEntitySpawnMap::iterator itSpawns = m_highlightData[index].m_data.m_discardedEntitySpawns.begin(); itSpawns != endSpawns; ++itSpawns)
 		{
 			ReleaseReferences(itSpawns->second.first);
 		}
@@ -8557,14 +8531,14 @@ void CRecordingSystem::CleanupHighlight( int index )
 	}
 }
 
-void CRecordingSystem::SaveHighlight_Queue( const SKillInfo& kill, float length )
+void CRecordingSystem::SaveHighlight_Queue(const SKillInfo& kill, float length)
 {
 	// Don't record kills if we are in the pre-match state etc.
-	if(gEnv->bMultiplayer)
+	if (gEnv->bMultiplayer)
 	{
-		if(CGameRules *pGameRules = g_pGame->GetGameRules())
+		if (CGameRules* pGameRules = g_pGame->GetGameRules())
 		{
-			if(!pGameRules->HasGameActuallyStarted())
+			if (!pGameRules->HasGameActuallyStarted())
 			{
 				return;
 			}
@@ -8573,11 +8547,11 @@ void CRecordingSystem::SaveHighlight_Queue( const SKillInfo& kill, float length 
 
 	float const currTime = gEnv->pTimer->GetFrameStartTime().GetSeconds();
 
-	if(m_recordKillQueue.m_timeTilRecord>0.f)
+	if (m_recordKillQueue.m_timeTilRecord > 0.f)
 	{
 		static const float kMaxHighlightDuration = 8.f;
-		const float newDuration = (currTime+g_pGameCVars->kc_kickInTime)-m_recordKillQueue.m_startTime;
-		if(newDuration>kMaxHighlightDuration)
+		const float newDuration = (currTime + g_pGameCVars->kc_kickInTime) - m_recordKillQueue.m_startTime;
+		if (newDuration > kMaxHighlightDuration)
 		{
 			RecSysLog("Not extending queued highlight, too long.");
 		}
@@ -8585,7 +8559,7 @@ void CRecordingSystem::SaveHighlight_Queue( const SKillInfo& kill, float length 
 		{
 			m_recordKillQueue.m_timeTilRecord = g_pGameCVars->kc_kickInTime;
 			m_recordKillQueue.m_killCount++;
-			RecSysLog("Extending queued highlight. New length: %.2f seconds. %d kills.", newDuration, m_recordKillQueue.m_killCount );
+			RecSysLog("Extending queued highlight. New length: %.2f seconds. %d kills.", newDuration, m_recordKillQueue.m_killCount);
 		}
 	}
 	else
@@ -8594,7 +8568,7 @@ void CRecordingSystem::SaveHighlight_Queue( const SKillInfo& kill, float length 
 		m_recordKillQueue.m_kill = kill;
 		m_recordKillQueue.m_kill.winningKill = false;
 		m_recordKillQueue.m_killCount = 1;
-		m_recordKillQueue.m_startTime = currTime+g_pGameCVars->kc_kickInTime-length;
+		m_recordKillQueue.m_startTime = currTime + g_pGameCVars->kc_kickInTime - length;
 		m_recordKillQueue.m_timeTilRecord = g_pGameCVars->kc_kickInTime;
 	}
 }
@@ -8604,7 +8578,7 @@ bool CRecordingSystem::PlayAllHighlights(bool bLoop)
 	RecSysLogFunc;
 	int bestIndex = -1;
 	float earliestTime = FLT_MAX;
-	for (int i = 0; i < MAX_HIGHLIGHTS; ++ i)
+	for (int i = 0; i < MAX_HIGHLIGHTS; ++i)
 	{
 		if (m_highlightData[i].m_bUsed && (m_highlightData[i].m_endTime < earliestTime))
 		{
@@ -8627,25 +8601,25 @@ bool CRecordingSystem::PlayAllHighlights(bool bLoop)
 float CRecordingSystem::GetHighlightsReelLength() const
 {
 	float totalTime = 0.f;
-	for (int i = 0; i < MAX_HIGHLIGHTS; ++ i)
+	for (int i = 0; i < MAX_HIGHLIGHTS; ++i)
 	{
 		if (m_highlightData[i].m_bUsed)
 		{
-			totalTime += m_highlightData[i].m_endTime-m_highlightData[i].m_details.m_startTime;
+			totalTime += m_highlightData[i].m_endTime - m_highlightData[i].m_details.m_startTime;
 		}
 	}
 	return totalTime;
 }
 
 //-----------------------------------------------------------------------------
-IEntity * CRecordingSystem::SpawnCorpse( EntityId originalId, const Vec3 &position, const Quat &rotation, const Vec3 &scale )
+IEntity* CRecordingSystem::SpawnCorpse(EntityId originalId, const Vec3& position, const Quat& rotation, const Vec3& scale)
 {
 	SEntitySpawnParams params;
-	params.pClass = m_pCorpse; 
+	params.pClass = m_pCorpse;
 	char sName[64];
-	cry_sprintf(sName, "ReplayCorpse%d", m_nReplayEntityNumber ++);
+	cry_sprintf(sName, "ReplayCorpse%d", m_nReplayEntityNumber++);
 	params.sName = sName;
-	params.nFlags = (ENTITY_FLAG_NO_PROXIMITY|ENTITY_FLAG_CLIENT_ONLY);
+	params.nFlags = (ENTITY_FLAG_NO_PROXIMITY | ENTITY_FLAG_CLIENT_ONLY);
 	params.vPosition = position;
 	params.qRotation = rotation;
 	params.vScale = scale;
@@ -8657,7 +8631,7 @@ IEntity * CRecordingSystem::SpawnCorpse( EntityId originalId, const Vec3 &positi
 	return NULL;
 }
 
-IEntityClass* CRecordingSystem::GetEntityClass_NetSafe( const uint16 classId )
+IEntityClass* CRecordingSystem::GetEntityClass_NetSafe(const uint16 classId)
 {
 	char className[128];
 	g_pGame->GetIGameFramework()->GetNetworkSafeClassName(className, sizeof(className), classId);
@@ -8665,44 +8639,44 @@ IEntityClass* CRecordingSystem::GetEntityClass_NetSafe( const uint16 classId )
 }
 
 #ifdef RECSYS_DEBUG
-void CRecordingSystem::PrintCurrentRecordingBuffers( const char* const msg /*= NULL*/ )
+void CRecordingSystem::PrintCurrentRecordingBuffers(const char* const msg /*= NULL*/)
 {
-	if( g_pGameCVars->kc_debugPacketData && m_pDebug )
+	if (g_pGameCVars->kc_debugPacketData && m_pDebug)
 	{
-		m_pDebug->PrintFirstPersonPacketData( *m_pBufferFirstPerson, msg?msg:"LiveFPRecordingBuffer" );
-		m_pDebug->PrintThirdPersonPacketData( *m_pBuffer, msg?msg:"Live3PRecordingBuffer" );
+		m_pDebug->PrintFirstPersonPacketData(*m_pBufferFirstPerson, msg ? msg : "LiveFPRecordingBuffer");
+		m_pDebug->PrintThirdPersonPacketData(*m_pBuffer, msg ? msg : "Live3PRecordingBuffer");
 	}
 }
 #endif //RECSYS_DEBUG
 
-void CRecordingSystem::NotifyOnPlaybackRequested( const SPlaybackRequest& info )
+void CRecordingSystem::NotifyOnPlaybackRequested(const SPlaybackRequest& info)
 {
 	TRecordingSystemListeners::const_iterator end = m_listeners.end();
-	for(TRecordingSystemListeners::iterator it = m_listeners.begin(); it!=end; ++it)
+	for (TRecordingSystemListeners::iterator it = m_listeners.begin(); it != end; ++it)
 	{
 		(*it)->OnPlaybackRequested(info);
 	}
 }
 
-void CRecordingSystem::NotifyOnPlaybackStarted( const SPlaybackInfo& info )
+void CRecordingSystem::NotifyOnPlaybackStarted(const SPlaybackInfo& info)
 {
 	TRecordingSystemListeners::const_iterator end = m_listeners.end();
-	for(TRecordingSystemListeners::iterator it = m_listeners.begin(); it!=end; ++it)
+	for (TRecordingSystemListeners::iterator it = m_listeners.begin(); it != end; ++it)
 	{
 		(*it)->OnPlaybackStarted(info);
 	}
 }
 
-void CRecordingSystem::NotifyOnPlaybackEnd( const SPlaybackInfo& info )
+void CRecordingSystem::NotifyOnPlaybackEnd(const SPlaybackInfo& info)
 {
 	TRecordingSystemListeners::const_iterator end = m_listeners.end();
-	for(TRecordingSystemListeners::iterator it = m_listeners.begin(); it!=end; ++it)
+	for (TRecordingSystemListeners::iterator it = m_listeners.begin(); it != end; ++it)
 	{
 		(*it)->OnPlaybackEnd(info);
 	}
 }
 
-/*static*/ void CRecordingSystem::RemoveEntityPhysics( IEntity& entity )
+/*static*/ void CRecordingSystem::RemoveEntityPhysics(IEntity& entity)
 {
 	SEntityPhysicalizeParams params;
 	params.type = PE_NONE;
@@ -8713,36 +8687,36 @@ void CRecordingSystem::NotifyOnPlaybackEnd( const SPlaybackInfo& info )
 	entity.SetViewDistRatio(g_pGameCVars->g_actorViewDistRatio);
 }
 
-/*static*/ EntityId CRecordingSystem::FindWeaponAtTime( const SRecordedData& initialData, CRecordingBuffer& tpData, const EntityId playerId, const float atTime )
+/*static*/ EntityId CRecordingSystem::FindWeaponAtTime(const SRecordedData& initialData, CRecordingBuffer& tpData, const EntityId playerId, const float atTime)
 {
-	if(!playerId)
+	if (!playerId)
 		return 0;
 
 	EntityId weaponId = 0;
 
 	// Get initial state weapon.
-	if(const SPlayerInitialState* pInitialState = initialData.GetPlayerInitialState(playerId))
+	if (const SPlayerInitialState* pInitialState = initialData.GetPlayerInitialState(playerId))
 	{
 		weaponId = pInitialState->weapon.weaponId;
 	}
 
 	// Check any subsequent weapon changes.
 	float frameTime = 0.f;
-	for( CRecordingBuffer::iterator it=tpData.begin(), end=tpData.end(); it!=end; ++it )
+	for (CRecordingBuffer::iterator it = tpData.begin(), end = tpData.end(); it != end; ++it)
 	{
 		const uint8 packetType = it->type;
-		if(packetType == eRBPT_FrameData)
+		if (packetType == eRBPT_FrameData)
 		{
 			frameTime = ((SRecording_FrameData*)&*it)->frametime;
-			if(frameTime>atTime)
+			if (frameTime > atTime)
 			{
 				break;
 			}
 		}
-		else if(packetType == eTPP_WeaponSelect)
+		else if (packetType == eTPP_WeaponSelect)
 		{
 			const SRecording_WeaponSelect& packet = (const SRecording_WeaponSelect&)*it;
-			if(packet.ownerId==playerId)
+			if (packet.ownerId == playerId)
 			{
 				weaponId = packet.weaponId;
 			}
@@ -8777,12 +8751,12 @@ float CRecordingSystem::AnalysePotentialHighlight(const SRecordedKill& details, 
 
 	//////////////////////////////////////////////////////////////////////////
 	// DISCARDED DATA
-	for(int i=0; i<MAX_RECORDED_PLAYERS; i++)
+	for (int i = 0; i < MAX_RECORDED_PLAYERS; i++)
 	{
 		const SPlayerInitialState& initialState = m_recordedData.m_playerInitialStates[i];
-		if( initialState.playerId==killerId )
+		if (initialState.playerId == killerId)
 		{
-			if(IEntity* pWeapon = gEnv->pEntitySystem->GetEntity(initialState.weapon.weaponId))
+			if (IEntity* pWeapon = gEnv->pEntitySystem->GetEntity(initialState.weapon.weaponId))
 			{
 				pWeaponClass = pWeapon->GetClass();
 			}
@@ -8794,19 +8768,19 @@ float CRecordingSystem::AnalysePotentialHighlight(const SRecordedKill& details, 
 	// FP DATA
 	float earliestTimeFP = 0.f;
 	float dt = 0.f;
-	for( CRecordingBuffer::iterator it=fpData.begin(), end=fpData.end(); it!=end; ++it )
+	for (CRecordingBuffer::iterator it = fpData.begin(), end = fpData.end(); it != end; ++it)
 	{
-		switch(it->type)
+		switch (it->type)
 		{
 		case eFPP_FPChar:
 			{
 				SRecording_FPChar* pPacket = (SRecording_FPChar*)&(*it);
-				if(pPrevFPCharPacket)
+				if (pPrevFPCharPacket)
 				{
 					dt = pPacket->frametime - pPrevFPCharPacket->frametime;
-					if(pPacket->playerFlags&eFPF_NightVision)
+					if (pPacket->playerFlags & eFPF_NightVision)
 						fNanoVisionTime += dt;
-					if( pPacket->frametime>=fKillTime && ((bCrouched && pPacket->relativePosition.t.z<-1.45f)||(!bCrouched && pPacket->relativePosition.t.z>-1.15f)) )
+					if (pPacket->frametime >= fKillTime && ((bCrouched && pPacket->relativePosition.t.z < -1.45f) || (!bCrouched && pPacket->relativePosition.t.z > -1.15f)))
 					{
 						bCrouched = !bCrouched;
 						crouchedChangedCount++;
@@ -8835,57 +8809,57 @@ float CRecordingSystem::AnalysePotentialHighlight(const SRecordedKill& details, 
 	Vec3 killerPos(ZERO);
 	Vec3 victimPos(ZERO);
 	static const float kTeabagDistSqr2D = sqr(2.f);
-	for( CRecordingBuffer::iterator it=tpData.begin(), end=tpData.end(); it!=end; ++it )
+	for (CRecordingBuffer::iterator it = tpData.begin(), end = tpData.end(); it != end; ++it)
 	{
-		if(it->type == eRBPT_FrameData)
+		if (it->type == eRBPT_FrameData)
 		{
 			frameTime = ((SRecording_FrameData*)&*it)->frametime;
 			earliestTimeTP = min(earliestTimeTP, frameTime);
 		}
-		else if(frameTime>fStartTime && dt>0.f)
+		else if (frameTime > fStartTime && dt > 0.f)
 		{
-			if(it->type == eTPP_TPChar)
+			if (it->type == eTPP_TPChar)
 			{
 				const SRecording_TPChar& packet = (const SRecording_TPChar&)*it;
-				if(packet.eid==killerId)
+				if (packet.eid == killerId)
 				{
-					dt = frameTime-prevFrameTime;
+					dt = frameTime - prevFrameTime;
 					killerPos = packet.entitylocation.t;
 
 					// Check Flags.
-					if(packet.playerFlags&eTPF_Cloaked)
+					if (packet.playerFlags & eTPF_Cloaked)
 						fStealthTime += dt;
-					if(packet.playerFlags&eFPF_NightVision)
+					if (packet.playerFlags & eFPF_NightVision)
 						fNanoVisionTime += dt;
-					if((packet.layerEffectParams&(MTL_LAYER_BLEND_FROZEN|MTL_LAYER_BLEND_WET))==(MTL_LAYER_BLEND_FROZEN|MTL_LAYER_BLEND_WET))
+					if ((packet.layerEffectParams & (MTL_LAYER_BLEND_FROZEN | MTL_LAYER_BLEND_WET)) == (MTL_LAYER_BLEND_FROZEN | MTL_LAYER_BLEND_WET))
 						fMaxSuitTime += dt;
-					else if((packet.layerEffectParams&MTL_LAYER_BLEND_WET)==MTL_LAYER_BLEND_WET)
+					else if ((packet.layerEffectParams & MTL_LAYER_BLEND_WET) == MTL_LAYER_BLEND_WET)
 						fArmourTime += dt;
-					if(frameTime>fKillTime && killerPos.GetSquaredDistance2D(victimPos)<kTeabagDistSqr2D)
+					if (frameTime > fKillTime && killerPos.GetSquaredDistance2D(victimPos) < kTeabagDistSqr2D)
 						fTeabaggableTime += dt;
 
 					prevFrameTime = frameTime;
 				}
-				else if(packet.eid==victimId && !bVictimCorpsed)
+				else if (packet.eid == victimId && !bVictimCorpsed)
 				{
 					victimPos = packet.entitylocation.t;
 				}
 			}
-			else if(it->type == eTPP_WeaponSelect)
+			else if (it->type == eTPP_WeaponSelect)
 			{
 				const SRecording_WeaponSelect& packet = (const SRecording_WeaponSelect&)*it;
-				if(packet.ownerId==killerId && frameTime<fKillTime)
+				if (packet.ownerId == killerId && frameTime < fKillTime)
 				{
-					if(IEntity* pWeapon = gEnv->pEntitySystem->GetEntity(packet.weaponId))
+					if (IEntity* pWeapon = gEnv->pEntitySystem->GetEntity(packet.weaponId))
 					{
 						pWeaponClass = pWeapon->GetClass();
 					}
 				}
 			}
-			else if(it->type == eTPP_CorpseSpawned)
+			else if (it->type == eTPP_CorpseSpawned)
 			{
 				const SRecording_CorpseSpawned& packet = (const SRecording_CorpseSpawned&)*it;
-				bVictimCorpsed |= (packet.playerId==victimId);
+				bVictimCorpsed |= (packet.playerId == victimId);
 			}
 		}
 	}
@@ -8899,39 +8873,39 @@ float CRecordingSystem::AnalysePotentialHighlight(const SRecordedKill& details, 
 	rules.m_multiKills.Apply(details.m_killCount, fun);
 
 	// Weapon:
-	if(pWeaponClass)
+	if (pWeaponClass)
 		rules.m_weapons.Apply(pWeaponClass, fun);
 
 	// Special Cases:
-	const float fHighlightDuration = fEndTime-fStartTime;
+	const float fHighlightDuration = fEndTime - fStartTime;
 
 	// eHRM_Stealthed,
 	static const float kStealthTimeThreshold = 0.375f;
-	if(fStealthTime>kStealthTimeThreshold*fHighlightDuration)
+	if (fStealthTime > kStealthTimeThreshold * fHighlightDuration)
 		rules.m_specialCases.Apply(eHRM_Stealthed, fun);
 
 	// eHRM_Armour,
 	static const float kArmourTimeThreshold = 0.375f;
-	if(fArmourTime>kArmourTimeThreshold*fHighlightDuration)
+	if (fArmourTime > kArmourTimeThreshold * fHighlightDuration)
 		rules.m_specialCases.Apply(eHRM_Armour, fun);
 
 	// eHRM_MaxSuit,
 	static const float kMaxSuitTimeThreshold = 0.375f;
-	if(fMaxSuitTime>kMaxSuitTimeThreshold*fHighlightDuration)
+	if (fMaxSuitTime > kMaxSuitTimeThreshold * fHighlightDuration)
 		rules.m_specialCases.Apply(eHRM_MaxSuit, fun);
 
 	// eHRM_NanoVision,
 	static const float kNanoVisionTimeThreshold = 0.4f;
-	if(fStealthTime>kNanoVisionTimeThreshold*fHighlightDuration)
+	if (fStealthTime > kNanoVisionTimeThreshold * fHighlightDuration)
 		rules.m_specialCases.Apply(eHRM_NanoVision, fun);
 
 	// eHRM_Teabag,
 	static const float kTeabagTimeThreshold = 1.f;
-	if(fTeabaggableTime>kTeabagTimeThreshold && crouchedChangedCount>=4)
+	if (fTeabaggableTime > kTeabagTimeThreshold && crouchedChangedCount >= 4)
 		rules.m_specialCases.Apply(eHRM_Teabag, fun);
 
 	// eHRM_SkillKill,
-	if(details.m_kill.bulletTimeKill)
+	if (details.m_kill.bulletTimeKill)
 		rules.m_specialCases.Apply(eHRM_SkillKill, fun);
 
 	// Set Return Value.
@@ -8939,10 +8913,10 @@ float CRecordingSystem::AnalysePotentialHighlight(const SRecordedKill& details, 
 	return fun;
 }
 
-void CRecordingSystem::AddRecordingEntity( IEntity* pEntity, const SRecordingEntity::EEntityType type )
+void CRecordingSystem::AddRecordingEntity(IEntity* pEntity, const SRecordingEntity::EEntityType type)
 {
 	const EntityId entityId = pEntity->GetId();
-	RecSysLogDebug(eRSD_Visibility, "AddRecordingEntity [%d] %s: %s", entityId, pEntity->GetClass()->GetName(), pEntity->GetName() );
+	RecSysLogDebug(eRSD_Visibility, "AddRecordingEntity [%d] %s: %s", entityId, pEntity->GetClass()->GetName(), pEntity->GetName());
 
 	SRecordingEntity& entity = m_recordingEntities[entityId];
 	entity.entityId = entityId;
@@ -8952,9 +8926,9 @@ void CRecordingSystem::AddRecordingEntity( IEntity* pEntity, const SRecordingEnt
 	transfom.OrthonormalizeFast();
 	entity.location.t = transfom.GetTranslation();
 	entity.location.q = Quat(transfom);
-	RecSysLogDebugIf(eRSD_General, !pEntity->GetScale().IsEquivalent(Vec3Constants<float>::fVec3_One), "Recording scaled entity. Scale[%.3f, %.3f, %.3f] [%d] %s: %s", pEntity->GetScale().x, pEntity->GetScale().y, pEntity->GetScale().z, entityId, pEntity->GetClass()->GetName(), pEntity->GetName() );
+	RecSysLogDebugIf(eRSD_General, !pEntity->GetScale().IsEquivalent(Vec3Constants<float>::fVec3_One), "Recording scaled entity. Scale[%.3f, %.3f, %.3f] [%d] %s: %s", pEntity->GetScale().x, pEntity->GetScale().y, pEntity->GetScale().z, entityId, pEntity->GetClass()->GetName(), pEntity->GetName());
 
-	if(IsPlayingBack())
+	if (IsPlayingBack())
 	{
 		HideEntityKeepingPhysics(pEntity, true);
 	}
@@ -8963,16 +8937,16 @@ void CRecordingSystem::AddRecordingEntity( IEntity* pEntity, const SRecordingEnt
 	gEnv->pEntitySystem->AddEntityEventListener(entityId, ENTITY_EVENT_UNHIDE, this);
 }
 
-void CRecordingSystem::RemoveRecordingEntity( SRecordingEntity& recEnt )
+void CRecordingSystem::RemoveRecordingEntity(SRecordingEntity& recEnt)
 {
-	RecSysLogDebug(eRSD_Visibility, "RemoveRecordingEntity [%d] %s", recEnt.entityId, recEnt.hiddenState==SRecordingEntity::eHS_Hide?"Hidden":"Shown" );
+	RecSysLogDebug(eRSD_Visibility, "RemoveRecordingEntity [%d] %s", recEnt.entityId, recEnt.hiddenState == SRecordingEntity::eHS_Hide ? "Hidden" : "Shown");
 	gEnv->pEntitySystem->RemoveEntityEventListener(recEnt.entityId, ENTITY_EVENT_HIDE, this);
 	gEnv->pEntitySystem->RemoveEntityEventListener(recEnt.entityId, ENTITY_EVENT_UNHIDE, this);
 }
 
 //////////////////////////////////////////////////////////////////////////
 
-CReplayMannListener::CReplayMannListener( EntityId entId, CRecordingSystem &recordingSystem )
+CReplayMannListener::CReplayMannListener(EntityId entId, CRecordingSystem& recordingSystem)
 	: m_entId(entId)
 	, m_recordingSystem(recordingSystem)
 {}
@@ -8980,51 +8954,55 @@ CReplayMannListener::CReplayMannListener( EntityId entId, CRecordingSystem &reco
 CReplayMannListener::~CReplayMannListener()
 {}
 
-void CReplayMannListener::OnEvent( const SMannHistoryItem &historyItem, const IActionController& actionController )
+void CReplayMannListener::OnEvent(const SMannHistoryItem& historyItem, const IActionController& actionController)
 {
 	m_recordingSystem.OnMannequinRecordHistoryItem(historyItem, actionController, m_entId);
 }
 
 //////////////////////////////////////////////////////////////////////////
 
-void SHighlightRules::Init( XmlNodeRef& node )
+void SHighlightRules::Init(XmlNodeRef& node)
 {
 	IEntityClassRegistry* pClassReg = gEnv->pEntitySystem->GetClassRegistry();
 	CGameRules* pGameRules = g_pGame->GetGameRules();
-	
-	if(node)
+
+	if (node)
 	{
-		float add=0.f, mul=1.f;
+		float add = 0.f, mul = 1.f;
 		const int numGroups = node->getChildCount();
-		for(int g=0; g<numGroups; ++g)
+		for (int g = 0; g < numGroups; ++g)
 		{
 			XmlNodeRef group = node->getChild(g);
 			//////////////////////////////////////////////////////////////////////////
-			if(group->isTag("HitTypes"))
+			if (group->isTag("HitTypes"))
 			{
-				for(int c=0, num=group->getChildCount(); c<num; ++c)
+				for (int c = 0, num = group->getChildCount(); c < num; ++c)
 				{
 					XmlNodeRef child = group->getChild(c);
-					add = 0.f; child->getAttr("add", add);
-					mul = 1.f; child->getAttr("mul", mul);
-					if(child->isTag("Default"))
+					add = 0.f;
+					child->getAttr("add", add);
+					mul = 1.f;
+					child->getAttr("mul", mul);
+					if (child->isTag("Default"))
 						m_hitTypes.SetDefault(add, mul);
-					else if(const char* type = child->getAttr("type"))
+					else if (const char* type = child->getAttr("type"))
 					{
-						if(const int typeId = pGameRules->GetHitTypeId(type))
+						if (const int typeId = pGameRules->GetHitTypeId(type))
 							m_hitTypes.Add(typeId, add, mul);
 					}
 				}
 			}
 			//////////////////////////////////////////////////////////////////////////
-			else if(group->isTag("MultiKills"))
+			else if (group->isTag("MultiKills"))
 			{
-				for(int c=0, num=group->getChildCount(); c<num; ++c)
+				for (int c = 0, num = group->getChildCount(); c < num; ++c)
 				{
 					XmlNodeRef child = group->getChild(c);
-					add = 0.f; child->getAttr("add", add);
-					mul = 1.f; child->getAttr("mul", mul);
-					if(child->isTag("Default"))
+					add = 0.f;
+					child->getAttr("add", add);
+					mul = 1.f;
+					child->getAttr("mul", mul);
+					if (child->isTag("Default"))
 						m_multiKills.SetDefault(add, mul);
 					else
 					{
@@ -9035,41 +9013,45 @@ void SHighlightRules::Init( XmlNodeRef& node )
 				}
 			}
 			//////////////////////////////////////////////////////////////////////////
-			else if(group->isTag("Weapons"))
+			else if (group->isTag("Weapons"))
 			{
-				for(int c=0, num=group->getChildCount(); c<num; ++c)
+				for (int c = 0, num = group->getChildCount(); c < num; ++c)
 				{
 					XmlNodeRef child = group->getChild(c);
-					add = 0.f; child->getAttr("add", add);
-					mul = 1.f; child->getAttr("mul", mul);
-					if(child->isTag("Default"))
+					add = 0.f;
+					child->getAttr("add", add);
+					mul = 1.f;
+					child->getAttr("mul", mul);
+					if (child->isTag("Default"))
 						m_weapons.SetDefault(add, mul);
-					else if(const char* name = child->getAttr("name"))
+					else if (const char* name = child->getAttr("name"))
 					{
-						if(IEntityClass* pWeapon = pClassReg->FindClass(name))
+						if (IEntityClass* pWeapon = pClassReg->FindClass(name))
 							m_weapons.Add(pWeapon, add, mul);
 					}
 				}
 			}
 			//////////////////////////////////////////////////////////////////////////
-			else if(group->isTag("Special"))
+			else if (group->isTag("Special"))
 			{
-				for(int c=0, num=group->getChildCount(); c<num; ++c)
+				for (int c = 0, num = group->getChildCount(); c < num; ++c)
 				{
 					XmlNodeRef child = group->getChild(c);
-					add = 0.f; child->getAttr("add", add);
-					mul = 1.f; child->getAttr("mul", mul);
-					if(child->isTag("Stealth"))
+					add = 0.f;
+					child->getAttr("add", add);
+					mul = 1.f;
+					child->getAttr("mul", mul);
+					if (child->isTag("Stealth"))
 						m_specialCases.Add(eHRM_Stealthed, add, mul);
-					else if(child->isTag("Armour"))
+					else if (child->isTag("Armour"))
 						m_specialCases.Add(eHRM_Armour, add, mul);
-					else if(child->isTag("MaxSuit"))
+					else if (child->isTag("MaxSuit"))
 						m_specialCases.Add(eHRM_MaxSuit, add, mul);
-					else if(child->isTag("NanoVision"))
+					else if (child->isTag("NanoVision"))
 						m_specialCases.Add(eHRM_NanoVision, add, mul);
-					else if(child->isTag("Teabag"))
+					else if (child->isTag("Teabag"))
 						m_specialCases.Add(eHRM_Teabag, add, mul);
-					else if(child->isTag("SkillKill"))
+					else if (child->isTag("SkillKill"))
 						m_specialCases.Add(eHRM_SkillKill, add, mul);
 				}
 			}
@@ -9079,12 +9061,12 @@ void SHighlightRules::Init( XmlNodeRef& node )
 
 //////////////////////////////////////////////////////////////////////////
 
-void SPlaybackInfo::Init( const SPlaybackRequest& request, const SRecordedData& initialData, CRecordingBuffer& tpData )
+void SPlaybackInfo::Init(const SPlaybackRequest& request, const SRecordedData& initialData, CRecordingBuffer& tpData)
 {
 	Reset(&request);
 
 	// Setup initial View.
-	if(IEntity* pEntity = gEnv->pEntitySystem->GetEntity(request.kill.killerId))
+	if (IEntity* pEntity = gEnv->pEntitySystem->GetEntity(request.kill.killerId))
 	{
 		const Matrix34& transform = pEntity->GetWorldTM();
 		m_view.precacheCamPos = transform.GetTranslation();
@@ -9093,16 +9075,16 @@ void SPlaybackInfo::Init( const SPlaybackRequest& request, const SRecordedData& 
 	}
 
 	// Get weapons for streaming.
-	if(CGameSharedParametersStorage* pStorage = g_pGame->GetGameSharedParametersStorage())
+	if (CGameSharedParametersStorage* pStorage = g_pGame->GetGameSharedParametersStorage())
 	{
-		const EntityId killerWeaponId = CRecordingSystem::FindWeaponAtTime( initialData, tpData, request.kill.killerId, request.kill.deathTime-1.55f );
-		if(IEntity* pKillerWeaponEntity = gEnv->pEntitySystem->GetEntity(killerWeaponId))
+		const EntityId killerWeaponId = CRecordingSystem::FindWeaponAtTime(initialData, tpData, request.kill.killerId, request.kill.deathTime - 1.55f);
+		if (IEntity* pKillerWeaponEntity = gEnv->pEntitySystem->GetEntity(killerWeaponId))
 		{
-			if(IEntityClass* pWeaponClass = pKillerWeaponEntity->GetClass())
+			if (IEntityClass* pWeaponClass = pKillerWeaponEntity->GetClass())
 			{
-				if(CItemSharedParams* pItemSharedParams = pStorage->GetItemSharedParameters(pWeaponClass->GetName(), false))
+				if (CItemSharedParams* pItemSharedParams = pStorage->GetItemSharedParameters(pWeaponClass->GetName(), false))
 				{
-					if(const SGeometryDef* pGeomDef = pItemSharedParams->GetGeometryForSlot(eIGS_FirstPerson))
+					if (const SGeometryDef* pGeomDef = pItemSharedParams->GetGeometryForSlot(eIGS_FirstPerson))
 					{
 						m_view.streamingWeaponFPModel = pGeomDef->modelPath.c_str();
 						m_view.precacheFlags |= ePF_Weapons;
@@ -9110,14 +9092,14 @@ void SPlaybackInfo::Init( const SPlaybackRequest& request, const SRecordedData& 
 				}
 			}
 		}
-		const EntityId victimWeaponId = CRecordingSystem::FindWeaponAtTime( initialData, tpData, request.kill.victimId, request.kill.deathTime-1.55f );
-		if(IEntity* pVictimWeaponEntity = gEnv->pEntitySystem->GetEntity(victimWeaponId))
+		const EntityId victimWeaponId = CRecordingSystem::FindWeaponAtTime(initialData, tpData, request.kill.victimId, request.kill.deathTime - 1.55f);
+		if (IEntity* pVictimWeaponEntity = gEnv->pEntitySystem->GetEntity(victimWeaponId))
 		{
-			if(IEntityClass* pWeaponClass = pVictimWeaponEntity->GetClass())
+			if (IEntityClass* pWeaponClass = pVictimWeaponEntity->GetClass())
 			{
-				if(CItemSharedParams* pItemSharedParams = pStorage->GetItemSharedParameters(pWeaponClass->GetName(), false))
+				if (CItemSharedParams* pItemSharedParams = pStorage->GetItemSharedParameters(pWeaponClass->GetName(), false))
 				{
-					if(const SGeometryDef* pGeomDef = pItemSharedParams->GetGeometryForSlot(eIGS_ThirdPerson))
+					if (const SGeometryDef* pGeomDef = pItemSharedParams->GetGeometryForSlot(eIGS_ThirdPerson))
 					{
 						m_view.streamingWeaponTPModel = pGeomDef->modelPath.c_str();
 						m_view.precacheFlags |= ePF_Weapons;
@@ -9129,7 +9111,7 @@ void SPlaybackInfo::Init( const SPlaybackRequest& request, const SRecordedData& 
 	}
 
 	// Precache for highlights straight away!
-	if(request.highlights)
+	if (request.highlights)
 	{
 		m_view.Precache(0.f, true);
 	}
@@ -9143,38 +9125,38 @@ void SPlaybackInfo::View::Reset()
 	lastSTAPCameraDelta.SetIdentity();
 	camSmoothingRate.zero();
 	precacheCamPos.zero();
-	precacheCamDir.Set(0.f,1.f,0.f);
-	currView=prevView=eVM_FirstPerson;
-	bWorldSpace=false;
-	precacheFlags=0;
-	fadeOut=fadeOutRate=0.f;
+	precacheCamDir.Set(0.f, 1.f, 0.f);
+	currView = prevView = eVM_FirstPerson;
+	bWorldSpace = false;
+	precacheFlags = 0;
+	fadeOut = fadeOutRate = 0.f;
 }
 
-void SPlaybackInfo::View::Precache( const float timeBeforePlayback, const bool bForce /*= false*/ )
+void SPlaybackInfo::View::Precache(const float timeBeforePlayback, const bool bForce /*= false*/)
 {
-	const bool bPrecacheStartPos = (precacheFlags&ePF_StartPos)!=0 && (precacheFlags&ePF_StartPosDone)==0 && ((timeBeforePlayback<g_pGameCVars->kc_precacheTimeStartPos) || bForce);
-	if(bPrecacheStartPos)
+	const bool bPrecacheStartPos = (precacheFlags & ePF_StartPos) != 0 && (precacheFlags & ePF_StartPosDone) == 0 && ((timeBeforePlayback < g_pGameCVars->kc_precacheTimeStartPos) || bForce);
+	if (bPrecacheStartPos)
 	{
 		// Precache the Cam position to start in.
 		RecSysLog("Precaching expected start position");
-		gEnv->p3DEngine->AddPrecachePoint(precacheCamPos, precacheCamDir, timeBeforePlayback+0.5f, 0.8f);
+		gEnv->p3DEngine->AddPrecachePoint(precacheCamPos, precacheCamDir, timeBeforePlayback + 0.5f, 0.8f);
 		precacheFlags |= ePF_StartPosDone;
 	}
 
-	const bool bPrecacheWeapons = (precacheFlags&ePF_Weapons)!=0 && (precacheFlags&ePF_WeaponsDone)==0 && ((timeBeforePlayback<g_pGameCVars->kc_precacheTimeWeaponModels) || bForce);
-	if(bPrecacheWeapons)
+	const bool bPrecacheWeapons = (precacheFlags & ePF_Weapons) != 0 && (precacheFlags & ePF_WeaponsDone) == 0 && ((timeBeforePlayback < g_pGameCVars->kc_precacheTimeWeaponModels) || bForce);
+	if (bPrecacheWeapons)
 	{
-		if(ICharacterManager* pCharManager = gEnv->pCharacterManager)
+		if (ICharacterManager* pCharManager = gEnv->pCharacterManager)
 		{
 			// Precache the FP weapon.
-			if(!streamingWeaponFPModel.empty())
+			if (!streamingWeaponFPModel.empty())
 			{
 				RecSysLog("Precaching FP Weapon Model: %s", streamingWeaponFPModel.c_str());
 				pCharManager->StreamKeepCharacterResourcesResident(streamingWeaponFPModel.c_str(), eFPWeaponLOD, true);
 				precacheFlags |= ePF_FPWeaponCached;
 			}
 			// Precache the TP weapon.
-			if(!streamingWeaponTPModel.empty())
+			if (!streamingWeaponTPModel.empty())
 			{
 				RecSysLog("Precaching TP Weapon Model: %s", streamingWeaponTPModel.c_str());
 				pCharManager->StreamKeepCharacterResourcesResident(streamingWeaponTPModel.c_str(), 0, true);
@@ -9190,7 +9172,7 @@ void SPlaybackInfo::View::ClearPrecachedWeapons()
 	ICharacterManager* pCharManager = gEnv->pCharacterManager;
 
 	// Clear FP Weapon Model.
-	if((precacheFlags&ePF_FPWeaponCached)!=0 && pCharManager)
+	if ((precacheFlags & ePF_FPWeaponCached) != 0 && pCharManager)
 	{
 		pCharManager->StreamKeepCharacterResourcesResident(streamingWeaponFPModel.c_str(), eFPWeaponLOD, false);
 	}
@@ -9198,7 +9180,7 @@ void SPlaybackInfo::View::ClearPrecachedWeapons()
 	streamingWeaponFPModel.clear();
 
 	// Clear TP Weapon Model.
-	if((precacheFlags&ePF_TPWeaponCached)!=0 && pCharManager)
+	if ((precacheFlags & ePF_TPWeaponCached) != 0 && pCharManager)
 	{
 		pCharManager->StreamKeepCharacterResourcesResident(streamingWeaponTPModel.c_str(), 0, false);
 	}
@@ -9206,12 +9188,12 @@ void SPlaybackInfo::View::ClearPrecachedWeapons()
 	streamingWeaponTPModel.clear();
 }
 
-const SPlayerInitialState* SRecordedData::GetPlayerInitialState( const EntityId playerId ) const
+const SPlayerInitialState* SRecordedData::GetPlayerInitialState(const EntityId playerId) const
 {
-	for(int i=0; i<MAX_RECORDED_PLAYERS; i++)
+	for (int i = 0; i < MAX_RECORDED_PLAYERS; i++)
 	{
 		const SPlayerInitialState& initialState = m_playerInitialStates[i];
-		if( initialState.playerId==playerId )
+		if (initialState.playerId == playerId)
 		{
 			return &initialState;
 		}

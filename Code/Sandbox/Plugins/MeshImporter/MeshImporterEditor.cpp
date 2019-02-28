@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "MeshImporterEditor.h"
@@ -161,7 +161,7 @@ CEditorAdapter::CEditorAdapter(std::unique_ptr<MeshImporter::CBaseDialog> pDialo
 
 void CEditorAdapter::Host_AddMenu(const char* menu)
 {
-	GetMenu()->CreateMenu(menu);
+	GetRootMenu()->CreateMenu(menu);
 }
 
 void CEditorAdapter::Host_AddToMenu(const char* menu, const char* command)
@@ -183,10 +183,7 @@ void CEditorAdapter::customEvent(QEvent* pEvent)
 		const string& command = commandEvent->GetCommand();
 		if (command == "meshimporter.import")
 		{
-			if (m_pDialog->OnImportFile())
-			{
-				OnCloseAsset();
-			}
+			m_pDialog->OnImportFile();
 			pEvent->accept();
 		}
 		else if (command == "meshimporter.reimport")
@@ -222,10 +219,16 @@ bool CEditorAdapter::OnOpenAsset(CAsset* pAsset)
 	return bOpen;
 }
 
-bool CEditorAdapter::OnSaveAsset(CEditableAsset&)
+bool CEditorAdapter::OnSaveAsset(CEditableAsset& /*editAsset*/)
+{
+	CRY_ASSERT_MESSAGE(false, "Not implemented");
+	return false;
+}
+
+bool CEditorAdapter::OnSave()
 {
 	m_pDialog->OnSave();
-	return false;
+	return true;
 }
 
 bool CEditorAdapter::OnSaveAs()
@@ -238,3 +241,4 @@ void CEditorAdapter::OnCloseAsset()
 {
 	m_pDialog->OnCloseAsset();
 }
+

@@ -1,5 +1,4 @@
-// CRYENGINE Source Code File
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "Common.cfi"
 #include "ShadeLib.cfi"
@@ -22,10 +21,15 @@ float4 BlurOffset;
 float4 PixelOffset < vsregister = VS_REG_PB_0; >
 
 ///////////////////////////////
-// Samplers
+// Textures and Sampler states
+Texture2D<float4> BlurSrcTex         : register(t0);
+Texture2D<float4> DepthTex           : register(t1);
+Texture2D<float4> ClipVolumeIdTex    : register(t2);
 
-sampler2D BlurSrcSampler : register(s0);
-sampler2D zMap : register(s1); 
+SamplerState BlurSrcSS         : register(s0);
+SamplerState DepthSS           : register(s1);
+SamplerState ClipVolumeIdSS    : register(s2);
+
 
 /////////////////////////////
 // structs
@@ -40,19 +44,20 @@ struct app2vertShadow
 
 struct vtxOut
 {
-  float4 HPosition  : POSITION;
+  float4 HPosition  : SV_POSITION;
   float4 baseTC     : TEXCOORD0;
 };
 
 float4 SSAO_BlurKernel;
 
-vtxOut SSDO_Blur_VS(app2vertShadow IN)
+vtxOut SSDO_Blur_VS(uint VertexID : SV_VertexID)
 {
   vtxOut OUT = (vtxOut)0; 
-  OUT.HPosition = Get2dHPos(IN.Position);
+  OUT.HPosition = GetHPos_FromTriVertexID(VertexID);
+  float2 baseTC = GetBaseTC_FromTriVertexID(VertexID);
 
   // output texture coordinates
-  OUT.baseTC.xy = IN.baseTC.xy + PixelOffset.xy;
+  OUT.baseTC.xy = baseTC + PixelOffset.xy;
   OUT.baseTC.zw = OUT.baseTC.xy * PixelOffset.zw;
 
   return OUT;
@@ -75,19 +80,19 @@ pixout SSDO_Blur_PS(vtxOut IN)
 	half2 addr2 = addr0 + SSAO_BlurKernel.yz;
 	half2 addr3 = addr2 + SSAO_BlurKernel.xy;
 
-	half4 value0 = tex2D( BlurSrcSampler, addr0 );
-	half4 value1 = tex2D( BlurSrcSampler, addr1 );
-	half4 value2 = tex2D( BlurSrcSampler, addr2 );
-	half4 value3 = tex2D( BlurSrcSampler, addr3 );
+	half4 value0 = GetTexture2D(BlurSrcTex, BlurSrcSS, addr0 );
+	half4 value1 = GetTexture2D(BlurSrcTex, BlurSrcSS, addr1 );
+	half4 value2 = GetTexture2D(BlurSrcTex, BlurSrcSS, addr2 );
+	half4 value3 = GetTexture2D(BlurSrcTex, BlurSrcSS, addr3 );
 	
 	// Sample depth values
 	const half4 vDepthAddrOffset = half4(1.h, 1.h, -1.h, -1.h) * BlurOffset.xyxy;
-	depth4.x = tex2D(zMap, addr0 + vDepthAddrOffset.zw);
-	depth4.y = tex2D(zMap, addr1 + vDepthAddrOffset.xw);
-	depth4.z = tex2D(zMap, addr2 + vDepthAddrOffset.zy);
-	depth4.w = tex2D(zMap, addr3 + vDepthAddrOffset.xy);
+	depth4.x = GetTexture2D(DepthTex, DepthSS, addr0 + vDepthAddrOffset.zw);
+	depth4.y = GetTexture2D(DepthTex, DepthSS, addr1 + vDepthAddrOffset.xw);
+	depth4.z = GetTexture2D(DepthTex, DepthSS, addr2 + vDepthAddrOffset.zy);
+	depth4.w = GetTexture2D(DepthTex, DepthSS, addr3 + vDepthAddrOffset.xy);
 
-	half centerDepth = GetLinearDepth(zMap, IN.baseTC.xy);
+	half centerDepth = GetLinearDepth(DepthTex, IN.baseTC.xy);
 	half4 weight4 = saturate(1.h - 35.h * abs(depth4 / centerDepth - 1.h));
 
 	half totalWeight = dot(weight4, 1.h);
@@ -100,11 +105,7 @@ pixout SSDO_Blur_PS(vtxOut IN)
 	return OUT;
 }
 
-Texture2D<float4> BlurSrcTex         : register(t0);
-Texture2D<float4> DepthTex           : register(t1);
-Texture2D<float4> ClipVolumeIdTex    : register(t2);
-
-#define MAX_CLIPVOLUMES 64
+#define MAX_CLIPVOLUMES 63
 #define CLIPVOLUME_IGNORE_OUTDOOR_AO	(1<<5)
 
 float4 HMAO_ClipVolumeData[MAX_CLIPVOLUMES];
@@ -148,7 +149,7 @@ pixout HMAO_Blur_PS(vtxOut IN)
 #if %_RT_SAMPLE0
 	float4 clipVolumeIDs = ClipVolumeIdTex.GatherRed(SampStatePoint, IN.baseTC.xy);
 	
-	const uint4 nClipVolumeID = uint4(clipVolumeIDs * 255.0f) & (MAX_CLIPVOLUMES-1);
+	const uint4 nClipVolumeID = uint4(clipVolumeIDs * 255.0f) & MAX_CLIPVOLUMES;
 	const uint4 nClipVolumeData = uint4(
 		asuint(HMAO_ClipVolumeData[nClipVolumeID.x].a),
 		asuint(HMAO_ClipVolumeData[nClipVolumeID.y].a),

@@ -1,28 +1,16 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  File name:   EntitySystem.h
-//  Version:     v1.00
-//  Created:     24/5/2004 by Timur.
-//  Compilers:   Visual Studio.NET 2003
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
-
-#ifndef __EntitySystem_h__
-#define __EntitySystem_h__
 #pragma once
 
 #include <CryEntitySystem/IEntitySystem.h>
 #include <CrySystem/ISystem.h>
 #include <CrySystem/ITimer.h>
+#include "EntityComponentsVector.h"
 #include "SaltBufferArray.h"          // SaltBufferArray<>
-#include "EntityTimeoutList.h"
 #include <CryCore/StlUtils.h>
 #include <CryMemory/STLPoolAllocator.h>
 #include <CryMemory/STLGlobalAllocator.h>
+#include <array>
 
 //////////////////////////////////////////////////////////////////////////
 // forward declarations.
@@ -81,14 +69,15 @@ struct SEntityAttachment
 struct SEntityLoadParams
 {
 	SEntitySpawnParams spawnParams;
-	bool               bCallInit = false;
+	size_t             allocationSize;
 
 	SEntityLoadParams();
-	SEntityLoadParams(CEntity* pReuseEntity, SEntitySpawnParams& resetParams);
 	~SEntityLoadParams();
 
-	SEntityLoadParams& operator=(const SEntityLoadParams& other);
-	SEntityLoadParams(const SEntityLoadParams& other) { *this = other; }
+	SEntityLoadParams& operator=(const SEntityLoadParams& other) = delete;
+	SEntityLoadParams(const SEntityLoadParams& other) = delete;
+	SEntityLoadParams& operator=(SEntityLoadParams&& other) = default;
+	SEntityLoadParams(SEntityLoadParams&& other) = default;
 
 private:
 	void        AddRef();
@@ -98,151 +87,11 @@ private:
 };
 typedef std::vector<SEntityLoadParams>              TEntityLoadParamsContainer;
 
-typedef CSaltHandle<unsigned short, unsigned short> CEntityHandle;
-
-// Mutatable set is a specialized customization of the std::set where items can be added or removed within foreach iteration.
-template<typename T>
-class CMutatableSet
-{
-public:
-	void insert(const T& item)
-	{
-		if (m_bIterating)
-			m_changeRequests.emplace_back(item, EChangeRequest::Add);
-		else
-			m_set.insert(item);
-	}
-	void erase(const T& item)
-	{
-		if (m_bIterating)
-			m_changeRequests.emplace_back(item, EChangeRequest::Remove);
-		else
-			m_set.erase(item);
-	}
-	void clear()
-	{
-		m_set.clear();
-		m_changeRequests.clear();
-	}
-	size_t size() const               { return m_set.size(); }
-	size_t count(const T& item) const { return m_set.count(item); }
-
-	//! Invokes the provided function f once with each component.
-	template<typename LambdaFunction>
-	void for_each(LambdaFunction f)
-	{
-		start_for_each();
-		for (auto& item : m_set)
-		{
-			f(item);
-		}
-		end_for_each();
-	}
-protected:
-	void start_for_each()
-	{
-		assert(!m_bIterating);
-		m_bIterating = true;
-	}
-	void end_for_each()
-	{
-		assert(m_bIterating);
-		m_bIterating = false;
-		for (const auto& itemRequestPair : m_changeRequests)
-		{
-			const T& item = itemRequestPair.first;
-			if (itemRequestPair.second == EChangeRequest::Add)
-			{
-				m_set.insert(item);
-			}
-			else
-			{
-				m_set.erase(item);
-			}
-		}
-		m_changeRequests.clear();
-	}
-private:
-	std::set<T> m_set;
-
-	enum class EChangeRequest
-	{
-		Add,
-		Remove
-	};
-	std::vector<std::pair<T, EChangeRequest>> m_changeRequests;
-	bool m_bIterating = false;
-};
-
-// Mutatable map is a specialized customization of the std::map where items can be added or removed within foreach iteration.
-template<typename TKey, typename TValue>
-class CMutatableMap
-{
-	typename std::pair<TKey, TValue> pair_type;
-public:
-	void insert(const TKey& key, const TValue& value)
-	{
-		if (m_bIterating)
-			m_added.push_back(std::make_pair(key, value));
-		else
-			m_map.insert(std::make_pair(key, value));
-	}
-	void erase(const TKey& key)
-	{
-		if (m_bIterating)
-			m_removed.push_back(key);
-		else
-			m_map.erase(key);
-	}
-	void clear()
-	{
-		m_map.clear();
-		m_added.clear();
-		m_removed.clear();
-	}
-	size_t size() const                 { return m_map.size(); }
-	size_t count(const TKey& key) const { return m_map.count(key); }
-
-	//! Invokes the provided function f once with each component.
-	template<typename LambdaFunction>
-	void for_each(LambdaFunction f)
-	{
-		start_for_each();
-		for (auto& item : m_map)
-		{
-			f(item.first, item.second);
-		}
-		end_for_each();
-	}
-protected:
-	void start_for_each()
-	{
-		assert(!m_bIterating);
-		m_bIterating = true;
-	}
-	void end_for_each()
-	{
-		assert(m_bIterating);
-		m_bIterating = false;
-		for (const auto& item : m_added)
-			m_map.insert(item);
-		for (const auto& item : m_removed)
-			m_map.erase(item->first);
-		m_added.clear();
-		m_removed.clear();
-	}
-private:
-	std::map<TKey, TValue>               m_map;
-	std::vector<std::pair<TKey, TValue>> m_added;
-	std::vector<TKey>                    m_removed;
-	bool m_bIterating = false;
-};
-
 //////////////////////////////////////////////////////////////////////
-class CEntitySystem : public IEntitySystem
+class CEntitySystem final : public IEntitySystem
 {
 public:
-	CEntitySystem(ISystem* pSystem);
+	explicit CEntitySystem(ISystem* pSystem);
 	~CEntitySystem();
 
 	bool Init(ISystem* pSystem);
@@ -264,13 +113,16 @@ public:
 	virtual EntityId                          ReserveUnknownEntityId() final;
 	virtual void                              RemoveEntity(EntityId entity, bool bForceRemoveNow = false) final;
 	virtual uint32                            GetNumEntities() const final;
-	virtual IEntityIt*                        GetEntityIterator() final;
+	virtual IEntityItPtr                      GetEntityIterator() final;
 	virtual void                              SendEventToAll(SEntityEvent& event) final;
+	virtual void                              OnEditorSimulationModeChanged(EEditorSimulationMode mode) final;
+	virtual void                              OnLevelLoaded() final;
+	virtual void                              OnLevelGameplayStart() final;
 	virtual int                               QueryProximity(SEntityProximityQuery& query) final;
 	virtual void                              ResizeProximityGrid(int nWidth, int nHeight) final;
 	virtual int                               GetPhysicalEntitiesInBox(const Vec3& origin, float radius, IPhysicalEntity**& pList, int physFlags) const final;
 	virtual IEntity*                          GetEntityFromPhysics(IPhysicalEntity* pPhysEntity) const final;
-	virtual void                              AddSink(IEntitySystemSink* pSink, uint32 subscriptions, uint64 onEventSubscriptions) final;
+	virtual void                              AddSink(IEntitySystemSink* pSink, std::underlying_type<SinkEventSubscriptions>::type subscriptions) final;
 	virtual void                              RemoveSink(IEntitySystemSink* pSink) final;
 	virtual void                              PauseTimers(bool bPause, bool bResume = false) final;
 	virtual bool                              IsIDUsed(EntityId nID) const final;
@@ -280,15 +132,10 @@ public:
 	virtual void                              ResetAreas() final;
 	virtual void                              UnloadAreas() final;
 
-	virtual void                              AddEntityEventListener(EntityId nEntity, EEntityEvent event, IEntityEventListener* pListener) final;
-	virtual void                              RemoveEntityEventListener(EntityId nEntity, EEntityEvent event, IEntityEventListener* pListener) final;
-
 	virtual void                              AddEntityLayerListener(const char* szLayerName, IEntityLayerListener* pListener, const bool bCaseSensitive = true) final;
 	virtual void                              RemoveEntityLayerListener(const char* szLayerName, IEntityLayerListener* pListener, const bool bCaseSensitive = true) final;
 
 	virtual EntityId                          FindEntityByGuid(const EntityGUID& guid) const final;
-
-	virtual EntityId                          GenerateEntityIdFromGuid(const EntityGUID& guid) final;
 
 	virtual IEntityArchetype*                 LoadEntityArchetype(XmlNodeRef oArchetype) final;
 	virtual IEntityArchetype*                 LoadEntityArchetype(const char* sArchetype) final;
@@ -329,23 +176,20 @@ public:
 	virtual void                              ClearLayers() final;
 	virtual void                              EnableDefaultLayers(bool isSerialized = true) final;
 	virtual void                              EnableLayer(const char* layer, bool isEnable, bool isSerialized = true) final;
-	virtual void                              EnableLayerSet(const char* const * pLayers, size_t layerCount, bool bIsSerialized = true, IEntityLayerSetUpdateListener* pListener = nullptr) final;
-	virtual IEntityLayer*                     FindLayer(const char* szLayerName, const bool bCaseSensitive = true) const final;
+	virtual void                              EnableLayerSet(const char* const* pLayers, size_t layerCount, bool bIsSerialized = true, IEntityLayerSetUpdateListener* pListener = nullptr) final;
+	// bCaseSensitive is set to false because it's not possible in Sandbox to create 2 layers with the same name but differs in casing
+	// The issue was: when switching game data files and folders to different case, FlowGraph would still reference old layer names.
+	virtual IEntityLayer*                     FindLayer(const char* szLayerName, const bool bCaseSensitive = false) const final;
 	virtual bool                              IsLayerEnabled(const char* layer, bool bMustBeLoaded, bool bCaseSensitive = true) const final;
 	virtual bool                              ShouldSerializedEntity(IEntity* pEntity) final;
 	virtual void                              RegisterPhysicCallbacks() final;
 	virtual void                              UnregisterPhysicCallbacks() final;
 
-	// ------------------------------------------------------------------------
-	void                                      OnLevelLoadStart();
-	void                                      OnLevelLoadEnd();
-	bool                                      IsLoadingLevel() const;
+	CEntityLayer*                             GetLayerForEntity(EntityId id);
+	void                                      EnableLayer(IEntityLayer* pLayer, bool bIsEnable, bool bIsSerialized, bool bAffectsChildren);
 
-	CEntityLayer* GetLayerForEntity(EntityId id);
-	void EnableLayer(IEntityLayer* pLayer, bool bIsEnable, bool bIsSerialized, bool bAffectsChildren);
-
-	bool          OnBeforeSpawn(SEntitySpawnParams& params);
-	void          OnEntityReused(IEntity* pEntity, SEntitySpawnParams& params);
+	bool                                      OnBeforeSpawn(SEntitySpawnParams& params);
+	void                                      OnEntityReused(IEntity* pEntity, SEntitySpawnParams& params);
 
 	// Sets new entity timer event.
 	void AddTimerEvent(SEntityTimerEvent& event, CTimeValue startTime = gEnv->pTimer->GetFrameStartTime());
@@ -353,7 +197,7 @@ public:
 	//////////////////////////////////////////////////////////////////////////
 	// Load entities from XML.
 	void         LoadEntities(XmlNodeRef& objectsNode, bool bIsLoadingLevelFile) final;
-	void         LoadEntities(XmlNodeRef& objectsNode, bool bIsLoadingLevelFile, const Vec3& segmentOffset, std::vector<IEntity*>* outGlobalEntityIds, std::vector<IEntity*>* outLocalEntityIds) final;
+	void         LoadEntities(XmlNodeRef& objectsNode, bool bIsLoadingLevelFile, const Vec3& segmentOffset) final;
 
 	virtual bool ExtractArcheTypeLoadParams(XmlNodeRef& entityNode, SEntitySpawnParams& spawnParams) const final;
 	virtual bool ExtractEntityLoadParams(XmlNodeRef& entityNode, SEntitySpawnParams& spawnParams) const final;
@@ -361,16 +205,13 @@ public:
 	virtual bool CreateEntity(XmlNodeRef& entityNode, SEntitySpawnParams& pParams, EntityId& outUsingId) final;
 	virtual void EndCreateEntities() final;
 
+	IEntity*     SpawnPreallocatedEntity(CEntity* pPrecreatedEntity, SEntitySpawnParams& params, bool bAutoInit);
+
 	//////////////////////////////////////////////////////////////////////////
 	// Called from CEntity implementation.
 	//////////////////////////////////////////////////////////////////////////
 	void RemoveTimerEvent(EntityId id, int nTimerId);
-
-	// Puts entity into active list.
-	void ActivateEntity(CEntity* pEntity, bool bActivate);
-	void ActivatePrePhysicsUpdateForEntity(CEntity* pEntity, bool bActivate);
-	bool IsPrePhysicsActive(CEntity* pEntity);
-	void OnEntityEvent(CEntity* pEntity, SEntityEvent& event);
+	bool HasTimerEvent(EntityId id, int nTimerId);
 
 	// Access to class that binds script to entity functions.
 	// Used by Script proxy.
@@ -387,9 +228,9 @@ public:
 	CGeomCacheAttachmentManager*     GetGeomCacheAttachmentManager() const     { return m_pGeomCacheAttachmentManager; }
 	CCharacterBoneAttachmentManager* GetCharacterBoneAttachmentManager() const { return m_pCharacterBoneAttachmentManager; }
 
-	static ILINE uint16              IdToIndex(const EntityId id)              { return id & 0xffff; }
-	static ILINE CSaltHandle<>       IdToHandle(const EntityId id)             { return CSaltHandle<>(id >> 16, id & 0xffff); }
-	static ILINE EntityId            HandleToId(const CSaltHandle<> id)        { return (((uint32)id.GetSalt()) << 16) | ((uint32)id.GetIndex()); }
+	static EntityIndex         IdToIndex(const EntityId id) { return CSaltHandle::GetHandleFromId(id).GetIndex(); }
+	static CSaltHandle         IdToHandle(const EntityId id) { return CSaltHandle::GetHandleFromId(id); }
+	static EntityId            HandleToId(const CSaltHandle id) { return id.GetId(); }
 
 	EntityId                         GenerateEntityId(bool bStaticId);
 
@@ -406,32 +247,31 @@ public:
 
 	virtual void                     PurgeDeferredCollisionEvents(bool bForce = false) final;
 
-	virtual void                     DebugDraw() final;
-
-	virtual bool                     EntitiesUseGUIDs() const final                { return m_bEntitiesUseGUIDs; }
-	virtual void                     SetEntitiesUseGUIDs(const bool bEnable) final { m_bEntitiesUseGUIDs = bEnable; }
-
 	virtual IBSPTree3D*              CreateBSPTree3D(const IBSPTree3D::FaceList& faceList) final;
 	virtual void                     ReleaseBSPTree3D(IBSPTree3D*& pTree) final;
 
-private: // -----------------------------------------------------------------
-	void DoPrePhysicsUpdate();
-	void DoUpdateLoop(float fFrameTime);
+	void                             RemoveEntity(CEntity* pEntity, bool forceRemoveImmediately = false, bool ignoreSinks = false);
+	// Restore an entity that was marked for deletion (CEntity::IsGarbage)
+	void                             ResurrectGarbageEntity(CEntity* pEntity);
+	
+	void                             EnableComponentUpdates(IEntityComponent* pComponent, bool bEnable);
+	void                             EnableComponentPrePhysicsUpdates(IEntityComponent* pComponent, bool bEnable);
+
+private:
+	bool ValidateSpawnParameters(SEntitySpawnParams& params);
+
+	void UpdateEntityComponents(float fFrameTime);
 
 	void DeleteEntity(CEntity* pEntity);
-	void UpdateDeletedEntities();
-	void RemoveEntityFromActiveList(CEntity* pEntity);
-	void UpdateEngineCVars();
 	void UpdateTimers();
-	void DebugDraw(CEntity* pEntity, float fUpdateTime);
+	void DebugDraw(const CEntity* const pEntity, float fUpdateTime);
 
 	void DebugDrawEntityUsage();
 	void DebugDrawLayerInfo();
-	void DebugDrawProximityTriggers();
 
 	void ClearEntityArray();
 
-	void DumpEntity(IEntity* pEntity);
+	void DumpEntity(CEntity* pEntity);
 
 	// slow - to find specific problems
 	void CheckInternalConsistency() const;
@@ -452,27 +292,25 @@ private: // -----------------------------------------------------------------
 	};
 
 	typedef std::vector<OnEventSink, stl::STLGlobalAllocator<OnEventSink>>                                                                                                                              EntitySystemOnEventSinks;
-	typedef std::vector<IEntitySystemSink*, stl::STLGlobalAllocator<IEntitySystemSink*>>                                                                                                                EntitySystemSinks;
 	typedef std::vector<CEntity*>                                                                                                                                                                       DeletedEntities;
 	typedef std::multimap<CTimeValue, SEntityTimerEvent, std::less<CTimeValue>, stl::STLPoolAllocator<std::pair<const CTimeValue, SEntityTimerEvent>, stl::PoolAllocatorSynchronizationSinglethreaded>> EntityTimersMap;
 	typedef std::multimap<const char*, EntityId, stl::less_stricmp<const char*>>                                                                                                                        EntityNamesMap;
 	typedef std::vector<SEntityTimerEvent>                                                                                                                                                              EntityTimersVector;
 
-	EntitySystemSinks        m_sinks[SinkMaxEventSubscriptionCount];        // registered sinks get callbacks for creation and removal
-	EntitySystemOnEventSinks m_onEventSinks;
+	std::array<std::vector<IEntitySystemSink*>, (size_t)SinkEventSubscriptions::Count> m_sinks;
 
-	ISystem*                 m_pISystem;
-	std::vector<CEntity*>    m_EntityArray;                 // [id.GetIndex()]=CEntity
-	DeletedEntities          m_deletedEntities;
-	std::vector<CEntity*>    m_deferredUsedEntities;
+	ISystem*              m_pISystem;
+	std::array<CEntity*, CSaltBufferArray::GetTSize()> m_EntityArray;                    // [id.GetIndex()]=CEntity
+	DeletedEntities       m_deletedEntities;
+	std::vector<CEntity*> m_deferredUsedEntities;
 
-	CMutatableSet<EntityId>  m_mapActiveEntities;           // Map of currently active entities (All entities that need per frame update).
-	CMutatableSet<EntityId>  m_mapPrePhysicsEntities;       // map of entities requiring pre-physics activation
+	EntityNamesMap        m_mapEntityNames;            // Map entity name to entity ID.
 
-	EntityNamesMap           m_mapEntityNames;         // Map entity name to entity ID.
-
-	CSaltBufferArray<>       m_EntitySaltBuffer;            // used to create new entity ids (with uniqueid=salt)
+	CSaltBufferArray    m_EntitySaltBuffer;               // used to create new entity ids (with uniqueid=salt)
 	//////////////////////////////////////////////////////////////////////////
+
+	CEntityComponentsVector<SMinimalEntityComponentRecord> m_updatedEntityComponents;
+	CEntityComponentsVector<SMinimalEntityComponentRecord> m_prePhysicsUpdatedEntityComponents;
 
 	// Entity timers.
 	EntityTimersMap    m_timersMap;
@@ -508,24 +346,15 @@ private: // -----------------------------------------------------------------
 
 	//don't spawn any entities without being forced to
 	bool m_bLocked;
-
-	bool m_bLoadingLevel = false;
-
 	bool m_bSupportLegacy64bitGuids = false;
 
 	friend class CEntityItMap;
-	class CCompareEntityIdsByClass;
-
-	// helper to satisfy GCC
-	static IEntityClass* GetClassForEntity(CEntity*);
 
 	typedef std::map<string, CEntityLayer*>  TLayers;
 	typedef std::vector<SEntityLayerGarbage> THeaps;
 
 	TLayers m_layers;
 	THeaps  m_garbageLayerHeaps;
-	bool    m_bEntitiesUseGUIDs;
-	int     m_nGeneratedFromGuid;
 
 	std::unique_ptr<CEntitiesComponentPropertyCache> m_entitiesPropertyCache;
 
@@ -550,5 +379,3 @@ public:
 // Precache resources mode state.
 //////////////////////////////////////////////////////////////////////////
 extern bool gPrecacheResourcesMode;
-
-#endif // __EntitySystem_h__

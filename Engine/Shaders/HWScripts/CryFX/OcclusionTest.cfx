@@ -1,5 +1,4 @@
-// CRYENGINE Source Code File
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "Common.cfi"
 
@@ -8,8 +7,6 @@ float Script : STANDARDSGLOBAL
 <
   string Script = "ShaderDrawType = Custom;";
 >;
-
-float4x4 CompMatrix  : PI_Composite < vsregister = c0; >;
 
 struct a2v
 {
@@ -20,7 +17,7 @@ struct a2v
 
 struct v2f
 {
-  float4 Position  : POSITION;
+  float4 Position  : SV_POSITION;
 };
 
 ///////////////// vertex shader //////////////////
@@ -28,7 +25,7 @@ struct v2f
 v2f OcclusionTestVS(a2v IN)
 {
   v2f OUT = (v2f)0; 
-  OUT.Position = mul(CompMatrix, IN.Position);
+  OUT.Position = mul(CV_ViewProjMatr, IN.Position);
   return OUT;
 }
 

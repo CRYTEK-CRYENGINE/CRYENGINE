@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="f83f5707-a1c1-d260-2452-01db31ad3800" source="vignetting.TIF">
+ <Files>
+  <File path="vignetting.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">64</Detail>
+  <Detail name="height">64</Detail>
+  <Detail name="mipCount">1</Detail>
+ </Details>
+</AssetMetadata>

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /********************************************************************
    -------------------------------------------------------------------------
@@ -346,7 +346,7 @@ void CAILightManager::DebugDraw()
 			Vec3 conePos = light.pos + light.dir * coneHeight;
 			dc->DrawLine(light.pos, c, light.pos + light.dir * light.radius, c);
 			dc->DrawCone(conePos, -light.dir, coneRadius, coneHeight, ct);
-			dc->DrawWireFOVCone(light.pos, light.dir, light.radius, light.fov, c);
+			dc->DrawWireFOVCone(light.pos, light.dir, light.radius, light.fov * 2.0f, c);
 		}
 
 		dc->Draw3dLabel(light.pos, 1.1f, "DYN %s\n%s", g_szLightLevels[(int)light.level], g_szLightType[(int)light.type]);
@@ -426,7 +426,7 @@ void CAILightManager::DebugDrawArea(const ListPositions& poly, float zmin, float
 EAILightLevel CAILightManager::GetLightLevelAt(const Vec3& pos, const CAIActor* pAgent, bool* outUsingCombatLight)
 {
 	CCCPOINT(CAILightManager_GetLightLevelAt);
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	// Find ambient light level.
 
@@ -568,7 +568,7 @@ void CAILightManager::UpdateLights()
 	   for (unsigned i = 0, ni = pLightEnts->size(); i < ni; ++i)
 	   {
 	    ILightSource* pLightSource = *pLightEnts->Get(i);
-	    CDLight& light = pLightSource->GetLightProperties();
+	    SRenderLight& light = pLightSource->GetLightProperties();
 	    if ((light.m_Flags & DLF_FAKE) || (light.m_Flags & DLF_DIRECTIONAL))
 	      continue;
 

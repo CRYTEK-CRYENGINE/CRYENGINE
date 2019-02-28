@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "AnimatedCharacter.h"
@@ -581,7 +581,7 @@ void CAnimatedCharacter::PostSerialize()
 
 void CAnimatedCharacter::Update(SEntityUpdateContext& ctx, int slot)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	//assert(!m_simplifyMovement); // If we have simplified movement, the this GameObject extension should not be updated here.
 
@@ -1153,9 +1153,9 @@ void CAnimatedCharacter::UpdateCharacterPtrs()
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CAnimatedCharacter::ProcessEvent(SEntityEvent& event)
+void CAnimatedCharacter::ProcessEvent(const SEntityEvent& event)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	switch (event.event)
 	{
@@ -1277,6 +1277,11 @@ void CAnimatedCharacter::ProcessEvent(SEntityEvent& event)
 		}
 		break;
 	}
+}
+
+uint64 CAnimatedCharacter::GetEventMask() const
+{
+	return ENTITY_EVENT_BIT(ENTITY_EVENT_PRE_SERIALIZE) | ENTITY_EVENT_BIT(ENTITY_EVENT_ANIM_EVENT) | ENTITY_EVENT_BIT(ENTITY_EVENT_XFORM) | ENTITY_EVENT_BIT(ENTITY_EVENT_SCRIPT_REQUEST_COLLIDERMODE) | ENTITY_EVENT_BIT(ENTITY_EVENT_DONE) | ENTITY_EVENT_BIT(ENTITY_EVENT_INIT) | ENTITY_EVENT_BIT(ENTITY_EVENT_RESET);
 }
 
 float CAnimatedCharacter::FilterView(SViewParams& viewParams) const
@@ -1656,9 +1661,9 @@ bool CAnimatedCharacter::StartAnimationProcessing(const QuatT& entityLocation) c
 	if ((m_pCharacter != NULL) && (m_lastAnimationUpdateFrameId != currentFrameId))
 	{
 		// calculate the approximate distance from camera
-		CCamera* pCamera = &GetISystem()->GetViewCamera();
-		const float fDistance = ((pCamera ? pCamera->GetPosition() : entityLocation.t) - entityLocation.t).GetLength();
-		const float fZoomFactor = 0.001f + 0.999f * (RAD2DEG((pCamera ? pCamera->GetFov() : 60.0f)) / 60.f);
+		const CCamera& camera = GetISystem()->GetViewCamera();
+		const float fDistance = (camera.GetPosition() - entityLocation.t).GetLength();
+		const float fZoomFactor = 0.001f + 0.999f * (RAD2DEG(camera.GetFov()) / 60.f);
 
 		SAnimationProcessParams params;
 		params.locationAnimation = entityLocation;
@@ -1776,7 +1781,7 @@ void CAnimatedCharacter::UpdateGroundAlignment()
 		else
 		{
 			//check if player is close enough
-			CCamera& camera = gEnv->pSystem->GetViewCamera();
+			const CCamera& camera = gEnv->pSystem->GetViewCamera();
 			const float fDistanceSq = (camera.GetPosition() - m_entLocation.t).GetLengthSquared();
 
 			// check if the character is using an animAction

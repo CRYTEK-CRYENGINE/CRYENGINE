@@ -1,15 +1,6 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-/*************************************************************************
-   -------------------------------------------------------------------------
-   $Id$
-   $DateTime$
-   Description: interface definition file for the Crysis remote control system
-   -------------------------------------------------------------------------
-   History:
-   - Created by Lin Luo, November 06, 2006
-   - Refactored by Lin Luo, November 20, 2006
-*************************************************************************/
+//! \cond INTERNAL
 
 #pragma once
 
@@ -106,3 +97,5 @@ struct IRemoteControlClient
 	virtual uint32 SendCommand(const string& command) = 0;
 	// </interfuscator:shuffle>
 };
+
+//! \endcond

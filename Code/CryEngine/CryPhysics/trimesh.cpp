@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -505,7 +505,7 @@ int CTriMesh::CalculateTopology(index_t *pIndices, int bCheckOnly)
 
 void CTriMesh::RebuildBVTree(CBVTree *pRefTree)
 {
-	FUNCTION_PROFILER( GetISystem(),PROFILE_PHYSICS );
+	CRY_PROFILE_FUNCTION(PROFILE_PHYSICS );
 
 	int nMinTrisPerNode=2,nMaxTrisPerNode=4,i,j,jnext,*pIdxOld2New;
 	Vec3 n,nnext,BBox[2];
@@ -1113,32 +1113,35 @@ float CTriMesh::GetExtent(EGeomForm eForm) const
 	return ext.TotalExtent();
 }
 
-void CTriMesh::GetRandomPos(PosNorm& ran, CRndGen& seed, EGeomForm eForm) const
+void CTriMesh::GetRandomPoints(Array<PosNorm> points, CRndGen& seed, EGeomForm eForm) const
 {
 	int nTri;
 
 	if (eForm == GeomForm_Vertices)
 	{
-		nTri = seed.GetRandom(0, m_nTris - 1);
-		ran.vPos = m_pVertices[m_pIndices[nTri*3 + seed.GetRandom(0, 2)]];
+		for (auto& ran : points) {
+			nTri = seed.GetRandom(0, m_nTris - 1);
+			ran.vPos = m_pVertices[m_pIndices[nTri * 3 + seed.GetRandom(0, 2)]];
+			ran.vNorm = m_pNormals[nTri];
+		}
 	}
 	else
 	{
 		CGeomExtent const& extent = m_Extents[eForm];
 		if (!extent.NumParts())
-			return ran.zero();
-		int nPart = extent.RandomPart(seed);
+			return points.fill(ZERO);
+		for (auto& ran : points) {
+			int nPart = extent.RandomPart(seed);
 
-		int aIndices[3];
-		PosNorm aRan[3];
-		for (int v = TriIndices(aIndices, nPart, eForm) - 1; v >= 0; v--)
-			aRan[v].vPos = m_pVertices[m_pIndices[aIndices[v]]];
-		static float c = 1.0f;
-		TriRandomPos(ran, seed, eForm, aRan, m_center * c, false);
-		nTri = eForm == GeomForm_Edges ? nPart/3 : nPart;
+			int aIndices[3];
+			PosNorm aRan[3];
+			for (int v = TriIndices(aIndices, nPart, eForm) - 1; v >= 0; v--)
+				aRan[v].vPos = m_pVertices[m_pIndices[aIndices[v]]];
+			TriRandomPos(ran, seed, eForm, aRan, m_center, false);
+			nTri = eForm == GeomForm_Edges ? nPart / 3 : nPart;
+			ran.vNorm = m_pNormals[nTri];
+		}
 	}
-
-	ran.vNorm = m_pNormals[nTri];
 }
 
 float CTriMesh::GetVolume()
@@ -1581,7 +1584,7 @@ void update_unprojection(real t, unprojection_mode *pmode, geometry_under_test *
 int CTriMesh::RegisterIntersection(primitive *pprim1,primitive *pprim2, geometry_under_test *pGTest1,geometry_under_test *pGTest2,
 																	 prim_inters *pinters)
 {
-	//FUNCTION_PROFILER( GetISystem(),PROFILE_PHYSICS );
+	//CRY_PROFILE_FUNCTION(PROFILE_PHYSICS );
 	geometry_under_test *pGTest[2];
   pGTest[0] = pGTest1;   pGTest[1] = pGTest2;
 	indexed_triangle tri = *(indexed_triangle*)pprim1, tri1;
@@ -1746,7 +1749,7 @@ int CTriMesh::RegisterIntersection(primitive *pprim1,primitive *pprim2, geometry
 			unproj.dir = ((n_avg^dir)^dir).normalized();
 			unproj.vel = 1.0f;
 		}	else
-			unproj.dir /= (unproj.vel=unproj.dir.len());
+			unproj.dir /= max(1e-8f, unproj.vel=unproj.dir.len());
 		tmax = unproj.tmax = pGTest[0]->pParams->time_interval*unproj.vel;
 	} else {
 		if (pGTest[0]->pParams->axisOfRotation.len2()==0) {
@@ -2550,8 +2553,8 @@ void CTriMesh::PrepareForRayTest(float raylen)
 }
 
 
-void CTriMesh::HashTrianglesToPlane(const coord_plane &hashplane, const Vec2 &hashsize, grid &hashgrid,index_t *&pHashGrid,index_t *&pHashData,
-																		float rcellsize, float pad, const index_t* pIndices, int nTris)
+void CTriMesh::HashTrianglesToPlane(const coord_plane &hashplane, const Vec2 &hashsize, grid &hashgrid,index_t *&pHashGrid,index_t *&pHashDataRet,
+																		float rcellsize, float pad, const index_t* pIndices, int nTris, int maxhash)
 {
 	float maxsz,tsx,tex,tsy,tey,ts,te;
 	Vec2 sz,pt[3],edge[3],step,rstep,ptc,sg;
@@ -2575,14 +2578,15 @@ void CTriMesh::HashTrianglesToPlane(const coord_plane &hashplane, const Vec2 &ha
 		isz.x = float2int(sz.x*rcellsize+0.499f);
 		isz.y = float2int(sz.y*rcellsize+0.499f);
 	}
-	const int maxhash = 4*(1<<sizeof(index_t)); // 64 on PC, 16 on consoles
+	if (!maxhash)
+		maxhash = 4*(1<<sizeof(index_t)); // 64 on PC, 16 on consoles
 	isz.x = min_safe(maxhash,max_safe(1,isz.x));
 	isz.y = min_safe(maxhash,max_safe(1,isz.y));
 	memset(pHashGrid = new index_t[isz.x*isz.y+1], 0, (isz.x*isz.y+1)*sizeof(index_t));
 	step.set(sz.x/isz.x, sz.y/isz.y);
 	rstep.set(isz.x/sz.x, isz.y/sz.y);
 	origin = hashplane.origin - hashplane.axes[0]*(step.x*isz.x*0.5f)-hashplane.axes[1]*(step.y*isz.y*0.5f);
-	pHashData = &dummy;
+	index_t* pHashData = &dummy;
 
 	for(ipass=0;ipass<2;ipass++) {
 		for(itri=nTris-1;itri>=0;itri--) { // iterate tris in reversed order to get them in accending order in grid (since the algorithm reverses order)
@@ -2635,6 +2639,7 @@ void CTriMesh::HashTrianglesToPlane(const coord_plane &hashplane, const Vec2 &ha
 	hashgrid.stepr = rstep;
 	hashgrid.size = isz;
 	hashgrid.stride.set(1,isz.x);
+	pHashDataRet = pHashData;
 }
 
 
@@ -3629,7 +3634,6 @@ template<bool rngchk> CTriMesh::voxgrid_tpl<rngchk> CTriMesh::Voxelize(quaternio
 	}
 	Vec3 c=(ptmin+ptmax)*0.5f, sz=(ptmax-ptmin)*0.5f;
 	Vec3i voxdim = float2int(sz*rcelldim+Vec3(0.5f))+Vec3i(pad+1);
-	voxdim.x&=~1; voxdim.y&=~1; voxdim.z&=~1;
 	voxgrid_tpl<rngchk> grid(voxdim,q*c);	grid.q=q;	grid.celldim=celldim;	grid.rcelldim=rcelldim;
 
 	for(i=0;i<nTris;i++) if (pIds[i&idmask]>=0) {
@@ -3641,10 +3645,10 @@ template<bool rngchk> CTriMesh::voxgrid_tpl<rngchk> CTriMesh::Voxelize(quaternio
 			ptmin = min(min(vtx[0],vtx[1]),vtx[2])*rcelldim; ptmax=max(max(vtx[0],vtx[1]),vtx[2])*rcelldim;
 			Vec2i iBBox[2] = { Vec2i(float2int(ptmin.x-0.5f),float2int(ptmin.y-0.5f)), Vec2i(float2int(ptmax.x+0.5f),float2int(ptmax.y+0.5f)) };
 			for(ix=iBBox[0].x;ix<iBBox[1].x;ix++) for(iy=iBBox[0].y;iy<iBBox[1].y;iy++) {
-				Vec2 pt=Vec2(ix+0.5f,iy+0.5f)*celldim, ptx[3]={ Vec2(vtx[0])-pt,Vec2(vtx[1]-pt),Vec2(vtx[2])-pt };
+				Vec2 pt=Vec2(ix+0.5f,iy+0.5f)*celldim, ptx[3]={ Vec2(vtx[0])-pt,Vec2(vtx[1])-pt,Vec2(vtx[2])-pt };
 				Vec3 coord = Vec3(ptx[1]^ptx[2], ptx[2]^ptx[0], ptx[0]^ptx[1]);
 				if (min(min(coord.x*area,coord.y*area),coord.z*area) > 0)
-					for(iz=float2int((coord*zblend)*rcelldim)-1; iz>=-voxdim.z; iz--)
+					for(iz=float2int((coord*zblend)*rcelldim)-1; iz>-voxdim.z; iz--)
 						grid(ix,iy,iz) += dir;
 			}
 		}
@@ -4245,7 +4249,7 @@ int CTriMesh::Proxify(IGeometry **&pOutGeoms, SProxifyParams *pparams)
 		for(i=1;i<27;i++) inv[i] = 1.0f/i;
 	}
 
-	auto GetIsland = [this,&pTris,&pNormals,&nTris](int isle) 
+	auto GetIsland = [this,&pTris,&pNormals](int isle,int nTris=0) 
 	{
 		for(int i=m_pIslands[isle].itri; i!=0x7fff; i=m_pTri2Island[i].inext) {
 			((Vec3_tpl<index_t>*)pTris)[nTris] = ((Vec3_tpl<index_t>*)m_pIndices)[i];
@@ -4266,7 +4270,7 @@ int CTriMesh::Proxify(IGeometry **&pOutGeoms, SProxifyParams *pparams)
 		for(i=imin,j=0; i<=imax; i++) if (pVtxMap[m_nVertices+(i>>5)] & 1<<(i&31)) {
 			pVtxMap[j]=i;	swap(m_pVertices[i], m_pVertices[j++]);
 		}
-		delete[] pTris;
+		delete[] pTris;	pTris=nullptr;
 		int nTris = qhull(m_pVertices,j,pTris);
 		if (nTris>m_nTris || !pNormals) {
 			delete pNormals; pNormals = new Vec3[max(nTris,m_nTris)];
@@ -4392,7 +4396,7 @@ int CTriMesh::Proxify(IGeometry **&pOutGeoms, SProxifyParams *pparams)
 		} else if (!params.convexHull) {
 			pTris = new index_t[m_nTris*3];	pNormals = new Vec3[m_nTris];
 			for(i=getNextBit(params.islandMap),nTris=0; i>=0; i=getNextBit(params.islandMap))
-				GetIsland(i);
+				nTris = GetIsland(i,nTris);
 		} else
 			nTris = qhullIslands(params.islandMap);
 		isle=0; params.islandMap=0; goto GotIslands;
@@ -4809,7 +4813,7 @@ int CTriMesh::Proxify(IGeometry **&pOutGeoms, SProxifyParams *pparams)
 		hashplane.origin = vox.center;
 		for(i=0;i<2;i++) {
 			hashplane.n=vox.q*ort[i]; hashplane.axes[0]=vox.q*ort[inc_mod3[i]]; hashplane.axes[1]=vox.q*ort[dec_mod3[i]];
-			HashTrianglesToPlane(hashplane, Vec2(sz[inc_mod3[i]],sz[dec_mod3[i]])*2, hashgrid[i],pHashGrid[i],pHashData[i], 1/celldim, 0,pTris,nTris);
+			HashTrianglesToPlane(hashplane, Vec2(sz[inc_mod3[i]],sz[dec_mod3[i]])*2, hashgrid[i],pHashGrid[i],pHashData[i], 1/celldim, 0,pTris,nTris, max(vox.sz[inc_mod3[i]],vox.sz[dec_mod3[i]])*2);
 		}
 
 		if ((params.findPrimLines | params.findPrimSurfaces | params.reuseVox) & params.findMeshes) 

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "VehiclePaintsPanel.h"
@@ -424,3 +424,4 @@ void CVehiclePaintsPanel::UpdateAssignMaterialButtonState()
 
 	m_applyMaterialButton.EnableWindow(materialSelected);
 }
+

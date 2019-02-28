@@ -1,11 +1,12 @@
-﻿// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 using CryEngine.Common;
 
 namespace CryEngine.Animations
 {
-	//Wraps the native IAttachment class
-	
+	/// <summary>
+	/// An attachment on a character. Wraps the native IAttachment class.
+	/// </summary>
 	public class CharacterAttachment
 	{
 		/// <summary>
@@ -34,6 +35,7 @@ namespace CryEngine.Animations
 			}
 		}
 
+		[SerializeValue]
 		internal IAttachment NativeHandle{ get; private set; }
 
 		internal CharacterAttachment(IAttachment nativeAttachment)

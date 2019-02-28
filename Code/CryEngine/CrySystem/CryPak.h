@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 //
 //	File:CryPak.h
@@ -74,9 +74,9 @@ struct CCachedFileData : public _i_reference_target_t
 		pSizer->AddObject(m_pFileEntry);
 	}
 
-	// need to overload addref and release to prevent a race condition in
-	virtual void AddRef();
-	virtual void Release();
+	// override addref and release to prevent a race condition
+	virtual void AddRef() const override;
+	virtual void Release() const override;
 
 public:
 	void* m_pFileData;
@@ -181,6 +181,7 @@ class CCryPakFindData : public _reference_target_t
 public:
 	// the directory wildcard must already be adjusted
 	CCryPakFindData();
+	explicit CCryPakFindData(const char* szNameFilter);
 	bool         empty() const;
 	bool         Fetch(_finddata_t* pfd);
 	virtual void Scan(CCryPak* pPak, const char* szDir, bool bAllowUseFS = false);
@@ -212,6 +213,7 @@ protected:
 	};
 	typedef std::map<string, FileDesc, CIStringOrder> FileMap;
 	FileMap m_mapFiles;
+	const char* m_szNameFilter;
 };
 
 TYPEDEF_AUTOPTR(CCryPakFindData);
@@ -383,7 +385,7 @@ public:
 	static char* BeautifyPath(char* dst, bool bMakeLowercase);
 	static void  RemoveRelativeParts(char* dst);
 
-	CCryPak(IMiniLog* pLog, PakVars* pPakVars, const bool bLvlRes, const IGameStartup* pGameStartup);
+	CCryPak(IMiniLog* pLog, PakVars* pPakVars, const bool bLvlRes);
 	~CCryPak();
 
 	const PakVars* GetPakVars() const { return m_pPakVars; }
@@ -394,6 +396,8 @@ public:
 		m_pAssetManager = mgr;
 	}
 #endif
+
+	void SetDecryptionKey(const uint8* pKeyData, uint32 keyLength);
 
 public: // ---------------------------------------------------------------------------------------
 
@@ -569,7 +573,6 @@ public: // ---------------------------------------------------------------------
 	virtual bool                    RemoveFile(const char* pName) override;               // remove file from FS (if supported)
 	virtual bool                    RemoveDir(const char* pName, bool bRecurse) override; // remove directory from FS (if supported)
 	virtual bool                    IsAbsPath(const char* pPath) override;
-	virtual CCryPakFindData*        CreateFindData();
 
 	virtual bool                    CopyFileOnDisk(const char* source, const char* dest, bool bFailIfExist) override;
 

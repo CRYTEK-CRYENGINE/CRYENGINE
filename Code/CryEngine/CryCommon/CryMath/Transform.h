@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -19,7 +19,7 @@ public:
 		, m_scale(1.0f, 1.0f, 1.0f)
 	{}
 
-	explicit inline CTransform(const Vec3& translation, const CRotation& rotation, const Vec3& scale)
+	inline CTransform(const Vec3& translation, const CRotation& rotation, const Vec3& scale)
 		: m_translation(translation)
 		, m_rotation(rotation)
 		, m_scale(scale)
@@ -34,13 +34,7 @@ public:
 	explicit inline CTransform(const Matrix34& transform)
 		: m_translation(transform.GetTranslation())
 		, m_rotation(Matrix33(transform))
-		, m_scale(1.0f, 1.0f, 1.0f)
-	{}
-
-	inline CTransform(const CTransform& rhs)
-		: m_translation(rhs.m_translation)
-		, m_rotation(rhs.m_rotation)
-		, m_scale(rhs.m_scale)
+		, m_scale(transform.GetScale())
 	{}
 
 	inline void SetTranslation(const Vec3& translation)
@@ -80,37 +74,38 @@ public:
 
 	inline Matrix34 ToMatrix34() const
 	{
-		Matrix34 output = Matrix34::CreateRotationXYZ(m_rotation.ToAngles().ToAng3());
-		output = output * Matrix34::CreateScale(m_scale);
-		output.SetTranslation(m_translation);
-		return output;
+		return Matrix34::Create(m_scale, m_rotation.ToQuat(), m_translation);
 	}
 
 	inline void Serialize(Serialization::IArchive& archive)
 	{
 		archive(Serialization::SPosition(m_translation), "translation", "Translation");
 		archive(m_rotation, "rotation", "Rotation");
-		bool uniform = true;
-		archive(Serialization::SUniformScale(m_scale, uniform), "scale", "Scale");
+		archive(Serialization::SUniformScale(m_scale), "scale", "Scale");
 	}
 
 	inline void operator=(const QuatT& transform)
 	{
 		m_translation = transform.t;
 		m_rotation = transform.q;
-		m_scale.Set(1.0f, 1.0f, 1.0f);
+		m_scale.Set(m_scale.x, m_scale.y, m_scale.z);
 	}
 
 	inline void operator=(const Matrix34& transform)
 	{
 		m_translation = transform.GetTranslation();
 		m_rotation = Matrix33(transform);
-		m_scale.Set(1.0f, 1.0f, 1.0f); //@TODO, read scale from transform matrix
+		m_scale = transform.GetScale();
 	}
 
 	inline bool operator==(const CTransform& rhs) const
 	{
 		return m_translation == rhs.m_translation && m_rotation == rhs.m_rotation && m_scale == rhs.m_scale;
+	}
+
+	inline bool operator!=(const CTransform& rhs) const
+	{
+		return !(*this == rhs);
 	}
 
 	static inline void ReflectType(Schematyc::CTypeDesc<CTransform>& type)

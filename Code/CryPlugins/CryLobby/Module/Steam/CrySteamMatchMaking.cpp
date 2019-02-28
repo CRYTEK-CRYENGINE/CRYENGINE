@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 //
 // -------------------------------------------------------------------------
@@ -839,16 +839,17 @@ TNetAddress CCrySteamMatchMaking::GetHostAddressFromSessionHandle(CrySessionHand
 	LOBBY_AUTO_LOCK;
 
 	CryLobbySessionHandle lsh = GetSessionHandleFromGameSessionHandle(h);
-	if (lsh != CryLobbyInvalidSessionHandle)
+	ISteamMatchmaking* pSteamMatchmaking = SteamMatchmaking();
+	if (lsh != CryLobbyInvalidSessionHandle && pSteamMatchmaking)
 	{
 		SSession* pSession = &m_sessions[lsh];
 		SCrySteamUserID host;
 
 		// Is there a game server?
-		if (!(SteamMatchmaking()->GetLobbyGameServer(pSession->m_id.m_steamID, NULL, NULL, &host.m_steamID)))
+		if (!(pSteamMatchmaking->GetLobbyGameServer(pSession->m_id.m_steamID, NULL, NULL, &host.m_steamID)))
 		{
 			// If not, use the lobby owner as host...
-			host = SteamMatchmaking()->GetLobbyOwner(pSession->m_id.m_steamID);
+			host = pSteamMatchmaking->GetLobbyOwner(pSession->m_id.m_steamID);
 		}
 
 		if (!(host == SCrySteamUserID()))
@@ -882,11 +883,11 @@ bool CCrySteamMatchMaking::LobbyAddrIDHasPendingData()
 {
 	bool pendingData = false;
 
-	if (SteamNetworking())
+	if (ISteamNetworking* pSteamNetworking = SteamNetworking())
 	{
 		// We don't use size since we only send/receive up to MAX_UDP_PACKET_SIZE
 		uint32 size = 0;
-		pendingData = SteamNetworking()->IsP2PPacketAvailable(&size);
+		pendingData = pSteamNetworking->IsP2PPacketAvailable(&size);
 	}
 
 	return pendingData;
@@ -896,9 +897,15 @@ bool CCrySteamMatchMaking::LobbyAddrIDHasPendingData()
 
 ESocketError CCrySteamMatchMaking::LobbyAddrIDSend(const uint8* buffer, uint32 size, const TNetAddress& addr)
 {
-	CSteamID steamID(boost::get<LobbyIdAddr>(&addr)->id);
+	auto lobbyIdAddr = stl::get<LobbyIdAddr>(addr);
+	CSteamID steamID(lobbyIdAddr.id);
+	ISteamNetworking* pSteamNetworking = SteamNetworking();
+	if (!pSteamNetworking)
+	{
+		return eSE_MiscFatalError;
+	}
 
-	bool sent = SteamNetworking()->SendP2PPacket(steamID, buffer, size, k_EP2PSendUnreliable);
+	bool sent = pSteamNetworking->SendP2PPacket(steamID, buffer, size, k_EP2PSendUnreliable);
 	if (sent)
 	{
 		return eSE_Ok;
@@ -916,10 +923,15 @@ void CCrySteamMatchMaking::LobbyAddrIDRecv(void (* cb)(void*, uint8* buffer, uin
 	static TNetAddress s_recvAddr;
 	static uint32 s_recvSize;
 	static CSteamID sender;
+	ISteamNetworking* pSteamNetworking = SteamNetworking();
+	if (!pSteamNetworking)
+	{
+		return;
+	}
 
 	while (LobbyAddrIDHasPendingData())
 	{
-		if (SteamNetworking()->ReadP2PPacket(s_recvBuffer, MAX_UDP_PACKET_SIZE, &s_recvSize, &sender))
+		if (pSteamNetworking->ReadP2PPacket(s_recvBuffer, MAX_UDP_PACKET_SIZE, &s_recvSize, &sender))
 		{
 			CCryLobby::SSocketService* pService = m_lobby->GetCorrectSocketService(eCLS_Online);
 			if ((pService != NULL) && (pService->m_socket != NULL))
@@ -963,8 +975,18 @@ void CCrySteamMatchMaking::SSession::InitialiseLocalConnection(SCryMatchMakingCo
 {
 	localConnection.pingToServer = CRYLOBBY_INVALID_PING;
 	localConnection.used = true;
-	localConnection.userID = SteamUser()->GetSteamID();
-	cry_strcpy(localConnection.name, SteamFriends()->GetPersonaName());
+	ISteamUser* pSteamUser = SteamUser();
+	ISteamFriends* pSteamFriends = SteamFriends();
+	if (pSteamUser && pSteamFriends)
+	{
+		localConnection.userID = pSteamUser->GetSteamID();
+		cry_strcpy(localConnection.name, pSteamFriends->GetPersonaName());
+	}
+	else
+	{
+		localConnection.userID = k_steamIDNil;
+		cry_strcpy(localConnection.name, "");
+	}
 	localConnection.uid = uid;
 }
 
@@ -1005,8 +1027,9 @@ void CCrySteamMatchMaking::SetSessionUserData(CryMatchMakingTaskID mmTaskID, SCr
 {
 	STask* pTask = &m_task[mmTaskID];
 	SSession* pSession = &m_sessions[pTask->session];
+	ISteamMatchmaking* pSteamMatchmaking = SteamMatchmaking();
 
-	if (pSession->localFlags & CRYSESSION_LOCAL_FLAG_USED)
+	if (pSession->localFlags & CRYSESSION_LOCAL_FLAG_USED && pSteamMatchmaking)
 	{
 		if (pSession->localFlags & CRYSESSION_LOCAL_FLAG_HOST)
 		{
@@ -1039,7 +1062,7 @@ void CCrySteamMatchMaking::SetSessionUserData(CryMatchMakingTaskID mmTaskID, SCr
 					break;
 				}
 
-				SteamMatchmaking()->SetLobbyData(pSession->m_id.m_steamID, key.c_str(), value.c_str());
+				pSteamMatchmaking->SetLobbyData(pSession->m_id.m_steamID, key.c_str(), value.c_str());
 			}
 		}
 		else
@@ -1354,10 +1377,11 @@ void CCrySteamMatchMaking::FreeRemoteConnection(CryLobbySessionHandle h, CryMatc
 	{
 		SSession* pSession = &m_sessions[h];
 		SSession::SRConnection* pConnection = &pSession->remoteConnection[id];
+		ISteamNetworking* pSteamNetworking = SteamNetworking();
 
-		if (pConnection->used)
+		if (pSteamNetworking && pConnection->used)
 		{
-			SteamNetworking()->CloseP2PSessionWithUser(pConnection->userID.m_steamID);
+			pSteamNetworking->CloseP2PSessionWithUser(pConnection->userID.m_steamID);
 			CCryMatchMaking::FreeRemoteConnection(h, id);
 		}
 	}
@@ -1385,7 +1409,12 @@ void CCrySteamMatchMaking::StartSessionCreate(CryMatchMakingTaskID mmTaskID)
 		lobbyType = k_ELobbyTypePublic;
 	}
 
-	SteamAPICall_t hSteamAPICall = SteamMatchmaking()->CreateLobby(lobbyType, pSession->data.m_numPublicSlots + pSession->data.m_numPrivateSlots);
+	ISteamMatchmaking* matchMaking = SteamMatchmaking();
+	SteamAPICall_t hSteamAPICall = k_uAPICallInvalid;
+	if (matchMaking)
+	{
+		hSteamAPICall = matchMaking->CreateLobby(lobbyType, pSession->data.m_numPublicSlots + pSession->data.m_numPrivateSlots);
+	}
 	if (hSteamAPICall == k_uAPICallInvalid)
 	{
 		UpdateTaskError(mmTaskID, eCLE_InternalError);
@@ -1436,7 +1465,13 @@ void CCrySteamMatchMaking::StartSessionSearch(CryMatchMakingTaskID mmTaskID)
 	// AddRequestNearValueFilter()
 	// AddRequestLobbyListFilterSlotsAvailable())
 
-	SteamAPICall_t hSteamAPICall = SteamMatchmaking()->RequestLobbyList();
+	
+	SteamAPICall_t hSteamAPICall = k_uAPICallInvalid;
+	ISteamMatchmaking* pSteamMatchmaking = SteamMatchmaking();
+	if (pSteamMatchmaking)
+	{
+		hSteamAPICall = pSteamMatchmaking->RequestLobbyList();
+	}
 	if (hSteamAPICall == k_uAPICallInvalid)
 	{
 		UpdateTaskError(mmTaskID, eCLE_InternalError);
@@ -1494,15 +1529,16 @@ void CCrySteamMatchMaking::StartSessionUpdateSlots(CryMatchMakingTaskID mmTaskID
 {
 	STask* pTask = &m_task[mmTaskID];
 	SSession* pSession = &m_sessions[pTask->session];
+	ISteamMatchmaking* pSteamMatchmaking = SteamMatchmaking();
 
-	if ((pSession->localFlags & (CRYSESSION_LOCAL_FLAG_USED | CRYSESSION_LOCAL_FLAG_HOST)) == (CRYSESSION_LOCAL_FLAG_USED | CRYSESSION_LOCAL_FLAG_HOST))
+	if (pSteamMatchmaking && (pSession->localFlags & (CRYSESSION_LOCAL_FLAG_USED | CRYSESSION_LOCAL_FLAG_HOST)) == (CRYSESSION_LOCAL_FLAG_USED | CRYSESSION_LOCAL_FLAG_HOST))
 	{
 		CryFixedStringT<MAX_STEAM_KEY_VALUE_SIZE> value;
 
 		value.Format("%x", pTask->numParams[SESSION_UPDATE_SLOTS_PARAM_NUM_PUBLIC]);
-		SteamMatchmaking()->SetLobbyData(pSession->m_id.m_steamID, STEAM_KEY_SESSION_PUBLIC_SLOTS, value.c_str());
+		pSteamMatchmaking->SetLobbyData(pSession->m_id.m_steamID, STEAM_KEY_SESSION_PUBLIC_SLOTS, value.c_str());
 		value.Format("%x", pTask->numParams[SESSION_UPDATE_SLOTS_PARAM_NUM_PRIVATE]);
-		SteamMatchmaking()->SetLobbyData(pSession->m_id.m_steamID, STEAM_KEY_SESSION_PRIVATE_SLOTS, value.c_str());
+		pSteamMatchmaking->SetLobbyData(pSession->m_id.m_steamID, STEAM_KEY_SESSION_PRIVATE_SLOTS, value.c_str());
 
 		NetLog("[MatchMaking]: StartSessionUpdateSlots()");
 	}
@@ -1615,7 +1651,12 @@ void CCrySteamMatchMaking::StartSessionJoin(CryMatchMakingTaskID mmTaskID)
 		NetLog("[MatchMaking]: StartSessionJoin() - cancelled previous session join");
 	}
 
-	SteamAPICall_t hSteamAPICall = SteamMatchmaking()->JoinLobby(pSession->m_id.m_steamID);
+	SteamAPICall_t hSteamAPICall = k_uAPICallInvalid;
+	ISteamMatchmaking* pSteamMatchmaking = SteamMatchmaking();
+	if (pSteamMatchmaking)
+	{
+		hSteamAPICall = pSteamMatchmaking->JoinLobby(pSession->m_id.m_steamID);
+	}
 	if (hSteamAPICall == k_uAPICallInvalid)
 	{
 		UpdateTaskError(mmTaskID, eCLE_InternalError);
@@ -1638,13 +1679,14 @@ void CCrySteamMatchMaking::TickSessionJoin(CryMatchMakingTaskID mmTaskID)
 	SSession* pSession = &m_sessions[pTask->session];
 
 	int64 elapsed = pTask->GetTimer();
-	if (elapsed >= SESSION_JOIN_TIMEOUT)
+	ISteamMatchmaking* pSteamMatchmaking = SteamMatchmaking();
+	if (pSteamMatchmaking && elapsed >= SESSION_JOIN_TIMEOUT)
 	{
 		NetLog("[STEAM]: session join has been running for %" PRId64 "ms - stopping", elapsed);
 		UpdateTaskError(mmTaskID, eCLE_TimeOut);
 
 		// Make sure we leave the Steam lobby
-		SteamMatchmaking()->LeaveLobby(pSession->m_id.m_steamID);
+		pSteamMatchmaking->LeaveLobby(pSession->m_id.m_steamID);
 		NetLog("[STEAM]: Leave Steam lobby [%s]", CSteamIDAsString(pSession->m_id.m_steamID).c_str());
 		FreeSessionHandle(pTask->session);
 	}
@@ -1689,7 +1731,11 @@ void CCrySteamMatchMaking::StartSessionDelete(CryMatchMakingTaskID mmTaskID)
 	// Disconnect our local connection
 	SessionDisconnectRemoteConnectionViaNub(pTask->session, CryMatchMakingInvalidConnectionID, eDS_Local, CryMatchMakingInvalidConnectionID, eDC_UserRequested, "Session deleted");
 	SessionUserDataEvent(eCLSE_SessionUserLeave, pTask->session, CryMatchMakingInvalidConnectionID);
-	SteamMatchmaking()->LeaveLobby(pSession->m_id.m_steamID);
+	ISteamMatchmaking* pSteamMatchmaking = SteamMatchmaking();
+	if (pSteamMatchmaking)
+	{
+		pSteamMatchmaking->LeaveLobby(pSession->m_id.m_steamID);
+	}
 	NetLog("[STEAM]: Leave Steam lobby [%s]", CSteamIDAsString(pSession->m_id.m_steamID).c_str());
 
 	for (uint32 i = 0; i < MAX_LOBBY_CONNECTIONS; ++i)
@@ -1933,6 +1979,7 @@ void CCrySteamMatchMaking::OnLobbyDataUpdated(LobbyDataUpdate_t* pParam)
 {
 
 	SCrySteamSessionID lobbyID(CSteamID(pParam->m_ulSteamIDLobby), false);
+	ISteamMatchmaking* pSteamMatchmaking = SteamMatchmaking();
 
 	// Find the session
 	SSession* pSession = NULL;
@@ -1947,23 +1994,27 @@ void CCrySteamMatchMaking::OnLobbyDataUpdated(LobbyDataUpdate_t* pParam)
 	}
 
 	#if USE_CRY_VOICE && USE_STEAM_VOICE
-	if (pSession)
+	if (pSession && pSteamMatchmaking)
 	{
-		int numMembers = SteamMatchmaking()->GetNumLobbyMembers(pParam->m_ulSteamIDMember);
+		int numMembers = pSteamMatchmaking->GetNumLobbyMembers(pParam->m_ulSteamIDMember);
 		for (int i = 0; i < numMembers; i++)
 		{
-			CSteamID user = SteamMatchmaking()->GetLobbyMemberByIndex(pParam->m_ulSteamIDMember, i);
+			CSteamID user = pSteamMatchmaking->GetLobbyMemberByIndex(pParam->m_ulSteamIDMember, i);
 
 			SCrySteamUserID* pUser = new SCrySteamUserID(user);
 			CryUserID userId(pUser);
 			CCrySteamVoice* voice = (CCrySteamVoice*)m_pService->GetVoice();
-			for (int i = 0; i < pSession->remoteConnection.Size(); i++)
+			ISteamUser* pSteamUser = SteamUser();
+			if (pSteamUser)
 			{
-				// check if connectionId is valid and user is a remote user
-				if (pSession->remoteConnection[i].connectionID != CryLobbyInvalidConnectionID && user != SteamUser()->GetSteamID())
+				for (int i = 0; i < pSession->remoteConnection.Size(); i++)
 				{
-					NetLog("[Steam] Registering user to voice from OnLobbyDataUpdated");
-					voice->RegisterRemoteUser(pSession->remoteConnection[i].connectionID, userId);
+					// check if connectionId is valid and user is a remote user
+					if (pSession->remoteConnection[i].connectionID != CryLobbyInvalidConnectionID && user != pSteamUser->GetSteamID())
+					{
+						NetLog("[Steam] Registering user to voice from OnLobbyDataUpdated");
+						voice->RegisterRemoteUser(pSession->remoteConnection[i].connectionID, userId);
+					}
 				}
 			}
 
@@ -1971,7 +2022,7 @@ void CCrySteamMatchMaking::OnLobbyDataUpdated(LobbyDataUpdate_t* pParam)
 	}
 	#endif // USE_CRY_VOICE
 
-	if (m_SteamOnLobbyDataUpdated.m_taskID != CryMatchMakingInvalidTaskID)
+	if (pSteamMatchmaking && m_SteamOnLobbyDataUpdated.m_taskID != CryMatchMakingInvalidTaskID)
 	{
 		STask* pTask = &m_task[m_SteamOnLobbyDataUpdated.m_taskID];
 		SCrySessionSearchParam* pSessionSearchParam = (SCrySessionSearchParam*)m_lobby->MemGetPtr(pTask->params[SESSION_SEARCH_PARAM_GAME_PARAM]);
@@ -1980,7 +2031,7 @@ void CCrySteamMatchMaking::OnLobbyDataUpdated(LobbyDataUpdate_t* pParam)
 		{
 			CryFixedStringT<MAX_STEAM_KEY_VALUE_SIZE> key;
 			CryFixedStringT<MAX_STEAM_KEY_VALUE_SIZE> value;
-			uint32 count = SteamMatchmaking()->GetLobbyDataCount(pParam->m_ulSteamIDLobby);
+			uint32 count = pSteamMatchmaking->GetLobbyDataCount(pParam->m_ulSteamIDLobby);
 			uint32 start = 0;
 
 			// Extract the user data from the lobby
@@ -2003,22 +2054,22 @@ void CCrySteamMatchMaking::OnLobbyDataUpdated(LobbyDataUpdate_t* pParam)
 					pResult->m_flags = 0;
 
 					key = STEAM_KEY_SESSION_NAME;
-					value = SteamMatchmaking()->GetLobbyData(pParam->m_ulSteamIDLobby, key.c_str());
+					value = pSteamMatchmaking->GetLobbyData(pParam->m_ulSteamIDLobby, key.c_str());
 					cry_strcpy(pResult->m_data.m_name, value.c_str());
 					++start;
 
 					key = STEAM_KEY_SESSION_PUBLIC_SLOTS;
-					value = SteamMatchmaking()->GetLobbyData(pParam->m_ulSteamIDLobby, key.c_str());
+					value = pSteamMatchmaking->GetLobbyData(pParam->m_ulSteamIDLobby, key.c_str());
 					sscanf(value.c_str(), "%x", &pResult->m_data.m_numPublicSlots);
 					++start;
 
 					key = STEAM_KEY_SESSION_PRIVATE_SLOTS;
-					value = SteamMatchmaking()->GetLobbyData(pParam->m_ulSteamIDLobby, key.c_str());
+					value = pSteamMatchmaking->GetLobbyData(pParam->m_ulSteamIDLobby, key.c_str());
 					sscanf(value.c_str(), "%x", &pResult->m_data.m_numPrivateSlots);
 					++start;
 
 					key = STEAM_KEY_SESSION_GAME_TYPE;
-					value = SteamMatchmaking()->GetLobbyData(pParam->m_ulSteamIDLobby, key.c_str());
+					value = pSteamMatchmaking->GetLobbyData(pParam->m_ulSteamIDLobby, key.c_str());
 					unsigned int ranked;
 					sscanf(value.c_str(), "%x", &ranked);
 					pResult->m_data.m_ranked = ranked != 0;
@@ -2045,7 +2096,7 @@ void CCrySteamMatchMaking::OnLobbyDataUpdated(LobbyDataUpdate_t* pParam)
 							new(&pUserData[index])SCrySessionUserData;
 
 							key.Format(STEAM_KEY_SESSION_USER_DATA "%d", index);
-							value = SteamMatchmaking()->GetLobbyData(pParam->m_ulSteamIDLobby, key.c_str());
+							value = pSteamMatchmaking->GetLobbyData(pParam->m_ulSteamIDLobby, key.c_str());
 
 							sscanf(value.c_str(), "%x", &(pUserData[index].m_type));
 							unsigned int id = 0;
@@ -2107,8 +2158,17 @@ void CCrySteamMatchMaking::OnP2PSessionRequest(P2PSessionRequest_t* pParam)
 {
 	// Inform Steam that we're happy to accept traffic from this user
 	// Note: might have to add tests here later, but for now just accept anyone
-	NetLog("[STEAM]: Accepting P2P connection request for Steam ID [%s]", SCrySteamUserID(pParam->m_steamIDRemote).GetGUIDAsString().c_str());
-	SteamNetworking()->AcceptP2PSessionWithUser(pParam->m_steamIDRemote);
+	
+	ISteamNetworking* pSteamNetworking = SteamNetworking();
+	if (pSteamNetworking)
+	{
+		NetLog("[STEAM]: Accepting P2P connection request for Steam ID [%s]", SCrySteamUserID(pParam->m_steamIDRemote).GetGUIDAsString().c_str());
+		pSteamNetworking->AcceptP2PSessionWithUser(pParam->m_steamIDRemote);
+	}
+	else
+	{
+		CryWarning(VALIDATOR_MODULE_SYSTEM, VALIDATOR_WARNING, "Steam networking service not avaialble");
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -2118,6 +2178,13 @@ void CCrySteamMatchMaking::OnLobbyChatUpdate(LobbyChatUpdate_t* pParam)
 	SCrySteamSessionID lobbyID(CSteamID(pParam->m_ulSteamIDLobby), false);
 	SCrySteamUserID userChanged(CSteamID(pParam->m_ulSteamIDUserChanged));
 	SCrySteamUserID userMakingChange(CSteamID(pParam->m_ulSteamIDMakingChange));
+
+	ISteamFriends* pSteamFriends = SteamFriends();
+	if (!pSteamFriends)
+	{
+		CryWarning(VALIDATOR_MODULE_SYSTEM, VALIDATOR_WARNING, "Steam friends service not available");
+		return;
+	}
 
 	// Find the session
 	SSession* pSession = NULL;
@@ -2154,7 +2221,7 @@ void CCrySteamMatchMaking::OnLobbyChatUpdate(LobbyChatUpdate_t* pParam)
 				description = "User banned";
 			}
 
-			NetLog("[STEAM]: user [%s][%s] removed : [%s]", SteamFriends()->GetFriendPersonaName(userChanged.m_steamID), userChanged.GetGUIDAsString().c_str(), description);
+			NetLog("[STEAM]: user [%s][%s] removed : [%s]", pSteamFriends->GetFriendPersonaName(userChanged.m_steamID), userChanged.GetGUIDAsString().c_str(), description);
 
 			// Search for the player in the session
 			if (pSession->localConnection.userID.m_steamID == userChanged.m_steamID)
@@ -2163,7 +2230,11 @@ void CCrySteamMatchMaking::OnLobbyChatUpdate(LobbyChatUpdate_t* pParam)
 
 				// End session
 				SessionDisconnectRemoteConnectionViaNub(session, CryMatchMakingInvalidConnectionID, eDS_Local, CryMatchMakingInvalidConnectionID, dc, description);
-				SteamMatchmaking()->LeaveLobby(pSession->m_id.m_steamID);
+				ISteamMatchmaking* pSteamMatchmaking = SteamMatchmaking();
+				if (pSteamMatchmaking)
+				{
+					pSteamMatchmaking->LeaveLobby(pSession->m_id.m_steamID);
+				}
 				NetLog("[STEAM]: Leave Steam lobby [%s]", CSteamIDAsString(pSession->m_id.m_steamID).c_str());
 
 				for (uint32 i = 0; i < MAX_LOBBY_CONNECTIONS; ++i)
@@ -2194,14 +2265,14 @@ void CCrySteamMatchMaking::OnLobbyChatUpdate(LobbyChatUpdate_t* pParam)
 			if (pSession->localConnection.userID == userChanged)
 			{
 				SessionUserDataEvent(eCLSE_SessionUserJoin, session, CryMatchMakingInvalidConnectionID);
-				NetLog("[STEAM]: local user [%s][%s] added", SteamFriends()->GetFriendPersonaName(userChanged.m_steamID), userChanged.GetGUIDAsString().c_str());
+				NetLog("[STEAM]: local user [%s][%s] added", pSteamFriends->GetFriendPersonaName(userChanged.m_steamID), userChanged.GetGUIDAsString().c_str());
 			}
 			else
 			{
 				// Add the player to the session (with no user data - that comes later from lobby packets)
 				uint8 data[CRYLOBBY_USER_DATA_SIZE_IN_BYTES];
 				memset(data, 0, CRYLOBBY_USER_DATA_SIZE_IN_BYTES);
-				CryMatchMakingConnectionID id = AddRemoteConnection(session, CryLobbyInvalidConnectionID, CreateConnectionUID(session), userChanged.m_steamID, 1, SteamFriends()->GetFriendPersonaName(userChanged.m_steamID), data, false);
+				CryMatchMakingConnectionID id = AddRemoteConnection(session, CryLobbyInvalidConnectionID, CreateConnectionUID(session), userChanged.m_steamID, 1, pSteamFriends->GetFriendPersonaName(userChanged.m_steamID), data, false);
 				if (id != CryMatchMakingInvalidConnectionID)
 				{
 					// Send a response to the joining player
@@ -2230,12 +2301,12 @@ void CCrySteamMatchMaking::OnLobbyChatUpdate(LobbyChatUpdate_t* pParam)
 						Send(CryMatchMakingInvalidTaskID, &packet, session, id);
 						SessionUserDataEvent(eCLSE_SessionUserJoin, session, id);
 
-						NetLog("[STEAM]: remote user [%s][%s] added", SteamFriends()->GetFriendPersonaName(userChanged.m_steamID), userChanged.GetGUIDAsString().c_str());
+						NetLog("[STEAM]: remote user [%s][%s] added", pSteamFriends->GetFriendPersonaName(userChanged.m_steamID), userChanged.GetGUIDAsString().c_str());
 					}
 				}
 				else
 				{
-					NetLog("[STEAM]: remote user [%s][%s] UNABLE TO ADD", SteamFriends()->GetFriendPersonaName(userChanged.m_steamID), userChanged.GetGUIDAsString().c_str());
+					NetLog("[STEAM]: remote user [%s][%s] UNABLE TO ADD", pSteamFriends->GetFriendPersonaName(userChanged.m_steamID), userChanged.GetGUIDAsString().c_str());
 				}
 			}
 		}
@@ -2250,6 +2321,7 @@ void CCrySteamMatchMaking::OnLobbyChatUpdate(LobbyChatUpdate_t* pParam)
 
 void CCrySteamMatchMaking::OnLobbyCreated(LobbyCreated_t* pParam, bool ioFailure)
 {
+	ISteamMatchmaking* pSteamMatchmaking = SteamMatchmaking();
 	if (m_SteamOnLobbyCreated.m_taskID != CryMatchMakingInvalidTaskID)
 	{
 		STask* pTask = &m_task[m_SteamOnLobbyCreated.m_taskID];
@@ -2273,13 +2345,13 @@ void CCrySteamMatchMaking::OnLobbyCreated(LobbyCreated_t* pParam, bool ioFailure
 				NetLog("[STEAM]: Steam lobby created by [%s], id [%s]", pSession->localConnection.name, CSteamIDAsString(pSession->m_id.m_steamID).c_str());
 
 				// Set lobby keys
-				SteamMatchmaking()->SetLobbyData(pParam->m_ulSteamIDLobby, STEAM_KEY_SESSION_NAME, pData->m_name);
+				pSteamMatchmaking->SetLobbyData(pParam->m_ulSteamIDLobby, STEAM_KEY_SESSION_NAME, pData->m_name);
 				value.Format("%x", pData->m_numPublicSlots);
-				SteamMatchmaking()->SetLobbyData(pParam->m_ulSteamIDLobby, STEAM_KEY_SESSION_PUBLIC_SLOTS, value.c_str());
+				pSteamMatchmaking->SetLobbyData(pParam->m_ulSteamIDLobby, STEAM_KEY_SESSION_PUBLIC_SLOTS, value.c_str());
 				value.Format("%x", pData->m_numPrivateSlots);
-				SteamMatchmaking()->SetLobbyData(pParam->m_ulSteamIDLobby, STEAM_KEY_SESSION_PRIVATE_SLOTS, value.c_str());
+				pSteamMatchmaking->SetLobbyData(pParam->m_ulSteamIDLobby, STEAM_KEY_SESSION_PRIVATE_SLOTS, value.c_str());
 				value.Format("%x", pData->m_ranked);
-				SteamMatchmaking()->SetLobbyData(pParam->m_ulSteamIDLobby, STEAM_KEY_SESSION_GAME_TYPE, value.c_str());
+				pSteamMatchmaking->SetLobbyData(pParam->m_ulSteamIDLobby, STEAM_KEY_SESSION_GAME_TYPE, value.c_str());
 
 				SetSessionUserData(m_SteamOnLobbyCreated.m_taskID, pData->m_data, pData->m_numData);
 				NetLog("[STEAM]: created lobby successfully");
@@ -2308,8 +2380,9 @@ void CCrySteamMatchMaking::OnLobbySearchResults(LobbyMatchList_t* pParam, bool i
 	{
 		STask* pTask = &m_task[m_SteamOnLobbySearchResults.m_taskID];
 		SCrySessionSearchParam* pSessionSearchParam = (SCrySessionSearchParam*)m_lobby->MemGetPtr(pTask->params[SESSION_SEARCH_PARAM_GAME_PARAM]);
+		ISteamMatchmaking* pSteamMatchmaking = SteamMatchmaking();
 
-		if (pParam->m_nLobbiesMatching > 0)
+		if (pSteamMatchmaking && pParam->m_nLobbiesMatching > 0)
 		{
 			if (pParam->m_nLobbiesMatching < pSessionSearchParam->m_maxNumReturn)
 			{
@@ -2318,8 +2391,8 @@ void CCrySteamMatchMaking::OnLobbySearchResults(LobbyMatchList_t* pParam, bool i
 
 			for (uint32 index = 0; index < pSessionSearchParam->m_maxNumReturn; ++index)
 			{
-				CSteamID lobbyID = SteamMatchmaking()->GetLobbyByIndex(index);
-				SteamMatchmaking()->RequestLobbyData(lobbyID);
+				CSteamID lobbyID = pSteamMatchmaking->GetLobbyByIndex(index);
+				pSteamMatchmaking->RequestLobbyData(lobbyID);
 			}
 
 			m_SteamOnLobbyDataUpdated.m_taskID = m_SteamOnLobbySearchResults.m_taskID;
@@ -2519,6 +2592,8 @@ ECryLobbyError CCrySteamMatchMaking::ConvertSteamErrorToCryLobbyError(uint32 ste
 void CCrySteamMatchMaking::Debug_DumpLobbyMembers(CryLobbySessionHandle lsh)
 {
 	SSession* pSession = &m_sessions[lsh];
+	ISteamMatchmaking* pSteamMatchmaking = SteamMatchmaking();
+	ISteamFriends* pSteamFriends = SteamFriends();
 
 	if ((lsh < MAX_MATCHMAKING_SESSIONS) && (pSession->localFlags & CRYSESSION_LOCAL_FLAG_USED))
 	{
@@ -2533,12 +2608,12 @@ void CCrySteamMatchMaking::Debug_DumpLobbyMembers(CryLobbySessionHandle lsh)
 			}
 		}
 
-		uint32 numLobbyMembers = (SteamMatchmaking()) ? SteamMatchmaking()->GetNumLobbyMembers(pSession->m_id.m_steamID) : 0;
+		uint32 numLobbyMembers = (pSteamMatchmaking && pSteamFriends) ? pSteamMatchmaking->GetNumLobbyMembers(pSession->m_id.m_steamID) : 0;
 		NetLog("[STEAM]: *** Dumping Steam lobby members (lobby id [%s], %d members) ***", CSteamIDAsString(pSession->m_id.m_steamID).c_str(), numLobbyMembers);
-		if (numLobbyMembers > 0)
+		if (numLobbyMembers > 0 && pSteamMatchmaking && pSteamFriends)
 		{
 			SCrySteamUserID id;
-			if (SteamMatchmaking()->GetLobbyGameServer(pSession->m_id.m_steamID, NULL, NULL, &id.m_steamID))
+			if (pSteamMatchmaking->GetLobbyGameServer(pSession->m_id.m_steamID, NULL, NULL, &id.m_steamID))
 			{
 				NetLog("[STEAM]: lobby game server is [%s]", id.GetGUIDAsString().c_str());
 			}
@@ -2547,13 +2622,13 @@ void CCrySteamMatchMaking::Debug_DumpLobbyMembers(CryLobbySessionHandle lsh)
 				NetLog("[STEAM]: lobby game server is [unknown]");
 			}
 
-			id = SteamMatchmaking()->GetLobbyOwner(pSession->m_id.m_steamID);
-			NetLog("[STEAM]: lobby host is [%s][%s]", SteamFriends()->GetFriendPersonaName(id.m_steamID), id.GetGUIDAsString().c_str());
+			id = pSteamMatchmaking->GetLobbyOwner(pSession->m_id.m_steamID);
+			NetLog("[STEAM]: lobby host is [%s][%s]", pSteamFriends->GetFriendPersonaName(id.m_steamID), id.GetGUIDAsString().c_str());
 
 			for (uint32 index = 0; index < numLobbyMembers; ++index)
 			{
-				id = SteamMatchmaking()->GetLobbyMemberByIndex(pSession->m_id.m_steamID, index);
-				NetLog("[STEAM]: lobby member [%d] is [%s][%s]", index, SteamFriends()->GetFriendPersonaName(id.m_steamID), id.GetGUIDAsString().c_str());
+				id = pSteamMatchmaking->GetLobbyMemberByIndex(pSession->m_id.m_steamID, index);
+				NetLog("[STEAM]: lobby member [%d] is [%s][%s]", index, pSteamFriends->GetFriendPersonaName(id.m_steamID), id.GetGUIDAsString().c_str());
 			}
 		}
 		NetLog("[STEAM]: *** Finished dumping session members ***");

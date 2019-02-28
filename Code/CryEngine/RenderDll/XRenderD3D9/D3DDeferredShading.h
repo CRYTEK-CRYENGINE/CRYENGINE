@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*=============================================================================
    DeferredShading.h : Deferred shading pipeline
@@ -11,6 +11,7 @@
 #include "Common/RenderPipeline.h" // EShapeMeshType
 #include "Common/Textures/Texture.h" // CTexture
 #include "Common/Textures/PowerOf2BlockPacker.h" // CPowerOf2BlockPacker
+#include "Common/Shadow_Renderer.h"
 
 struct IVisArea;
 
@@ -25,24 +26,10 @@ enum EDecalType
 	DTYP_NUM,
 };
 
+#define MAX_DEFERRED_LIGHT_SOURCES 32
 #define MAX_DEFERRED_CLIP_VOLUMES 64
 
 class CTexPoolAtlas;
-
-struct SShadowAllocData
-{
-	int    m_lightID;
-	uint16 m_blockID;
-	uint8  m_side;
-	uint8  m_frameID;
-
-	void Clear()  { m_blockID = 0xFFFF; m_lightID = -1; m_frameID = 0; }
-	bool isFree() { return (m_blockID == 0xFFFF) ? true : false; }
-
-	SShadowAllocData(){ Clear(); }
-	~SShadowAllocData(){ Clear(); }
-
-};
 
 class CDeferredShading
 {
@@ -50,7 +37,7 @@ public:
 
 	static inline bool IsValid()
 	{
-		return m_pInstance != NULL;
+		return m_pInstance != nullptr;
 	}
 
 	static CDeferredShading& Instance()
@@ -58,52 +45,19 @@ public:
 		return (*m_pInstance);
 	}
 
-	void Render(CRenderView* pRenderView);
-	void SetupPasses();
-	void SetupGlobalConsts();
+	void SetupPasses(CRenderView* pRenderView);
+	void SetupGlobalConsts(CRenderView* pRenderView);
 
-	//shadows
-	void        ResolveCurrentBuffers();
-	void        RestoreCurrentBuffers();
-	bool        PackAllShadowFrustums(bool bPreLoop);
-	bool        PackToPool(CPowerOf2BlockPacker* pBlockPack, SRenderLight& light, const int nLightID, const int nFirstCandidateLight, bool bClearPool);
-
-	void        FilterGBuffer();
-	void        PrepareClipVolumeData(bool& bOutdoorVisible);
-	bool        AmbientPass(SRenderLight* pGlobalCubemap, bool& bOutdoorVisible);
-
-	bool        DeferredDecalPass(const SDeferredDecal& rDecal, uint32 indDecal);
-	bool        ShadowLightPasses(const SRenderLight& light, const int nLightID);
-	void        DrawDecalVolume(const SDeferredDecal& rDecal, Matrix44A& mDecalLightProj, ECull volumeCull);
-	void        DrawLightVolume(EShapeMeshType meshType, const Matrix44& mVolumeToWorld, const Vec4& vSphereAdjust = Vec4(ZERO));
-	void        LightPass(const SRenderLight* const __restrict pDL, bool bForceStencilDisable = false);
-	void        DeferredCubemaps(const RenderLightsArray& rCubemaps, const uint32 nStartIndex = 0);
-	void        DeferredCubemapPass(const SRenderLight* const __restrict pDL);
-	void        DeferredLights(RenderLightsArray& rLights, bool bCastShadows);
-	void        DeferredShadingPass();
-
-	void        CreateDeferredMaps();
-	void        DestroyDeferredMaps();
 	void        Release();
-	void        Debug();
-	void        DebugGBuffer();
-
-	uint32      AddLight(const CDLight& pDL, float fMult, const SRenderingPassInfo& passInfo);
 
 	void        AddGIClipVolume(IRenderMesh* pClipVolume, const Matrix34& mxTransform);
-	inline void ResetLights();
 
 	// called in between levels to free up memory
 	void          ReleaseData();
 
-	void          GetClipVolumeParams(const Vec4*& pParams, uint32& nCount);
+	void          GetClipVolumeParams(const Vec4*& pParams);
 	CTexture*     GetResolvedStencilRT() { return m_pResolvedStencilRT; }
-	void          GetLightRenderSettings(const SRenderLight* const __restrict pDL, bool& bStencilMask, bool& bUseLightVolumes, EShapeMeshType& meshType);
-
-	inline uint32 GetLightsCount() const
-	{
-		return m_nLightsProcessedCount;
-	}
+	void          GetLightRenderSettings(const CRenderView* pRenderView, const SRenderLight* const __restrict pDL, bool& bStencilMask, bool& bUseLightVolumes, EShapeMeshType& meshType);
 
 	inline Vec4 GetLightDepthBounds(const SRenderLight* pDL, bool bReverseDepth) const
 	{
@@ -154,16 +108,17 @@ public:
 		return Vec4(fMinZ, max(fMinW, 0.000001f), fMaxZ, max(fMaxW, 0.000001f));
 	}
 
-	void             GetScissors(const Vec3& vCenter, float fRadius, short& sX, short& sY, short& sWidth, short& sHeight) const;
-	void             SetupScissors(bool bEnable, uint16 x, uint16 y, uint16 w, uint16 h) const;
-
 	const Matrix44A& GetCameraProjMatrix() const { return m_mViewProj; }
+
+	CPowerOf2BlockPacker&           GetBlockPacker() { return m_blockPack; }
+	const CPowerOf2BlockPacker&     GetBlockPacker() const { return m_blockPack; }
+	TArray<SShadowAllocData>&       GetShadowPoolAllocator() { return m_shadowPoolAlloc; }
+	const TArray<SShadowAllocData>& GetShadowPoolAllocator() const { return m_shadowPoolAlloc; }
 
 private:
 
 	CDeferredShading()
-		: m_pCurrentRenderView(0)
-		, m_pShader(0)
+		: m_pShader(0)
 		, m_pTechName("DeferredLightPass")
 		, m_pAmbientOutdoorTechName("AmbientPass")
 		, m_pCubemapsTechName("DeferredCubemapPass")
@@ -185,19 +140,12 @@ private:
 		, m_pParamDecalSpecular("g_DecalSpecular")
 		, m_pParamDecalMipLevels("g_DecalMipLevels")
 		, m_pClipVolumeParams("g_vVisAreasParams")
-		, m_pLBufferDiffuseRT(CTexture::s_ptexCurrentSceneDiffuseAccMap)
-		, m_pLBufferSpecularRT(CTexture::s_ptexSceneSpecularAccMap)
-		, m_pNormalsRT(CTexture::s_ptexSceneNormalsMap)
-		, m_pDepthRT(CTexture::s_ptexZTarget)
-		, m_pMSAAMaskRT(CTexture::s_ptexBackBuffer)
-		, m_pResolvedStencilRT(CTexture::s_ptexStereoR)
-		, m_pDiffuseRT(CTexture::s_ptexSceneDiffuse)
-		, m_pSpecularRT(CTexture::s_ptexSceneSpecular)
-		, m_nLightsProcessedCount(0)
-		, m_nCurLighID(-1)
-		, m_nWarningFrame(0)
-		, m_bSpecularState(false)
-		, m_nShadowPoolSize(0)
+		, m_pNormalsRT(CRendererResources::s_ptexSceneNormalsMap)
+		, m_pDepthRT(CRendererResources::s_ptexLinearDepth)
+		, m_pMSAAMaskRT(CRendererResources::s_ptexBackBuffer)
+		, m_pResolvedStencilRT(CRendererResources::s_ptexVelocity)
+		, m_pDiffuseRT(CRendererResources::s_ptexSceneDiffuse)
+		, m_pSpecularRT(CRendererResources::s_ptexSceneSpecular)
 		, m_nRenderState(GS_BLSRC_ONE | GS_BLDST_ONE)
 		, m_nThreadID(0)
 		, m_nRecurseLevel(0)
@@ -225,9 +173,6 @@ private:
 		Release();
 	}
 
-	// Allow disable mrt usage: for double zspeed and on other passes less fillrate hit
-	void SpecularAccEnableMRT(bool bEnable);
-
 private:
 	uint32 m_nVisAreasGIRef[RT_COMMAND_BUF_COUNT][MAX_REND_RECURSION_LEVELS];
 
@@ -242,15 +187,10 @@ private:
 	// Clip volumes for GI for current view
 	TArray<SClipShape> m_vecGIClipVolumes[RT_COMMAND_BUF_COUNT][MAX_REND_RECURSION_LEVELS];
 
-	CRenderView*       m_pCurrentRenderView;
-
 	Vec3               m_pCamPos;
 	Vec3               m_pCamFront;
 	float              m_fCamFar;
 	float              m_fCamNear;
-
-	float              m_fRatioWidth;
-	float              m_fRatioHeight;
 
 	CShader*           m_pShader;
 	CCryNameTSCRC      m_pDeferredDecalTechName;
@@ -284,9 +224,6 @@ private:
 
 	Vec4               vWorldBasisX, vWorldBasisY, vWorldBasisZ;
 
-	CTexture*          m_pLBufferDiffuseRT;
-	CTexture*          m_pLBufferSpecularRT;
-
 	CRY_ALIGN(16) Vec4 m_vClipVolumeParams[MAX_DEFERRED_CLIP_VOLUMES];
 
 	CTexture*                m_pDiffuseRT;
@@ -297,26 +234,20 @@ private:
 	CTexture*                m_pMSAAMaskRT;
 	CTexture*                m_pResolvedStencilRT;
 
-	int                      m_nWarningFrame;
-
 	int                      m_nRenderState;
-	uint32                   m_nLightsProcessedCount;
 
 	uint32                   m_nThreadID;
 	int32                    m_nRecurseLevel;
 
-	uint                     m_nCurrentShadowPoolLight;
-	uint                     m_nFirstCandidateShadowPoolLight;
-	uint                     m_nShadowPoolSize;
-	bool                     m_bClearPool;
+	uint                     m_nShadowPoolSize = 0;
 
-	bool                     m_bSpecularState;
-	int                      m_nCurLighID;
 	short                    m_nCurTargetWidth;
 	short                    m_nCurTargetHeight;
 	static CDeferredShading* m_pInstance;
 
-	friend class CTiledShading;
+	friend class CD3D9Renderer;
+	friend class CRenderer;
+	friend class CTiledLightVolumesStage;
 	friend class CShadowMapStage;
 	friend class CVolumetricFogStage; // for access to m_nCurrentShadowPoolLight and m_nFirstCandidateShadowPoolLight.
 
@@ -324,8 +255,6 @@ private:
 	TArray<SShadowAllocData> m_shadowPoolAlloc;
 
 public:
-	CRenderView*             RenderView() { return m_pCurrentRenderView; }
-
 	static CDeferredShading* CreateDeferredShading()
 	{
 		m_pInstance = new CDeferredShading();

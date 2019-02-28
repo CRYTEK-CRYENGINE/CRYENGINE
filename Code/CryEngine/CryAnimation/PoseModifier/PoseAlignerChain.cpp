@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "PoseAlignerChain.h"
@@ -77,8 +77,7 @@ void CPoseAlignerChain::Initialize(LimbIKDefinitionHandle solver, int contactJoi
 	m_state.rootJointIndex = -1;
 	m_state.targetJointIndex = -1;
 	m_state.contactJointIndex = contactJointIndex;
-
-	m_pIkLimbType = NULL;
+	m_state.m_pIkLimbType = NULL;
 
 	m_state.eLockMode = eLockMode_Store;
 }
@@ -94,8 +93,8 @@ void CPoseAlignerChain::AlignToTarget(const SAnimationPoseModifierParams& params
 
 bool CPoseAlignerChain::MoveToTarget(const SAnimationPoseModifierParams& params, Vec3& contactPosition)
 {
-	float offsetMax = ComputePoseAbsoluteOffsetMax(params, *m_pIkLimbType, m_stateExecute.target.offsetMax);
-	float offsetMin = ComputePoseAbsoluteOffsetMax(params, *m_pIkLimbType, m_stateExecute.target.offsetMin - 0.1f);
+	float offsetMax = ComputePoseAbsoluteOffsetMax(params, *m_stateExecute.m_pIkLimbType, m_stateExecute.target.offsetMax);
+	float offsetMin = ComputePoseAbsoluteOffsetMax(params, *m_stateExecute.m_pIkLimbType, m_stateExecute.target.offsetMin - 0.1f);
 
 	const Vec3& contactPositionAnimation = params.pPoseData->GetJointAbsolute(
 	  m_stateExecute.contactJointIndex).t;
@@ -134,21 +133,23 @@ bool CPoseAlignerChain::MoveToTarget(const SAnimationPoseModifierParams& params,
 
 bool CPoseAlignerChain::Prepare(const SAnimationPoseModifierParams& params)
 {
-	if (!m_pIkLimbType && m_state.solver)
-		m_pIkLimbType = FindIkLimbType(params, m_state.solver);
-	if (!m_pIkLimbType)
+	if (!m_state.m_pIkLimbType && m_state.solver)
+		m_state.m_pIkLimbType = FindIkLimbType(params, m_state.solver);
+	if (!m_state.m_pIkLimbType)
 		return false;
 
-	m_state.rootJointIndex = m_pIkLimbType->m_arrRootToEndEffector[0];
-	m_state.targetJointIndex = m_pIkLimbType->m_arrJointChain.back().m_idxJoint;
-
+	m_state.rootJointIndex = m_state.m_pIkLimbType->m_arrRootToEndEffector[0];
+	m_state.targetJointIndex = m_state.m_pIkLimbType->m_arrJointChain.back().m_idxJoint;
+	m_state.m_pIkLimbType = m_state.m_pIkLimbType;
 	m_stateExecute = m_state;
 	return true;
 }
 
 bool CPoseAlignerChain::Execute(const SAnimationPoseModifierParams& params)
 {
-	if (!m_pIkLimbType)
+	DEFINE_PROFILER_FUNCTION();
+
+	if (!m_stateExecute.m_pIkLimbType)
 		return false;
 
 	Skeleton::CPoseData* pPoseData = Skeleton::CPoseData::GetPoseData(params.pPoseData);
@@ -165,9 +166,9 @@ bool CPoseAlignerChain::Execute(const SAnimationPoseModifierParams& params)
 
 	QuatT poseRelativeTransformations[16];
 	QuatT poseAbsoluteTransformations[16];
-	uint poseTransformationCount = min(uint(m_pIkLimbType->m_arrLimbChildren.size()),
+	uint poseTransformationCount = min(uint(m_stateExecute.m_pIkLimbType->m_arrLimbChildren.size()),
 	                                   uint(sizeof(poseRelativeTransformations) / sizeof(poseAbsoluteTransformations[0])));
-	const int16* pPoseTransformationIndices = &m_pIkLimbType->m_arrLimbChildren[0];
+	const int16* pPoseTransformationIndices = &m_stateExecute.m_pIkLimbType->m_arrLimbChildren[0];
 	for (uint i = 0; i < poseTransformationCount; ++i)
 	{
 		poseRelativeTransformations[i] = pPoseRelative[pPoseTransformationIndices[i]];
@@ -248,7 +249,7 @@ bool CPoseAlignerChain::Execute(const SAnimationPoseModifierParams& params)
 			cylinder.color = ColorB(0xff, 0xff, 0xff, 0xc0);
 			DrawHelper::Draw(cylinder);
 
-			float poseAbsoluteOffsetMax = ComputePoseAbsoluteOffsetMax(params, *m_pIkLimbType, m_stateExecute.target.offsetMax);
+			float poseAbsoluteOffsetMax = ComputePoseAbsoluteOffsetMax(params, *m_stateExecute.m_pIkLimbType, m_stateExecute.target.offsetMax);
 
 			Ray ray(position + Vec3(0.0f, 0.0f, m_stateExecute.target.distance), Vec3(0.0f, 0.0f, -m_stateExecute.target.distance * 2.0f));
 			Intersect::Ray_Plane(ray, m_stateExecute.target.plane, cylinder.position);
@@ -274,7 +275,7 @@ bool CPoseAlignerChain::Execute(const SAnimationPoseModifierParams& params)
 
 			//
 
-			Vec3 position0 = pPoseAbsolute[m_pIkLimbType->m_arrLimbChildren[0]].t;
+			Vec3 position0 = pPoseAbsolute[m_stateExecute.m_pIkLimbType->m_arrLimbChildren[0]].t;
 			Vec3 position1 = position0;
 			position1.z = poseAbsoluteOffsetMax;
 
@@ -289,8 +290,8 @@ bool CPoseAlignerChain::Execute(const SAnimationPoseModifierParams& params)
 
 			//
 
-			float offsetMax = ComputePoseAbsoluteOffsetMax(params, *m_pIkLimbType, m_stateExecute.target.offsetMax);
-			float offsetMin = ComputePoseAbsoluteOffsetMax(params, *m_pIkLimbType, m_stateExecute.target.offsetMin - 0.1f);
+			float offsetMax = ComputePoseAbsoluteOffsetMax(params, *m_stateExecute.m_pIkLimbType, m_stateExecute.target.offsetMax);
+			float offsetMin = ComputePoseAbsoluteOffsetMax(params, *m_stateExecute.m_pIkLimbType, m_stateExecute.target.offsetMin - 0.1f);
 
 			cylinder.radius = 0.125f;
 			cylinder.color = ColorB(0xff, 0xff, 0xff, 0xc0);

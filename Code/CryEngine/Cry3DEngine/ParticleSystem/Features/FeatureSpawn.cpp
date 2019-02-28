@@ -1,52 +1,34 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
-
-// -------------------------------------------------------------------------
-//  Created:     29/09/2014 by Filipe amim
-//  Description:
-// -------------------------------------------------------------------------
-//
-////////////////////////////////////////////////////////////////////////////
+// Copyright 2015-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
-#include "ParticleSystem/ParticleFeature.h"
+#include "ParticleSystem/ParticleSystem.h"
+#include "ParticleSystem/ParticleComponentRuntime.h"
 #include "ParamMod.h"
-#include <CryRenderer/IGpuParticles.h>
-
-CRY_PFX2_DBG
 
 namespace pfx2
 {
 
-typedef TValue<float, USoftLimit<15000>> UFloatCount;
-
-struct CRY_ALIGN(CRY_PFX2_PARTICLES_ALIGNMENT) SSpawnData
+struct SSpawnData
 {
 	float m_amount;
 	float m_spawned;
-	float m_delay;
 	float m_duration;
 	float m_restart;
 	float m_timer;
+
+	float DeltaTime(float dT) const
+	{
+		const float startTime = max(m_timer, 0.0f);
+		const float endTime = min(m_timer + dT, m_duration);
+		return endTime - startTime;
+	}
 };
 
 // PFX2_TODO : not enough self documented code. Refactor!
 
 class CParticleFeatureSpawnBase : public CParticleFeature
 {
-protected:
-	typedef CParamMod<SModInstanceCounter, UFloatCount> TCountParam;
-	typedef CParamMod<SModInstanceTimer, UFloat10>      TTimeParams;
-
 public:
-	CParticleFeatureSpawnBase(gpu_pfx2::EGpuFeatureType gpuType)
-		: m_amount(1.0f)
-		, m_delay(0.0)
-		, m_duration(0.0f)
-		, m_restart(1.0f)
-		, m_useDuration(false)
-		, m_useRestart(false)
-		, CParticleFeature(gpuType) {}
-
 	virtual EFeatureType GetFeatureType() override
 	{
 		return EFT_Spawn;
@@ -54,263 +36,293 @@ public:
 
 	virtual void AddToComponent(CParticleComponent* pComponent, SComponentParams* pParams) override
 	{
-		pComponent->AddToUpdateList(EUL_InitSubInstance, this);
-		pComponent->AddToUpdateList(EUL_Spawn, this);
-		m_spawnDataOff = pComponent->AddInstanceData(sizeof(SSpawnData));
+		pComponent->InitSubInstances.add(this);
+		pComponent->SpawnParticles.add(this);
+		m_offsetSpawnData = pComponent->AddInstanceData<SSpawnData>();
 		m_amount.AddToComponent(pComponent, this);
 		m_delay.AddToComponent(pComponent, this);
 		m_duration.AddToComponent(pComponent, this);
 		m_restart.AddToComponent(pComponent, this);
 
-		pParams->m_emitterLifeTime.start += m_delay.GetValueRange().start;
-		if (m_useDuration)
-			pParams->m_emitterLifeTime.end += m_delay.GetValueRange().end + m_duration.GetValueRange().end;
-		else
-			pParams->m_emitterLifeTime.end = gInfinity;
+		// Compute equilibrium and full life times
+		CParticleComponent* pParent = pComponent->GetParentComponent();
+		const float parentParticleLife = pParent ? pParent->ComponentParams().m_maxParticleLife : gInfinity;
 
-		auto pGpuInterface = GetGpuInterface();
-		if (pGpuInterface)
+		const float preDelay = pParams->m_maxTotalLIfe;
+		float delay = preDelay + m_delay.GetValueRange().end;
+		float stableTime = FiniteOr(pParams->m_maxParticleLife, 0.0f);
+		float equilibriumTime = delay + stableTime;
+		float emitterLife = min(delay + m_duration.GetValueRange().end, parentParticleLife);
+		float maxLife = emitterLife + pParams->m_maxParticleLife;
+
+		if (m_restart.IsEnabled())
 		{
-			gpu_pfx2::SFeatureParametersSpawn gpuSpawnParams;
-			gpuSpawnParams.amount = m_amount.GetBaseValue();
-			gpuSpawnParams.delay = m_delay.GetBaseValue();
-			gpuSpawnParams.duration = m_duration.GetBaseValue();
-			gpuSpawnParams.restart = m_restart.GetBaseValue();
-			gpuSpawnParams.useDelay = m_delay.GetBaseValue() > 0.0f;
-			gpuSpawnParams.useDuration = m_useDuration;
-			gpuSpawnParams.useRestart = m_useRestart;
-			pGpuInterface->SetParameters(gpuSpawnParams);
+			stableTime = maxLife;
+			equilibriumTime = maxLife;
+			maxLife = parentParticleLife + pParams->m_maxParticleLife;
 		}
+
+		SetMax(pParams->m_stableTime, stableTime);
+		SetMax(pParams->m_equilibriumTime, equilibriumTime);
+		SetMax(pParams->m_maxTotalLIfe, maxLife);
 	}
 
-	virtual void InitSubInstance(CParticleComponentRuntime* pComponentRuntime, size_t firstInstance, size_t lastInstance) override
+	virtual void InitSubInstances(CParticleComponentRuntime& runtime, SUpdateRange instanceRange) override
 	{
-		SUpdateRange range(0, lastInstance - firstInstance);
-		SUpdateContext context(pComponentRuntime, range);
-		StartInstances(context, firstInstance, lastInstance, true);
+		StartInstances(runtime, instanceRange, {});
 	}
 
 	virtual void Serialize(Serialization::IArchive& ar) override
 	{
-		struct SEnabledValue
-		{
-			SEnabledValue(TTimeParams& value, bool& state)
-				: m_value(value), m_state(state) {}
-			TTimeParams& m_value;
-			bool&        m_state;
-			void         Serialize(Serialization::IArchive& ar)
-			{
-				ar(m_state, "State", "^");
-				if (m_state)
-					ar(m_value, "Value", "^");
-				else
-					ar(m_value, "Value", "!^");
-			}
-		};
-
 		CParticleFeature::Serialize(ar);
 		ar(m_amount, "Amount", "Amount");
 
-		if (ar.isInput() && GetVersion(ar) < 9)
-		{
-			bool useDelay = false;
-			ar(SEnabledValue(m_delay, useDelay), "Delay", "Delay");
-			if (!useDelay)
-				m_delay = TTimeParams(0.0f);
-		}
-		else
-		{
-			ar(m_delay, "Delay", "Delay");
-		}
-		ar(SEnabledValue(m_duration, m_useDuration), "Duration", "Duration");
-		if (m_useDuration)
-			ar(SEnabledValue(m_restart, m_useRestart), "Restart", "Restart");
+		SerializeEnabled(ar, m_delay, "Delay", 9, 0.0f);
+		SerializeEnabled(ar, m_duration, "Duration", 11, DefaultDuration());
+		if (m_duration.IsEnabled())
+			SerializeEnabled(ar, m_restart, "Restart", 11, gInfinity);
 	}
 
-	void UpdateAmounts(const SUpdateContext& context, TVarArray<float> amounts) const {}
+	virtual float DefaultDuration() const { return gInfinity; }
 
 protected:
-	void SetUseDuration(bool value) { m_useDuration = value; }
 
-	template<typename Impl>
-	void SpawnParticlesT(Impl& impl, const SUpdateContext& context)
+	template<typename TParam>
+	void SerializeEnabled(Serialization::IArchive& ar, TParam& param, cstr name, uint newVersion, float disabledValue)
+	{
+		if (ar.isInput() && GetVersion(ar) < newVersion)
+		{
+			struct SEnabledValue
+			{
+				SEnabledValue(TParam& value)
+					: m_value(value) {}
+				TParam& m_value;
+			
+				void Serialize(Serialization::IArchive& ar)
+				{
+					typedef CParamMod<EDD_PerInstance, UFloat> TTimeParam;
+
+					bool state = false;
+					ar(state, "State", "^");
+					if (state)
+						ar(reinterpret_cast<TTimeParam&>(m_value), "Value", "^");
+				}
+			};
+			param = disabledValue;
+			ar(SEnabledValue(param), name, name);
+			return;
+		}
+		if (ar.isInput() && GetVersion(ar) < 12)
+			param = TParam::TValue::Default();
+		ar(param, name, name);
+	}
+
+	// Convert amounts to spawn counts for frame
+	virtual void GetSpawnCounts(CParticleComponentRuntime& runtime, TVarArray<float> amounts) const = 0;
+	
+	virtual void SpawnParticles(CParticleComponentRuntime& runtime, TDynArray<SSpawnEntry>& spawnEntries) override
 	{
 		CRY_PFX2_PROFILE_DETAIL;
 
-		CParticleComponentRuntime& runtime = context.m_runtime;
-		const size_t numInstances = runtime.GetNumInstances();
+		const uint numInstances = runtime.GetNumInstances();
 		if (numInstances == 0)
 			return;
 
-		const CParticleEmitter* pEmitter = context.m_runtime.GetEmitter();
-		if (pEmitter->IsIndependent())
+		const CParticleEmitter* pEmitter = runtime.GetEmitter();
+		const bool isIndependent = runtime.GetEmitter()->IsIndependent() && !runtime.IsChild();
+		if (isIndependent)
 		{
-			if (!context.m_params.IsSecondGen() && context.m_params.IsImmortal())
+			// Skip spawning immortal independent effects
+			float maxLifetime = m_delay.GetValueRange().end + m_duration.GetValueRange().end + runtime.ComponentParams().m_maxParticleLife;
+			if (!std::isfinite(maxLifetime))
 				return;
 		}
-		else if (m_useRestart)
-			StartInstances(context, 0, numInstances, false);
-
-		const float countScale = runtime.GetEmitter()->GetSpawnParams().fCountScale;
-		const float dT = context.m_deltaTime;
-		const float invDT = dT ? 1.0f / dT : 0.0f;
-		SUpdateRange range(0, numInstances);
-
-		TFloatArray amounts(*context.m_pMemHeap, numInstances);
-		for (size_t i = 0; i < numInstances; ++i)
+		else if (m_restart.IsEnabled())
 		{
-			SSpawnData* pSpawn = GetSpawnData(runtime, i);
-			amounts[i] = pSpawn->m_amount * context.m_params.m_scaleParticleCount;
-		}
-		m_amount.ModifyUpdate(context, amounts.data(), range);
+			// Skip restarts on independent effects
+			THeapArray<uint> indicesArray(runtime.MemHeap());
+			indicesArray.reserve(numInstances);
 
-		impl.UpdateAmounts(context, amounts);
-
-		for (size_t i = 0; i < numInstances; ++i)
-		{
-			SSpawnData* pSpawn = GetSpawnData(runtime, i);
-
-			const float startTime = max(pSpawn->m_timer, pSpawn->m_delay);
-			const float endTime = min(pSpawn->m_timer + dT, pSpawn->m_delay + pSpawn->m_duration);
-			const float spawnTime = endTime - startTime;
-			const float amount = amounts[i] * countScale;
-
-			if (spawnTime >= 0.0f && amount > 0.0f)
+			for (uint i = 0; i < numInstances; ++i)
 			{
-				auto& instance = runtime.GetInstance(i);
-
-				CParticleContainer::SSpawnEntry entry = {};
-				entry.m_parentId = instance.m_parentId;
-				entry.m_ageBegin = (startTime - pSpawn->m_timer - dT) * invDT;
-
-				const float spawnedBefore = pSpawn->m_spawned;
-
-				impl.UpdateSpawnInfo(*pSpawn, i, entry, context, amount, spawnTime);
-
-				entry.m_count = uint(ceil(pSpawn->m_spawned) - ceil(spawnedBefore));
-				entry.m_ageBegin += (ceil(spawnedBefore) - spawnedBefore) * entry.m_ageIncrement;
-				entry.m_fractionBegin = floor(spawnedBefore) * entry.m_fractionCounter + entry.m_fractionCounter;
-
-				runtime.SpawnParticles(entry);
+				SSpawnData& spawnData = runtime.GetInstanceData(i, m_offsetSpawnData);
+				if (std::isfinite(spawnData.m_restart))
+					runtime.SetAlive();
+				spawnData.m_restart -= runtime.DeltaTime();
+				if (spawnData.m_restart <= 0.0f)
+					indicesArray.push_back(i);
 			}
 
-			pSpawn->m_timer += context.m_deltaTime;
+			StartInstances(runtime, SUpdateRange(), indicesArray);
+		}
+
+		float countScale = runtime.ComponentParams().m_scaleParticleCount;
+		if (!runtime.IsChild())
+			countScale *= runtime.GetEmitter()->GetSpawnParams().fCountScale;
+		const float dT = runtime.DeltaTime();
+		SUpdateRange range(0, numInstances);
+
+		TFloatArray amounts(runtime.MemHeap(), numInstances);
+		IOFStream amountStream(amounts.data());
+		for (uint i = 0; i < numInstances; ++i)
+		{
+			SSpawnData& spawnData = runtime.GetInstanceData(i, m_offsetSpawnData);
+			amounts[i] = spawnData.m_amount;
+		}
+
+		// Pad end of array, for vectorized modifiers
+		std::fill(amounts.end(), amounts.begin() + amounts.capacity(), 0.0f);
+		m_amount.ModifyUpdate(runtime, amountStream, range);
+
+		GetSpawnCounts(runtime, amounts);
+
+		for (uint i = 0; i < numInstances; ++i)
+		{
+			SSpawnData& spawnData = runtime.GetInstanceData(i, m_offsetSpawnData);
+
+			const float startTime = max(spawnData.m_timer, 0.0f);
+			const float endTime = min(spawnData.m_timer + dT, spawnData.m_duration);
+			const float spawnTime = endTime - startTime;
+			const float spawned = amounts[i] * countScale;
+			
+			if (spawnData.m_timer <= spawnData.m_duration)
+				runtime.SetAlive();
+
+			if (spawnTime >= 0.0f && spawned > 0.0f)
+			{
+				SSpawnEntry entry = {};
+				entry.m_count = uint32(ceil(spawnData.m_spawned + spawned) - ceil(spawnData.m_spawned));
+				if (entry.m_count)
+				{
+					// Set parameters for absolute particle age and spawn fraction
+					entry.m_parentId = runtime.GetParentId(i);
+					entry.m_ageIncrement = -spawnTime * rcp(spawned);
+					entry.m_ageBegin = dT + min(spawnData.m_timer, 0.0f);
+					entry.m_ageBegin += (ceil(spawnData.m_spawned) - spawnData.m_spawned) * entry.m_ageIncrement;
+
+					if (std::isfinite(spawnData.m_duration))
+					{
+						entry.m_fractionIncrement = rcp((float)entry.m_count - 1);
+						if (spawnData.m_duration > 0.0f)
+						{
+							const float invDuration = rcp(spawnData.m_duration);
+							entry.m_fractionBegin = startTime * invDuration;
+							const float fractionEnd = endTime * invDuration;
+							entry.m_fractionIncrement *= (fractionEnd - entry.m_fractionBegin);
+						}
+					}
+
+					spawnEntries.push_back(entry);
+				}
+				spawnData.m_spawned += spawned;
+			}
+
+			spawnData.m_timer += dT;
 		}
 	}
 
-	void StartInstances(const SUpdateContext& context, size_t firstInstance, size_t lastInstance, bool startAll)
+	void StartInstances(CParticleComponentRuntime& runtime, SUpdateRange instanceRange, TConstArray<uint> instanceIndices)
 	{
 		CRY_PFX2_PROFILE_DETAIL;
 
-		const size_t numInstances = lastInstance - firstInstance;
-		CParticleComponentRuntime& runtime = context.m_runtime;
-
-		typedef TParticleHeap::Array<size_t> TIndicesArray;
-		TIndicesArray indicesArray(*context.m_pMemHeap);
-		indicesArray.reserve(numInstances);
-		if (startAll)
-		{
-			indicesArray.resize(numInstances);
-			for (size_t i = 0; i < numInstances; ++i)
-				indicesArray[i] = firstInstance + i;
-		}
-		else
-		{
-			for (size_t i = 0; i < numInstances; ++i)
-			{
-				const size_t idx = i + firstInstance;
-				SSpawnData* pSpawn = GetSpawnData(runtime, idx);
-				pSpawn->m_restart -= context.m_deltaTime;
-				if (pSpawn->m_restart <= 0.0f)
-					indicesArray.push_back(idx);
-			}
-		}
-
-		if (indicesArray.empty())
+		const uint numStarts = instanceRange.size() + instanceIndices.size();
+		if (numStarts == 0)
 			return;
 
-		const uint numStarts = indicesArray.size();
 		SUpdateRange startRange(0, numStarts);
-		TFloatArray amounts(*context.m_pMemHeap, numStarts);
-		TFloatArray delays(*context.m_pMemHeap, numStarts);
-		TFloatArray durations(*context.m_pMemHeap, numStarts);
-		TFloatArray starts(*context.m_pMemHeap, numStarts);
-		m_amount.ModifyInit(context, amounts.data(), startRange);
-		m_delay.ModifyInit(context, delays.data(), startRange);
-		if (m_useDuration)
-			m_duration.ModifyInit(context, durations.data(), startRange);
-		if (m_useRestart)
-			m_restart.ModifyInit(context, starts.data(), startRange);
 
-		for (size_t i = 0; i < numStarts; ++i)
+		STempInitBuffer<float> amounts(runtime, m_amount, startRange);
+		STempInitBuffer<float> delays(runtime, m_delay, startRange);
+		STempInitBuffer<float> durations(runtime, m_duration, startRange);
+		STempInitBuffer<float> restarts(runtime, m_restart, startRange);
+
+		for (uint i = 0; i < numStarts; ++i)
 		{
-			const size_t idx = indicesArray[i];
-			SSpawnData* pSpawn = GetSpawnData(runtime, idx);
-			pSpawn->m_timer = 0.0f;
-			pSpawn->m_spawned = 0.0f;
-			pSpawn->m_amount = amounts[i];
-			pSpawn->m_delay = delays[i] + runtime.GetInstance(idx).m_startDelay;
-			pSpawn->m_duration = m_useDuration ? durations[i] : gInfinity;
-			pSpawn->m_restart = m_useRestart ? starts[i] : gInfinity;
+			const uint idx = i < instanceRange.size() ?
+				instanceRange.m_begin + i
+				: instanceIndices[i - instanceRange.size()];
+			SSpawnData& spawnData = runtime.GetInstanceData(idx, m_offsetSpawnData);
+			const float delay = delays[i] + runtime.GetInstance(idx).m_startDelay;
+
+			spawnData.m_timer    = -delay;
+			spawnData.m_spawned  = 0.0f;
+			spawnData.m_amount   = amounts[i];
+			spawnData.m_duration = durations[i];
+			spawnData.m_restart  = max(restarts[i], delay + spawnData.m_duration);
 		}
 	}
 
-private:
-	SSpawnData* GetSpawnData(CParticleComponentRuntime& runtime, size_t idx) { return runtime.GetSubInstanceData<SSpawnData>(idx, m_spawnDataOff); }
+protected:
 
-private:
-	TCountParam         m_amount;
-	TTimeParams         m_delay;
-	TTimeParams         m_duration;
-	TTimeParams         m_restart;
-	TInstanceDataOffset m_spawnDataOff;
-	bool                m_useDuration;
-	bool                m_useRestart;
+	CParamMod<EDD_InstanceUpdate, UFloat>  m_amount   = 1;
+	CParamMod<EDD_PerInstance, UFloat>     m_delay    = 0;
+	CParamMod<EDD_PerInstance, UInfFloat>  m_duration = gInfinity;
+	CParamMod<EDD_PerInstance, PInfFloat>  m_restart  = gInfinity;
+
+	TDataOffset<SSpawnData>                m_offsetSpawnData;
 };
+
+SERIALIZATION_DECLARE_ENUM(ESpawnCountMode,
+	MaximumParticles, 
+	TotalParticles
+)
 
 class CFeatureSpawnCount : public CParticleFeatureSpawnBase
 {
 public:
 	CRY_PFX2_DECLARE_FEATURE
-
+		
 	CFeatureSpawnCount()
-		: CParticleFeatureSpawnBase(gpu_pfx2::eGpuFeatureType_SpawnCount)
 	{
-		// Default duration = 0 for SpawnCount
-		SetUseDuration(true);
+		m_duration = 0.0f;
 	}
 
 	virtual void Serialize(Serialization::IArchive& ar) override
 	{
 		CParticleFeatureSpawnBase::Serialize(ar);
-		if (GetVersion(ar) < 9)
-		{
-			// Infinite lifetime was impossible. Default disabled behavior was lifetime = 0.
-			SetUseDuration(true);
-		}
+		if (m_duration.GetBaseValue())
+			ar(m_mode, "Mode", "Mode");
 	}
 
-	virtual void SpawnParticles(const SUpdateContext& context) override
-	{
-		SpawnParticlesT(*this, context);
-	}
+	virtual float DefaultDuration() const override { return 0.0f; }
 
-	ILINE void UpdateSpawnInfo(SSpawnData& spawn, size_t instanceId, CParticleContainer::SSpawnEntry& entry, const SUpdateContext& context, float amount, float dt) const
+	virtual void AddToComponent(CParticleComponent* pComponent, SComponentParams* pParams) override
 	{
-		const float spawnTime = min(context.m_params.m_maxParticleLifeTime, spawn.m_duration);
+		CParticleFeatureSpawnBase::AddToComponent(pComponent, pParams);
+
+		const float amount = m_amount.GetValueRange().end;
+		const float spawnTime = m_mode == ESpawnCountMode::TotalParticles ? m_duration.GetValueRange().start
+			: min(pParams->m_maxParticleLife, m_duration.GetValueRange().start);
 		if (spawnTime > 0.0f)
-		{
-			const float rate = amount * rcp_fast(spawnTime);
-			spawn.m_spawned += rate * dt;
-			entry.m_ageIncrement = rcp_safe(rate * context.m_deltaTime);
-		}
+			pParams->m_maxParticleRate += amount / spawnTime;
 		else
-		{
-			spawn.m_spawned = amount;
-			entry.m_ageIncrement = 0.0f;
-		}
-		entry.m_fractionCounter = rcp_fast(max(amount - 1.0f, 1.0f));
+			pParams->m_maxParticlesBurst += int_ceil(amount);
 	}
+
+	void GetSpawnCounts(CParticleComponentRuntime& runtime, TVarArray<float> amounts) const override
+	{
+		for (uint i = 0; i < amounts.size(); ++i)
+		{
+			SSpawnData& spawnData = runtime.GetInstanceData(i, m_offsetSpawnData);
+			const float dt = spawnData.DeltaTime(runtime.DeltaTime());
+			if (dt < 0.0f)
+				continue;
+			if (m_mode == ESpawnCountMode::TotalParticles || spawnData.m_duration <= runtime.ComponentParams().m_maxParticleLife)
+			{
+				if (spawnData.m_duration > dt)
+					amounts[i] *= dt * rcp(spawnData.m_duration);
+				else
+					amounts[i] -= spawnData.m_spawned;
+			}
+			else
+			{
+				amounts[i] *= dt * rcp(runtime.ComponentParams().m_maxParticleLife);
+			}
+		}
+	}
+
+private:
+	ESpawnCountMode m_mode = ESpawnCountMode::MaximumParticles;
 };
 
 CRY_PFX2_IMPLEMENT_FEATURE(CParticleFeature, CFeatureSpawnCount, "Spawn", "Count", colorSpawn);
@@ -328,23 +340,17 @@ class CFeatureSpawnRate : public CParticleFeatureSpawnBase
 public:
 	CRY_PFX2_DECLARE_FEATURE
 
-	CFeatureSpawnRate()
-		: m_mode(ESpawnRateMode::ParticlesPerSecond)
-		, CParticleFeatureSpawnBase(gpu_pfx2::eGpuFeatureType_SpawnRate)
-	{}
+	static uint DefaultForType() { return EFT_Spawn; }
 
 	virtual void AddToComponent(CParticleComponent* pComponent, SComponentParams* pParams) override
 	{
-		if (GetGpuInterface())
-		{
-			gpu_pfx2::SFeatureParametersSpawnMode params;
-			params.mode = (m_mode == ESpawnRateMode::ParticlesPerSecond
-			               ? gpu_pfx2::ESpawnRateMode::ParticlesPerSecond
-			               : gpu_pfx2::ESpawnRateMode::SecondPerParticle);
-			GetGpuInterface()->SetParameters(params);
-		}
-
 		CParticleFeatureSpawnBase::AddToComponent(pComponent, pParams);
+
+		const auto amount = m_amount.GetValueRange();
+		if (m_mode == ESpawnRateMode::ParticlesPerFrame)
+			pParams->m_maxParticlesPerFrame += int_ceil(amount.end);
+		else
+			pParams->m_maxParticleRate += (m_mode == ESpawnRateMode::ParticlesPerSecond ? amount.end : rcp(amount.start));
 	}
 
 	virtual void Serialize(Serialization::IArchive& ar) override
@@ -353,22 +359,22 @@ public:
 		ar(m_mode, "Mode", "Mode");
 	}
 
-	virtual void SpawnParticles(const SUpdateContext& context) override
-	{		
-		SpawnParticlesT(*this, context);
-	}
-
-	ILINE void UpdateSpawnInfo(SSpawnData& spawn, size_t instanceId, CParticleContainer::SSpawnEntry& entry, const SUpdateContext& context, float amount, float dt) const
+	void GetSpawnCounts(CParticleComponentRuntime& runtime, TVarArray<float> amounts) const override
 	{
-		const float spawned = 
-			m_mode == ESpawnRateMode::ParticlesPerFrame ? amount
-			: dt * (m_mode == ESpawnRateMode::ParticlesPerSecond ? amount : rcp(amount));
-		spawn.m_spawned += spawned;
-		entry.m_ageIncrement = rcp_safe(spawned);
+		for (uint i = 0; i < amounts.size(); ++i)
+		{
+			SSpawnData& spawnData = runtime.GetInstanceData(i, m_offsetSpawnData);
+			const float dt = spawnData.DeltaTime(runtime.DeltaTime());
+			if (dt < 0.0f)
+				continue;
+			amounts[i] =
+				m_mode == ESpawnRateMode::ParticlesPerFrame ? amounts[i]
+				: dt * (m_mode == ESpawnRateMode::ParticlesPerSecond ? amounts[i] : rcp(amounts[i]));
+		}
 	}
 
 private:
-	ESpawnRateMode m_mode;
+	ESpawnRateMode m_mode = ESpawnRateMode::ParticlesPerSecond;
 };
 
 CRY_PFX2_IMPLEMENT_FEATURE(CParticleFeature, CFeatureSpawnRate, "Spawn", "Rate", colorSpawn);
@@ -385,11 +391,6 @@ class CFeatureSpawnDistance : public CParticleFeatureSpawnBase
 public:
 	CRY_PFX2_DECLARE_FEATURE
 
-	CFeatureSpawnDistance()
-		: CParticleFeatureSpawnBase(gpu_pfx2::eGpuFeatureType_None)
-		, m_mode(ESpawnDistanceMode::ParticlesPerMeter)
-		{}
-
 	virtual void Serialize(Serialization::IArchive& ar) override
 	{
 		CParticleFeatureSpawnBase::Serialize(ar);
@@ -399,56 +400,43 @@ public:
 	virtual void AddToComponent(CParticleComponent* pComponent, SComponentParams* pParams) override
 	{
 		CParticleFeatureSpawnBase::AddToComponent(pComponent, pParams);
-		m_emitPosOffset = pComponent->AddInstanceData(sizeof(Vec3));
+		m_offsetEmitPos = pComponent->AddInstanceData<Vec3>();
 	}
-	virtual void InitSubInstance(CParticleComponentRuntime* pComponentRuntime, size_t firstInstance, size_t lastInstance) override
+	virtual void InitSubInstances(CParticleComponentRuntime& runtime, SUpdateRange instanceRange) override
 	{
-		CParticleFeatureSpawnBase::InitSubInstance(pComponentRuntime, firstInstance, lastInstance);
+		CParticleFeatureSpawnBase::InitSubInstances(runtime, instanceRange);
 
-		SUpdateContext context(pComponentRuntime, SUpdateRange(0, lastInstance - firstInstance));
-		for (size_t inst = firstInstance; inst < lastInstance; ++inst)
+		THeapArray<QuatTS> locations(runtime.MemHeap(), instanceRange.size());
+		runtime.GetEmitLocations(locations);
+
+		for (auto instanceId : instanceRange)
 		{
-			const TParticleId parentId = pComponentRuntime->GetParentId(inst);
-			Vec3* pEmitPos = EmitPositionData(context.m_runtime, inst);
-			*pEmitPos = EmitPosition(context, parentId);
+			Vec3& emitPos = runtime.GetInstanceData(instanceId, m_offsetEmitPos);
+			emitPos = locations[instanceId].t;
 		}
 	}
 
-	virtual void SpawnParticles(const SUpdateContext& context) override
+	void GetSpawnCounts(CParticleComponentRuntime& runtime, TVarArray<float> amounts) const override
 	{
-		SpawnParticlesT(*this, context);
-	}
+		THeapArray<QuatTS> locations(runtime.MemHeap(), amounts.size());
+		runtime.GetEmitLocations(locations);
 
-	void UpdateSpawnInfo(SSpawnData& spawn, size_t instanceId, CParticleContainer::SSpawnEntry& entry, const SUpdateContext& context, float amount, float dt) const
-	{
-		Vec3* pEmitPos = EmitPositionData(context.m_runtime, instanceId);
-		const Vec3 emitPos0 = *pEmitPos;
-		const Vec3 emitPos1 = EmitPosition(context, entry.m_parentId);
-		*pEmitPos = emitPos1;
+		for (uint i = 0; i < amounts.size(); ++i)
+		{
+			Vec3& emitPos = runtime.GetInstanceData(i, m_offsetEmitPos);
+			const Vec3 emitPos0 = emitPos;
+			const Vec3 emitPos1 = locations[i].t;
+			emitPos = emitPos1;
 
-		const float distance = (emitPos1 - emitPos0).GetLengthFast();
-		const float spawned = distance * (m_mode == ESpawnDistanceMode::ParticlesPerMeter ? amount : rcp(amount));
-		spawn.m_spawned += spawned;
-		entry.m_ageIncrement = rcp_safe(spawned);
+			const float distance = (emitPos1 - emitPos0).GetLengthFast();
+			amounts[i] = distance * (m_mode == ESpawnDistanceMode::ParticlesPerMeter ? amounts[i] : rcp(amounts[i]));
+		}
 	}
 
 private:
-	ESpawnDistanceMode m_mode;
-	TInstanceDataOffset m_emitPosOffset;
+	ESpawnDistanceMode m_mode = ESpawnDistanceMode::ParticlesPerMeter;
+	TDataOffset<Vec3>  m_offsetEmitPos;
 
-	Vec3* EmitPositionData(CParticleComponentRuntime& runtime, size_t idx) const { return runtime.GetSubInstanceData<Vec3>(idx, m_emitPosOffset); }
-
-	Vec3 EmitPosition(const SUpdateContext& context, TParticleId parentId) const
-	{
-		QuatT parentLoc;
-		parentLoc.t = context.m_parentContainer.GetIVec3Stream(EPVF_Position).SafeLoad(parentId);
-		parentLoc.q = context.m_parentContainer.GetIQuatStream(EPQF_Orientation).SafeLoad(parentId);
-
-		Vec3 emitOffset(0);
-		for (auto& it : context.m_runtime.GetComponent()->GetUpdateList(EUL_GetEmitOffset))
-			emitOffset += it->GetEmitOffset(context, parentId);
-		return parentLoc * emitOffset;
-	}
 };
 
 CRY_PFX2_IMPLEMENT_FEATURE(CParticleFeature, CFeatureSpawnDistance, "Spawn", "Distance", colorSpawn);
@@ -458,33 +446,19 @@ class CFeatureSpawnDensity : public CFeatureSpawnCount
 public:
 	CRY_PFX2_DECLARE_FEATURE
 
-	CFeatureSpawnDensity()
-	{
-		SetUseDuration(false);
-	}
-
 	virtual void Serialize(Serialization::IArchive& ar) override
 	{
 		CParticleFeatureSpawnBase::Serialize(ar);
 	}
 
-	virtual void SpawnParticles(const SUpdateContext& context) override
+	void GetSpawnCounts(CParticleComponentRuntime& runtime, TVarArray<float> amounts) const override
 	{
-		SpawnParticlesT(*this, context);
-	}
-
-	void UpdateAmounts(const SUpdateContext& context, TVarArray<float> amounts) const
-	{
-		CParticleComponentRuntime& runtime = context.m_runtime;
-		const size_t numInstances = runtime.GetNumInstances();
-
-		TFloatArray extents(*context.m_pMemHeap, numInstances);
+		TFloatArray extents(runtime.MemHeap(), amounts.size());
 		extents.fill(0.0f);
-		runtime.GetSpatialExtents(context, amounts, extents);
-		for (size_t i = 0; i < numInstances; ++i)
-		{
-			amounts[i] = extents[i];
-		}
+		runtime.GetComponent()->GetSpatialExtents(runtime, amounts, extents);
+		amounts.copy(0, extents);
+
+		CFeatureSpawnCount::GetSpawnCounts(runtime, amounts);
 	}
 };
 

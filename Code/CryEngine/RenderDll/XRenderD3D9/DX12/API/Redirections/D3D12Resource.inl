@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include <array>
 #include <d3d12.h>
@@ -163,7 +163,7 @@ public:
 		m_Buffer = nullptr;
 #endif
 
-		DX12_ASSERT(m_Handle < DX12_MULTIGPU_NUM_RESOURCES, "Too many resources allocated, adjust the vector-size!");
+		DX12_ASSERT(this->m_Handle < DX12_MULTIGPU_NUM_RESOURCES, "Too many resources allocated, adjust the vector-size!");
 		DX12_ASSERT(Properties.VisibleNodeMask  != 0, "Visibility of 0 is not allowed in the broadcaster!");
 		DX12_ASSERT(Properties.CreationNodeMask != 0, "Creation   of 0 is not allowed in the broadcaster!");
 		for (int i = 0; i < numTargets; ++i)
@@ -192,13 +192,13 @@ public:
 			else if (m_Targets[i] && (Desc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER))
 			{
 				DX12_ASSERT(!IsShared(i), "GetGPUVirtualAddress is not valid on a shared resource");
-				deltaGPUAddresses[i] = m_Targets[i]->GetGPUVirtualAddress() - (UINT64(m_Handle) << 32);
+				deltaGPUAddresses[i] = m_Targets[i]->GetGPUVirtualAddress() - (UINT64(this->m_Handle) << 32);
 			}
 		}
 
 		if (Desc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER)
 		{
-			AssignGPUDeltasToHandle(m_Handle, deltaGPUAddresses);
+			AssignGPUDeltasToHandle(this->m_Handle, deltaGPUAddresses);
 		}
 	}
 

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "SocketIOManagerIOCP.h"
@@ -294,7 +294,7 @@ int CSocketIOManagerIOCP::PollInner(const SCompletedIO& io)
 
 int CSocketIOManagerIOCP::CompleteSuccess(SRegisteredSocket* pSock, SIORequest* pReq, DWORD nIOSize)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_NETWORK);
+	CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 
 	switch (pReq->iort)
 	{
@@ -343,7 +343,7 @@ int CSocketIOManagerIOCP::CompleteSuccess(SRegisteredSocket* pSock, SIORequest* 
 
 int CSocketIOManagerIOCP::CompleteEmptySuccess(SRegisteredSocket* pSock, SIORequest* pReq)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_NETWORK);
+	CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 
 	switch (pReq->iort)
 	{
@@ -402,7 +402,7 @@ int CSocketIOManagerIOCP::CompleteEmptySuccess(SRegisteredSocket* pSock, SIORequ
 
 int CSocketIOManagerIOCP::CompleteFailure(SRegisteredSocket* pSock, SIORequest* pReq, DWORD err)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_NETWORK);
+	CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 
 	ESocketError sockErr = OSErrorToSocketError(err);
 

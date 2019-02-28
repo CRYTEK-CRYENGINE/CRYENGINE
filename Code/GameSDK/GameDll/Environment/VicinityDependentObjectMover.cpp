@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
 -------------------------------------------------------------------------
@@ -282,7 +282,7 @@ void CVicinityDependentObjectMover::HandleEvent( const SGameObjectEvent& gameObj
 	}
 }
 
-void CVicinityDependentObjectMover::ProcessEvent( SEntityEvent& entityEvent )
+void CVicinityDependentObjectMover::ProcessEvent( const SEntityEvent& entityEvent )
 {
 	switch( entityEvent.event )
 	{
@@ -293,6 +293,11 @@ void CVicinityDependentObjectMover::ProcessEvent( SEntityEvent& entityEvent )
 		}
 		break;
 	}
+}
+
+uint64 CVicinityDependentObjectMover::GetEventMask() const
+{
+	return ENTITY_EVENT_BIT(ENTITY_EVENT_RESET);
 }
 
 void CVicinityDependentObjectMover::GetMemoryUsage( ICrySizer *pSizer ) const

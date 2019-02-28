@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   LocalizedStringManager.h
@@ -1699,7 +1699,7 @@ static void LogDecompTimer(__int64 nTotalTicks, __int64 nDecompTicks, __int64 nA
 
 string CLocalizedStringsManager::SLocalizedStringEntry::GetTranslatedText(const SLanguage* pLanguage) const
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 	if ((flags & IS_COMPRESSED) != 0)
 	{
 #if defined(LOG_DECOMP_TIMES)

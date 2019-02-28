@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "CoverSystem.h"
@@ -50,6 +50,34 @@ CCoverSystem::CCoverSystem(const char* configFileName)
 CCoverSystem::~CCoverSystem()
 {
 	gEnv->pPhysicalWorld->RemoveEventClient(EventPhysRemoveEntityParts::id, CoverSystemPhysListener::RemoveEntityParts, true);
+}
+
+ICoverUser* CCoverSystem::RegisterEntity(const EntityId entityId, const ICoverUser::Params& params)
+{
+	auto findIt = m_coverUsers.find(entityId);
+	if (findIt != m_coverUsers.end())
+	{
+		findIt->second->SetParams(params);
+		return findIt->second.get();
+	}
+
+	auto ret = m_coverUsers.insert(std::make_pair(entityId, std::make_shared<CoverUser>(params)));
+	return ret.first->second.get();
+}
+
+void CCoverSystem::UnregisterEntity(const EntityId entityId)
+{
+	m_coverUsers.erase(entityId);
+}
+
+ICoverUser* CCoverSystem::GetRegisteredCoverUser(const EntityId entityId) const
+{
+	auto findIt = m_coverUsers.find(entityId);
+	if (findIt != m_coverUsers.end())
+	{
+		return findIt->second.get();
+	}
+	return nullptr;
 }
 
 ICoverSampler* CCoverSystem::CreateCoverSampler(const char* samplerName)
@@ -145,13 +173,17 @@ bool CCoverSystem::ReloadConfig()
 
 void CCoverSystem::Reset()
 {
-	OccupiedCover::iterator it = m_occupied.begin();
-	OccupiedCover::iterator end = m_occupied.end();
-
-	for (; it != end; ++it)
-		m_locations.insert(GetCoverLocation(it->first), it->first);
-
+	for (const OccupiedCover::value_type& occupiedCover : m_occupied)
+	{
+		m_locations.insert(GetCoverLocation(occupiedCover.first), occupiedCover.first);
+	}
 	m_occupied.clear();
+	
+	for (CoverUsersMap::value_type& coverUser : m_coverUsers)
+	{
+		coverUser.second->Reset();
+	}
+
 	ClearAndReserveCoverLocationCache();
 
 	ResetDynamicCover();
@@ -168,6 +200,12 @@ void CCoverSystem::Clear()
 	ClearAndReserveCoverLocationCache();
 
 	m_dynamicCoverManager.Clear();
+	
+	for (CoverUsersMap::value_type& coverUser : m_coverUsers)
+	{
+		coverUser.second->Reset();
+	}
+	m_coverSurfaceListeners.clear();
 }
 
 bool CCoverSystem::ReadSurfacesFromFile(const char* fileName)
@@ -301,6 +339,7 @@ void CCoverSystem::RemoveSurface(const CoverSurfaceID& surfaceID)
 	if ((surfaceID > 0) && (surfaceID <= m_surfaces.size()))
 	{
 		NotifyCoverUsers(surfaceID);
+		NotifyCoverSurfaceListeners(surfaceID);
 
 		m_dynamicCoverManager.RemoveSurfaceValidationSegments(surfaceID);
 
@@ -317,6 +356,7 @@ void CCoverSystem::UpdateSurface(const CoverSurfaceID& surfaceID, const SurfaceI
 	if ((surfaceID > 0) && (surfaceID <= m_surfaces.size()))
 	{
 		NotifyCoverUsers(surfaceID);
+		NotifyCoverSurfaceListeners(surfaceID);
 
 		CoverSurface& surface = m_surfaces[surfaceID - 1];
 
@@ -348,16 +388,22 @@ bool CCoverSystem::GetSurfaceInfo(const CoverSurfaceID& surfaceID, SurfaceInfo* 
 	return false;
 }
 
-void CCoverSystem::SetCoverOccupied(const CoverID& coverID, bool occupied, const tAIObjectID& occupant)
+void CCoverSystem::SetCoverOccupied(const CoverID& coverID, bool occupied, const CoverUser& occupant)
 {
-	assert(occupant);
+	const ICoverUser::Params& occupantParams = occupant.GetParams();
+	const EntityId occupantEntityId = occupantParams.userID;
 
 	if (occupied)
 	{
-		std::pair<OccupiedCover::iterator, bool> iresult = m_occupied.insert(OccupiedCover::value_type(coverID, occupant));
+		OccupantInfo occupantInfo;
+		occupantInfo.entityId = occupantEntityId;
+		occupantInfo.pos = GetCoverLocation(coverID, occupantParams.distanceToCover);
+		occupantInfo.radius = occupantParams.inCoverRadius;
+
+		std::pair<OccupiedCover::iterator, bool> iresult = m_occupied.insert(OccupiedCover::value_type(coverID, std::move(occupantInfo)));
 		if (!iresult.second)
 		{
-			if (iresult.first->second != occupant)
+			if (iresult.first->second.entityId != occupantEntityId)
 			{
 				AIWarning("Trying to set occupied an already occupied CoverID!");
 			}
@@ -375,7 +421,7 @@ void CCoverSystem::SetCoverOccupied(const CoverID& coverID, bool occupied, const
 
 		if (it != m_occupied.end())
 		{
-			if (occupant == it->second)
+			if (occupantEntityId == it->second.entityId)
 			{
 				m_occupied.erase(it);
 				m_locations.insert(GetCoverLocation(coverID), coverID);
@@ -393,13 +439,39 @@ bool CCoverSystem::IsCoverOccupied(const CoverID& coverID) const
 	return m_occupied.find(coverID) != m_occupied.end();
 }
 
-tAIObjectID CCoverSystem::GetCoverOccupant(const CoverID& coverID) const
+EntityId CCoverSystem::GetCoverOccupant(const CoverID& coverID) const
 {
 	OccupiedCover::const_iterator it = m_occupied.find(coverID);
 	if (it != m_occupied.end())
-		return it->second;
+		return it->second.entityId;
 
 	return 0;
+}
+
+bool CCoverSystem::IsCoverPhysicallyOccupiedByAnyOtherCoverUser(const CoverID& coverID, const ICoverUser& coverUserSearchingForEmptySpace) const
+{
+	const ICoverUser::Params& params = coverUserSearchingForEmptySpace.GetParams();
+	const Vec3 locationToTest = GetCoverLocation(coverID, params.distanceToCover);
+	const float occupyRadius = params.inCoverRadius + gAIEnv.CVars.CoverSpacing;
+	const EntityId entityIdToSkip = params.userID;
+
+	for (auto it = m_occupied.cbegin(); it != m_occupied.cend(); ++it)
+	{
+		const OccupantInfo& occupantInfo = it->second;
+
+		if (occupantInfo.entityId == entityIdToSkip)
+			continue;
+
+		if ((locationToTest - occupantInfo.pos).GetLengthSquared2D() > sqr(occupantInfo.radius + occupyRadius))
+			continue;
+
+		if (fabsf(locationToTest.z - occupantInfo.pos.z) >= 3.0f)	// TODO: turn this hardcoded height of 3.0f meters into a parameter of this function
+			continue;
+
+		return true;	// occupied
+	}
+
+	return false;	// not occupied
 }
 
 uint32 CCoverSystem::GetCover(const Vec3& center, float range, const Vec3* eyes, uint32 eyeCount, float distanceToCover,
@@ -504,6 +576,10 @@ void CCoverSystem::DrawSurface(const CoverSurfaceID& surfaceID)
 
 void CCoverSystem::Update(float updateTime)
 {
+	for (auto& coverUser : m_coverUsers)
+	{
+		coverUser.second->Update(updateTime);
+	}
 	m_dynamicCoverManager.Update(updateTime);
 }
 
@@ -520,17 +596,21 @@ void CCoverSystem::DebugDraw()
 		for (; it != end; ++it)
 		{
 			const CoverID& coverID = it->first;
-			const tAIObjectID occupierID = it->second;
+			const EntityId occupierID = it->second.entityId;
 
 			const Vec3 location = GetCoverLocation(coverID);
-			IAIObject* occupier = gAIEnv.pAIObjectManager->GetAIObject(occupierID);
-
-			const ColorB color = (occupier && occupier->IsEnabled()) ? Col_Orange : Col_Red;
-			dc->DrawSphere(location, 1.0f, color);
-
-			if (occupier)
+			
+			if (IEntity* pOccupierEntity = gEnv->pEntitySystem->GetEntity(occupierID))
 			{
-				dc->DrawLine(location, color, occupier->GetPos(), color);
+				IAIObject* occupier = pOccupierEntity->GetAI();
+
+				const ColorB color = (occupier && occupier->IsEnabled()) ? Col_Orange : Col_Red;
+				dc->DrawSphere(location, 1.0f, color);
+
+				if (occupier)
+				{
+					dc->DrawLine(location, color, occupier->GetPos(), color);
+				}
 			}
 		}
 	}
@@ -550,17 +630,20 @@ void CCoverSystem::DebugDraw()
 	Vec3 eyes[5];
 	uint32 eyeCount = 0;
 
-	if (IAIObject* eyeObj = GetAISystem()->GetAIObjectManager()->GetAIObjectByName(0, "TestCoverEye"))
+	CAISystem::SObjectDebugParams testCoverEyeParams;
+	if (GetAISystem()->GetObjectDebugParamsFromName("TestCoverEye", testCoverEyeParams))
 	{
-		eyes[eyeCount++] = eyeObj->GetPos();
+		eyes[eyeCount++] = testCoverEyeParams.objectPos;
 
 		for (uint32 i = 1; i < 5; ++i)
 		{
 			stack_string name;
 			name.Format("TestCoverEye%d", i);
 
-			if (eyeObj = GetAISystem()->GetAIObjectManager()->GetAIObjectByName(0, name.c_str()))
-				eyes[eyeCount++] = eyeObj->GetPos();
+			if (GetAISystem()->GetObjectDebugParamsFromName(name.c_str(), testCoverEyeParams))
+			{
+				eyes[eyeCount++] = testCoverEyeParams.objectPos;
+			}
 		}
 	}
 
@@ -569,6 +652,7 @@ void CCoverSystem::DebugDraw()
 	for (uint32 i = 0; i != surfaceCount; ++i)
 	{
 		CoverSurface& surface = m_surfaces[i];
+
 		if (!surface.IsValid())
 			continue;
 
@@ -584,15 +668,7 @@ void CCoverSystem::DebugDraw()
 		surface.GenerateCoverPath(0.5f, &path, false);
 		path.DebugDraw();
 
-		if (eyeCount > 0)
-		{
-			CoverUser user;
-
-			user.SetCoverID(gAIEnv.pCoverSystem->GetCoverID(CoverSurfaceID(i + 1), 0));
-			user.Update(0.1f, surface.GetLocation(0, 0.5f), eyes, eyeCount);
-
-			user.DebugDraw();
-		}
+		DebugDrawSurfaceEffectiveHeight(surface, eyes, eyeCount);
 	}
 
 	const size_t MaxTestCoverEntityCount = 16;
@@ -710,6 +786,70 @@ void CCoverSystem::DebugDraw()
 #endif // CRYAISYSTEM_DEBUG
 }
 
+void CCoverSystem::DebugDrawSurfaceEffectiveHeight(const CoverSurface& surface, const Vec3* eyes, uint32 eyeCount)
+{
+	if (eyeCount <= 0)
+		return;
+
+	ICoverUser::Params userParams;
+	
+	//Draw effective height in cover locations based on cover eyes similar how it is in CoverUser class
+	for (uint32 i = 0; i < surface.GetLocationCount(); ++i)
+	{
+		Vec3 coverNormal;
+		const Vec3 coverLocation = surface.GetLocation(i, 0.5f, nullptr, &coverNormal);
+
+		bool bIsCompromised = false;
+		for (uint32 i = 0; i < eyeCount; ++i)
+		{
+			if (!surface.IsCircleInCover(eyes[i], coverLocation, userParams.inCoverRadius))
+			{
+				bIsCompromised = true;
+				break;
+			}
+		}
+		if (!bIsCompromised)
+		{
+			if (coverNormal.dot(eyes[0] - coverLocation) >= 0.0001f)
+				bIsCompromised = true;
+		}
+		if (!bIsCompromised)
+		{
+			float effectiveHeightSqr = FLT_MAX;
+			for (uint32 i = 0; i < eyeCount; ++i)
+			{
+				float heightSq;
+				if (!surface.GetCoverOcclusionAt(eyes[i], coverLocation, &heightSq))
+				{
+					effectiveHeightSqr = FLT_MAX;
+					break;
+				}
+				if (heightSq <= effectiveHeightSqr)
+					effectiveHeightSqr = heightSq;
+			}
+
+			if (effectiveHeightSqr > 0.0f && effectiveHeightSqr < FLT_MAX)
+			{
+				CDebugDrawContext dc;
+				const float effectiveHeight = sqrt_tpl(effectiveHeightSqr);
+				const Vec3 top = coverLocation + CoverUp * effectiveHeight;
+
+				dc->DrawLine(coverLocation, Col_LimeGreen, top, Col_LimeGreen, 25.0f);
+				dc->Draw3dLabel(top, 1.5f, "%.2f", effectiveHeight);
+			}
+		}
+	}
+}
+
+void CCoverSystem::DebugDrawCoverUser(const EntityId entityId)
+{
+	auto findIt = m_coverUsers.find(entityId);
+	if (findIt != m_coverUsers.end())
+	{
+		findIt->second->DebugDraw();
+	}
+}
+
 bool CCoverSystem::IsDynamicSurfaceEntity(IEntity* entity) const
 {
 	return stl::find(m_dynamicSurfaceEntityClasses, entity->GetClass());
@@ -796,24 +936,44 @@ void CCoverSystem::ResetDynamicCover()
 
 void CCoverSystem::NotifyCoverUsers(const CoverSurfaceID& surfaceID)
 {
-	if (!m_occupied.empty())
+	if (m_occupied.empty())
+		return;
+
+	// Make copy of the container for iterating because otherwise iterator may be invalidated inside calling callbacks
+	decltype(m_occupied) occupiedTemp(m_occupied);
+	for (OccupiedCover::const_iterator it = occupiedTemp.begin(); it != occupiedTemp.end(); ++it)
 	{
-		OccupiedCover::const_iterator it = m_occupied.begin();
+		const CoverID coverID = it->first;
+		const OccupantInfo& occupantInfo = it->second;
 
-		for (; it != m_occupied.end(); )
+		if (GetSurfaceID(coverID) == surfaceID)
 		{
-			OccupiedCover::const_iterator curr = it++;
-
-			if (GetSurfaceID(curr->first) == surfaceID)
+			CoverUsersMap::const_iterator findIt = m_coverUsers.find(occupantInfo.entityId);
+			if (findIt != m_coverUsers.end())
 			{
-				// TODO: fix
-				if (IAIObject* object = gAIEnv.pAIObjectManager->GetAIObject(curr->second))
+				CoverUser* pCoverUser = findIt->second.get();
+				if (pCoverUser->GetParams().activeCoverInvalidateCallback)
 				{
-					if (CPipeUser* pipeUser = object->CastToCPipeUser())
-						pipeUser->SetCoverCompromised();
+					pCoverUser->GetParams().activeCoverInvalidateCallback(coverID, pCoverUser);
 				}
 			}
+			else
+			{
+				CRY_ASSERT_MESSAGE(false, "Cover id=%u is occupied by unregistered entity id=%u", static_cast<uint32>(coverID), static_cast<uint32>(occupantInfo.entityId));
+			}
 		}
+	}
+}
+
+void CCoverSystem::NotifyCoverSurfaceListeners(const CoverSurfaceID& surfaceID)
+{
+	if (m_coverSurfaceListeners.empty())
+		return;
+
+	for (auto it = m_coverSurfaceListeners.begin(); it != m_coverSurfaceListeners.end(); )
+	{
+		ICoverSurfaceListener* pListener = *it++;
+		pListener->OnCoverSurfaceChangedOrRemoved(surfaceID);
 	}
 }
 

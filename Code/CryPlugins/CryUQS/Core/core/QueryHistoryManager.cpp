@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -13,6 +13,7 @@ namespace UQS
 			: m_queryIDOfCurrentHistoricQuery{ CQueryID::CreateInvalid(), CQueryID::CreateInvalid() }
 			, m_historyToManage(EHistoryOrigin::Live)
 			, m_indexOfFocusedItem(s_noItemFocusedIndex)
+			, m_bAutomaticUpdateDebugRendering3DInProgress(false)
 		{
 			// nothing
 		}
@@ -28,8 +29,12 @@ namespace UQS
 			stl::find_and_erase(m_listeners, pListener);
 		}
 
-		void CQueryHistoryManager::UpdateDebugRendering3D(const SDebugCameraView& view, const SEvaluatorDrawMasks& evaluatorDrawMasks)
+		void CQueryHistoryManager::UpdateDebugRendering3D(const SDebugCameraView* pOptionalView, const SEvaluatorDrawMasks& evaluatorDrawMasks)
 		{
+			// - if this assert fails, then the game code tries to do the debug-render when it hasn't declared to do so
+			// - this check is done to prevent updating from more than one place
+			assert(gEnv->IsEditing() || (m_bAutomaticUpdateDebugRendering3DInProgress == !g_pHub->GetOverrideFlags().Check(EHubOverrideFlags::CallUpdateDebugRendering3D)));
+
 			const CQueryHistory& history = m_queryHistories[m_historyToManage];
 			const CQueryID& queryIdOfSelectedHistoricQuery = m_queryIDOfCurrentHistoricQuery[m_historyToManage];
 			const CTimeValue now = gEnv->pTimer->GetAsyncTime();
@@ -66,7 +71,7 @@ namespace UQS
 				if (const CHistoricQuery* pHistoricQueryToDraw = history.FindHistoryEntryByQueryID(queryIdOfSelectedHistoricQuery))
 				{
 					const size_t indexOfPreviouslyFocusedItem = m_indexOfFocusedItem;
-					const bool bCurrentlyFocusingAnItem = pHistoricQueryToDraw->FindClosestItemInView(view, m_indexOfFocusedItem);
+					const bool bCurrentlyFocusingAnItem = pOptionalView && pHistoricQueryToDraw->FindClosestItemInView(*pOptionalView, m_indexOfFocusedItem);
 
 					if (bCurrentlyFocusingAnItem)
 					{
@@ -306,6 +311,18 @@ namespace UQS
 		void CQueryHistoryManager::UnderlyingQueryIsGettingDestroyed(const CQueryID& queryID)
 		{
 			NotifyListeners(IQueryHistoryListener::EEventType::HistoricQueryJustFinishedInLiveQueryHistory, queryID);
+		}
+
+		void CQueryHistoryManager::AutomaticUpdateDebugRendering3DBegin()
+		{
+			assert(!m_bAutomaticUpdateDebugRendering3DInProgress);
+			m_bAutomaticUpdateDebugRendering3DInProgress = true;
+		}
+
+		void CQueryHistoryManager::AutomaticUpdateDebugRendering3DEnd()
+		{
+			assert(m_bAutomaticUpdateDebugRendering3DInProgress);
+			m_bAutomaticUpdateDebugRendering3DInProgress = false;
 		}
 
 		void CQueryHistoryManager::NotifyListeners(IQueryHistoryListener::EEventType eventType) const

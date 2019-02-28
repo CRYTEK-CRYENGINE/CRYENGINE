@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "ServerProfiler.h"
@@ -42,8 +42,7 @@ CServerProfiler::CServerProfiler()
 	m_timer = 0;
 
 	m_timer = TIMER.ADDTIMER(g_time + TICK, TimerCallback, this, "CServerProfiler::CServerProfiler() m_timer");
-	string filename = gEnv->pSystem->GetRootFolder();
-	filename += "server_profile.txt";
+	string filename = PathUtil::Make(gEnv->pSystem->GetRootFolder(), "server_profile.txt");
 	if (m_fout = fxopen(filename.c_str(), "wt"))
 		fprintf(m_fout, "cpu\tmemory\tcommitted\tbwin\tbwout\tnchan\n");
 

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /********************************************************************
    -------------------------------------------------------------------------
@@ -111,53 +111,5 @@ private:
 	AABB                m_aabb;
 	string              m_name;
 };
-
-/*
-   class CAISpecialArea : public CAIShape
-   {
-   public:
-
-   enum EType
-   {
-    TYPE_WAYPOINT_HUMAN,
-    TYPE_VOLUME,
-    TYPE_FLIGHT,
-    TYPE_WATER,
-    TYPE_WAYPOINT_3DSURFACE,
-    TYPE_FREE_2D,
-    TYPE_TRIANGULATION
-   };
-
-   CAISpecialArea() :
-    CAIShape(),
-    m_buildingID(-1), m_type(TYPE_WAYPOINT_HUMAN),
-    m_calculate3DNav(true), m_3DNavVolumeRadius(10.0f), m_waypointConnections(WPCON_DESIGNER_NONE),
-    m_vehiclesInHumanNav(false), m_altered(false), m_lightLevel(AILL_NONE),
-    m_minZ(FLT_MAX), m_maxZ(-FLT_MAX), m_height(0)
-   {
-   }
-
-   ~CAISpecialArea() { CAIShape::~CAIShape(); }
-
-   inline bool IsPointInside(const Vec3& pt, bool checkHeight) const
-   {
-    if (checkHeight && (pt.z < m_minZ || pt.z > m_maxZ)) return false;
-    return CAIShape::IsPointInside(pt);
-   }
-
-   float m_minZ,m_maxZ;
-   float m_height;
-   float m_nodeAutoConnectDistance;
-   int m_waypointType;
-   int m_vehiclesInHumanNav;
-   int	m_buildingID;
-   EType m_type;
-   bool  m_calculate3DNav;
-   float m_3DNavVolumeRadius;
-   EAILightLevel m_lightLevel;
-   EWaypointConnections	m_waypointConnections;
-   bool	m_altered; // making links unpassible
-   };
- */
 
 #endif

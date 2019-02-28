@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef _INTROMOVIERENDERER_H_
 #define _INTROMOVIERENDERER_H_
@@ -20,8 +20,8 @@ protected:
 
 public:
 
-	CIntroMovieRenderer();
-	virtual ~CIntroMovieRenderer();
+	CIntroMovieRenderer() = default;
+	virtual ~CIntroMovieRenderer() = default;
 
 	bool Initialize();
 	void WaitForCompletion();
@@ -45,7 +45,7 @@ protected:
 
 	//////////////////////////////////////////////////////////////////////////
 
-	IFlashPlayer* m_pFlashPlayer;
+	std::shared_ptr<IFlashPlayer> m_pFlashPlayer;
 
 };
 

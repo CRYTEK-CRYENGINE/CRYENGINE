@@ -81,6 +81,8 @@ add_sources("NoUberFile"
 		"physarea.cpp"
 		"physicalplaceholder.h"
 		"physicalplaceholder.cpp"
+		"walkingrigidentity.cpp"
+		"walkingrigidentity.h"
 	SOURCE_GROUP "Root"
 		"CryPhysics.cpp"
 		"resource.h"
@@ -115,8 +117,6 @@ if(NOT RESOURCE_COMPILER)
 		endif()
 		if(WIN32 OR WIN64)
 			target_compile_options(${THIS_PROJECT} PRIVATE $<$<CONFIG:Profile>:/GL /O2 /Ot> $<$<CONFIG:Release>:/GL /O2 /Ot> $<$<CONFIG:Debug>:/RTCu> )
-			set_property(TARGET ${THIS_PROJECT} APPEND_STRING PROPERTY LINK_FLAGS_PROFILE " /LTCG:incremental")
-			set_property(TARGET ${THIS_PROJECT} APPEND_STRING PROPERTY LINK_FLAGS_RELEASE " /LTCG:incremental")
 		endif() 
 	else()
 		CryFileContainer(CryPhysics SOLUTION_FOLDER "CryEngine")

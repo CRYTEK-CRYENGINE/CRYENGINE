@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 using System;
 using System.IO;
@@ -48,7 +48,7 @@ namespace CryEngine.UI.Components
 		/// <summary>
 		/// Called by Canvas. Do not call directly.
 		/// </summary>
-		public override void OnEnterFocus()
+		protected override void OnEnterFocus()
 		{
 			_frame.Active = true;
 		}
@@ -56,7 +56,7 @@ namespace CryEngine.UI.Components
 		/// <summary>
 		/// Called by Canvas. Do not call directly.
 		/// </summary>
-		public override void OnLeaveFocus()
+		protected override void OnLeaveFocus()
 		{
 			_frame.Active = false;
 		}
@@ -64,7 +64,7 @@ namespace CryEngine.UI.Components
 		/// <summary>
 		/// Called by Canvas. Do not call directly.
 		/// </summary>
-		public override void OnLeftMouseUp(int x, int y, bool inside)
+		protected override void OnLeftMouseUp(int x, int y, bool inside)
 		{
 			if(inside)
 				IsChecked = !IsChecked;
@@ -73,7 +73,7 @@ namespace CryEngine.UI.Components
 		/// <summary>
 		/// Called by framework. Do not call directly.
 		/// </summary>
-		public override void OnAwake()
+		protected override void OnAwake()
 		{
 			_unchecked = Owner.AddComponent<Image>();
 			_unchecked.Source = ResourceManager.ImageFromFile(Path.Combine(UIElement.DataDirectory, "cb_unchecked.png"));
@@ -94,7 +94,7 @@ namespace CryEngine.UI.Components
 		/// <summary>
 		/// Called by Canvas. Do not call directly.
 		/// </summary>
-		public override void OnKey(InputEvent e)
+		protected override void OnKey(InputEvent e)
 		{
 			if(e.KeyPressed(KeyId.Space))
 				IsChecked = !IsChecked;

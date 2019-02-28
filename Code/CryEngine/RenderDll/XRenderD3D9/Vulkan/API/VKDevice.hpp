@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -38,9 +38,9 @@ protected:
 	};
 
 public:
-	static _smart_ptr<CDevice> Create(const SPhysicalDeviceInfo* pDeviceInfo, VkAllocationCallbacks* hostAllocator, VkSurfaceKHR Surface, const std::vector<const char*>& layersToEnable, const std::vector<const char*>& extensionsToEnable);
+	static _smart_ptr<CDevice> Create(const SPhysicalDeviceInfo* pDeviceInfo, VkAllocationCallbacks* hostAllocator, const std::vector<const char*>& layersToEnable, const std::vector<const char*>& extensionsToEnable);
 
-	CDevice(const SPhysicalDeviceInfo* pDeviceInfo, VkAllocationCallbacks* hostAllocator, VkDevice Device, VkSurfaceKHR Surface);
+	CDevice(const SPhysicalDeviceInfo* pDeviceInfo, VkAllocationCallbacks* hostAllocator, VkDevice Device);
 	~CDevice();
 
 	CCommandScheduler& GetScheduler() { return m_Scheduler; }
@@ -50,7 +50,6 @@ public:
 	const VkPipelineCache& GetVkPipelineCache() const { return m_pipelineCache; }
 
 	const SPhysicalDeviceInfo* GetPhysicalDeviceInfo() const { return m_pDeviceInfo; }
-	VkSurfaceKHR GetSurface() const { return m_surface; }
 
 	VkDescriptorPool GetDescriptorPool() const { return m_descriptorPool; }
 	CHeap& GetHeap() { return m_heap; }
@@ -76,6 +75,7 @@ public:
 	void DeferDestruction(CBufferView&& view);
 	void DeferDestruction(CImageView&& view);
 	void DeferDestruction(VkRenderPass renderPass, VkFramebuffer frameBuffer);
+	void DeferDestruction(VkPipeline pipeline);
 
 	// Ticks the deferred destruction for the above types.
 	// After kDeferTicks the deferred objects will be actually destroyed.
@@ -96,7 +96,6 @@ public:
 private:
 	const SPhysicalDeviceInfo* m_pDeviceInfo;
 	VkAllocationCallbacks m_Allocator;
-	VkSurfaceKHR m_surface;
 	VkDevice m_device;
 	VkPipelineCache m_pipelineCache;
 	VkDescriptorPool m_descriptorPool;
@@ -111,16 +110,25 @@ private:
 		~SRenderPass();
 	};
 
+	struct SPipeline
+	{
+		VkDevice self;
+		CAutoHandle<VkPipeline> pipeline;
+		SPipeline(SPipeline&&) = default;
+		~SPipeline();
+	};
+
 	static const uint32_t        kDeferTicks = 2; // One for "currently recording", one for "currently executing on GPU", may need to be adjusted?
 	CryCriticalSection           m_deferredLock;
 	std::vector<CBufferView>     m_deferredBufferViews[kDeferTicks];
 	std::vector<CImageView>      m_deferredImageViews[kDeferTicks];
 	std::vector<CSampler>        m_deferredSamplers[kDeferTicks];
 	std::vector<SRenderPass>     m_deferredRenderPasses[kDeferTicks];
+	std::vector<SPipeline>       m_deferredPipelines[kDeferTicks];
 
 	// Objects that should be released when they are not in use anymore
-	static CryCriticalSectionNonRecursive m_ReleaseHeapTheadSafeScope[2];
-	static CryCriticalSectionNonRecursive m_RecycleHeapTheadSafeScope[2];
+	static CryCriticalSectionNonRecursive m_ReleaseHeapTheadSafeScope[3];
+	static CryCriticalSectionNonRecursive m_RecycleHeapTheadSafeScope[3];
 
 	template<class CResource> CryCriticalSectionNonRecursive& GetReleaseHeapCriticalSection();
 	template<class CResource> CryCriticalSectionNonRecursive& GetRecycleHeapCriticalSection();
@@ -140,12 +148,16 @@ private:
 	};
 
 	template<class CResource> using TReleaseHeap = std::unordered_map<CResource*, ReleaseInfo>;
-	template<class CResource> using TRecycleHeap = std::unordered_multimap<THash, RecycleInfo<CResource>>;
+	template<class CResource> using TRecycleHeap = std::unordered_map<THash, std::deque<RecycleInfo<CResource>>>;
 
 	TReleaseHeap<CBufferResource> m_BufferReleaseHeap;
-	TReleaseHeap<CImageResource > m_ImageReleaseHeap;
 	TRecycleHeap<CBufferResource> m_BufferRecycleHeap;
-	TRecycleHeap<CImageResource > m_ImageRecycleHeap;
+
+	TReleaseHeap<CDynamicOffsetBufferResource> m_DynamicOffsetBufferReleaseHeap;
+	TRecycleHeap<CDynamicOffsetBufferResource> m_DynamicOffsetBufferRecycleHeap;
+
+	TReleaseHeap<CImageResource> m_ImageReleaseHeap;
+	TRecycleHeap<CImageResource> m_ImageRecycleHeap;
 
 	template<class CResource> TReleaseHeap<CResource>& GetReleaseHeap();
 	template<class CResource> TRecycleHeap<CResource>& GetRecycleHeap();

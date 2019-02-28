@@ -26,7 +26,7 @@ void CPlayerComponent::Initialize()
 
 	// CryNetwork/CryPhysics: the entity has to be physicalized on both sides
 	// *prior* to binding to network, so the physical state is synced properly.
-	int slot = m_pEntity->LoadGeometry(GetOrMakeEntitySlotId(), "Objects/Default/primitive_sphere.cgf");
+	int slot = m_pEntity->LoadGeometry(GetOrMakeEntitySlotId(), "%ENGINE%/EngineAssets/Objects/primitive_sphere.cgf");
 	if (slot != -1)
 	{
 		auto material = gEnv->p3DEngine->GetMaterialManager()->LoadMaterial("%ENGINE%/EngineAssets/TextureMsg/DefaultSolids");
@@ -47,10 +47,15 @@ void CPlayerComponent::Initialize()
 	// This should be done on both sides.
 	m_pEntity->GetNetEntity()->EnableDelegatableAspect(eEA_Physics, false);
 
+	m_pEntity->GetNetEntity()->BindToNetwork();
+
+	// Indicate the physics type, this will be synchronized across all clients
+	m_pEntity->GetNetEntity()->SetAspectProfile(eEA_Physics, physParams.type);
+
 	SRmi<RMI_WRAP(&CPlayerComponent::SvJump)>::Register(this, eRAT_NoAttach, true, eNRT_ReliableOrdered);
 }
 
-void CPlayerComponent::LocalPlayerInitialize()
+void CPlayerComponent::InitializeLocalPlayer()
 {
 	// Create the camera component, will automatically update the viewport every frame
 	m_pCameraComponent = m_pEntity->GetOrCreateComponent<Cry::DefaultComponents::CCameraComponent>();
@@ -116,13 +121,12 @@ void CPlayerComponent::LocalPlayerInitialize()
 
 uint64 CPlayerComponent::GetEventMask() const
 {
-	return BIT64(ENTITY_EVENT_START_GAME)
-		| BIT64(ENTITY_EVENT_UPDATE)
-		| BIT64(ENTITY_EVENT_NET_BECOME_LOCAL_PLAYER)
-		;
+	return ENTITY_EVENT_BIT(ENTITY_EVENT_START_GAME)
+		| ENTITY_EVENT_BIT(ENTITY_EVENT_UPDATE)
+		| ENTITY_EVENT_BIT(ENTITY_EVENT_NET_BECOME_LOCAL_PLAYER);
 }
 
-void CPlayerComponent::ProcessEvent(SEntityEvent& event)
+void CPlayerComponent::ProcessEvent(const SEntityEvent& event)
 {
 	switch (event.event)
 	{
@@ -134,7 +138,7 @@ void CPlayerComponent::ProcessEvent(SEntityEvent& event)
 	break;
 	case ENTITY_EVENT_NET_BECOME_LOCAL_PLAYER:
 	{
-		LocalPlayerInitialize();
+		InitializeLocalPlayer();
 	}
 	break;
 	case ENTITY_EVENT_UPDATE:
@@ -278,7 +282,7 @@ void CPlayerComponent::HandleInputFlagChange(TInputFlags flags, int activationMo
 	}
 
 	// Input is replicated from the client to the server.
-	if (!gEnv->bServer)
+	if (m_pEntity->GetFlags() & ENTITY_FLAG_LOCAL_PLAYER)
 	{
 		NetMarkAspectsDirty(kInputAspect);
 	}
@@ -290,22 +294,21 @@ bool CPlayerComponent::NetSerialize(TSerialize ser, EEntityAspects aspect, uint8
 	{
 		ser.BeginGroup("PlayerInput");
 
-		auto inputs = m_inputFlags;
-		auto prevState = m_inputFlags;
+		const TInputFlags prevInputFlags = m_inputFlags;
 
 		ser.Value("m_inputFlags", m_inputFlags, 'ui8');
 
 		if (ser.IsReading())
 		{
-			auto changedKeys = inputs ^ m_inputFlags;
+			const TInputFlags changedKeys = prevInputFlags ^ m_inputFlags;
 
-			auto pressedKeys = changedKeys & inputs;
+			const TInputFlags pressedKeys = changedKeys & prevInputFlags;
 			if (pressedKeys != 0)
 			{
 				HandleInputFlagChange(pressedKeys, eIS_Pressed);
 			}
 
-			auto releasedKeys = changedKeys & prevState;
+			const TInputFlags releasedKeys = changedKeys & prevInputFlags;
 			if (releasedKeys != 0)
 			{
 				HandleInputFlagChange(pressedKeys, eIS_Released);
@@ -316,6 +319,30 @@ bool CPlayerComponent::NetSerialize(TSerialize ser, EEntityAspects aspect, uint8
 		ser.Value("m_lookOrientation", m_lookOrientation, 'ori3');
 
 		ser.EndGroup();
+	}
+	else if (aspect == eEA_Physics)
+	{
+		// Determine the physics type used by the remote side
+		pe_type remotePhysicsType = static_cast<pe_type>(profile);
+
+		// Nothing can be serialized if we are not physicalized
+		if (remotePhysicsType == PE_NONE)
+			return true;
+
+		if (ser.IsWriting())
+		{
+			// If the remote physics type does not match our local state, serialize a dummy snapshot
+			// Note that this might indicate a game code error, please ensure that the remote and local states match
+			IPhysicalEntity* pPhysicalEntity = m_pEntity->GetPhysicalEntity();
+			if (pPhysicalEntity == nullptr || pPhysicalEntity->GetType() != remotePhysicsType)
+			{
+				gEnv->pPhysicalWorld->SerializeGarbageTypedSnapshot(ser, remotePhysicsType, 0);
+				return true;
+			}
+		}
+
+		// Serialize physics state in order to keep the clients in sync
+		m_pEntity->PhysicsNetSerializeTyped(ser, remotePhysicsType, flags);
 	}
 
 	return true;

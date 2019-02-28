@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -110,7 +110,7 @@ void RigidBody::Step(float dt)
 
 	float E0 = 0;
 	Quat dq;
-	if (!(flags & rb_RK4) && w.len2()*sqr(dt)<sqr(0.2f))
+	if (!(flags & rb_RK4) && w.len2()*sqr(dt)<sqr(0.2f) || !(Ibody_inv.x+Ibody_inv.y+Ibody_inv.z))
 		dq = w_dt(w,dt);
 	else {
 		E0 = L*w;
@@ -434,8 +434,16 @@ char *AllocSolverTmpBuf(int size)
 		memset(g_SolverBuf+g_iSolverBufPos-size, 0, size);
 		return g_SolverBuf+g_iSolverBufPos-size;
 	}	else {
-		if (g_iSolverBufAuxPos+size>g_sizeSolverBufAux)
+		if (g_iSolverBufAuxPos+size>g_sizeSolverBufAux)	{
+			char *pBufAux = g_pSolverBufAux;
 			ReallocateList(g_pSolverBufAux, g_iSolverBufAuxPos, g_sizeSolverBufAux+=sizeof(g_SolverBuf));
+			for(int i=0; i<g_nContacts; i++) {
+				if ((unsigned int)((char*)g_pContacts[i]-pBufAux) < (unsigned int)(g_sizeSolverBufAux-sizeof(g_SolverBuf)))
+					(char*&)g_pContacts[i] += g_pSolverBufAux-pBufAux;
+				if ((unsigned int)((char*)g_pContacts[i]->pBounceCount-pBufAux) < (unsigned int)(g_sizeSolverBufAux-sizeof(g_SolverBuf)))
+					(char*&)g_pContacts[i]->pBounceCount += g_pSolverBufAux-pBufAux;
+			}
+		}
 		memset(g_pSolverBufAux+g_iSolverBufAuxPos, 0, size);
 		g_iSolverBufAuxPos += size;
 		return g_pSolverBufAux+g_iSolverBufAuxPos-size;
@@ -482,7 +490,7 @@ inline void ApplyImpulse(body_helper *pbody, const Vec3& dP, const Vec3& dL, int
 int InvokeContactSolverMC(contact_helper *pContactsRB,contact_helper_constraint *pContactsC,body_helper *pBodies, 
 													int nContacts,int nBodies, float Ebefore, int nMaxIters,float e,float minSeparationSpeed)
 {
-	FRAME_PROFILER( "LCPMC",GetISystem(),PROFILE_PHYSICS );
+	CRY_PROFILE_REGION(PROFILE_PHYSICS, "LCPMC");
 	int iCaller = get_iCaller_int();
 	int i,j,bBounced,istart,iend,istep,nBounces=0,bContactBounced;
 	float vrel,dPn,dPtang,Eafter;
@@ -921,7 +929,7 @@ void UpdateBodies(int iCaller, SEntityGrid *pgrid=nullptr)
 
 int InvokeContactSolver(float time_interval, SolverSettings *pss, float Ebefore, entity_contact **&pContactsOut,int &nContactsOut)
 {
-	FUNCTION_PROFILER( GetISystem(),PROFILE_PHYSICS );
+	CRY_PROFILE_FUNCTION(PROFILE_PHYSICS );
 
 	int iCaller = get_iCaller()-1+FIRST_WORKER_THREAD;
 	pContactsOut=g_pContacts;
@@ -985,7 +993,7 @@ __solver_step++;
 	g_nBodies = nBodies;
 
 	if (g_bUsePreCG && g_nContacts<16 && !bMultigrid) {
-		FRAME_PROFILER( "PreCG",GetISystem(),PROFILE_PHYSICS );
+		CRY_PROFILE_REGION(PROFILE_PHYSICS, "PreCG");
 
 		real a,b,r2,r2new,pAp,vmax,vdiff;
 
@@ -1183,7 +1191,7 @@ __solver_step++;
 		}
 
 		if (bBounced) {
-			{FRAME_PROFILER( "LCPCG",GetISystem(),PROFILE_PHYSICS );
+			{ CRY_PROFILE_REGION(PROFILE_PHYSICS,"LCPCG");
 
 			cgiter = pss->nMaxLCPCGiters;
 			for(i=0;i<nBodies;i++) {
@@ -1448,7 +1456,7 @@ __solver_step++;
 			}//"LCPCG"
 
 			if (bBounced) {
-				FRAME_PROFILER( "LCPCG-unproj",GetISystem(),PROFILE_PHYSICS );
+				CRY_PROFILE_REGION(PROFILE_PHYSICS, "LCPCG-unproj");
 
 				///////////////////////////////////////////////////////////////////////////////////
 				// now, use a separate solver for unprojections (unproject each body independently)

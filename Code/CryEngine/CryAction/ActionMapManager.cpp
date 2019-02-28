@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -64,7 +64,7 @@ CActionMapManager::~CActionMapManager()
 //------------------------------------------------------------------------
 bool CActionMapManager::OnInputEvent(const SInputEvent& event)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	if (!m_enabled)
 		return false;
@@ -138,7 +138,7 @@ void CActionMapManager::Update()
 		const float xMargin = 40.f;
 
 		IFFont* defaultFont = gEnv->pCryFont->GetFont("default");
-		float yPos = gEnv->pRenderer->GetHeight() - 100.f;
+		float yPos = gEnv->pRenderer->GetOverlayHeight() - 100.f;
 		float secondColumnOffset = 0.f;
 
 		STextDrawContext ctx;
@@ -169,7 +169,7 @@ void CActionMapManager::Update()
 			}
 		}
 
-		yPos = gEnv->pRenderer->GetHeight() - 100.f;
+		yPos = gEnv->pRenderer->GetOverlayHeight() - 100.f;
 
 		for (TActionMapMap::iterator it = m_actionMaps.begin(); it != m_actionMaps.end(); ++it)
 		{
@@ -1844,7 +1844,7 @@ bool CActionMapManager::CreateRefiredEventPriorityList(SRefireData* pRefireData,
 //------------------------------------------------------------------------
 void CActionMapManager::UpdateRefiringInputs()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	// no actions while console is open
 	if (gEnv->pConsole->IsOpened())

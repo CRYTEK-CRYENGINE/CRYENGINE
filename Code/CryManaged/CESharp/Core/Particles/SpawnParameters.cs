@@ -1,4 +1,4 @@
-﻿// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 using CryEngine.Common;
 
@@ -202,6 +202,7 @@ namespace CryEngine
 			}
 		}
 
+		[SerializeValue]
 		internal SpawnParams NativeHandle { get; private set; }
 
 		internal SpawnParameters(SpawnParams nativeHandle)

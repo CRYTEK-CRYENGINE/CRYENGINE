@@ -1,18 +1,7 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  File name:   IInterestSystem.h
-//  Version:     v1.00
-//  Created:     08/03/2007 by Matthew Jack
-//  Compilers:   Visual Studio.NET 2003
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
+//! \cond INTERNAL
 
-#ifndef __IInterestSystem_h__
-#define __IInterestSystem_h__
 #pragma once
 
 #include <CryEntitySystem/IEntity.h> // <> required for Interfuscator
@@ -62,4 +51,4 @@ public:
 	// </interfuscator:shuffle>
 };
 
-#endif //__IInterestSystem_h__
+//! \endcond

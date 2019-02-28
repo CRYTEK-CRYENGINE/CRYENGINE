@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "NetContextState.h"
@@ -37,9 +37,22 @@ static uint8 GetDefaultProfileForAspect(EntityId id, EEntityAspects aspectID)
 static void SetEntityAspectProfile(EntityId id, NetworkAspectType aspectBit, uint8 profile)
 {
 	CRY_ASSERT(0 == (aspectBit & (aspectBit - 1)));
-	IEntity* pEntity = gEnv->pEntitySystem->GetEntity(id);
-	if (INetEntity* pNetEntity = pEntity->GetNetEntity())
-		pNetEntity->SetAspectProfile(static_cast<EEntityAspects>(aspectBit), profile, true);
+
+	if (id == INVALID_ENTITYID)
+	{
+		// Object is unbound while waiting for profile change propagation
+		return;
+	}
+
+	if (IEntity* pEntity = gEnv->pEntitySystem->GetEntity(id))
+	{
+		if (INetEntity* pNetEntity = pEntity->GetNetEntity())
+		{
+			pNetEntity->SetAspectProfile(static_cast<EEntityAspects>(aspectBit), profile, true);
+			return;
+		}
+	}
+	NetWarning("SetEntityAspectProfile: unable to find entity %08x", id);
 }
 
 CNetContextState::CNetContextState(CNetContext* pContext, int token, CNetContextState* pPrev) : m_pMMM(new CMementoMemoryManager(string().Format("NetContextState[%d]", token)))
@@ -463,7 +476,7 @@ void CNetContextState::FetchAndPropogateChangesFromGame(bool allowFetch)
 	if (!changed.empty())
 	{
 		// fetch changes from game
-		FUNCTION_PROFILER(gEnv->pSystem, PROFILE_NETWORK);
+		CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 
 		// we'll need the timestamp (probably)
 		CTimeValue newPhysicsTime = m_pGameContext->GetPhysicsTime();
@@ -906,7 +919,7 @@ private:
 
 void CNetContextState::PropogateChangesToGame()
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_NETWORK);
+	CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 	MMM_REGION(m_pMMM);
 
 	if (!m_pContext || m_vNetChangeLog.empty())
@@ -2463,7 +2476,7 @@ NetworkAspectType CNetContextState::UpdateAspectData(SNetObjectID id, NetworkAsp
 {
 	MMM_REGION(m_pMMM);
 
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_NETWORK);
+	CRY_PROFILE_FUNCTION(PROFILE_NETWORK);
 	ASSERT_GLOBAL_LOCK;
 	NET_ASSERT(GetContextObject(id).main);
 	if (!m_multiplayer || !m_pContext)
@@ -3329,7 +3342,7 @@ void CNetContextState::DrawDebugScreens()
 							pRenderAuxGeom->DrawAABB(aabb, pEntity->GetWorldTM(), false, color, eBBD_Faceted);
 
 							Vec3 aabbCenterPos = pEntity->GetWorldTM() * aabb.GetCenter();
-							Vec3 viewPos = pRenderer->GetCamera().GetPosition();
+							Vec3 viewPos = GetISystem()->GetViewCamera().GetPosition();
 							Vec3 dir = (viewPos - aabbCenterPos).GetNormalized();
 							Vec3 textPos;
 

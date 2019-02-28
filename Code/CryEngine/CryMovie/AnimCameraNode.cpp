@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "AnimCameraNode.h"
@@ -200,7 +200,10 @@ void CAnimCameraNode::Animate(SAnimContext& animContext)
 
 		if (m_pLastFrameActiveCameraNode != this)
 		{
-			gEnv->pRenderer->EF_DisableTemporalEffects();
+			if (gEnv->pRenderer)
+			{
+				gEnv->pRenderer->EF_DisableTemporalEffects();
+			}
 			static_cast<CMovieSystem*>(gEnv->pMovieSystem)->OnCameraCut();
 		}
 

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "View.h"
@@ -73,7 +73,7 @@ void CView::Update(float frameTime, bool isActive)
 	{
 		m_viewParams.SaveLast();
 
-		CCamera* pSysCam = &m_pSystem->GetViewCamera();
+		const CCamera &sysCam = m_pSystem->GetViewCamera();
 
 		//process screen shaking
 		ProcessShaking(frameTime);
@@ -134,25 +134,17 @@ void CView::Update(float frameTime, bool isActive)
 			if (pHmdDevice)
 			{
 				const HmdTrackingState& sensorState = pHmdDevice->GetLocalTrackingState();
-				if (sensorState.CheckStatusFlags(eHmdStatus_IsUsable) && static_cast<CViewSystem*>(gEnv->pGameFramework->GetIViewSystem())->ShouldApplyHmdOffset())
-				{
-					bHmdTrackingEnabled = true;
-				}
-			}
+				bHmdTrackingEnabled = sensorState.CheckStatusFlags(eHmdStatus_IsUsable) && static_cast<CViewSystem*>(gEnv->pGameFramework->GetIViewSystem())->ShouldApplyHmdOffset();
 
-			if (pHmdManager->IsStereoSetupOk())
-			{
-				const IHmdDevice* pDev = pHmdManager->GetHmdDevice();
-				const HmdTrackingState& sensorState = pDev->GetLocalTrackingState();
-				if (sensorState.CheckStatusFlags(eHmdStatus_IsUsable))
+				if (pHmdManager->IsStereoSetupOk())
 				{
 					float arf_notUsed;
-					pDev->GetCameraSetupInfo(fov, arf_notUsed);
+					pHmdDevice->GetCameraSetupInfo(fov, arf_notUsed);
 				}
 			}
 		}
 
-		m_camera.SetFrustum(pSysCam->GetViewSurfaceX(), pSysCam->GetViewSurfaceZ(), fov, nearPlane, farPlane, pSysCam->GetPixelAspectRatio());
+		m_camera.SetFrustum(sysCam.GetViewSurfaceX(), sysCam.GetViewSurfaceZ(), fov, nearPlane, farPlane, sysCam.GetPixelAspectRatio());
 
 		//TODO: (14, 06, 2010, "the player view should always get updated, this due to the hud being visable, without shocking, in cutscenes - todo is to see if we can optimise this code");
 		IActor* pActor = gEnv->pGameFramework->GetClientActor();
@@ -219,10 +211,10 @@ void CView::Update(float frameTime, bool isActive)
 			p = q * record.hmdPositionOffset;
 			q = q * record.hmdViewRotation;
 		}
-		else if (bHmdTrackingEnabled)
+		else if (pHmdDevice && bHmdTrackingEnabled)
 		{
-			pHmdDevice->SetAsynCameraCallback(this);
-			if (Cry::pHmdTrackingOrigin && Cry::pHmdTrackingOrigin->GetIVal() == (int)EHmdTrackingOrigin::Floor)
+			// For seated VR experiences, attach the camera to the actor entity.
+			if (Cry::pHmdTrackingOrigin && Cry::pHmdTrackingOrigin->GetIVal() == (int)EHmdTrackingOrigin::Seated)
 			{
 				const IEntity* pEnt = GetLinkedEntity();
 				if (const IActor* pActor = gEnv->pGameFramework->GetClientActor())
@@ -234,6 +226,7 @@ void CView::Update(float frameTime, bool isActive)
 					}
 				}
 			}
+			pHmdDevice->EnableLateCameraInjectionForCurrentFrame(std::make_pair(q, pos));
 
 			const HmdTrackingState& sensorState = pHmdDevice->GetLocalTrackingState();
 			p = q * sensorState.pose.position;
@@ -259,41 +252,6 @@ void CView::Update(float frameTime, bool isActive)
 			}
 		}
 	}
-}
-
-//////////////////////////////////////////////////////////////////////////
-bool CView::OnAsyncCameraCallback(const HmdTrackingState& sensorState, IHmdDevice::AsyncCameraContext& context)
-{
-	ITimeDemoRecorder* pTimeDemoRecorder = gEnv->pGameFramework->GetITimeDemoRecorder();
-	if (pTimeDemoRecorder && pTimeDemoRecorder->IsPlaying())
-	{
-		return false;
-	}
-
-	Quat q = m_viewParams.rotation;
-	Vec3 pos = m_viewParams.position;
-	Vec3 p = Vec3(ZERO);
-
-	if (Cry::pHmdTrackingOrigin && Cry::pHmdTrackingOrigin->GetIVal() == (int)EHmdTrackingOrigin::Floor)
-	{
-		const IEntity* pEnt = GetLinkedEntity();
-		if (const IActor* pActor = gEnv->pGameFramework->GetClientActor())
-		{
-			if (pEnt && pActor->GetEntity() == pEnt)
-			{
-				q = pEnt->GetWorldRotation();
-				pos = pEnt->GetWorldPos();
-			}
-		}
-	}
-	p = q * sensorState.pose.position;
-	q = q * sensorState.pose.orientation;
-
-	Matrix34 viewMtx(q);
-	viewMtx.SetTranslation(pos + p);
-	context.outputCameraMatrix = viewMtx;
-
-	return true;
 }
 
 //-----------------------------------------------------------------------
@@ -791,7 +749,7 @@ void CView::UpdateAudioListener(Matrix34 const& worldTM)
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CView::OnEntityEvent(IEntity* pEntity, SEntityEvent& event)
+void CView::OnEntityEvent(IEntity* pEntity, const SEntityEvent& event)
 {
 	switch (event.event)
 	{
@@ -816,6 +774,8 @@ void CView::CreateAudioListener()
 	{
 		SEntitySpawnParams spawnParams;
 		spawnParams.pClass = gEnv->pEntitySystem->GetClassRegistry()->GetDefaultClass();
+		spawnParams.vPosition = pIEntity->GetWorldPos();
+		spawnParams.qRotation = pIEntity->GetWorldRotation();
 
 		// We don't want the audio listener to serialize as the entity gets completely removed and recreated during save/load!
 		// NOTE: If we set ENTITY_FLAG_NO_SAVE *after* we spawn the entity, it will make it to m_dynamicEntities in GameSerialize.cpp
@@ -836,6 +796,11 @@ void CView::CreateAudioListener()
 		{
 			CryFatalError("<Audio>: AudioListenerEntity creation failed in CView::CreateAudioListener!");
 		}
+	}
+
+	if (m_pAudioListenerEntity != nullptr)
+	{
+		m_pAudioListenerEntity->InvalidateTM(ENTITY_XFORM_POS);
 	}
 }
 

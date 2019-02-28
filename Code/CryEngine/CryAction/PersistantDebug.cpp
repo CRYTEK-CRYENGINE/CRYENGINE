@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "PersistantDebug.h"
@@ -42,7 +42,7 @@ void CPersistantDebug::AddSphere(const Vec3& pos, float radius, ColorF clr, floa
 	obj.clr = clr;
 	obj.pos = pos;
 	obj.radius = radius;
-	obj.timeRemaining = timeout < 0.0f ? kUnlimitedTime : timeout;
+	obj.timeRemaining = timeout <= 0.0f ? kUnlimitedTime : timeout;
 	obj.totalTime = obj.timeRemaining;
 	m_current->second.push_back(obj);
 }
@@ -55,7 +55,7 @@ void CPersistantDebug::AddQuat(const Vec3& pos, const Quat& q, float r, ColorF c
 	obj.pos = pos;
 	obj.q = q;
 	obj.radius = r;
-	obj.timeRemaining = timeout < 0.0f ? kUnlimitedTime : timeout;
+	obj.timeRemaining = timeout <= 0.0f ? kUnlimitedTime : timeout;
 	obj.totalTime = obj.timeRemaining;
 	m_current->second.push_back(obj);
 }
@@ -67,7 +67,7 @@ void CPersistantDebug::AddAABB(const Vec3& min, const Vec3& max, ColorF clr, flo
 	obj.clr = clr;
 	obj.pos = min;
 	obj.dir = max;
-	obj.timeRemaining = timeout < 0.0f ? kUnlimitedTime : timeout;
+	obj.timeRemaining = timeout <= 0.0f ? kUnlimitedTime : timeout;
 	obj.totalTime = obj.timeRemaining;
 	m_current->second.push_back(obj);
 }
@@ -79,7 +79,7 @@ void CPersistantDebug::AddDirection(const Vec3& pos, float radius, const Vec3& d
 	obj.clr = clr;
 	obj.pos = pos;
 	obj.radius = radius;
-	obj.timeRemaining = timeout < 0.0f ? kUnlimitedTime : timeout;
+	obj.timeRemaining = timeout <= 0.0f ? kUnlimitedTime : timeout;
 	obj.totalTime = obj.timeRemaining;
 	obj.dir = dir.GetNormalizedSafe();
 	if (obj.dir.GetLengthSquared() > 0.001f)
@@ -94,7 +94,7 @@ void CPersistantDebug::AddLine(const Vec3& pos1, const Vec3& pos2, ColorF clr, f
 	obj.pos = pos1;
 	obj.dir = pos2 - pos1;
 	obj.radius = 0.0f;
-	obj.timeRemaining = timeout < 0.0f ? kUnlimitedTime : timeout;
+	obj.timeRemaining = timeout <= 0.0f ? kUnlimitedTime : timeout;
 	obj.totalTime = obj.timeRemaining;
 	m_current->second.push_back(obj);
 }
@@ -107,7 +107,7 @@ void CPersistantDebug::AddPlanarDisc(const Vec3& pos, float innerRadius, float o
 	obj.pos = pos;
 	obj.radius = std::max(0.0f, std::min(innerRadius, outerRadius));
 	obj.radius2 = std::min(100.0f, std::max(0.0f, std::max(innerRadius, outerRadius)));
-	obj.timeRemaining = timeout < 0.0f ? kUnlimitedTime : timeout;
+	obj.timeRemaining = timeout <= 0.0f ? kUnlimitedTime : timeout;
 	obj.totalTime = obj.timeRemaining;
 	if (obj.radius2)
 		m_current->second.push_back(obj);
@@ -122,7 +122,7 @@ void CPersistantDebug::AddCone(const Vec3& pos, const Vec3& dir, float baseRadiu
 	obj.dir = dir;
 	obj.radius = std::max(0.001f, baseRadius);
 	obj.radius2 = std::max(0.001f, height);
-	obj.timeRemaining = timeout < 0.0f ? kUnlimitedTime : timeout;
+	obj.timeRemaining = timeout <= 0.0f ? kUnlimitedTime : timeout;
 	obj.totalTime = obj.timeRemaining;
 	m_current->second.push_back(obj);
 }
@@ -136,7 +136,7 @@ void CPersistantDebug::AddCylinder(const Vec3& pos, const Vec3& dir, float radiu
 	obj.dir = dir;
 	obj.radius = std::max(0.001f, radius);
 	obj.radius2 = std::max(0.001f, height);
-	obj.timeRemaining = timeout < 0.0f ? kUnlimitedTime : timeout;
+	obj.timeRemaining = timeout <= 0.0f ? kUnlimitedTime : timeout;
 	obj.totalTime = obj.timeRemaining;
 	m_current->second.push_back(obj);
 }
@@ -156,7 +156,7 @@ void CPersistantDebug::AddText(float x, float y, float size, ColorF clr, float t
 	obj.pos.y = y;
 	obj.radius = size;
 	obj.text = buffer;
-	obj.timeRemaining = timeout < 0.0f ? kUnlimitedTime : timeout;
+	obj.timeRemaining = timeout <= 0.0f ? kUnlimitedTime : timeout;
 	obj.totalTime = obj.timeRemaining;
 	m_current->second.push_back(obj);
 }
@@ -175,7 +175,7 @@ void CPersistantDebug::AddText3D(const Vec3& pos, float size, ColorF clr, float 
 	obj.pos = pos;
 	obj.radius = size;
 	obj.text = buffer;
-	obj.timeRemaining = timeout < 0.0f ? kUnlimitedTime : timeout;
+	obj.timeRemaining = timeout <= 0.0f ? kUnlimitedTime : timeout;
 	obj.totalTime = obj.timeRemaining;
 	m_current->second.push_back(obj);
 }
@@ -196,8 +196,8 @@ void CPersistantDebug::Add2DText(const char* text, float size, ColorF clr, float
 
 void CPersistantDebug::Add2DLine(float x1, float y1, float x2, float y2, ColorF clr, float timeout)
 {
-	int iScreenWidth = gEnv->pRenderer->GetWidth();
-	int iScreenHeight = gEnv->pRenderer->GetHeight();
+	int iScreenWidth  = gEnv->pRenderer->GetOverlayWidth();
+	int iScreenHeight = gEnv->pRenderer->GetOverlayHeight();
 
 	SObj obj;
 	obj.obj = eOT_Line2D;
@@ -247,12 +247,10 @@ void CPersistantDebug::Update(float frameTime)
 	if (m_objects.empty())
 		return;
 
-	if (!gEnv->pRenderer)
-	{
+	IRenderAuxGeom* pAux = IRenderAuxGeom::GetAux();
+	if(pAux == nullptr)
 		return;
-	}
 
-	IRenderAuxGeom* pAux = gEnv->pRenderer->GetIRenderAuxGeom();
 	static const int flags3D = e_Mode3D | e_AlphaBlended | e_DrawInFrontOff | e_FillModeSolid | e_CullModeBack | e_DepthWriteOn | e_DepthTestOn;
 	static const int flags2D = e_Mode2D | e_AlphaBlended;
 
@@ -408,17 +406,8 @@ void CPersistantDebug::Update(float frameTime)
 
 void CPersistantDebug::PostUpdate(float frameTime)
 {
-	bool bUseUIDraw = true;
-
-	IUIDraw* pUIDraw = CCryAction::GetCryAction()->GetIUIDraw();
-	if (bUseUIDraw && pUIDraw == 0)
-	{
-		m_2DTexts.clear();
-		return;
-	}
-
 	IRenderer* pRenderer = gEnv->pRenderer;
-	const float x = bUseUIDraw ? 0.0f : pRenderer->ScaleCoordX(400.0f);
+	const float x = pRenderer->ScaleCoordX(400.0f);
 
 	float y = 400.0f;
 
@@ -434,37 +423,15 @@ void CPersistantDebug::PostUpdate(float frameTime)
 		}
 	}
 
-	if (bUseUIDraw)
-		pUIDraw->PreRender();
-
 	// now draw 2D texts overlay
 	for (ListObjText2D::iterator iter = m_2DTexts.begin(); iter != m_2DTexts.end(); )
 	{
 		STextObj2D& textObj = *iter;
 		ColorF clr = textObj.clr;
 		clr.a *= textObj.timeRemaining / textObj.totalTime;
-		if (bUseUIDraw)
-		{
-			static const float TEXT_SPACING = 2;
-			float textSize = textObj.size * 12.f;
-			float sizeX, sizeY;
-			const string* pTextLabel = &textObj.text;
-			string localizedString;
-			if (!pTextLabel->empty() && pTextLabel->at(0) == '@')
-			{
-				gEnv->pSystem->GetLocalizationManager()->LocalizeString(*pTextLabel, localizedString);
-				pTextLabel = &localizedString;
-			}
-			pUIDraw->GetTextDim(m_pDefaultFont, &sizeX, &sizeY, textSize, textSize, pTextLabel->c_str());
-			pUIDraw->DrawText(m_pDefaultFont, x, y, textSize, textSize, pTextLabel->c_str(), clr.a, clr.r, clr.g, clr.b,
-			                  UIDRAWHORIZONTAL_CENTER, UIDRAWVERTICAL_TOP, UIDRAWHORIZONTAL_CENTER, UIDRAWVERTICAL_TOP);
-			y += sizeY + TEXT_SPACING;
-		}
-		else
-		{
-			IRenderAuxText::Draw2dLabel(x, y, textObj.size, &clr[0], true, "%s", textObj.text.c_str());
-			y += 18.0f;
-		}
+		IRenderAuxText::Draw2dLabel(x, y, textObj.size, &clr[0], true, "%s", textObj.text.c_str());
+		y += 18.0f;
+
 		textObj.timeRemaining -= frameTime;
 		const bool bDelete = textObj.timeRemaining <= 0.0f;
 		if (bDelete)
@@ -476,9 +443,6 @@ void CPersistantDebug::PostUpdate(float frameTime)
 		else
 			++iter;
 	}
-
-	if (bUseUIDraw)
-		pUIDraw->PostRender();
 }
 
 void CPersistantDebug::OnWriteToConsole(const char* sText, bool bNewLine)

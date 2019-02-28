@@ -1,13 +1,13 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
--------------------------------------------------------------------------
-$Id$
-$DateTime$
+   -------------------------------------------------------------------------
+   $Id$
+   $DateTime$
 
--------------------------------------------------------------------------
-History:
-- 22:8:2005   12:50 : Created by Márcio Martins
+   -------------------------------------------------------------------------
+   History:
+   - 22:8:2005   12:50 : Created by Márcio Martins
 
 *************************************************************************/
 #include "StdAfx.h"
@@ -52,6 +52,7 @@ History:
 #include "PersistantStats.h"
 
 #include <CryExtension/CryCreateClassInstance.h>
+#include <CryAISystem/IAIObjectManager.h>
 
 #include "ItemAnimation.h"
 #include "Melee.h"
@@ -67,7 +68,7 @@ float CWeapon::s_dofValue = 0.0f;
 float CWeapon::s_dofSpeed = 0.0f;
 float CWeapon::s_focusValue = 0.0f;
 uint8 CWeapon::s_requestedActions = 0;
-bool  CWeapon::s_lockActionRequests = false;
+bool CWeapon::s_lockActionRequests = false;
 TAmmoVector CWeapon::s_tmpCollectedAmmo;
 
 static IEntityClass* s_CellFelineClass = NULL;
@@ -82,9 +83,9 @@ class CAnimActionDeselect : public CItemAction
 {
 public:
 
-	DEFINE_ACTION( "WeaponDeselectAction" );
-	CAnimActionDeselect( FragmentID fragID, TagState fragTags )
-		: CItemAction( PP_PlayerAction, fragID, fragTags, IAction::NoAutoBlendOut|IAction::FragmentIsOneShot )
+	DEFINE_ACTION("WeaponDeselectAction");
+	CAnimActionDeselect(FragmentID fragID, TagState fragTags)
+		: CItemAction(PP_PlayerAction, fragID, fragTags, IAction::NoAutoBlendOut | IAction::FragmentIsOneShot)
 	{}
 };
 
@@ -101,36 +102,30 @@ void ReleaseAndClear(std::vector<T*>& vec)
 	vec.resize(0);
 }
 
-
-
 struct CWeapon::EndChangeFireModeAction
 {
-	EndChangeFireModeAction(CWeapon *_weapon): weapon(_weapon){};
-	CWeapon *weapon;
+	EndChangeFireModeAction(CWeapon* _weapon) : weapon(_weapon){};
+	CWeapon* weapon;
 
-	void execute(CItem *_this)
+	void execute(CItem* _this)
 	{
 		weapon->EndChangeFireMode();
 	}
 };
 
-
 struct CWeapon::MeleeReactionTimer
 {
 	MeleeReactionTimer(CWeapon* pWeapon, int layer) : m_pWeapon(pWeapon), m_layer(layer) {}
 
-	void execute(CItem *_this)
+	void execute(CItem* _this)
 	{
 		m_pWeapon->SetBusy(false);
 	}
 
 private:
 	CWeapon* m_pWeapon;
-	int m_layer;
+	int      m_layer;
 };
-
-
-
 
 //------------------------------------------------------------------------
 void CWeapon::StaticReset()
@@ -139,7 +134,7 @@ void CWeapon::StaticReset()
 }
 
 CWeapon::CWeapon()
-:	m_fm(0),
+	: m_fm(0),
 	m_melee(0),
 	m_zm(0),
 	m_zmId(0),
@@ -147,7 +142,7 @@ CWeapon::CWeapon()
 	m_secondaryZmId(0),
 	m_pFiringLocator(0),
 	m_fire_alternation(false),
-	m_destination(0,0,0),
+	m_destination(0, 0, 0),
 	m_restartZoom(false),
 	m_restartZoomStep(0),
 	m_targetOn(false),
@@ -207,7 +202,7 @@ CWeapon::CWeapon()
 	m_expended_ammo = 0;
 	m_shootCounter = 0;
 	m_meleeCounter = 0;
-	m_attackIndex  = -1; 
+	m_attackIndex = -1;
 	m_doMelee = false;
 	m_netInitialised = false;
 	m_lastRecvInventoryAmmo = 0;
@@ -227,14 +222,14 @@ CWeapon::~CWeapon()
 	for (TZoomModeVector::iterator it = m_zoommodes.begin(); it != m_zoommodes.end(); ++it)
 		(*it)->Activate(false);
 
-	if(m_melee)
+	if (m_melee)
 	{
 		m_melee->Activate(false);
 	}
 
 	ClearModes();
 
-	if(IInventory *pInventory = GetActorInventory(GetOwnerActor()))
+	if (IInventory* pInventory = GetActorInventory(GetOwnerActor()))
 	{
 		if (pInventory->FindItem(GetEntityId()) >= 0)
 		{
@@ -256,7 +251,7 @@ CWeapon::~CWeapon()
 void CWeapon::InitItemFromParams()
 {
 	BaseClass::InitItemFromParams();
-	
+
 	InitAmmo();
 	InitFireModes();
 	InitZoomModes();
@@ -264,7 +259,6 @@ void CWeapon::InitItemFromParams()
 	InitWeaponStats();
 	InitCompatibleAccessories();
 }
-
 
 //------------------------------------------------------------------------
 void CWeapon::InitCompatibleAccessories()
@@ -274,7 +268,7 @@ void CWeapon::InitCompatibleAccessories()
 	int n = m_sharedparams->accessoryparams.size();
 	for (int i = 0; i < n; i++)
 	{
-		const SAccessoryParams accessory =  m_sharedparams->accessoryparams[i];
+		const SAccessoryParams accessory = m_sharedparams->accessoryparams[i];
 		string name = accessory.pAccessoryClass->GetName();
 		m_compatibleAccessories.push_back(name);
 	}
@@ -283,26 +277,26 @@ void CWeapon::InitCompatibleAccessories()
 //------------------------------------------------------------------------
 void CWeapon::InitFireModes()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	ReleaseAndClear(m_firemodes);
 	m_fmIds.clear();
 	m_fm = NULL;
-	
+
 	SAFE_RELEASE(m_melee);
 
 	int n = m_weaponsharedparams->firemodeParams.size();
-	
+
 	m_firemodes.reserve(n);
 	m_fmIds.reserve(n);
 
 	int fireModeId = 0;
-	for (int i = 0; i<n; i++)
+	for (int i = 0; i < n; i++)
 	{
 		const SParentFireModeParams* pNewParams = &m_weaponsharedparams->firemodeParams[i];
 
-		CFireMode *pFireMode = g_pGame->GetWeaponSystem()->CreateFireMode(pNewParams->initialiseParams.modeType.c_str());
-		
+		CFireMode* pFireMode = g_pGame->GetWeaponSystem()->CreateFireMode(pNewParams->initialiseParams.modeType.c_str());
+
 		if (!pFireMode)
 		{
 			GameWarning("Cannot create firemode '%s' in weapon '%s'! Skipping...", pNewParams->initialiseParams.modeType.c_str(), GetEntity()->GetName());
@@ -316,11 +310,11 @@ void CWeapon::InitFireModes()
 
 		m_firemodes.push_back(pFireMode);
 		m_fmIds.insert(TFireModeIdMap::value_type(CryHashStringId(pNewParams->initialiseParams.modeName.c_str()), fireModeId));
-		
+
 		fireModeId++;
 	}
 
-	if(m_weaponsharedparams->pMeleeModeParams)
+	if (m_weaponsharedparams->pMeleeModeParams)
 	{
 		m_melee = g_pGame->GetWeaponSystem()->CreateMeleeMode();
 
@@ -333,14 +327,14 @@ void CWeapon::InitFireModes()
 			GameWarning("Cannot create melee mode for weapon '%s'!", GetEntity()->GetName());
 		}
 	}
-	
+
 	SetCurrentFireMode(0);
 }
 
 //------------------------------------------------------------------------
 void CWeapon::InitZoomModes()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	ReleaseAndClear(m_zoommodes);
 	m_zmIds.clear();
@@ -359,7 +353,7 @@ void CWeapon::InitZoomModes()
 	{
 		const SParentZoomModeParams* pNewParams = &m_weaponsharedparams->zoommodeParams[i];
 
-		CIronSight *pZoomMode = static_cast<CIronSight*>(g_pGame->GetWeaponSystem()->CreateZoomMode(pNewParams->initialiseParams.modeType.c_str()));
+		CIronSight* pZoomMode = static_cast<CIronSight*>(g_pGame->GetWeaponSystem()->CreateZoomMode(pNewParams->initialiseParams.modeType.c_str()));
 		if (!pZoomMode)
 		{
 			GameWarning("Cannot create zoommode '%s' in weapon '%s'! Skipping...", pNewParams->initialiseParams.modeType.c_str(), GetEntity()->GetName());
@@ -370,7 +364,7 @@ void CWeapon::InitZoomModes()
 		pZoomMode->Enable(pNewParams->initialiseParams.enabled);
 
 		m_zoommodes.push_back(pZoomMode);
-		int idx = m_zoommodes.size()-1;
+		int idx = m_zoommodes.size() - 1;
 		m_zmIds.insert(TZoomModeIdMap::value_type(CryHashStringId(pNewParams->initialiseParams.modeName.c_str()), idx));
 		m_zmNames.insert(TZoomModeNameMap::value_type(idx, pNewParams->initialiseParams.modeName.c_str()));
 	}
@@ -384,10 +378,10 @@ void CWeapon::InitAmmo()
 
 	if (gEnv->bMultiplayer)
 	{
-		CGameRules *pGameRules = g_pGame->GetGameRules();
+		CGameRules* pGameRules = g_pGame->GetGameRules();
 		if (pGameRules)
 		{
-			IGameRulesObjectivesModule *pObjectivesModule = pGameRules->GetObjectivesModule();
+			IGameRulesObjectivesModule* pObjectivesModule = pGameRules->GetObjectivesModule();
 			if (pObjectivesModule)
 			{
 				// Get override ammo amount
@@ -400,17 +394,17 @@ void CWeapon::InitAmmo()
 void CWeapon::InitAIData()
 {
 	const AIWeaponDescriptor& descriptor = m_weaponsharedparams->aiWeaponDescriptor.descriptor;
-	if(descriptor.smartObjectClass != "")
-	{		
+	if (descriptor.smartObjectClass != "")
+	{
 		// check if the smartobject class has been overridden in the level
 		SmartScriptTable props;
 		if (GetEntity()->GetScriptTable() && GetEntity()->GetScriptTable()->GetValue("Properties", props))
 		{
 			const char* smartObjectClassProperties = NULL;
-			if(!props->GetValue("soclasses_SmartObjectClass",smartObjectClassProperties) || 
-				(smartObjectClassProperties ==NULL || smartObjectClassProperties[0]==0))
+			if (!props->GetValue("soclasses_SmartObjectClass", smartObjectClassProperties) ||
+			    (smartObjectClassProperties == NULL || smartObjectClassProperties[0] == 0))
 			{
-				props->SetValue("soclasses_SmartObjectClass",descriptor.smartObjectClass.c_str());
+				props->SetValue("soclasses_SmartObjectClass", descriptor.smartObjectClass.c_str());
 			}
 		}
 	}
@@ -423,7 +417,7 @@ void CWeapon::InitWeaponStats()
 }
 
 //------------------------------------------------------------------------
-bool CWeapon::Init( IGameObject * pGameObject )
+bool CWeapon::Init(IGameObject* pGameObject)
 {
 	if (!BaseClass::Init(pGameObject))
 		return false;
@@ -432,7 +426,7 @@ bool CWeapon::Init( IGameObject * pGameObject )
 
 	g_pGame->GetWeaponScriptBind()->AttachTo(this);
 
-	if(!gEnv->bMultiplayer)
+	if (!gEnv->bMultiplayer)
 		g_pGame->GetTacticalManager()->AddEntity(GetEntityId(), CTacticalManager::eTacticalEntity_Item);
 
 	return true;
@@ -449,13 +443,13 @@ void CWeapon::Release()
 	//--- Guard against NULL shared params here because this may be called on an uninitialised item
 	if (m_sharedparams)
 	{
-		if(IsSelected())
+		if (IsSelected())
 		{
 			RemoveOwnerAttachedAccessories();
 			AttachToHand(false);
 		}
 	}
-	//move it here as the virtual dtor creates issues for CJaw being derived from this class and 
+	//move it here as the virtual dtor creates issues for CJaw being derived from this class and
 	//	IWeaponFiringLocator and having m_pFiringLocator point to itself creates issues when deleting this
 	if (m_pFiringLocator)
 		m_pFiringLocator->WeaponReleased();
@@ -497,36 +491,36 @@ static int calcNumShots(uint8 prevCount, uint8 newCount)
 {
 	int result = 0;
 
-	if(newCount == prevCount)
+	if (newCount == prevCount)
 	{
 		result = 0;
 	}
-	else if(newCount > prevCount)
+	else if (newCount > prevCount)
 	{
-		result = newCount - prevCount;	
+		result = newCount - prevCount;
 	}
 	else // newCount < prevCount <-- wrap case
 	{
 		result = (255 - prevCount) + newCount + 1; // this needs to account for 0 being a shot as well, so we +1 to include that
 	}
-	
+
 	return result;
 }
 
 //------------------------------------------------------------------------
-bool CWeapon::NetSerialize( TSerialize ser, EEntityAspects aspect, uint8 profile, int flags )
+bool CWeapon::NetSerialize(TSerialize ser, EEntityAspects aspect, uint8 profile, int flags)
 {
 	if (!BaseClass::NetSerialize(ser, aspect, profile, flags))
 		return false;
 
-	if(aspect == ASPECT_RELOAD)
+	if (aspect == ASPECT_RELOAD)
 	{
 		NET_PROFILE_SCOPE("WeaponReload", ser.IsReading());
 
-		CActor *owner = GetOwnerActor();
+		CActor* owner = GetOwnerActor();
 
-		SNetWeaponReloadData data = {0};
-		if(ser.IsWriting())
+		SNetWeaponReloadData data = { 0 };
+		if (ser.IsWriting())
 		{
 			data.m_reload = GetReloadState();
 			data.m_inventory_ammo = 0;
@@ -534,9 +528,9 @@ bool CWeapon::NetSerialize( TSerialize ser, EEntityAspects aspect, uint8 profile
 
 			if (owner)
 			{
-				if (IInventory *inv = owner->GetInventory())
+				if (IInventory* inv = owner->GetInventory())
 				{
-					if (IFireMode *ifm = GetFireMode(GetCurrentFireMode()))
+					if (IFireMode* ifm = GetFireMode(GetCurrentFireMode()))
 					{
 						data.m_inventory_ammo = GetInventoryAmmoCount(ifm->GetAmmoType());
 					}
@@ -548,9 +542,9 @@ bool CWeapon::NetSerialize( TSerialize ser, EEntityAspects aspect, uint8 profile
 
 		data.NetSerialise(ser);
 
-		if(ser.IsReading())
+		if (ser.IsReading())
 		{
-			if(m_reloadState != data.m_reload)
+			if (m_reloadState != data.m_reload)
 			{
 				ClSetReloadState(data.m_reload);
 			}
@@ -558,30 +552,30 @@ bool CWeapon::NetSerialize( TSerialize ser, EEntityAspects aspect, uint8 profile
 			if (owner)
 			{
 				int ammo_diff = 0;
-				if(owner->IsClient())
+				if (owner->IsClient())
 				{
 					ammo_diff = calcNumShots(data.m_expended_ammo, m_expended_ammo); // see if we've fired any extra shots before getting this update
 				}
 
 				// this should probably go in its own aspect
-				if(m_lastRecvInventoryAmmo != data.m_inventory_ammo)
+				if (m_lastRecvInventoryAmmo != data.m_inventory_ammo)
 				{
-					if (IInventory *inv = owner->GetInventory())
+					if (IInventory* inv = owner->GetInventory())
 					{
-						if (IFireMode *ifm = GetFireMode(GetCurrentFireMode()))
+						if (IFireMode* ifm = GetFireMode(GetCurrentFireMode()))
 						{
 							IEntityClass* pAmmoType = ifm->GetAmmoType();
 
 							//Triggers on initial spawn if the client has Loadout Pro and they get told about their increased ammo amount before their capacity amount
 							//(Due to one going by netserialise and the other by RMI, meaning they can arrive in the wrong order and the ammo amount therefore being clamped to the wrong value)
-							IF_UNLIKELY(inv->GetAmmoCapacity(pAmmoType) < data.m_inventory_ammo)
+							IF_UNLIKELY (inv->GetAmmoCapacity(pAmmoType) < data.m_inventory_ammo)
 							{
 								inv->SetAmmoCapacity(pAmmoType, data.m_inventory_ammo);
 							}
 
 							inv->SetAmmoCount(pAmmoType, data.m_inventory_ammo - ammo_diff);
 						}
-					}					
+					}
 				}
 			}
 
@@ -589,13 +583,13 @@ bool CWeapon::NetSerialize( TSerialize ser, EEntityAspects aspect, uint8 profile
 		}
 	}
 
-	if(aspect == ASPECT_STREAM)
+	if (aspect == ASPECT_STREAM)
 	{
 		NET_PROFILE_SCOPE("WeaponStream", ser.IsReading());
 
-		SNetWeaponData data = {0};
-		
-		if(ser.IsWriting())
+		SNetWeaponData data = { 0 };
+
+		if (ser.IsWriting())
 		{
 			data.m_weapon_ammo = NetGetCurrentAmmoCount();
 			data.m_firemode = GetCurrentFireMode();
@@ -607,25 +601,25 @@ bool CWeapon::NetSerialize( TSerialize ser, EEntityAspects aspect, uint8 profile
 
 		data.NetSerialise(ser);
 
-		if(ser.IsReading())
+		if (ser.IsReading())
 		{
 			bool allowUpdate = NetAllowUpdate(false);
 
-			if(m_firemode != data.m_firemode)
+			if (m_firemode != data.m_firemode)
 			{
 				SetCurrentFireMode(data.m_firemode);
 			}
 
 			int ammo_diff = 0;
-			if(allowUpdate)
+			if (allowUpdate)
 			{
 				m_isFiring = data.m_isFiring;
 				ammo_diff = m_netInitialised ? calcNumShots(m_fireCounter, data.m_fireCounter) : 0;
 				m_shootCounter += ammo_diff;
-				m_fireCounter = data.m_fireCounter; 
+				m_fireCounter = data.m_fireCounter;
 
-				if(m_shootCounter > 0 || m_isFiring || m_doMelee)
-					RequireUpdate(eIUS_FireMode);	// force update
+				if (m_shootCounter > 0 || m_isFiring || m_doMelee)
+					RequireUpdate(eIUS_FireMode); // force update
 
 				EZoomState zoomState = GetZoomState();
 				bool isZooming = (zoomState == eZS_ZoomingIn || zoomState == eZS_ZoomedIn);
@@ -643,57 +637,57 @@ bool CWeapon::NetSerialize( TSerialize ser, EEntityAspects aspect, uint8 profile
 			}
 
 			NetSetCurrentAmmoCount(data.m_weapon_ammo - ammo_diff);
-			
+
 			m_netInitialised = true;
 		}
 	}
-	else if(aspect == ASPECT_MELEE)
+	else if (aspect == ASPECT_MELEE)
 	{
 		NET_PROFILE_SCOPE("WeaponMelee", ser.IsReading());
 
 		SNetWeaponMeleeData data;
 
-		if(ser.IsWriting())
+		if (ser.IsWriting())
 		{
 			data.m_meleeCounter = m_meleeCounter;
-			data.m_attackIndex  = m_attackIndex; 
+			data.m_attackIndex = m_attackIndex;
 		}
 
 		data.NetSerialise(ser);
 
-		if(ser.IsReading())
+		if (ser.IsReading())
 		{
 			bool allowUpdate = NetAllowUpdate(false);
 
-			if(allowUpdate && m_meleeCounter != data.m_meleeCounter)
+			if (allowUpdate && m_meleeCounter != data.m_meleeCounter)
 			{
 				m_meleeCounter = data.m_meleeCounter;
 				m_doMelee = true;
 				m_shootCounter = 0;
 				m_netNextShot = 0.f;
-				RequireUpdate(eIUS_FireMode);	// force update
+				RequireUpdate(eIUS_FireMode); // force update
 			}
 		}
 	}
-	else if(aspect == ASPECT_CHARGING)
+	else if (aspect == ASPECT_CHARGING)
 	{
 		CFireMode* pFireMode = static_cast<CFireMode*>(GetFireMode(GetCurrentFireMode()));
 
 		SNetWeaponChargeData data;
 
-		if(ser.IsWriting() && pFireMode)
+		if (ser.IsWriting() && pFireMode)
 		{
 			data.m_charging = pFireMode->IsCharging();
 		}
 
 		data.NetSerialise(ser);
 
-		if(ser.IsReading() && pFireMode)
+		if (ser.IsReading() && pFireMode)
 		{
 			pFireMode->NetSetCharging(data.m_charging);
 		}
 	}
-	
+
 	// zoom modes are not serialized
 
 	return true;
@@ -705,12 +699,12 @@ NetworkAspectType CWeapon::GetNetSerializeAspects()
 }
 
 //------------------------------------------------------------------------
-void CWeapon::FullSerialize( TSerialize ser )
+void CWeapon::FullSerialize(TSerialize ser)
 {
 	BaseClass::FullSerialize(ser);
 
 	ser.BeginGroup("WeaponAmmo");
-	if(ser.IsReading())
+	if (ser.IsReading())
 	{
 		m_ammo.clear();
 		m_bonusammo.clear();
@@ -718,11 +712,11 @@ void CWeapon::FullSerialize( TSerialize ser )
 	TAmmoVector::iterator it = m_ammo.begin();
 	int ammoAmount = m_ammo.size();
 	ser.Value("AmmoAmount", ammoAmount);
-	for(int i = 0; i < ammoAmount; ++i)
+	for (int i = 0; i < ammoAmount; ++i)
 	{
 		CryFixedStringT<32> name;
 		int amount = 0;
-		if(ser.IsWriting())
+		if (ser.IsWriting())
 		{
 			if (it->pAmmoClass)
 			{
@@ -737,7 +731,7 @@ void CWeapon::FullSerialize( TSerialize ser )
 		ser.Value("Bullets", amount);
 		ser.EndGroup();
 
-		if(ser.IsReading())
+		if (ser.IsReading())
 		{
 			IEntityClass* pClass = gEnv->pEntitySystem->GetClassRegistry()->FindClass(name.c_str());
 			assert(pClass);
@@ -748,11 +742,11 @@ void CWeapon::FullSerialize( TSerialize ser )
 	it = m_bonusammo.begin();
 	ammoAmount = m_bonusammo.size();
 	ser.Value("BonusAmmoAmount", ammoAmount);
-	for(int i = 0; i < ammoAmount; ++i)
+	for (int i = 0; i < ammoAmount; ++i)
 	{
 		string name;
 		int amount = 0;
-		if(ser.IsWriting() && it->pAmmoClass)
+		if (ser.IsWriting() && it->pAmmoClass)
 		{
 			name = it->pAmmoClass->GetName();
 			amount = it->count;
@@ -764,7 +758,7 @@ void CWeapon::FullSerialize( TSerialize ser )
 		ser.Value("Bullets", amount);
 		ser.EndGroup();
 
-		if(ser.IsReading())
+		if (ser.IsReading())
 		{
 			IEntityClass* pClass = gEnv->pEntitySystem->GetClassRegistry()->FindClass(name.c_str());
 			assert(pClass);
@@ -772,48 +766,48 @@ void CWeapon::FullSerialize( TSerialize ser )
 			SWeaponAmmoUtils::SetAmmo(m_bonusammo, pClass, amount);
 		}
 	}
-	
+
 	ser.Value("minDropAmmoAvail", m_minDropAmmoAvailable);
 	ser.EndGroup();
 
 	ser.BeginGroup("WeaponStats");
-	if(GetOwnerId())
+	if (GetOwnerId())
 	{
 		//if (m_fm)
-     // m_fm->Serialize(ser);
+		// m_fm->Serialize(ser);
 		int numFiremodes = GetNumOfFireModes();
 		ser.Value("numFiremodes", numFiremodes);
-		if(ser.IsReading())
+		if (ser.IsReading())
 		{
-			assert ( numFiremodes == GetNumOfFireModes() );
-			if(numFiremodes != GetNumOfFireModes())
+			assert(numFiremodes == GetNumOfFireModes());
+			if (numFiremodes != GetNumOfFireModes())
 				CryWarning(VALIDATOR_MODULE_GAME, VALIDATOR_ERROR, "Num of firemodes changed - loading will be corrupted.");
 		}
-		for(int i = 0; i < numFiremodes; ++i)
+		for (int i = 0; i < numFiremodes; ++i)
 			m_firemodes[i]->Serialize(ser);
 
-		ser.Value("currentFireMode",m_firemode);
+		ser.Value("currentFireMode", m_firemode);
 
-		bool hasZoom = (m_zm)?true:false;
+		bool hasZoom = (m_zm) ? true : false;
 		ser.Value("hasZoom", hasZoom);
-		if(hasZoom && ser.IsReading())
+		if (hasZoom && ser.IsReading())
 		{
 			SetCurrentZoomMode(0);
 
-			if(m_zm->IsZoomed())
+			if (m_zm->IsZoomed())
 			{
 				m_zm->ExitZoom(true);
 			}
 
-			m_restartZoom			= false;
-			m_restartZoomStep	= 0;
+			m_restartZoom = false;
+			m_restartZoomStep = 0;
 		}
 
 		bool reloading = false;
-		if(ser.IsWriting())    
+		if (ser.IsWriting())
 			reloading = m_fm ? m_fm->IsReloading() : 0;
 		ser.Value("FireModeReloading", reloading);
-		if(ser.IsReading() && reloading)
+		if (ser.IsReading() && reloading)
 			Reload();
 		ser.Value("Alternation", m_fire_alternation);
 	}
@@ -839,14 +833,14 @@ void CWeapon::PostSerialize()
 		FixAccessories(GetAccessoryParams(m_accessories[i].pClass), true);
 	}
 
-	//Firemodes 
+	//Firemodes
 	int numFiremodes = GetNumOfFireModes();
-	for(int i = 0; i < numFiremodes; ++i)
+	for (int i = 0; i < numFiremodes; ++i)
 		m_firemodes[i]->PostSerialize();
 
 	// restore saved firemode
- 	if(GetOwnerId())
- 		SetCurrentFireMode(savedFireMode);
+	if (GetOwnerId())
+		SetCurrentFireMode(savedFireMode);
 }
 
 //------------------------------------------------------------------------
@@ -855,7 +849,7 @@ void CWeapon::SerializeLTL(TSerialize ser)
 	BaseClass::SerializeLTL(ser);
 
 	ser.BeginGroup("WeaponAmmo");
-	if(ser.IsReading())
+	if (ser.IsReading())
 	{
 		m_ammo.clear();
 		m_bonusammo.clear();
@@ -864,11 +858,11 @@ void CWeapon::SerializeLTL(TSerialize ser)
 	TAmmoVector::iterator it = m_ammo.begin();
 	int ammoAmount = m_ammo.size();
 	ser.Value("AmmoAmount", ammoAmount);
-	for(int i = 0; i < ammoAmount; ++i)
+	for (int i = 0; i < ammoAmount; ++i)
 	{
 		string name;
 		int amount = 0;
-		if(ser.IsWriting())
+		if (ser.IsWriting())
 		{
 			if (it->pAmmoClass)
 			{
@@ -883,7 +877,7 @@ void CWeapon::SerializeLTL(TSerialize ser)
 		ser.Value("Bullets", amount);
 		ser.EndGroup();
 
-		if(ser.IsReading())
+		if (ser.IsReading())
 		{
 			IEntityClass* pClass = gEnv->pEntitySystem->GetClassRegistry()->FindClass(name);
 			assert(pClass);
@@ -893,7 +887,7 @@ void CWeapon::SerializeLTL(TSerialize ser)
 	}
 	ser.EndGroup();
 
-	if(GetOwnerId())
+	if (GetOwnerId())
 	{
 		ser.BeginGroup("WeaponStats");
 
@@ -901,23 +895,23 @@ void CWeapon::SerializeLTL(TSerialize ser)
 		// m_fm->Serialize(ser);
 		int numFiremodes = GetNumOfFireModes();
 		ser.Value("numFiremodes", numFiremodes);
-		if(ser.IsReading())
+		if (ser.IsReading())
 		{
-			assert ( numFiremodes == GetNumOfFireModes() );
-			if(numFiremodes != GetNumOfFireModes())
+			assert(numFiremodes == GetNumOfFireModes());
+			if (numFiremodes != GetNumOfFireModes())
 				CryWarning(VALIDATOR_MODULE_GAME, VALIDATOR_ERROR, "Num of firemodes changed - loading will be corrupted.");
 		}
-		for(int i = 0; i < numFiremodes; ++i)
+		for (int i = 0; i < numFiremodes; ++i)
 			m_firemodes[i]->Serialize(ser);
 
 		int currentFireMode = GetCurrentFireMode();
 		ser.Value("currentFireMode", currentFireMode);
-		if(ser.IsReading())
+		if (ser.IsReading())
 			SetCurrentFireMode(currentFireMode);
 
-		bool hasZoom = (m_zm)?true:false;
+		bool hasZoom = (m_zm) ? true : false;
 		ser.Value("hasZoom", hasZoom);
-		if(hasZoom)
+		if (hasZoom)
 		{
 			int zoomMode = m_zmId;
 			ser.Value("ZoomMode", zoomMode);
@@ -930,9 +924,9 @@ void CWeapon::SerializeLTL(TSerialize ser)
 
 			m_zm->Serialize(ser);
 
-			if(ser.IsReading())
+			if (ser.IsReading())
 			{
-				if(m_zmId != zoomMode)
+				if (m_zmId != zoomMode)
 					SetCurrentZoomMode(zoomMode);
 
 				m_restartZoom = isZoomed;
@@ -944,10 +938,10 @@ void CWeapon::SerializeLTL(TSerialize ser)
 		}
 
 		bool reloading = false;
-		if(ser.IsWriting())    
+		if (ser.IsWriting())
 			reloading = m_fm ? m_fm->IsReloading() : 0;
 		ser.Value("FireModeReloading", reloading);
-		if(ser.IsReading() && reloading)
+		if (ser.IsReading() && reloading)
 			Reload();
 		ser.Value("Alternation", m_fire_alternation);
 		ser.EndGroup();
@@ -956,9 +950,9 @@ void CWeapon::SerializeLTL(TSerialize ser)
 }
 
 //------------------------------------------------------------------------
-void CWeapon::Update( SEntityUpdateContext& ctx, int update)
+void CWeapon::Update(SEntityUpdateContext& ctx, int update)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	if (!IsDestroyed())
 	{
@@ -972,28 +966,28 @@ void CWeapon::Update( SEntityUpdateContext& ctx, int update)
 				const bool dofSpeedNegative = (s_dofSpeed < 0.0f);
 
 				m_snapToTargetTimer = max(m_snapToTargetTimer - ctx.fFrameTime, 0.0f);
-				
+
 				if (needsDofUpdate)
 				{
-					const float newDofValue = s_dofValue + (s_dofSpeed*ctx.fFrameTime);
+					const float newDofValue = s_dofValue + (s_dofSpeed * ctx.fFrameTime);
 					s_dofValue = clamp_tpl(newDofValue, 0.0f, 1.0f);
 
 					gEnv->p3DEngine->SetPostEffectParam("Dof_BlurAmount", s_dofValue);
 
 					//GameWarning("Actual DOF value = %f",m_dofValue);
-					if(dofSpeedNegative)
+					if (dofSpeedNegative)
 					{
-						const float newFocusValue = s_focusValue =(s_dofSpeed*ctx.fFrameTime*150.0f);
-						s_focusValue = newFocusValue; 
+						const float newFocusValue = s_focusValue = (s_dofSpeed * ctx.fFrameTime * 150.0f);
+						s_focusValue = newFocusValue;
 						gEnv->p3DEngine->SetPostEffectParam("Dof_FocusLimit", 20.0f + newFocusValue);
 					}
 				}
 
-				if(m_weaponNextShotTimer > 0.f)
+				if (m_weaponNextShotTimer > 0.f)
 				{
 					m_weaponNextShotTimer -= ctx.fFrameTime;
 					requiresUpdate = true;
-				} 
+				}
 
 				if (requiresUpdate)
 				{
@@ -1004,11 +998,11 @@ void CWeapon::Update( SEntityUpdateContext& ctx, int update)
 					m_scopeReticule.Update(this);
 
 #ifdef SHOT_DEBUG
-				if(m_pShotDebug)
+				if (m_pShotDebug)
 				{
 					m_pShotDebug->Update(gEnv->pTimer->GetFrameTime());
 				}
-#endif //SHOT_DEBUG
+#endif  //SHOT_DEBUG
 			}
 			break;
 
@@ -1016,7 +1010,7 @@ void CWeapon::Update( SEntityUpdateContext& ctx, int update)
 			{
 				if (m_zm && m_stats.selected)
 				{
-					m_zm->Update(ctx.fFrameTime, ctx.nFrameID);
+					m_zm->Update(ctx.fFrameTime, ctx.frameID);
 				}
 			}
 			break;
@@ -1026,9 +1020,9 @@ void CWeapon::Update( SEntityUpdateContext& ctx, int update)
 				NetUpdateFireMode(ctx);
 
 				if (m_fm)
-					m_fm->Update(ctx.fFrameTime, ctx.nFrameID);
+					m_fm->Update(ctx.fFrameTime, ctx.frameID);
 				if (m_melee)
-					m_melee->Update(ctx.fFrameTime, ctx.nFrameID);
+					m_melee->Update(ctx.fFrameTime, ctx.frameID);
 			}
 			break;
 		}
@@ -1051,10 +1045,10 @@ void CWeapon::Update( SEntityUpdateContext& ctx, int update)
 		const float sprintFactor = pPlayer ? pPlayer->m_weaponFPAiming.GetSprintFactor() : 1.f;
 		const bool delayedZoomActionTimerActive = (m_delayedZoomActionTimeOut > 0.0f);
 		const bool zoomWillTriggerThisFrame = (m_delayedZoomActionTimeOut <= ctx.fFrameTime);
-			
+
 		float currentMeleeAttackActionTimeOut = m_delayedMeleeActionTimeOut;
-		m_delayedFireActionTimeOut = (float)__fsel(-sprintFactor, max(m_delayedFireActionTimeOut-ctx.fFrameTime, 0.0f), m_delayedFireActionTimeOut);
-		m_delayedMeleeActionTimeOut = max(m_delayedMeleeActionTimeOut-ctx.fFrameTime, 0.0f);
+		m_delayedFireActionTimeOut = (float)__fsel(-sprintFactor, max(m_delayedFireActionTimeOut - ctx.fFrameTime, 0.0f), m_delayedFireActionTimeOut);
+		m_delayedMeleeActionTimeOut = max(m_delayedMeleeActionTimeOut - ctx.fFrameTime, 0.0f);
 
 		if (delayedZoomActionTimerActive)
 		{
@@ -1072,14 +1066,14 @@ void CWeapon::Update( SEntityUpdateContext& ctx, int update)
 	}
 }
 
-void CWeapon::PostUpdate(float frameTime )
+void CWeapon::PostUpdate(float frameTime)
 {
 	if (m_fm)
 		m_fm->PostUpdate(frameTime);
 }
 
 //------------------------------------------------------------------------
-void CWeapon::HandleEvent(const SGameObjectEvent &evt)
+void CWeapon::HandleEvent(const SGameObjectEvent& evt)
 {
 	BaseClass::HandleEvent(evt);
 	if (evt.event == eGFE_PauseGame)
@@ -1087,15 +1081,15 @@ void CWeapon::HandleEvent(const SGameObjectEvent &evt)
 }
 
 //------------------------------------------------------------------------
-void CWeapon::ProcessEvent(SEntityEvent& event)
+void CWeapon::ProcessEvent(const SEntityEvent& event)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
-	switch(event.event)
+	switch (event.event)
 	{
 	case ENTITY_EVENT_HIDE:
 		{
-			if(m_fm && !m_fm->AllowZoom())
+			if (m_fm && !m_fm->AllowZoom())
 				m_fm->Cancel();
 			CancelCharge();
 			StopFire();
@@ -1109,9 +1103,9 @@ void CWeapon::ProcessEvent(SEntityEvent& event)
 	case ENTITY_EVENT_RESET:
 		{
 			//Leaving game mode
-			if(gEnv->IsEditor() && !event.nParam[0])
+			if (gEnv->IsEditor() && !event.nParam[0])
 			{
-				m_listeners.Clear(); 
+				m_listeners.Clear();
 				break;
 			}
 		}
@@ -1135,13 +1129,18 @@ void CWeapon::ProcessEvent(SEntityEvent& event)
 	BaseClass::ProcessEvent(event);
 }
 
+uint64 CWeapon::GetEventMask() const
+{
+	return BaseClass::GetEventMask() | ENTITY_EVENT_BIT(ENTITY_EVENT_HIDE) | ENTITY_EVENT_BIT(ENTITY_EVENT_RESET) | ENTITY_EVENT_BIT(ENTITY_EVENT_ANIM_EVENT);
+}
+
 bool CWeapon::ResetParams()
 {
 	bool success = BaseClass::ResetParams();
 
-	m_weaponsharedparams = g_pGame->GetGameSharedParametersStorage()->GetWeaponSharedParameters(GetEntity()->GetClass()->GetName(), false); 
+	m_weaponsharedparams = g_pGame->GetGameSharedParametersStorage()->GetWeaponSharedParameters(GetEntity()->GetClass()->GetName(), false);
 
-	if(!m_weaponsharedparams)
+	if (!m_weaponsharedparams)
 	{
 		GameWarning("Uninitialised weapon params. Has weaponParams=\"1\" been included in your xml for item %s?", GetEntity()->GetName());
 
@@ -1150,7 +1149,7 @@ bool CWeapon::ResetParams()
 
 	m_weaponsharedparams->CacheResources();
 
-	return success; 
+	return success;
 }
 
 void CWeapon::PreResetParams()
@@ -1163,7 +1162,7 @@ void CWeapon::PreResetParams()
 	for (TZoomModeVector::iterator it = m_zoommodes.begin(); it != m_zoommodes.end(); ++it)
 		(*it)->Activate(false);
 
-	if(m_melee)
+	if (m_melee)
 	{
 		m_melee->Activate(false);
 	}
@@ -1174,7 +1173,7 @@ void CWeapon::PreResetParams()
 //------------------------------------------------------------------------
 void CWeapon::Reset()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	ClearModes();
 
@@ -1247,20 +1246,20 @@ void CWeapon::MeleeAttack(bool bShort /* = false */)
 
 	if (m_zm && (m_zm->IsZoomed() || m_zm->IsZoomingInOrOut()))
 	{
-		if(m_fm && !m_fm->AllowZoom())
+		if (m_fm && !m_fm->AllowZoom())
 			m_fm->Cancel();
-			
+
 		ExitZoom(true);
 		// ExitZoom will try to fade the crosshair back in, so overrule it
 		FadeCrosshair(0.0f, 0.0f);
 	}
 
-	if( m_fm )
+	if (m_fm)
 	{
 		m_fm->StopFire();
-		if(m_fm->IsReloading())
+		if (m_fm->IsReloading())
 		{
-			if(m_fm->CanCancelReload())
+			if (m_fm->CanCancelReload())
 				RequestCancelReload();
 			else
 			{
@@ -1277,18 +1276,18 @@ void CWeapon::MeleeAttack(bool bShort /* = false */)
 //------------------------------------------------------------------------
 bool CWeapon::CanMeleeAttack() const
 {
-	if(AreAnyItemFlagsSet(eIF_Modifying | eIF_Transitioning | eIF_BlockActions) || m_isDeselecting)
+	if (AreAnyItemFlagsSet(eIF_Modifying | eIF_Transitioning | eIF_BlockActions) || m_isDeselecting)
 		return false;
 
 	CActor* pOwnerActor = GetOwnerActor();
 	if (pOwnerActor)
 	{
-		if( pOwnerActor->GetActorStats()->bStealthKilling )
+		if (pOwnerActor->GetActorStats()->bStealthKilling)
 		{
 			return false;
 		}
 
-		if( pOwnerActor->IsPlayer() )
+		if (pOwnerActor->IsPlayer())
 		{
 			CPlayer* pOwnerPlayer = static_cast<CPlayer*>(pOwnerActor);
 
@@ -1317,10 +1316,10 @@ bool CWeapon::ShouldPlaySelectAction() const
 //------------------------------------------------------------------------
 void CWeapon::Select(bool select)
 {
-	CActor *pOwner = GetOwnerActor();
+	CActor* pOwner = GetOwnerActor();
 	if (select && (IsDestroyed() || (pOwner && pOwner->IsDead())))
 		return;
-	
+
 	const bool isOwnerClient = IsOwnerClient();
 
 	//If actor is grabbed by player, don't let him select weapon
@@ -1339,7 +1338,7 @@ void CWeapon::Select(bool select)
 
 	if (!select)
 	{
-		if(IsZoomed() || IsZoomingInOrOut())
+		if (IsZoomed() || IsZoomingInOrOut())
 			ExitZoom(true);
 
 		if (m_enterModifyAction)
@@ -1348,13 +1347,13 @@ void CWeapon::Select(bool select)
 			m_enterModifyAction = 0;
 		}
 
-		if(isOwnerClient)
+		if (isOwnerClient)
 		{
 			gEnv->p3DEngine->SetPostEffectParam("Dof_Active", 0.0f);
 		}
 
 		m_switchingFireMode = false;
-		
+
 		// network
 		m_shootCounter = 0;
 		m_netNextShot = 0.f;
@@ -1366,7 +1365,7 @@ void CWeapon::Select(bool select)
 
 		if (isOwnerClient && !gEnv->bMultiplayer && pOwner)
 		{
-			SetToDefaultFireModeIfNeeded(*pOwner);	
+			SetToDefaultFireModeIfNeeded(*pOwner);
 		}
 
 		if (m_deselectAction)
@@ -1375,18 +1374,18 @@ void CWeapon::Select(bool select)
 			SAFE_RELEASE(m_deselectAction);
 		}
 	}
-	
-	if(gEnv->bMultiplayer && isOwnerClient && pOwner)
+
+	if (gEnv->bMultiplayer && isOwnerClient && pOwner)
 	{
 		pOwner->NotifyCurrentItemChanged(this);
 	}
 
-	if(isOwnerClient)
+	if (isOwnerClient)
 	{
 		FadeCrosshair(1.0f, WEAPON_FADECROSSHAIR_SELECT);
 	}
 
-	if(!select)
+	if (!select)
 		SetNextShotTime(false);
 
 	if (m_fm)
@@ -1396,9 +1395,9 @@ void CWeapon::Select(bool select)
 		m_zm->Activate(select);
 
 #ifdef SHOT_DEBUG
-	if(select && ((g_pGameCVars->pl_shotDebug==1 && isOwnerClient)||(g_pGameCVars->pl_shotDebug==2)) && pOwner)
+	if (select && ((g_pGameCVars->pl_shotDebug == 1 && isOwnerClient) || (g_pGameCVars->pl_shotDebug == 2)) && pOwner)
 	{
-		if(!m_pShotDebug)
+		if (!m_pShotDebug)
 		{
 			m_pShotDebug = new CShotDebug(*pOwner, *this);
 		}
@@ -1409,12 +1408,12 @@ void CWeapon::Select(bool select)
 	}
 #endif //SHOT_DEBUG
 
-	if(select)
+	if (select)
 	{
 		SetNextShotTime(true);
 	}
 
-	if(m_melee)
+	if (m_melee)
 	{
 		m_melee->Activate(select);
 	}
@@ -1425,13 +1424,13 @@ void CWeapon::Select(bool select)
 		m_weaponNextShotTimer = 0.f;
 	}
 
-	SetPlaySelectAction( true );
+	SetPlaySelectAction(true);
 }
 
 //---------------------------------------------------------------------
 uint32 CWeapon::StartDeselection(bool fastDeselect)
 {
-	CActor * pOwnerActor = GetOwnerActor();
+	CActor* pOwnerActor = GetOwnerActor();
 	const float speedMul = fastDeselect ? g_pGameCVars->i_fastSelectMultiplier : -1.0f;
 	if (m_isDeselecting)
 	{
@@ -1444,7 +1443,7 @@ uint32 CWeapon::StartDeselection(bool fastDeselect)
 				float oldSpeedBias = m_deselectAction->GetSpeedBias();
 				m_deselectAction->SetSpeedBias(speedMul);
 
-				timeRemaining *= oldSpeedBias/speedMul;
+				timeRemaining *= oldSpeedBias / speedMul;
 			}
 
 			return (uint32)(timeRemaining * 1000.0f);
@@ -1455,18 +1454,18 @@ uint32 CWeapon::StartDeselection(bool fastDeselect)
 			uint32 curTime = GetCurrentAnimationTime(eIGS_Owner);
 			if (pOwnerActor)
 			{
-				IAnimatedCharacter *pAnimCharacter = pOwnerActor->GetAnimatedCharacter();
-				CAnimationPlayerProxy *pAnimPlayerProxy = pAnimCharacter ? pAnimCharacter->GetAnimationPlayerProxy(eAnimationGraphLayer_UpperBody) : NULL;
+				IAnimatedCharacter* pAnimCharacter = pOwnerActor->GetAnimatedCharacter();
+				CAnimationPlayerProxy* pAnimPlayerProxy = pAnimCharacter ? pAnimCharacter->GetAnimationPlayerProxy(eAnimationGraphLayer_UpperBody) : NULL;
 
 				if (pAnimPlayerProxy)
 				{
-					CAnimation *pAnim = const_cast<CAnimation *>(pAnimPlayerProxy->GetTopAnimation(pOwnerActor->GetEntity(), ITEM_OWNER_ACTION_LAYER));
+					CAnimation* pAnim = const_cast<CAnimation*>(pAnimPlayerProxy->GetTopAnimation(pOwnerActor->GetEntity(), ITEM_OWNER_ACTION_LAYER));
 					if (pAnim)
 					{
 						float remainingTime = (1.0f - pAnim->GetCurrentSegmentNormalizedTime()) * ((float)curTime);
 						if (fastDeselect)
 						{
-							float invSpeedMulChange = pAnim->GetPlaybackScale()/speedMul;
+							float invSpeedMulChange = pAnim->GetPlaybackScale() / speedMul;
 							remainingTime *= invSpeedMulChange;
 							pAnim->SetPlaybackScale(speedMul);
 						}
@@ -1480,35 +1479,35 @@ uint32 CWeapon::StartDeselection(bool fastDeselect)
 
 	StopFire();
 
-	if(IsZoomed() || IsZoomingInOrOut())
+	if (IsZoomed() || IsZoomingInOrOut())
 	{
 		ExitZoom(true);
 	}
 
 	CCCPOINT(Weapon_StartDeselect);
 
-	if(gEnv->bMultiplayer)
+	if (gEnv->bMultiplayer)
 	{
 		CPlayer* pPlayer = static_cast<CPlayer*>(GetOwnerActor());
 
-		if(pPlayer && pPlayer->IsClient())
+		if (pPlayer && pPlayer->IsClient())
 		{
 			pPlayer->NotifyCurrentItemChanged(this);
 		}
 	}
 
 	bool bShouldPlaySelectionActions = ShouldPlaySelectAction();
-	if( bShouldPlaySelectionActions )
+	if (bShouldPlaySelectionActions)
 	{
-		IActionController *pActionController = pOwnerActor ? pOwnerActor->GetAnimatedCharacter()->GetActionController() : 0;
+		IActionController* pActionController = pOwnerActor ? pOwnerActor->GetAnimatedCharacter()->GetActionController() : 0;
 		if (pActionController)
 		{
-			const SControllerDef &contDef = pActionController->GetContext().controllerDef;
+			const SControllerDef& contDef = pActionController->GetContext().controllerDef;
 
 			FragmentID fragID = contDef.m_fragmentIDs.Find("Deselect");
 			if (fragID != FRAGMENT_ID_INVALID)
 			{
-				const CTagDefinition *pFragTagDef = contDef.GetFragmentTagDef(fragID);
+				const CTagDefinition* pFragTagDef = contDef.GetFragmentTagDef(fragID);
 				TagState fragTags = TAG_STATE_EMPTY;
 				if (pFragTagDef)
 				{
@@ -1523,7 +1522,7 @@ uint32 CWeapon::StartDeselection(bool fastDeselect)
 					}
 				}
 
-				IAction *pAction = new CAnimActionDeselect(fragID, fragTags);
+				IAction* pAction = new CAnimActionDeselect(fragID, fragTags);
 
 				SAFE_RELEASE(m_deselectAction);
 				m_deselectAction = pAction;
@@ -1583,7 +1582,6 @@ void CWeapon::AddAmmoCapacity()
 	m_addedAmmoCapacity = true;
 }
 
-
 void CWeapon::DropAmmoCapacity()
 {
 	if (!m_addedAmmoCapacity)
@@ -1609,7 +1607,7 @@ void CWeapon::DropAmmoCapacity()
 		SetBonusAmmoCount(pAmmoType, newBonus);
 	}
 
-	if(gEnv->bMultiplayer)
+	if (gEnv->bMultiplayer)
 	{
 		ProcessAllAccessoryAmmoCapacities(pOwnerInventory, false);
 	}
@@ -1634,59 +1632,59 @@ void CWeapon::ProcessAllAccessoryAmmoCapacities(IInventory* pOwnerInventory, boo
 void CWeapon::PickUp(EntityId picker, bool sound, bool select, bool keepHistory, const char* setup)
 {
 	SetOwnerId(picker);
-	if(IsClient() && gEnv->pGameFramework->GetClientActorId()==picker)
+	if (IsClient() && gEnv->pGameFramework->GetClientActorId() == picker)
 	{
-		if(IEntity* pEntity = GetEntity())
+		if (IEntity* pEntity = GetEntity())
 		{
 			IEntityClass* pEntityClass = pEntity->GetClass();
 			const char* collectibleId = pEntityClass->GetName();
-			if(pEntityClass==s_CellFelineClass)
+			if (pEntityClass == s_CellFelineClass)
 			{
 				collectibleId = "Feline";
 			}
-			else if(pEntityClass==s_CellHammerClass)
+			else if (pEntityClass == s_CellHammerClass)
 			{
 				collectibleId = "Hammer";
 			}
-			else if(pEntityClass==s_CellSCARABClass)
+			else if (pEntityClass == s_CellSCARABClass)
 			{
 				collectibleId = "SCARAB";
 			}
-			else if(pEntityClass==s_CellSCARClass)
+			else if (pEntityClass == s_CellSCARClass)
 			{
 				collectibleId = "SCAR";
 			}
-			else if(pEntityClass==s_CellGaussClass)
+			else if (pEntityClass == s_CellGaussClass)
 			{
 				collectibleId = "Gauss";
 			}
-			else if(pEntityClass==s_CellK_VoltClass)
+			else if (pEntityClass == s_CellK_VoltClass)
 			{
 				collectibleId = "K-Volt";
 			}
-			else if(pEntityClass==s_CellMikeClass)
+			else if (pEntityClass == s_CellMikeClass)
 			{
 				collectibleId = "Mike";
 			}
 
 			CPersistantStats* pStats = g_pGame->GetPersistantStats();
-			if(pStats && pStats->GetStat(collectibleId, EMPS_SPWeaponByName) == 0)
+			if (pStats && pStats->GetStat(collectibleId, EMPS_SPWeaponByName) == 0)
 			{
 				pStats->SetMapStat(EMPS_SPWeaponByName, collectibleId, eDatabaseStatValueFlag_Available);
-				if(!gEnv->bMultiplayer && sound)
+				if (!gEnv->bMultiplayer && sound)
 				{
 					// Show hud unlock msg
 					SHUDEventWrapper::DisplayWeaponUnlockMsg(collectibleId);
 				}
 			}
 
-			CEquipmentLoadout * pLoadout = g_pGame->GetEquipmentLoadout();
+			CEquipmentLoadout* pLoadout = g_pGame->GetEquipmentLoadout();
 			if (pLoadout)
 			{
-				IEntityClass * pClass = pEntity->GetClass();
+				IEntityClass* pClass = pEntity->GetClass();
 				if (pClass)
 				{
-					const CEquipmentLoadout::SEquipmentItem * pLoadoutItem = pLoadout->GetItemByName(pClass->GetName());
+					const CEquipmentLoadout::SEquipmentItem* pLoadoutItem = pLoadout->GetItemByName(pClass->GetName());
 					if (pLoadoutItem)
 					{
 						if (pLoadoutItem->m_category == CEquipmentLoadout::eELC_EXPLOSIVE)
@@ -1696,14 +1694,13 @@ void CWeapon::PickUp(EntityId picker, bool sound, bool select, bool keepHistory,
 							CHUDEventDispatcher::CallEvent(event);
 						}
 					}
-				}				
+				}
 			}
 		}
 	}
 	AddAmmoCapacity();
 	BaseClass::PickUp(picker, sound, select, keepHistory, setup);
 }
-
 
 //------------------------------------------------------------------------
 void CWeapon::Drop(float impulseScale, bool selectNext, bool byDeath)
@@ -1745,13 +1742,13 @@ void CWeapon::Drop(float impulseScale, bool selectNext, bool byDeath)
 }
 
 //------------------------------------------------------------------------
-void CWeapon::SetFiringLocator(IWeaponFiringLocator *pLocator)
+void CWeapon::SetFiringLocator(IWeaponFiringLocator* pLocator)
 {
 	if (!m_animationFiringLocator.IsSet())
 	{
-	if (m_pFiringLocator && m_pFiringLocator != pLocator)
-		m_pFiringLocator->WeaponReleased();
-	m_pFiringLocator = pLocator;
+		if (m_pFiringLocator && m_pFiringLocator != pLocator)
+			m_pFiringLocator->WeaponReleased();
+		m_pFiringLocator = pLocator;
 	}
 	else
 	{
@@ -1760,39 +1757,39 @@ void CWeapon::SetFiringLocator(IWeaponFiringLocator *pLocator)
 };
 
 //------------------------------------------------------------------------
-IWeaponFiringLocator *CWeapon::GetFiringLocator() const
+IWeaponFiringLocator* CWeapon::GetFiringLocator() const
 {
 	return m_pFiringLocator;
 };
 
 //------------------------------------------------------------------------
-void CWeapon::AddEventListener(IWeaponEventListener *pListener, const char *who)
+void CWeapon::AddEventListener(IWeaponEventListener* pListener, const char* who)
 {
 	m_listeners.Add(pListener, who);
 }
 
 //------------------------------------------------------------------------
-void CWeapon::RemoveEventListener(IWeaponEventListener *pListener)
+void CWeapon::RemoveEventListener(IWeaponEventListener* pListener)
 {
 	m_listeners.Remove(pListener);
 }
 
 //------------------------------------------------------------------------
-Vec3 CWeapon::GetFiringPos(const Vec3 &probableHit) const
+Vec3 CWeapon::GetFiringPos(const Vec3& probableHit) const
 {
 	if (m_fm)
 		return m_fm->GetFiringPos(probableHit);
 
-	return Vec3(0,0,0);
+	return Vec3(0, 0, 0);
 }
 
 //------------------------------------------------------------------------
-Vec3 CWeapon::GetFiringDir(const Vec3 &probableHit, const Vec3& firingPos) const
+Vec3 CWeapon::GetFiringDir(const Vec3& probableHit, const Vec3& firingPos) const
 {
 	if (m_fm)
 		return m_fm->GetFiringDir(probableHit, firingPos);
 
-	return Vec3(0,0,0);
+	return Vec3(0, 0, 0);
 }
 
 //------------------------------------------------------------------------
@@ -1800,7 +1797,7 @@ void CWeapon::StartFire()
 {
 	if (m_fm && !IsDestroyed())
 	{
-		CActor *pOwner = GetOwnerActor();
+		CActor* pOwner = GetOwnerActor();
 		if (!pOwner || (!pOwner->IsDead() && pOwner->CanFire()))
 		{
 			m_fm->StartFire();
@@ -1847,10 +1844,10 @@ void CWeapon::StartZoom(EntityId actorId, int zoomed)
 	if (m_zm == NULL)
 		return;
 
-	CActor *pOwner = GetOwnerActor();
-	if(pOwner)
+	CActor* pOwner = GetOwnerActor();
+	if (pOwner)
 	{
-		if(pOwner->IsDead() || !pOwner->CanUseIronSights())
+		if (pOwner->IsDead() || !pOwner->CanUseIronSights())
 			return;
 	}
 
@@ -1860,17 +1857,17 @@ void CWeapon::StartZoom(EntityId actorId, int zoomed)
 	if (m_fm && !((CFireMode*)m_fm)->CanZoom())
 		return;
 
-	bool interruptingZoomOutWithZoom = (m_zm->IsZoomingInOrOut() && !m_zm->IsZoomingIn());	//This allows us to re-zoom while the zooming out anim is still playing giving better responsiveness
+	bool interruptingZoomOutWithZoom = (m_zm->IsZoomingInOrOut() && !m_zm->IsZoomingIn());  //This allows us to re-zoom while the zooming out anim is still playing giving better responsiveness
 
-	bool stayZoomed = (m_zm->IsZoomed() && ((m_zm->IsZoomingInOrOut() && !m_zm->IsToggle()) || interruptingZoomOutWithZoom ));
+	bool stayZoomed = (m_zm->IsZoomed() && ((m_zm->IsZoomingInOrOut() && !m_zm->IsToggle()) || interruptingZoomOutWithZoom));
 
 	if (!m_zm->IsZoomed() || interruptingZoomOutWithZoom)
 	{
 		bool delayZoom = false;
-		if(pOwner && pOwner->IsPlayer())
+		if (pOwner && pOwner->IsPlayer())
 		{
 			// We only update the delay for the local client.
-			if(pOwner->IsClient())
+			if (pOwner->IsClient())
 			{
 				SPlayerStats* pStats = static_cast<SPlayerStats*>(pOwner->GetActorStats());
 				if (pOwner->IsSprinting())
@@ -1882,7 +1879,7 @@ void CWeapon::StartZoom(EntityId actorId, int zoomed)
 				}
 			}
 		}
-		if (!delayZoom && m_delayedZoomActionTimeOut==0)
+		if (!delayZoom && m_delayedZoomActionTimeOut == 0)
 		{
 			m_zm->StartZoom(stayZoomed, true, zoomed);
 		}
@@ -1925,14 +1922,14 @@ void CWeapon::ExitZoom(bool force)
 //------------------------------------------------------------------------
 bool CWeapon::CanModify() const
 {
-	if(gEnv->bMultiplayer)
+	if (gEnv->bMultiplayer)
 	{
-		if(m_sharedparams->accessoryparams.size())
+		if (m_sharedparams->accessoryparams.size())
 		{
-			CGameRules * pGameRules = g_pGame->GetGameRules();
-			if(IGameRulesTeamsModule * pTeamsModule = pGameRules->GetTeamsModule())
+			CGameRules* pGameRules = g_pGame->GetGameRules();
+			if (IGameRulesTeamsModule* pTeamsModule = pGameRules->GetTeamsModule())
 			{
-				if(EntityId ownerId = GetOwnerId())
+				if (EntityId ownerId = GetOwnerId())
 				{
 					return pTeamsModule->CanTeamModifyWeapons(pGameRules->GetTeam(ownerId));
 				}
@@ -1966,7 +1963,7 @@ bool CWeapon::IsZoomingIn() const
 	{
 		return (m_zm->GetZoomState() == eZS_ZoomingIn);
 	}
-	
+
 	return false;
 }
 
@@ -2034,7 +2031,7 @@ float CWeapon::GetZoomTransition() const
 float CWeapon::GetZoomInTime() const
 {
 	float time = m_zm ? m_zm->GetZoomInTime() : 0.0f;
-	
+
 	return time;
 }
 
@@ -2061,33 +2058,32 @@ bool CWeapon::IsReloading(bool includePending) const
 	return (m_fm && m_fm->IsReloading(includePending));
 }
 
-
-bool CWeapon::IsValidAssistTarget(IEntity *pEntity, IEntity *pSelf,bool includeVehicles/*=false*/)
+bool CWeapon::IsValidAssistTarget(IEntity* pEntity, IEntity* pSelf, bool includeVehicles /*=false*/)
 {
-	if(!pEntity)
+	if (!pEntity)
 		return false;
 
-	IActor *pActor = m_pGameFramework->GetIActorSystem()->GetActor(pEntity->GetId());
-	IAIObject *pAI = pEntity->GetAI();
+	IActor* pActor = m_pGameFramework->GetIActorSystem()->GetActor(pEntity->GetId());
+	IAIObject* pAI = pEntity->GetAI();
 
-	if(!pActor && includeVehicles && pAI)
+	if (!pActor && includeVehicles && pAI)
 	{
-		IVehicle *pVehicle = m_pGameFramework->GetIVehicleSystem()->GetVehicle(pEntity->GetId()); 
-		if (pVehicle && pVehicle->GetStatus().health > 0.f && pAI->IsHostile(pSelf->GetAI(),false))
+		IVehicle* pVehicle = m_pGameFramework->GetIVehicleSystem()->GetVehicle(pEntity->GetId());
+		if (pVehicle && pVehicle->GetStatus().health > 0.f && pAI->IsHostile(pSelf->GetAI(), false))
 			return true;
 	}
 
 	// Check for target validity
-	if(!pActor)
+	if (!pActor)
 		return false;
 
 	if (!pAI)
 	{
 		if (pActor->IsPlayer() && pEntity != pSelf && !pEntity->IsHidden() && !pActor->IsDead())
 		{
-			int ownteam=g_pGame->GetGameRules()->GetTeam(pSelf->GetId());
-			int targetteam=g_pGame->GetGameRules()->GetTeam(pEntity->GetId());
-			
+			int ownteam = g_pGame->GetGameRules()->GetTeam(pSelf->GetId());
+			int targetteam = g_pGame->GetGameRules()->GetTeam(pEntity->GetId());
+
 			// Assist aiming on non-allied players only
 			return (targetteam == 0 && ownteam == 0) || (targetteam != 0 && targetteam != ownteam);
 		}
@@ -2096,18 +2092,18 @@ bool CWeapon::IsValidAssistTarget(IEntity *pEntity, IEntity *pSelf,bool includeV
 			return false;
 		}
 	}
-	
-	return (pEntity != pSelf &&!pEntity->IsHidden() && 
-		!pActor->IsDead() &&	pAI->GetAIType() != AIOBJECT_VEHICLE &&
-		pAI->IsHostile(pSelf->GetAI(),false));
+
+	return (pEntity != pSelf && !pEntity->IsHidden() &&
+	        !pActor->IsDead() && pAI->GetAIType() != AIOBJECT_VEHICLE &&
+	        pAI->IsHostile(pSelf->GetAI(), false));
 }
 
 //------------------------------------------------------------------------
 void CWeapon::RestartZoom(bool force)
 {
-	if(m_restartZoom || force)
+	if (m_restartZoom || force)
 	{
-		if(m_zm && !IsBusy() && m_zm->CanZoom())
+		if (m_zm && !IsBusy() && m_zm->CanZoom())
 		{
 			m_zm->StartZoom(true, false, m_restartZoomStep);
 
@@ -2117,15 +2113,15 @@ void CWeapon::RestartZoom(bool force)
 }
 
 //------------------------------------------------------------------------
-void CWeapon::MountAt(const Vec3 &pos)
+void CWeapon::MountAt(const Vec3& pos)
 {
 	BaseClass::MountAt(pos);
 
-	GetEntity()->RegisterInAISystem(AIObjectParams(AIOBJECT_MOUNTEDWEAPON));
+	gEnv->pAISystem->GetAIObjectManager()->CreateAIObject(AIObjectParams(AIOBJECT_MOUNTEDWEAPON, 0, GetEntityId()));
 }
 
 //------------------------------------------------------------------------
-void CWeapon::MountAtEntity(EntityId entityId, const Vec3 &pos, const Ang3 &angles)
+void CWeapon::MountAtEntity(EntityId entityId, const Vec3& pos, const Ang3& angles)
 {
 	BaseClass::MountAtEntity(entityId, pos, angles);
 
@@ -2135,7 +2131,7 @@ void CWeapon::MountAtEntity(EntityId entityId, const Vec3 &pos, const Ang3 &angl
 		for (TAmmoVector::const_iterator bonusAmmoCit = m_bonusammo.begin(); bonusAmmoCit != bonusAmmoEndCit; ++bonusAmmoCit)
 		{
 			const SWeaponAmmo& bonusAmmo = *bonusAmmoCit;
-			SetInventoryAmmoCount(bonusAmmo.pAmmoClass, GetInventoryAmmoCount(bonusAmmo.pAmmoClass)+bonusAmmo.count);
+			SetInventoryAmmoCount(bonusAmmo.pAmmoClass, GetInventoryAmmoCount(bonusAmmo.pAmmoClass) + bonusAmmo.count);
 		}
 
 		m_bonusammo.clear();
@@ -2145,7 +2141,7 @@ void CWeapon::MountAtEntity(EntityId entityId, const Vec3 &pos, const Ang3 &angl
 //------------------------------------------------------------------------
 void CWeapon::Reload(bool force)
 {
-	CActor *pOwner = GetOwnerActor();
+	CActor* pOwner = GetOwnerActor();
 	bool ownerIsPlayer = pOwner && pOwner->IsPlayer();
 
 	bool canReload = CanReload();
@@ -2177,7 +2173,7 @@ void CWeapon::Reload(bool force)
 				RequestReload();
 
 			OnReloaded();
-			
+
 			m_bReloadWhenSelected = false;
 		}
 	}
@@ -2189,7 +2185,7 @@ bool CWeapon::CanReload() const
 	bool bCanReload = m_fm ? m_fm->CanReload() : false;
 
 	// We don't want animation events to reload the weapon if the clip is empty
-	bCanReload = bCanReload && !IsAnimationControlled(); 
+	bCanReload = bCanReload && !IsAnimationControlled();
 
 	return bCanReload;
 }
@@ -2200,7 +2196,7 @@ bool CWeapon::OutOfAmmo(bool allFireModes) const
 	if (!allFireModes)
 		return m_fm && m_fm->OutOfAmmo();
 
-	for (size_t i=0; i<m_firemodes.size(); i++)
+	for (size_t i = 0; i < m_firemodes.size(); i++)
 		if (!m_firemodes[i]->OutOfAmmo())
 			return false;
 
@@ -2277,11 +2273,11 @@ void CWeapon::SetAmmoCount(IEntityClass* pAmmoType, int count)
 	CActor* pOwnerActor = GetOwnerActor();
 	int currentCount = 0;
 	int currentCapacity = 0;
-	if(pAmmoType!=NULL && pOwnerActor!=NULL)
+	if (pAmmoType != NULL && pOwnerActor != NULL)
 	{
 		currentCount = GetAmmoCount(pAmmoType);
 		IInventory* pInventory = GetActorInventory(pOwnerActor);
-		if(pInventory)
+		if (pInventory)
 		{
 			currentCapacity = pInventory->GetAmmoCapacity(pAmmoType);
 		}
@@ -2291,7 +2287,7 @@ void CWeapon::SetAmmoCount(IEntityClass* pAmmoType, int count)
 	const bool bExistingAmmoType = SWeaponAmmoUtils::SetAmmo(m_ammo, pAmmoType, count);
 	if (!bExistingAmmoType && m_isRegisteredAmmoWithInventory)
 	{
-		if(IInventory *pInventory = GetActorInventory(GetOwnerActor()))
+		if (IInventory* pInventory = GetActorInventory(GetOwnerActor()))
 		{
 			if (pInventory->FindItem(GetEntityId()) >= 0)
 			{
@@ -2303,10 +2299,10 @@ void CWeapon::SetAmmoCount(IEntityClass* pAmmoType, int count)
 	CHANGED_NETWORK_STATE(this, ASPECT_STREAM);
 
 	// send game event
-	IEntity *pOwnerEntity = gEnv->pEntitySystem->GetEntity(m_owner.GetId());
-	if(pOwnerEntity)
+	IEntity* pOwnerEntity = gEnv->pEntitySystem->GetEntity(m_owner.GetId());
+	if (pOwnerEntity)
 	{
-		m_pGameFramework->GetIGameplayRecorder()->Event(pOwnerEntity,GameplayEvent(eGE_AmmoCount,GetEntity()/*->GetClass()*/->GetName(),float(count),(void*)(EXPAND_PTR)GetFireModeIdxWithAmmo(pAmmoType)));
+		m_pGameFramework->GetIGameplayRecorder()->Event(pOwnerEntity, GameplayEvent(eGE_AmmoCount, GetEntity() /*->GetClass()*/->GetName(), float(count), (void*)(EXPAND_PTR)GetFireModeIdxWithAmmo(pAmmoType)));
 	}
 
 	OnSetAmmoCount(GetOwnerId());
@@ -2318,16 +2314,16 @@ bool CWeapon::CanPickUpAmmo(IInventory* pDestinationInventory)
 	for (TAmmoVector::iterator it = m_ammo.begin(); it != m_ammo.end(); ++it)
 	{
 		IEntityClass* pAmmoClass = it->pAmmoClass;
-		if(SWeaponAmmoUtils::FindAmmoConst(m_weaponsharedparams->ammoParams.accessoryAmmo, pAmmoClass) != NULL)
+		if (SWeaponAmmoUtils::FindAmmoConst(m_weaponsharedparams->ammoParams.accessoryAmmo, pAmmoClass) != NULL)
 		{
 			continue;
 		}
 
 		int actualCount = pDestinationInventory->GetAmmoCount(pAmmoClass);
 		int maxCapacity = pDestinationInventory->GetAmmoCapacity(pAmmoClass);
-		
+
 		if (maxCapacity == 0 || actualCount < maxCapacity)
-		{		
+		{
 			return true;
 		}
 	}
@@ -2339,7 +2335,7 @@ int CWeapon::GetInventoryAmmoCount(IEntityClass* pAmmoType) const
 {
 	if (m_hostId)
 	{
-		IVehicle *pVehicle=m_pGameFramework->GetIVehicleSystem()->GetVehicle(m_hostId);
+		IVehicle* pVehicle = m_pGameFramework->GetIVehicleSystem()->GetVehicle(m_hostId);
 		if (pVehicle)
 			return pVehicle->GetAmmoCount(pAmmoType);
 
@@ -2351,16 +2347,16 @@ int CWeapon::GetInventoryAmmoCount(IEntityClass* pAmmoType) const
 		return 999;
 	}
 
-	IF_UNLIKELY(g_pGameCVars->g_infiniteAmmoTutorialMode==1)
+	IF_UNLIKELY (g_pGameCVars->g_infiniteAmmoTutorialMode == 1)
 	{
 		const char* levelName = m_pGameFramework->GetLevelName();
-		if(levelName!=NULL && levelName[0] && !stricmp(levelName, "Tutorial"))
+		if (levelName != NULL && levelName[0] && !stricmp(levelName, "Tutorial"))
 		{
 			return 999;
 		}
 	}
 
-	IInventory *pInventory=GetActorInventory(GetOwnerActor());
+	IInventory* pInventory = GetActorInventory(GetOwnerActor());
 	if (!pInventory)
 		return 0;
 
@@ -2370,20 +2366,20 @@ int CWeapon::GetInventoryAmmoCount(IEntityClass* pAmmoType) const
 //------------------------------------------------------------------------
 void CWeapon::SetInventoryAmmoCount(IEntityClass* pAmmoType, int count)
 {
-	if(!pAmmoType)
+	if (!pAmmoType)
 		return;
 
 	if (m_hostId)
 	{
-		IVehicle *pVehicle = m_pGameFramework->GetIVehicleSystem()->GetVehicle(m_hostId);
+		IVehicle* pVehicle = m_pGameFramework->GetIVehicleSystem()->GetVehicle(m_hostId);
 		if (pVehicle)
 			pVehicle->SetAmmoCount(pAmmoType, count);
-		
+
 		return;
 	}
 
 	IInventory* pInventory = GetActorInventory(GetOwnerActor());
-	
+
 	SetInventoryAmmoCountInternal(pInventory, pAmmoType, count);
 }
 
@@ -2399,13 +2395,13 @@ bool CWeapon::SetInventoryAmmoCountInternal(IInventory* pInventory, IEntityClass
 
 		const int capacity = pInventory->GetAmmoCapacity(pAmmoType);
 		const int current = pInventory->GetAmmoCount(pAmmoType);
-		if(count >= capacity)
+		if (count >= capacity)
 		{
 			//If still there's some place, full inventory to maximum...
-			if(current != capacity)
+			if (current != capacity)
 			{
 				ammoChanged = true;
-				pInventory->SetAmmoCount(pAmmoType,capacity);
+				pInventory->SetAmmoCount(pAmmoType, capacity);
 			}
 		}
 		else
@@ -2416,7 +2412,7 @@ bool CWeapon::SetInventoryAmmoCountInternal(IInventory* pInventory, IEntityClass
 
 		CHANGED_NETWORK_STATE(this, ASPECT_RELOAD);
 
-		if(isLocalClient && ammoChanged)
+		if (isLocalClient && ammoChanged)
 		{
 			const int difference = min(count, capacity) - current;
 
@@ -2438,7 +2434,7 @@ IFireMode* CWeapon::GetFireMode(int idx) const
 }
 
 //------------------------------------------------------------------------
-IFireMode* CWeapon::GetFireMode(const char *name) const
+IFireMode* CWeapon::GetFireMode(const char* name) const
 {
 	return GetCFireMode(name);
 }
@@ -2452,7 +2448,7 @@ CFireMode* CWeapon::GetCFireMode(int idx) const
 }
 
 //------------------------------------------------------------------------
-CFireMode* CWeapon::GetCFireMode(const char *name) const
+CFireMode* CWeapon::GetCFireMode(const char* name) const
 {
 	TFireModeIdMap::const_iterator it = m_fmIds.find(CryHashStringId::GetIdForName(name));
 	if (it == m_fmIds.end())
@@ -2464,18 +2460,18 @@ CFireMode* CWeapon::GetCFireMode(const char *name) const
 //------------------------------------------------------------------------
 int CWeapon::GetFireModeIdxWithAmmo(const IEntityClass* pAmmoClass) const
 {
-	TFireModeIdMap::const_iterator it = m_fmIds.begin(),itEnd = m_fmIds.end() ;
-	for( ; it != itEnd; ++it)
+	TFireModeIdMap::const_iterator it = m_fmIds.begin(), itEnd = m_fmIds.end();
+	for (; it != itEnd; ++it)
 	{
 		IFireMode* pFireMode = GetFireMode(it->second);
-		if(pFireMode && pFireMode->GetAmmoType() == pAmmoClass)
+		if (pFireMode && pFireMode->GetAmmoType() == pAmmoClass)
 			return it->second;
 	}
 	return -1;
 }
 
 //------------------------------------------------------------------------
-int CWeapon::GetFireModeIdx(const char *name) const
+int CWeapon::GetFireModeIdx(const char* name) const
 {
 	TFireModeIdMap::const_iterator it = m_fmIds.find(CryHashStringId::GetIdForName(name));
 	if (it != m_fmIds.end())
@@ -2501,9 +2497,8 @@ void CWeapon::SetCurrentFireMode(int idx)
 	if (m_firemodes.empty())
 		return;
 
-
 	CActor* pOwnerActor = GetOwnerActor();
-	if(pOwnerActor && !pOwnerActor->IsClient()) //Play transition anim for remote players
+	if (pOwnerActor && !pOwnerActor->IsClient()) //Play transition anim for remote players
 	{
 		PlayChangeFireModeTransition(static_cast<CFireMode*>(GetFireMode(idx)));
 	}
@@ -2522,9 +2517,9 @@ void CWeapon::SetCurrentFireMode(int idx)
 
 		if (IsServer())
 		{
-			if(GetOwnerId())
+			if (GetOwnerId())
 			{
-				m_pGameplayRecorder->Event(GetOwner(), GameplayEvent(eGE_WeaponFireModeChanged, m_fm->GetName(), (float)idx, (void *)(EXPAND_PTR)GetEntityId()));
+				m_pGameplayRecorder->Event(GetOwner(), GameplayEvent(eGE_WeaponFireModeChanged, m_fm->GetName(), (float)idx, (void*)(EXPAND_PTR)GetEntityId()));
 			}
 
 			CHANGED_NETWORK_STATE(this, ASPECT_STREAM);
@@ -2533,7 +2528,6 @@ void CWeapon::SetCurrentFireMode(int idx)
 
 	m_prevFiremode = m_firemode;
 	m_firemode = idx;
-		
 
 	if (m_fm)
 	{
@@ -2554,9 +2548,8 @@ void CWeapon::SetCurrentFireMode(int idx)
 	OnFireModeChanged(m_firemode);
 }
 
-
 //------------------------------------------------------------------------
-void CWeapon::SetCurrentFireMode(const char *name)
+void CWeapon::SetCurrentFireMode(const char* name)
 {
 	TFireModeIdMap::iterator it = m_fmIds.find(CryHashStringId::GetIdForName(name));
 	if (it == m_fmIds.end())
@@ -2580,18 +2573,20 @@ void CWeapon::ChangeFireMode()
 //------------------------------------------------------------------------
 int CWeapon::GetNextFireMode(int currMode) const
 {
-	if (m_firemodes.empty() || (currMode > ((int)m_firemodes.size()-1)))
+	if (m_firemodes.empty() || (currMode > ((int)m_firemodes.size() - 1)))
 		return 0;
 
 	int t = currMode;
-	do {
+	do
+	{
 		t++;
 		if (t == m_firemodes.size())
 			t = 0;
 		if (IFireMode* pFM = GetFireMode(t))
-			if(pFM->IsEnabled() && !IsFiremodeDisabledByAccessory(t))
+			if (pFM->IsEnabled() && !IsFiremodeDisabledByAccessory(t))
 				return t;
-	} while(t!=currMode);
+	}
+	while (t != currMode);
 
 	return t;
 }
@@ -2609,7 +2604,7 @@ bool CWeapon::IsFiremodeDisabledByAccessory(int idx) const
 
 		for (size_t fireModeIndex = 0; fireModeIndex < numDisabledFiremodes; fireModeIndex++)
 		{
-			if(GetFireModeIdx(pParams->disableFiremodes[fireModeIndex].c_str()) == idx)
+			if (GetFireModeIdx(pParams->disableFiremodes[fireModeIndex].c_str()) == idx)
 			{
 				return true;
 			}
@@ -2620,7 +2615,7 @@ bool CWeapon::IsFiremodeDisabledByAccessory(int idx) const
 }
 
 //------------------------------------------------------------------------
-IZoomMode *CWeapon::GetZoomMode(int idx) const
+IZoomMode* CWeapon::GetZoomMode(int idx) const
 {
 	if (idx >= 0 && idx < (int)m_zoommodes.size())
 		return m_zoommodes[idx];
@@ -2628,7 +2623,7 @@ IZoomMode *CWeapon::GetZoomMode(int idx) const
 }
 
 //------------------------------------------------------------------------
-IZoomMode *CWeapon::GetZoomMode(const char *name) const
+IZoomMode* CWeapon::GetZoomMode(const char* name) const
 {
 	TZoomModeIdMap::const_iterator it = m_zmIds.find(CryHashStringId::GetIdForName(name));
 	if (it == m_zmIds.end())
@@ -2638,7 +2633,7 @@ IZoomMode *CWeapon::GetZoomMode(const char *name) const
 }
 
 //------------------------------------------------------------------------
-const char *CWeapon::GetZoomModeName(int idx) const
+const char* CWeapon::GetZoomModeName(int idx) const
 {
 	TZoomModeNameMap::const_iterator it = m_zmNames.find(idx);
 	if (it != m_zmNames.end())
@@ -2648,7 +2643,7 @@ const char *CWeapon::GetZoomModeName(int idx) const
 }
 
 //------------------------------------------------------------------------
-int CWeapon::GetZoomModeIdx(const char *name) const
+int CWeapon::GetZoomModeIdx(const char* name) const
 {
 	TZoomModeIdMap::const_iterator it = m_zmIds.find(CryHashStringId::GetIdForName(name));
 	if (it != m_zmIds.end())
@@ -2665,18 +2660,18 @@ int CWeapon::GetCurrentZoomMode() const
 //------------------------------------------------------------------------
 void CWeapon::SetCurrentZoomMode(int idx)
 {
-	if (m_zoommodes.empty() || (idx==m_zmId && m_zm!=0))
+	if (m_zoommodes.empty() || (idx == m_zmId && m_zm != 0))
 		return;
 
 	bool wasZoomed = !IsModifying() && (m_zm ? m_zm->IsZoomed() : false);
 	bool wasZoomingOut = !IsModifying() && (m_zm ? (m_zm->IsZoomingInOrOut() && !m_zm->IsZoomingIn()) : false);
-	
+
 	if (m_zm)
 		m_zm->Activate(false);
 
 	m_zm = m_zoommodes[idx];
 	m_zmId = idx;
-	
+
 	if (m_zm)
 	{
 		m_zm->Activate(true);
@@ -2687,7 +2682,7 @@ void CWeapon::SetCurrentZoomMode(int idx)
 }
 
 //------------------------------------------------------------------------
-void CWeapon::SetCurrentZoomMode(const char *name)
+void CWeapon::SetCurrentZoomMode(const char* name)
 {
 	TZoomModeIdMap::iterator it = m_zmIds.find(CryHashStringId::GetIdForName(name));
 	if (it == m_zmIds.end())
@@ -2703,7 +2698,8 @@ void CWeapon::ChangeZoomMode()
 		return;
 
 	int t = m_zmId;
-	do {
+	do
+	{
 		t++;
 		if (t == m_zoommodes.size())
 			t = 0;
@@ -2712,13 +2708,14 @@ void CWeapon::ChangeZoomMode()
 			m_primaryZmId = t;
 			SetCurrentZoomMode(t);
 		}
-	} while(t!=m_zmId);
+	}
+	while (t != m_zmId);
 }
 
 //------------------------------------------------------------------------
 void CWeapon::EnableZoomMode(int idx, bool enable)
 {
-	IZoomMode *pZoomMode = GetZoomMode(idx);
+	IZoomMode* pZoomMode = GetZoomMode(idx);
 	if (pZoomMode)
 		pZoomMode->Enable(enable);
 }
@@ -2730,7 +2727,7 @@ bool CWeapon::IsServerSpawn(IEntityClass* pAmmoType) const
 }
 
 //------------------------------------------------------------------------
-CProjectile *CWeapon::SpawnAmmo(IEntityClass* pAmmoType, bool remote)
+CProjectile* CWeapon::SpawnAmmo(IEntityClass* pAmmoType, bool remote)
 {
 	return g_pGame->GetWeaponSystem()->SpawnAmmo(pAmmoType, remote);
 }
@@ -2755,7 +2752,7 @@ void CWeapon::FadeCrosshair(float to, float time, float delay)
 //------------------------------------------------------------------------
 void CWeapon::UpdateCrosshair(float frameTime)
 {
-	if(!m_restartZoom)
+	if (!m_restartZoom)
 		return;
 
 	RestartZoom();
@@ -2765,7 +2762,7 @@ void CWeapon::UpdateCrosshair(float frameTime)
 void CWeapon::SetCrosshairMode(EWeaponCrosshair mode)
 {
 	m_crosshairMode = mode;
-	if(GetOwnerId() == g_pGame->GetIGameFramework()->GetClientActorId())
+	if (GetOwnerId() == g_pGame->GetIGameFramework()->GetClientActorId())
 	{
 		SHUDEvent event(eHUDEvent_OnCrosshairModeChanged);
 		event.AddData(SHUDEventData((int)mode));
@@ -2779,7 +2776,7 @@ void CWeapon::AccessoriesChanged(bool initialLoadoutSetup)
 	const int numFiremodes = m_firemodes.size();
 	const int numZoommodes = m_zoommodes.size();
 
-	IEntityClass* pAccessories[ITEM_MAX_NUM_ACCESSORIES] = {0};
+	IEntityClass* pAccessories[ITEM_MAX_NUM_ACCESSORIES] = { 0 };
 	GetCurrentAccessories(pAccessories);
 
 	for (int i = 0; i < numFiremodes; i++)
@@ -2789,15 +2786,15 @@ void CWeapon::AccessoriesChanged(bool initialLoadoutSetup)
 		const SFireModeParams* pCurrentParams = pFireMode->GetShared();
 		const SFireModeParams* pNewParams = GetAccessoryAlteredFireModeParams(pFireMode, pAccessories);
 
-		if(pNewParams != pCurrentParams)
+		if (pNewParams != pCurrentParams)
 		{
 			pFireMode->ResetSharedParams(pNewParams);
 
-			if((pFireMode == m_fm) && (pNewParams->fireparams.clip_size != pCurrentParams->fireparams.clip_size))
+			if ((pFireMode == m_fm) && (pNewParams->fireparams.clip_size != pCurrentParams->fireparams.clip_size))
 			{
 				IEntityClass* pCurrentAmmoClass = pFireMode->GetAmmoType();
 				IInventory* pInventory = GetActorInventory(GetOwnerActor());
-				
+
 				if (pInventory && pCurrentAmmoClass)
 				{
 					const SWeaponAmmo* pCurrentAmmo = SWeaponAmmoUtils::FindAmmo(m_ammo, pCurrentAmmoClass);
@@ -2809,7 +2806,7 @@ void CWeapon::AccessoriesChanged(bool initialLoadoutSetup)
 							const int clipSize = pFireMode->GetClipSize(); //still call getclipsize in case there are any modifiers applied
 							const int clipDiff = clipSize - pCurrentAmmo->count;
 
-							if((clipDiff < 0) || (initialLoadoutSetup && clipDiff > 0)) //Only make an instant change when clip size decreased, otherwise we let the reload handle it (Apart from on initial loadout setup)
+							if ((clipDiff < 0) || (initialLoadoutSetup && clipDiff > 0)) //Only make an instant change when clip size decreased, otherwise we let the reload handle it (Apart from on initial loadout setup)
 							{
 								const int inventoryCount = pInventory->GetAmmoCount(pCurrentAmmoClass);
 
@@ -2850,17 +2847,17 @@ void CWeapon::AccessoriesChanged(bool initialLoadoutSetup)
 		const SZoomModeParams* pCurrentParams = pZoomMode->GetShared();
 		const SZoomModeParams* pNewParams = GetAccessoryAlteredZoomModeParams(pZoomMode, pAccessories);
 
-		if(pNewParams != pCurrentParams)
+		if (pNewParams != pCurrentParams)
 		{
 			pZoomMode->ResetSharedParams(pNewParams);
 		}
 	}
 
-	if(m_melee) //Melee is shared between all firemodes and therefore only needs to be checked once
+	if (m_melee) //Melee is shared between all firemodes and therefore only needs to be checked once
 	{
 		const SMeleeModeParams* pNewMeleeParams = GetAccessoryAlteredMeleeParams(pAccessories);
 		const SMeleeModeParams* pCurrentMeleeParams = m_melee->GetMeleeModeParams();
-		if(pNewMeleeParams != pCurrentMeleeParams)
+		if (pNewMeleeParams != pCurrentMeleeParams)
 		{
 			m_melee->InitMeleeMode(this, pNewMeleeParams);
 		}
@@ -2871,10 +2868,10 @@ void CWeapon::AccessoriesChanged(bool initialLoadoutSetup)
 
 	const size_t numAccessories = m_accessories.size();
 
-	for(size_t accessoryIndex = 0; accessoryIndex < numAccessories; accessoryIndex++)
+	for (size_t accessoryIndex = 0; accessoryIndex < numAccessories; accessoryIndex++)
 	{
 		const CItemSharedParams* pItemShared = g_pGame ? g_pGame->GetGameSharedParametersStorage()->GetItemSharedParameters(m_accessories[accessoryIndex].pClass->GetName(), false) : NULL;
-		if(pItemShared)
+		if (pItemShared)
 		{
 			m_zoomTimeMultiplier *= pItemShared->params.zoomTimeMultiplier;
 			selectTimeMultiplier *= pItemShared->params.selectTimeMultiplier;
@@ -2889,31 +2886,31 @@ void CWeapon::AccessoriesChanged(bool initialLoadoutSetup)
 void CWeapon::GetCurrentAccessories(IEntityClass** pAccessoriesOut)
 {
 	const int numAccessoryParams = m_sharedparams->accessoryparams.size();
-	for(int i = 0; i < numAccessoryParams; i++)
+	for (int i = 0; i < numAccessoryParams; i++)
 	{
 		IEntityClass* pAccessory = m_sharedparams->accessoryparams[i].pAccessoryClass;
-		if(HasAccessory(pAccessory))
+		if (HasAccessory(pAccessory))
 		{
 			pAccessoriesOut[0] = pAccessory;
 
-			for(int j = i+1; j < numAccessoryParams; j++)
+			for (int j = i + 1; j < numAccessoryParams; j++)
 			{
 				IEntityClass* pSecondAccessory = m_sharedparams->accessoryparams[j].pAccessoryClass;
-				if(HasAccessory(pSecondAccessory))
+				if (HasAccessory(pSecondAccessory))
 				{
 					pAccessoriesOut[1] = pSecondAccessory;
 
-					for(int k = j+1; k < numAccessoryParams; k++)
+					for (int k = j + 1; k < numAccessoryParams; k++)
 					{
 						IEntityClass* pThirdAccessory = m_sharedparams->accessoryparams[k].pAccessoryClass;
-						if(HasAccessory(pThirdAccessory))
+						if (HasAccessory(pThirdAccessory))
 						{
 							pAccessoriesOut[2] = pThirdAccessory;
 
-							for(int l = k+1; l < numAccessoryParams; l++)
+							for (int l = k + 1; l < numAccessoryParams; l++)
 							{
 								IEntityClass* pForthAccessory = m_sharedparams->accessoryparams[l].pAccessoryClass;
-								if(HasAccessory(pForthAccessory))
+								if (HasAccessory(pForthAccessory))
 								{
 									pAccessoriesOut[3] = pForthAccessory;
 									return;
@@ -2935,29 +2932,29 @@ const SFireModeParams* CWeapon::GetAccessoryAlteredFireModeParams(CFireMode* pFi
 {
 	const SParentFireModeParams* pParentParams = pFireMode->GetParentShared();
 
-	if(pAccessories[3])
+	if (pAccessories[3])
 	{
-		if(const SFireModeParams* pNewParams = pParentParams->FindAccessoryFireModeParams(pAccessories[0], pAccessories[1], pAccessories[2], pAccessories[3]))
+		if (const SFireModeParams* pNewParams = pParentParams->FindAccessoryFireModeParams(pAccessories[0], pAccessories[1], pAccessories[2], pAccessories[3]))
 		{
 			return pNewParams;
 		}
 	}
 
-	if(pAccessories[2])
+	if (pAccessories[2])
 	{
-		if(const SFireModeParams* pNewParams = pParentParams->FindAccessoryFireModeParams(pAccessories[0], pAccessories[1], pAccessories[2]))
+		if (const SFireModeParams* pNewParams = pParentParams->FindAccessoryFireModeParams(pAccessories[0], pAccessories[1], pAccessories[2]))
 		{
 			return pNewParams;
 		}
 	}
 
-	for(int i = 0; i < ITEM_MAX_NUM_ACCESSORIES; ++i)
+	for (int i = 0; i < ITEM_MAX_NUM_ACCESSORIES; ++i)
 	{
-		for(int j = i+1; j < ITEM_MAX_NUM_ACCESSORIES; ++j)
+		for (int j = i + 1; j < ITEM_MAX_NUM_ACCESSORIES; ++j)
 		{
-			if(pAccessories[j])
+			if (pAccessories[j])
 			{
-				if(const SFireModeParams* pNewParams = pParentParams->FindAccessoryFireModeParams(pAccessories[i], pAccessories[j]))
+				if (const SFireModeParams* pNewParams = pParentParams->FindAccessoryFireModeParams(pAccessories[i], pAccessories[j]))
 				{
 					return pNewParams;
 				}
@@ -2965,9 +2962,9 @@ const SFireModeParams* CWeapon::GetAccessoryAlteredFireModeParams(CFireMode* pFi
 		}
 	}
 
-	for(int i = 0; i < ITEM_MAX_NUM_ACCESSORIES; ++i)
+	for (int i = 0; i < ITEM_MAX_NUM_ACCESSORIES; ++i)
 	{
-		if(const SFireModeParams* pNewParams = pParentParams->FindAccessoryFireModeParams(pAccessories[i]))
+		if (const SFireModeParams* pNewParams = pParentParams->FindAccessoryFireModeParams(pAccessories[i]))
 		{
 			return pNewParams;
 		}
@@ -2978,29 +2975,29 @@ const SFireModeParams* CWeapon::GetAccessoryAlteredFireModeParams(CFireMode* pFi
 
 const SMeleeModeParams* CWeapon::GetAccessoryAlteredMeleeParams(IEntityClass** pAccessories)
 {
-	if(pAccessories[3])
+	if (pAccessories[3])
 	{
-		if(const SMeleeModeParams* pNewParams = m_weaponsharedparams->FindAccessoryMeleeParams(pAccessories[0], pAccessories[1], pAccessories[2], pAccessories[3]))
+		if (const SMeleeModeParams* pNewParams = m_weaponsharedparams->FindAccessoryMeleeParams(pAccessories[0], pAccessories[1], pAccessories[2], pAccessories[3]))
 		{
 			return pNewParams;
 		}
 	}
 
-	if(pAccessories[2])
+	if (pAccessories[2])
 	{
-		if(const SMeleeModeParams* pNewParams = m_weaponsharedparams->FindAccessoryMeleeParams(pAccessories[0], pAccessories[1], pAccessories[2]))
+		if (const SMeleeModeParams* pNewParams = m_weaponsharedparams->FindAccessoryMeleeParams(pAccessories[0], pAccessories[1], pAccessories[2]))
 		{
 			return pNewParams;
 		}
 	}
 
-	for(int i = 0; i < ITEM_MAX_NUM_ACCESSORIES; ++i)
+	for (int i = 0; i < ITEM_MAX_NUM_ACCESSORIES; ++i)
 	{
-		for(int j = i+1; j < ITEM_MAX_NUM_ACCESSORIES; ++j)
+		for (int j = i + 1; j < ITEM_MAX_NUM_ACCESSORIES; ++j)
 		{
-			if(pAccessories[j])
+			if (pAccessories[j])
 			{
-				if(const SMeleeModeParams* pNewParams = m_weaponsharedparams->FindAccessoryMeleeParams(pAccessories[i], pAccessories[j]))
+				if (const SMeleeModeParams* pNewParams = m_weaponsharedparams->FindAccessoryMeleeParams(pAccessories[i], pAccessories[j]))
 				{
 					return pNewParams;
 				}
@@ -3008,14 +3005,14 @@ const SMeleeModeParams* CWeapon::GetAccessoryAlteredMeleeParams(IEntityClass** p
 		}
 	}
 
-	for(int i = 0; i < ITEM_MAX_NUM_ACCESSORIES; ++i)
+	for (int i = 0; i < ITEM_MAX_NUM_ACCESSORIES; ++i)
 	{
-		if(const SMeleeModeParams* pNewParams = m_weaponsharedparams->FindAccessoryMeleeParams(pAccessories[i]))
+		if (const SMeleeModeParams* pNewParams = m_weaponsharedparams->FindAccessoryMeleeParams(pAccessories[i]))
 		{
 			return pNewParams;
 		}
 	}
-	
+
 	return m_weaponsharedparams->pMeleeModeParams;
 }
 
@@ -3023,29 +3020,29 @@ const SZoomModeParams* CWeapon::GetAccessoryAlteredZoomModeParams(CIronSight* pZ
 {
 	const SParentZoomModeParams* pParentParams = pZoomMode->GetParentShared();
 
-	if(pAccessories[3])
+	if (pAccessories[3])
 	{
-		if(const SZoomModeParams* pNewParams = pParentParams->FindAccessoryZoomModeParams(pAccessories[0], pAccessories[1], pAccessories[2], pAccessories[3]))
+		if (const SZoomModeParams* pNewParams = pParentParams->FindAccessoryZoomModeParams(pAccessories[0], pAccessories[1], pAccessories[2], pAccessories[3]))
 		{
 			return pNewParams;
 		}
 	}
 
-	if(pAccessories[2])
+	if (pAccessories[2])
 	{
-		if(const SZoomModeParams* pNewParams = pParentParams->FindAccessoryZoomModeParams(pAccessories[0], pAccessories[1], pAccessories[2]))
+		if (const SZoomModeParams* pNewParams = pParentParams->FindAccessoryZoomModeParams(pAccessories[0], pAccessories[1], pAccessories[2]))
 		{
 			return pNewParams;
 		}
 	}
 
-	for(int i = 0; i < ITEM_MAX_NUM_ACCESSORIES; ++i)
+	for (int i = 0; i < ITEM_MAX_NUM_ACCESSORIES; ++i)
 	{
-		for(int j = i+1; j < ITEM_MAX_NUM_ACCESSORIES; ++j)
+		for (int j = i + 1; j < ITEM_MAX_NUM_ACCESSORIES; ++j)
 		{
-			if(pAccessories[j])
+			if (pAccessories[j])
 			{
-				if(const SZoomModeParams* pNewParams = pParentParams->FindAccessoryZoomModeParams(pAccessories[i], pAccessories[j]))
+				if (const SZoomModeParams* pNewParams = pParentParams->FindAccessoryZoomModeParams(pAccessories[i], pAccessories[j]))
 				{
 					return pNewParams;
 				}
@@ -3053,9 +3050,9 @@ const SZoomModeParams* CWeapon::GetAccessoryAlteredZoomModeParams(CIronSight* pZ
 		}
 	}
 
-	for(int i = 0; i < ITEM_MAX_NUM_ACCESSORIES; ++i)
+	for (int i = 0; i < ITEM_MAX_NUM_ACCESSORIES; ++i)
 	{
-		if(const SZoomModeParams* pNewParams = pParentParams->FindAccessoryZoomModeParams(pAccessories[i]))
+		if (const SZoomModeParams* pNewParams = pParentParams->FindAccessoryZoomModeParams(pAccessories[i]))
 		{
 			return pNewParams;
 		}
@@ -3070,12 +3067,12 @@ float CWeapon::GetZoomTimeMultiplier()
 
 	CActor* pOwner = GetOwnerActor();
 
-	if(pOwner && pOwner->IsPlayer())
+	if (pOwner && pOwner->IsPlayer())
 	{
 		CPlayerModifiableValues& playerMods = static_cast<CPlayer*>(pOwner)->GetModifiableValues();
 
 		// Only counteracts attachment slowdown. Therefore should be a minimum of 1.f
-		zoomTimeMultiplier = max(1.f, zoomTimeMultiplier * playerMods.GetValue(kPMV_WeaponAttachment_ZoomTimeScale)); 
+		zoomTimeMultiplier = max(1.f, zoomTimeMultiplier * playerMods.GetValue(kPMV_WeaponAttachment_ZoomTimeScale));
 
 		//Now apply Weapons Training modifier
 		zoomTimeMultiplier *= playerMods.GetValue(kPMV_WeaponZoomTimeScale);
@@ -3087,7 +3084,7 @@ float CWeapon::GetZoomTimeMultiplier()
 //------------------------------------------------------------------------
 float CWeapon::GetMuzzleFlashScale() const
 {
-	if(m_stats.fp && m_zm && m_zm->IsZoomed())
+	if (m_stats.fp && m_zm && m_zm->IsZoomed())
 	{
 		CIronSight* pZoomMode = static_cast<CIronSight*>(m_zm);
 		return pZoomMode->GetShared()->zoomParams.muzzle_flash_scale;
@@ -3096,23 +3093,20 @@ float CWeapon::GetMuzzleFlashScale() const
 	return 1.0f;
 }
 
-
 void CWeapon::AllowDrop()
 {
 	m_DropAllowedFlag = true;
 }
-
 
 void CWeapon::DisallowDrop()
 {
 	m_DropAllowedFlag = false;
 }
 
-
 //------------------------------------------------------------------------
 void CWeapon::SetHostId(EntityId hostId)
 {
-	m_hostId=hostId;
+	m_hostId = hostId;
 }
 
 //------------------------------------------------------------------------
@@ -3122,9 +3116,9 @@ EntityId CWeapon::GetHostId() const
 }
 
 //------------------------------------------------------------------------
-void CWeapon::FixAccessories(const SAccessoryParams *params, bool attach)
+void CWeapon::FixAccessories(const SAccessoryParams* params, bool attach)
 {
-	if(params)
+	if (params)
 	{
 		if (!attach)
 		{
@@ -3135,13 +3129,13 @@ void CWeapon::FixAccessories(const SAccessoryParams *params, bool attach)
 					CFireMode* pFiremode = static_cast<CFireMode*>(GetFireMode(params->firemodes[i].c_str()));
 					if (pFiremode)
 					{
-						pFiremode->EnableByAccessory(false);	
+						pFiremode->EnableByAccessory(false);
 					}
 				}
 			}
-			if (IFireMode * pFM = GetFireMode(GetCurrentFireMode()))
+			if (IFireMode* pFM = GetFireMode(GetCurrentFireMode()))
 			{
-				if(!pFM->IsEnabled())
+				if (!pFM->IsEnabled())
 					ChangeFireMode();
 			}
 
@@ -3164,7 +3158,7 @@ void CWeapon::FixAccessories(const SAccessoryParams *params, bool attach)
 			{
 				SetCurrentFireMode(params->switchToFireMode.c_str());
 			}
-			else if(IsFiremodeDisabledByAccessory(GetCurrentFireMode()))
+			else if (IsFiremodeDisabledByAccessory(GetCurrentFireMode()))
 			{
 				ChangeFireMode();
 			}
@@ -3174,7 +3168,7 @@ void CWeapon::FixAccessories(const SAccessoryParams *params, bool attach)
 				CFireMode* pFiremode = static_cast<CFireMode*>(GetFireMode(params->firemodes[i].c_str()));
 				if (pFiremode)
 				{
-					if(!params->defaultAccessory)
+					if (!params->defaultAccessory)
 					{
 						pFiremode->EnableByAccessory(true);
 					}
@@ -3183,7 +3177,7 @@ void CWeapon::FixAccessories(const SAccessoryParams *params, bool attach)
 						pFiremode->Enable(true);
 					}
 
-					if(GetAmmoCount(pFiremode->GetAmmoType()) == 0)
+					if (GetAmmoCount(pFiremode->GetAmmoType()) == 0)
 					{
 						const bool fromInventory = true;
 						pFiremode->FillAmmo(fromInventory);
@@ -3215,28 +3209,28 @@ void CWeapon::FixAccessories(const SAccessoryParams *params, bool attach)
 //------------------------------------------------------------------------
 void CWeapon::SetDestinationEntity(EntityId targetId)
 {
-  // default: Set bbox center as destination
-  IEntity* pEntity = gEnv->pEntitySystem->GetEntity(targetId);
+	// default: Set bbox center as destination
+	IEntity* pEntity = gEnv->pEntitySystem->GetEntity(targetId);
 
-  if (pEntity)
-  {
-    AABB box;
-    pEntity->GetWorldBounds(box);
-    
-    SetDestination(box.GetCenter());
-  }
+	if (pEntity)
+	{
+		AABB box;
+		pEntity->GetWorldBounds(box);
+
+		SetDestination(box.GetCenter());
+	}
 }
 
 //------------------------------------------------------------------------
-bool CWeapon::PredictProjectileHit(IPhysicalEntity *pShooter,
-	const Vec3 &pos, const Vec3 &dir, const Vec3 &launchVelocity, float speed,
-	Vec3& predictedPosOut, float& projectileSpeedOut, Vec3* pTrajectoryPositions,
-	unsigned int* trajectorySizeInOut, float timeStep, Vec3* pTrajectoryVelocities,
-	const bool predictionForAI) const
+bool CWeapon::PredictProjectileHit(IPhysicalEntity* pShooter,
+                                   const Vec3& pos, const Vec3& dir, const Vec3& launchVelocity, float speed,
+                                   Vec3& predictedPosOut, float& projectileSpeedOut, Vec3* pTrajectoryPositions,
+                                   unsigned int* trajectorySizeInOut, float timeStep, Vec3* pTrajectoryVelocities,
+                                   const bool predictionForAI) const
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
-	IFireMode *pFireMode = GetFireMode(GetCurrentFireMode());
+	IFireMode* pFireMode = GetFireMode(GetCurrentFireMode());
 	if (!pFireMode)
 		return false;
 
@@ -3256,7 +3250,7 @@ bool CWeapon::PredictProjectileHit(IPhysicalEntity *pShooter,
 
 	Vec3 firstAppliedVelocity(ZERO);
 
-	pTestProjectile->SetVelocity(pos, dir, launchVelocity, speed/projectileLaunchSpeed, &firstAppliedVelocity, 1);
+	pTestProjectile->SetVelocity(pos, dir, launchVelocity, speed / projectileLaunchSpeed, &firstAppliedVelocity, 1);
 
 	pe_params_flags particleFlags;
 	particleFlags.flagsAND = ~(pef_log_collisions & pef_traceable & pef_log_poststep);
@@ -3264,7 +3258,7 @@ bool CWeapon::PredictProjectileHit(IPhysicalEntity *pShooter,
 
 	pe_params_particle partPar;
 	partPar.pColliderToIgnore = pShooter;
-	if(predictionForAI)
+	if (predictionForAI)
 	{
 		// If the prediction is made for the AI, then we need to reset this parameters
 		// to match the prediction made in the FireCommand.
@@ -3293,15 +3287,15 @@ bool CWeapon::PredictProjectileHit(IPhysicalEntity *pShooter,
 		++n;
 	}
 
-	const float	propLifeTime = pTestProjectile->GetLifeTime();
-	const float	lifeTime = propLifeTime > 0.0f ? propLifeTime : 3.0f;
+	const float propLifeTime = pTestProjectile->GetLifeTime();
+	const float lifeTime = propLifeTime > 0.0f ? propLifeTime : 3.0f;
 
 	uint stationary = 0;
 	Vec3 lastPosition = pos;
 
 	pProjectilePhysEntity->StartStep(lifeTime);
-	
-	pe_status_pos	statusPos;
+
+	pe_status_pos statusPos;
 	pe_status_dynamics statusDynamics;
 
 	for (float t = 0.0f; t < lifeTime; t += timeStep)
@@ -3347,43 +3341,41 @@ bool CWeapon::PredictProjectileHit(IPhysicalEntity *pShooter,
 	return true;
 }
 
-
 //------------------------------------------------------------------------
-const AIWeaponDescriptor& CWeapon::GetAIWeaponDescriptor( ) const
+const AIWeaponDescriptor& CWeapon::GetAIWeaponDescriptor() const
 {
 	if (!m_fm)
 		return m_weaponsharedparams->aiWeaponDescriptor.descriptor;
 	return static_cast<CFireMode*>(m_fm)->GetShared()->aiDescriptor.descriptor;
 }
 
-
 //------------------------------------------------------------------------
 void CWeapon::OnDestroyed()
-{ 
-  BaseClass::OnDestroyed();
+{
+	BaseClass::OnDestroyed();
 
-  if (m_fm)
-  {
-    if (m_fm->IsFiring())
-      m_fm->StopFire();
-  }
+	if (m_fm)
+	{
+		if (m_fm->IsFiring())
+			m_fm->StopFire();
+	}
 }
 
-bool CWeapon::HasAttachmentAtHelper(const char *helper)
+bool CWeapon::HasAttachmentAtHelper(const char* helper)
 {
-	CPlayer *pPlayer = static_cast<CPlayer *>(m_pGameFramework->GetClientActor());
-	if(pPlayer)
+	CPlayer* pPlayer = static_cast<CPlayer*>(m_pGameFramework->GetClientActor());
+	if (pPlayer)
 	{
-		IInventory *pInventory = pPlayer->GetInventory();
-		if(pInventory)
+		IInventory* pInventory = pPlayer->GetInventory();
+		if (pInventory)
 		{
 			const int numAccessories = m_accessories.size();
 
 			for (int i = 0; i < numAccessories; i++)
 			{
-				const SAccessoryParams *params = GetAccessoryParams(m_accessories[i].pClass);
+				const SAccessoryParams* params = GetAccessoryParams(m_accessories[i].pClass);
 				if (params && !strcmp(params->attach_helper.c_str(), helper))
-				{	
+				{
 					// found a child item that can be used
 					return true;
 				}
@@ -3394,7 +3386,7 @@ bool CWeapon::HasAttachmentAtHelper(const char *helper)
 
 				if (pAccessory)
 				{
-					const SAccessoryParams *invAccessory = GetAccessoryParams(pAccessory);
+					const SAccessoryParams* invAccessory = GetAccessoryParams(pAccessory);
 					if (invAccessory && !strcmp(invAccessory->attach_helper.c_str(), helper))
 					{
 						// found an accessory in the inventory that can be used
@@ -3409,13 +3401,13 @@ bool CWeapon::HasAttachmentAtHelper(const char *helper)
 }
 
 //--------------------------------------------------------------------------
-void CWeapon::GetAttachmentsAtHelper(const char *helper, CCryFixedStringListT<5, 30> &attachments)
+void CWeapon::GetAttachmentsAtHelper(const char* helper, CCryFixedStringListT<5, 30>& attachments)
 {
-	CPlayer *pPlayer = static_cast<CPlayer *>(m_pGameFramework->GetClientActor());
-	if(pPlayer)
+	CPlayer* pPlayer = static_cast<CPlayer*>(m_pGameFramework->GetClientActor());
+	if (pPlayer)
 	{
-		IInventory *pInventory = pPlayer->GetInventory();
-		if(pInventory)
+		IInventory* pInventory = pPlayer->GetInventory();
+		if (pInventory)
 		{
 			attachments.Clear();
 			for (int i = 0; i < pInventory->GetAccessoryCount(); i++)
@@ -3424,7 +3416,7 @@ void CWeapon::GetAttachmentsAtHelper(const char *helper, CCryFixedStringListT<5,
 
 				if (pAccessory)
 				{
-					const SAccessoryParams *invAccessory = GetAccessoryParams(pAccessory);
+					const SAccessoryParams* invAccessory = GetAccessoryParams(pAccessory);
 					if (invAccessory && !strcmp(invAccessory->attach_helper.c_str(), helper))
 					{
 						attachments.Add(pAccessory->GetName());
@@ -3439,7 +3431,7 @@ void CWeapon::GetAttachmentsAtHelper(const char *helper, CCryFixedStringListT<5,
 void CWeapon::StartChangeFireMode()
 {
 	//Check if the weapon has enough firemodes
-	if(m_fmIds.size() <= 1)
+	if (m_fmIds.size() <= 1)
 		return;
 	CFireMode* pNewFiremode = static_cast<CFireMode*>(GetFireMode(GetNextFireMode(GetCurrentFireMode())));
 	if (pNewFiremode == m_fm)
@@ -3448,7 +3440,7 @@ void CWeapon::StartChangeFireMode()
 		return;
 
 	//Deactivate target display if needed
-	if(m_fm && !m_fm->AllowZoom() && IsTargetOn())
+	if (m_fm && !m_fm->AllowZoom() && IsTargetOn())
 		m_fm->Cancel();
 
 	StopFire();
@@ -3457,7 +3449,7 @@ void CWeapon::StartChangeFireMode()
 
 	const SFireModeParams* pNewParams = NULL;
 
-	if(pNewFiremode)
+	if (pNewFiremode)
 	{
 		pNewParams = pNewFiremode->GetShared();
 	}
@@ -3469,7 +3461,7 @@ void CWeapon::StartChangeFireMode()
 	SetBusy(true);
 	ChangeFireMode();
 
-	if(pNewParams && pNewParams->fireparams.changeFMFireDelayFraction > 0.f)
+	if (pNewParams && pNewParams->fireparams.changeFMFireDelayFraction > 0.f)
 	{
 		const uint32 endChangeTime = uint32(GetCurrentAnimationTime(eIGS_Owner) * pNewParams->fireparams.changeFMFireDelayFraction);
 
@@ -3522,7 +3514,7 @@ void CWeapon::ActivateLaser(bool activate)
 //------------------------------------------------------------------
 bool CWeapon::IsSilent() const
 {
-	if(GetEntity()->GetClass() == CItem::sBowClass)
+	if (GetEntity()->GetClass() == CItem::sBowClass)
 		return true;
 
 	return (m_fm != NULL) ? m_fm->IsSilenced() : false;
@@ -3567,9 +3559,9 @@ void CWeapon::StopUse(EntityId userId)
 {
 	BaseClass::StopUse(userId);
 
-	if(m_stats.mounted)
+	if (m_stats.mounted)
 	{
-		if(IsZoomed() || IsZoomingInOrOut())
+		if (IsZoomed() || IsZoomingInOrOut())
 			ExitZoom();
 
 		StopFire(); //Stop firing just in case
@@ -3577,7 +3569,7 @@ void CWeapon::StopUse(EntityId userId)
 }
 
 //------------------------------------------------------
-bool CWeapon::CheckAmmoRestrictions(IInventory *pInventory)
+bool CWeapon::CheckAmmoRestrictions(IInventory* pInventory)
 {
 	if (HasCompatibleAmmo(pInventory))
 	{
@@ -3596,30 +3588,30 @@ bool CWeapon::CheckAmmoRestrictions(IInventory *pInventory)
 //-------------------------------------------------------------
 int CWeapon::GetMaxZoomSteps()
 {
-	if(m_zm)
+	if (m_zm)
 		return m_zm->GetMaxZoomSteps();
 
 	return 0;
 }
 
 //----------------------------------------------------------
-void CWeapon::GetMemoryUsage(ICrySizer * s) const
+void CWeapon::GetMemoryUsage(ICrySizer* s) const
 {
 	s->AddObject(this, sizeof(*this));
 	GetInternalMemoryUsage(s);
 }
 
-void CWeapon::GetInternalMemoryUsage(ICrySizer * s) const	
+void CWeapon::GetInternalMemoryUsage(ICrySizer* s) const
 {
 	{
 		SIZER_COMPONENT_NAME(s, "FireModes");
 		s->AddContainer(m_fmIds);
-		s->AddContainer(m_firemodes);						
+		s->AddContainer(m_firemodes);
 	}
 	{
 		SIZER_COMPONENT_NAME(s, "ZoomModes");
 		s->AddContainer(m_zmIds);
-		s->AddContainer(m_zoommodes);		
+		s->AddContainer(m_zoommodes);
 	}
 
 	{
@@ -3628,7 +3620,7 @@ void CWeapon::GetInternalMemoryUsage(ICrySizer * s) const
 		s->AddContainer(m_bonusammo);
 	}
 
-	if(m_melee)
+	if (m_melee)
 	{
 		SIZER_COMPONENT_NAME(s, "Melee");
 		m_melee->GetMemoryUsage(s);
@@ -3648,37 +3640,37 @@ bool CWeapon::AIUseEyeOffset() const
 bool CWeapon::AIUseOverrideOffset(EStance stance, float lean, float peekOver, Vec3& offset) const
 {
 	// do checks for if(found) here
-	if(m_weaponsharedparams->aiWeaponOffsets.stanceWeponOffsetLeanLeft.empty() || 
-		m_weaponsharedparams->aiWeaponOffsets.stanceWeponOffsetLeanRight.empty() || m_weaponsharedparams->aiWeaponOffsets.stanceWeponOffset.empty())
+	if (m_weaponsharedparams->aiWeaponOffsets.stanceWeponOffsetLeanLeft.empty() ||
+	    m_weaponsharedparams->aiWeaponOffsets.stanceWeponOffsetLeanRight.empty() || m_weaponsharedparams->aiWeaponOffsets.stanceWeponOffset.empty())
 		return false;
 
 	TStanceWeaponOffset::const_iterator itrOffsetLeft(m_weaponsharedparams->aiWeaponOffsets.stanceWeponOffsetLeanLeft.find(stance));
-	if(itrOffsetLeft == m_weaponsharedparams->aiWeaponOffsets.stanceWeponOffsetLeanLeft.end())
+	if (itrOffsetLeft == m_weaponsharedparams->aiWeaponOffsets.stanceWeponOffsetLeanLeft.end())
 		return false;
 
 	TStanceWeaponOffset::const_iterator itrOffsetRight(m_weaponsharedparams->aiWeaponOffsets.stanceWeponOffsetLeanRight.find(stance));
-	if(itrOffsetRight == m_weaponsharedparams->aiWeaponOffsets.stanceWeponOffsetLeanRight.end())
+	if (itrOffsetRight == m_weaponsharedparams->aiWeaponOffsets.stanceWeponOffsetLeanRight.end())
 		return false;
 
 	TStanceWeaponOffset::const_iterator itrOffset(m_weaponsharedparams->aiWeaponOffsets.stanceWeponOffset.find(stance));
-	if(itrOffset == m_weaponsharedparams->aiWeaponOffsets.stanceWeponOffset.end())
+	if (itrOffset == m_weaponsharedparams->aiWeaponOffsets.stanceWeponOffset.end())
 		return false;
 
 	const Vec3& normal(itrOffset->second);
 	const Vec3& lLeft(itrOffsetLeft->second);
 	const Vec3& lRightt(itrOffsetRight->second);
 
-	offset = SStanceInfo::GetOffsetWithLean(lean, peekOver, normal, lLeft, lRightt, Vec3(ZERO) );
+	offset = SStanceInfo::GetOffsetWithLean(lean, peekOver, normal, lLeft, lRightt, Vec3(ZERO));
 
 	return true;
 }
 
 //----------------------------------------------------------
-bool CWeapon::FilterView(SViewParams &viewParams)
+bool CWeapon::FilterView(SViewParams& viewParams)
 {
 	bool ret = BaseClass::FilterView(viewParams);
 
-	if(m_zm && m_zm->IsZoomed())
+	if (m_zm && m_zm->IsZoomed())
 	{
 		m_zm->FilterView(viewParams);
 	}
@@ -3687,11 +3679,11 @@ bool CWeapon::FilterView(SViewParams &viewParams)
 }
 
 //--------------------------------------------------
-void CWeapon::PostFilterView(struct SViewParams &viewParams)
+void CWeapon::PostFilterView(struct SViewParams& viewParams)
 {
 	BaseClass::PostFilterView(viewParams);
 
-	if(m_zm && m_zm->IsZoomed())
+	if (m_zm && m_zm->IsZoomed())
 		m_zm->PostFilterView(viewParams);
 }
 
@@ -3702,23 +3694,23 @@ void CWeapon::OnZoomIn()
 
 	const int numAccessories = m_accessories.size();
 
-	for(int i = 0; i < numAccessories; i++)
+	for (int i = 0; i < numAccessories; i++)
 	{
 		CItem* pItem = static_cast<CItem*>(m_pItemSystem->GetItem(m_accessories[i].accessoryId));
-		if(pItem && pItem->GetParams().scopeAttachment)
+		if (pItem && pItem->GetParams().scopeAttachment)
 		{
-			if(const SAccessoryParams *params = GetAccessoryParams(m_accessories[i].pClass))
+			if (const SAccessoryParams* params = GetAccessoryParams(m_accessories[i].pClass))
 			{
-				pItem->DrawSlot(eIGS_FirstPerson,false);
+				pItem->DrawSlot(eIGS_FirstPerson, false);
 				ResetCharacterAttachment(eIGS_FirstPerson, params->attach_helper.c_str(), params->attachToOwner);
-				pItem->DrawSlot(eIGS_Aux1,false);
+				pItem->DrawSlot(eIGS_Aux1, false);
 				SetCharacterAttachment(eIGS_FirstPerson, params->attach_helper.c_str(), pItem->GetEntity(), eIGS_Aux1, params->attachToOwner);
 				hasSniperScope = true;
-			}	
+			}
 		}
 	}
 
-	if(!hasSniperScope)
+	if (!hasSniperScope)
 	{
 		Hide(true);
 	}
@@ -3731,23 +3723,23 @@ void CWeapon::OnZoomOut()
 
 	const int numAccessories = m_accessories.size();
 
-	for(int i = 0; i < numAccessories; i++)
+	for (int i = 0; i < numAccessories; i++)
 	{
 		CItem* pItem = static_cast<CItem*>(m_pItemSystem->GetItem(m_accessories[i].accessoryId));
-		if(pItem && pItem->GetParams().scopeAttachment)
+		if (pItem && pItem->GetParams().scopeAttachment)
 		{
-			if(const SAccessoryParams *params = GetAccessoryParams(m_accessories[i].pClass))
+			if (const SAccessoryParams* params = GetAccessoryParams(m_accessories[i].pClass))
 			{
-				pItem->DrawSlot(eIGS_Aux1,false);
+				pItem->DrawSlot(eIGS_Aux1, false);
 				ResetCharacterAttachment(eIGS_FirstPerson, params->attach_helper.c_str(), params->attachToOwner);
-				pItem->DrawSlot(eIGS_FirstPerson,false);
+				pItem->DrawSlot(eIGS_FirstPerson, false);
 				SetCharacterAttachment(eIGS_FirstPerson, params->attach_helper.c_str(), pItem->GetEntity(), eIGS_FirstPerson, params->attachToOwner);
 				hasSniperScope = true;
-			}	
+			}
 		}
 	}
 
-	if(!hasSniperScope)
+	if (!hasSniperScope)
 	{
 		Hide(false);
 	}
@@ -3768,32 +3760,32 @@ bool CWeapon::GetScopePosition(Vec3& pos)
 {
 	const int numAccessories = m_accessories.size();
 
-	for(int i = 0; i < numAccessories; i++)
+	for (int i = 0; i < numAccessories; i++)
 	{
 		CItem* pItem = static_cast<CItem*>(m_pItemSystem->GetItem(m_accessories[i].accessoryId));
-		if(pItem && pItem->GetParams().scopeAttachment)
+		if (pItem && pItem->GetParams().scopeAttachment)
 		{
-			if(const SAccessoryParams *params = GetAccessoryParams(m_accessories[i].pClass))
+			if (const SAccessoryParams* params = GetAccessoryParams(m_accessories[i].pClass))
 			{
-				pos = GetSlotHelperPos(eIGS_FirstPerson,params->attach_helper.c_str(),true);
-				Matrix33 rot = GetSlotHelperRotation(eIGS_FirstPerson,params->attach_helper.c_str(),true);
+				pos = GetSlotHelperPos(eIGS_FirstPerson, params->attach_helper.c_str(), true);
+				Matrix33 rot = GetSlotHelperRotation(eIGS_FirstPerson, params->attach_helper.c_str(), true);
 				Vec3 dirZ = rot.GetColumn1();
-				if(pItem->GetParams().scopeAttachment==1)
+				if (pItem->GetParams().scopeAttachment == 1)
 				{
 					const float sniperZOfffset = 0.029f;
-					pos += (sniperZOfffset*dirZ);
+					pos += (sniperZOfffset * dirZ);
 				}
-				else if(pItem->GetParams().scopeAttachment==2)
+				else if (pItem->GetParams().scopeAttachment == 2)
 				{
 					const float lawZOffset = -0.028f;
 					const float lawXOffset = -0.017f;
-					pos += (lawZOffset*dirZ);
+					pos += (lawZOffset * dirZ);
 					Vec3 dirX = rot.GetColumn2();
-					pos += (lawXOffset*dirX);
+					pos += (lawXOffset * dirX);
 				}
 
 				return true;
-			}	
+			}
 		}
 	}
 	return false;
@@ -3804,10 +3796,10 @@ bool CWeapon::HasScopeAttachment() const
 {
 	const int numAccessories = m_accessories.size();
 
-	for(int i = 0; i < numAccessories; i++)
+	for (int i = 0; i < numAccessories; i++)
 	{
 		CItem* pItem = static_cast<CItem*>(m_pItemSystem->GetItem(m_accessories[i].accessoryId));
-		if(pItem && pItem->GetParams().scopeAttachment)
+		if (pItem && pItem->GetParams().scopeAttachment)
 		{
 			return true;
 		}
@@ -3819,15 +3811,15 @@ bool CWeapon::HasScopeAttachment() const
 //------------------------------------------------------
 void CWeapon::SetNextShotTime(bool activate)
 {
-	if(activate)
+	if (activate)
 	{
 		// MUST BE CALLED from Select(true), after firemode activation
 		// Prevent exploit fire rate by switching weapons
-		if(m_fm && m_nextShotTime > 0.0f)
+		if (m_fm && m_nextShotTime > 0.0f)
 		{
 			CTimeValue time = gEnv->pTimer->GetFrameStartTime();
 			float dt = m_nextShotTime - time.GetSeconds();
-			if(dt > 0.0f)
+			if (dt > 0.0f)
 				m_fm->SetNextShotTime(dt);
 			m_nextShotTime = 0.0f;
 		}
@@ -3837,10 +3829,10 @@ void CWeapon::SetNextShotTime(bool activate)
 		// MUST BE CALLED from Select(false), before firemode deactivation
 		// save game time when the weapon can next be fired
 		m_nextShotTime = 0.0f;
-		if(m_fm)
+		if (m_fm)
 		{
 			float delay = m_fm->GetNextShotTime();
-			if(delay > 0.0f)
+			if (delay > 0.0f)
 			{
 				CTimeValue time = gEnv->pTimer->GetFrameStartTime();
 				m_nextShotTime = time.GetSeconds() + delay;
@@ -3858,31 +3850,31 @@ bool CWeapon::CanDrop() const
 //--------------------------------------------------------
 bool CWeapon::Query(EWeaponQuery query, const void* param /*=NULL*/)
 {
-	switch(query)
+	switch (query)
 	{
-		case eWQ_Has_Accessory_Laser:
-			{
-				return IsLaserAttached();
-			}
-			break;
+	case eWQ_Has_Accessory_Laser:
+		{
+			return IsLaserAttached();
+		}
+		break;
 
-		case eWQ_Is_Laser_Activated:
-			{
-				return IsLaserActivated();
-			}
-			break;
+	case eWQ_Is_Laser_Activated:
+		{
+			return IsLaserActivated();
+		}
+		break;
 
-		case eWQ_Activate_Laser:
-			{
-				if(!param)
-					return false;
-				ActivateLaser(*((bool*)param));
-			}
-			break;
-
-		default:
+	case eWQ_Activate_Laser:
+		{
+			if (!param)
 				return false;
-			
+			ActivateLaser(*((bool*)param));
+		}
+		break;
+
+	default:
+		return false;
+
 	}
 
 	return true;
@@ -3891,12 +3883,12 @@ bool CWeapon::Query(EWeaponQuery query, const void* param /*=NULL*/)
 //--------------------------------------------------------
 void CWeapon::ApplyFPViewRecoil(int nFrameId, Ang3 recoilAngles)
 {
-	if(m_lastRecoilUpdate == nFrameId)
+	if (m_lastRecoilUpdate == nFrameId)
 		return;
 
 	m_lastRecoilUpdate = nFrameId;
 
-	if(	CActor *pOwner = GetOwnerActor() )
+	if (CActor* pOwner = GetOwnerActor())
 	{
 		pOwner->AddViewAngleOffsetForFrame(recoilAngles);
 	}
@@ -3909,9 +3901,9 @@ float CWeapon::GetMovementModifier() const
 
 	float speedScale = 1.0f;
 
-	if(m_zm && m_zm->IsZoomed())
+	if (m_zm && m_zm->IsZoomed())
 	{
-		speedScale *= static_cast<CIronSight*>(m_zm)->GetStageMovementModifier();		
+		speedScale *= static_cast<CIronSight*>(m_zm)->GetStageMovementModifier();
 	}
 
 	if (!firing)
@@ -3928,7 +3920,7 @@ float CWeapon::GetRotationModifier(bool usingMouse) const
 	float rotModifier = 1.0f;
 	if (m_zm && m_zm->IsZoomed())
 	{
-		rotModifier *= static_cast<CIronSight*>(m_zm)->GetStageRotationModifier();		
+		rotModifier *= static_cast<CIronSight*>(m_zm)->GetStageRotationModifier();
 	}
 
 	const SPlayerMovementModifiers& modifiers = GetPlayerMovementModifiers();
@@ -3964,9 +3956,9 @@ void CWeapon::GetAngleLimits(EStance stance, float& minAngle, float& maxAngle)
 {
 }
 
-bool CWeapon::UpdateAimAnims(SParams_WeaponFPAiming &aimAnimParams)
+bool CWeapon::UpdateAimAnims(SParams_WeaponFPAiming& aimAnimParams)
 {
-	if(m_sharedparams->params.hasAimAnims)
+	if (m_sharedparams->params.hasAimAnims)
 	{
 		aimAnimParams.overlayFactor = 1.0f;
 		aimAnimParams.rotationFactor = 1.0f;
@@ -3975,11 +3967,11 @@ bool CWeapon::UpdateAimAnims(SParams_WeaponFPAiming &aimAnimParams)
 
 		const bool zooming = IsZoomed() || IsZoomingIn();
 		const CIronSight* pIronsight = static_cast<CIronSight*>(m_zm);
-		if(zooming)
+		if (zooming)
 			aimAnimParams.overlayFactor *= m_sharedparams->params.ironsightAimAnimFactor;
 		if (pIronsight)
 		{
-			if(zooming)
+			if (zooming)
 			{
 				aimAnimParams.rotationFactor *= pIronsight->GetShared()->zoomParams.ironsightRotationAnimFactor;
 				aimAnimParams.strafeFactor *= pIronsight->GetShared()->zoomParams.ironsightStrafeAnimFactor;
@@ -3994,10 +3986,10 @@ bool CWeapon::UpdateAimAnims(SParams_WeaponFPAiming &aimAnimParams)
 		}
 
 		IFireMode* pFireMode = GetFireMode(GetCurrentFireMode());
-		aimAnimParams.shoulderLookParams = 
-			pFireMode ?
-				&static_cast<CFireMode*>(pFireMode)->GetShared()->aimLookParams :
-				&m_sharedparams->params.aimLookParams;
+		aimAnimParams.shoulderLookParams =
+		  pFireMode ?
+		  &static_cast<CFireMode*>(pFireMode)->GetShared()->aimLookParams :
+		  &m_sharedparams->params.aimLookParams;
 
 		return true;
 	}
@@ -4006,7 +3998,7 @@ bool CWeapon::UpdateAimAnims(SParams_WeaponFPAiming &aimAnimParams)
 }
 
 // returns a non-localised name for development purposes
-const char *CWeapon::GetName()
+const char* CWeapon::GetName()
 {
 	return GetEntity()->GetClass()->GetName();
 }
@@ -4025,7 +4017,7 @@ bool CWeapon::IsOwnerSliding() const
 bool CWeapon::IsOwnerClient() const
 {
 	CActor* pOwner = GetOwnerActor();
-	return pOwner? pOwner->IsClient() : m_isClientOwnerOverride;
+	return pOwner ? pOwner->IsClient() : m_isClientOwnerOverride;
 }
 
 void CWeapon::SetOwnerId(EntityId ownerId)
@@ -4051,9 +4043,6 @@ void CWeapon::SetOwnerClientOverride(bool isClient)
 	m_isClientOwnerOverride = isClient;
 }
 
-
-
-
 bool CWeapon::IsCurrentFireModeFromAccessory() const
 {
 	if (!m_fm)
@@ -4069,12 +4058,11 @@ bool CWeapon::IsCurrentFireModeFromAccessory() const
 		return false;
 
 	bool onlyEnabledFromAccessory =
-		(pParentParams->initialiseParams.enabled == false) &&
-		pParams->fireparams.ammo_type_class != pDefaultAmmo;
+	  (pParentParams->initialiseParams.enabled == false) &&
+	  pParams->fireparams.ammo_type_class != pDefaultAmmo;
 
 	return onlyEnabledFromAccessory;
 }
-
 
 void CWeapon::OnFireWhenOutOfAmmo()
 {
@@ -4095,7 +4083,7 @@ void CWeapon::OnFireWhenOutOfAmmo()
 		Reload();
 	else if (IsCurrentFireModeFromAccessory())
 	{
-   	StartChangeFireMode();
+		StartChangeFireMode();
 		m_weaponNextShotTimer = 0.f;
 	}
 	else if (!stillHasAmmo)
@@ -4104,15 +4092,13 @@ void CWeapon::OnFireWhenOutOfAmmo()
 		OutOfAmmoType();
 }
 
-
-
 void CWeapon::OutOfAmmoDeselect()
 {
 	if (!CanDeselect())
 		return;
 
-	CActor	*actor	= GetOwnerActor();
-	CPlayer *player = (actor && actor->IsPlayer()) ? (CPlayer*)actor : NULL;
+	CActor* actor = GetOwnerActor();
+	CPlayer* player = (actor && actor->IsPlayer()) ? (CPlayer*)actor : NULL;
 	if (!player || player->CanSwitchItems())
 	{
 		AutoSelectNextItem();
@@ -4125,23 +4111,19 @@ void CWeapon::OutOfAmmoDeselect()
 	}
 }
 
-
-
 void CWeapon::OutOfAmmoType()
 {
 	SHUDEventWrapper::DisplayInfo(eInfo_Warning, 3.0f, "@hud_out_of_ammo");
-	if(!OutOfAmmoTypes() && !gEnv->bMultiplayer)
+	if (!OutOfAmmoTypes() && !gEnv->bMultiplayer)
 	{
 		SHUDEventWrapper::InteractionRequest(true, "@ui_interaction_changeammotypes", "menu_open_customizeweapon", "singleplayer", 3.0f);
 	}
 }
 
-
-
 void CWeapon::AutoSelectNextItem()
 {
-	CActor *pOwner = GetOwnerActor();
-	const bool isClient = pOwner &&  pOwner->IsClient();
+	CActor* pOwner = GetOwnerActor();
+	const bool isClient = pOwner && pOwner->IsClient();
 
 	if (isClient)
 	{
@@ -4153,20 +4135,20 @@ void CWeapon::AutoSelectNextItem()
 		}
 		else if (!IsMounted())
 		{
-			IInventory *pInventory = pOwner->GetInventory();
-			IItemSystem *pItemSystem = m_pGameFramework->GetIItemSystem();
+			IInventory* pInventory = pOwner->GetInventory();
+			IItemSystem* pItemSystem = m_pGameFramework->GetIItemSystem();
 
 			EntityId primaryWeaponId = 0;
 			EntityId secondaryWeaponId = 0;
 
 			int numItems = pInventory->GetCount();
-			for (int i = 0; i < numItems; ++ i)
+			for (int i = 0; i < numItems; ++i)
 			{
 				EntityId itemId = pInventory->GetItem(i);
-				IItem *pItem = pItemSystem->GetItem(itemId);
+				IItem* pItem = pItemSystem->GetItem(itemId);
 				if (pItem)
 				{
-					CWeapon *pWeapon = static_cast<CWeapon*>(pItem->GetIWeapon());
+					CWeapon* pWeapon = static_cast<CWeapon*>(pItem->GetIWeapon());
 					if (pWeapon && !pWeapon->OutOfAmmo(false))
 					{
 						// Weapon is a candidate for switching to
@@ -4200,11 +4182,11 @@ void CWeapon::AutoSelectNextItem()
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CWeapon::PickUpAmmo( EntityId pickerId )
+void CWeapon::PickUpAmmo(EntityId pickerId)
 {
 	static TAmmoVector& collectedAmmo = s_tmpCollectedAmmo;
 	collectedAmmo.reserve(INITIAL_COLLECTED_AMMO_RESERVE);
-	
+
 	IActor* pPickerActor = m_pGameFramework->GetIActorSystem()->GetActor(pickerId);
 	IInventory* pInventory = pPickerActor ? pPickerActor->GetInventory() : NULL;
 
@@ -4228,7 +4210,7 @@ void CWeapon::PickUpAmmo( EntityId pickerId )
 		const int currentAmmoCount = pInventory->GetAmmoCount(pAmmoClass);
 		const int maxAmmoCapacity = pInventory->GetAmmoCapacity(pAmmoClass);
 
-		if(bonusAmmoCount > 0)
+		if (bonusAmmoCount > 0)
 		{
 			if ((bonusAmmoCount + currentAmmoCount) >= maxAmmoCapacity)
 			{
@@ -4269,16 +4251,16 @@ void CWeapon::PickUpAmmo( EntityId pickerId )
 		{
 			IEntityClass* pAmmoClass = ammoCit->pAmmoClass;
 			const int magazineAmmoCount = ammoCit->count;
-		
-			if(magazineAmmoCount > 0)
-			{	
+
+			if (magazineAmmoCount > 0)
+			{
 				int collectedIndex = -1;
 				int count = 0;
 
 				TAmmoVector::iterator collectedAmmoEndCit = collectedAmmo.end();
 				for (TAmmoVector::iterator collectedAmmoCit = collectedAmmo.begin(); collectedAmmoCit != collectedAmmoEndCit; ++collectedAmmoCit)
 				{
-					if(collectedAmmoCit->pAmmoClass == pAmmoClass)
+					if (collectedAmmoCit->pAmmoClass == pAmmoClass)
 					{
 						collectedIndex = count;
 						break;
@@ -4296,7 +4278,7 @@ void CWeapon::PickUpAmmo( EntityId pickerId )
 					pickedUpAmmo += (maxAmmoCapacity - currentAmmoCount);
 					iTotalRemainingAmmo += remainingMagazineAmmo;
 
-					if(collectedIndex >= 0)
+					if (collectedIndex >= 0)
 					{
 						collectedAmmo[collectedIndex].count = maxAmmoCapacity;
 					}
@@ -4310,7 +4292,7 @@ void CWeapon::PickUpAmmo( EntityId pickerId )
 					ammoCit->count = 0;
 					pickedUpAmmo += magazineAmmoCount;
 
-					if(collectedIndex >= 0)
+					if (collectedIndex >= 0)
 					{
 						collectedAmmo[collectedIndex].count = currentAmmoCount + magazineAmmoCount;
 					}
@@ -4332,7 +4314,7 @@ void CWeapon::PickUpAmmo( EntityId pickerId )
 
 	if (IsServer() && ammoChanged)
 	{
-		pPickerActor->GetGameObject()->InvokeRMIWithDependentObject(CActor::ClPickUp(), CActor::PickItemParams(GetEntityId(), m_stats.selected, true, true), eRMI_ToAllClients|eRMI_NoLocalCalls, GetEntityId());
+		pPickerActor->GetGameObject()->InvokeRMIWithDependentObject(CActor::ClPickUp(), CActor::PickItemParams(GetEntityId(), m_stats.selected, true, true), eRMI_ToAllClients | eRMI_NoLocalCalls, GetEntityId());
 	}
 
 	if (ammoChanged && !collectedAmmo.empty())
@@ -4352,14 +4334,14 @@ void CWeapon::PickUpAmmo( EntityId pickerId )
 	//In SP, if we have this weapon, as soon as we get any ammo from it, it's deleted
 	if (!gEnv->bMultiplayer)
 	{
-		if ((pickerHasThisWeapon) &&(pickedUpAmmo > 0))
+		if ((pickerHasThisWeapon) && (pickedUpAmmo > 0))
 		{
 			RemoveEntity();
 		}
 	}
 	else
 	{
-		if(iTotalRemainingAmmo == 0)
+		if (iTotalRemainingAmmo == 0)
 		{
 			RemoveEntity();
 		}
@@ -4395,7 +4377,7 @@ bool CWeapon::HasSomeAmmoToPickUp(EntityId pickerId) const
 			}
 		}
 	}
-	
+
 	return false;
 }
 
@@ -4406,7 +4388,7 @@ ColorF CWeapon::GetSilhouetteColor() const
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CWeapon::RegisterUsedAmmoWithInventory( IInventory* pInventory )
+void CWeapon::RegisterUsedAmmoWithInventory(IInventory* pInventory)
 {
 	if (pInventory && (m_isRegisteredAmmoWithInventory == false))
 	{
@@ -4421,7 +4403,7 @@ void CWeapon::RegisterUsedAmmoWithInventory( IInventory* pInventory )
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CWeapon::UnregisterUsedAmmoWithInventory( IInventory* pInventory )
+void CWeapon::UnregisterUsedAmmoWithInventory(IInventory* pInventory)
 {
 	if (pInventory && (m_isRegisteredAmmoWithInventory == true))
 	{
@@ -4436,7 +4418,7 @@ void CWeapon::UnregisterUsedAmmoWithInventory( IInventory* pInventory )
 }
 
 //////////////////////////////////////////////////////////////////////////
-bool CWeapon::HasCompatibleAmmo( IInventory* pInventory ) const
+bool CWeapon::HasCompatibleAmmo(IInventory* pInventory) const
 {
 	if (pInventory)
 	{
@@ -4448,22 +4430,22 @@ bool CWeapon::HasCompatibleAmmo( IInventory* pInventory ) const
 			{
 				return true;
 			}
-		}	
+		}
 	}
 
 	return false;
 }
 
 //////////////////////////////////////////////////////////////////////////
-bool CWeapon::CheckAmmoRestrictionsForAccessories(IInventory * pInventory) const
+bool CWeapon::CheckAmmoRestrictionsForAccessories(IInventory* pInventory) const
 {
 	const int numAccessories = m_accessories.size();
 
-	for(int i = 0; i < numAccessories; i++)
+	for (int i = 0; i < numAccessories; i++)
 	{
-		if(CItem* pItem = static_cast<CItem*>(m_pItemSystem->GetItem(m_accessories[i].accessoryId)))
+		if (CItem* pItem = static_cast<CItem*>(m_pItemSystem->GetItem(m_accessories[i].accessoryId)))
 		{
-			if(pItem->GivesAmmo() && pItem->CheckAmmoRestrictions(pInventory))
+			if (pItem->GivesAmmo() && pItem->CheckAmmoRestrictions(pInventory))
 			{
 				return true;
 			}
@@ -4474,7 +4456,7 @@ bool CWeapon::CheckAmmoRestrictionsForAccessories(IInventory * pInventory) const
 }
 
 //////////////////////////////////////////////////////////////////////////
-bool CWeapon::CheckAmmoRestrictionsForBonusAndMagazineAmmo( IInventory& inventory ) const
+bool CWeapon::CheckAmmoRestrictionsForBonusAndMagazineAmmo(IInventory& inventory) const
 {
 	if (!m_bonusammo.empty())
 	{
@@ -4482,7 +4464,7 @@ bool CWeapon::CheckAmmoRestrictionsForBonusAndMagazineAmmo( IInventory& inventor
 		for (TAmmoVector::const_iterator bonusAmmoCit = m_bonusammo.begin(); bonusAmmoCit != bonusAmmoEndCit; ++bonusAmmoCit)
 		{
 			IEntityClass* pAmmoClass = bonusAmmoCit->pAmmoClass;
-			const int invAmmo  = inventory.GetAmmoCount(pAmmoClass);
+			const int invAmmo = inventory.GetAmmoCount(pAmmoClass);
 			const int invLimit = inventory.GetAmmoCapacity(pAmmoClass);
 
 			if (invAmmo < invLimit)
@@ -4492,7 +4474,7 @@ bool CWeapon::CheckAmmoRestrictionsForBonusAndMagazineAmmo( IInventory& inventor
 		}
 	}
 
-	if(!m_ammo.empty())
+	if (!m_ammo.empty())
 	{
 		const TAmmoVector& accesoryAmmoMap = m_weaponsharedparams->ammoParams.accessoryAmmo;
 		const TAmmoVector::const_iterator ammoEndCit = m_ammo.end();
@@ -4500,7 +4482,7 @@ bool CWeapon::CheckAmmoRestrictionsForBonusAndMagazineAmmo( IInventory& inventor
 		for (TAmmoVector::const_iterator ammoCit = m_ammo.begin(); ammoCit != ammoEndCit; ++ammoCit)
 		{
 			IEntityClass* pAmmoClass = ammoCit->pAmmoClass;
-			const int invAmmo  = inventory.GetAmmoCount(pAmmoClass);
+			const int invAmmo = inventory.GetAmmoCount(pAmmoClass);
 			const int invLimit = inventory.GetAmmoCapacity(pAmmoClass);
 
 			if (invAmmo < invLimit)
@@ -4516,7 +4498,7 @@ bool CWeapon::CheckAmmoRestrictionsForBonusAndMagazineAmmo( IInventory& inventor
 void CWeapon::ShowDebugInfo()
 {
 #if !defined(_RELEASE)
-	
+
 	IActor* pClientActor = m_pGameFramework->GetClientActor();
 	IInventory* pInventory = pClientActor ? pClientActor->GetInventory() : NULL;
 
@@ -4526,18 +4508,18 @@ void CWeapon::ShowDebugInfo()
 		return;
 	}
 
-	IRenderAuxGeom* pRenderAux = gEnv->pRenderer->GetIRenderAuxGeom();
+	IRenderAuxGeom* pRenderAux = gEnv->pAuxGeomRenderer;
 
 	SAuxGeomRenderFlags oldFlags = pRenderAux->GetRenderFlags();
 	SAuxGeomRenderFlags newFlags = e_Def3DPublicRenderflags;
 	newFlags.SetAlphaBlendMode(e_AlphaBlended);
 	newFlags.SetDepthTestFlag(e_DepthTestOff);
-	newFlags.SetCullMode(e_CullModeNone); 
+	newFlags.SetCullMode(e_CullModeNone);
 	pRenderAux->SetRenderFlags(newFlags);
 
 	const Vec3 baseText = GetWorldPos();
 	const Vec3 textLineOffset(0.0f, 0.0f, 0.14f);
-	const float textColor[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+	const float textColor[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
 	float lineCounter = 0.0f;
 
 	IEntityClass* pWeaponClass = GetEntity()->GetClass();
@@ -4545,9 +4527,9 @@ void CWeapon::ShowDebugInfo()
 	bool pickerHasThisWeapon = pInventory->GetCountOfClass(pWeaponClass->GetName()) != 0;
 
 	IRenderAuxText::DrawLabelExF(baseText, 1.25f, textColor, true, false, pickerHasThisWeapon ? "'Weapon (%s) in inventory" : "Weapon (%s) NOT in inventory", pWeaponClass->GetName());
-	
+
 	lineCounter += 2.0f;
-	IRenderAuxText::DrawLabelEx(baseText - (textLineOffset * lineCounter), 1.25f, textColor, true, false, "---- Bonus Ammo -------" );
+	IRenderAuxText::DrawLabelEx(baseText - (textLineOffset * lineCounter), 1.25f, textColor, true, false, "---- Bonus Ammo -------");
 
 	TAmmoVector::iterator bonusAmmoEndIt = m_bonusammo.end();
 	for (TAmmoVector::iterator bonusAmmoIt = m_bonusammo.begin(); bonusAmmoIt != bonusAmmoEndIt; ++bonusAmmoIt)
@@ -4561,7 +4543,7 @@ void CWeapon::ShowDebugInfo()
 	}
 
 	lineCounter += 2.0f;
-	IRenderAuxText::DrawLabelEx(baseText - (textLineOffset * lineCounter), 1.25f, textColor, true, false, "---- Magazine Ammo -------" );
+	IRenderAuxText::DrawLabelEx(baseText - (textLineOffset * lineCounter), 1.25f, textColor, true, false, "---- Magazine Ammo -------");
 
 	TAmmoVector::iterator ammoEndCit = m_ammo.end();
 	for (TAmmoVector::iterator ammoCit = m_ammo.begin(); ammoCit != ammoEndCit; ++ammoCit)
@@ -4582,7 +4564,7 @@ void CWeapon::ShowDebugInfo()
 
 float CWeapon::GetMeleeRange() const
 {
-	if(m_melee)
+	if (m_melee)
 	{
 		return m_melee->GetRange();
 	}
@@ -4594,12 +4576,12 @@ float CWeapon::GetSelectSpeed(CActor* pOwnerActor)
 {
 	float speedOverride = m_selectSpeedMultiplier;
 
-	if(pOwnerActor && pOwnerActor->IsPlayer())
+	if (pOwnerActor && pOwnerActor->IsPlayer())
 	{
 		CPlayerModifiableValues& playerMods = static_cast<CPlayer*>(pOwnerActor)->GetModifiableValues();
-		
+
 		// Only counteracts attachment slowdown. Therefore should be a maximum of 1.f
-		speedOverride = min(1.f, speedOverride * playerMods.GetValue(kPMV_WeaponAttachment_SelectSpeedScale)); 
+		speedOverride = min(1.f, speedOverride * playerMods.GetValue(kPMV_WeaponAttachment_SelectSpeedScale));
 
 		//Now apply Weapons Training modifier
 		speedOverride *= playerMods.GetValue(kPMV_WeaponSelectSpeedScale);
@@ -4608,10 +4590,10 @@ float CWeapon::GetSelectSpeed(CActor* pOwnerActor)
 	return speedOverride;
 }
 
-void CWeapon::AddShootHeatPulse( CActor* pOwnerActor, const float heatWeapon, const float weaponHeatTime, const float heatOwner, const float ownerHeatTime )
+void CWeapon::AddShootHeatPulse(CActor* pOwnerActor, const float heatWeapon, const float weaponHeatTime, const float heatOwner, const float ownerHeatTime)
 {
 	m_heatController.AddHeatPulse(heatWeapon, weaponHeatTime);
-	
+
 	RequireUpdate(eIUS_General);
 
 	if (pOwnerActor)
@@ -4620,7 +4602,7 @@ void CWeapon::AddShootHeatPulse( CActor* pOwnerActor, const float heatWeapon, co
 	}
 }
 
-void CWeapon::GetFPOffset(QuatT &offset) const
+void CWeapon::GetFPOffset(QuatT& offset) const
 {
 	if (m_zm)
 	{
@@ -4666,7 +4648,7 @@ void CWeapon::GetFPOffset(QuatT &offset) const
 	}
 }
 
-void CWeapon::SetToDefaultFireModeIfNeeded( const CActor& ownerActor )
+void CWeapon::SetToDefaultFireModeIfNeeded(const CActor& ownerActor)
 {
 	//Skip if holstering
 	if (ownerActor.GetHolsteredItemId() == GetEntityId())
@@ -4678,8 +4660,6 @@ void CWeapon::SetToDefaultFireModeIfNeeded( const CActor& ownerActor )
 		SetCurrentFireMode(0);
 	}
 }
-
-
 
 bool CWeapon::CanRefillAmmoType(IEntityClass* pAmmoType, const char* refillType) const
 {
@@ -4700,7 +4680,7 @@ bool CWeapon::RefillAllAmmo(const char* refillType, bool refillAll)
 	IInventory* pInventory = GetActorInventory(GetOwnerActor());
 	if (!pInventory)
 		return ammoCollected;
-	
+
 	size_t numAmmoTypes = GetWeaponSharedParams()->ammoParams.ammo.size();
 	for (size_t i = 0; i < numAmmoTypes; ++i)
 	{
@@ -4791,7 +4771,7 @@ bool CWeapon::RefillInventoryAmmo(IInventory* pInventory, IEntityClass* pAmmoTyp
 	return ammoCollected;
 }
 
-void CWeapon::BoostMelee( bool enableBoost )
+void CWeapon::BoostMelee(bool enableBoost)
 {
 }
 
@@ -4815,15 +4795,15 @@ void CWeapon::UpdateBulletBelt()
 	else if (fireModeParams.fireparams.clip_size == 0)
 		ammoCount = GetInventoryAmmoCount(pAmmoClass);
 
-	if((ammoCount < beltParams.numBullets) && (ammoCount >= 0))
+	if ((ammoCount < beltParams.numBullets) && (ammoCount >= 0))
 	{
 		ICharacterInstance* pCharacter = GetEntity()->GetCharacter(eIGS_FirstPerson);
 
-		if(pCharacter)
+		if (pCharacter)
 		{
-			if(m_fm && m_fm->GetAmmoType() == beltParams.pAmmoClass && m_fm->IsReloading())
+			if (m_fm && m_fm->GetAmmoType() == beltParams.pAmmoClass && m_fm->IsReloading())
 			{
-				if(m_refillBelt)
+				if (m_refillBelt)
 				{
 					return;
 				}
@@ -4833,10 +4813,10 @@ void CWeapon::UpdateBulletBelt()
 				m_refillBelt = false;
 			}
 
-//			ISkeletonPose* pSkelPose = pCharacter->GetISkeletonPose();
+			//			ISkeletonPose* pSkelPose = pCharacter->GetISkeletonPose();
 			IDefaultSkeleton& rIDefaultSkeleton = pCharacter->GetIDefaultSkeleton();
 			{
-				CryFixedStringT<32>	jointName;
+				CryFixedStringT<32> jointName;
 				const int bulletNum = max(ammoCount, 1);
 
 				jointName.Format("%s%d", beltParams.jointName.c_str(), bulletNum);
@@ -4847,7 +4827,7 @@ void CWeapon::UpdateBulletBelt()
 
 				if (jointId >= 0)
 				{
-					IAnimationOperatorQueue *beltModifier = m_BeltModifier.get();
+					IAnimationOperatorQueue* beltModifier = m_BeltModifier.get();
 					beltModifier->PushPosition(jointId, IAnimationOperatorQueue::eOp_Override, Vec3(0.0f, -2.0f, 2.0f));
 
 					pCharacter->GetISkeletonAnim()->PushPoseModifier(1, cryinterface_cast<IAnimationPoseModifier>(m_BeltModifier), "BulletBelt");
@@ -4862,8 +4842,6 @@ bool CWeapon::AllowInteraction(EntityId interactionEntity, EInteractionType inte
 	return (interactionType == eInteraction_PickupAmmo) || (!IsBusy() || IsReloading()) && !IsModifying() && !IsDeselecting();
 }
 
-
-
 bool CWeapon::CanLedgeGrab() const
 {
 	return GetSharedItemParams()->params.can_ledge_grab;
@@ -4872,7 +4850,7 @@ bool CWeapon::CanLedgeGrab() const
 //------------------------------------------------------------------------
 void CWeapon::SetFragmentTags(CTagState& fragTags)
 {
-	if(m_fm)
+	if (m_fm)
 	{
 		int ammoCount = m_fm->GetAmmoCount();
 		SetAmmoCountFragmentTags(fragTags, ammoCount);
@@ -4881,11 +4859,11 @@ void CWeapon::SetFragmentTags(CTagState& fragTags)
 
 //------------------------------------------------------------------------
 void CWeapon::SetAmmoCountFragmentTags(CTagState& fragTags, int ammoCount)
-{	
-	if(ammoCount > 1)
+{
+	if (ammoCount > 1)
 	{
 		TagID clipRemaining = fragTags.GetDef().Find(CItem::sFragmentTagCRCs.ammo_clipRemaining);
-		if(clipRemaining != TAG_ID_INVALID)
+		if (clipRemaining != TAG_ID_INVALID)
 		{
 			fragTags.Set(clipRemaining, true);
 		}
@@ -4893,7 +4871,7 @@ void CWeapon::SetAmmoCountFragmentTags(CTagState& fragTags, int ammoCount)
 
 	TagID ammoCountID = TAG_ID_INVALID;
 
-	switch(ammoCount)
+	switch (ammoCount)
 	{
 	case 0:
 		ammoCountID = fragTags.GetDef().Find(CItem::sFragmentTagCRCs.ammo_empty);
@@ -4915,7 +4893,7 @@ void CWeapon::SetAmmoCountFragmentTags(CTagState& fragTags, int ammoCount)
 		break;
 	}
 
-	if(ammoCountID != TAG_ID_INVALID)
+	if (ammoCountID != TAG_ID_INVALID)
 	{
 		fragTags.Set(ammoCountID, true);
 	}
@@ -4930,16 +4908,16 @@ void CWeapon::SetAmmoCountFragmentTags(CTagState& fragTags, int ammoCount)
 }
 
 //------------------------------------------------------------------------
-void CWeapon::HighlightWeapon( bool highlight, bool fromDrop /*=false */ )
+void CWeapon::HighlightWeapon(bool highlight, bool fromDrop /*=false */)
 {
-	if(highlight != m_bIsHighlighted)
+	if (highlight != m_bIsHighlighted)
 	{
 		m_bIsHighlighted = highlight;
 	}
 }
 
 //------------------------------------------------------------------------
-void CWeapon::Use( EntityId userId )
+void CWeapon::Use(EntityId userId)
 {
 	CItem::Use(userId);
 }
@@ -4960,11 +4938,11 @@ void CWeapon::UpdateCurrentActionController()
 //------------------------------------------------------------------------
 void CWeapon::PlayChangeFireModeTransition(CFireMode* pNewFiremode)
 {
-	if(m_fm && pNewFiremode != m_fm)
+	if (m_fm && pNewFiremode != m_fm)
 	{
 		const CTagDefinition* pTagDefinition = NULL;
 		int fragmentID = GetFragmentID("change_firemode", &pTagDefinition);
-		if(fragmentID != FRAGMENT_ID_INVALID)
+		if (fragmentID != FRAGMENT_ID_INVALID)
 		{
 			TagState actionTags = TAG_STATE_EMPTY;
 			if (pTagDefinition && pNewFiremode)
@@ -4996,7 +4974,7 @@ void CWeapon::PlayChangeFireModeTransition(CFireMode* pNewFiremode)
 //------------------------------------------------------------------------
 void CWeapon::OnHostMigrationCompleted()
 {
-	CFireMode *pFireMode = (CFireMode*) GetFireMode(GetCurrentFireMode());
+	CFireMode* pFireMode = (CFireMode*) GetFireMode(GetCurrentFireMode());
 	if (pFireMode)
 	{
 		pFireMode->OnHostMigrationCompleted();

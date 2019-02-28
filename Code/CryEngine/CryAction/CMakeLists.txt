@@ -235,8 +235,6 @@ add_sources("CryAction_main_uber_2.cpp"
 		"EntityTags.cpp"
 		"PersistantDebug.cpp"
 		"PersistantDebug.h"
-		"ManualFrameStep.cpp"
-		"ManualFrameStep.h"
 	SOURCE_GROUP "Graphics"
 		"ColorGradientManager.cpp"
 		"ColorGradientManager.h"
@@ -358,11 +356,6 @@ add_sources("CryAction_main_uber_4.cpp"
 	SOURCE_GROUP "Root"
 		"RuntimeAreas.h"
 		"RuntimeAreas.cpp"
-	SOURCE_GROUP "SegmentedWorld"
-		"SegmentedWorld/SegmentNode.h"
-		"SegmentedWorld/SegmentNode.cpp"
-		"SegmentedWorld/SegmentedWorld.h"
-		"SegmentedWorld/SegmentedWorld.cpp"
 	SOURCE_GROUP "SharedParams"
 		"SharedParams/SharedParamsManager.cpp"
 		"SharedParams/ISharedParams.h"
@@ -891,6 +884,9 @@ end_sources()
 
 CryEngineModule(CryAction PCH "StdAfx.cpp" SOLUTION_FOLDER "CryEngine")
 
+if(PROJECT_BUILD)
+	target_compile_definitions(${THIS_PROJECT} PRIVATE DISABLE_LEGACY_GAME_DLL=1)
+endif()
 
 target_link_libraries(${THIS_PROJECT} PRIVATE md5)
 if (WIN32 OR WIN64)

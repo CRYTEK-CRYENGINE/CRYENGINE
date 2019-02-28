@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include <CrySystem/ILog.h>
@@ -123,7 +123,7 @@ void CrySizerStats::updateKeys()
 {
 	const unsigned int statSize = size();
 	//assume 10 pixels for font
-	unsigned int height = gEnv->pRenderer->GetHeight() / 12;
+	unsigned int height = gEnv->pRenderer->GetOverlayHeight() / 12;
 	if (CryGetAsyncKeyState(VK_UP))
 	{
 		if (m_nStartRow > 0)
@@ -214,9 +214,6 @@ void CrySizerStatsRenderer::render(bool bRefreshMark)
 {
 	if (!m_pStats->size())
 		return;
-
-	int x, y, dx, dy;
-	m_pRenderer->GetViewport(&x, &y, &dx, &dy);
 
 	// left coordinate of the text
 	unsigned nNameWidth = (unsigned)(m_pStats->getMaxNameLength() + 1);

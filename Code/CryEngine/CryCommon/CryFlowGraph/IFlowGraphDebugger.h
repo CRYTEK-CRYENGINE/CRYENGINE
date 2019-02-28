@@ -1,17 +1,8 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  File name:   IFlowGraphDebugger.h
-//  Version:     v1.00
-//  Created:     13/09/2011 by Sascha Hoba.
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
+//! \cond INTERNAL
 
-#ifndef __IFLOWGRAPHDEBUGGER_H__
-#define __IFLOWGRAPHDEBUGGER_H__
+#pragma once
 
 #include <CryFlowGraph/IFlowSystem.h>
 #include <CryExtension/ICryUnknown.h>
@@ -232,4 +223,4 @@ static IFlowGraphDebuggerPtr GetIFlowGraphDebuggerPtr()
 	return pFlowGraphDebugger;
 }
 
-#endif
+//! \endcond

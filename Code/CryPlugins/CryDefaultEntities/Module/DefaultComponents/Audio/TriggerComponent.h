@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -33,23 +33,21 @@ protected:
 	static void Register(Schematyc::CEnvRegistrationScope& componentScope);
 
 	// IEntityComponent
-	virtual void   Initialize() override;
-	virtual void   OnShutDown() override;
+	virtual void                    Initialize() override;
 	virtual uint64 GetEventMask() const override;
-	virtual void   ProcessEvent(SEntityEvent& event) override;
+	virtual void                    ProcessEvent(const SEntityEvent& event) override;
 	// ~IEntityComponent
 
 public:
 
 	CTriggerComponent() = default;
 
-	static void     ReflectType(Schematyc::CTypeDesc<CTriggerComponent>& desc);
+	static void ReflectType(Schematyc::CTypeDesc<CTriggerComponent>& desc);
 
-	void SetAutoPlay(bool const bEnable);
-	void Play();
-	void Stop();
-	void DetermineActivityRadius();
-	void GetActivityRadius(float& radius);
+	void        Play();
+	void        Stop();
+	void        DetermineActivityRadius();
+	void        GetActivityRadius(float& radius);
 
 	struct SFinishedSignal
 	{
@@ -60,7 +58,7 @@ protected:
 
 	CryAudio::AuxObjectId  m_auxObjectId = CryAudio::InvalidAuxObjectId;
 	IEntityAudioComponent* m_pIEntityAudioComponent = nullptr;
-	bool                   m_bAutoPlay = true;
+	bool                   m_autoPlay = true;
 	uint32                 m_numActiveTriggerInstances = 0;
 	float                  m_activityRadius = 0.0f;
 

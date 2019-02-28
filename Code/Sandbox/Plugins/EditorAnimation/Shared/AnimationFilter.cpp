@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 
@@ -329,3 +329,4 @@ void SAnimationFilter::FindTags(std::vector<string>* tags) const
 		condition->FindTags(tags);
 	tags->erase(std::unique(tags->begin(), tags->end()), tags->end());
 }
+

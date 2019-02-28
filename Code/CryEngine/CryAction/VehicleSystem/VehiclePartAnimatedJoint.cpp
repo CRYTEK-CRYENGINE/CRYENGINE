@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -308,9 +308,9 @@ bool CVehiclePartAnimatedJoint::ChangeState(EVehiclePartState state, int flags)
 }
 
 //------------------------------------------------------------------------
-const Matrix34& CVehiclePartAnimatedJoint::GetLocalTM(bool relativeToParentPart, bool forced)
+Matrix34 CVehiclePartAnimatedJoint::GetLocalTM(bool relativeToParentPart, bool forced)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	if (m_pCharInstance && m_jointId > -1)
 	{
@@ -414,13 +414,13 @@ void CVehiclePartAnimatedJoint::Serialize(TSerialize ser, EEntityAspects aspects
 }
 
 //------------------------------------------------------------------------
-const Matrix34& CVehiclePartAnimatedJoint::GetWorldTM()
+Matrix34 CVehiclePartAnimatedJoint::GetWorldTM()
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	if (m_pCharInstance && m_jointId > -1)
 	{
-		const Matrix34& localTM = GetLocalTM(false);
+		Matrix34 localTM = GetLocalTM(false);
 		m_worldTM = m_pVehicle->GetEntity()->GetWorldTM() * localTM;
 	}
 	else
@@ -456,7 +456,7 @@ const AABB& CVehiclePartAnimatedJoint::GetLocalBounds()
 //------------------------------------------------------------------------
 void CVehiclePartAnimatedJoint::Update(float frameTime)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	CVehiclePartBase::Update(frameTime);
 

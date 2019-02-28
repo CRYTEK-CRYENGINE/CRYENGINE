@@ -1,14 +1,59 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 using System;
 using CryEngine.Common;
 
 namespace CryEngine.EntitySystem
 {
+	/// <summary>
+	/// Contains the data a collision event. If the data is an array the first element will always be the <see cref="EntityComponent"/> that received the <see cref="EntityComponent.OnCollision(CollisionEvent)"/> call.
+	/// </summary>
 	public struct CollisionEvent
 	{
-		public PhysicsObject Source { get; set; }
-		public PhysicsObject Target { get; set; }
+		/// <summary>
+		/// The objects involved in the collision. The first element will always be the <see cref="EntityComponent"/> that received the <see cref="EntityComponent.OnCollision(CollisionEvent)"/> call.
+		/// </summary>
+		public PhysicsObject[] PhysicsObjects { get; internal set; }
+
+		/// <summary>
+		/// Contact point in world space.
+		/// </summary>
+		public Vector3 Point { get; internal set; }
+
+		/// <summary>
+		/// Contact point normal.
+		/// </summary>
+		public Vector3 Normal { get; internal set; }
+		
+		/// <summary>
+		/// Velocities at the contact point.
+		/// </summary>
+		public Vector3[] Velocities { get; internal set; }
+
+		/// <summary>
+		/// The mass of each <see cref="PhysicsObject"/>.
+		/// </summary>
+		public float[] Masses { get; internal set; }
+
+		/// <summary>
+		/// Contact's penetration depth.
+		/// </summary>
+		public float PenetrationDepth { get; internal set; }
+
+		/// <summary>
+		/// Impulse applied by the solver to resolve the collision.
+		/// </summary>
+		public float ResolvingImpulse { get; internal set; }
+
+		/// <summary>
+		/// Characteristic size of the contact area.
+		/// </summary>
+		public float Radius { get; internal set; }
+
+		/// <summary>
+		/// Maximum allowed size of decals caused by this collision.
+		/// </summary>
+		public float MaxDecalSize { get; internal set; }
 	}
 
 	/// <summary>
@@ -16,18 +61,24 @@ namespace CryEngine.EntitySystem
 	/// </summary>
 	public class PhysicsObject
 	{
+		/// <summary>
+		/// Handle to the entity of this PhysicsObject. Use <see cref="OwnerEntity"/> to get the handle safely.
+		/// </summary>
 		protected Entity _entity;
 
+		[SerializeValue]
 		internal virtual IPhysicalEntity NativeHandle { get; private set; }
 
 		/// <summary>
 		/// The physicalized type of this <see cref="PhysicsObject"/>. If the <see cref="PhysicsObject"/> is not physicalized this will be <c>PhysicalizationType.None</c>.
 		/// </summary>
 		/// <value>The physicalized type of the <see cref="PhysicsObject"/>.</value>
-		public PhysicalizationType PhysicsType{ get; set;} = PhysicalizationType.None;
+		[SerializeValue]
+		public PhysicalizationType PhysicsType{ get; protected set;} = PhysicalizationType.None;
 
 		/// <summary>
-		/// Gets the Entity that this <see cref="PhysicsObject"/> belongs to.
+		/// Gets the Entity that this <see cref="PhysicsObject"/> belongs to. 
+		/// It's possible for this to be null if the owner is not an Entity but a Brush or Terrain.
 		/// </summary>
 		public virtual Entity OwnerEntity
 		{
@@ -160,12 +211,40 @@ namespace CryEngine.EntitySystem
 		/// Adds an impulse to this <see cref="PhysicsObject"/>. The impulse will be applied to the point in world-space.
 		/// </summary>
 		/// <param name="impulse">Direction and length of the impulse.</param>
-		/// <param name="point">Point of application, in world-space.</param>
+		/// <param name="point">Point of application in world-space.</param>
 		public void AddImpulse(Vector3 impulse, Vector3 point)
 		{
 			var action = new pe_action_impulse();
 			action.impulse = impulse;
 			action.point = point;
+			NativeHandle.Action(action);
+		}
+
+		/// <summary>
+		/// Adds an angled impulse to this <see cref="PhysicsObject"/>.
+		/// </summary>
+		/// <param name="impulse">Angle and length of the impulse.</param>
+		public void AddAngImpulse(Vector3 impulse)
+		{
+			var action = new pe_action_impulse
+			{
+				angImpulse = impulse
+			};
+			NativeHandle.Action(action);
+		}
+
+		/// <summary>
+		/// Adds an angled impulse to this <see cref="PhysicsObject"/>. The impulse will be applied to the point in world-space.
+		/// </summary>
+		/// <param name="impulse">Direction and length of the impulse.</param>
+		/// <param name="point">Point of application in world-space.</param>
+		public void AddAngImpulse(Vector3 impulse, Vector3 point)
+		{
+			var action = new pe_action_impulse
+			{
+				angImpulse = impulse,
+				point = point
+			};
 			NativeHandle.Action(action);
 		}
 
@@ -212,6 +291,12 @@ namespace CryEngine.EntitySystem
 			NativeHandle.Action(actionParams);
 		}
 
+		/// <summary>
+		/// Get the status of the <see cref="PhysicsEntity"/>. 
+		/// The type of status can be specified by choosing from for example <see cref="DynamicsStatus"/>, <see cref="LivingStatus"/>, or <see cref="VehicleStatus"/>.
+		/// </summary>
+		/// <typeparam name="T">The type of the <see cref="BasePhysicsStatus"/> to be retrieved, for example <see cref="DynamicsStatus"/></typeparam>
+		/// <returns></returns>
 		public T GetStatus<T>() where T : BasePhysicsStatus, new()
 		{
 			var status = new T();
@@ -221,6 +306,10 @@ namespace CryEngine.EntitySystem
 			return status;
 		}
 
+		/// <summary>
+		/// Set the physics-type of this <see cref="PhysicsEntity"/>.
+		/// </summary>
+		/// <param name="nativeType"></param>
 		protected void SetType(pe_type nativeType)
 		{
 			switch(nativeType)
@@ -299,10 +388,12 @@ namespace CryEngine.EntitySystem
 				return;
 			}
 
-			var physParams = new SEntityPhysicalizeParams();
-			physParams.mass = mass;
-			physParams.type = (int)type;
-			OwnerEntity.NativeHandle.Physicalize(physParams);
+			OwnerEntity.NativeHandle.Physicalize(new SEntityPhysicalizeParams
+			{
+				mass = mass,
+				type = (int)type
+			});
+			PhysicsType = type;
 		}
 
 		/// <summary>
@@ -326,12 +417,12 @@ namespace CryEngine.EntitySystem
 		[Obsolete("Using EPhysicalizizationType is obsolete. Use PhysicalizationType instead.")]
 		public void Physicalize(float mass, int density, EPhysicalizationType type)
 		{
-			var physParams = new SEntityPhysicalizeParams();
-			physParams.mass = mass;
-			physParams.density = density;
-			physParams.type = (int)type;
-
-			OwnerEntity.NativeHandle.Physicalize(physParams);
+			OwnerEntity.NativeHandle.Physicalize(new SEntityPhysicalizeParams
+			{
+				mass = mass,
+				density = density,
+				type = (int)type
+			});
 			SetType((pe_type)type);
 		}
 

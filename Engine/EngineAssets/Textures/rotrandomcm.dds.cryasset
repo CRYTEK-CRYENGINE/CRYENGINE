@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="4ba7e405-42e8-f046-64ec-4dedc674209a">
+ <Files>
+  <File path="rotrandomcm.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">64</Detail>
+  <Detail name="height">64</Detail>
+  <Detail name="mipCount">7</Detail>
+ </Details>
+</AssetMetadata>

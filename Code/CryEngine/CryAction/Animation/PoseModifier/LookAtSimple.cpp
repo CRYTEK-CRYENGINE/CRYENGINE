@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -41,6 +41,8 @@ bool CLookAtSimple::Prepare(const SAnimationPoseModifierParams& params)
 
 bool CLookAtSimple::Execute(const SAnimationPoseModifierParams& params)
 {
+	CRY_PROFILE_FUNCTION(PROFILE_ANIMATION);
+
 	const IDefaultSkeleton& rIDefaultSkeleton = params.GetIDefaultSkeleton();
 	const QuatT& transformation = params.pPoseData->GetJointAbsolute(m_stateExecute.jointId);
 

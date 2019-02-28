@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   MSVCSpecific.h
@@ -49,8 +49,11 @@
 	#define PREFAST_ASSUME(cond)
 #endif
 
-//! Deprecation helper
-#define CRY_DEPRECATED(func) __declspec(deprecated) func
+#if _MSVC_LANG > 201402L
+#define CRY_DEPRECATED(message) [[deprecated(message)]]
+#else
+#define CRY_DEPRECATED(message) __declspec(deprecated(message))
+#endif
 
 //! Portable alignment helper, can be placed after the struct/class/union keyword, or before the type of a declaration.
 //! Example: struct CRY_ALIGN(16) { ... }; CRY_ALIGN(16) char myAlignedChar;
@@ -106,3 +109,7 @@
 // Turn on the following very useful warnings.
 #pragma warning(3: 4264)        // no override available for virtual member function from base 'class'; function is hidden
 #pragma warning(3: 4266)        // no override available for virtual member function from base 'type'; function is hidden
+
+// Flag for enabling extended alignment for std::aligned_storage after VS 2017 15.8
+// Before VS 2017 15.8, the member type would non-conformingly have an alignment of only alignof(max_align_t). 
+#define _ENABLE_EXTENDED_ALIGNED_STORAGE

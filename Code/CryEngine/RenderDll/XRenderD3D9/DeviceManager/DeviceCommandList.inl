@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -53,6 +53,8 @@ inline void CDeviceCommandList::Reset()
 	m_primitiveTypeForProfiling = eptUnknown;
 	m_profilingStats.Reset();
 #endif
+
+	ClearStateImpl(false);
 }
 
 inline void CDeviceCommandList::LockToThread()
@@ -197,8 +199,13 @@ inline void CDeviceGraphicsCommandInterface::SetInlineConstantBuffer(uint32 bind
 	{
 		//		m_pCurrentResources[bindSlot] = ((char*)pBuffer->m_base_ptr + pBuffer->m_offset);
 
-		m_graphicsState.validResourceBindings[bindSlot] = pBuffer != nullptr;
-		SetInlineConstantBufferImpl(bindSlot, pBuffer, shaderSlot, shaderClass);
+#if _RELEASE
+		m_graphicsState.validResourceBindings[bindSlot] = true;
+#else
+		CRY_ASSERT(pBuffer != nullptr);
+		if ((m_graphicsState.validResourceBindings[bindSlot] = (pBuffer != nullptr)))
+#endif
+			SetInlineConstantBufferImpl(bindSlot, pBuffer, shaderSlot, shaderClass);
 
 #if defined(ENABLE_PROFILING_CODE)
 		++m_profilingStats.numInlineSets;
@@ -214,8 +221,13 @@ inline void CDeviceGraphicsCommandInterface::SetInlineConstantBuffer(uint32 bind
 	{
 		//		m_pCurrentResources[bindSlot] = ((char*)pBuffer->m_base_ptr + pBuffer->m_offset);
 
-		m_graphicsState.validResourceBindings[bindSlot] = pBuffer != nullptr;
-		SetInlineConstantBufferImpl(bindSlot, pBuffer, shaderSlot, shaderStages);
+#if _RELEASE
+		m_graphicsState.validResourceBindings[bindSlot] = true;
+#else
+		CRY_ASSERT(pBuffer != nullptr);
+		if ((m_graphicsState.validResourceBindings[bindSlot] = (pBuffer != nullptr)))
+#endif
+			SetInlineConstantBufferImpl(bindSlot, pBuffer, shaderSlot, shaderStages);
 
 #if defined(ENABLE_PROFILING_CODE)
 		++m_profilingStats.numInlineSets;
@@ -262,6 +274,11 @@ inline void CDeviceGraphicsCommandInterface::SetDepthBias(float constBias, float
 	SetDepthBiasImpl(constBias, slopeBias, biasClamp);
 }
 
+inline void CDeviceGraphicsCommandInterface::SetDepthBounds(float fMin, float fMax)
+{
+	SetDepthBoundsImpl(fMin, fMax);
+}
+
 inline void CDeviceGraphicsCommandInterface::Draw(uint32 VertexCountPerInstance, uint32 InstanceCount, uint32 StartVertexLocation, uint32 StartInstanceLocation)
 {
 	if (m_graphicsState.validResourceBindings == m_graphicsState.requiredResourceBindings)
@@ -269,7 +286,7 @@ inline void CDeviceGraphicsCommandInterface::Draw(uint32 VertexCountPerInstance,
 		DrawImpl(VertexCountPerInstance, InstanceCount, StartVertexLocation, StartInstanceLocation);
 
 #if defined(ENABLE_PROFILING_CODE)
-		int nPrimitives;
+		int nPrimitives = VertexCountPerInstance;
 
 		switch (m_primitiveTypeForProfiling)
 		{
@@ -321,7 +338,7 @@ inline void CDeviceGraphicsCommandInterface::DrawIndexed(uint32 IndexCountPerIns
 		DrawIndexedImpl(IndexCountPerInstance, InstanceCount, StartIndexLocation, BaseVertexLocation, StartInstanceLocation);
 
 #if defined(ENABLE_PROFILING_CODE)
-		int nPrimitives;
+		int nPrimitives = IndexCountPerInstance;
 
 		switch (m_primitiveTypeForProfiling)
 		{
@@ -461,14 +478,14 @@ inline void CDeviceComputeCommandInterface::Dispatch(uint32 X, uint32 Y, uint32 
 	DispatchImpl(X, Y, Z);
 }
 
-inline void CDeviceComputeCommandInterface::ClearUAV(D3DUAV* pView, const FLOAT Values[4], UINT NumRects, const D3D11_RECT* pRects)
+inline void CDeviceComputeCommandInterface::ClearUAV(D3DUAV* pView, const ColorF& Values, UINT NumRects, const D3D11_RECT* pRects)
 {
-	ClearUAVImpl(pView, Values, NumRects, pRects);
+	ClearUAVImpl(pView, (float*)&Values, NumRects, pRects);
 }
 
-inline void CDeviceComputeCommandInterface::ClearUAV(D3DUAV* pView, const UINT Values[4], UINT NumRects, const D3D11_RECT* pRects)
+inline void CDeviceComputeCommandInterface::ClearUAV(D3DUAV* pView, const ColorI& Values, UINT NumRects, const D3D11_RECT* pRects)
 {
-	ClearUAVImpl(pView, Values, NumRects, pRects);
+	ClearUAVImpl(pView, (UINT*)&Values, NumRects, pRects);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

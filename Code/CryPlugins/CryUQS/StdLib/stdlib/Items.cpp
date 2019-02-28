@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include <CrySerialization/Math.h>
@@ -158,7 +158,7 @@ namespace UQS
 				ctorParams.szName = "std::NavigationAgentTypeID";
 				ctorParams.guid = "4338dd81-718a-4365-a21a-65d5b5d08bd3"_cry_guid;
 				ctorParams.szDescription = "Type of the agent for use in the Navigation Mesh";
-				ctorParams.callbacks.pSerialize = &NavigationAgentTypeID_Serialize;
+				ctorParams.callbacks.pSerialize = &Serialize;
 
 				static const Client::CItemFactory<NavigationAgentTypeID> itemFactory_NavigationAgentTypeID(ctorParams);
 			}

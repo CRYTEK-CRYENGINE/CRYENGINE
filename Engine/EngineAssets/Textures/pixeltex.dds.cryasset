@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="2a775e65-93b1-f4b8-d14e-1c3ef12dfb0a">
+ <Files>
+  <File path="pixeltex.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">32</Detail>
+  <Detail name="height">32</Detail>
+  <Detail name="mipCount">6</Detail>
+ </Details>
+</AssetMetadata>

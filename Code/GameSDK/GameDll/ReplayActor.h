@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
 -------------------------------------------------------------------------
@@ -64,7 +64,7 @@ public:
 	virtual ~CReplayActor();
 
 	// IEntityComponent
-	virtual	void ProcessEvent( SEntityEvent &event );
+	virtual	void ProcessEvent( const SEntityEvent &event );
 	virtual uint64 GetEventMask() const final;
 	// ~IEntityComponent
 
@@ -197,7 +197,7 @@ private:
 	{
 		GunRemovalListener() : pReplayActor(NULL) {}
 		virtual ~GunRemovalListener(){}
-		virtual void OnEntityEvent( IEntity *pEntity,SEntityEvent &event );
+		virtual void OnEntityEvent( IEntity *pEntity, const SEntityEvent& event );
 
 		CReplayActor * pReplayActor;
 	} m_GunRemovalListener;

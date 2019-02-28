@@ -1,13 +1,9 @@
-// CRYENGINE Source Code File
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 
 //===========================================================================
 // Texture modificators general support (used in SandBox editor)
 // Handle texture coordinates generating/modification
-
-float4x4 _ModelView      : PB_View;
-float4x4 _ModelView_IT   : PB_View_IT;
 
 // Texture slots
 #define TS_DIFFUSE  0
@@ -31,11 +27,6 @@ float4x4 _ModelView_IT   : PB_View_IT;
 #define EFTT_TRANSLUCENCY     12
 #define EFTT_EMITTANCE        13
 
-// Texture modificators/generators matrices
-float4x4 _TCMMatrix      : PB_TCMMatrix[EFTT_DIFFUSE];
-float4x4 _TCMMatrixDecal : PB_TCMMatrix[EFTT_DECAL_OVERLAY]; 
-float4x4 _TCGMatrix   : PI_TCGMatrix;
-    
 float4 _TCModify(float4 inTC, out float4 outTC, float4 vPos, float3 vNorm, int nTSlot)
 {
 #if %_TT_TEXCOORD_GEN_OBJECT_LINEAR || %_TT_TEXCOORD_MATRIX

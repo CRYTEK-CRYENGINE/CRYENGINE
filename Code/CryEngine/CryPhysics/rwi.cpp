@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -344,11 +344,12 @@ gotcontacts:
 		for(j--; j>=0; j--) 
 		if (pcontacts[j].t<phits[0].dist && (flags & rwi_ignore_back_faces)*(facing=pcontacts[j].n*aray.m_dirn)<=0) {
 			imat = pentFlags->GetMatId(pcontacts[j].id[0],i);
+			int rayPierceability = (int)((flags & rwi_pierceability_mask)-(flags & rwi_max_piercing));
 			int pierceability = pWorld->m_SurfaceFlagsTable[imat&NSURFACETYPES-1] & sf_pierceable_mask;
 			ihit = -(int)(flags&rwi_force_pierceable_noncoll)>>31 & -iszero((int)pentFlags->m_parts[i].flags & (geom_colltype_solid|geom_colltype_ray));
 			pierceability += sf_max_pierceable+1-pierceability & ihit;
 			ihit = 0;
-			if ((int)(flags & rwi_pierceability_mask) < pierceability) {
+			if (rayPierceability < pierceability) {
 				if ((pWorld->m_SurfaceFlagsTable[imat&NSURFACETYPES-1]|flags) & sf_important) {
 					for(ihit=1; ihit<=nThroughHits && phits[ihit].dist<pcontacts[j].t; ihit++);
 					if (ihit<=nThroughHits)	{
@@ -476,7 +477,7 @@ int CPhysicalWorld::RayWorldIntersection(const IPhysicalWorld::SRWIParams &rp, c
 	Vec3 dir = rp.dir;
 	int objtypes = rp.objtypes;
 
-	FUNCTION_PROFILER( GetISystem(),PROFILE_PHYSICS );
+	CRY_PROFILE_FUNCTION(PROFILE_PHYSICS );
 
 	IF (rp.dir.len2()<=0, 0)
 		return 0;

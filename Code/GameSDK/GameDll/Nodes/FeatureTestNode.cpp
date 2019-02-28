@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -138,68 +138,68 @@ void CFlowNode_FeatureTest::ProcessEvent(EFlowEvent event, SActivationInfo* pAct
 		switch (event)
 		{
 		case eFE_ConnectInputPort:
-		{
-			int port = pActInfo->connectPort;
-			if (port == eInputPorts_Ready)
 			{
-				m_isEnabled = true;
-			}
-		}
-		break;
-
-		case eFE_Initialize:
-		{
-			m_actInfo = *pActInfo;
-
-			// Use this event to reset state in CMapFeatureTestMgr if tests were in progress,
-			// allowing it to cope with game/editor transitions cleanly
-			if (m_running)
-				ftMgr.Reset();
-
-			// Called on level load/reset
-			m_ready = false;
-			m_running = false;
-			m_startNextRun = false;
-			m_failureCount = 0;
-			m_timeRunning = 0.0f;
-
-			// Deactivate & hide any associated entities - doesn't work... Need to explore other techniques
-			// For now just use HiddenInGame for tests
-			//DeactivateAllEntities();
-
-			// Set default result outputs to false with reason "Not run"
-			for (m_entitySeqIndex = 0; m_entitySeqIndex < SEQ_ENTITY_COUNT; ++m_entitySeqIndex)
-				SetResult(false, "Not run");
-
-			m_entitySeqIndex = -1;
-
-			ActivateOutput(pActInfo, eOutputPorts_AllPassed, false);
-		}
-		break;
-
-		case eFE_Activate:
-		{
-			if (IsPortActive(pActInfo, eInputPorts_Ready))
-			{
-				bool readyInput = GetPortBool(pActInfo, eInputPorts_Ready);
-				m_labelProfileData = GetPortBool(pActInfo, eInputPorts_LabelProfileData);
-				m_owners = GetPortString(pActInfo, eInputPorts_Owners);
-				if (readyInput != m_ready)
+				int port = pActInfo->connectPort;
+				if (port == eInputPorts_Ready)
 				{
-					m_ready = readyInput;
-					CryLogAlways("Test %s now: %s", Name(), m_ready ? "Ready to run" : "Not ready to run");
+					m_isEnabled = true;
 				}
 			}
-			else if (IsPortActive(pActInfo, eInputPorts_Succeeded))
+			break;
+
+		case eFE_Initialize:
 			{
-				OnTestResult(true, "FG Succeeded Triggered");
+				m_actInfo = *pActInfo;
+
+				// Use this event to reset state in CMapFeatureTestMgr if tests were in progress,
+				// allowing it to cope with game/editor transitions cleanly
+				if (m_running)
+					ftMgr.Reset();
+
+				// Called on level load/reset
+				m_ready = false;
+				m_running = false;
+				m_startNextRun = false;
+				m_failureCount = 0;
+				m_timeRunning = 0.0f;
+
+				// Deactivate & hide any associated entities - doesn't work... Need to explore other techniques
+				// For now just use HiddenInGame for tests
+				//DeactivateAllEntities();
+
+				// Set default result outputs to false with reason "Not run"
+				for (m_entitySeqIndex = 0; m_entitySeqIndex < SEQ_ENTITY_COUNT; ++m_entitySeqIndex)
+					SetResult(false, "Not run");
+
+				m_entitySeqIndex = -1;
+
+				ActivateOutput(pActInfo, eOutputPorts_AllPassed, false);
 			}
-			else if (IsPortActive(pActInfo, eInputPorts_Failed))
+			break;
+
+		case eFE_Activate:
 			{
-				OnTestResult(false, "FG Failed Triggered");
+				if (IsPortActive(pActInfo, eInputPorts_Ready))
+				{
+					bool readyInput = GetPortBool(pActInfo, eInputPorts_Ready);
+					m_labelProfileData = GetPortBool(pActInfo, eInputPorts_LabelProfileData);
+					m_owners = GetPortString(pActInfo, eInputPorts_Owners);
+					if (readyInput != m_ready)
+					{
+						m_ready = readyInput;
+						CryLogAlways("Test %s now: %s", Name(), m_ready ? "Ready to run" : "Not ready to run");
+					}
+				}
+				else if (IsPortActive(pActInfo, eInputPorts_Succeeded))
+				{
+					OnTestResult(true, "FG Succeeded Triggered");
+				}
+				else if (IsPortActive(pActInfo, eInputPorts_Failed))
+				{
+					OnTestResult(false, "FG Failed Triggered");
+				}
 			}
-		}
-		break;
+			break;
 		}
 	}
 #endif
@@ -332,7 +332,7 @@ void CFlowNode_FeatureTest::Update(float deltaTime)
 
 		if (pFollowEntity)
 		{
-			CCamera& viewCamera = gEnv->pSystem->GetViewCamera();
+			CCamera viewCamera = gEnv->pSystem->GetViewCamera();
 
 			Vec3 vPos(0, 0, 0);
 			Vec3 vDir(0, 0, 0);
@@ -354,6 +354,8 @@ void CFlowNode_FeatureTest::Update(float deltaTime)
 
 			viewCamera.SetMatrix(CCamera::CreateOrientationYPR(CCamera::CreateAnglesYPR(vDir, fRoll)));
 			viewCamera.SetPosition(vPos);
+			
+			gEnv->pSystem->SetViewCamera(viewCamera);
 		}
 
 		// If a valid max time has been set
@@ -512,10 +514,10 @@ bool CFlowNode_FeatureTest::StartNextTestRun()
 			m_entityStartPos = pSeqEntity->GetWorldPos();
 
 			CryLogAlways("Starting test: \"%s[%s]\". Max time: %fs. Entity start pos: (%f, %f, %f)",
-				Name(),
-				pSeqEntity->GetEntityTextDescription().c_str(),
-				GetPortFloat(&m_actInfo, eInputPorts_MaxTime),
-				m_entityStartPos.x, m_entityStartPos.y, m_entityStartPos.z);
+			             Name(),
+			             pSeqEntity->GetEntityTextDescription().c_str(),
+			             GetPortFloat(&m_actInfo, eInputPorts_MaxTime),
+			             m_entityStartPos.x, m_entityStartPos.y, m_entityStartPos.z);
 
 			// Output entity ID and trigger start
 			ActivateOutput(&m_actInfo, eOutputPorts_SequenceEntity, pSeqEntity->GetId());
@@ -540,8 +542,8 @@ bool CFlowNode_FeatureTest::StartNextTestRun()
 		m_timeRunning = 0;
 
 		CryLogAlways("Starting test: \"%s\". Max time: %fs.",
-			Name(),
-			GetPortFloat(&m_actInfo, eInputPorts_MaxTime));
+		             Name(),
+		             GetPortFloat(&m_actInfo, eInputPorts_MaxTime));
 
 		// Start test
 		ActivateOutput(&m_actInfo, eOutputPorts_Start, true);
@@ -740,9 +742,9 @@ public:
 		const Vec3 size(value.GetSize());
 
 		CryLogAlways("%s%s: AABB min(%f, %f, %f) max(%f, %f, %f) size(%f, %f, %f)", Prefix(depth), name,
-			value.min.x, value.min.y, value.min.z,
-			value.max.x, value.max.y, value.max.z,
-			size.x, size.y, size.z);
+		             value.min.x, value.min.y, value.min.z,
+		             value.max.x, value.max.y, value.max.z,
+		             size.x, size.y, size.z);
 	}
 
 	void Log(const char* name, IAIObject* pAI, uint32 depth)
@@ -887,13 +889,13 @@ public:
 						const float normalizedTime = pSkeletonAnim->GetAnimationNormalizedTime(&anim);
 
 						CryLogAlways("%s CAnimation[%d]: ID[%d] \"%s\" active: %d animTime: %f duration: %f loopCount: %d repeatCount: %d", Prefix(depth), i,
-							anim.GetAnimationId(),
-							animName,
-							anim.IsActivated() ? 1 : 0,
-							normalizedTime,
-							anim.GetExpectedTotalDurationSeconds(),
-							anim.GetLoop(),
-							anim.GetRepeat() ? 1 : 0);
+						             anim.GetAnimationId(),
+						             animName,
+						             anim.IsActivated() ? 1 : 0,
+						             normalizedTime,
+						             anim.GetExpectedTotalDurationSeconds(),
+						             anim.GetLoop(),
+						             anim.GetRepeat() ? 1 : 0);
 					}
 				}
 			}
@@ -947,7 +949,6 @@ public:
 		Log("ForwardDir", pEntity->GetForwardDir(), depth);
 		Log("Guid", pEntity->GetGuid().ToDebugString(), depth);
 		Log("EntityID", pEntity->GetId(), depth);
-		Log("UpdatePolicy", pEntity->GetUpdatePolicy(), depth);
 		AABB worldBounds;
 		pEntity->GetWorldBounds(worldBounds);
 		Log("WorldBounds", worldBounds, depth);
@@ -1003,9 +1004,9 @@ void CFlowNode_FeatureTest::SetResult(bool result, const char* reason)
 					const Vec3 finalEntityPos(pEnt->GetWorldPos());
 					const Vec3 entityTranslation(finalEntityPos - m_entityStartPos);
 					CryLogAlways("Final position for %s: (%f, %f, %f). Translation since start: (%f, %f, %f)",
-						pEnt->GetName(),
-						finalEntityPos.x, finalEntityPos.y, finalEntityPos.z,
-						entityTranslation.x, entityTranslation.y, entityTranslation.z);
+					             pEnt->GetName(),
+					             finalEntityPos.x, finalEntityPos.y, finalEntityPos.z,
+					             entityTranslation.x, entityTranslation.y, entityTranslation.z);
 
 					// Log the entity state (more verbose on failure)
 					EntityLogger entityLogger(result ? 4 : 6);
@@ -1123,29 +1124,29 @@ void CFlowNode_WatchCodeCheckpoint::ProcessEvent(EFlowEvent event, SActivationIn
 	{
 
 	case eFE_Initialize:
-	{
-		m_actInfo = *pActInfo;
+		{
+			m_actInfo = *pActInfo;
 
-		RemoveAsWatcher();
+			RemoveAsWatcher();
 
-		// Reset state
-		m_checkPointIdx = ~0;
-		m_pCheckPoint = NULL;
-	}
-	break;
+			// Reset state
+			m_checkPointIdx = ~0;
+			m_pCheckPoint = NULL;
+		}
+		break;
 
 	case eFE_Activate:
-	{
-		if (IsPortActive(pActInfo, eInputPorts_StartWatching))
 		{
-			StartWatching(pActInfo);
+			if (IsPortActive(pActInfo, eInputPorts_StartWatching))
+			{
+				StartWatching(pActInfo);
+			}
+			else if (IsPortActive(pActInfo, eInputPorts_StopWatching))
+			{
+				StopWatching(pActInfo);
+			}
 		}
-		else if (IsPortActive(pActInfo, eInputPorts_StopWatching))
-		{
-			StopWatching(pActInfo);
-		}
-	}
-	break;
+		break;
 	}
 }
 
@@ -1299,35 +1300,35 @@ void CFlowNode_ListenForCommunication::ProcessEvent(EFlowEvent event, SActivatio
 	{
 
 	case eFE_Initialize:
-	{
-		m_actInfo = *pActInfo;
-		m_timeListened = 0.0f;
-		m_isListening = false;
-		m_timeout = 0.0f;
+		{
+			m_actInfo = *pActInfo;
+			m_timeListened = 0.0f;
+			m_isListening = false;
+			m_timeout = 0.0f;
 
-		RemoveAsListener();
+			RemoveAsListener();
 
-		// Request eFE_Update events
-		pActInfo->pGraph->SetRegularlyUpdated(pActInfo->myID, true);
-	}
-	break;
+			// Request eFE_Update events
+			pActInfo->pGraph->SetRegularlyUpdated(pActInfo->myID, true);
+		}
+		break;
 
 	case eFE_Update:
-	{
-		// Check for hits
-		float deltaTime = gEnv->pTimer->GetFrameTime();
-		Update(deltaTime);
-	}
-	break;
+		{
+			// Check for hits
+			float deltaTime = gEnv->pTimer->GetFrameTime();
+			Update(deltaTime);
+		}
+		break;
 
 	case eFE_Activate:
-	{
-		if (IsPortActive(pActInfo, eInputPorts_StartListening))
-			RegisterAsListener(pActInfo);
-		if (IsPortActive(pActInfo, eInputPorts_StopListening))
-			RemoveAsListener();
-	}
-	break;
+		{
+			if (IsPortActive(pActInfo, eInputPorts_StartListening))
+				RegisterAsListener(pActInfo);
+			if (IsPortActive(pActInfo, eInputPorts_StopListening))
+				RemoveAsListener();
+		}
+		break;
 	}
 }
 

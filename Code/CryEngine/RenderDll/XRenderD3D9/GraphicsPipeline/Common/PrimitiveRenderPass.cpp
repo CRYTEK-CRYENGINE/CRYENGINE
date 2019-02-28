@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -11,22 +11,20 @@
 CRenderPrimitive::SPrimitiveGeometry CRenderPrimitive::s_primitiveGeometryCache[CRenderPrimitive::ePrim_Count];
 int CRenderPrimitive::s_nPrimitiveGeometryCacheUsers = 0;
 
-
-SCompiledRenderPrimitive::SCompiledRenderPrimitive()
-	: m_stencilRef(0)
-	, m_pVertexInputSet(nullptr)
-	, m_pIndexInputSet(nullptr)
+CGraphicsPipeline& CRenderPassBase::GetGraphicsPipeline() const
 {
+	return gRenDev->GetGraphicsPipeline();
 }
 
 SCompiledRenderPrimitive::SCompiledRenderPrimitive(SCompiledRenderPrimitive&& other)
-	: m_stencilRef(std::move(other.m_stencilRef))
-	, m_pVertexInputSet(std::move(other.m_pVertexInputSet))
-	, m_pIndexInputSet(std::move(other.m_pIndexInputSet))
-	, m_pPipelineState(std::move(other.m_pPipelineState))
+	: m_pPipelineState(std::move(other.m_pPipelineState))
 	, m_pResourceLayout(std::move(other.m_pResourceLayout))
 	, m_pResources(std::move(other.m_pResources))
-	, m_instances(std::move(other.m_instances))
+	, m_pVertexInputSet(std::move(other.m_pVertexInputSet))
+	, m_pIndexInputSet(std::move(other.m_pIndexInputSet))
+	, m_inlineConstantBuffers(std::move(other.m_inlineConstantBuffers))
+	, m_stencilRef(std::move(other.m_stencilRef))
+	, m_drawInfo(std::move(other.m_drawInfo))
 {
 }
 
@@ -37,10 +35,12 @@ void SCompiledRenderPrimitive::Reset()
 	m_pIndexInputSet = nullptr;
 
 	m_pResources.reset();
-	m_instances.clear();
+	m_drawInfo = SDrawInfo();
 
 	m_pPipelineState.reset();
 	m_pResourceLayout.reset();
+
+	m_inlineConstantBuffers.fill(SDeviceObjectHelpers::SConstantBufferBindInfo());
 }
 
 CRenderPrimitive::SPrimitiveGeometry::SPrimitiveGeometry()
@@ -49,10 +49,9 @@ CRenderPrimitive::SPrimitiveGeometry::SPrimitiveGeometry()
 	, vertexBaseOffset(0)
 	, vertexOrIndexCount(0)
 	, vertexOrIndexOffset(0)
+	, indexStream()
+	, vertexStream()
 {
-	SStreamInfo emptyStream = { ~0u, 0, 0 };
-	vertexStream = emptyStream;
-	indexStream = emptyStream;
 }
 
 CRenderPrimitive::CRenderPrimitive(CRenderPrimitive&& other)
@@ -77,7 +76,8 @@ CRenderPrimitive::CRenderPrimitive(CRenderPrimitive&& other)
 {}
 
 CRenderPrimitive::CRenderPrimitive(EPrimitiveFlags flags)
-	: m_flags(flags)
+	: SCompiledRenderPrimitive(SCompiledRenderPrimitive::eType_RenderPrimitive)
+	, m_flags(flags)
 	, m_dirtyMask(eDirty_All)
 	, m_renderState(0)
 	, m_stencilState(STENC_FUNC(FSS_STENCFUNC_ALWAYS) | STENCOP_FAIL(FSS_STENCOP_KEEP) | STENCOP_ZFAIL(FSS_STENCOP_KEEP) | STENCOP_PASS(FSS_STENCOP_KEEP))
@@ -92,7 +92,6 @@ CRenderPrimitive::CRenderPrimitive(EPrimitiveFlags flags)
 	, m_bDepthClip(true)
 	, m_resourceDesc()
 {
-	m_instances.resize(1);
 }
 
 void CRenderPrimitive::Reset(EPrimitiveFlags flags)
@@ -106,7 +105,7 @@ void CRenderPrimitive::Reset(EPrimitiveFlags flags)
 	m_stencilReadMask = 0xFF;
 	m_stencilWriteMask = 0xFF;
 	m_cullMode = eCULL_Back;
-	m_bDepthClip = false;
+	m_bDepthClip = true;
 	m_pShader = nullptr;
 	m_techniqueName.reset();
 	m_rtMask = 0;
@@ -116,8 +115,6 @@ void CRenderPrimitive::Reset(EPrimitiveFlags flags)
 	m_constantManager.Reset();
 	m_currentPsoUpdateCount = 0;
 	m_renderPassHash = 0;
-
-	m_instances.resize(1);
 }
 
 void CRenderPrimitive::AllocateTypedConstantBuffer(EConstantBufferShaderSlot shaderSlot, int size, EShaderStage shaderStages)
@@ -159,7 +156,6 @@ CRenderPrimitive::EDirtyFlags CRenderPrimitive::Compile(const CPrimitiveRenderPa
 		EDirtyFlags revertMask = dirtyMask;
 
 		CD3D9Renderer* const __restrict rd = gcpRendD3D;
-		auto& instance = m_instances.front();
 
 		if (dirtyMask & eDirty_Geometry)
 		{
@@ -182,9 +178,9 @@ CRenderPrimitive::EDirtyFlags CRenderPrimitive::Compile(const CPrimitiveRenderPa
 
 		if (dirtyMask & eDirty_InstanceData)
 		{
-			instance.vertexBaseOffset = m_primitiveGeometry.vertexBaseOffset;
-			instance.vertexOrIndexCount = m_primitiveGeometry.vertexOrIndexCount;
-			instance.vertexOrIndexOffset = m_primitiveGeometry.vertexOrIndexOffset;
+			m_drawInfo.vertexBaseOffset = m_primitiveGeometry.vertexBaseOffset;
+			m_drawInfo.vertexOrIndexCount = m_primitiveGeometry.vertexOrIndexCount;
+			m_drawInfo.vertexOrIndexOffset = m_primitiveGeometry.vertexOrIndexOffset;
 		}
 
 		if (dirtyMask & eDirty_Resources)
@@ -259,7 +255,11 @@ CRenderPrimitive::EDirtyFlags CRenderPrimitive::Compile(const CPrimitiveRenderPa
 			if (m_flags & eFlags_ReflectShaderConstants_Mask)
 				m_constantManager.InitShaderReflection(*m_pPipelineState);
 
-			instance.constantBuffers = m_constantManager.GetBuffers();
+			const auto& cBuffers = m_constantManager.GetBuffers();
+			assert(cBuffers.size() <= m_inlineConstantBuffers.max_size());
+			size_t sz = std::min(m_inlineConstantBuffers.max_size(),cBuffers.size());
+			std::copy_n(cBuffers.begin(), sz, m_inlineConstantBuffers.begin());
+			std::fill(m_inlineConstantBuffers.begin() + sz, m_inlineConstantBuffers.end(), SDeviceObjectHelpers::SConstantBufferBindInfo());
 		}
 
 		m_dirtyMask = dirtyMask = eDirty_None;
@@ -290,6 +290,30 @@ void CRenderPrimitive::AddPrimitiveGeometryCacheUser()
 			primitiveGeometry.vertexOrIndexCount = 3;
 
 			gcpRendD3D->m_DevBufMan.UpdateBuffer(primitiveGeometry.vertexStream.hStream, fullscreenTriVertices, fullscreenTriVerticesSize);
+		}
+
+		// ePrim_ProceduralTriangle
+		{
+			SPrimitiveGeometry& primitiveGeometry = s_primitiveGeometryCache[ePrim_ProceduralTriangle];
+
+			primitiveGeometry.vertexStream.hStream = ~0u;
+			primitiveGeometry.vertexStream.nStride = 0;
+			primitiveGeometry.primType = eptTriangleList;
+			primitiveGeometry.vertexFormat = EDefaultInputLayouts::Empty;
+			primitiveGeometry.vertexOrIndexOffset = 0;
+			primitiveGeometry.vertexOrIndexCount = 3;
+		}
+
+		// ePrim_ProceduralQuad
+		{
+			SPrimitiveGeometry& primitiveGeometry = s_primitiveGeometryCache[ePrim_ProceduralQuad];
+
+			primitiveGeometry.vertexStream.hStream = ~0u;
+			primitiveGeometry.vertexStream.nStride = 0;
+			primitiveGeometry.primType = eptTriangleStrip;
+			primitiveGeometry.vertexFormat = EDefaultInputLayouts::Empty;
+			primitiveGeometry.vertexOrIndexOffset = 0;
+			primitiveGeometry.vertexOrIndexCount = 4;
 		}
 
 		// ePrim_FullscreenQuad
@@ -472,6 +496,11 @@ void CPrimitiveRenderPass::SetViewport(const D3DViewPort& viewport)
 	m_viewport = viewport;
 }
 
+void CPrimitiveRenderPass::SetViewport(const SRenderViewport& viewport)
+{
+	SetViewport(RenderViewportToD3D11Viewport(viewport));
+}
+
 void CPrimitiveRenderPass::SetScissor(bool bEnable, const D3DRectangle& scissor)
 {
 	if (m_scissorEnabled = bEnable)
@@ -583,6 +612,7 @@ void CPrimitiveRenderPass::Prepare(CDeviceCommandListRef RESTRICT_REFERENCE comm
 
 		CRY_ASSERT(pPrimitive->m_pPipelineState->IsValid());
 		CRY_ASSERT(pPrimitive->m_pResourceLayout);
+		CRY_ASSERT_MESSAGE(pPrimitive->m_type == SCompiledRenderPrimitive::eType_RenderPrimitive ? !static_cast<CRenderPrimitive*>(pPrimitive)->IsDirty() : true, "Render primitive of the current render pass is dirty!");
 
 		if (pPrimitive->m_pResources)
 		{
@@ -590,13 +620,11 @@ void CPrimitiveRenderPass::Prepare(CDeviceCommandListRef RESTRICT_REFERENCE comm
 			pCommandInterface->PrepareResourcesForUse(bindSlot++, pPrimitive->m_pResources.get());
 		}
 
-		for (auto& instance : pPrimitive->m_instances)
+		uint32 cbBindSlot = bindSlot;
+		for (auto& cb : pPrimitive->m_inlineConstantBuffers)
 		{
-			uint32 cbBindSlot = bindSlot;
-			for (auto& cb : instance.constantBuffers)
-			{
+			if (cb.pBuffer)
 				pCommandInterface->PrepareInlineConstantBufferForUse(cbBindSlot++, cb.pBuffer, cb.shaderSlot, cb.shaderStages);
-			}
 		}
 
 		if (pPrimitive->m_pVertexInputSet)
@@ -634,12 +662,11 @@ void CPrimitiveRenderPass::Execute()
 
 	if (m_clearMask & CPrimitiveRenderPass::eClear_Stencil)
 	{
-		D3DDepthSurface* pDsv = GetDepthTarget()->GetDevTexture()->LookupDSV(EDefaultResourceViews::DepthStencil);
-		pCommandInterface->ClearSurface(pDsv, CLEAR_STENCIL, 0);
+		CClearSurfacePass::Execute(GetDepthTarget(), CLEAR_STENCIL, Clr_Unused.r, Val_Stencil);
 	}
 	if (m_clearMask & CPrimitiveRenderPass::eClear_Color0)
 	{
-		pCommandInterface->ClearSurface(GetRenderTarget(0)->GetSurface(0, 0), Clr_Transparent);
+		CClearSurfacePass::Execute(GetRenderTarget(0), Clr_Transparent);
 	}
 
 	// prepare primitives first
@@ -681,25 +708,24 @@ void CPrimitiveRenderPass::Execute()
 
 		if (pPrimitive->m_pResources)
 		{
-			pCommandInterface->SetResources( bindSlot++, pPrimitive->m_pResources.get());
+			pCommandInterface->SetResources(bindSlot++, pPrimitive->m_pResources.get());
 		}
 
-		for (auto& instance : pPrimitive->m_instances)
+		for (auto& cb : pPrimitive->m_inlineConstantBuffers)
 		{
-			uint32 cbBindSlot = bindSlot;
-			for (auto& cb : instance.constantBuffers)
+			if (cb.pBuffer)
 			{
-				pCommandInterface->SetInlineConstantBuffer(cbBindSlot++, cb.pBuffer, cb.shaderSlot, cb.shaderStages);
+				pCommandInterface->SetInlineConstantBuffer(bindSlot++, cb.pBuffer, cb.shaderSlot, cb.shaderStages);
 			}
+		}
 
-			if (pPrimitive->m_pIndexInputSet)
-			{
-				pCommandInterface->DrawIndexed(instance.vertexOrIndexCount, 1, instance.vertexOrIndexOffset, instance.vertexBaseOffset, 0);
-			}
-			else
-			{
-				pCommandInterface->Draw(instance.vertexOrIndexCount, 1, instance.vertexOrIndexOffset, 0);
-			}
+		if (pPrimitive->m_pIndexInputSet)
+		{
+			pCommandInterface->DrawIndexed(pPrimitive->m_drawInfo.vertexOrIndexCount, 1, pPrimitive->m_drawInfo.vertexOrIndexOffset, pPrimitive->m_drawInfo.vertexBaseOffset, 0);
+		}
+		else
+		{
+			pCommandInterface->Draw(pPrimitive->m_drawInfo.vertexOrIndexCount, 1, pPrimitive->m_drawInfo.vertexOrIndexOffset, 0);
 		}
 	}
 

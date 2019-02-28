@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef CRY_HALF_INL
 #define CRY_HALF_INL
@@ -134,6 +134,11 @@ struct CryHalf2
 	bool operator!=(const CryHalf2& rhs) const
 	{
 		return x != rhs.x || y != rhs.y;
+	}
+
+	bool operator==(const CryHalf2& rhs) const
+	{
+		return x == rhs.x && y == rhs.y;
 	}
 
 	void GetMemoryUsage(ICrySizer* pSizer) const {}

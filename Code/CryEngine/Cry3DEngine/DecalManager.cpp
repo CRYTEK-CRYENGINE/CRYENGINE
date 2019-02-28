@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   decals.cpp
@@ -268,7 +268,8 @@ bool CDecalManager::Spawn(CryEngineDecalInfo DecalInfo, CDecal* pCallerManagedDe
 	// do not spawn if too far
 	float fZoom = GetObjManager() ? Get3DEngine()->GetZoomFactor() : 1.f;
 	float fDecalDistance = DecalInfo.vPos.GetDistance(vCamPos);
-	if (!pCallerManagedDecal && (fDecalDistance > Get3DEngine()->GetMaxViewDistance() || fDecalDistance * fZoom > DecalInfo.fSize * ENTITY_DECAL_DIST_FACTOR * 3.f))
+	float fMaxDist = max(GetCVars()->e_ViewDistMin, min(GetFloatCVar(e_ViewDistCompMaxSize), DecalInfo.fSize) * GetCVars()->e_ViewDistRatio * GetCVars()->e_DecalsSpawnDistRatio);
+	if (!pCallerManagedDecal && (fDecalDistance > Get3DEngine()->GetMaxViewDistance() || fDecalDistance * fZoom > fMaxDist))
 		return false;
 
 	int overlapCount(0);
@@ -661,20 +662,26 @@ bool CDecalManager::Spawn(CryEngineDecalInfo DecalInfo, CDecal* pCallerManagedDe
 	{
 		CTerrain* pTerrain = GetTerrain();
 		if (!DecalInfo.preventDecalOnGround && DecalInfo.fSize > (fWrapMinSize * 2.f) && !DecalInfo.ownerInfo.pRenderNode &&
-		    (DecalInfo.vPos.z - pTerrain->GetZApr(DecalInfo.vPos.x, DecalInfo.vPos.y, GetDefSID())) < DecalInfo.fSize && !DecalInfo.bDeferred)
+		    (DecalInfo.vPos.z - pTerrain->GetZApr(DecalInfo.vPos.x, DecalInfo.vPos.y)) < DecalInfo.fSize && !DecalInfo.bDeferred)
 		{
 			newDecal.m_eDecalType = eDecalType_WS_OnTheGround;
 
-			int nUnitSize = CTerrain::GetHeightMapUnitSize();
-			int x1 = int(DecalInfo.vPos.x - DecalInfo.fSize) / nUnitSize * nUnitSize - nUnitSize;
-			int x2 = int(DecalInfo.vPos.x + DecalInfo.fSize) / nUnitSize * nUnitSize + nUnitSize;
-			int y1 = int(DecalInfo.vPos.y - DecalInfo.fSize) / nUnitSize * nUnitSize - nUnitSize;
-			int y2 = int(DecalInfo.vPos.y + DecalInfo.fSize) / nUnitSize * nUnitSize + nUnitSize;
+			float unitSize = CTerrain::GetHeightMapUnitSize();
+			float x1 = std::floor((DecalInfo.vPos.x - DecalInfo.fSize) / unitSize) * unitSize - unitSize;
+			float x2 = std::floor((DecalInfo.vPos.x + DecalInfo.fSize) / unitSize) * unitSize + unitSize;
+			float y1 = std::floor((DecalInfo.vPos.y - DecalInfo.fSize) / unitSize) * unitSize - unitSize;
+			float y2 = std::floor((DecalInfo.vPos.y + DecalInfo.fSize) / unitSize) * unitSize + unitSize;
 
-			for (int x = x1; x <= x2; x += CTerrain::GetHeightMapUnitSize())
-				for (int y = y1; y <= y2; y += CTerrain::GetHeightMapUnitSize())
-					if (pTerrain->GetHole(x, y, GetDefSID()))
+			for (float x = x1; x <= x2; x += CTerrain::GetHeightMapUnitSize())
+			{
+				for (float y = y1; y <= y2; y += CTerrain::GetHeightMapUnitSize())
+				{
+					if (pTerrain->GetHole(x, y))
+					{
 						return false;
+					}
+				}
+			}
 		}
 		else
 			newDecal.m_eDecalType = eDecalType_WS_SimpleQuad;
@@ -821,7 +828,7 @@ void CDecalManager::Render(const SRenderingPassInfo& passInfo)
 			CDecal* pDecal = &m_arrDecals[i];
 			pDecal->m_vWSPos = pDecal->GetWorldPosition();
 			float fDist = rCamera.GetPosition().GetDistance(pDecal->m_vWSPos) * fZoom;
-			float fMaxViewDist = pDecal->m_fWSSize * ENTITY_DECAL_DIST_FACTOR * 3.0f;
+			float fMaxViewDist = max(GetCVars()->e_ViewDistMin, min(GetFloatCVar(e_ViewDistCompMaxSize), pDecal->m_fWSSize) * GetCVars()->e_ViewDistRatio * GetCVars()->e_ViewDistRatioModifierGameDecals);
 			if (fDist < fMaxViewDist)
 				if (rCamera.IsSphereVisible_F(Sphere(pDecal->m_vWSPos, pDecal->m_fWSSize)))
 				{

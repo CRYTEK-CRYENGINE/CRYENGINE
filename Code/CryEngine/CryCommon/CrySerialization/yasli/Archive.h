@@ -8,7 +8,6 @@
  */
 
 #pragma once
-#pragma warning (disable : 4100) 
 
 #include <stdarg.h>
 
@@ -205,9 +204,22 @@ struct SerializeStruct{
 	};
 };
 
-template<class Enum>
+//Enum classes may define an enum type that is not sizeof(int), therefore reinterpret_cast is dangerous and leads to bugs.
+template<class Enum, int size = sizeof(Enum)>
 struct SerializeEnum{
-	static bool invoke(Archive& ar, Enum& value, const char* name, const char* label){
+	static bool invoke(Archive& ar, Enum& value, const char* name, const char* label) {
+		static_assert(size < sizeof(int), "Enum of integer size should use specialized template, bigger than int should not be serialized");
+		const EnumDescription& enumDescription = getEnumDescription<Enum>();
+		int valueHolder = (int)value;
+		bool ret = serializeEnum(enumDescription, ar, valueHolder, name, label);
+		value = (Enum)valueHolder;
+		return ret;
+	};
+};
+
+template<class Enum>
+struct SerializeEnum<Enum, sizeof(int)>{
+	static bool invoke(Archive& ar, Enum& value, const char* name, const char* label) {
 		const EnumDescription& enumDescription = getEnumDescription<Enum>();
 		return serializeEnum(enumDescription, ar, reinterpret_cast<int&>(value), name, label);
 	};

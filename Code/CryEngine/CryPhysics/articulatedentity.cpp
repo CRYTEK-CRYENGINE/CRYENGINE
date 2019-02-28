@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -1264,15 +1264,18 @@ int CArticulatedEntity::Step(float time_interval)
 			m_pCollEntList[i]->Awake();
 		return UpdateHistory(1);
 	}
-	if (!m_bAwake && !m_bCheckCollisions || m_nRoots>1 || (!m_bCheckCollisions && !m_bGrounded) || bNoSim)
+	if (!m_bAwake && !m_bCheckCollisions || m_nRoots>1 || (!m_bCheckCollisions && !m_bGrounded) || bNoSim) {
+		if (m_iSimClass==4)
+			UpdateConstraints(time_interval);
 		return UpdateHistory(1);
+	}
 
-	FUNCTION_PROFILER( GetISystem(),PROFILE_PHYSICS );
+	CRY_PROFILE_FUNCTION(PROFILE_PHYSICS );
 	PHYS_ENTITY_PROFILER
 
+	int iCaller = get_iCaller_int();
 	if (!bboxUpdated) ComputeBBox(m_BBoxNew);
 	if (m_bCheckCollisions) {
-		int iCaller = get_iCaller_int();
 		Vec3 sz = m_BBoxNew[1]-m_BBoxNew[0];
 		float szmax = max(max(sz.x,sz.y),sz.z)*0.3f;
 		if (m_body.v.len2()*sqr(time_interval) > szmax)
@@ -1366,7 +1369,7 @@ int CArticulatedEntity::Step(float time_interval)
 		ComputeBBox(m_BBoxNew);
 		UpdatePosition(m_pWorld->RepositionEntity(this,1,m_BBoxNew));
 		gravity = m_gravity;
-		i = PostStepNotify(time_interval,pb,CRY_ARRAY_COUNT(pb));
+		i = PostStepNotify(time_interval,pb,CRY_ARRAY_COUNT(pb),iCaller);
 		ApplyBuoyancy(time_interval,m_gravityFreefall,pb,i);
 		if ((m_gravity-gravity).len2()>0)
 			m_gravityLyingMode = m_gravity;
@@ -1412,7 +1415,7 @@ int CArticulatedEntity::Step(float time_interval)
 	UpdatePosition(m_pWorld->RepositionEntity(this,1,m_BBoxNew));
 	UpdateJointDyn();
 	gravity = m_gravity;
-	PostStepNotify(time_interval,pb,CRY_ARRAY_COUNT(pb));
+	PostStepNotify(time_interval,pb,CRY_ARRAY_COUNT(pb),iCaller);
 	if ((m_gravity-gravity).len2()>0)
 		m_gravityLyingMode = m_gravity;
 
@@ -2377,23 +2380,25 @@ void CArticulatedEntity::BreakableConstraintsUpdated()
 void CArticulatedEntity::DrawHelperInformation(IPhysRenderer *pRenderer, int flags)
 {
 	if (!pRenderer) return;
+	int idsel = -1;
+	if (flags & 1<<28) {
+		idsel = flags>>16 & 0xFFF;
+		flags &= 0xF000FFFF;
+	}
 
 	CRigidEntity::DrawHelperInformation(pRenderer, flags);
 
 	if(flags&0x10){
-		for(int i=0;i<m_nJoints;i++){
+		for(int i=0;i<m_nJoints;i++) if ((m_joints[i].idbody | idsel>>31)==idsel) {
 			quaternionf q_parent;
 			if (m_joints[i].iParent>=0) q_parent = m_joints[m_joints[i].iParent].quat;
 			else q_parent = m_qNew;
-			quaternionf j_q = q_parent*m_joints[i].quat0*Quat::CreateRotationXYZ(m_joints[i].q+m_joints[i].qext);
-			Vec3 j_pos = m_pos+m_qrot*m_parts[m_joints[i].iStartPart].pos;
+			quaternionf j_q = q_parent*m_joints[i].quat0;
+			int ipart = m_joints[i].iStartPart;
+			box bbox; m_parts[ipart].pPhysGeom->pGeom->GetBBox(&bbox);
+			Vec3 j_pos = m_pos + m_qrot*(m_parts[ipart].pos-m_joints[i].quat*m_infos[ipart].pos0) + m_joints[i].quat*m_joints[i].pivot[1];
 			Vec3 axes[3] = {j_q.GetColumn0(), j_q.GetColumn1(),j_q.GetColumn2()};
-			if ((m_joints[i].flags&all_angles_locked)==all_angles_locked) pRenderer->DrawText(j_pos,"all_angles_locked",0);
-			else{
-				int axes_locked=0;
-				for(int j=0;j<3;++j) if (!(m_joints[i].flags&angle0_locked<<j)) axes_locked|=(1<<j);
-				pRenderer->DrawFrame(j_pos,&axes[0], 0.07f,&m_joints[i].limits[0],axes_locked);
-			}
+			pRenderer->DrawFrame(j_pos, axes, max(max(bbox.size.x,bbox.size.y),bbox.size.z)*m_parts[ipart].scale, m_joints[i].limits, m_joints[i].flags ^ all_angles_locked);
 		}
 	}
 }
@@ -3176,6 +3181,6 @@ void CArticulatedEntity::GetMemoryStatistics(ICrySizer *pSizer) const
 	CRigidEntity::GetMemoryStatistics(pSizer);
 	pSizer->AddObject(m_joints, m_nJointsAlloc*sizeof(m_joints[0]));
 	for(int i=0; i<m_nJoints; i++) if (m_joints[i].fsbuf)
-		pSizer->AddObject(m_joints[i].fsbuf, sizeof(sizeof(featherstone_data)+16));
+		pSizer->AddObject(m_joints[i].fsbuf, sizeof(featherstone_data)+16);
 	pSizer->AddObject(m_infos, m_nPartsAlloc*sizeof(m_infos[0]));
 }

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 //
 //  File:Renderer.h - API Independent
@@ -17,6 +17,12 @@
 
 #include <CryExtension/ClassWeaver.h>
 #include <CrySystem/IEngineModule.h>
+#include <CrySystem/TimeValue.h>
+#include <CryCore/BaseTypes.h>
+#include <CryCore/CryVariant.h>
+#include "IRenderView.h"
+
+#include <vector>
 
 // forward declarations
 struct SRenderingPassInfo;
@@ -74,7 +80,6 @@ class CTexMan;
 //class   ColorF;
 class CShadowVolEdge;
 class CCamera;
-class CDLight;
 struct SDeferredLightVolume;
 struct  ILog;
 struct  IConsole;
@@ -93,7 +98,6 @@ struct SParticleAddJobCompare;
 struct IFlashPlayer_RenderProxy;
 struct IColorGradingController;
 struct IStereoRenderer;
-struct IFFont_RenderProxy;
 struct STextDrawContext;
 struct IRenderMesh;
 class IOpticsManager;
@@ -228,46 +232,6 @@ struct IGraphicsDeviceConstantBuffer : public CMultiThreadRefCount
 };
 typedef _smart_ptr<IGraphicsDeviceConstantBuffer> IGraphicsDeviceConstantBufferPtr;
 
-/*
-   template <typename T>
-   class CTypedGraphicsDeviceConstantBuffer
-   {
-   T m_hostBuffer;
-   IGraphicsDeviceConstantBuffer m_constantBuffer;
-
-   public:
-   CTypedConstantBuffer() : m_constantBuffer(nullptr) {}
-   CTypedConstantBuffer(const CTypedConstantBuffer<T> &cb) : m_constantBuffer(nullptr) { m_hostBuffer = cb.m_hostBuffer; }
-
-   bool IsDeviceBufferAllocated() { return m_constantBuffer != nullptr; }
-   IGraphicsDeviceConstantBuffer GetDeviceConstantBuffer()
-   {
-    if (!m_constantBuffer)
-    {
-      CreateDeviceBuffer();
-    }
-    return m_constantBuffer;
-   }
-
-   void CreateDeviceBuffer()
-   {
-    int size = sizeof(T);
-    m_constantBuffer = gcpRendD3D->m_DevBufMan.CreateConstantBuffer(size);
-    CopyToDevice();
-   }
-   void CopyToDevice()
-   {
-    m_constantBuffer->SetData(&m_hostBuffer, sizeof(m_hostBuffer));
-   }
-
-   T* operator->() { return &m_hostBuffer; }
-   T& operator=(const T& hostData)
-   {
-    return m_hostBuffer = hostData;
-   }
-   };
- */
-
 struct SWindGrid
 {
 	int       m_nWidth;
@@ -302,594 +266,16 @@ enum EScreenAspectRatio
 	eAspect_16_10,
 };
 
-enum EScreenShotMode
+enum class EReadTextureFormat
 {
-	eScreenShotMode_Normal,
-	eScreenShotMode_AppCrash
+	RGBA8,
+	RGB8,
+	BGR8
 };
+
 namespace gpu_pfx2 {
 class IManager;
 }
-
-class CRenderCamera
-{
-public:
-	CRenderCamera();
-	CRenderCamera(const CRenderCamera& Cam);
-	void        Copy(const CRenderCamera& Cam);
-
-	void        LookAt(const Vec3& Eye, const Vec3& ViewRefPt, const Vec3& ViewUp);
-	void        Perspective(float Yfov, float Aspect, float Ndist, float Fdist);
-	void        Frustum(float l, float r, float b, float t, float Ndist, float Fdist);
-	const Vec3& wCOP() const;
-	Vec3        ViewDir() const;
-	Vec3        ViewDirOffAxis() const;
-
-	float*      GetXform_Screen2Obj(float* M, int WW, int WH) const;
-	float*      GetXform_Obj2Screen(float* M, int WW, int WH) const;
-
-	float*      GetModelviewMatrix(float* M) const;
-	float*      GetProjectionMatrix(float* M) const;
-	float*      GetViewportMatrix(float* M, int WW, int WH) const;
-
-	void        SetModelviewMatrix(const float* M);
-
-	void        GetLookAtParams(Vec3* Eye, Vec3* ViewRefPt, Vec3* ViewUp) const;
-	void        GetPerspectiveParams(float* Yfov, float* Xfov, float* Aspect, float* Ndist, float* Fdist) const;
-	void        GetFrustumParams(float* l, float* r, float* b, float* t, float* Ndist, float* Fdist) const;
-
-	float*      GetInvModelviewMatrix(float* M) const;
-	float*      GetInvProjectionMatrix(float* M) const;
-	float*      GetInvViewportMatrix(float* M, int WW, int WH) const;
-
-	Vec3        WorldToCam(const Vec3& wP) const;
-	float       WorldToCamZ(const Vec3& wP) const;
-	Vec3        CamToWorld(const Vec3& cP) const;
-
-	void        LoadIdentityXform();
-	void        Xform(const float M[16]);
-
-	void        Translate(const Vec3& trans);
-	void        Rotate(const float M[9]);
-
-	void        GetPixelRay(float sx, float sy, int ww, int wh, Vec3* Start, Vec3* Dir) const;
-
-	void        CalcVerts(Vec3* V) const;
-	void        CalcTileVerts(Vec3* V, f32 nPosX, f32 nPosY, f32 nGridSizeX, f32 nGridSizeY) const;
-	void        CalcRegionVerts(Vec3* V, const Vec2& vMin, const Vec2& vMax) const;
-	void        CalcTiledRegionVerts(Vec3* V, Vec2& vMin, Vec2& vMax, f32 nPosX, f32 nPosY, f32 nGridSizeX, f32 nGridSizeY) const;
-
-	Vec3  vX, vY, vZ;
-	Vec3  vOrigin;
-	float fWL, fWR, fWB, fWT;
-	float fNear, fFar;
-};
-
-inline float* Frustum16fv(float* M, float l, float r, float b, float t, float n, float f)
-{
-	M[0] = (2 * n) / (r - l);
-	M[4] = 0;
-	M[8] = (r + l) / (r - l);
-	M[12] = 0;
-	M[1] = 0;
-	M[5] = (2 * n) / (t - b);
-	M[9] = (t + b) / (t - b);
-	M[13] = 0;
-	M[2] = 0;
-	M[6] = 0;
-	M[10] = -(f + n) / (f - n);
-	M[14] = (-2 * f * n) / (f - n);
-	M[3] = 0;
-	M[7] = 0;
-	M[11] = -1;
-	M[15] = 0;
-	return M;
-}
-
-inline float* Viewing16fv(float* M, const Vec3 X, const Vec3 Y, const Vec3 Z, const Vec3 O)
-{
-	M[0] = X.x;
-	M[4] = X.y;
-	M[8] = X.z;
-	M[12] = -X | O;
-	M[1] = Y.x;
-	M[5] = Y.y;
-	M[9] = Y.z;
-	M[13] = -Y | O;
-	M[2] = Z.x;
-	M[6] = Z.y;
-	M[10] = Z.z;
-	M[14] = -Z | O;
-	M[3] = 0;
-	M[7] = 0;
-	M[11] = 0;
-	M[15] = 1;
-	return M;
-}
-
-inline CRenderCamera::CRenderCamera()
-{
-	vX.Set(1, 0, 0);
-	vY.Set(0, 1, 0);
-	vZ.Set(0, 0, 1);
-	vOrigin.Set(0, 0, 0);
-	fNear = 1.4142f;
-	fFar = 10;
-	fWL = -1;
-	fWR = 1;
-	fWT = 1;
-	fWB = -1;
-}
-
-inline CRenderCamera::CRenderCamera(const CRenderCamera& Cam)
-{
-	Copy(Cam);
-}
-
-inline void CRenderCamera::Copy(const CRenderCamera& Cam)
-{
-	vX = Cam.vX;
-	vY = Cam.vY;
-	vZ = Cam.vZ;
-	vOrigin = Cam.vOrigin;
-	fNear = Cam.fNear;
-	fFar = Cam.fFar;
-	fWL = Cam.fWL;
-	fWR = Cam.fWR;
-	fWT = Cam.fWT;
-	fWB = Cam.fWB;
-}
-
-inline void CRenderCamera::LookAt(const Vec3& Eye, const Vec3& ViewRefPt, const Vec3& ViewUp)
-{
-	vZ = Eye - ViewRefPt;
-	vZ.NormalizeSafe();
-	vX = ViewUp % vZ;
-	vX.NormalizeSafe();
-	vY = vZ % vX;
-	vY.NormalizeSafe();
-	vOrigin = Eye;
-}
-
-inline void CRenderCamera::Perspective(float Yfov, float Aspect, float Ndist, float Fdist)
-{
-	fNear = Ndist;
-	fFar = Fdist;
-	fWT = tanf(Yfov * 0.5f) * fNear;
-	fWB = -fWT;
-	fWR = fWT * Aspect;
-	fWL = -fWR;
-}
-
-inline void CRenderCamera::Frustum(float l, float r, float b, float t, float Ndist, float Fdist)
-{
-	fNear = Ndist;
-	fFar = Fdist;
-	fWR = r;
-	fWL = l;
-	fWB = b;
-	fWT = t;
-}
-
-inline void CRenderCamera::GetLookAtParams(Vec3* Eye, Vec3* ViewRefPt, Vec3* ViewUp) const
-{
-	*Eye = vOrigin;
-	*ViewRefPt = vOrigin - vZ;
-	*ViewUp = vY;
-}
-
-inline void CRenderCamera::GetPerspectiveParams(float* Yfov, float* Xfov, float* Aspect, float* Ndist, float* Fdist) const
-{
-	*Yfov = atanf(fWT / fNear) * 57.29578f * 2.0f;
-	*Xfov = atanf(fWR / fNear) * 57.29578f * 2.0f;
-	*Aspect = fWT / fWR;
-	*Ndist = fNear;
-	*Fdist = fFar;
-}
-
-inline void CRenderCamera::GetFrustumParams(float* l, float* r, float* b, float* t, float* Ndist, float* Fdist) const
-{
-	*l = fWL;
-	*r = fWR;
-	*b = fWB;
-	*t = fWT;
-	*Ndist = fNear;
-	*Fdist = fFar;
-}
-
-inline const Vec3& CRenderCamera::wCOP() const
-{
-	return(vOrigin);
-}
-
-inline Vec3 CRenderCamera::ViewDir() const
-{
-	return(-vZ);
-}
-
-inline Vec3 CRenderCamera::ViewDirOffAxis() const
-{
-	float fX = (fWL + fWR) * 0.5f, fY = (fWT + fWB) * 0.5f;  // MIDPOINT ON VIEWPLANE WINDOW
-	Vec3 ViewDir = vX * fX + vY * fY - vZ * fNear;
-	ViewDir.Normalize();
-	return ViewDir;
-}
-
-inline Vec3 CRenderCamera::WorldToCam(const Vec3& wP) const
-{
-	Vec3 sP(wP - vOrigin);
-	Vec3 cP(vX | sP, vY | sP, vZ | sP);
-	return cP;
-}
-
-inline float CRenderCamera::WorldToCamZ(const Vec3& wP) const
-{
-	Vec3 sP(wP - vOrigin);
-	float zdist = vZ | sP;
-	return zdist;
-}
-
-inline Vec3 CRenderCamera::CamToWorld(const Vec3& cP) const
-{
-	Vec3 wP(vX * cP.x + vY * cP.y + vZ * cP.z + vOrigin);
-	return wP;
-}
-
-inline void CRenderCamera::LoadIdentityXform()
-{
-	vX.Set(1, 0, 0);
-	vY.Set(0, 1, 0);
-	vZ.Set(0, 0, 1);
-	vOrigin.Set(0, 0, 0);
-}
-
-inline void CRenderCamera::Xform(const float M[16])
-{
-	vX.Set(vX.x * M[0] + vX.y * M[4] + vX.z * M[8],
-	       vX.x * M[1] + vX.y * M[5] + vX.z * M[9],
-	       vX.x * M[2] + vX.y * M[6] + vX.z * M[10]);
-	vY.Set(vY.x * M[0] + vY.y * M[4] + vY.z * M[8],
-	       vY.x * M[1] + vY.y * M[5] + vY.z * M[9],
-	       vY.x * M[2] + vY.y * M[6] + vY.z * M[10]);
-	vZ.Set(vZ.x * M[0] + vZ.y * M[4] + vZ.z * M[8],
-	       vZ.x * M[1] + vZ.y * M[5] + vZ.z * M[9],
-	       vZ.x * M[2] + vZ.y * M[6] + vZ.z * M[10]);
-	vOrigin.Set(vOrigin.x * M[0] + vOrigin.y * M[4] + vOrigin.z * M[8] + M[12],
-	            vOrigin.x * M[1] + vOrigin.y * M[5] + vOrigin.z * M[9] + M[13],
-	            vOrigin.x * M[2] + vOrigin.y * M[6] + vOrigin.z * M[10] + M[14]);
-
-	float Scale = vX.GetLength();
-	vX /= Scale;
-	vY /= Scale;
-	vZ /= Scale;
-
-	fWL *= Scale;
-	fWR *= Scale;
-	fWB *= Scale;
-	fWT *= Scale;
-	fNear *= Scale;
-	fFar *= Scale;
-};
-
-inline void CRenderCamera::Translate(const Vec3& trans)
-{
-	vOrigin += trans;
-}
-
-inline void CRenderCamera::Rotate(const float M[9])
-{
-	vX.Set(vX.x * M[0] + vX.y * M[3] + vX.z * M[6],
-	       vX.x * M[1] + vX.y * M[4] + vX.z * M[7],
-	       vX.x * M[2] + vX.y * M[5] + vX.z * M[8]);
-	vY.Set(vY.x * M[0] + vY.y * M[3] + vY.z * M[6],
-	       vY.x * M[1] + vY.y * M[4] + vY.z * M[7],
-	       vY.x * M[2] + vY.y * M[5] + vY.z * M[8]);
-	vZ.Set(vZ.x * M[0] + vZ.y * M[3] + vZ.z * M[6],
-	       vZ.x * M[1] + vZ.y * M[4] + vZ.z * M[7],
-	       vZ.x * M[2] + vZ.y * M[5] + vZ.z * M[8]);
-}
-
-inline float* CRenderCamera::GetModelviewMatrix(float* M) const
-{
-	Viewing16fv(M, vX, vY, vZ, vOrigin);
-	return M;
-}
-
-inline float* CRenderCamera::GetProjectionMatrix(float* M) const
-{
-	Frustum16fv(M, fWL, fWR, fWB, fWT, fNear, fFar);
-	return(M);
-}
-
-inline void CRenderCamera::GetPixelRay(float sx, float sy, int ww, int wh, Vec3* Start, Vec3* Dir) const
-{
-	Vec3 wTL = vOrigin + (vX * fWL) + (vY * fWT) - (vZ * fNear); // FIND LOWER-LEFT
-	Vec3 dX = (vX * (fWR - fWL)) / (float)ww;                    // WORLD WIDTH OF PIXEL
-	Vec3 dY = (vY * (fWT - fWB)) / (float)wh;                    // WORLD HEIGHT OF PIXEL
-	wTL += (dX * sx - dY * sy);                                  // INCR TO WORLD PIXEL
-	wTL += (dX * 0.5f - dY * 0.5f);                              // INCR TO PIXEL CNTR
-	*Start = vOrigin;
-	*Dir = wTL - vOrigin;
-}
-
-inline void CRenderCamera::CalcVerts(Vec3* V)  const
-{
-	float NearZ = -fNear;
-	V[0].Set(fWR, fWT, NearZ);
-	V[1].Set(fWL, fWT, NearZ);
-	V[2].Set(fWL, fWB, NearZ);
-	V[3].Set(fWR, fWB, NearZ);
-
-	float FarZ = -fFar, FN = fFar / fNear;
-	float fwL = fWL * FN, fwR = fWR * FN, fwB = fWB * FN, fwT = fWT * FN;
-	V[4].Set(fwR, fwT, FarZ);
-	V[5].Set(fwL, fwT, FarZ);
-	V[6].Set(fwL, fwB, FarZ);
-	V[7].Set(fwR, fwB, FarZ);
-
-	for (int i = 0; i < 8; i++)
-		V[i] = CamToWorld(V[i]);
-}
-
-inline void CRenderCamera::CalcTileVerts(Vec3* V, f32 nPosX, f32 nPosY, f32 nGridSizeX, f32 nGridSizeY)  const
-{
-	float NearZ = -fNear;
-
-	float TileWidth = abs(fWR - fWL) / nGridSizeX;
-	float TileHeight = abs(fWT - fWB) / nGridSizeY;
-	float TileL = fWL + TileWidth * nPosX;
-	float TileR = fWL + TileWidth * (nPosX + 1);
-	float TileB = fWB + TileHeight * nPosY;
-	float TileT = fWB + TileHeight * (nPosY + 1);
-
-	V[0].Set(TileR, TileT, NearZ);
-	V[1].Set(TileL, TileT, NearZ);
-	V[2].Set(TileL, TileB, NearZ);
-	V[3].Set(TileR, TileB, NearZ);
-
-	float FarZ = -fFar, FN = fFar / fNear;
-	float fwL = fWL * FN, fwR = fWR * FN, fwB = fWB * FN, fwT = fWT * FN;
-
-	float TileFarWidth = abs(fwR - fwL) / nGridSizeX;
-	float TileFarHeight = abs(fwT - fwB) / nGridSizeY;
-	float TileFarL = fwL + TileFarWidth * nPosX;
-	float TileFarR = fwL + TileFarWidth * (nPosX + 1);
-	float TileFarB = fwB + TileFarHeight * nPosY;
-	float TileFarT = fwB + TileFarHeight * (nPosY + 1);
-
-	V[4].Set(TileFarR, TileFarT, FarZ);
-	V[5].Set(TileFarL, TileFarT, FarZ);
-	V[6].Set(TileFarL, TileFarB, FarZ);
-	V[7].Set(TileFarR, TileFarB, FarZ);
-
-	for (int i = 0; i < 8; i++)
-		V[i] = CamToWorld(V[i]);
-}
-
-inline void CRenderCamera::CalcTiledRegionVerts(Vec3* V, Vec2& vMin, Vec2& vMax, f32 nPosX, f32 nPosY, f32 nGridSizeX, f32 nGridSizeY) const
-{
-	float NearZ = -fNear;
-
-	Vec2 vTileMin, vTileMax;
-
-	vMin.x = max(vMin.x, nPosX / nGridSizeX);
-	vMax.x = min(vMax.x, (nPosX + 1) / nGridSizeX);
-
-	vMin.y = max(vMin.y, nPosY / nGridSizeY);
-	vMax.y = min(vMax.y, (nPosY + 1) / nGridSizeY);
-
-	vTileMin.x = abs(fWR - fWL) * vMin.x;
-	vTileMin.y = abs(fWT - fWB) * vMin.y;
-	vTileMax.x = abs(fWR - fWL) * vMax.x;
-	vTileMax.y = abs(fWT - fWB) * vMax.y;
-
-	float TileWidth = abs(fWR - fWL) / nGridSizeX;
-	float TileHeight = abs(fWT - fWB) / nGridSizeY;
-
-	float TileL = fWL + vTileMin.x;
-	float TileR = fWL + vTileMax.x;
-	float TileB = fWB + vTileMin.y;
-	float TileT = fWB + vTileMax.y;
-
-	V[0].Set(TileR, TileT, NearZ);
-	V[1].Set(TileL, TileT, NearZ);
-	V[2].Set(TileL, TileB, NearZ);
-	V[3].Set(TileR, TileB, NearZ);
-
-	float FarZ = -fFar, FN = fFar / fNear;
-	float fwL = fWL * FN, fwR = fWR * FN, fwB = fWB * FN, fwT = fWT * FN;
-
-	Vec2 vTileFarMin, vTileFarMax;
-
-	vTileFarMin.x = abs(fwR - fwL) * vMin.x;
-	vTileFarMin.y = abs(fwT - fwB) * vMin.y;
-	vTileFarMax.x = abs(fwR - fwL) * vMax.x;
-	vTileFarMax.y = abs(fwT - fwB) * vMax.y;
-
-	float TileFarWidth = abs(fwR - fwL) / nGridSizeX;
-	float TileFarHeight = abs(fwT - fwB) / nGridSizeY;
-
-	float TileFarL = fwL + vTileFarMin.x;
-	float TileFarR = fwL + vTileFarMax.x;
-	float TileFarB = fwB + vTileFarMin.y;
-	float TileFarT = fwB + vTileFarMax.y;
-
-	V[4].Set(TileFarR, TileFarT, FarZ);
-	V[5].Set(TileFarL, TileFarT, FarZ);
-	V[6].Set(TileFarL, TileFarB, FarZ);
-	V[7].Set(TileFarR, TileFarB, FarZ);
-
-	for (int i = 0; i < 8; i++)
-		V[i] = CamToWorld(V[i]);
-}
-
-inline void CRenderCamera::CalcRegionVerts(Vec3* V, const Vec2& vMin, const Vec2& vMax) const
-{
-	float NearZ = -fNear;
-
-	Vec2 vTileMin, vTileMax;
-
-	vTileMin.x = abs(fWR - fWL) * vMin.x;
-	vTileMin.y = abs(fWT - fWB) * vMin.y;
-	vTileMax.x = abs(fWR - fWL) * vMax.x;
-	vTileMax.y = abs(fWT - fWB) * vMax.y;
-
-	float TileL = fWL + vTileMin.x;
-	float TileR = fWL + vTileMax.x;
-	float TileB = fWB + vTileMin.y;
-	float TileT = fWB + vTileMax.y;
-
-	V[0].Set(TileR, TileT, NearZ);
-	V[1].Set(TileL, TileT, NearZ);
-	V[2].Set(TileL, TileB, NearZ);
-	V[3].Set(TileR, TileB, NearZ);
-
-	float FarZ = -fFar, FN = fFar / fNear;
-	float fwL = fWL * FN, fwR = fWR * FN, fwB = fWB * FN, fwT = fWT * FN;
-
-	Vec2 vTileFarMin, vTileFarMax;
-
-	vTileFarMin.x = abs(fwR - fwL) * vMin.x;
-	vTileFarMin.y = abs(fwT - fwB) * vMin.y;
-	vTileFarMax.x = abs(fwR - fwL) * vMax.x;
-	vTileFarMax.y = abs(fwT - fwB) * vMax.y;
-
-	float TileFarL = fwL + vTileFarMin.x;
-	float TileFarR = fwL + vTileFarMax.x;
-	float TileFarB = fwB + vTileFarMin.y;
-	float TileFarT = fwB + vTileFarMax.y;
-
-	V[4].Set(TileFarR, TileFarT, FarZ);
-	V[5].Set(TileFarL, TileFarT, FarZ);
-	V[6].Set(TileFarL, TileFarB, FarZ);
-	V[7].Set(TileFarR, TileFarB, FarZ);
-
-	for (int i = 0; i < 8; i++)
-		V[i] = CamToWorld(V[i]);
-}
-
-class SBoundingVolume
-{
-public:
-	SBoundingVolume() : m_vCenter(0, 0, 0), m_fRadius(0) {}
-	~SBoundingVolume() {}
-
-	void        SetCenter(const Vec3& center) { m_vCenter = center; }
-	void        SetRadius(float radius)       { m_fRadius = radius; }
-	const Vec3& GetCenter() const             { return m_vCenter;   }
-	float       GetRadius() const             { return m_fRadius;   }
-
-protected:
-	Vec3  m_vCenter;
-	float m_fRadius;
-};
-
-class SMinMaxBox : public SBoundingVolume
-{
-public:
-	SMinMaxBox()
-	{
-		Clear();
-	}
-	virtual ~SMinMaxBox() {}
-
-	void AddPoint(const Vec3& pt)
-	{
-		if (pt.x > m_max.x)
-			m_max.x = pt.x;
-		if (pt.x < m_min.x)
-			m_min.x = pt.x;
-
-		if (pt.y > m_max.y)
-			m_max.y = pt.y;
-		if (pt.y < m_min.y)
-			m_min.y = pt.y;
-
-		if (pt.z > m_max.z)
-			m_max.z = pt.z;
-		if (pt.z < m_min.z)
-			m_min.z = pt.z;
-
-		// Updates the center and radius.
-		UpdateSphere();
-	}
-	void AddPoint(float x, float y, float z)
-	{
-		AddPoint(Vec3(x, y, z));
-	}
-
-	void        Union(const SMinMaxBox& box) { AddPoint(box.GetMin()); AddPoint(box.GetMax()); }
-
-	const Vec3& GetMin() const               { return m_min; }
-	const Vec3& GetMax() const               { return m_max; }
-
-	void        SetMin(const Vec3& min)      { m_min = min; UpdateSphere(); }
-	void        SetMax(const Vec3& max)      { m_max = max; UpdateSphere(); }
-
-	float       GetWidthInX() const          { return m_max.x - m_min.x; }
-	float       GetWidthInY() const          { return m_max.y - m_min.y; }
-	float       GetWidthInZ() const          { return m_max.z - m_min.z; }
-
-	bool        PointInBBox(const Vec3& pt) const;
-
-	bool        ViewFrustumCull(const CRenderCamera& cam, const Matrix44& mat);
-
-	void        Transform(const Matrix34& mat)
-	{
-		Vec3 verts[8];
-		CalcVerts(verts);
-		Clear();
-		for (int i = 0; i < 8; i++)
-		{
-			AddPoint(mat.TransformPoint(verts[i]));
-		}
-	}
-
-	//! Reset the bounding box.
-	void Clear()
-	{
-		m_min = Vec3(999999.0f, 999999.0f, 999999.0f);
-		m_max = Vec3(-999999.0f, -999999.0f, -999999.0f);
-	}
-
-protected:
-	void UpdateSphere()
-	{
-		m_vCenter = m_min;
-		m_vCenter += m_max;
-		m_vCenter *= 0.5f;
-
-		Vec3 rad = m_max;
-		rad -= m_vCenter;
-		m_fRadius = rad.len();
-	}
-	void CalcVerts(Vec3 pVerts[8]) const
-	{
-		pVerts[0].Set(m_max.x, m_max.y, m_max.z);
-		pVerts[4].Set(m_max.x, m_max.y, m_min.z);
-		pVerts[1].Set(m_min.x, m_max.y, m_max.z);
-		pVerts[5].Set(m_min.x, m_max.y, m_min.z);
-		pVerts[2].Set(m_min.x, m_min.y, m_max.z);
-		pVerts[6].Set(m_min.x, m_min.y, m_min.z);
-		pVerts[3].Set(m_max.x, m_min.y, m_max.z);
-		pVerts[7].Set(m_max.x, m_min.y, m_min.z);
-	}
-
-private:
-	Vec3 m_min;   //!< Original object-space BV.
-	Vec3 m_max;
-};
-
-//////////////////////////////////////////////////////////////////////
-// All possible primitive types
-
-enum PublicRenderPrimitiveType
-{
-	prtTriangleList,
-	prtTriangleStrip,
-	prtLineList,
-	prtLineStrip
-};
 
 //////////////////////////////////////////////////////////////////////
 #define R_CULL_DISABLE 0
@@ -918,6 +304,19 @@ enum PublicRenderPrimitiveType
 #define STR_VK_RENDERER     "VK"
 #define STR_GNM_RENDERER    "GNM"
 #define STR_AUTO_RENDERER   "Auto"
+
+#define STR_ORBIS_SHADER_TARGET   "ORBIS"
+#define STR_DURANGO_SHADER_TARGET "DURANGO"
+#define STR_D3D11_SHADER_TARGET   "D3D11"
+#define STR_GL4_SHADER_TARGET     "GL4"
+#define STR_GLES3_SHADER_TARGET   "GLES3"
+#define STR_VULKAN_SHADER_TARGET  "VULKAN"
+
+//////////////////////////////////////////////////////////////////////
+#define STR_VK_SHADER_COMPILER_HLSLCC    "HLSLCC"
+#define STR_VK_SHADER_COMPILER_GLSLANG   "GLSLANG"
+#define STR_VK_SHADER_COMPILER_DXC       "DXC"
+
 //////////////////////////////////////////////////////////////////////
 // Render features
 
@@ -991,10 +390,10 @@ enum EShaderRenderingFlags
 	SHDF_ALLOW_WATER        = BIT(9),
 	SHDF_NOASYNC            = BIT(10),
 	SHDF_NO_DRAWNEAR        = BIT(11),
-	SHDF_STREAM_SYNC        = BIT(13),
 	SHDF_NO_DRAWCAUSTICS    = BIT(14),
 	SHDF_NO_SHADOWGEN       = BIT(15),
 	SHDF_SECONDARY_VIEWPORT = BIT(16),
+	SHDF_FORWARD_MINIMAL    = BIT(17),
 };
 
 //////////////////////////////////////////////////////////////////////
@@ -1046,15 +445,28 @@ const float VIRTUAL_SCREEN_HEIGHT = 600.0f;
 #define GS_STENCIL                 0x00000400
 #define GS_ALPHATEST               0x00000800
 
-#define GS_NOCOLMASK_R             0x00001000
-#define GS_NOCOLMASK_G             0x00002000
-#define GS_NOCOLMASK_B             0x00004000
-#define GS_NOCOLMASK_A             0x00008000
-#define GS_COLMASK_RGB             (GS_NOCOLMASK_A)
-#define GS_COLMASK_A               (GS_NOCOLMASK_R | GS_NOCOLMASK_G | GS_NOCOLMASK_B)
-#define GS_COLMASK_NONE            (GS_NOCOLMASK_R | GS_NOCOLMASK_G | GS_NOCOLMASK_B | GS_NOCOLMASK_A)
-#define GS_COLMASK_MASK            GS_COLMASK_NONE
 #define GS_COLMASK_SHIFT           12
+#define GS_COLMASK_MASK            0x0000F000
+
+// Color Exclusion Mask
+// Note: Do not concatenate!
+enum ColorMask
+{
+	GS_NOCOLMASK_NONE				= 0,
+	GS_NOCOLMASK_R					= 0x00001000,
+	GS_NOCOLMASK_G					= 0x00002000,
+	GS_NOCOLMASK_B					= 0x00003000,
+	GS_NOCOLMASK_A					= 0x00004000,
+	GS_NOCOLMASK_GBA				= 0x00005000,
+	GS_NOCOLMASK_RBA				= 0x00006000,
+	GS_NOCOLMASK_RGA				= 0x00007000,
+	GS_NOCOLMASK_RGB				= 0x00008000,
+	GS_NOCOLMASK_RGBA				= 0x00009000,
+	GS_NOCOLMASK_GBUFFER_OVERLAY	= 0x0000A000,
+
+	GS_NOCOLMASK_COUNT				= 0x0000B000,
+};
+static_assert(GS_NOCOLMASK_COUNT <= GS_COLMASK_MASK, "Exceeded count limit of possible color masks (16)");
 
 #define GS_WIREFRAME               0x00010000
 #define GS_POINTRENDERING          0x00020000
@@ -1121,6 +533,7 @@ struct SAAFormat
 	int  nQuality;
 };
 
+//! \cond INTERNAL
 //! Info about Terrain sector texturing.
 struct SSectorTextureSet
 {
@@ -1134,6 +547,7 @@ struct SSectorTextureSet
 	unsigned short nTex0, nTex1, nTex2, nSlot0, nSlot1, nSlot2;
 	float          fTexOffsetX, fTexOffsetY, fTexScale;
 };
+//! \endcond
 
 struct IRenderNode;
 struct SShaderItem;
@@ -1153,6 +567,7 @@ struct CRY_ALIGN(16) SAddParticlesToSceneJob
 	IParticleVertexCreator* pVertexCreator = nullptr;
 	gpu_pfx2::IParticleComponentRuntime* pGpuRuntime = nullptr;
 	int16 nCustomTexId;
+	AABB aabb;
 };
 
 #ifdef SUPPORT_HW_MOUSE_CURSOR
@@ -1181,21 +596,20 @@ public:
 #define FRR_SYSTEM                   BIT(6) // requires also FRR_OBJECTS
 #define FRR_SYSTEM_RESOURCES         BIT(7) // requires also FRR_DELETED_MESHES |  FRR_FLUSH_TEXTURESTREAMING | FRR_RP_BUFFERS | FRR_POST_EFFECTS | FRR_OBJECTS | FRR_PERMANENT_RENDER_OBJECTS | FRR_SVOGI
 #define FRR_TEXTURES                 BIT(8) // requires also FRR_DELETED_MESHES |  FRR_FLUSH_TEXTURESTREAMING | FRR_RP_BUFFERS | FRR_POST_EFFECTS | FRR_OBJECTS | FRR_PERMANENT_RENDER_OBJECTS | FRR_SYSTEM_RESOURCES | FRR_SVOGI
-#define FRR_SVOGI                    BIT(9)
 #define FRR_ALL                      -1
 
 // Free resource flag combinations for commonly used operations
-#define FRR_LEVEL_UNLOAD_SANDBOX  (FRR_DELETED_MESHES | FRR_FLUSH_TEXTURESTREAMING | FRR_OBJECTS | FRR_RP_BUFFERS | FRR_POST_EFFECTS | FRR_PERMANENT_RENDER_OBJECTS | FRR_SVOGI)
-#define FRR_LEVEL_UNLOAD_LAUNCHER (FRR_DELETED_MESHES | FRR_FLUSH_TEXTURESTREAMING | FRR_OBJECTS | FRR_RP_BUFFERS | FRR_POST_EFFECTS | FRR_PERMANENT_RENDER_OBJECTS | FRR_SYSTEM_RESOURCES | FRR_SVOGI)
+#define FRR_LEVEL_UNLOAD_SANDBOX  (FRR_DELETED_MESHES | FRR_FLUSH_TEXTURESTREAMING | FRR_OBJECTS | FRR_RP_BUFFERS | FRR_POST_EFFECTS | FRR_PERMANENT_RENDER_OBJECTS)
+#define FRR_LEVEL_UNLOAD_LAUNCHER (FRR_DELETED_MESHES | FRR_FLUSH_TEXTURESTREAMING | FRR_OBJECTS | FRR_RP_BUFFERS | FRR_POST_EFFECTS | FRR_PERMANENT_RENDER_OBJECTS | FRR_SYSTEM_RESOURCES)
 #define FRR_SHUTDOWN              (FRR_ALL)
 
 // Refresh render resources flags.
 // Flags passed in function RefreshResources.
-#define FRO_SHADERS        1
-#define FRO_SHADERTEXTURES 2
-#define FRO_TEXTURES       4
-#define FRO_GEOMETRY       8
-#define FRO_FORCERELOAD    0x10
+#define FRO_SHADERS                     BIT(0)
+#define FRO_SHADERTEXTURES              BIT(1)
+#define FRO_TEXTURES                    BIT(2)
+#define FRO_GEOMETRY                    BIT(3)
+#define FRO_FORCERELOAD                 BIT(4)
 
 //=============================================================================
 // Shaders render target stuff.
@@ -1204,8 +618,9 @@ public:
 #define FRT_CLEAR_STENCIL               BIT(1)  // equals CLEAR_STENCIL and D3D11_CLEAR_STENCIL
 #define FRT_CLEAR_COLOR                 BIT(2)  // equals CLEAR_RTARGET
 #define FRT_CLEAR_FOGCOLOR              BIT(3)
-#define FRT_CLEAR_IMMEDIATE             BIT(4)
-#define FRT_CLEAR_COLORMASK             BIT(5)
+
+#define FRT_OVERLAY_DEPTH               BIT(4)  // The overlay rendering uses a persistent depth buffer (and gets the rendering depth too)
+#define FRT_OVERLAY_STENCIL             BIT(5)  // The overlay rendering uses a persistent stencil buffer)
 
 #define FRT_CAMERA_REFLECTED_WATERPLANE BIT(6)
 #define FRT_CAMERA_REFLECTED_PLANE      BIT(7)
@@ -1215,8 +630,8 @@ public:
 #define FRT_USE_BACKCLIPPLANE           BIT(10)
 
 #define FRT_GENERATE_MIPS               BIT(11)
+#define FRT_TEMPORARY_DEPTH             BIT(12) // The rendering uses a temporary depth buffer and the overlay rendering won't get any depth
 
-#define FRT_RENDTYPE_CUROBJECT          BIT(12)
 #define FRT_RENDTYPE_CURSCENE           BIT(13)
 #define FRT_RENDTYPE_RECURSIVECURSCENE  BIT(14)
 #define FRT_RENDTYPE_COPYSCENE          BIT(15)
@@ -1246,28 +661,7 @@ enum EDrawTextFlags
 	eDrawText_LegacyBehavior = BIT(11)  //!< Reserved for internal system use.
 };
 
-// Debug stats/views for Partial resolves
-// if REFRACTION_PARTIAL_RESOLVE_DEBUG_VIEWS is enabled, make sure REFRACTION_PARTIAL_RESOLVE_STATS is too
-#if defined(PERFORMANCE_BUILD)
-	#define REFRACTION_PARTIAL_RESOLVE_STATS       1
-	#define REFRACTION_PARTIAL_RESOLVE_DEBUG_VIEWS 0
-#elif defined(_RELEASE) // note: _RELEASE is defined in PERFORMANCE_BUILD, so this check must come second
-	#define REFRACTION_PARTIAL_RESOLVE_STATS       0
-	#define REFRACTION_PARTIAL_RESOLVE_DEBUG_VIEWS 0
-#else
-	#define REFRACTION_PARTIAL_RESOLVE_STATS       1
-	#define REFRACTION_PARTIAL_RESOLVE_DEBUG_VIEWS 1
-#endif
-
-#if REFRACTION_PARTIAL_RESOLVE_DEBUG_VIEWS
-enum ERefractionPartialResolvesDebugViews
-{
-	eRPR_DEBUG_VIEW_2D_AREA = 1,
-	eRPR_DEBUG_VIEW_3D_BOUNDS,
-	eRPR_DEBUG_VIEW_2D_AREA_OVERLAY
-};
-#endif
-
+//! \cond INTERNAL
 //! This structure used in DrawText method of renderer.
 //! It provide all necessary information of how to render text on screen.
 struct SDrawTextInfo
@@ -1288,6 +682,7 @@ struct SDrawTextInfo
 		pFont = nullptr;
 	}
 };
+//! \endcond
 
 #define UIDRAW_TEXTSIZEFACTOR (12.0f)
 
@@ -1300,6 +695,7 @@ struct SDrawTextInfo
 
 #define MAX_FRAME_ID_STEP_PER_FRAME 20
 const int MAX_GSM_LODS_NUM = 16;
+const int MAX_GSM_CACHED_LODS_NUM = 3;
 
 const f32 DRAW_NEAREST_MIN = 0.03f;
 const f32 DRAW_NEAREST_MAX = 40.0f;
@@ -1340,29 +736,8 @@ enum class ERenderType : uint8
 	GNM
 };
 
-//////////////////////////////////////////////////////////////////////
-//! Enum for types of deferred lights.
-enum eDeferredLightType
-{
-	eDLT_DeferredLight          = 0,
-
-	eDLT_NumShadowCastingLights = eDLT_DeferredLight + 1,
-
-	//! These lights cannot cast shadows.
-	eDLT_DeferredCubemap = eDLT_NumShadowCastingLights,
-	eDLT_DeferredAmbientLight,
-	eDLT_DynamicLight,                                    // Not deferred light
-	eDLT_NumLightTypes,
-};
-
 //! Scale factor between photometric and internal light units.
 const float RENDERER_LIGHT_UNIT_SCALE = 10000.0f;
-
-//////////////////////////////////////////////////////////////////////
-struct SCustomRenderInitArgs
-{
-	bool appStartedFromMediaCenter;
-};
 
 #if CRY_PLATFORM_ANDROID
 enum {CULL_SIZEX = 128};
@@ -1466,127 +841,113 @@ struct RPProfilerStats
 	float _gpuTimeMaxNew;
 };
 
+// See CRenderPipelineProfiler::SProfilerSection
+struct RPProfilerDetailedStats
+{
+	char            name[31];
+	float           gpuTime;
+	float           gpuTimeSmoothed;
+	float           cpuTime;
+	float           cpuTimeSmoothed;
+	CTimeValue      startTimeCPU, endTimeCPU;
+	uint64          startTimeGPU, endTimeGPU;
+	int             numDIPs, numPolys;
+	int8            recLevel;   // Negative value means error in stack
+	uint8           flags;
+};
+
 struct ISvoRenderer
 {
 	virtual bool IsShaderItemUsedForVoxelization(SShaderItem& rShaderItem, IRenderNode* pRN) { return false; }
 	virtual void SetEditingHelper(const Sphere& sp)                                          {}
 	virtual void Release()                                                                   {}
+	virtual void InitCVarValues()                                                            {}
 };
 
-struct SRenderPolygonDescription
+//! \cond INTERNAL
+//! Describes the key used to create display context
+struct SDisplayContextKey
 {
-	SShaderItem            shaderItem;
-	int                    numVertices = 0;
-	const SVF_P3F_C4B_T2F* pVertices = nullptr;
-	const SPipTangents*    pTangents = nullptr;
-	uint16*                pIndices = nullptr;
-	int                    numIndices = 0;
-	int                    afterWater = 0;
-	int                    renderListId = 0; // ERenderListID
-	CRenderObject*         pRenderObject = nullptr;
+	struct SInvalidKey
+	{
+		bool operator<(const SInvalidKey&) const { return false; }
+		bool operator==(const SInvalidKey&) const { return true; }
+		bool operator!=(const SInvalidKey&) const { return false; }
+	};
 
-	SRenderPolygonDescription() {}
-	SRenderPolygonDescription(CRenderObject* pRendObj, SShaderItem& si, int numPts, const SVF_P3F_C4B_T2F* verts, const SPipTangents* tangs, uint16* inds, int ninds, ERenderListID _renderListId, int nAW)
-		: numVertices(numPts)
-		, pVertices(verts)
-		, pTangents(tangs)
-		, pIndices(inds)
-		, numIndices(ninds)
-		, renderListId(_renderListId)
-		, afterWater(nAW)
-		, pRenderObject(pRendObj)
-		, shaderItem(si)
+	CryVariant<SInvalidKey, uint32_t, HWND> key;
+	bool operator<(const SDisplayContextKey &o) const { return key < o.key; }
+	bool operator==(const SDisplayContextKey &o) const { return key == o.key; }
+	bool operator!=(const SDisplayContextKey &o) const { return !(*this == o); }
+
+	bool operator==(const uint32_t &o) const { return key == o; }
+	bool operator!=(const uint32_t &o) const { return !(*this == o); }
+	bool operator==(const HWND &o) const { return key == o; }
+	bool operator!=(const HWND &o) const { return !(*this == o); }
+};
+
+//! \cond INTERNAL
+//! Describes rendering viewport dimensions
+struct SRenderViewport
+{
+	int   x      = 0;
+	int   y      = 0;
+	int   width  = 0;
+	int   height = 0;
+	float zmin   = 0.f;
+	float zmax   = 1.f;
+
+	SRenderViewport() {}
+
+	SRenderViewport(int newX, int newY, int newWidth, int newHeight)
+		: x(newX)
+		, y(newY)
+		, width(newWidth)
+		, height(newHeight)
+		, zmin(0.0f)
+		, zmax(1.0f)
 	{}
-};
 
-// Interface to the render view.
-struct IRenderView : public CMultiThreadRefCount
-{
-	enum EViewType
+	bool operator==(const SRenderViewport& v)
 	{
-		eViewType_Default,
-		eViewType_Recursive,
-		eViewType_Shadow,
-		eViewType_BillboardGen,
-		eViewType_Count,
-	};
-
-
-	// View can be in either reading or writing modes.
-	enum EUsageMode
+		return x == v.x && y == v.y && width == v.width && height == v.height && zmin == v.zmin && zmax == v.zmax;
+	}
+	bool operator!=(const SRenderViewport& v)
 	{
-		eUsageModeUndefined,
-		eUsageModeReading,
-		eUsageModeReadingDone,
-		eUsageModeWriting,
-		eUsageModeWritingDone,
-	};
-	virtual void   SetFrameId(uint64 frameId) = 0;
-	virtual uint64 GetFrameId() const = 0;
-
-	/// @See SRenderingPassInfo::ESkipRenderingFlags
-	virtual void   SetSkipRenderingFlags(uint32 nFlags) = 0;
-	virtual uint32 GetSkipRenderingFlags() const = 0;
-
-	/// @see EShaderRenderingFlags
-	virtual void   SetShaderRenderingFlags(uint32 nFlags) = 0;
-	virtual uint32 GetShaderRenderingFlags() const = 0;
-
-	virtual void   SetCameras(const CCamera* pCameras, int cameraCount) = 0;
-	virtual void   SetPreviousFrameCameras(const CCamera* pCameras, int cameraCount) = 0;
-
-	virtual void   SwitchUsageMode(EUsageMode mode) = 0;
-
-	// All jobs that write items to render view should share and use this synchronization mutex.
-	virtual CryJobState* GetWriteMutex() = 0;
-
-	//////////////////////////////////////////////////////////////////////////
-	// Access to dynamic lights
-	virtual void          AddDynamicLight(SRenderLight& light) = 0;
-	virtual int           GetDynamicLightsCount() const = 0;
-	virtual SRenderLight& GetDynamicLight(int nLightId) = 0;
-
-	virtual void          AddLight(eDeferredLightType lightType, SRenderLight& light) = 0;
-	virtual int           GetLightsCount(eDeferredLightType lightType) const = 0;
-	virtual SRenderLight& GetLight(eDeferredLightType lightType, int nLightId) = 0;
-	//////////////////////////////////////////////////////////////////////////
-
-	//////////////////////////////////////////////////////////////////////////
-	// Interface for 3d engine
-	//////////////////////////////////////////////////////////////////////////
-	virtual void AddPermanentObject(CRenderObject* pRenderObject, const SRenderingPassInfo& passInfo) = 0;
-
-	//////////////////////////////////////////////////////////////////////////
-	// Clip Volumes
-	virtual uint8 AddClipVolume(const IClipVolume* pClipVolume) = 0;
-	virtual void  SetClipVolumeBlendInfo(const IClipVolume* pClipVolume, int blendInfoCount, IClipVolume** blendVolumes, Plane* blendPlanes) = 0;
-
-	//////////////////////////////////////////////////////////////////////////
-	// Fog Volumes
-	virtual void AddFogVolume(const class CREFogVolume* pFogVolume) = 0;
-
-	//////////////////////////////////////////////////////////////////////////
-	// Cloud blockers
-	virtual void AddCloudBlocker(const Vec3& pos, const Vec3& param, int32 flags) = 0;
-
-	//////////////////////////////////////////////////////////////////////////
-	// Water ripples
-	virtual void AddWaterRipple(const SWaterRippleInfo& waterRippleInfo) = 0;
-	virtual void AddPolygon(const SRenderPolygonDescription& poly, const SRenderingPassInfo& passInfo) = 0;
+		return !(*this == v);
+	}
 };
+//! \endcond
+
+#include "IRenderView.h"
 
 struct IRendererEngineModule : public Cry::IDefaultModule
 {
 	CRYINTERFACE_DECLARE_GUID(IRendererEngineModule, "516d044b-d626-4283-b08d-9ad9558204e0"_cry_guid);
 };
 
-//////////////////////////////////////////////////////////////////////
+//! Main interface to the renderer implementation, wrapping the low-level graphics API
 struct IRenderer//: public IRendererCallbackServer
 {
-	enum EViewportType
+	enum EViewportType : uint8
 	{
 		eViewportType_Default,
 		eViewportType_Secondary,
+	};
+
+	struct SDisplayContextDescription
+	{
+		HWND handle  = 0; // WIN_HWND
+
+		ColorF clearColor               = Clr_Empty;
+		ColorF clearDepthStencil        = Clr_FarPlane_Rev;
+		Vec2i  superSamplingFactor      = { 1, 1 };
+		Vec2i  screenResolution         = { 0, 0 };
+
+		EViewportType type              = eViewportType_Default;
+		uint16 renderFlags              = FRT_CLEAR | FRT_OVERLAY_DEPTH | FRT_OVERLAY_STENCIL;
+
+		bool vsync                      = true;
 	};
 
 	virtual ~IRenderer(){}
@@ -1596,7 +957,7 @@ struct IRenderer//: public IRendererCallbackServer
 	virtual ERenderType GetRenderType() const = 0;
 
 	//! Initializes the renderer, parameters are self-explanatory.
-	virtual WIN_HWND Init(int x, int y, int width, int height, unsigned int cbpp, int zbpp, int sbits, bool fullscreen, WIN_HWND Glhwnd = 0, bool bReInit = false, const SCustomRenderInitArgs* pCustomArgs = 0, bool bShaderCacheGen = false) = 0;
+	virtual WIN_HWND Init(int x, int y, int width, int height, unsigned int cbpp, int zbpp, int sbits, WIN_HWND Glhwnd = 0, bool bReInit = false, bool bShaderCacheGen = false) = 0;
 	virtual void     PostInit() = 0;
 
 	//! Start active rendering of the intro movies while initializing the rest of the engine.
@@ -1626,18 +987,13 @@ struct IRenderer//: public IRendererCallbackServer
 	/////////////////////////////////////////////////////////////////////////////////
 	// Render-context management
 	/////////////////////////////////////////////////////////////////////////////////
-	virtual bool     DeleteContext(WIN_HWND hWnd) = 0;
-	virtual bool     CreateContext(WIN_HWND hWnd, bool bMainViewport, int SSX = 1, int SSY = 1) = 0;
-	virtual bool     SetCurrentContext(WIN_HWND hWnd) = 0;
-	virtual void     MakeMainContextActive() = 0;
-	virtual WIN_HWND GetCurrentContextHWND() = 0;
-	virtual bool     IsCurrentContextMainVP() = 0;
+	virtual SDisplayContextKey     CreateSwapChainBackedContext(const SDisplayContextDescription& desc) = 0;
+	virtual void                   ResizeContext(const SDisplayContextKey& key, int width, int height) = 0;
+	virtual bool                   DeleteContext(const SDisplayContextKey& key) = 0;
 
-	//! Gets height of the current viewport.
-	virtual int GetCurrentContextViewportHeight() const = 0;
-
-	//! Gets width of the current viewport.
-	virtual int GetCurrentContextViewportWidth() const = 0;
+#if CRY_PLATFORM_WINDOWS
+	virtual RectI    GetDefaultContextWindowCoordinates() = 0;
+#endif
 	/////////////////////////////////////////////////////////////////////////////////
 
 #if CRY_PLATFORM_DURANGO
@@ -1653,20 +1009,17 @@ struct IRenderer//: public IRendererCallbackServer
 	//! \return Number of formats in memory.
 	virtual int EnumDisplayFormats(SDispFormat* Formats) = 0;
 
-	//! Returns all supported by video card video AA formats.
-	virtual int EnumAAFormats(SAAFormat* Formats) = 0;
-
-	//! Changes resolution of the window/device (doesn't require to reload the level.
-	virtual bool ChangeResolution(int nNewWidth, int nNewHeight, int nNewColDepth, int nNewRefreshHZ, bool bFullScreen, bool bForceReset) = 0;
+	//! Should be called at the beginning of every frame.
+	virtual void BeginFrame(const SDisplayContextKey& key) = 0;
 
 	//! Should be called at the beginning of every frame.
-	virtual void BeginFrame() = 0;
+	virtual void FillFrame(ColorF clearColor) = 0;
 
 	//! Creates default system shaders and textures.
 	virtual void InitSystemResources(int nFlags) = 0;
 
 	//! Frees the allocated resources.
-	virtual void FreeResources(int nFlags) = 0;
+	virtual void FreeSystemResources(int nFlags) = 0;
 
 	//! Shuts down the renderer.
 	virtual void Release() = 0;
@@ -1677,31 +1030,13 @@ struct IRenderer//: public IRendererCallbackServer
 	//! Should be called at the end of every frame.
 	virtual void EndFrame() = 0;
 
-	//! Force a swap on the backbuffer.
-	virtual void ForceSwapBuffers() = 0;
-
 	//! Try to flush the render thread commands to keep the render thread active during level loading, but simpy return if the render thread is still busy
 	virtual void               TryFlush() = 0;
 
-	virtual void               GetViewport(int* x, int* y, int* width, int* height) = 0;
-	virtual void               SetViewport(int x, int y, int width, int height, int id = 0) = 0;
-	virtual void               SetRenderTile(f32 nTilesPosX = 0.f, f32 nTilesPosY = 0.f, f32 nTilesGridSizeX = 1.f, f32 nTilesGridSizeY = 1.f) = 0;
-	virtual void               SetScissor(int x = 0, int y = 0, int width = 0, int height = 0) = 0;
-
-	virtual EScreenAspectRatio GetScreenAspect(int nWidth, int nHeight) = 0;
-
 	virtual Vec2               SetViewportDownscale(float xscale, float yscale) = 0;
 
-	//! Draw user primitives.
-	virtual void DrawDynVB(SVF_P3F_C4B_T2F* pBuf, uint16* pInds, int nVerts, int nInds, const PublicRenderPrimitiveType nPrimType) = 0;
-
-	//! Set the renderer camera.
-	virtual void SetCamera(const CCamera& cam) = 0;
-
-	//! Get the renderer camera.
-	virtual const CCamera& GetCamera() = 0;
-
-	virtual CRenderView*   GetRenderViewForThread(int nThreadID, IRenderView::EViewType Type=IRenderView::eViewType_Default) = 0;
+	virtual CRenderView*   GetOrCreateRenderView(IRenderView::EViewType Type = IRenderView::eViewType_Default) = 0;
+	virtual void           ReturnRenderView(CRenderView* pRenderView) = 0;
 
 	//! Set delta gamma.
 	virtual bool SetGammaDelta(const float fGamma) = 0;
@@ -1709,41 +1044,12 @@ struct IRenderer//: public IRendererCallbackServer
 	//! Reset gamma setting if not in fullscreen mode.
 	virtual void RestoreGamma(void) = 0;
 
-	//! Changes display size.
-	virtual bool ChangeDisplay(unsigned int width, unsigned int height, unsigned int cbpp) = 0;
-
-	//! Changes viewport size.
-	virtual void ChangeViewport(unsigned int x, unsigned int y, unsigned int width, unsigned int height) = 0;
-
 	// Should not be here.
 	//! Saves source data to a Tga file.
 	virtual bool SaveTga(unsigned char* sourcedata, int sourceformat, int w, int h, const char* filename, bool flip) const = 0;
 
-	//! Sets the current binded texture.
-	virtual void SetTexture(int tnum) = 0;
-
-	//! Sets the white texture.
-	virtual void SetWhiteTexture() = 0;
-
 	//! Gets the white texture Id.
 	virtual int GetWhiteTextureId() const = 0;
-
-	//! Draws a 2d image on the screen.
-	//! Example: Hud etc.
-	virtual void Draw2dImage(float xpos, float ypos, float w, float h, int texture_id, float s0 = 0, float t0 = 0, float s1 = 1, float t1 = 1, float angle = 0, float r = 1, float g = 1, float b = 1, float a = 1, float z = 1) = 0;
-
-	virtual void Draw2dImageStretchMode(bool stretch) = 0;
-
-	//! Adds a 2D image that should be drawn on the screen to an internal render list. The list can be drawn with Draw2dImageList.
-	//! If several images will be drawn, using this function is more efficient than calling Draw2dImage as it allows better batching.
-	//! The function supports placing images in stereo 3D space.
-	//! The stereo params are the same that are used for the scene. A value of 0 is handled as a special case and always places the image on the screen plane.
-	//! \param stereoDepth - Places image in stereo 3d space. The depth is specified in camera space.
-	virtual void Push2dImage(float xpos, float ypos, float w, float h, int texture_id, float s0 = 0, float t0 = 0, float s1 = 1, float t1 = 1, float angle = 0, float r = 1, float g = 1, float b = 1, float a = 1, float z = 1, float stereoDepth = 0) = 0;
-
-	//! Used for pushing texture to texture render tasks in UI system.
-	//! Will post render in Render Thread.
-	virtual void PushUITexture(int srcId, int dstId, float x0, float y0, float w, float h, float u0, float v0, float u1, float v1, float r, float g, float b, float a) = 0;
 
 	//! Used for calculating the hit uv-coordinates from a raycast.
 	virtual int	GetDetailedRayHitInfo(IPhysicalEntity* pCollider, const Vec3& vOrigin, const Vec3& vDirection, const float maxRayDist, float* pUOut, float* pVOut) = 0;
@@ -1751,38 +1057,20 @@ struct IRenderer//: public IRendererCallbackServer
 	//! Turns screen point into vector that is projected into scene, from the current view
 	virtual Vec3 UnprojectFromScreen(int x, int y) = 0;
 
-	//! Draws all images to the screen that were collected with Push2dImage.
-	virtual void Draw2dImageList() = 0;
-
-	//! Draws a image using the current matrix.
-	virtual void DrawImage(float xpos, float ypos, float w, float h, int texture_id, float s0, float t0, float s1, float t1, float r, float g, float b, float a, bool filtered = true) = 0;
-
-	//! Draws a image using the current matrix.
-	//! More flexible than DrawImage order for s and t: 0=left_top, 1=right_top, 2=right_bottom, 3=left_bottom.
-	virtual void DrawImageWithUV(float xpos, float ypos, float z, float width, float height, int texture_id, float* s, float* t, float r = 1, float g = 1, float b = 1, float a = 1, bool filtered = true) = 0;
-
-	//!	Sets the polygon mode with Push, Pop restores the last used one
-	//! Example: Wireframe, solid.
-	virtual void PushWireframeMode(int mode) = 0;
-	virtual void PopWireframeMode() = 0;
-
 	//! Gets height of the main rendering resolution.
-	virtual int GetHeight() = 0;
+	virtual int GetHeight() const = 0;
 
 	//! Gets width of the main rendering resolution.
-	virtual int GetWidth() = 0;
+	virtual int GetWidth() const = 0;
 
 	//! Gets Pixel Aspect Ratio.
 	virtual float GetPixelAspectRatio() const = 0;
 
 	//! Gets width of the height of the overlay viewport where UI and debug output are rendered.
-	virtual int GetOverlayHeight() = 0;
+	virtual int GetOverlayHeight() const = 0;
 
 	//! Gets width of the width of the overlay viewport where UI and debug output are rendered.
-	virtual int GetOverlayWidth() = 0;
-
-	//! Switches subsequent rendering from the internal backbuffer to the native resolution backbuffer if available.
-	virtual void SwitchToNativeResolutionBackbuffer() = 0;
+	virtual int GetOverlayWidth() const = 0;
 
 	//! Gets memory status information
 	virtual void GetMemoryUsage(ICrySizer* Sizer) = 0;
@@ -1810,10 +1098,6 @@ struct IRenderer//: public IRendererCallbackServer
 	//! The function may fail (by returning nullptr) if no data is available, in which case you must not call UnpinOcclusionBuffer.
 	virtual float* PinOcclusionBuffer(Matrix44A& camera) = 0;
 	virtual void   UnpinOcclusionBuffer() = 0;
-
-	//! Take a screenshot and save it to a file
-	//! \return true on success
-	virtual bool ScreenShot(const char* filename = NULL, int width = 0, EScreenShotMode eScreenShotMode = eScreenShotMode_Normal) = 0;
 
 	//! Get current bpp.
 	virtual int GetColorBpp() = 0;
@@ -1849,14 +1133,6 @@ struct IRenderer//: public IRendererCallbackServer
 	  float sx, float sy, float sz,
 	  float* px, float* py, float* pz) = 0;
 
-	//! \note For editor.
-	virtual void GetModelViewMatrix(float* mat) = 0;
-
-	//! \note For editor.
-	virtual void GetProjectionMatrix(float* mat) = 0;
-
-	virtual void GetCameraZeroMatrix(float* mat) = 0;
-
 	virtual bool WriteDDS(byte* dat, int wdt, int hgt, int Size, const char* name, ETEX_Format eF, int NumMips) = 0;
 	virtual bool WriteTGA(byte* dat, int wdt, int hgt, const char* name, int src_bits_per_pixel, int dest_bits_per_pixel) = 0;
 	virtual bool WriteJPG(byte* dat, int wdt, int hgt, char* name, int src_bits_per_pixel, int nQuality = 100) = 0;
@@ -1868,18 +1144,14 @@ struct IRenderer//: public IRendererCallbackServer
 	virtual int  FontCreateTexture(int Width, int Height, byte* pData, ETEX_Format eTF = eTF_R8G8B8A8, bool genMips = false) = 0;
 	virtual bool FontUpdateTexture(int nTexId, int X, int Y, int USize, int VSize, byte* pData) = 0;
 	virtual void FontReleaseTexture(class CFBitmap* pBmp) = 0;
-	virtual void FontSetTexture(class CFBitmap*, int nFilterMode) = 0;
-	virtual void FontSetTexture(int nTexId, int nFilterMode) = 0;
-	virtual void FontSetRenderingState(unsigned int nVirtualScreenWidth, unsigned int nVirtualScreenHeight) = 0;
-	virtual void FontSetBlending(int src, int dst) = 0;
-	virtual void FontRestoreRenderingState() = 0;
 
 	virtual bool FlushRTCommands(bool bWait, bool bImmediatelly, bool bForce) = 0;
+	virtual int  CurThreadList() = 0;
 
-	virtual int  RT_CurThreadList() = 0;
-	virtual void RT_FlashRender(IFlashPlayer_RenderProxy* pPlayer, bool stereo) = 0;
-	virtual void RT_FlashRenderPlaybackLockless(IFlashPlayer_RenderProxy* pPlayer, int cbIdx, bool stereo, bool finalPlayback) = 0;
-	virtual void RT_FlashRemoveTexture(ITexture* pTexture) = 0;
+	virtual void FlashRender(std::shared_ptr<IFlashPlayer_RenderProxy> &&pPlayer) = 0;
+	virtual void FlashRenderPlaybackLockless(std::shared_ptr<IFlashPlayer_RenderProxy> &&pPlayer, int cbIdx, bool finalPlayback) = 0;
+	virtual void FlashRenderPlayer(std::shared_ptr<IFlashPlayer> &&pPlayer) = 0;
+	virtual void FlashRemoveTexture(ITexture* pTexture) = 0;
 
 	/////////////////////////////////////////////////////////////////////////////////
 	// External interface for shaders
@@ -1889,9 +1161,7 @@ struct IRenderer//: public IRendererCallbackServer
 	virtual bool           EF_PrecacheResource(IShader* pSH, float fMipFactor, float fTimeToReady, int Flags) = 0;
 	virtual bool           EF_PrecacheResource(ITexture* pTP, float fMipFactor, float fTimeToReady, int Flags, int nUpdateId, int nCounter = 1) = 0;
 	virtual bool           EF_PrecacheResource(IRenderMesh* pPB, IMaterial* pMaterial, float fMipFactor, float fTimeToReady, int Flags, int nUpdateId) = 0;
-	virtual bool           EF_PrecacheResource(CDLight* pLS, float fMipFactor, float fTimeToReady, int Flags, int nUpdateId) = 0;
-
-	virtual ITexture*      EF_CreateCompositeTexture(int type, const char* szName, int nWidth, int nHeight, int nDepth, int nMips, int nFlags, ETEX_Format eTF, const STexComposition* pCompositions, size_t nCompositions, int8 nPriority = -1) = 0;
+	virtual bool           EF_PrecacheResource(SRenderLight* pLS, float fMipFactor, float fTimeToReady, int Flags, int nUpdateId) = 0;
 
 	virtual void           PostLevelLoading() = 0;
 	virtual void           PostLevelUnload() = 0;
@@ -1967,7 +1237,7 @@ struct IRenderer//: public IRendererCallbackServer
 
 	//! Load lightmap for name.
 	virtual int  EF_LoadLightmap(const char* name) = 0;
-	virtual bool EF_RenderEnvironmentCubeHDR(int size, Vec3& Pos, TArray<unsigned short>& vecData) = 0;
+	virtual DynArray<uint16_t> EF_RenderEnvironmentCubeHDR(size_t size, const Vec3& Pos) = 0;
 	// Writes a TIF file to the system with the requested preset
 	// Intended for use with EF_RenderEnvironmentCubeHDR
 	virtual bool WriteTIFToDisk(const void* pData, int width, int height, int bytesPerChannel, int numChannels, bool bFloat, const char* szPreset, const char* szFileName) = 0;
@@ -1981,10 +1251,6 @@ struct IRenderer//: public IRendererCallbackServer
 	//! Start using of the shaders (return first index for allow recursions).
 	virtual void EF_StartEf(const SRenderingPassInfo& passInfo) = 0;
 
-	//! Get CRenderObject for RE transformation.
-	//! Get temporary RenderObject
-	virtual CRenderObject* EF_GetObject_Temp(int nThreadID) = 0;
-
 	//! Get permanent RenderObject
 	virtual CRenderObject* EF_GetObject() = 0;
 
@@ -1994,23 +1260,23 @@ struct IRenderer//: public IRendererCallbackServer
 	//Get permanent RenderObject
 	virtual CRenderObject* EF_DuplicateRO(CRenderObject* pObj, const SRenderingPassInfo& passInfo) = 0;
 
-	//! Add shader to the list.
-	virtual void EF_AddEf(CRenderElement* pRE, SShaderItem& pSH, CRenderObject* pObj, const SRenderingPassInfo& passInfo, int nList, int nAW) = 0;
-
 	//! Draw all shaded REs in the list
 	virtual void EF_EndEf3D(const int nFlags, const int nPrecacheUpdateId, const int nNearPrecacheUpdateId, const SRenderingPassInfo& passInfo) = 0;
 
-	virtual void EF_InvokeShadowMapRenderJobs(CRenderView* pRenderView, const int nFlags) = 0;
+	virtual void EF_InvokeShadowMapRenderJobs(const SRenderingPassInfo& passInfo, const int nFlags) = 0;
+	virtual IRenderView* GetNextAvailableShadowsView(IRenderView* pMainRenderView, ShadowMapFrustum* pOwnerFrustum) = 0;
+	virtual void PrepareShadowFrustumForShadowPool(ShadowMapFrustum* pFrustum, uint32 frameID, const SRenderLight& light, uint32 *timeSlicedShadowsUpdated) = 0;
+	virtual void PrepareShadowPool(CRenderView* pRenderView) const = 0;
 
 	// Dynamic lights.
-	virtual bool EF_IsFakeDLight(const CDLight* Source) = 0;
-	virtual void EF_ADDDlight(CDLight* Source, const SRenderingPassInfo& passInfo) = 0;
+	virtual bool EF_IsFakeDLight(const SRenderLight* Source) = 0;
+	virtual void EF_ADDDlight(SRenderLight* Source, const SRenderingPassInfo& passInfo) = 0;
 	virtual bool EF_UpdateDLight(SRenderLight* pDL) = 0;
 	virtual bool EF_AddDeferredDecal(const SDeferredDecal& rDecal, const SRenderingPassInfo& passInfo) { return true; }
 
 	// Deferred lights/vis areas
 
-	virtual int EF_AddDeferredLight(const CDLight& pLight, float fMult, const SRenderingPassInfo& passInfo) = 0;
+	virtual int EF_AddDeferredLight(const SRenderLight& pLight, float fMult, const SRenderingPassInfo& passInfo) = 0;
 
 	// Deferred clip volumes
 	virtual void Ef_AddDeferredGIClipVolume(const IRenderMesh* pClipVolume, const Matrix34& mxTransform) = 0;
@@ -2068,9 +1334,6 @@ struct IRenderer//: public IRendererCallbackServer
 	virtual int  GetPolyCount() = 0;
 	virtual void GetPolyCount(int& nPolygons, int& nShadowVolPolys) = 0;
 
-	//! \note 3D engine set this color to fog color.
-	virtual void SetClearColor(const Vec3& vColor) = 0;
-
 	//! Creates/deletes RenderMesh object.
 	virtual _smart_ptr<IRenderMesh> CreateRenderMesh(
 	  const char* szType
@@ -2100,16 +1363,8 @@ struct IRenderer//: public IRendererCallbackServer
 	virtual float ScaleCoordY(float value) const = 0;
 	virtual void  ScaleCoord(float& x, float& y) const = 0;
 
-	virtual void  SetState(int State, int AlphaRef = -1) = 0;
-	virtual void  SetCullMode(int mode = R_CULL_BACK) = 0;
-
-	virtual void  PushProfileMarker(char* label) = 0;
-	virtual void  PopProfileMarker(char* label) = 0;
-
-	virtual bool  EnableFog(bool enable) = 0;
-	virtual void  SetFogColor(const ColorF& color) = 0;
-
-	virtual void  SetColorOp(byte eCo, byte eAo, byte eCa, byte eAa) = 0;
+	virtual void  PushProfileMarker(const char* label) = 0;
+	virtual void  PopProfileMarker(const char* label) = 0;
 
 	//! For one frame allows disabling limit of texture streaming requests.
 	virtual void RequestFlushAllPendingTextureStreamingJobs(int nFrames) {}
@@ -2119,39 +1374,27 @@ struct IRenderer//: public IRendererCallbackServer
 
 	//////////////////////////////////////////////////////////////////////
 	//! Interface for auxiliary geometry (for debugging, editor purposes, etc.)
-	virtual IRenderAuxGeom* GetIRenderAuxGeom(EViewportType viewport = eViewportType_Default) = 0;
+	virtual IRenderAuxGeom* GetIRenderAuxGeom() = 0;
+	virtual IRenderAuxGeom* GetOrCreateIRenderAuxGeom(const CCamera* pCustomCamera = nullptr) = 0;
+	virtual void            DeleteAuxGeom(IRenderAuxGeom* pRenderAuxGeom) = 0;
+	virtual void            SubmitAuxGeom(IRenderAuxGeom* pRenderAuxGeom, bool merge = true) = 0;
+	virtual void            UpdateAuxDefaultCamera(const CCamera& systemCamera) = 0;
 	//////////////////////////////////////////////////////////////////////
 
 	//! Interface for renderer side SVO.
 	virtual ISvoRenderer*            GetISvoRenderer() { return 0; }
 
 	virtual IColorGradingController* GetIColorGradingController() = 0;
-	virtual IStereoRenderer*         GetIStereoRenderer() = 0;
+	virtual IStereoRenderer*         GetIStereoRenderer() const = 0;
 
-	virtual void                     ResetToDefault() = 0;
-	virtual void                     SetMaterialColor(float r, float g, float b, float a) = 0;
-
-	virtual void                     Graph(byte* g, int x, int y, int wdt, int hgt, int nC, int type, char* text, ColorF& color, float fScale) = 0;
-
-	// NOTE: deprecated
-	virtual void ClearTargetsImmediately(uint32 nFlags) = 0;
-	virtual void ClearTargetsImmediately(uint32 nFlags, const ColorF& Colors, float fDepth) = 0;
-	virtual void ClearTargetsImmediately(uint32 nFlags, const ColorF& Colors) = 0;
-	virtual void ClearTargetsImmediately(uint32 nFlags, float fDepth) = 0;
-
-	virtual void ReadFrameBuffer(unsigned char* pRGB, int nImageX, int nSizeX, int nSizeY, ERB_Type eRBType, bool bRGBA, int nScaledX = -1, int nScaledY = -1) = 0;
-	virtual void ReadFrameBufferFast(uint32* pDstARGBA8, int dstWidth, int dstHeight) = 0;
+	virtual void                     Graph(byte* g, int x, int y, int wdt, int hgt, int nC, int type, const char* text, ColorF& color, float fScale) = 0;
 
 	// NB: The following functions will be removed.
 	virtual void         EnableVSync(bool enable) = 0;
-	virtual void         PopMatrix() = 0;
-	virtual void         PushMatrix() = 0;
 
-	virtual void         CreateResourceAsync(SResourceAsync* Resource) = 0;
-	virtual void         ReleaseResourceAsync(SResourceAsync* Resource) = 0;
-	virtual unsigned int DownLoadToVideoMemory(unsigned char* data, int w, int h, ETEX_Format eTFSrc, ETEX_Format eTFDst, int nummipmap, bool repeat = true, int filter = FILTER_BILINEAR, int Id = 0, const char* szCacheName = NULL, int flags = 0, EEndian eEndian = eLittleEndian, RectI* pRegion = NULL, bool bAsynDevTexCreation = false) = 0;
-	virtual unsigned int DownLoadToVideoMemory3D(unsigned char* data, int w, int h, int d, ETEX_Format eTFSrc, ETEX_Format eTFDst, int nummipmap, bool repeat = true, int filter = FILTER_BILINEAR, int Id = 0, const char* szCacheName = NULL, int flags = 0, EEndian eEndian = eLittleEndian, RectI* pRegion = NULL, bool bAsynDevTexCreation = false) = 0;
-	virtual unsigned int DownLoadToVideoMemoryCube(unsigned char* data, int w, int h, ETEX_Format eTFSrc, ETEX_Format eTFDst, int nummipmap, bool repeat = true, int filter = FILTER_BILINEAR, int Id = 0, const char* szCacheName = NULL, int flags = 0, EEndian eEndian = eLittleEndian, RectI* pRegion = NULL, bool bAsynDevTexCreation = false) = 0;
+	virtual unsigned int UploadToVideoMemory(unsigned char* data, int w, int h, ETEX_Format eTFSrc, ETEX_Format eTFDst, int nummipmap, bool repeat = true, int filter = FILTER_BILINEAR, int Id = 0, const char* szCacheName = NULL, int flags = 0, EEndian eEndian = eLittleEndian, RectI* pRegion = NULL, bool bAsynDevTexCreation = false) = 0;
+	virtual unsigned int UploadToVideoMemory3D(unsigned char* data, int w, int h, int d, ETEX_Format eTFSrc, ETEX_Format eTFDst, int nummipmap, bool repeat = true, int filter = FILTER_BILINEAR, int Id = 0, const char* szCacheName = NULL, int flags = 0, EEndian eEndian = eLittleEndian, RectI* pRegion = NULL, bool bAsynDevTexCreation = false) = 0;
+	virtual unsigned int UploadToVideoMemoryCube(unsigned char* data, int w, int h, ETEX_Format eTFSrc, ETEX_Format eTFDst, int nummipmap, bool repeat = true, int filter = FILTER_BILINEAR, int Id = 0, const char* szCacheName = NULL, int flags = 0, EEndian eEndian = eLittleEndian, RectI* pRegion = NULL, bool bAsynDevTexCreation = false) = 0;
 	virtual void         UpdateTextureInVideoMemory(uint32 tnum, unsigned char* newdata, int posx, int posy, int w, int h, ETEX_Format eTFSrc = eTF_B8G8R8, int posz = 0, int sizez = 1) = 0;
 
 	// NB: Without header.
@@ -2160,6 +1403,10 @@ struct IRenderer//: public IRendererCallbackServer
 	virtual void RemoveTexture(unsigned int TextureId) = 0;
 
 	virtual bool BakeMesh(const SMeshBakingInputParams* pInputParams, SMeshBakingOutput* pReturnValues) = 0;
+
+	/////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Continuous frame capture interface
+	/////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	//! This routines uses 2 destination surfaces.  It triggers a backbuffer copy to one of its surfaces, and then copies the other surface to system memory.
 	//! This hopefully will remove any CPU stalls due to the rect lock call since the buffer will already be in system memory when it is called.
@@ -2199,13 +1446,24 @@ struct IRenderer//: public IRendererCallbackServer
 	//! This routine checks for any frame buffer callbacks that are needed and calls them.
 	virtual void                CaptureFrameBufferCallBack(void) = 0;
 
+	/////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Single frame capture interface
+	/////////////////////////////////////////////////////////////////////////////////////////////////////
+
+	//! Take a screenshot and save it to a file
+	//! \return true on success
+	virtual bool ScreenShot(const char* filename = nullptr, const SDisplayContextKey& displayContextKey = {}) = 0;
+
+	//! Copy frame buffer into destination memory buffer.
+	virtual bool ReadFrameBuffer(uint32* pDstRGBA8, int destinationWidth, int destinationHeight, bool readPresentedBackBuffer = true, EReadTextureFormat format = EReadTextureFormat::RGB8) = 0;
+
 	virtual gpu_pfx2::IManager* GetGpuParticleManager() = 0;
 
 	virtual void                RegisterSyncWithMainListener(ISyncMainWithRenderListener* pListener) = 0;
 	virtual void                RemoveSyncWithMainListener(const ISyncMainWithRenderListener* pListener) = 0;
 
 	virtual void                Set2DMode(bool enable, int ortox, int ortoy, float znear = -1e10f, float zfar = 1e10f) = 0;
-	virtual int                 ScreenToTexture(int nTexID) = 0;
+
 	virtual void                EnableSwapBuffers(bool bEnable) = 0;
 
 	//! Stop renderer at the end of the frame.
@@ -2224,13 +1482,9 @@ struct IRenderer//: public IRendererCallbackServer
 
 	virtual void                OnEntityDeleted(struct IRenderNode* pRenderNode) = 0;
 
-	virtual int                 CreateRenderTarget(int nWidth, int nHeight, const ColorF& cClear, ETEX_Format eTF) = 0;
-	virtual bool                DestroyRenderTarget(int nHandle) = 0;
-	virtual bool                SetRenderTarget(int nHandle, int nFlags = 0) = 0;
 	virtual float               EF_GetWaterZElevation(float fX, float fY) = 0;
 
 	virtual IOpticsElementBase* CreateOptics(EFlareType type) const = 0;
-	virtual void                ReleaseOptics(IOpticsElementBase* pOpticsElement) const = 0;
 
 	//! Used for pausing timer related stuff.
 	//! Example: For texture animations, and shader 'time' parameter.
@@ -2261,45 +1515,45 @@ struct IRenderer//: public IRendererCallbackServer
 		}
 	};
 
-	virtual IScaleformPlayback*                       SF_CreatePlayback() const = 0;
-	virtual int                                       SF_CreateTexture(int width, int height, int numMips, const unsigned char* pData, ETEX_Format eTF, int flags) = 0;
-	virtual bool                                      SF_UpdateTexture(int texId, int mipLevel, int numRects, const SUpdateRect* pRects, const unsigned char* pData, size_t pitch, size_t size, ETEX_Format eTF) = 0;
-	virtual bool                                      SF_ClearTexture(int texId, int mipLevel, int numRects, const SUpdateRect* pRects, const unsigned char* pData) = 0;
-	virtual void                                      SF_Playback(IScaleformPlayback* pRenderer, GRendererCommandBufferReadOnly* pBuffer) const = 0;
-	virtual void                                      SF_Drain(GRendererCommandBufferReadOnly* pBuffer) const = 0;
-	virtual void                                      SF_GetMeshMaxSize(int& numVertices, int& numIndices) const = 0;
+	virtual IScaleformPlayback*                         SF_CreatePlayback() const = 0;
+	virtual int                                         SF_CreateTexture(int width, int height, int numMips, const unsigned char* pData, ETEX_Format eTF, int flags) = 0;
+	virtual bool                                        SF_UpdateTexture(int texId, int mipLevel, int numRects, const SUpdateRect* pRects, const unsigned char* pData, size_t pitch, size_t size, ETEX_Format eTF) = 0;
+	virtual bool                                        SF_ClearTexture(int texId, int mipLevel, int numRects, const SUpdateRect* pRects, const unsigned char* pData) = 0;
+	virtual void                                        SF_Playback(IScaleformPlayback* pRenderer, GRendererCommandBufferReadOnly* pBuffer) const = 0;
+	virtual void                                        SF_Drain(GRendererCommandBufferReadOnly* pBuffer) const = 0;
+	virtual void                                        SF_GetMeshMaxSize(int& numVertices, int& numIndices) const = 0;
 
-	virtual ITexture*                                 CreateTexture(const char* name, int width, int height, int numMips, unsigned char* pData, ETEX_Format eTF, int flags) = 0;
-	virtual ITexture*                                 CreateTextureArray(const char* name, ETEX_Type eType, uint32 nWidth, uint32 nHeight, uint32 nArraySize, int nMips, uint32 nFlags, ETEX_Format eTF, int nCustomID) = 0;
+	virtual ITexture*                                   CreateTexture(const char* name, int width, int height, int numMips, unsigned char* pData, ETEX_Format eTF, int flags) = 0;
+	virtual ITexture*                                   CreateTextureArray(const char* name, ETEX_Type eType, uint32 nWidth, uint32 nHeight, uint32 nArraySize, int nMips, uint32 nFlags, ETEX_Format eTF, int nCustomID) = 0;
 
-	virtual const RPProfilerStats*                    GetRPPStats(ERenderPipelineProfilerStats eStat, bool bCalledFromMainThread = true) = 0;
-	virtual const RPProfilerStats*                    GetRPPStatsArray(bool bCalledFromMainThread = true) = 0;
+	virtual const RPProfilerStats*                      GetRPPStats(ERenderPipelineProfilerStats eStat, bool bCalledFromMainThread = true) = 0;
+	virtual const RPProfilerStats*                      GetRPPStatsArray(bool bCalledFromMainThread = true) = 0;
+	virtual const DynArray<RPProfilerDetailedStats>*    GetRPPDetailedStatsArray(bool bCalledFromMainThread = true) = 0;
 
-	virtual int                                       GetPolygonCountByType(uint32 EFSList, EVertexCostTypes vct, uint32 z, bool bCalledFromMainThread = true) = 0;
+	virtual int                                         GetPolygonCountByType(uint32 EFSList, EVertexCostTypes vct, uint32 z, bool bCalledFromMainThread = true) = 0;
 
-	virtual void                                      StartLoadtimeFlashPlayback(ILoadtimeCallback* pCallback) = 0;
-	virtual void                                      StopLoadtimeFlashPlayback() = 0;
+	virtual void                                        StartLoadtimeFlashPlayback(ILoadtimeCallback* pCallback) = 0;
+	virtual void                                        StopLoadtimeFlashPlayback() = 0;
+				                                        
+	virtual void                                        SetCloudShadowsParams(int nTexID, const Vec3& speed, float tiling, bool invert, float brightness) = 0;
+	virtual void                                        SetVolumetricCloudParams(int nTexID) = 0;
+	virtual void                                        SetVolumetricCloudNoiseTex(int cloudNoiseTexId, int edgeNoiseTexId) = 0;
 
-	virtual void                                      SetCloudShadowsParams(int nTexID, const Vec3& speed, float tiling, bool invert, float brightness) = 0;
-	virtual void                                      SetVolumetricCloudParams(int nTexID) = 0;
-	virtual void                                      SetVolumetricCloudNoiseTex(int cloudNoiseTexId, int edgeNoiseTexId) = 0;
-	virtual uint16                                    PushFogVolumeContribution(const ColorF& fogVolumeContrib, const SRenderingPassInfo& passInfo) = 0;
+	virtual int                                         GetMaxTextureSize() = 0;
 
-	virtual int                                       GetMaxTextureSize() = 0;
+	virtual const char*                                 GetTextureFormatName(ETEX_Format eTF) = 0;
+	virtual int                                         GetTextureFormatDataSize(int nWidth, int nHeight, int nDepth, int nMips, ETEX_Format eTF) = 0;
+	virtual bool                                        IsTextureFormatSupported(ETEX_Format eTF) = 0;
 
-	virtual const char*                               GetTextureFormatName(ETEX_Format eTF) = 0;
-	virtual int                                       GetTextureFormatDataSize(int nWidth, int nHeight, int nDepth, int nMips, ETEX_Format eTF) = 0;
-	virtual bool                                      IsTextureFormatSupported(ETEX_Format eTF) = 0;
+	virtual void                                        SetDefaultMaterials(IMaterial* pDefMat, IMaterial* pTerrainDefMat) = 0;
 
-	virtual void                                      SetDefaultMaterials(IMaterial* pDefMat, IMaterial* pTerrainDefMat) = 0;
-
-	virtual uint32                                    GetActiveGPUCount() const = 0;
-	virtual ShadowFrustumMGPUCache*                   GetShadowFrustumMGPUCache() = 0;
-	virtual const StaticArray<int, MAX_GSM_LODS_NUM>& GetCachedShadowsResolution() const = 0;
-	virtual void                                      SetCachedShadowsResolution(const StaticArray<int, MAX_GSM_LODS_NUM>& arrResolutions) = 0;
-	virtual void                                      UpdateCachedShadowsLodCount(int nGsmLods) const = 0;
-
-	virtual void                                      SetTexturePrecaching(bool stat) = 0;
+	virtual uint32                                      GetActiveGPUCount() const = 0;
+	virtual ShadowFrustumMGPUCache*                     GetShadowFrustumMGPUCache() = 0;
+	virtual const StaticArray<int, MAX_GSM_LODS_NUM>&   GetCachedShadowsResolution() const = 0;
+	virtual void                                        SetCachedShadowsResolution(const StaticArray<int, MAX_GSM_LODS_NUM>& arrResolutions) = 0;
+	virtual void                                        UpdateCachedShadowsLodCount(int nGsmLods) const = 0;
+				                                        
+	virtual void                                        SetTexturePrecaching(bool stat) = 0;
 
 	//! Platform-specific.
 	virtual void RT_InsertGpuCallback(uint32 context, GpuCallbackFunc callback) = 0;
@@ -2347,8 +1601,7 @@ struct IRenderer//: public IRendererCallbackServer
 			typeName[0] = '\0';
 		}
 
-#if !defined(_RELEASE)
-		void Update(CRenderObject* pObj, IRenderMesh* pRM); // legacy support
+#if defined(DO_RENDERSTATS)
 		void Update(CRenderObject* pObj, IRenderMesh* pRM, EShaderTechniqueID techniqueID);
 #endif
 
@@ -2358,13 +1611,8 @@ struct IRenderer//: public IRendererCallbackServer
 		char  typeName[TYPE_NAME_LENGTH];
 	};
 
-	//! Debug draw call info (per node).
-	typedef std::map<IRenderNode*, IRenderer::SDrawCallCountInfo> RNDrawcallsMapNode;
-	typedef RNDrawcallsMapNode::iterator                          RNDrawcallsMapNodeItor;
-
 	//! Debug draw call info (per mesh).
 	typedef std::map<IRenderMesh*, IRenderer::SDrawCallCountInfo> RNDrawcallsMapMesh;
-	typedef RNDrawcallsMapMesh::iterator                          RNDrawcallsMapMeshItor;
 
 #if !defined(_RELEASE)
 	//! Get draw call info for frame.
@@ -2377,9 +1625,9 @@ struct IRenderer//: public IRendererCallbackServer
 	virtual void CollectDrawCallsInfoPerNode(bool status) = 0;
 
 	// Summary:
-	virtual SSkinningData* EF_CreateSkinningData(uint32 nNumBones, bool bNeedJobSyncVar) = 0;
-	virtual SSkinningData* EF_CreateRemappedSkinningData(uint32 nNumBones, SSkinningData* pSourceSkinningData, uint32 nCustomDataSize, uint32 pairGuid) = 0;
-	virtual void           EF_EnqueueComputeSkinningData(SSkinningData* pData) = 0;
+	virtual SSkinningData* EF_CreateSkinningData(IRenderView* pRenderView, uint32 nNumBones, bool bNeedJobSyncVar) = 0;
+	virtual SSkinningData* EF_CreateRemappedSkinningData(IRenderView* pRenderView, uint32 nNumBones, SSkinningData* pSourceSkinningData, uint32 nCustomDataSize, uint32 pairGuid) = 0;
+	virtual void           EF_EnqueueComputeSkinningData(IRenderView* pRenderView, SSkinningData* pData) = 0;
 	virtual int            EF_GetSkinningPoolID() = 0;
 
 	virtual void           UpdateShaderItem(SShaderItem* pShaderItem, IMaterial* pMaterial) = 0;
@@ -2400,12 +1648,13 @@ struct IRenderer//: public IRendererCallbackServer
 	virtual void SyncComputeVerticesJobs() = 0;
 
 	//! Lock/Unlock the video memory buffer used by particles when using the jobsystem.
-	virtual void  LockParticleVideoMemory() = 0;
-	virtual void  UnLockParticleVideoMemory() = 0;
+	virtual void  LockParticleVideoMemory(int frameId) = 0;
+	virtual void  UnLockParticleVideoMemory(int frameId) = 0;
 
 	virtual void  ActivateLayer(const char* pLayerName, bool activate) = 0;
 
 	virtual void  FlushPendingTextureTasks() = 0;
+	virtual void  FlushPendingUploads() = 0;
 
 	virtual void  SetCloakParams(const SRendererCloakParams& cloakParams) = 0;
 	virtual float GetCloakFadeLightScale() const = 0;
@@ -2416,10 +1665,11 @@ struct IRenderer//: public IRendererCallbackServer
 	virtual bool  LoadShaderStartupCache() = 0;
 	virtual void  UnloadShaderStartupCache() = 0;
 
+	//! Copy a region from source texture to destination texture and apply a tint color. If blend is false, the source will override the destination area. Otherwise it will perform an alpha blend.
+	virtual void  CopyTextureRegion(ITexture* pSrc, RectI srcRegion, ITexture* pDst, RectI dstRegion, ColorF& color, const int renderStateFlags) = 0;
+
 	virtual bool  LoadShaderLevelCache() = 0;
 	virtual void  UnloadShaderLevelCache() = 0;
-
-	virtual void  OffsetPosition(const Vec3& delta) = 0;
 
 	virtual void  SetRendererCVar(ICVar* pCVar, const char* pArgText, const bool bSilentMode = false) = 0;
 
@@ -2436,20 +1686,17 @@ private:
 };
 
 //! Util class to change wireframe mode.
+//! \cond INTERNAL
 class CScopedWireFrameMode
 {
 public:
-	CScopedWireFrameMode(IRenderer* pRenderer, int nMode) : m_pRenderer(pRenderer), m_nMode(nMode)
+	CScopedWireFrameMode(IRenderer* pRenderer, int nMode) : m_nMode(nMode)
 	{
-		(void) m_nMode;     // removes not used warning
-		pRenderer->PushWireframeMode(nMode);
 	}
 	~CScopedWireFrameMode()
 	{
-		m_pRenderer->PopWireframeMode();
 	}
 private:
-	IRenderer* m_pRenderer;
 	int        m_nMode;
 };
 
@@ -2514,6 +1761,7 @@ struct SRendererQueryGetAllTexturesParam
 	_smart_ptr<ITexture>* pTextures;
 	uint32                numTextures;
 };
+//! \endcond
 
 //////////////////////////////////////////////////////////////////////
 
@@ -2579,6 +1827,7 @@ private:
 	uint8 m_nDissolveRef;
 };
 
+//! \cond INTERNAL
 //! Structure used to pass render parameters to Render() functions of IStatObj and ICharInstance.
 struct SRendParams
 {
@@ -2593,6 +1842,8 @@ struct SRendParams
 	Matrix34*                 pMatrix;
 
 	Matrix34*                 pPrevMatrix; //!< object previous transformations - motion blur specific.
+
+	Matrix34*				  pNearestMatrix; //!< object transformations - nearest camera specific.
 
 	IVisArea*                 m_pVisArea; //!< VisArea that contains this object, used for RAM-ambient cube query.
 
@@ -2646,6 +1897,7 @@ struct SRendParams
 
 	uint32                    nEditorSelectionID; //!< Selection ID and information for editor
 };
+//! \endcond
 
 struct SRendererCloakParams
 {

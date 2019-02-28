@@ -1,27 +1,27 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #if !defined(CRY_PLATFORM)
-	#error CRY_PLATFORM is not defined, probably #include "stdafx.h" is missing.
+#error CRY_PLATFORM is not defined, probably #include "stdafx.h" is missing.
 #endif
 
 #if defined(CRY_ENABLE_RC_HELPER)
 
-	#undef RC_EXECUTABLE
-	#define RC_EXECUTABLE "rc.exe"
+#undef RC_EXECUTABLE
+#define RC_EXECUTABLE "rc.exe"
 
-	#include "ResourceCompilerHelper.h"
-	#include "EngineSettingsManager.h"
-	#include <CrySystem/File/LineStreamBuffer.h>
-	#include <CrySystem/CryUtils.h>
+#include "ResourceCompilerHelper.h"
+#include "EngineSettingsManager.h"
+#include <CrySystem/File/LineStreamBuffer.h>
+#include <CrySystem/CryUtils.h>
 
-	#pragma warning (disable:4312)
+#pragma warning (disable:4312)
 
-	#include <CryCore/Platform/CryLibrary.h>
-	#include <shellapi.h> // ShellExecuteW()
-	#include <CryCore/Assert/CryAssert.h>
+#include <CryCore/Platform/CryLibrary.h>
+#include <shellapi.h> // ShellExecuteW()
+#include <CryCore/Assert/CryAssert.h>
 
-	#include <stdio.h>
-	#include <memory> // std::unique_ptr for CryTIFPlugin.
+#include <stdio.h>
+#include <memory> // std::unique_ptr for CryTIFPlugin.
 
 // pseudo-variable that represents the DOS header of the module
 EXTERN_C IMAGE_DOS_HEADER __ImageBase;
@@ -29,222 +29,222 @@ EXTERN_C IMAGE_DOS_HEADER __ImageBase;
 namespace
 {
 
-class RcLock
-{
-public:
-	RcLock()
+	class RcLock
 	{
-		InitializeCriticalSection(&m_cs);
-	}
-	~RcLock()
-	{
-		DeleteCriticalSection(&m_cs);
-	}
-
-	void Lock()
-	{
-		EnterCriticalSection(&m_cs);
-	}
-	void Unlock()
-	{
-		LeaveCriticalSection(&m_cs);
-	}
-
-private:
-	CRITICAL_SECTION m_cs;
-};
-
-template<class LockClass>
-class RcAutoLock
-{
-public:
-	RcAutoLock(LockClass& lock)
-		: m_lock(lock)
-	{
-		m_lock.Lock();
-	}
-	~RcAutoLock()
-	{
-		m_lock.Unlock();
-	}
-
-private:
-	RcAutoLock();
-	RcAutoLock(const RcAutoLock<LockClass>&);
-	RcAutoLock<LockClass>& operator=(const RcAutoLock<LockClass>&);
-
-private:
-	LockClass& m_lock;
-};
-
-class CRcCancellationToken
-{
-public:
-	void SetHandle(HANDLE handle)
-	{
-		RcAutoLock<RcLock> lock(m_lock);
-		m_handle = handle;
-	}
-
-	void CancelProcess()
-	{
-		RcAutoLock<RcLock> lock(m_lock);
-		if (m_handle)
+	public:
+		RcLock()
 		{
-			TerminateProcess(m_handle, eRcExitCode_Crash);
-			WaitForSingleObject(m_handle, INFINITE);
+			InitializeCriticalSection(&m_cs);
 		}
-	}
-
-private:
-	HANDLE m_handle = 0;
-	RcLock m_lock;
-};
-
-static bool CallProcessHelper(const wchar_t* szStartingDirectory, const wchar_t* szCommandLine, bool bShowWindow, LineStreamBuffer *pListener, int& exitCode, void* pEnvironment, CRcCancellationToken* pCancellationToken)
-{
-	if (pCancellationToken)
-	{
-		pCancellationToken->SetHandle(0);
-	}
-
-	HANDLE hChildStdOutRd, hChildStdOutWr;
-	HANDLE hChildStdInRd, hChildStdInWr;
-	HANDLE handlesToInherit[2] = {};
-	PROCESS_INFORMATION pi = { 0 };
-
-	// Create a pipe to read the stdout of the RC.
-	typedef std::unique_ptr<_PROC_THREAD_ATTRIBUTE_LIST, void(*)(LPPROC_THREAD_ATTRIBUTE_LIST)> AttributeListPtr;
-	AttributeListPtr pAttributeList(nullptr, [](LPPROC_THREAD_ATTRIBUTE_LIST p) {});
-
-	SECURITY_ATTRIBUTES saAttr = { 0 };
-	if (pListener)
-	{
-		saAttr.bInheritHandle = TRUE;
-		saAttr.lpSecurityDescriptor = 0;
-		CreatePipe(&hChildStdOutRd, &hChildStdOutWr, &saAttr, 0);
-		SetHandleInformation(hChildStdOutRd, HANDLE_FLAG_INHERIT, 0); // Need to do this according to MSDN
-		CreatePipe(&hChildStdInRd, &hChildStdInWr, &saAttr, 0);
-		SetHandleInformation(hChildStdInWr, HANDLE_FLAG_INHERIT, 0); // Need to do this according to MSDN
-
-		// We do not want the RC process to inherit any handlers except a couple of std pipes to prevent cases when
-		// deleting and renaming files in the engine can fail because there is more than one handle open to the same file.
-		handlesToInherit[0] = hChildStdOutWr;
-		handlesToInherit[1] = hChildStdInRd;
-		SIZE_T size = 0;
-		InitializeProcThreadAttributeList(nullptr, 1, 0, &size);
-		AttributeListPtr p(reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(HeapAlloc(GetProcessHeap(), 0, size)), [](LPPROC_THREAD_ATTRIBUTE_LIST p)
+		~RcLock()
 		{
-			DeleteProcThreadAttributeList(p);
-			HeapFree(GetProcessHeap(), 0, p);
-		});
-		if (p && InitializeProcThreadAttributeList(p.get(), 1, 0, &size))
-		{
-			UpdateProcThreadAttribute(p.get(), 0, PROC_THREAD_ATTRIBUTE_HANDLE_LIST, handlesToInherit, sizeof(handlesToInherit), nullptr, nullptr);
-			pAttributeList = std::move(p);
+			DeleteCriticalSection(&m_cs);
 		}
-		CRY_ASSERT(pAttributeList);
-	}
 
-	STARTUPINFOEXW siex = { 0 };
-	siex.StartupInfo.cb = sizeof(siex);
-	siex.lpAttributeList = pAttributeList.get();
-	siex.StartupInfo.dwX = 100;
-	siex.StartupInfo.dwY = 100;
-	if (pListener)
-	{
-		siex.StartupInfo.hStdError = hChildStdOutWr;
-		siex.StartupInfo.hStdOutput = hChildStdOutWr;
-		siex.StartupInfo.hStdInput = hChildStdInRd;
-		siex.StartupInfo.dwFlags = STARTF_USEPOSITION | STARTF_USESTDHANDLES;
-	}
-	else
-	{
-		siex.StartupInfo.dwFlags = STARTF_USEPOSITION;
-	}
-
-	const DWORD creationFlags = (bShowWindow ? 0 : CREATE_NO_WINDOW) | EXTENDED_STARTUPINFO_PRESENT | CREATE_UNICODE_ENVIRONMENT;
-
-	SettingsManagerHelpers::CFixedString<wchar_t, MAX_PATH * 3> wRemoteCmdLine;
-	wRemoteCmdLine.append(szCommandLine);
-
-	if (!CreateProcessW(
-		nullptr,                                   // No module name (use command line).
-		const_cast<wchar_t*>(wRemoteCmdLine.c_str()),// Command line.
-		nullptr,                                   // Process handle not inheritable.
-		nullptr,                                   // Thread handle not inheritable.
-		pListener ? true : false,                   // Handle inheritance.
-		creationFlags,        // creation flags.
-		pEnvironment,                              // if null, use parent's environment block.
-		szStartingDirectory,                       // Set starting directory.
-		&siex.StartupInfo,                         // Pointer to STARTUPINFO structure.
-		&pi))                                      // Pointer to PROCESS_INFORMATION structure.
-	{
-		// The following  code block is commented out instead of being deleted
-		// because it's good to have at hand for a debugging session.
-#if 0
-		const size_t charsInMessageBuffer = 32768;   // msdn about FormatMessage(): "The output buffer cannot be larger than 64K bytes."
-		wchar_t szMessageBuffer[charsInMessageBuffer] = L"";
-		FormatMessageW(FORMAT_MESSAGE_FROM_SYSTEM, NULL, GetLastError(), 0, szMessageBuffer, charsInMessageBuffer, NULL);
-		GetCurrentDirectoryW(charsInMessageBuffer, szMessageBuffer);
-#endif
-		return false;
-	}
-
-	if (pCancellationToken)
-	{
-		pCancellationToken->SetHandle(pi.hProcess);
-	}
-
-	bool bFailedToReadOutput = false;
-
-	if (pListener)
-	{
-		// Close the pipe that writes to the child process, since we don't actually have any input for it.
-		CloseHandle(hChildStdInWr);
-
-		// Read all the output from the child process.
-		CloseHandle(hChildStdOutWr);
-		for (;; )
+		void Lock()
 		{
-			char buffer[2048];
-			DWORD bytesRead;
-			if (!ReadFile(hChildStdOutRd, buffer, sizeof(buffer), &bytesRead, NULL) || (bytesRead == 0))
+			EnterCriticalSection(&m_cs);
+		}
+		void Unlock()
+		{
+			LeaveCriticalSection(&m_cs);
+		}
+
+	private:
+		CRITICAL_SECTION m_cs;
+	};
+
+	template<class LockClass>
+	class RcAutoLock
+	{
+	public:
+		RcAutoLock(LockClass& lock)
+			: m_lock(lock)
+		{
+			m_lock.Lock();
+		}
+		~RcAutoLock()
+		{
+			m_lock.Unlock();
+		}
+
+	private:
+		RcAutoLock();
+		RcAutoLock(const RcAutoLock<LockClass>&);
+		RcAutoLock<LockClass>& operator=(const RcAutoLock<LockClass>&);
+
+	private:
+		LockClass& m_lock;
+	};
+
+	class CRcCancellationToken
+	{
+	public:
+		void SetHandle(HANDLE handle)
+		{
+			RcAutoLock<RcLock> lock(m_lock);
+			m_handle = handle;
+		}
+
+		void CancelProcess()
+		{
+			RcAutoLock<RcLock> lock(m_lock);
+			if (m_handle)
 			{
-				break;
+				TerminateProcess(m_handle, eRcExitCode_Crash);
+				WaitForSingleObject(m_handle, INFINITE);
 			}
-			pListener->HandleText(buffer, bytesRead);
 		}
-		CloseHandle(hChildStdOutRd);
-		CloseHandle(hChildStdInRd);
 
-		bFailedToReadOutput = pListener->IsTruncated();
-	}
+	private:
+		HANDLE m_handle = 0;
+		RcLock m_lock;
+	};
 
-	// Wait until child process exits.
-	WaitForSingleObject(pi.hProcess, INFINITE);
-
-	if (pCancellationToken)
+	static bool CallProcessHelper(const wchar_t* szStartingDirectory, const wchar_t* szCommandLine, bool bShowWindow, LineStreamBuffer *pListener, int& exitCode, void* pEnvironment, CRcCancellationToken* pCancellationToken)
 	{
-		pCancellationToken->SetHandle(0);
+		if (pCancellationToken)
+		{
+			pCancellationToken->SetHandle(0);
+		}
+
+		HANDLE hChildStdOutRd, hChildStdOutWr;
+		HANDLE hChildStdInRd, hChildStdInWr;
+		HANDLE handlesToInherit[2] = {};
+		PROCESS_INFORMATION pi = { 0 };
+
+		// Create a pipe to read the stdout of the RC.
+		typedef std::unique_ptr<_PROC_THREAD_ATTRIBUTE_LIST, void(*)(LPPROC_THREAD_ATTRIBUTE_LIST)> AttributeListPtr;
+		AttributeListPtr pAttributeList(nullptr, [](LPPROC_THREAD_ATTRIBUTE_LIST p) {});
+
+		SECURITY_ATTRIBUTES saAttr = { 0 };
+		if (pListener)
+		{
+			saAttr.bInheritHandle = TRUE;
+			saAttr.lpSecurityDescriptor = 0;
+			CreatePipe(&hChildStdOutRd, &hChildStdOutWr, &saAttr, 0);
+			SetHandleInformation(hChildStdOutRd, HANDLE_FLAG_INHERIT, 0); // Need to do this according to MSDN
+			CreatePipe(&hChildStdInRd, &hChildStdInWr, &saAttr, 0);
+			SetHandleInformation(hChildStdInWr, HANDLE_FLAG_INHERIT, 0); // Need to do this according to MSDN
+
+																		 // We do not want the RC process to inherit any handlers except a couple of std pipes to prevent cases when
+																		 // deleting and renaming files in the engine can fail because there is more than one handle open to the same file.
+			handlesToInherit[0] = hChildStdOutWr;
+			handlesToInherit[1] = hChildStdInRd;
+			SIZE_T size = 0;
+			InitializeProcThreadAttributeList(nullptr, 1, 0, &size);
+			AttributeListPtr p(reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(HeapAlloc(GetProcessHeap(), 0, size)), [](LPPROC_THREAD_ATTRIBUTE_LIST p)
+			{
+				DeleteProcThreadAttributeList(p);
+				HeapFree(GetProcessHeap(), 0, p);
+			});
+			if (p && InitializeProcThreadAttributeList(p.get(), 1, 0, &size))
+			{
+				UpdateProcThreadAttribute(p.get(), 0, PROC_THREAD_ATTRIBUTE_HANDLE_LIST, handlesToInherit, sizeof(handlesToInherit), nullptr, nullptr);
+				pAttributeList = std::move(p);
+			}
+			CRY_ASSERT(pAttributeList);
+		}
+
+		STARTUPINFOEXW siex = { 0 };
+		siex.StartupInfo.cb = sizeof(siex);
+		siex.lpAttributeList = pAttributeList.get();
+		siex.StartupInfo.dwX = 100;
+		siex.StartupInfo.dwY = 100;
+		if (pListener)
+		{
+			siex.StartupInfo.hStdError = hChildStdOutWr;
+			siex.StartupInfo.hStdOutput = hChildStdOutWr;
+			siex.StartupInfo.hStdInput = hChildStdInRd;
+			siex.StartupInfo.dwFlags = STARTF_USEPOSITION | STARTF_USESTDHANDLES;
+		}
+		else
+		{
+			siex.StartupInfo.dwFlags = STARTF_USEPOSITION;
+		}
+
+		const DWORD creationFlags = (bShowWindow ? 0 : CREATE_NO_WINDOW) | EXTENDED_STARTUPINFO_PRESENT | CREATE_UNICODE_ENVIRONMENT;
+
+		SettingsManagerHelpers::CFixedString<wchar_t, MAX_PATH * 3> wRemoteCmdLine;
+		wRemoteCmdLine.append(szCommandLine);
+
+		if (!CreateProcessW(
+			nullptr,                                   // No module name (use command line).
+			const_cast<wchar_t*>(wRemoteCmdLine.c_str()),// Command line.
+			nullptr,                                   // Process handle not inheritable.
+			nullptr,                                   // Thread handle not inheritable.
+			pListener ? true : false,                   // Handle inheritance.
+			creationFlags,        // creation flags.
+			pEnvironment,                              // if null, use parent's environment block.
+			szStartingDirectory,                       // Set starting directory.
+			&siex.StartupInfo,                         // Pointer to STARTUPINFO structure.
+			&pi))                                      // Pointer to PROCESS_INFORMATION structure.
+		{
+			// The following  code block is commented out instead of being deleted
+			// because it's good to have at hand for a debugging session.
+#if 0
+			const size_t charsInMessageBuffer = 32768;   // msdn about FormatMessage(): "The output buffer cannot be larger than 64K bytes."
+			wchar_t szMessageBuffer[charsInMessageBuffer] = L"";
+			FormatMessageW(FORMAT_MESSAGE_FROM_SYSTEM, NULL, GetLastError(), 0, szMessageBuffer, charsInMessageBuffer, NULL);
+			GetCurrentDirectoryW(charsInMessageBuffer, szMessageBuffer);
+#endif
+			return false;
+		}
+
+		if (pCancellationToken)
+		{
+			pCancellationToken->SetHandle(pi.hProcess);
+		}
+
+		bool bFailedToReadOutput = false;
+
+		if (pListener)
+		{
+			// Close the pipe that writes to the child process, since we don't actually have any input for it.
+			CloseHandle(hChildStdInWr);
+
+			// Read all the output from the child process.
+			CloseHandle(hChildStdOutWr);
+			for (;; )
+			{
+				char buffer[2048];
+				DWORD bytesRead;
+				if (!ReadFile(hChildStdOutRd, buffer, sizeof(buffer), &bytesRead, NULL) || (bytesRead == 0))
+				{
+					break;
+				}
+				pListener->HandleText(buffer, bytesRead);
+			}
+			CloseHandle(hChildStdOutRd);
+			CloseHandle(hChildStdInRd);
+
+			bFailedToReadOutput = pListener->IsTruncated();
+		}
+
+		// Wait until child process exits.
+		WaitForSingleObject(pi.hProcess, INFINITE);
+
+		if (pCancellationToken)
+		{
+			pCancellationToken->SetHandle(0);
+		}
+
+		DWORD processExitcode = 0;
+		if (bFailedToReadOutput || GetExitCodeProcess(pi.hProcess, &processExitcode) == 0)
+		{
+			exitCode = eRcExitCode_Error;
+		}
+
+		exitCode = (int)processExitcode;
+
+		// Close process and thread handles.
+		CloseHandle(pi.hProcess);
+		CloseHandle(pi.hThread);
+
+		return true;
 	}
 
-	DWORD processExitcode;
-	if (bFailedToReadOutput || GetExitCodeProcess(pi.hProcess, &processExitcode) == 0)
-	{
-		exitCode = eRcExitCode_Error;
-	}
-
-	exitCode = (int)processExitcode;
-
-	// Close process and thread handles.
-	CloseHandle(pi.hProcess);
-	CloseHandle(pi.hThread);
-
-	return true;
-}
-
-CRcCancellationToken s_rcCancellationToken;
+	CRcCancellationToken s_rcCancellationToken;
 
 }
 
@@ -257,7 +257,7 @@ CRcCancellationToken s_rcCancellationToken;
 //   "", "//storage", "//storage/.", "nonexisting_dir", "f:/" (if f: drive doesn't exist)
 static bool DirectoryExists(const wchar_t* szPathPart0, const wchar_t* szPathPart1 = 0)
 {
-	SettingsManagerHelpers::CFixedString<wchar_t, MAX_PATH* 2> dir;
+	SettingsManagerHelpers::CFixedString<wchar_t, MAX_PATH * 2> dir;
 
 	if (szPathPart0 && szPathPart0[0])
 	{
@@ -285,7 +285,7 @@ static bool IsRelativePath(const char* p)
 //////////////////////////////////////////////////////////////////////////
 static void ShowMessageBoxRcNotFound(const wchar_t* const szCmdLine, const wchar_t* const szDir)
 {
-	SettingsManagerHelpers::CFixedString<wchar_t, MAX_PATH* 4 + 150> tmp;
+	SettingsManagerHelpers::CFixedString<wchar_t, MAX_PATH * 4 + 150> tmp;
 
 	if (szCmdLine && szCmdLine[0])
 	{
@@ -314,7 +314,7 @@ static void CryFindEngineToolsFolder(unsigned int nEngineToolsPathSize, wchar_t*
 		return;
 	}
 
-	SettingsManagerHelpers::CFixedString<wchar_t, MAX_PATH* 2> filename;
+	SettingsManagerHelpers::CFixedString<wchar_t, MAX_PATH * 2> filename;
 
 	while (wchar_t* pathEnd = wcsrchr(szEngineToolsPath, L'\\'))
 	{
@@ -342,109 +342,109 @@ static void CryFindEngineToolsFolder(unsigned int nEngineToolsPathSize, wchar_t*
 //////////////////////////////////////////////////////////////////////////
 namespace
 {
-class ResourceCompilerLineHandler
-{
-public:
-	ResourceCompilerLineHandler(IResourceCompilerListener* listener)
-		: m_listener(listener)
+	class ResourceCompilerLineHandler
 	{
-	}
-
-	void HandleLine(const char* line)
-	{
-		if (!m_listener || !line)
+	public:
+		ResourceCompilerLineHandler(IResourceCompilerListener* listener)
+			: m_listener(listener)
 		{
-			return;
 		}
 
-		// check the first three characters to see if it's a warning or error.
-		bool bHasPrefix;
-		IResourceCompilerListener::MessageSeverity severity;
-		if ((line[0] == 'E') && (line[1] == ':') && (line[2] == ' '))
+		void HandleLine(const char* line)
 		{
-			bHasPrefix = true;
-			severity = IResourceCompilerListener::MessageSeverity_Error;
-			line += 3;  // skip the prefix
-		}
-		else if ((line[0] == 'W') && (line[1] == ':') && (line[2] == ' '))
-		{
-			bHasPrefix = true;
-			severity = IResourceCompilerListener::MessageSeverity_Warning;
-			line += 3;  // skip the prefix
-		}
-		else if ((line[0] == ' ') && (line[1] == ' ') && (line[2] == ' '))
-		{
-			bHasPrefix = true;
-			severity = IResourceCompilerListener::MessageSeverity_Info;
-			line += 3;  // skip the prefix
-		}
-		else
-		{
-			bHasPrefix = false;
-			severity = IResourceCompilerListener::MessageSeverity_Info;
-		}
-
-		if (bHasPrefix)
-		{
-			// skip thread info "%d>", if present
+			if (!m_listener || !line)
 			{
-				const char* p = line;
-				while (*p == ' ')
-				{
-					++p;
-				}
-				if (isdigit(*p))
-				{
-					while (isdigit(*p))
-					{
-						++p;
-					}
-					if (*p == '>')
-					{
-						line = p + 1;
-					}
-				}
+				return;
 			}
 
-			// skip time info "%d:%d", if present
+			// check the first three characters to see if it's a warning or error.
+			bool bHasPrefix;
+			IResourceCompilerListener::MessageSeverity severity;
+			if ((line[0] == 'E') && (line[1] == ':') && (line[2] == ' '))
 			{
-				const char* p = line;
-				while (*p == ' ')
+				bHasPrefix = true;
+				severity = IResourceCompilerListener::MessageSeverity_Error;
+				line += 3;  // skip the prefix
+			}
+			else if ((line[0] == 'W') && (line[1] == ':') && (line[2] == ' '))
+			{
+				bHasPrefix = true;
+				severity = IResourceCompilerListener::MessageSeverity_Warning;
+				line += 3;  // skip the prefix
+			}
+			else if ((line[0] == ' ') && (line[1] == ' ') && (line[2] == ' '))
+			{
+				bHasPrefix = true;
+				severity = IResourceCompilerListener::MessageSeverity_Info;
+				line += 3;  // skip the prefix
+			}
+			else
+			{
+				bHasPrefix = false;
+				severity = IResourceCompilerListener::MessageSeverity_Info;
+			}
+
+			if (bHasPrefix)
+			{
+				// skip thread info "%d>", if present
 				{
-					++p;
-				}
-				if (isdigit(*p))
-				{
-					while (isdigit(*p))
+					const char* p = line;
+					while (*p == ' ')
 					{
 						++p;
 					}
-					if (*p == ':')
+					if (isdigit(*p))
+					{
+						while (isdigit(*p))
+						{
+							++p;
+						}
+						if (*p == '>')
+						{
+							line = p + 1;
+						}
+					}
+				}
+
+				// skip time info "%d:%d", if present
+				{
+					const char* p = line;
+					while (*p == ' ')
 					{
 						++p;
-						if (isdigit(*p))
+					}
+					if (isdigit(*p))
+					{
+						while (isdigit(*p))
 						{
-							while (isdigit(*p))
+							++p;
+						}
+						if (*p == ':')
+						{
+							++p;
+							if (isdigit(*p))
 							{
-								++p;
+								while (isdigit(*p))
+								{
+									++p;
+								}
+								while (*p == ' ')
+								{
+									++p;
+								}
+								line = p;
 							}
-							while (*p == ' ')
-							{
-								++p;
-							}
-							line = p;
 						}
 					}
 				}
 			}
+
+			m_listener->OnRCMessage(severity, line);
 		}
 
-		m_listener->OnRCMessage(severity, line);
-	}
-
-private:
-	IResourceCompilerListener* m_listener;
-};
+	private:
+		IResourceCompilerListener* m_listener;
+	};
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -462,11 +462,13 @@ int CResourceCompilerHelper::GetResourceCompilerConfigPath(char* outBuffer, size
 			if (!pathBuffer[0])
 			{
 				dirFound = false;
-			} else {
+			}
+			else 
+			{
 				rcIniPath.append(&pathBuffer[0]);
 				rcIniPath.append(L"/Tools/rc");
 			}
-			
+
 			break;
 		case eRcExePath_editor:
 			CryFindEngineToolsFolder(CRY_ARRAY_COUNT(pathBuffer), pathBuffer);
@@ -474,11 +476,12 @@ int CResourceCompilerHelper::GetResourceCompilerConfigPath(char* outBuffer, size
 			{
 				dirFound = false;
 			}
-			else {
+			else 
+			{
 				rcIniPath.append(&pathBuffer[0]);
 				rcIniPath.append(L"/rc");
 			}
-			
+
 			break;
 		default:
 			dirFound = false;
@@ -499,23 +502,23 @@ int CResourceCompilerHelper::GetResourceCompilerConfigPath(char* outBuffer, size
 
 //////////////////////////////////////////////////////////////////////////
 bool CResourceCompilerHelper::CallProcess(const wchar_t* szStartingDirectory, const wchar_t* szCommandLine, bool bShowWindow, LineStreamBuffer *pListener, int& exitCode, void* pEnvironment)
-{	
+{
 	return CallProcessHelper(szStartingDirectory, szCommandLine, bShowWindow, pListener, exitCode, pEnvironment, nullptr);
 }
 
 //////////////////////////////////////////////////////////////////////////
 CResourceCompilerHelper::ERcCallResult CResourceCompilerHelper::CallResourceCompiler(
-  const char* szFileName,
-  const char* szAdditionalSettings,
-  IResourceCompilerListener* listener,
-  bool bMayShowWindow,
-  CResourceCompilerHelper::ERcExePath rcExePath,
-  bool bSilent,
-  bool bNoUserDialog,
-  const wchar_t* szWorkingDirectory)
+	const char* szFileName,
+	const char* szAdditionalSettings,
+	IResourceCompilerListener* listener,
+	bool bMayShowWindow,
+	CResourceCompilerHelper::ERcExePath rcExePath,
+	bool bSilent,
+	bool bNoUserDialog,
+	const wchar_t* szWorkingDirectory)
 {
 	// make command for execution
-	SettingsManagerHelpers::CFixedString<wchar_t, MAX_PATH* 3> wRemoteCmdLine;
+	SettingsManagerHelpers::CFixedString<wchar_t, MAX_PATH * 3> wRemoteCmdLine;
 	CSettingsManagerTools smTools = CSettingsManagerTools();
 
 	if (!szAdditionalSettings)
@@ -523,7 +526,7 @@ CResourceCompilerHelper::ERcCallResult CResourceCompilerHelper::CallResourceComp
 		szAdditionalSettings = "";
 	}
 
-	SettingsManagerHelpers::CFixedString<wchar_t, MAX_PATH* 3> rcDirectory;
+	SettingsManagerHelpers::CFixedString<wchar_t, MAX_PATH * 3> rcDirectory;
 	{
 		wchar_t pathBuffer[512];
 		switch (rcExePath)
@@ -593,7 +596,7 @@ CResourceCompilerHelper::ERcCallResult CResourceCompilerHelper::CallResourceComp
 	}
 
 	bool bSucceed = true;
-	int exitCode; 
+	int exitCode;
 	if (listener)
 	{
 		ResourceCompilerLineHandler lineHandler(listener);
@@ -699,10 +702,10 @@ ERcExitCode CResourceCompilerHelper::InvokeResourceCompiler(const char* szSrcFil
 	RemovePath(szDstFilePath, szDstFilename, CRY_ARRAY_COUNT(szDstFilename));
 	RemoveFilename(szDstFilePath, szDstPath, CRY_ARRAY_COUNT(szDstPath));
 
-	wRemoteCmdLine.appendAscii(" /overwritefilename=\"");
+	wRemoteCmdLine.appendAscii(" \"/overwritefilename=");
 	wRemoteCmdLine.appendAscii(szDstFilename);
 	wRemoteCmdLine.appendAscii("\"");
-	wRemoteCmdLine.appendAscii(" /targetroot=\"");
+	wRemoteCmdLine.appendAscii(" \"/targetroot=");
 	if (IsRelativePath(szDstPath))
 	{
 		wRemoteCmdLine.append(szProjectDir);
@@ -724,7 +727,7 @@ ERcExitCode CResourceCompilerHelper::InvokeResourceCompiler(const char* szSrcFil
 	PROCESS_INFORMATION pi;
 	ZeroMemory(&pi, sizeof(pi));
 
-	#if defined(DEBUG) && !defined(NDEBUG) && defined(_RENDERER)
+#if defined(DEBUG) && !defined(NDEBUG) && defined(_RENDERER)
 	extern ILog* iLog;
 
 	char tmp1[512];
@@ -735,19 +738,19 @@ ERcExitCode CResourceCompilerHelper::InvokeResourceCompiler(const char* szSrcFil
 	SettingsManagerHelpers::ConvertUtf16ToUtf8(wRemoteCmdLine.c_str(), dst2);
 
 	iLog->Log("Debug: RC: dir \"%s\", cmd \"%s\"\n", tmp1, tmp2);
-	#endif
+#endif
 
 	if (!CreateProcessW(
-	      NULL,                                                               // No module name (use command line).
-	      const_cast<wchar_t*>(wRemoteCmdLine.c_str()),                       // Command line.
-	      NULL,                                                               // Process handle not inheritable.
-	      NULL,                                                               // Thread handle not inheritable.
-	      FALSE,                                                              // Set handle inheritance to FALSE.
-	      BELOW_NORMAL_PRIORITY_CLASS + (bUserDialog ? 0 : CREATE_NO_WINDOW), // creation flags.
-	      NULL,                                                               // Use parent's environment block.
-	      wDir.c_str(),                                                       // Set starting directory.
-	      &si,                                                                // Pointer to STARTUPINFO structure.
-	      &pi))                                                               // Pointer to PROCESS_INFORMATION structure.
+		NULL,                                                               // No module name (use command line).
+		const_cast<wchar_t*>(wRemoteCmdLine.c_str()),                       // Command line.
+		NULL,                                                               // Process handle not inheritable.
+		NULL,                                                               // Thread handle not inheritable.
+		FALSE,                                                              // Set handle inheritance to FALSE.
+		BELOW_NORMAL_PRIORITY_CLASS + (bUserDialog ? 0 : CREATE_NO_WINDOW), // creation flags.
+		NULL,                                                               // Use parent's environment block.
+		wDir.c_str(),                                                       // Set starting directory.
+		&si,                                                                // Pointer to STARTUPINFO structure.
+		&pi))                                                               // Pointer to PROCESS_INFORMATION structure.
 	{
 		eRet = eRcExitCode_FatalError;
 	}
@@ -845,7 +848,7 @@ void CResourceCompilerHelper::GetOutputFilename(const char* szFilePath, char* bu
 	if (ext)
 	{
 		if (stricmp(ext, "tif") == 0 ||
-		    stricmp(ext, "hdr") == 0)
+			stricmp(ext, "hdr") == 0)
 		{
 			ReplaceExtension(szFilePath, "dds", buffer, bufferSizeInBytes);
 			return;
@@ -860,7 +863,7 @@ bool CResourceCompilerHelper::IsImageFormat(const char* szExtension)
 	if (szExtension)
 	{
 		if (stricmp(szExtension, "dds") == 0 ||    // DirectX surface format
-		    stricmp(szExtension, "hdr") == 0)      // RGBE high dynamic range image
+			stricmp(szExtension, "hdr") == 0)      // RGBE high dynamic range image
 		{
 			return true;
 		}

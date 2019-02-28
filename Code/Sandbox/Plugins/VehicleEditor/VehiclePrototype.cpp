@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "VehiclePrototype.h"
@@ -203,11 +203,12 @@ void CVehiclePrototype::Done()
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CVehiclePrototype::Display(DisplayContext& dc)
+void CVehiclePrototype::Display(CObjectRenderHelper& objRenderHelper)
 {
 	// don't display anything, we're attached to vehicle now
 	return;
 
+	DisplayContext& dc = objRenderHelper.GetDisplayContextRef();
 	Matrix34 wtm = GetWorldTM();
 
 	if (hasEntity())
@@ -219,8 +220,6 @@ void CVehiclePrototype::Display(DisplayContext& dc)
 			if (!pRenderNode)
 				return;
 
-			SRenderingPassInfo passInfo = SRenderingPassInfo::CreateGeneralPassRenderingInfo(GetIEditor()->GetSystem()->GetViewCamera());
-
 			SRendParams rp;
 			rp.dwFObjFlags |= FOB_TRANS_MASK;
 			rp.AmbientColor = ColorF(1, 1, 1, 1);
@@ -228,6 +227,7 @@ void CVehiclePrototype::Display(DisplayContext& dc)
 			//rp.nDLightMask = GetIEditor()->Get3DEngine()->GetLightMaskFromPosition(wtm.GetTranslation(),1.f) & 0xFFFF;
 			//rp.pMaterial = GetIEditor()->GetIconManager()->GetHelperMaterial();
 
+			SRenderingPassInfo passInfo = SRenderingPassInfo::CreateGeneralPassRenderingInfo(GetIEditor()->GetSystem()->GetViewCamera(), SRenderingPassInfo::DEFAULT_FLAGS, true, dc.GetDisplayContextKey());
 			pRenderNode->Render(rp, passInfo);
 		}
 
@@ -425,3 +425,4 @@ void CVehiclePrototype::AddHelper(CVehicleHelper* pHelper, IVariable* pHelperVar
 
 	AttachChild(pHelper, true);
 }
+

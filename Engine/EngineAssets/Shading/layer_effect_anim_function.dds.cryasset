@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="ef23c7c6-ec3e-2b10-8231-281f5a8438dd" source="layer_effect_anim_function.tif">
+ <Files>
+  <File path="layer_effect_anim_function.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">128</Detail>
+  <Detail name="height">128</Detail>
+  <Detail name="mipCount">1</Detail>
+ </Details>
+</AssetMetadata>

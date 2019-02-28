@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "DriverD3D.h"
@@ -145,13 +145,7 @@ void CRenderPassScheduler::Execute()
 			//CDeviceCommandListRef commandList = GetDeviceObjectFactory().GetCoreCommandList();
 			//CDeviceGraphicsCommandInterface* pCommandInterface = commandList.GetGraphicsInterface();
 			//pCommandInterface->SetRenderTargets(0, nullptr, nullptr, nullptr);
-			gcpRendD3D->FX_PushRenderTarget(0, static_cast<CTexture*>(nullptr), nullptr);
-			gcpRendD3D->FX_PushRenderTarget(1, static_cast<CTexture*>(nullptr), nullptr);
-			gcpRendD3D->FX_PushRenderTarget(2, static_cast<CTexture*>(nullptr), nullptr);
-			gcpRendD3D->FX_SetActiveRenderTargets();
-			gcpRendD3D->FX_PopRenderTarget(0);
-			gcpRendD3D->FX_PopRenderTarget(1);
-			gcpRendD3D->FX_PopRenderTarget(2);
+			GetDeviceObjectFactory().GetCoreCommandList().GetGraphicsInterface()->ClearState(true);
 			
 			pass.pComputePass->Execute(GetDeviceObjectFactory().GetCoreCommandList());
 		}

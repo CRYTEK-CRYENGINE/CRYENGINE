@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -6,7 +6,7 @@
 #include <QPointer>
 
 class QSearchBox;
-class QTreeView;
+class QAdvancedTreeView;
 class QDeepFilterProxyModel;
 class QToolButton;
 class QItemSelection;
@@ -60,7 +60,7 @@ private:
 	CAbstractVariablesModel*    m_pModel;
 
 	QSearchBox*                 m_pFilter;
-	QTreeView*                  m_pVariablesList;
+	QAdvancedTreeView*          m_pVariablesList;
 	CVariablesModel*            m_pDataModel;
 	QDeepFilterProxyModel*      m_pFilterProxy;
 	QToolButton*                m_pAddButton;
@@ -71,3 +71,4 @@ private:
 };
 
 }
+

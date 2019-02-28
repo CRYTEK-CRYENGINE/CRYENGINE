@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "HMDManager.h"
@@ -6,7 +6,7 @@
 
 #include <CryRenderer/IStereoRenderer.h>
 
-#include <CryExtension/ICryPluginManager.h>
+#include <CrySystem/ICryPluginManager.h>
 
 // Note:
 //  We support a single HMD device at a time.
@@ -27,7 +27,19 @@ void CHmdManager::RegisterDevice(const char* szDeviceName, IHmdDevice& device)
 // ------------------------------------------------------------------------
 void CHmdManager::UnregisterDevice(const char* szDeviceName)
 {
-	m_availableDeviceMap.erase(szDeviceName);
+	auto it = m_availableDeviceMap.find(szDeviceName);
+	if (it == m_availableDeviceMap.end())
+		return;
+
+	// If we lost selected device, nullify it
+	if (m_pHmdDevice == it->second)
+	{
+		m_pHmdDevice = nullptr;
+		if (gEnv->pRenderer != nullptr)
+			gEnv->pRenderer->GetIStereoRenderer()->OnHmdDeviceChanged(m_pHmdDevice);
+	}
+
+	m_availableDeviceMap.erase(it);
 }
 
 // ------------------------------------------------------------------------
@@ -60,7 +72,7 @@ void CHmdManager::SetupAction(EHmdSetupAction cmd)
 					m_pHmdDevice = nullptr;
 
 					const char *selectedHmdName = CryVR::CVars::pSelectedHmdNameVar->GetString();
-					TDeviceMap::iterator hmdIt;
+					TDeviceMap::iterator hmdIt = m_availableDeviceMap.end();
 
 					if (strlen(selectedHmdName) > 0)
 					{
@@ -78,9 +90,22 @@ void CHmdManager::SetupAction(EHmdSetupAction cmd)
 							return;
 						}
 					}
-					else // No HMD explicitly selected, opt for first available (since sys_vr_support was 1)
+					else // No HMD explicitly selected, find a suitable one (since sys_vr_support was 1)
 					{
-						hmdIt = m_availableDeviceMap.begin();
+						const char* vrPluginPriorities[] = {
+							"Plugin_OculusVR",
+							"Plugin_OpenVR"
+						};
+
+						for (const auto *plug : vrPluginPriorities)
+						{
+							if ((hmdIt = m_availableDeviceMap.find(plug)) != m_availableDeviceMap.end())
+								break;
+						}
+
+						// Resort to whatever is available
+						if (hmdIt == m_availableDeviceMap.end())
+							hmdIt = m_availableDeviceMap.begin();
 						if (hmdIt == m_availableDeviceMap.end())
 						{
 							pVrSupportVar->Set(0);
@@ -97,7 +122,10 @@ void CHmdManager::SetupAction(EHmdSetupAction cmd)
 
 					m_pHmdDevice = hmdIt->second;
 
-					gEnv->pRenderer->GetIStereoRenderer()->OnHmdDeviceChanged(m_pHmdDevice);
+					if (gEnv->pRenderer != nullptr)
+					{
+						gEnv->pRenderer->GetIStereoRenderer()->OnHmdDeviceChanged(m_pHmdDevice);
+					}
 
 					gEnv->pSystem->LoadConfiguration("vr.cfg", 0, eLoadConfigGame);
 				}
@@ -138,7 +166,10 @@ void CHmdManager::UpdateTracking(EVRComponent updateType)
 {
 	if (m_pHmdDevice)
 	{
-		m_pHmdDevice->UpdateTrackingState(updateType);
+		IRenderer* pRenderer = gEnv->pRenderer;
+		const int frameId = pRenderer->GetFrameID(false);
+
+		m_pHmdDevice->UpdateTrackingState(updateType, frameId);
 	}
 }
 
@@ -149,16 +180,16 @@ bool CHmdManager::IsStereoSetupOk() const
 	{
 		if (IStereoRenderer* pStereoRenderer = gEnv->pRenderer->GetIStereoRenderer())
 		{
-			EStereoDevice device = STEREO_DEVICE_NONE;
-			EStereoMode mode = STEREO_MODE_NO_STEREO;
-			EStereoOutput output = STEREO_OUTPUT_STANDARD;
+			EStereoDevice device = EStereoDevice::STEREO_DEVICE_NONE;
+			EStereoMode mode = EStereoMode::STEREO_MODE_NO_STEREO;
+			EStereoOutput output = EStereoOutput::STEREO_OUTPUT_STANDARD;
 
 			pStereoRenderer->GetInfo(&device, &mode, &output, 0);
 
 			return (
-			  device == STEREO_DEVICE_FRAMECOMP &&
-			  (mode == STEREO_MODE_POST_STEREO || mode == STEREO_MODE_DUAL_RENDERING) &&
-			  (output == STEREO_OUTPUT_SIDE_BY_SIDE || output == STEREO_OUTPUT_HMD)
+			  (device == EStereoDevice::STEREO_DEVICE_DEFAULT || device == EStereoDevice::STEREO_DEVICE_FRAMECOMP) &&
+			  (mode == EStereoMode::STEREO_MODE_POST_STEREO || mode == EStereoMode::STEREO_MODE_DUAL_RENDERING || mode == EStereoMode::STEREO_MODE_MENU) &&
+			  (output == EStereoOutput::STEREO_OUTPUT_SIDE_BY_SIDE || output == EStereoOutput::STEREO_OUTPUT_HMD)
 			  );
 		}
 	}
@@ -166,15 +197,12 @@ bool CHmdManager::IsStereoSetupOk() const
 }
 
 // ------------------------------------------------------------------------
-bool CHmdManager::GetAsymmetricCameraSetupInfo(int nEye, SAsymmetricCameraSetupInfo& o_info) const
+HMDCameraSetup CHmdManager::GetHMDCameraSetup(int nEye, float projRatio, float fnear) const
 {
 	if (m_pHmdDevice)
-	{
-		m_pHmdDevice->GetAsymmetricCameraSetupInfo(nEye, o_info.fov, o_info.aspectRatio, o_info.asymH, o_info.asymV, o_info.eyeDist);
-		return true;
-	}
+		return m_pHmdDevice->GetHMDCameraSetup(nEye, projRatio, fnear);
 
-	return false;
+	return HMDCameraSetup{};
 }
 
 // ------------------------------------------------------------------------

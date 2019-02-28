@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // ------------------------------------------------------------------------
 //  File name:   CREGeomCache.cpp
@@ -69,25 +69,6 @@ void CREGeomCache::InitializeRenderElement(const uint numMeshes, _smart_ptr<IRen
 	m_materialId = materialId;
 }
 
-void CREGeomCache::mfPrepare(bool bCheckOverflow)
-{
-	FUNCTION_PROFILER_RENDER_FLAT
-
-	CRenderer* const pRenderer = gRenDev;
-
-	if (bCheckOverflow)
-	{
-		pRenderer->FX_CheckOverflow(0, 0, this);
-	}
-
-	pRenderer->m_RP.m_CurVFormat = GetVertexFormat();
-	pRenderer->m_RP.m_pRE = this;
-	pRenderer->m_RP.m_FirstVertex = 0;
-	pRenderer->m_RP.m_FirstIndex = 0;
-	pRenderer->m_RP.m_RendNumIndices = 0;
-	pRenderer->m_RP.m_RendNumVerts = 0;
-}
-
 void CREGeomCache::SetupMotionBlur(CRenderObject* pRenderObject, const SRenderingPassInfo& passInfo)
 {
 	CMotionBlur::SetupObject(pRenderObject, passInfo);
@@ -104,7 +85,7 @@ bool CREGeomCache::Update(const int flags, const bool bTessellation)
 	FUNCTION_PROFILER_RENDER_FLAT
 
 	// Wait until render node update has finished
-	const int threadId = gRenDev->m_RP.m_nProcessThreadID;
+	const int threadId = gRenDev->GetRenderThreadID();
 	while (m_transformUpdateState[threadId])
 	{
 		CrySleep(0);
@@ -134,6 +115,7 @@ bool CREGeomCache::Update(const int flags, const bool bTessellation)
 			bool bSucceed = pRenderMesh->RT_CheckUpdate(pVertexContainer, pRenderMesh->GetVertexFormat(), flags | VSM_MASK, bTessellation);
 			if (bSucceed)
 			{
+				AUTO_LOCK(CRenderMesh::m_sLinkLock);
 				pRenderMesh->m_Modified[threadId].erase();
 			}
 
@@ -151,7 +133,7 @@ void CREGeomCache::UpdateModified()
 {
 	FUNCTION_PROFILER_RENDER_FLAT
 
-	const int threadId = gRenDev->m_RP.m_nProcessThreadID;
+	const int threadId = gRenDev->GetRenderThreadID();
 	CryAutoLock<CryCriticalSection> lock(ms_updateListCS[threadId]);
 
 	for (std::vector<CREGeomCache*>::iterator iter = ms_updateList[threadId].begin();
@@ -166,7 +148,7 @@ bool CREGeomCache::mfUpdate(InputLayoutHandle eVertFormat, int Flags, bool bTess
 {
 	const bool bRet = Update(Flags, bTessellation);
 
-	const int threadId = gRenDev->m_RP.m_nProcessThreadID;
+	const int threadId = gRenDev->GetRenderThreadID();
 	CryAutoLock<CryCriticalSection> lock(ms_updateListCS[threadId]);
 	stl::find_and_erase(ms_updateList[threadId], this);
 
@@ -179,7 +161,7 @@ volatile int* CREGeomCache::SetAsyncUpdateState(int& threadId)
 	FUNCTION_PROFILER_RENDER_FLAT
 
 	  ASSERT_IS_MAIN_THREAD(gRenDev->m_pRT);
-	threadId = gRenDev->m_RP.m_nFillThreadID;
+	threadId = gRenDev->GetMainThreadID();
 
 	m_bUpdateFrame[threadId] = false;
 
@@ -195,7 +177,7 @@ DynArray<CREGeomCache::SMeshRenderData>* CREGeomCache::GetMeshFillDataPtr()
 	FUNCTION_PROFILER_RENDER_FLAT
 
 	  assert(gRenDev->m_pRT->IsMainThread(true));
-	const int threadId = gRenDev->m_RP.m_nFillThreadID;
+	const int threadId = gRenDev->GetMainThreadID();
 	return &m_meshFillData[threadId];
 }
 
@@ -224,16 +206,16 @@ InputLayoutHandle CREGeomCache::GetVertexFormat() const
 
 bool CREGeomCache::GetGeometryInfo(SGeometryInfo& streams, bool bSupportTessellation)
 {
-	ZeroStruct(streams);
 	streams.eVertFormat = GetVertexFormat();
 	streams.nFirstIndex = 0;
 	streams.nFirstVertex = 0;
 	streams.nNumIndices = 0;
 	streams.primitiveType = eptTriangleList;
+
 	return true;
 }
 
-void CREGeomCache::DrawToCommandList(CRenderObject* pObj, const SGraphicsPipelinePassContext& ctx)
+void CREGeomCache::DrawToCommandList(CRenderObject* pObj, const SGraphicsPipelinePassContext& ctx, CDeviceCommandList* commandList)
 {
 	//mfUpdate(0, FCEF_TRANSFORM, false); //TODO: check if correct
 
@@ -251,202 +233,6 @@ inline static void getObjMatrix(UFloat4* sData, const register float* pData, con
 		sData[1].f[3] -= vRelativeToCamPos.y;
 		sData[2].f[3] -= vRelativeToCamPos.z;
 	}
-}
-
-// Each call of CREGeomCache::mfDraw render *all* meshes that share the same material in the geom cache. See CGeomCacheRenderNode::Render
-bool CREGeomCache::mfDraw(CShader* ef, SShaderPass* sfm)
-{
-	PROFILE_FRAME(CREGeomCache::mfDraw);
-
-	const uint numMeshes = m_meshRenderData.size();
-	CD3D9Renderer* const pRenderer = gcpRendD3D;
-
-	SRenderPipeline& rRP = pRenderer->m_RP;
-	CRenderObject* const pRenderObject = rRP.m_pCurObject;
-	Matrix34A matrix = pRenderObject->m_II.m_Matrix;
-	CHWShader_D3D* const pCurVS = (CHWShader_D3D*)sfm->m_VShader;
-
-	const CCamera& camera = gRenDev->GetCamera();
-
-	Matrix44A prevMatrix;
-	CMotionBlur::GetPrevObjToWorldMat(rRP.m_pCurObject, prevMatrix);
-
-	const uint64 oldFlagsShader_RT = rRP.m_FlagsShader_RT;
-	uint64 flagsShader_RT = rRP.m_FlagsShader_RT;
-	const int oldFlagsPerFlush = rRP.m_FlagsPerFlush;
-	bool bResetVertexDecl = false;
-
-	const bool bRelativeToCam = !(rRP.m_pCurObject->m_ObjFlags & FOB_NEAREST);
-	const Vec3& vRelativeToCamPos = bRelativeToCam ? gRenDev->GetRCamera().vOrigin : Vec3(ZERO);
-
-#ifdef SUPPORTS_STATIC_INST_CB
-	if (pRenderer->CV_r_StaticInstCB)
-	{
-		flagsShader_RT &= ~g_HWSR_MaskBit[HWSR_STATIC_INST_DATA];
-	}
-#endif
-
-	for (uint nMesh = 0; nMesh < numMeshes; ++nMesh)
-	{
-		const SMeshRenderData& meshData = m_meshRenderData[nMesh];
-
-		CRenderMesh* const pRenderMesh = static_cast<CRenderMesh*>(meshData.m_pRenderMesh.get());
-		const uint numInstances = meshData.m_instances.size();
-
-		if (pRenderMesh && numInstances > 0)
-		{
-			PROFILE_LABEL(pRenderMesh->GetSourceName() ? pRenderMesh->GetSourceName() : "Unknown mesh-resource name");
-
-			const CRenderMesh* const pVertexContainer = pRenderMesh->_GetVertexContainer();
-
-			if (!pVertexContainer->_HasVBStream(VSF_GENERAL) || !pRenderMesh->_HasIBStream())
-			{
-				// Should never happen. Video buffer is missing
-				continue;
-			}
-
-			const bool bHasVelocityStream = pRenderMesh->_HasVBStream(VSF_VERTEX_VELOCITY);
-			const bool bIsMotionBlurPass = (rRP.m_PersFlags2 & RBPF2_MOTIONBLURPASS) != 0;
-
-			pRenderMesh->BindStreamsToRenderPipeline();
-
-			rRP.m_RendNumVerts = pRenderMesh->_GetNumVerts();
-
-			if (ef->m_HWTechniques.Num() && pRenderMesh->CanRender())
-			{
-				const TRenderChunkArray& chunks = pRenderMesh->GetChunks();
-				const uint numChunks = chunks.size();
-
-				for (uint i = 0; i < numChunks; ++i)
-				{
-					const CRenderChunk& chunk = chunks[i];
-					if (chunk.m_nMatID != m_materialId)
-					{
-						continue;
-					}
-
-					rRP.m_FirstIndex = chunk.nFirstIndexId;
-					rRP.m_RendNumIndices = chunk.nNumIndices;
-
-					const bool bUseInstancing = false;
-
-					TempDynInstVB instVB;
-					uint numInstancesToDraw = 0;
-					byte* __restrict pInstanceMatricesVB = NULL;
-
-					// Note: Geom cache instancing is a horrible mess at the moment, because it re-uses
-					// FX_DrawInstances which supports both constant based and attribute based instancing
-					// and all platforms.
-					//
-					// This only sets up the data structures for D3D11 PC & Durango attribute based
-					// instancing. Need to clean this up later and ideally use constant based instancing.
-
-					const uint64 lastFlagsShader_RT = rRP.m_FlagsShader_RT;
-					rRP.m_FlagsShader_RT = flagsShader_RT; // | (bUseInstancing ? g_HWSR_MaskBit[HWSR_INSTANCING_ATTR] : 0);
-					if (lastFlagsShader_RT != rRP.m_FlagsShader_RT)
-					{
-						pCurVS->mfSet(bUseInstancing ? HWSF_INSTANCED : 0);
-					}
-
-					CHWShader_D3D::SHWSInstance* pVPInst = pCurVS->m_pCurInst;
-					int32 nUsedAttr = 3, nInstAttrMask = 0;
-					byte Attributes[32];
-
-					if (bUseInstancing)
-					{
-						pVPInst->GetInstancingAttribInfo(Attributes, nUsedAttr, nInstAttrMask);
-						instVB.Allocate(numInstances, nUsedAttr * INST_PARAM_SIZE);
-						pInstanceMatricesVB = (byte*)(instVB.Lock());
-					}
-
-					const uint32 nStride = nUsedAttr * sizeof(float[4]);
-
-					// Fill the stream 3 for per-instance data
-					byte* pWalkData = pInstanceMatricesVB;
-					for (uint nInstance = 0; nInstance < numInstances; ++nInstance)
-					{
-						const SMeshInstance& instance = meshData.m_instances[nInstance];
-
-						Matrix34A pieceMatrix = matrix * instance.m_matrix;
-
-						AABB pieceWorldAABB;
-						pieceWorldAABB.SetTransformedAABB(pieceMatrix, instance.m_aabb);
-						if (!camera.IsAABBVisible_F(pieceWorldAABB))
-						{
-							continue;
-						}
-
-						// Needs to be in this scope, because it's used by FX_DrawIndexedMesh
-						Matrix44A prevPieceMatrix = prevMatrix * instance.m_prevMatrix;
-
-						if (bIsMotionBlurPass)
-						{
-							const float fThreshold = 0.01f;
-							if (bUseInstancing || (rRP.m_nBatchFilter & FB_Z) || !Matrix34::IsEquivalent(pieceMatrix, Matrix34(prevPieceMatrix), fThreshold) || bHasVelocityStream)
-							{
-								rRP.m_FlagsPerFlush |= RBSI_CUSTOM_PREVMATRIX;
-								rRP.m_pPrevMatrix = &prevPieceMatrix;
-							}
-							else
-							{
-								// Don't draw pieces without any motion in motion blur pass
-								continue;
-							}
-						}
-
-						if (!bUseInstancing)
-						{
-							pRenderObject->m_II.m_Matrix = pieceMatrix;
-							pCurVS->mfSetParametersPI(NULL, ef);
-
-							// Check if instancing messed with vertex declaration
-							if (bResetVertexDecl)
-							{
-								pRenderer->FX_SetVertexDeclaration(rRP.m_FlagsStreams_Decl, rRP.m_CurVFormat);
-								bResetVertexDecl = false;
-							}
-
-							pRenderer->FX_DrawIndexedMesh(pRenderMesh->_GetPrimitiveType());
-						}
-						else
-						{
-							UFloat4* __restrict vMatrix = (UFloat4*)pWalkData;
-							getObjMatrix(vMatrix, pieceMatrix.GetData(), bRelativeToCam, vRelativeToCamPos);
-
-							float* __restrict fParm = (float*)&pWalkData[3 * sizeof(float[4])];
-							pWalkData += nStride;
-
-							if (pVPInst->m_nParams_Inst >= 0)
-							{
-								SCGParamsGroup& Group = CGParamManager::s_Groups[pVPInst->m_nParams_Inst];
-								fParm = pCurVS->mfSetParametersPI(Group.pParams, Group.nParams, fParm, eHWSC_Vertex, 40);
-							}
-
-							++numInstancesToDraw;
-						}
-					}
-
-					if (bUseInstancing)
-					{
-						instVB.Unlock();
-						instVB.Bind(3, nUsedAttr * INST_PARAM_SIZE);
-						instVB.Release();
-
-						pCurVS->mfSetParametersPI(NULL, ef);
-						pRenderer->FX_DrawInstances(ef, sfm, 0, 0, numInstancesToDraw - 1, nUsedAttr, pInstanceMatricesVB, nInstAttrMask, Attributes, 0);
-						bResetVertexDecl = true;
-					}
-				}
-			}
-		}
-	}
-
-	// Reset matrix to original value for cases when render object gets reused
-	pRenderObject->m_II.m_Matrix = matrix;
-	rRP.m_FlagsShader_RT = oldFlagsShader_RT;
-	rRP.m_FlagsPerFlush = oldFlagsPerFlush;
-
-	return true;
 }
 
 #endif

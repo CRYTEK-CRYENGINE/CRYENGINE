@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "DriverD3D.h"
@@ -1312,24 +1312,15 @@ void CCryDeviceLoggingHook::CheckCounterInfo_PreCallHook(
 }
 
 void CCryDeviceLoggingHook::CheckCounter_PreCallHook(
-  /*  */
-  __in const D3D11_COUNTER_DESC* pDesc,
-  /*  */
-  __out D3D11_COUNTER_TYPE* pType,
-  /*  */
-  __out UINT* pActiveCounters,
-  /*  */
-  __out_ecount_opt(*pNameLength)  LPSTR wszName,
-  /*  */
-  __inout_opt UINT* pNameLength,
-  /*  */
-  __out_ecount_opt(*pUnitsLength)  LPSTR wszUnits,
-  /*  */
-  __inout_opt UINT* pUnitsLength,
-  /*  */
-  __out_ecount_opt(*pDescriptionLength)  LPSTR wszDescription,
-  /*  */
-  __inout_opt UINT* pDescriptionLength)
+  const D3D11_COUNTER_DESC* pDesc,
+  D3D11_COUNTER_TYPE* pType,
+  UINT* pActiveCounters,
+  LPSTR wszName,
+  UINT* pNameLength,
+  LPSTR wszUnits,
+  UINT* pUnitsLength,
+  LPSTR wszDescription,
+  UINT* pDescriptionLength)
 {
 	gRenDev->Logv("%s(0x%x)\n", "D3DDevice::CheckCounter", pDesc);
 }

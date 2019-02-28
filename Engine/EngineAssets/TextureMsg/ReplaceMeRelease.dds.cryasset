@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="d6869d84-e310-9dd5-27c8-5c8274dbc469" source="ReplaceMeRelease.tif">
+ <Files>
+  <File path="ReplaceMeRelease.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">32</Detail>
+  <Detail name="height">32</Detail>
+  <Detail name="mipCount">4</Detail>
+ </Details>
+</AssetMetadata>

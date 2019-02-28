@@ -1,0 +1,8 @@
+<AssetMetadata version="0" type="Xml" guid="7ab8cbc8-317b-c2b5-c9fa-1290ea45717b">
+ <Files>
+  <File path="hud.xml"/>
+ </Files>
+ <Details>
+  <Detail name="rootTag">fontshader</Detail>
+ </Details>
+</AssetMetadata>

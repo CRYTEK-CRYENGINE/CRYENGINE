@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   ParticleEmitter.h
@@ -14,10 +14,6 @@
 #ifndef __particleemitter_h__
 #define __particleemitter_h__
 #pragma once
-
-#if CRY_PLATFORM_WINDOWS || CRY_PLATFORM_DURANGO
-	#pragma warning(disable: 4355)
-#endif
 
 #include "ParticleEffect.h"
 #include "ParticleEnviron.h"
@@ -43,7 +39,7 @@ public:
 	//////////////////////////////////////////////////////////////////////////
 	// IRenderNode implementation.
 	//////////////////////////////////////////////////////////////////////////
-	virtual void        ReleaseNode(bool bImmediate) { Register(false, bImmediate); Kill(); }
+	virtual void        ReleaseNode(bool bImmediate) { CRY_ASSERT((m_dwRndFlags & ERF_PENDING_DELETE) == 0); Register(false, bImmediate); Kill(); }
 	virtual EERType     GetRenderNodeType()          { return eERType_ParticleEmitter; }
 
 	virtual char const* GetName() const              { return m_pTopEffect ? m_pTopEffect->GetName() : ""; }
@@ -65,6 +61,7 @@ public:
 	}
 	ILINE float              GetViewDistRatioFloat() const { return m_fViewDistRatio; }
 	virtual float            GetMaxViewDist();
+	virtual void             UpdateStreamingPriority(const SUpdateStreamingPriorityContext& context);
 
 	virtual void             SetMatrix(Matrix34 const& mat)    { if (mat.IsValid()) SetLocation(QuatTS(mat)); }
 
@@ -76,7 +73,6 @@ public:
 	virtual void             SetPhysics(IPhysicalEntity*)      {}
 
 	virtual void             Render(SRendParams const& rParam, const SRenderingPassInfo& passInfo);
-	virtual void             OnPhysAreaChange() { m_PhysEnviron.m_nNonUniformFlags &= ~EFF_LOADED; }
 
 	virtual void             Hide(bool bHide);
 
@@ -107,7 +103,6 @@ public:
 	const SpawnParams&           GetSpawnParams() const                { return m_SpawnParams; }
 
 	virtual bool                 IsAlive() const;
-	virtual bool                 IsInstant() const;
 	virtual void                 Activate(bool bActive);
 	virtual void                 Kill();
 	virtual void                 Restart();
@@ -117,7 +112,6 @@ public:
 	virtual void                 SetEntity(IEntity* pEntity, int nSlot);
 	virtual void                 InvalidateCachedEntityData() final;
 	virtual void                 OffsetPosition(const Vec3& delta);
-	virtual bool                 UpdateStreamableComponents(float fImportance, const Matrix34A& objMatrix, IRenderNode* pRenderNode, float fEntDistance, bool bFullUpdate, int nLod);
 	virtual EntityId             GetAttachedEntityId();
 	virtual int                  GetAttachedEntitySlot()
 	{ return m_nEntitySlot; }
@@ -213,23 +207,31 @@ public:
 		return GetAge() - m_fAgeLastRendered;
 	}
 
-	void GetCounts(SParticleCounts& counts) const
+	void GetCounts(SParticleCounts& counts, bool bClear = false) const
 	{
+		CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
+
+		counts.emitters.alloc += 1.f;
+		if (IsActive())
+		{
+			counts.emitters.alive += 1.f;
+			counts.emitters.updated += 1.f;
+		}
+		if (TimeNotRendered() == 0.f)
+			counts.emitters.rendered += 1.f;
+
 		for (const auto& c : m_Containers)
 		{
 			c.GetCounts(counts);
+			if (bClear)
+				non_const(c).ClearCounts();
 		}
 	}
 	void GetAndClearCounts(SParticleCounts& counts)
 	{
-		FUNCTION_PROFILER(GetISystem(), PROFILE_PARTICLE);
-		for (auto& c : m_Containers)
-		{
-			c.GetCounts(counts);
-			c.ClearCounts();
-		}
+		GetCounts(counts, true);
 	}
-
+	
 	ParticleList<CParticleContainer> const& GetContainers() const
 	{
 		return m_Containers;
@@ -266,7 +268,6 @@ public:
 		m_Containers.clear();
 
 		// Release and remove external geom refs.
-		GeomRef::Release();
 		GeomRef::operator=(GeomRef());
 	}
 
@@ -275,8 +276,6 @@ public:
 		m_pUpdateParticlesJobState = pJobState;
 	}
 
-public:
-	int m_nPhysAreaChangedProxyId;
 private:
 
 	// Internal emitter flags, extend EParticleEmitterFlags

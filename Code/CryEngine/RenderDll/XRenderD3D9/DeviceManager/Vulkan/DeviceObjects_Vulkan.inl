@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 class CDeviceTimestampGroup : public CDeviceTimestampGroup_Base<CDeviceTimestampGroup>
 {
@@ -11,8 +11,13 @@ public:
 	void BeginMeasurement();
 	void EndMeasurement();
 
-	uint32 IssueTimestamp(void* pCommandList);
+	uint32 IssueTimestamp(CDeviceCommandList* pCommandList);
 	bool ResolveTimestamps();
+
+	uint64 GetTime(uint32 timestamp)
+	{
+		return m_timestampData[timestamp];
+	}
 
 	float GetTimeMS(uint32 timestamp0, uint32 timestamp1);
 
@@ -21,6 +26,8 @@ private:
 	VkQueryPool                         m_queryPool;
 	DeviceFenceHandle                   m_fence;
 	std::array<uint64, kMaxTimestamps>  m_timestampData;
+
+	bool                                m_measurable;
 };
 
 ////////////////////////////////////////////////////////////////////////////
@@ -42,7 +49,7 @@ public:
 	VkExtent2D                                                                           m_frameBufferExtent;
 	std::array<NCryVulkan::CImageResource*, CDeviceRenderPassDesc::MaxRendertargetCount> m_renderTargets;
 	NCryVulkan::CImageResource*                                                          m_pDepthStencilTarget;
-	int                                                                                  m_renderTargetCount;
+	int                                                                                  m_RenderTargetCount;
 };
 
 ////////////////////////////////////////////////////////////////////////////

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __CSHADER_H__
 #define __CSHADER_H__
@@ -18,11 +18,6 @@ struct SPartMoveStage;
 struct SSunFlare;
 
 //===================================================================
-
-#define MAX_ENVTEXTURES    16
-#define MAX_ENVTEXSCANDIST 0.1f
-
-//===============================================================================
 
 struct SMacroFX
 {
@@ -112,7 +107,7 @@ struct SParamDB
 	const char* szAliasName;
 	ECGParam    eParamType;
 	uint32      nFlags;
-	void        (* ParserFunc)(const char* szScr, const char* szAnnotations, std::vector<STexSamplerFX>* pSamplers, SCGParam* vpp, int nComp, CShader* ef);
+	void        (* ParserFunc)(const char* szScr, const char* szAnnotations, SCGParam* vpp, int nComp, CShader* ef);
 	SParamDB()
 		: szName(nullptr)
 		, szAliasName(nullptr)
@@ -129,7 +124,7 @@ struct SParamDB
 		ParserFunc = NULL;
 		eParamType = ePrmType;
 	}
-	SParamDB(const char* inName, ECGParam ePrmType, uint32 inFlags, void(*InParserFunc)(const char* szScr, const char* szAnnotations, std::vector<STexSamplerFX>* pSamplers, SCGParam * vpp, int nComp, CShader * ef))
+	SParamDB(const char* inName, ECGParam ePrmType, uint32 inFlags, void(*InParserFunc)(const char* szScr, const char* szAnnotations, SCGParam * vpp, int nComp, CShader * ef))
 	{
 		szName = inName;
 		szAliasName = NULL;
@@ -227,8 +222,6 @@ private:
 
 	CShader*       mfNewShader(const char* szName);
 
-	void           mfCompileLevelsList(std::vector<string>& List, char* scr);
-	bool           mfCompileShaderLevelPolicies(SShaderLevelPolicies* pPL, char* scr);
 	bool           mfCompileShaderGen(SShaderGen* shg, char* scr);
 	SShaderGenBit* mfCompileShaderGenProperty(char* scr);
 
@@ -247,7 +240,6 @@ private:
 
 	CShader*       mfCompile(CShader* ef, char* scr);
 
-	bool           mfUpdateMergeStatus(SShaderTechnique* hs, std::vector<SCGParam>* p);
 	void           mfRefreshResources(CShaderResources* Res, const IRenderer::SLoadShaderItemArgs* pArgs = 0);
 
 	bool           mfReloadShaderFile(const char* szName, int nFlags);
@@ -260,13 +252,13 @@ private:
 public:
 	char*                 m_pCurScript;
 	CShaderManBin         m_Bin;
-	CResFileLookupDataMan m_ResLookupDataMan[2];  // CACHE_READONLY, CACHE_USER
+	CResFileLookupDataMan m_ResLookupDataMan[2];  // cacheSource::readonly, cacheSource::user
 
 	const char*     mfTemplateTexIdToName(int Id);
 	SShaderGenComb* mfGetShaderGenInfo(const char* nmFX);
 
 	bool            mfReloadShaderIncludes(const char* szPath, int nFlags);
-	bool            mfReloadAllShaders(int nFlags, uint32 nFlagsHW);
+	bool            mfReloadAllShaders(int nFlags, uint32 nFlagsHW, int currentFrameID);
 	bool            mfReloadFile(const char* szPath, const char* szName, int nFlags);
 
 	void            ParseShaderProfiles();
@@ -327,7 +319,6 @@ public:
 
 	static CShader*              s_ShaderFPEmu;
 	static CShader*              s_ShaderFallback;
-	static CShader*              s_ShaderTreeSprites;
 	static CShader*              s_ShaderScaleForm;
 	static CShader*              s_ShaderStars;
 	static CShader*              s_ShaderShadowBlur;
@@ -349,13 +340,11 @@ public:
 	static CShader*              s_ShaderStereo;
 	static CShader*              s_ShaderClouds;
 	static CShader*              s_ShaderMobileComposition;
+	static CShader*              s_ShaderGpuParticles;
 
 	const SInputShaderResources* m_pCurInputResources;
 	SShaderGen*                  m_pGlobalExt;
-	SShaderLevelPolicies*        m_pLevelsPolicies;
 
-	Vec4                         m_TempVecs[16];
-	Vec4                         m_RTRect;
 	std::vector<SShaderGenComb>  m_SGC;
 
 	int                          m_nCombinationsProcess;
@@ -410,8 +399,6 @@ public:
 	typedef ShaderExt::iterator                  ShaderExtItor;
 	ShaderExt   m_ShaderExts;
 
-	SCGParamsPF m_PF[RT_COMMAND_BUF_COUNT];
-
 	// Concatenated list of shader names using automatic masks generation
 	string m_pShadersRemapList;
 
@@ -426,23 +413,7 @@ public:
 	};
 
 public:
-	CShaderMan()
-	{
-		m_bInitialized = false;
-		m_bLoadedSystem = false;
-		s_DefaultShader = NULL;
-		m_pGlobalExt = NULL;
-		g_pShaderParserHelper = &m_shaderParserHelper;
-		m_nCombinationsProcess = -1;
-		m_nCombinationsProcessOverall = -1;
-		m_nCombinationsCompiled = -1;
-		m_nCombinationsEmpty = -1;
-		m_szShaderPrecache = NULL;
-		memset(m_TempVecs, 0, sizeof(Vec4) * 16);
-		memset(&m_RTRect, 0, sizeof(Vec4));
-		m_eCacheMode = eSC_Normal;
-		m_nFrameSubmit = 1;
-	}
+	CShaderMan();
 
 	void              ShutDown();
 	void              mfReleaseShaders();
@@ -458,7 +429,6 @@ public:
 	uint64            mfGetShaderGlobalMaskGenFromString(const char* szShaderGen);
 
 	void              mfInitGlobal(void);
-	void              mfInitLevelPolicies(void);
 	void              mfInitLookups(void);
 
 	void              mfPreloadShaderExts(void);
@@ -505,18 +475,12 @@ public:
 	void              mfParseFX_Annotations(char* buf, CShader* ef, std::vector<SFXStruct>& Structs, bool* bPublic, CCryNameR techStart[2]);
 	void              mfParseFXTechnique_Annotations_Script(char* buf, CShader* ef, std::vector<SFXStruct>& Structs, SShaderTechnique* pShTech, bool* bPublic, std::vector<SShaderTechParseParams>& techParams);
 	void              mfParseFXTechnique_Annotations(char* buf, CShader* ef, std::vector<SFXStruct>& Structs, SShaderTechnique* pShTech, bool* bPublic, std::vector<SShaderTechParseParams>& techParams);
-	void              mfParseFXSampler_Annotations_Script(char* buf, CShader* ef, std::vector<SFXStruct>& Structs, STexSamplerFX* pSamp);
-	void              mfParseFXSampler_Annotations(char* buf, CShader* ef, std::vector<SFXStruct>& Structs, STexSamplerFX* pSamp);
 	void              mfParseFX_Global(SFXParam& pr, CShader* ef, std::vector<SFXStruct>& Structs, CCryNameR techStart[2]);
 	bool              mfParseDummyFX_Global(std::vector<SFXStruct>& Structs, char* annot, CCryNameR techStart[2]);
 	const string&     mfParseFXTechnique_GenerateShaderScript(std::vector<SFXStruct>& Structs, FXMacro& Macros, std::vector<SFXParam>& Params, std::vector<SFXParam>& AffectedParams, const char* szEntryFunc, CShader* ef, EHWShaderClass eSHClass, const char* szShaderName, uint32& nAffectMask, const char* szType);
 	bool              mfParseFXTechnique_MergeParameters(std::vector<SFXStruct>& Structs, std::vector<SFXParam>& Params, std::vector<int>& AffectedFunc, SFXStruct* pMainFunc, CShader* ef, EHWShaderClass eSHClass, const char* szShaderName, std::vector<SFXParam>& NewParams);
 	CTexture*         mfParseFXTechnique_LoadShaderTexture(STexSamplerRT* smp, const char* szName, SShaderPass* pShPass, CShader* ef, int nIndex, byte ColorOp, byte AlphaOp, byte ColorArg, byte AlphaArg);
-	bool              mfParseFXTechnique_LoadShader(const char* szShaderCom, SShaderPass* pShPass, CShader* ef, std::vector<STexSamplerFX>& Samplers, std::vector<SFXStruct>& Structs, std::vector<SFXParam>& Params, FXMacro& Macros, EHWShaderClass eSHClass);
-	bool              mfParseFXTechniquePass(char* buf, char* annotations, SShaderTechnique* pShTech, CShader* ef, std::vector<STexSamplerFX>& Samplers, std::vector<SFXStruct>& Structs, std::vector<SFXParam>& Params);
 	bool              mfParseFXTechnique_CustomRE(char* buf, const char* name, SShaderTechnique* pShTech, CShader* ef);
-	SShaderTechnique* mfParseFXTechnique(char* buf, char* annotations, CShader* ef, std::vector<STexSamplerFX>& Samplers, std::vector<SFXStruct>& Structs, std::vector<SFXParam>& Params, bool* bPublic, std::vector<SShaderTechParseParams>& techParams);
-	bool              mfParseFXSampler(char* buf, char* name, char* annotations, CShader* ef, std::vector<STexSamplerFX>& Samplers, std::vector<SFXStruct>& Structs);
 	bool              mfParseLightStyle(CLightStyle* ls, char* buf);
 	bool              mfParseFXLightStyle(char* buf, int nID, CShader* ef, std::vector<SFXStruct>& Structs);
 	CShader*          mfParseFX(char* buf, CShader* ef, CShader* efGen, uint64 nMaskGen);
@@ -545,8 +509,6 @@ public:
 	void              mfMergeShadersCombinations(FXShaderCacheCombinations* Combinations, int nType);
 	void              mfInsertNewCombination(SShaderCombIdent& Ident, EHWShaderClass eCL, const char* name, int nID, string* Str = NULL, byte bStore = 1);
 	string            mfGetShaderCompileFlags(EHWShaderClass eClass, UPipelineState pipelineState) const;
-	const char*       mfGetLevelListName() const;
-	void              mfExportShaders();
 
 	bool              mfPreloadBinaryShaders();
 
@@ -562,9 +524,7 @@ public:
 	void FilterShaderCombinations(std::vector<SCacheCombination>& Cmbs, const std::vector<CShaderListFilter>& Filters);
 	void mfPrecacheShaders(bool bStatsOnly);
 	void _PrecacheShaderList(bool bStatsOnly);
-	void mfOptimiseShaders(const char* szFolder, bool bForce);
-	void mfMergeShaders();
-	void _MergeShaders();
+
 	void mfAddRTCombinations(FXShaderCacheCombinations& CmbsMapSrc, FXShaderCacheCombinations& CmbsMapDst, CHWShader* pSH, bool bListOnly);
 	void mfAddRTCombination_r(int nComb, FXShaderCacheCombinations& CmbsMapDst, SCacheCombination* cmb, CHWShader* pSH, bool bAutoPrecache);
 	void mfAddLTCombinations(SCacheCombination* cmb, FXShaderCacheCombinations& CmbsMapDst);

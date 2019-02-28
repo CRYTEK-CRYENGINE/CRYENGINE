@@ -68,3 +68,4 @@ target_include_directories( ${THIS_PROJECT} PRIVATE	"${CRYENGINE_DIR}/Code/CryEn
 
 target_include_directories(${THIS_PROJECT} PRIVATE ../MFCToolsPlugin)
 target_link_libraries(${THIS_PROJECT} PRIVATE MFCToolsPlugin)
+

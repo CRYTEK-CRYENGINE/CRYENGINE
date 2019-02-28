@@ -1,39 +1,31 @@
 {
-	"NoUberFile":
-	{
-		"stdlib":
-		[
-			"stdlib/StdAfx.cpp",
-			"stdlib/StdAfx.h"
-		]
-	},
-	"UQS_uber_stdlib.cpp":
-	{
-		"Root":
-		[
-			"StdLibRegistration.h",
-			"StdLibRegistration.cpp"
-		],
-		"stdlib":
-		[
-			"stdlib/DeferredEvaluators.cpp",
-			"stdlib/DeferredEvaluators.h",
-			"stdlib/Functions.cpp",
-			"stdlib/Functions.h",
-			"stdlib/Generators.cpp",
-			"stdlib/Generators.h",
-			"stdlib/InstantEvaluators.cpp",
-			"stdlib/InstantEvaluators.h",
-			"stdlib/ItemDebugProxies.cpp",
-			"stdlib/ItemDebugProxies.h",
-			"stdlib/ItemDebugRendering.h",
-			"stdlib/ItemDebugRendering.cpp",
-			"stdlib/Items.cpp",
-			"stdlib/ItemStringConversions.cpp",
-			"stdlib/ItemStringConversions.h",
-			"stdlib/ItemMonitors.h",
-			"stdlib/ItemMonitors.cpp",
-			"stdlib/SchematycSupport.cpp"
-		]
-	}
+    "NoUberFile": {
+        "stdlib": [
+            "stdlib/StdAfx.cpp", 
+            "stdlib/StdAfx.h"
+        ]
+    }, 
+    "UQS_uber_stdlib.cpp": {
+        "Root": [
+            "StdLibRegistration.h", 
+            "StdLibRegistration.cpp"
+        ], 
+        "stdlib": [
+            "stdlib/DeferredEvaluators.cpp", 
+            "stdlib/DeferredEvaluators.h", 
+            "stdlib/Functions.cpp", 
+            "stdlib/Functions.h", 
+            "stdlib/Generators.cpp", 
+            "stdlib/Generators.h", 
+            "stdlib/InstantEvaluators.cpp", 
+            "stdlib/InstantEvaluators.h", 
+            "stdlib/ItemDebugProxies.cpp", 
+            "stdlib/ItemDebugProxies.h", 
+            "stdlib/ItemDebugRendering.h", 
+            "stdlib/ItemDebugRendering.cpp", 
+            "stdlib/Items.cpp", 
+            "stdlib/ItemMonitors.h", 
+            "stdlib/ItemMonitors.cpp"
+        ]
+    }
 }

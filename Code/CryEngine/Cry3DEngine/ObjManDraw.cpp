@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   statobjmandraw.cpp
@@ -91,7 +91,7 @@ bool CObjManager::IsBoxOccluded_HeightMap
 		{
 			for (float y = vTopMin.y; y <= vTopMax.y; y += dy)
 				for (float x = vTopMin.x; x <= vTopMax.x; x += dx)
-					if (!pTerrain->IntersectWithHeightMap(vCamPos, Vec3(x, y, vTopMax.z), fDistance, nMaxTestsToScip, GetDefSID()))
+					if (!pTerrain->IntersectWithHeightMap(vCamPos, Vec3(x, y, vTopMax.z), fDistance, nMaxTestsToScip))
 					{
 						//handle post setup of call to IsBoxOccluded_HeightMap:
 						if ((eOcclusionObjectType != eoot_OCCLUDER && eOcclusionObjectType != eoot_OCCELL_OCCLUDER))
@@ -106,7 +106,7 @@ bool CObjManager::IsBoxOccluded_HeightMap
 
 			if ((vCamPos.x > vTopMin.x) == bCameraAbove) // test min x side
 				for (float y = vTopMin.y; y <= vTopMax.y; y += dy)
-					if (!pTerrain->IntersectWithHeightMap(vCamPos, Vec3(vTopMin.x, y, vTopMax.z), fDistance, nMaxTestsToScip, GetDefSID()))
+					if (!pTerrain->IntersectWithHeightMap(vCamPos, Vec3(vTopMin.x, y, vTopMax.z), fDistance, nMaxTestsToScip))
 					{
 						//handle post setup of call to IsBoxOccluded_HeightMap:
 						if ((eOcclusionObjectType != eoot_OCCLUDER && eOcclusionObjectType != eoot_OCCELL_OCCLUDER))
@@ -117,7 +117,7 @@ bool CObjManager::IsBoxOccluded_HeightMap
 
 			if ((vCamPos.x < vTopMax.x) == bCameraAbove) // test max x side
 				for (float y = vTopMax.y; y >= vTopMin.y; y -= dy)
-					if (!pTerrain->IntersectWithHeightMap(vCamPos, Vec3(vTopMax.x, y, vTopMax.z), fDistance, nMaxTestsToScip, GetDefSID()))
+					if (!pTerrain->IntersectWithHeightMap(vCamPos, Vec3(vTopMax.x, y, vTopMax.z), fDistance, nMaxTestsToScip))
 					{
 						//handle post setup of call to IsBoxOccluded_HeightMap:
 						if ((eOcclusionObjectType != eoot_OCCLUDER && eOcclusionObjectType != eoot_OCCELL_OCCLUDER))
@@ -128,7 +128,7 @@ bool CObjManager::IsBoxOccluded_HeightMap
 
 			if ((vCamPos.y > vTopMin.y) == bCameraAbove) // test min y side
 				for (float x = vTopMax.x; x >= vTopMin.x; x -= dx)
-					if (!pTerrain->IntersectWithHeightMap(vCamPos, Vec3(x, vTopMin.y, vTopMax.z), fDistance, nMaxTestsToScip, GetDefSID()))
+					if (!pTerrain->IntersectWithHeightMap(vCamPos, Vec3(x, vTopMin.y, vTopMax.z), fDistance, nMaxTestsToScip))
 					{
 						//handle post setup of call to IsBoxOccluded_HeightMap:
 						if ((eOcclusionObjectType != eoot_OCCLUDER && eOcclusionObjectType != eoot_OCCELL_OCCLUDER))
@@ -139,7 +139,7 @@ bool CObjManager::IsBoxOccluded_HeightMap
 
 			if ((vCamPos.y < vTopMax.y) == bCameraAbove) // test max y side
 				for (float x = vTopMin.x; x <= vTopMax.x; x += dx)
-					if (!pTerrain->IntersectWithHeightMap(vCamPos, Vec3(x, vTopMax.y, vTopMax.z), fDistance, nMaxTestsToScip, GetDefSID()))
+					if (!pTerrain->IntersectWithHeightMap(vCamPos, Vec3(x, vTopMax.y, vTopMax.z), fDistance, nMaxTestsToScip))
 					{
 						//handle post setup of call to IsBoxOccluded_HeightMap:
 						if ((eOcclusionObjectType != eoot_OCCLUDER && eOcclusionObjectType != eoot_OCCELL_OCCLUDER))
@@ -155,7 +155,7 @@ bool CObjManager::IsBoxOccluded_HeightMap
 	else
 	{
 		Vec3 vTopMid = (vTopMin + vTopMax) * 0.5f;
-		if (pTerrain && pTerrain->IntersectWithHeightMap(vCamPos, vTopMid, fDistance, nMaxTestsToScip, GetDefSID()))
+		if (pTerrain && pTerrain->IntersectWithHeightMap(vCamPos, vTopMid, fDistance, nMaxTestsToScip))
 		{
 			pOcclTestVars->nLastOccludedMainFrameID = cMainID;
 			pOcclTestVars->nTerrainOccLastFrame = 1;

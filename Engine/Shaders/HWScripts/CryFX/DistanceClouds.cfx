@@ -1,5 +1,4 @@
-// CRYENGINE Source Code File
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "Common.cfi"
 #include "ShadeLib.cfi"
@@ -10,15 +9,12 @@ float Script : STANDARDSGLOBAL
 <
 	string Script =
 		"Public;"
-		"Decal;"
+		"Sky;"
 		"ShaderDrawType = General;"
     "ShaderType = FX;"
 >;
 
 #if !%SIMPLE
-
-float3 ShadeColorFromSun			: PB_CloudShadingColorSun;
-float3 ShadeColorFromSky			: PB_CloudShadingColorSky;
 
 #if %ADVANCED
 
@@ -187,7 +183,7 @@ struct a2v
 
 struct v2f
 {
-	float4 Position		: POSITION;
+	float4 Position		: SV_POSITION;
 	float2 baseTC		: TEXCOORD0;
 	float3 toSun		: TEXCOORD1;
 };
@@ -195,7 +191,7 @@ struct v2f
 
 struct v2f_simple
 {
-	float4 Position		: POSITION;
+	float4 Position		: SV_POSITION;
 	float2 baseTC		: TEXCOORD0;
 };
 
@@ -255,14 +251,9 @@ pixout DistanceCloudsPS(v2f IN)
 		//height += toSun.z;
 	}
 	
-#if %_RT_PER_INSTANCE_CB_TEMP
-	ShadeColorFromSun = cbMisc.CloudShadingColorSun;
-	ShadeColorFromSky = cbMisc.CloudShadingColorSky;
-#endif
-
 	float c = exp2( -Attenuation * density );
 	float a = pow( opacity, AlphaSaturation );
-	float3 col = lerp( SkyColorMultiplier * ShadeColorFromSky.xyz, SunColorMultiplier * ShadeColorFromSun.xyz, c );
+	float3 col = lerp( SkyColorMultiplier * cbClouds.CloudShadingColorSky.xyz, SunColorMultiplier * cbClouds.CloudShadingColorSun.xyz, c );
   // Re-scale range
   col *= PS_HDR_RANGE_ADAPT_MAX;
 
@@ -329,13 +320,8 @@ pixout DistanceCloudsAdvancedPS(v2f IN)
 	// Sun light forward scattering
 	float scatteringSun = exp( -DensitySun * density );
 	
-#if %_RT_PER_INSTANCE_CB_TEMP
-	ShadeColorFromSun = cbMisc.CloudShadingColorSun;
-	ShadeColorFromSky = cbMisc.CloudShadingColorSky;
-#endif	
-	
 	// Full shading
-	float3 col = ShadeColorFromSky.xyz * scatteringSky + ShadeColorFromSun.xyz * scatteringSun;
+	float3 col = cbClouds.CloudShadingColorSky.xyz * scatteringSky + cbClouds.CloudShadingColorSun.xyz * scatteringSun;
 	
 	// Opacity
 	float alpha = pow( saturate( height * AlphaMultiplier ), AlphaSaturation );

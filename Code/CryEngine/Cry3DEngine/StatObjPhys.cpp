@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -14,6 +14,7 @@
 
 #define SMALL_MESH_NUM_INDEX 30
 
+#pragma warning(push)
 #pragma warning(disable: 4244)
 
 //////////////////////////////////////////////////////////////////////////
@@ -1856,7 +1857,7 @@ IStatObj* CStatObj::SkinVertices(strided_pointer<Vec3> pSkelVtx, const Matrix34&
 			{
 				SMeshTangents tb(pTangents0[i]);
 
-				tb.RotateBy(M);
+				tb.RotateSafelyBy(M);
 				tb.ExportTo(pTangents[i]);
 			}
 			pVtx[i] = v3;
@@ -1885,7 +1886,8 @@ int CStatObj::Physicalize(IPhysicalEntity* pent, pe_geomparams* pgp, int id, con
 	if (GetFlags() & STATIC_OBJECT_COMPOUND)
 	{
 		Matrix34 mtxId(IDENTITY);
-		res = PhysicalizeSubobjects(pent, pgp->pMtx3x4 ? pgp->pMtx3x4 : &mtxId, pgp->mass, pgp->density, id, 0, szPropsOverride);
+		res = PhysicalizeSubobjects(pent, pgp->pMtx3x4 ? pgp->pMtx3x4 : &mtxId, pgp->mass, pgp->density, id, 0, szPropsOverride, 
+			pgp->type == pe_articgeomparams::type_id ? ((pe_articgeomparams*)pgp)->idbody : -1);
 	}
 	else
 	{
@@ -2003,7 +2005,7 @@ int CStatObj::Physicalize(IPhysicalEntity* pent, pe_geomparams* pgp, int id, con
 #define isalpha(c) isalpha((unsigned char)c)
 #define isdigit(c) isdigit((unsigned char)c)
 
-int CStatObj::PhysicalizeSubobjects(IPhysicalEntity* pent, const Matrix34* pMtx, float mass, float density, int id0, strided_pointer<int> pJointsIdMap, const char* szPropsOverride)
+int CStatObj::PhysicalizeSubobjects(IPhysicalEntity* pent, const Matrix34* pMtx, float mass, float density, int id0, strided_pointer<int> pJointsIdMap, const char* szPropsOverride, int idbodyArtic)
 {
 	int i, j, i0, i1, len = 0, len1, nObj = GetSubObjectCount(), ipart[2], nparts, bHasPlayerOnlyGeoms = 0, nGeoms = 0, id, idNext = 0;
 	float V[2], M, scale3, jointsz;
@@ -2097,7 +2099,7 @@ int CStatObj::PhysicalizeSubobjects(IPhysicalEntity* pent, const Matrix34* pMtx,
 		{
 			if (pJointsIdMap)
 				continue;
-			partpos.idbody = i + id0;
+			partpos.idbody = idbodyArtic + (i + id0 - idbodyArtic & idbodyArtic >> 31);
 			partpos.pMtx3x4 = pMtx ? &(mtxLoc = *pMtx * pSubObj->tm) : &pSubObj->tm;
 
 			float mi = 0, di = 0;
@@ -3808,7 +3810,7 @@ SSkinningData* CStatObjFoliage::GetSkinningData(const Matrix34& RenderMat34, con
 	int nNumBones = ComputeSkinningTransformationsCount();
 
 	// get data to fill
-	int nSkinningFrameID = gEnv->pRenderer->EF_GetSkinningPoolID();
+	int nSkinningFrameID = passInfo.GetIRenderView()->GetSkinningPoolIndex();
 	int nSkinningList = nSkinningFrameID % 3;
 	int nPrevSkinningList = (nSkinningFrameID - 1) % 3;
 
@@ -3881,7 +3883,7 @@ SSkinningData* CStatObjFoliage::GetSkinningData(const Matrix34& RenderMat34, con
 	// get data to fill
 	assert(jointIndex == nNumBones);
 
-	SSkinningData* pSkinningData = gEnv->pRenderer->EF_CreateSkinningData(jointIndex, false);
+	SSkinningData* pSkinningData = gEnv->pRenderer->EF_CreateSkinningData(passInfo.GetIRenderView(), jointIndex, false);
 	assert(pSkinningData);
 	PREFAST_ASSUME(pSkinningData);
 	memcpy(pSkinningData->pBoneQuatsS, pPose, jointIndex * sizeof(DualQuat));
@@ -4157,3 +4159,5 @@ int CStatObjFoliage::Serialize(TSerialize ser)
 
 	return 1;
 }
+
+#pragma warning(pop)

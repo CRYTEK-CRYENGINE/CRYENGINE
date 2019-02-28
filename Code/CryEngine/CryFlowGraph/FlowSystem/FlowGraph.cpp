@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "FlowGraph.h"
@@ -1723,7 +1723,7 @@ IFlowEdgeIteratorPtr CFlowGraphBase::CreateEdgeIterator()
 
 bool CFlowGraphBase::IsOutputConnected(SFlowAddress addr)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	CRY_ASSERT(ValidateAddress(addr));
 
@@ -1997,7 +1997,7 @@ void CFlowGraphBase::OnEntityIdChanged(EntityId oldId, EntityId newId)
 // this needs to be done explicitly, because otherwise some nodes may stay in "toforward" state but never actually be forwarded (this happens for example if they dont receive any input)
 void CFlowGraphBase::UpdateForwardings()
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	std::vector<CFlowData>::iterator endIt = m_flowData.end();
 	for (std::vector<CFlowData>::iterator it = m_flowData.begin(); it != endIt; ++it)

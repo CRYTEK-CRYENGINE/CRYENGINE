@@ -1,9 +1,9 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
 #include "Cry_Vector3.h"
-
+	
 template<typename F> struct Vec4_tpl
 	: INumberVector<F, 4, Vec4_tpl<F>>
 {

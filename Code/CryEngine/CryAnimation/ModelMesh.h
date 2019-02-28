@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -79,7 +79,7 @@ public:
 	ClosestTri              GetAttachmentTriangle(const Vec3& RMWPosition, const JointIdType* const pRemapTable);
 
 	uint32                  InitSWSkinBuffer();
-	void                    DrawDebugInfo(CDefaultSkeleton* pCSkel, int nLOD, const Matrix34& rRenderMat34, int DebugMode, IMaterial* pMaterial, CRenderObject* pObj, const SRendParams& RendParams, bool isGeneralPass, IRenderNode* pRenderNode, const AABB& aabb);
+	void                    DrawDebugInfo(CDefaultSkeleton* pCSkel, int nLOD, const Matrix34& rRenderMat34, int DebugMode, IMaterial* pMaterial, CRenderObject* pObj, const SRendParams& RendParams, bool isGeneralPass, IRenderNode* pRenderNode, const AABB& aabb,const SRenderingPassInfo &passInfo);
 
 #ifdef EDITOR_PCDEBUGCODE
 	void ExportModel(IRenderMesh* pIRenderMesh);

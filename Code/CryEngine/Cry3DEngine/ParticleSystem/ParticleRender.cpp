@@ -1,16 +1,9 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
-
-// -------------------------------------------------------------------------
-//  Created:     26/11/2014 by Filipe amim
-//  Description:
-// -------------------------------------------------------------------------
-//
-////////////////////////////////////////////////////////////////////////////
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "ParticleRender.h"
 #include "ParticleManager.h"
-#include "ParticleEmitter.h"
+#include "ParticleSystem.h"
 
 namespace pfx2
 {
@@ -18,14 +11,6 @@ namespace pfx2
 struct CRY_ALIGN(CRY_PFX2_PARTICLES_ALIGNMENT) SCachedRenderObject
 {
 };
-
-CParticleRenderBase::CParticleRenderBase(gpu_pfx2::EGpuFeatureType type)
-	: CParticleFeature(type)
-	, m_renderObjectBeforeWaterId(-1)
-	, m_renderObjectAfterWaterId(-1)
-	, m_waterCulling(false)
-{
-}
 
 EFeatureType CParticleRenderBase::GetFeatureType()
 {
@@ -35,7 +20,8 @@ EFeatureType CParticleRenderBase::GetFeatureType()
 void CParticleRenderBase::AddToComponent(CParticleComponent* pComponent, SComponentParams* pParams)
 {
 	CParticleEffect* pEffect = pComponent->GetEffect();
-	pComponent->AddToUpdateList(EUL_Render, this);
+	pComponent->Render.add(this);
+	pComponent->ComputeVertices.add(this);
 	m_waterCulling = SupportsWaterCulling();
 	if (m_waterCulling)
 		m_renderObjectBeforeWaterId = pEffect->AddRenderObjectId();
@@ -43,42 +29,18 @@ void CParticleRenderBase::AddToComponent(CParticleComponent* pComponent, SCompon
 	pParams->m_requiredShaderType = eST_Particle;
 }
 
-void CParticleRenderBase::PrepareRenderObjects(CParticleEmitter* pEmitter, CParticleComponent* pComponent)
+void CParticleRenderBase::Render(CParticleComponentRuntime& runtime, const SRenderContext& renderContext)
 {
-	const SComponentParams& params = pComponent->GetComponentParams();
+	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
+
+	const SComponentParams& params = runtime.ComponentParams();
 
 	if (!params.m_pMaterial)
 		return;
 
-	for (uint threadId = 0; threadId < RT_COMMAND_BUF_COUNT; ++threadId)
-	{
-		const uint64 objFlags = params.m_renderObjectFlags;
-		if (m_waterCulling)
-			PrepareRenderObject(pEmitter, pComponent, m_renderObjectBeforeWaterId, threadId, objFlags);
-		PrepareRenderObject(pEmitter, pComponent, m_renderObjectAfterWaterId, threadId, objFlags);
-	}
-}
-
-void CParticleRenderBase::ResetRenderObjects(CParticleEmitter* pEmitter, CParticleComponent* pComponent)
-{
-	for (uint threadId = 0; threadId < RT_COMMAND_BUF_COUNT; ++threadId)
-	{
-		ResetRenderObject(pEmitter, pComponent, m_renderObjectBeforeWaterId, threadId);
-		ResetRenderObject(pEmitter, pComponent, m_renderObjectAfterWaterId, threadId);
-	}
-}
-
-void CParticleRenderBase::Render(CParticleEmitter* pEmitter, ICommonParticleComponentRuntime* pComponentRuntime, CParticleComponent* pComponent, const SRenderContext& renderContext)
-{
-	FUNCTION_PROFILER(GetISystem(), PROFILE_PARTICLE);
-
-	const SComponentParams& params = pComponent->GetComponentParams();
 	const uint threadId = renderContext.m_passInfo.ThreadID();
-
-	if (!params.m_pMaterial)
-		return;
-
-	const bool isIndoors = pEmitter->GetVisEnv().OriginIndoors();
+	const auto& emitter = *runtime.GetEmitter();
+	const bool isIndoors = emitter.GetVisEnv().OriginIndoors();
 	const bool renderIndoor = params.m_visibility.m_indoorVisibility != EIndoorVisibility::OutdoorOnly;
 	const bool renderOutdoors = params.m_visibility.m_indoorVisibility != EIndoorVisibility::IndoorOnly;
 	if ((isIndoors && !renderIndoor) || (!isIndoors && !renderOutdoors))
@@ -88,28 +50,28 @@ void CParticleRenderBase::Render(CParticleEmitter* pEmitter, ICommonParticleComp
 	if (!renderContext.m_lightVolumeId)
 		objFlags &= ~FOB_LIGHTVOLUME;
 
-	const bool isCameraUnderWater = renderContext.m_passInfo.IsCameraUnderWater();;
-	const bool renderBelowWater = params.m_visibility.m_waterVisibility != EWaterVisibility::AboveWaterOnly;
-	const bool renderAboveWater = params.m_visibility.m_waterVisibility != EWaterVisibility::BelowWaterOnly;
+	const auto emitterUnderWater = emitter.GetPhysicsEnv().m_tUnderWater;
+	const bool cameraUnderWater = renderContext.m_passInfo.IsCameraUnderWater();;
+	const auto waterVisibility = params.m_visibility.m_waterVisibility;
+	const bool renderBelowWater = waterVisibility != EWaterVisibility::AboveWaterOnly && emitterUnderWater != ETrinary::If_False;
+	const bool renderAboveWater = waterVisibility != EWaterVisibility::BelowWaterOnly && emitterUnderWater != ETrinary::If_True;
 
-	if (m_waterCulling && ((isCameraUnderWater && renderAboveWater) || (!isCameraUnderWater && renderBelowWater)))
-		AddRenderObject(pEmitter, pComponentRuntime, pComponent, renderContext, m_renderObjectBeforeWaterId, threadId, objFlags);
-	if ((isCameraUnderWater && renderBelowWater) || (!isCameraUnderWater && renderAboveWater))
-		AddRenderObject(pEmitter, pComponentRuntime, pComponent, renderContext, m_renderObjectAfterWaterId, threadId, objFlags | FOB_AFTER_WATER);
+	if (m_waterCulling && ((cameraUnderWater && renderAboveWater) || (!cameraUnderWater && renderBelowWater)))
+		AddRenderObject(runtime, renderContext, m_renderObjectBeforeWaterId, threadId, objFlags);
+	if ((cameraUnderWater && renderBelowWater) || (!cameraUnderWater && renderAboveWater))
+		AddRenderObject(runtime, renderContext, m_renderObjectAfterWaterId, threadId, objFlags | FOB_AFTER_WATER);
 }
 
-void CParticleRenderBase::PrepareRenderObject(CParticleEmitter* pEmitter, CParticleComponent* pComponent, uint renderObjectId, uint threadId, uint64 objFlags)
+void CParticleRenderBase::PrepareRenderObject(const CParticleComponentRuntime& runtime, uint renderObjectId, uint threadId, uint64 objFlags)
 {
+	const SComponentParams& params = runtime.ComponentParams();
 	CRenderObject* pRenderObject = gEnv->pRenderer->EF_GetObject();
-	pEmitter->SetRenderObject(pRenderObject, threadId, renderObjectId);
+	auto particleMaterial = params.m_pMaterial;
 
-	const SComponentParams& params = pComponent->GetComponentParams();
-	const SParticleShaderData& rData = params.m_shaderData;
-
-	pRenderObject->m_II.m_Matrix.SetIdentity();
+	pRenderObject->SetIdentityMatrix();
 	pRenderObject->m_fAlpha = 1.0f;
-	pRenderObject->m_pCurrMaterial = params.m_pMaterial;
-	pRenderObject->m_pRenderNode = pEmitter;
+	pRenderObject->m_pCurrMaterial = particleMaterial;
+	pRenderObject->m_pRenderNode = runtime.GetEmitter();
 	pRenderObject->m_RState = params.m_renderStateFlags;
 	pRenderObject->m_fSort = 0;
 	pRenderObject->m_ParticleObjFlags = params.m_particleObjFlags;
@@ -117,26 +79,20 @@ void CParticleRenderBase::PrepareRenderObject(CParticleEmitter* pEmitter, CParti
 
 	SRenderObjData* pObjData = pRenderObject->GetObjData();
 	pObjData->m_pParticleShaderData = &params.m_shaderData;
+
+	runtime.GetEmitter()->SetRenderObject(pRenderObject, std::move(particleMaterial), threadId, renderObjectId);
 }
 
-void CParticleRenderBase::ResetRenderObject(CParticleEmitter* pEmitter, CParticleComponent* pComponent, uint renderObjectId, uint threadId)
+void CParticleRenderBase::AddRenderObject(CParticleComponentRuntime& runtime, const SRenderContext& renderContext, uint renderObjectId, uint threadId, uint64 objFlags)
 {
-	if (renderObjectId == -1)
-		return;
-	CRenderObject* pRenderObject = pEmitter->GetRenderObject(threadId, renderObjectId);
+	const SComponentParams& params = runtime.ComponentParams();
+	CParticleEmitter& emitter = *runtime.GetEmitter();
+	CRenderObject* pRenderObject = emitter.GetRenderObject(threadId, renderObjectId);
 	if (!pRenderObject)
-		return;
-
-	if (pRenderObject->m_pRE != nullptr)
-		pRenderObject->m_pRE->Release();
-	gEnv->pRenderer->EF_FreeObject(pRenderObject);
-	pEmitter->SetRenderObject(nullptr, threadId, renderObjectId);
-}
-
-void CParticleRenderBase::AddRenderObject(CParticleEmitter* pEmitter, ICommonParticleComponentRuntime* pComponentRuntime, CParticleComponent* pComponent, const SRenderContext& renderContext, uint renderObjectId, uint threadId, uint64 objFlags)
-{
-	const SComponentParams& params = pComponent->GetComponentParams();
-	CRenderObject* pRenderObject = pEmitter->GetRenderObject(threadId, renderObjectId);
+	{
+		PrepareRenderObject(runtime, renderObjectId, threadId, params.m_renderObjectFlags);
+		pRenderObject = emitter.GetRenderObject(threadId, renderObjectId);
+	}
 	SRenderObjData* pObjData = pRenderObject->GetObjData();
 
 	const float sortBiasSize = 1.0f / 1024.0f;
@@ -144,19 +100,65 @@ void CParticleRenderBase::AddRenderObject(CParticleEmitter* pEmitter, ICommonPar
 
 	pRenderObject->m_ObjFlags = objFlags;
 	pRenderObject->m_fDistance = renderContext.m_distance - sortBias;
+	pRenderObject->SetInstanceDataDirty();
 	pObjData->m_FogVolumeContribIdx = renderContext.m_fogVolumeId;
 	pObjData->m_LightVolumeId = renderContext.m_lightVolumeId;
-	if (pEmitter->m_pTempData)
-		*((Vec4f*)&pObjData->m_fTempVars[0]) = (const Vec4f&)pEmitter->m_pTempData->userData.vEnvironmentProbeMults;
+	if (const auto p = emitter.m_pTempData.load())
+		reinterpret_cast<Vec4f&>(pObjData->m_fTempVars[0]) = (Vec4f const&)(p->userData.vEnvironmentProbeMults);
 	else
-		*((Vec4f*)&pObjData->m_fTempVars[0]) = Vec4f(1.0f, 1.0f, 1.0f, 1.0f);
+		reinterpret_cast<Vec4f&>(pObjData->m_fTempVars[0]) = Vec4f(1.0f, 1.0f, 1.0f, 1.0f);
 
 	CParticleJobManager& kernel = GetPSystem()->GetJobManager();
-	kernel.ScheduleComputeVertices(pComponentRuntime, pRenderObject, renderContext);
+	kernel.ScheduleComputeVertices(runtime, pRenderObject, renderContext);
+	
+	int passId = renderContext.m_passInfo.IsShadowPass() ? 1 : 0;
+	int passMask = BIT(passId);
+	pRenderObject->m_passReadyMask |= passMask;
 
 	renderContext.m_passInfo.GetIRenderView()->AddPermanentObject(
 		pRenderObject,
 		renderContext.m_passInfo);
+}
+
+float CParticleRenderBase::CullArea(float area, float areaLimit, TParticleIdArray& ids, TVarArray<float> alphas, TConstArray<float> areas)
+{
+	if (area > areaLimit)
+	{
+		CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
+		
+		// Sort sprites by area, cull largest
+		stl::sort(ids, [&areas](uint id) { return areas[id]; });
+
+		static float Slope = 2.0f;
+		float factor = Slope / areaLimit;
+		float areaDrawn = 0;
+		uint newSize = ids.size();
+		for (uint i = 0; i < ids.size(); ++i)
+		{
+			uint id = ids[i];
+			areaDrawn += areas[id];
+			float adjust = Slope - areaDrawn * factor;
+			if (adjust < 1.0f)
+			{
+				if (adjust <= 0.0f)
+				{
+					newSize = i;
+					areaDrawn -= areas[id];
+					break;
+				}
+				alphas[id] *= adjust;
+			}
+		}
+		for (uint i = newSize; i < ids.size(); ++i)
+		{
+			uint id = ids[i];
+			alphas[id] = 0.0f;
+		}
+		ids.resize(newSize);
+		return areaDrawn;
+	}
+	else
+		return area;
 }
 
 }

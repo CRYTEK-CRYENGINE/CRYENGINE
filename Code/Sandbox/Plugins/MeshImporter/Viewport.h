@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -71,3 +71,4 @@ private:
 
 	enum { kDefaultWidthOfDisplayOptionWidget = 200 };
 };
+

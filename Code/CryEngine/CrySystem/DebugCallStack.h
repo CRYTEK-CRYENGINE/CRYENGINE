@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   DebugCallStack.h
@@ -77,6 +77,7 @@ protected:
 	void                    doneSymbols();
 
 	static void             RemoveOldFiles();
+	static void             MoveFile(const char* szFileNameOld, const char* szFileNameNew);
 	static void             RemoveFile(const char* szFileName);
 
 	NO_INLINE void          FillStackTrace(int maxStackEntries = MAX_DEBUG_STACK_ENTRIES, int skipNumFunctions = 0, HANDLE hThread = GetCurrentThread());

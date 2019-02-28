@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "Serialize.h"
@@ -33,8 +33,6 @@ namespace UQS
 
 		bool Serialize(Serialization::IArchive& ar, OBB& obb, const char* szName, const char* szLabel)
 		{
-			typedef f32(&Array)[3][3];
-
 			stack_string tmpName;
 			stack_string tmpLabel;
 
@@ -46,7 +44,7 @@ namespace UQS
 
 			tmpName.Format("%s.m33", szName);
 			tmpLabel.Format("%s.m33", szLabel);
-			if (!ar((Array)obb.m33, tmpName.c_str(), tmpLabel.c_str()))
+			if (!ar(obb.m33, tmpName.c_str(), tmpLabel.c_str()))
 				return false;
 
 			tmpName.Format("%s.h", szName);

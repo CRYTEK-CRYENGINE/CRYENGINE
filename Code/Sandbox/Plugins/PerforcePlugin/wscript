@@ -1,0 +1,38 @@
+# Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+
+def build(bld):	
+
+	p4api_subfolder = 'vc11'
+	try:
+		msvc_version = bld.env['MSVC_VERSION']
+		if msvc_version == '11.0':
+			p4api_subfolder = 'vc11'
+		if msvc_version == '12.0':
+			p4api_subfolder = 'vc12'
+		if msvc_version == '14.0':
+			p4api_subfolder = 'vc14'
+	except:
+		pass
+
+	# format string to use when accessing libraries
+	lib_path_base = 'Code/SDKs/p4api/' + p4api_subfolder + '_x64_%s/lib'
+
+
+	bld.CryPlugin(
+		target      = 'PerforcePlugin',
+		vs_filter   = 'Sandbox/Plugins',
+		file_list   = 'perforceplugin.waf_files',
+		defines		= ['BOOST_ALL_NO_LIB'], #this is necessary because we have force_static_crt = True which will trigger linking statically against boost
+
+		pch                = 'stdafx.cpp',
+		force_static_crt   = True,
+		force_disable_mfc  = True,
+		lib                = [ 'libclient', 'libp4sslstub', 'librpc', 'libsupp' ],
+		includes           = Path('Code/SDKs/p4api/include'),
+
+		win_x64_debug_libpath       = Path(lib_path_base % 'debug'),
+		win_x64_profile_libpath     = Path(lib_path_base % 'release'),
+		win_x64_performance_libpath = Path(lib_path_base % 'release'),
+		win_x64_release_libpath     = Path(lib_path_base % 'release'),
+	)
+

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "VariableCollection.h"
@@ -281,7 +281,7 @@ void CVariableCollection::Serialize(Serialization::IArchive& ar)
 {
 	ar(m_name, "collection-name", "!>");
 
-	std::list<CVariable> variablesCopy;
+	std::vector<CVariable> variablesCopy;
 
 	if (ar.isOutput())
 	{

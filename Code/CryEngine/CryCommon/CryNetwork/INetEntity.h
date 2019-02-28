@@ -1,20 +1,26 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 #pragma once
 
 #include <CryCore/BaseTypes.h>
 #include <CryNetwork/SerializeFwd.h>
 
 #include <CryEntitySystem/IEntityBasicTypes.h>
+#include <CrySchematyc/Utils/EnumFlags.h>
 
-#define UNSAFE_NUM_ASPECTS         32         // 8,16 or 32
-#define NUM_ASPECTS                (UNSAFE_NUM_ASPECTS)
+struct IEntityComponent;
+
+struct ISerializableInfo : public CMultiThreadRefCount, public ISerializable {};
+typedef _smart_ptr<ISerializableInfo> ISerializableInfoPtr;
+
+#define UNSAFE_NUM_ASPECTS 32                 // 8,16 or 32
+#define NUM_ASPECTS        (UNSAFE_NUM_ASPECTS)
 
 #define _CRYNETWORK_CONCAT(x, y) x ## y
 #define CRYNETWORK_CONCAT(x, y)  _CRYNETWORK_CONCAT(x, y)
 #define ASPECT_TYPE CRYNETWORK_CONCAT(uint, UNSAFE_NUM_ASPECTS)
 
 #if NUM_ASPECTS > 32
-#error Aspects > 32 Not supported at this time
+	#error Aspects > 32 Not supported at this time
 #endif
 
 typedef ASPECT_TYPE NetworkAspectType;
@@ -85,14 +91,14 @@ struct IGameObjectProfileManager
 enum ERMInvocation
 {
 	eRMI_ToClientChannel = 0x01,
-	eRMI_ToOwnClient = 0x02,
-	eRMI_ToOtherClients = 0x04,
-	eRMI_ToAllClients = 0x08,
+	eRMI_ToOwnClient     = 0x02,
+	eRMI_ToOtherClients  = 0x04,
+	eRMI_ToAllClients    = 0x08,
 
-	eRMI_ToServer = 0x100,
+	eRMI_ToServer        = 0x100,
 
-	eRMI_NoLocalCalls = 0x10000,
-	eRMI_NoRemoteCalls = 0x20000,
+	eRMI_NoLocalCalls    = 0x10000,
+	eRMI_NoRemoteCalls   = 0x20000,
 
 	eRMI_ToRemoteClients = eRMI_NoLocalCalls | eRMI_ToAllClients
 };
@@ -115,7 +121,7 @@ enum ENetReliabilityType
 //! Implementation of CContextView relies on the first two values being as they are.
 enum ERMIAttachmentType
 {
-	eRAT_PreAttach = 0,
+	eRAT_PreAttach  = 0,
 	eRAT_PostAttach = 1,
 	eRAT_NoAttach,
 
@@ -151,9 +157,9 @@ struct INetEntity
 
 	//! Enables/disables network aspects.
 	/** Can be called anytime after binding. */
-	virtual void EnableAspect(NetworkAspectType aspects, bool enable) = 0;
+	virtual void              EnableAspect(NetworkAspectType aspects, bool enable) = 0;
 	virtual NetworkAspectType GetEnabledAspects() const = 0;
-	
+
 	//! Can be used to disable delegation of a certain aspect, i.e. physics.
 	/** This should be called before BindToNetwork(). By default, all delegatable aspects are enabled.*/
 	virtual void EnableDelegatableAspect(NetworkAspectType aspects, bool enable) = 0;
@@ -164,18 +170,18 @@ struct INetEntity
 	//! Changes the current profile of an aspect.
 	/** Game code should ensure that things work out correctly. */
 	/** Example: Change physicalization. */
-	virtual bool SetAspectProfile(EEntityAspects aspect, uint8 profile, bool fromNetwork = false) = 0;
-	virtual uint8 GetAspectProfile(EEntityAspects aspect) = 0;
+	virtual bool   SetAspectProfile(EEntityAspects aspect, uint8 profile, bool fromNetwork = false) = 0;
+	virtual uint8  GetAspectProfile(EEntityAspects aspect) = 0;
 
-	virtual bool CaptureProfileManager(IGameObjectProfileManager* pPM) = 0;
-	virtual void ReleaseProfileManager(IGameObjectProfileManager* pPM) = 0;
-	virtual bool HasProfileManager() = 0;
-	virtual void ClearProfileManager() = 0;
+	virtual bool   CaptureProfileManager(IGameObjectProfileManager* pPM) = 0;
+	virtual void   ReleaseProfileManager(IGameObjectProfileManager* pPM) = 0;
+	virtual bool   HasProfileManager() = 0;
+	virtual void   ClearProfileManager() = 0;
 
-	virtual void SetChannelId(uint16 id) = 0;
+	virtual void   SetChannelId(uint16 id) = 0;
 	virtual uint16 GetChannelId() const = 0;
-	virtual void BecomeBound() = 0;
-	virtual bool IsBoundToNetwork() const = 0;
+	virtual void   BecomeBound() = 0;
+	virtual bool   IsBoundToNetwork() const = 0;
 
 	//! A one off call to never enable the physics aspect, this needs to be done *before* the BindToNetwork
 	virtual void DontSyncPhysics() = 0;
@@ -188,11 +194,18 @@ struct INetEntity
 	//! Internal use. \see IEntityComponent::NetSerialize() to implement network serialization.
 	virtual bool NetSerializeEntity(TSerialize ser, EEntityAspects aspect, uint8 profile, int flags) = 0;
 
+	//! Sent by the entity when its transformation changes
+	virtual void OnNetworkedEntityTransformChanged(EntityTransformationFlagsMask transformReasons) = 0;
+
+	virtual void OnComponentAddedDuringInitialization(IEntityComponent* pComponent) const = 0;
+	virtual void OnEntityInitialized() = 0;
+
 	//--------------------------------------------------------------------------
 
 	//! Entity-local unique index of the RMI that is sent over the network.
-	struct SRmiIndex {
-		explicit SRmiIndex(size_t idx) : value(static_cast<decltype(value)>(idx)) { };
+	struct SRmiIndex
+	{
+		explicit SRmiIndex(size_t idx) : value(static_cast<decltype(value)>(idx)) {};
 		uint8 value;
 	};
 
@@ -200,16 +213,16 @@ struct INetEntity
 	//! of those, and the index of a particular handler is sent over the network.
 	struct SRmiHandler
 	{
-		typedef INetAtSyncItem* (*DecoderF)(TSerialize*, EntityId, INetChannel*);
-		DecoderF decoder;
+		typedef INetAtSyncItem* (* DecoderF)(TSerialize*, EntityId, INetChannel*);
+		DecoderF            decoder;
 		ENetReliabilityType reliability;
-		ERMIAttachmentType attach_type;
+		ERMIAttachmentType  attach_type;
 	};
 
 	//! Internal use.
-	virtual void RmiRegister(SRmiHandler& handler) = 0;
+	virtual void                  RmiRegister(const SRmiHandler& handler) = 0;
 	//! Internal use.
-	virtual SRmiIndex RmiByDecoder(SRmiHandler::DecoderF decoder, SRmiHandler **handler) = 0;
+	virtual SRmiIndex             RmiByDecoder(SRmiHandler::DecoderF decoder, SRmiHandler** handler) = 0;
 	//! Internal use.
 	virtual SRmiHandler::DecoderF RmiByIndex(const SRmiIndex idx) = 0;
 };

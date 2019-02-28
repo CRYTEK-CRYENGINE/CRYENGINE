@@ -1,0 +1,138 @@
+{
+	"description"                : "Configuration to build the GameSDK Project and the Editor",
+	"valid_platforms"            : [ "win_x64" ],
+	"valid_configuration"        : [ "debug", "profile"],
+	"visual_studio_name"         : "GameSDK and Editor",
+
+	"game_projects"              : "GameSDK",
+
+  "win_module_extensions": [ "audio_fmod", "brofiler", "mono" ],
+
+  "defines"                               : ["UQS_SCHEMATYC_SUPPORT=1", "SUPPORT_UNSIGNED_PAKS"],
+
+	"modules" :
+	[
+		"CryCommon",
+		"Cry3DEngine",
+		"CryAISystem",
+		"CryAnimation",
+		"CryDescriptor",
+		"CryDynamicResponseSystem",
+		"CryEntitySystem",
+		"CryFont",
+		"CryInput",
+		"CryMovie",
+		"CryNetwork",
+		"CryParticleSystem",
+		"CryPhysics",
+		"CryScriptSystem",
+		"CryAudioSystem",
+		"CryAudioCommon",
+		"CryAudioImplWwise",
+		"CrySystem",
+		"CryScaleformHelper",
+		"CryAction",
+		"CrySchematyc",
+		"CryFlowGraph",
+		"HWScripts",
+	
+		"CryDefaultEntities",
+	
+		"EditorInterface",		
+		"EditorCommon",
+		"EditorConsole",
+		"EditorAnimation",
+		"CryDesigner",
+		"EditorAudioControlsEditor",
+		"EditorAudioControlsEditorCommon",
+		"EditorCryAudioImplWwise",
+		"EditorCryAudioImplSDLMixer",
+		"EditorCryAudioImplFmod",
+		"EditorDynamicResponseSystem",
+		"EditorEnvironment",
+		"EmergentPlugin",
+		"EditorParticle",
+		"FBXPlugin",
+		"MeshImporter",
+		"EditorTrackView",
+		"3DConnexionPlugin",
+		"PerforcePlugin",
+		"SandboxPythonBridge",
+		"EditorGameSDK",
+		"SamplePlugin",
+		"MFCToolsPlugin",
+		"DialogEditorPlugin",
+		"VehicleEditorPlugin",
+		"SmartObjectEditorPlugin",
+		"MaterialEditorPlugin",
+		"FacialEditorPlugin",
+		"EditorCSharp",
+		
+		"zlib",
+		"expat",
+		"lz4",
+		"md5",
+		"lzma",
+		"lzss",
+		"lua",
+		"freetype",
+		"bigdigits",
+		"tomcrypt",
+		"jsmn",
+		"png16",
+		"jpeg",
+		"tiff",
+		"curl",
+		"spirv-cross",
+		
+		"prt",
+		"python27",		
+		"flac",
+		"libmikmod",
+		"libogg",
+		"libvorbis",
+		"libvorbisfile",
+		"native_midi",
+		"sdl_mixer",
+		"smpeg",
+		"timidity",
+		
+		"LuaCompiler",
+		"CryQt",
+		"CryGameSDK",
+		"Sandbox"
+		
+	],
+	
+	"win_debug_modules"                     : ["CryLiveCreate", "GameStream"],
+	"win_profile_modules"                   : ["CryLiveCreate", "GameStream"],
+	
+	"win_force_shared_monolithic_build_modules" : 
+	[
+		"CryAudioImplSDLMixer",
+		"CryAudioImplWwise",
+		"CryAudioImplFmod",
+		"CryAudioImplPortAudio",
+		
+		"CryRenderD3D11",
+		"CryRenderD3D12",
+		"CryRenderVulkan",
+
+		"CryScaleformHelper",
+
+		"CryMonoBridge"
+	],
+	
+	"win_modules": [
+		"WindowsLauncher",
+		"CryRenderD3D11",
+		"CryRenderD3D12",
+		"CryRenderVulkan",
+		"CryAudioImplSDLMixer",
+		"CryAudioImplFmod",
+		"CryAudioImplPortAudio",
+		"CryLobby",
+		"CryMonoBridge",
+		"CryUserAnalytics"
+	]
+}

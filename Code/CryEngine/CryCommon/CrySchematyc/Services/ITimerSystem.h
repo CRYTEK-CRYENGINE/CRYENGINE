@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // #SchematycTODO : Use scoped connections to automatically disconnect timers?
 // #SchematycTODO : Use combination of pool and salt counters for more efficient look-up by id?

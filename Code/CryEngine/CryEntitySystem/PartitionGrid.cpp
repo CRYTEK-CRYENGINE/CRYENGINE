@@ -1,15 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
-
-// -------------------------------------------------------------------------
-//  File name:   PartitionGrid.cpp
-//  Version:     v1.00
-//  Created:     27/11/2005 by Timur.
-//  Compilers:   Visual Studio.NET 2003
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "PartitionGrid.h"
@@ -171,7 +160,7 @@ void CPartitionGrid::SectorUnlink(SGridLocation* obj, LocationInfo& locInfo)
 //////////////////////////////////////////////////////////////////////////
 SGridLocation* CPartitionGrid::Rellocate(SGridLocation* obj, const Vec3& newPos, CEntity* pEntity)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ENTITY);
+	CRY_PROFILE_FUNCTION(PROFILE_ENTITY);
 
 	if (m_bResetting)
 	{

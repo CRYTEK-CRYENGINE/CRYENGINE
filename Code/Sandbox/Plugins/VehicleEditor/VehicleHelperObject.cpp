@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "VehicleHelperObject.h"
@@ -181,8 +181,9 @@ bool CVehicleHelper::HitTest(HitContext& hc)
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CVehicleHelper::Display(DisplayContext& dc)
+void CVehicleHelper::Display(CObjectRenderHelper& objRenderHelper)
 {
+	DisplayContext& dc = objRenderHelper.GetDisplayContextRef();
 	COLORREF color = GetColor();
 	float radius = RADIUS;
 
@@ -281,3 +282,4 @@ void CVehicleHelper::OnTransform()
 {
 	UpdateVarFromObject();
 }
+

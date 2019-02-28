@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -79,7 +79,7 @@ const T& get(const CryVariant<Types...>& variant)
 template<size_t I, class... Types>
 typename stl::variant_alternative<I, CryVariant<Types...>>::type& get(CryVariant<Types...>& variant)
 {
-	static_assert(I < variant_size<CryVariant<Types...>>::value, "I is to big to be part of Types...");
+	static_assert(I < variant_size<CryVariant<Types...>>::value, "I is too big to be part of Types...");
 	return get<typename stl::variant_alternative<I, CryVariant<Types...>>::type>(variant);
 }
 

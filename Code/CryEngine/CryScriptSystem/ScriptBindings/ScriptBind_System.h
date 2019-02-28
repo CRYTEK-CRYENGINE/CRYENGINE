@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   ScriptBind_System.h
@@ -704,8 +704,6 @@ private:
 	IConsole*  m_pConsole;
 	ITimer*    m_pTimer;
 	I3DEngine* m_p3DEngine;
-
-	//	ICVar *r_hdrrendering;						// the Cvar is created in cry3dengine, this is just a pointer
 
 	//Vlad is too lazy to add this to 3DEngine">so I have to put it here. It should
 	//not be here, but I have to put it somewhere.....

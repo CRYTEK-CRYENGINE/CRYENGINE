@@ -1,42 +1,36 @@
 {
-    "console_variables": [
-        {
-            "name": "sys_target_platforms",
-            "value": "pc,ps4,xboxone,linux"
-        }
-    ],
-    "content": {
-        "assets": [
-            "Assets"
-        ],
-        "code": [
-            "Code"
-        ]
-    },
-    "info": {
-        "name": "Plugin Template"
-    },
-    "require": {
-        "engine": "engine-5.4",
-        "plugins": [
-            {
-                "path": "CryDefaultEntities",
-                "type": "EPluginType::Native"
-            },
-            {
-                "path": "CrySensorSystem",
-                "type": "EPluginType::Native"
-            },
-            {
-                "path": "CryPerceptionSystem",
-                "type": "EPluginType::Native"
-            },
-            {
-                "path": "bin/Plugin.dll",
-                "type": "EPluginType::Managed"
-            }
-        ]
-    },
-    "type": "",
-    "version": 1
+	"version": 3,
+	"type": "",
+	"info": {
+		"name": "Plugin Template",
+		"guid": "fd81c5ad-4ae8-cc4d-7565-c3950c212ee0"
+	},
+	"content": {
+		"assets": [ "Assets" ],
+		"code": [ "Code" ],
+		"libs": [
+			{
+				"name": "Plugin Template",
+				"shared": { "any": "", "win_x64": "", "win_x86": "" }
+			}
+		]
+	},
+	"require": {
+		"engine": "engine-5.5",
+		"plugins": [
+			{ "type": "EPluginType::Native", "path": "CryDefaultEntities" },
+			{ "type": "EPluginType::Native", "path": "CrySensorSystem" },
+			{ "type": "EPluginType::Native", "path": "CryPerceptionSystem" },
+			{ "type": "EPluginType::Managed", "path": "bin/Plugin.dll" },
+			{
+				"type": "EPluginType::Native",
+				"path": "CryGamePlatform",
+				"platforms": [ "PS4" ]
+			}
+		]
+	},
+	"console_variables": [
+		{ "name": "sys_target_platforms", "value": "pc,ps4,xboxone,linux" }
+	],
+	"console_commands": [ ]
 }

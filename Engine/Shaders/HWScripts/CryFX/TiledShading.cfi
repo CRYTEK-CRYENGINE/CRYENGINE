@@ -1,5 +1,4 @@
-// CRYENGINE Source Code File
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 
 ////////////////////////////////////////////////////////////////////////////
@@ -99,18 +98,25 @@ Texture2D<float4>                      Fwd_EnvironmentBRDF : register(t40);
 #if FEATURE_SVO_GI
 Texture2D<float4>                      Fwd_GiDiffuseRT : register(t46);
 Texture2D<float4>                      Fwd_GiSpecularRT : register(t47);
-float4 ForwGiIntegrationMode : PB_SvoParams4;
 #endif
 
 SamplerComparisonState SampStateComp : register(s14);
 
 #define SHADOW_SAMPLE_COUNT 16
 float4 irreg_kernel_2d[SHADOW_SAMPLE_COUNT/2] : PB_IrregKernel;
-float4 ClipVolumeParams : PB_ClipVolumeParams;
 
 #ifndef AFFECTS_EVERYTHING_STENCILREF 
 #define AFFECTS_EVERYTHING_STENCILREF	0xFF
 #endif
+
+uint4 GetResourceIndexAndMipClamps(uint resIndex)
+{
+	const uint resIndexID   = (resIndex & 0xFFFF);
+	const uint resMipClamp0 = (resIndex >> 16) & 0xFF;
+	const uint resMipClamp1 = (resIndex >> 24) & 0xFF;
+	
+	return uint4(resIndexID, resMipClamp0, resMipClamp1, 0.0f);
+}
 
 float GetClipVolumeWeightBinary(uint nClipVolumeID, uint nLightStencilID)
 {
@@ -122,7 +128,7 @@ float GetClipVolumeWeightBinary(uint nClipVolumeID, uint nLightStencilID)
 
 #if FEATURE_SVO_GI
 void ApplyGI(inout float3 specularAcc, inout float3 diffuseAcc, float3 diffuseForwAcc, float2 pixelUV, float3 surfGloss, float3 surfSpecCol,
-             Texture2D<float4> TexGiDiffuse, Texture2D<float4> TexGiSpecular, SamplerState samplerTrilinearClamp, const int nIntegrMode)
+             Texture2D<float4> TexGiDiffuse, Texture2D<float4> TexGiSpecular, SamplerState samplerTrilinearClamp, const int nIntegrMode, float4 fParms)
 {
 	if(nIntegrMode == 0) // AO only mode
 	{
@@ -133,7 +139,7 @@ void ApplyGI(inout float3 specularAcc, inout float3 diffuseAcc, float3 diffuseFo
 	else if(nIntegrMode == 1) // GI replaces diffuse of env probes and adjusts specular
 	{
 		float3 diffuseIrradiance = TexGiDiffuse.SampleLevel( samplerTrilinearClamp, pixelUV, 0 );
-		specularAcc *= lerp(min( 2.f, GetLuminance(diffuseIrradiance) / (GetLuminance(diffuseAcc + diffuseForwAcc) + 0.001)), 1.f, saturate(surfGloss * GetLuminance(surfSpecCol) * ForwGiIntegrationMode.x)) * ForwGiIntegrationMode.z;
+		specularAcc *= lerp(min( 2.f, GetLuminance(diffuseIrradiance) / (GetLuminance(diffuseAcc + diffuseForwAcc) + 0.001)), 1.f, saturate(surfGloss * GetLuminance(surfSpecCol) * fParms.x)) * fParms.z;
 		diffuseAcc = diffuseIrradiance;
 	}
 	else if(nIntegrMode == 2) // Full GI mode
@@ -168,10 +174,8 @@ void TiledForwardShading(in ForwardShadingAttribs attribs, inout float3 diffuseA
 	float specCubeLod = TILED_SHADING_SPECPROBE_MAXMIP - attribs.smoothness * TILED_SHADING_SPECPROBE_MAXMIP;
 	float NdotV = saturate(dot(viewVec, attribs.normalSpecProbe));
 	float3 envFresnel = GetEnvmapFresnel(attribs.reflectance, attribs.smoothness, NdotV);
-#if %_RT_PER_INSTANCE_CB_TEMP
 	float2 envBRDF = Fwd_EnvironmentBRDF.SampleLevel(ssTrilinearClamp, float2(NdotV, attribs.smoothness), 0).xy;
 	envFresnel = lerp(envBRDF.xxx, envBRDF.yyy, attribs.reflectance);
-#endif
 
 	float2 occlusion = float2(1, 1);
 	if (bOpaque)
@@ -203,11 +207,7 @@ void TiledForwardShading(in ForwardShadingAttribs attribs, inout float3 diffuseA
 			
 		if (applyProbes)
 		{
-		#if !%_RT_PER_INSTANCE_CB_TEMP
-			const float clipVolumeWeight = GetClipVolumeWeightBinary(ClipVolumeParams.x, Fwd_TiledLightsShadeInfo[lightIndex].stencilID);
-		#else
 			const float clipVolumeWeight = 1;  // TODO
-		#endif
 			if (Fwd_TiledLightsShadeInfo[lightIndex].lightType == TILEDLIGHT_TYPE_PROBE && probeWeightSum < 1 && clipVolumeWeight > 0)
 			{
 				STiledLightShadeInfo light = Fwd_TiledLightsShadeInfo[lightIndex];
@@ -224,9 +224,10 @@ void TiledForwardShading(in ForwardShadingAttribs attribs, inout float3 diffuseA
 				{
 					tmpLightVec = MapCubeToSphere( tmpLightVec );
 					float attenuation = GetAttenuation( tmpLightVec, 1, true, light.attenuationParams.y ) * light.attenuationParams.x;
+					uint4 resIndexClamps = GetResourceIndexAndMipClamps(light.resIndex);
 				
 					// Diffuse
-					float4 diffuseProbe = Fwd_DiffuseCubeArray.SampleLevel( ssTrilinearClamp, float4( attribs.normal, light.resIndex ), 0 );
+					float4 diffuseProbe = Fwd_DiffuseCubeArray.SampleLevel( ssTrilinearClamp, float4( attribs.normal, resIndexClamps.x ), resIndexClamps.y );
 					diffuseProbe.rgb = DecodeHDRCubemap( diffuseProbe );
 					float probeWeight = (1 - probeWeightSum) * attenuation;
 					diffuseAcc += diffuseProbe.rgb * light.color.rgb * probeWeight * occlusion.x;
@@ -237,7 +238,7 @@ void TiledForwardShading(in ForwardShadingAttribs attribs, inout float3 diffuseA
 						float tmpGloss = 0;
 						float3 tmpReflVec = reflect(-viewVec, attribs.normalSpecProbe);
 						CubemapBoxParallaxCorrection( tmpReflVec, position, (light.posRad.xyz - GetWorldViewPos()), light.shadowMatrix[0].xyz, light.shadowMatrix[1].xyz, tmpGloss );
-						float4 specularProbe = Fwd_SpecCubeArray.SampleLevel( ssTrilinearClamp, float4( tmpReflVec, light.resIndex ), specCubeLod );
+						float4 specularProbe = Fwd_SpecCubeArray.SampleLevel( ssTrilinearClamp, float4( tmpReflVec, resIndexClamps.x ), max(resIndexClamps.z, specCubeLod) );
 						specularProbe.rgb = DecodeHDRCubemap( specularProbe ) * envFresnel;
 						specularAcc += specularProbe.rgb * light.color.rgb * light.color.a * probeWeight * occlusion.y;
 					}	
@@ -249,13 +250,13 @@ void TiledForwardShading(in ForwardShadingAttribs attribs, inout float3 diffuseA
 	}
 		
 #if FEATURE_SVO_GI
-#if !%_RT_PER_INSTANCE_CB_TEMP	
-	//if(!pPass.bRefractionMap)
-		ApplyGI(specularAcc, diffuseAcc, diffuseAcc, tcProj + .5f / CV_ScreenSize.xy, attribs.smoothness, attribs.reflectance,  // TODO
-		        Fwd_GiDiffuseRT, Fwd_GiSpecularRT, ssTrilinearClamp, (int)(ForwGiIntegrationMode.y));
+	if (bOpaque)
+	{
+		ApplyGI(specularAcc, diffuseAcc, diffuseAcc, attribs.screenUV + .5f / CV_ScreenSize.xy, attribs.smoothness, attribs.reflectance, 
+			Fwd_GiDiffuseRT, Fwd_GiSpecularRT, ssTrilinearClamp, (int)(cbSVOGI.IntegrationMode.y), cbSVOGI.IntegrationMode);
+	}
 #endif
-#endif
-
+	
 	for (;;)
 	{
 		[branch]
@@ -280,13 +281,7 @@ void TiledForwardShading(in ForwardShadingAttribs attribs, inout float3 diffuseA
 			float attenuation = GetPhysicalLightAttenuation( length( lightVec ), 1.0 / light.posRad.w, light.attenuationParams.x );
 			lightParams.illuminance *= attenuation;
 			
-		#if !%_RT_PER_INSTANCE_CB_TEMP	
-			const float clipVolumeWeight = GetClipVolumeWeightBinary(ClipVolumeParams.x, light.stencilID);
-		#else
 			const float clipVolumeWeight = 1;
-		#endif
-			[branch] if( clipVolumeWeight == 0.0f)
-				skipShading = true;
 
 			if (light.lightType == TILEDLIGHT_TYPE_REGULAR_PROJECTOR)
 			{
@@ -298,7 +293,10 @@ void TiledForwardShading(in ForwardShadingAttribs attribs, inout float3 diffuseA
 					if (projTC.w < 0 || min( projTC.x, projTC.y ) < 0 || max( projTC.x, projTC.y ) > 1)  // Avoid back-projection
 						skipShading = true;
 					else
-						lightParams.illuminance *= Fwd_SpotTexArray.SampleLevel( ssTrilinearClamp, float3(projTC.xy, light.resIndex), 0 ).xxx;
+					{
+						uint4 resIndexClamps = GetResourceIndexAndMipClamps(light.resIndex);
+						lightParams.illuminance *= Fwd_SpotTexArray.SampleLevel( ssTrilinearClamp, float3(projTC.xy, resIndexClamps.x), resIndexClamps.y ).xxx;
+					}
 						
 					if (light.shadowParams.x > 0)
 						shadowMap = true;
@@ -306,9 +304,7 @@ void TiledForwardShading(in ForwardShadingAttribs attribs, inout float3 diffuseA
 			}
 			else if (light.lightType == TILEDLIGHT_TYPE_REGULAR_POINTFACE)
 			{
-				float3 dir = abs( lightVec );
-				uint cubeFace = dir.x > dir.y ? (dir.x > dir.z ? (lightVec.x < 0 ? 0 : 1) : (lightVec.z < 0 ? 4 : 5)) :
-																				(dir.y > dir.z ? (lightVec.y < 0 ? 2 : 3) : (lightVec.z < 0 ? 4 : 5));
+				uint cubeFace = selectCubeFace(lightVec);
 				
 				if (light.resIndex != cubeFace)
 					skipShading = true;
@@ -326,10 +322,7 @@ void TiledForwardShading(in ForwardShadingAttribs attribs, inout float3 diffuseA
 					P0.xy /= P0.w;
 					P0.z -= light.shadowParams.y;
 					
-					bool bAllowHighQualityShadows = true;
-				#if %_RT_PER_INSTANCE_CB_TEMP
-					bAllowHighQualityShadows = false;
-				#endif
+					bool bAllowHighQualityShadows = false;
 					
 					if (bOpaque)
 					{
@@ -405,6 +398,9 @@ float4 ScreenSize;
 float4 SunDir;
 float4 SunColor;
 float4 SSDOParams;
+#if FEATURE_SVO_GI
+float4 ForwGiIntegrationMode : PB_SvoParams4;
+#endif
 
 SamplerState SampStateTrilinearClamp : register(s0);
 
@@ -741,7 +737,7 @@ void TiledDeferredShadingCS( uint3 GroupID : SV_GroupID,
 	int lightIndex = sTileLightCount > 0 ? sTileLightIndices[0] : 0;
 	
 	const uint 	clipVolumeStencilID = ClipVolumeIndexRT[pixelCoord].x * 255.0f;
-	const uint  clipVolumeData = TiledClipVolumeInfo[clipVolumeStencilID & (MAX_CLIPVOLUMES-1)].data;
+	const uint  clipVolumeData = TiledClipVolumeInfo[clipVolumeStencilID & MAX_CLIPVOLUMES].data;
 	const float clipVolumeBlendFactor = ClipVolumeIndexRT[pixelCoord].y;
 	
 	// ==============================================================================================
@@ -769,13 +765,14 @@ void TiledDeferredShadingCS( uint3 GroupID : SV_GroupID,
 				{
 					tmpLightVec = MapCubeToSphere( tmpLightVec );
 					float attenuation = GetAttenuation( tmpLightVec, 1, true, light.attenuationParams.y ) * light.attenuationParams.x;
-				
+					uint4 resIndexClamps = GetResourceIndexAndMipClamps(light.resIndex);
+
 					// Diffuse
-					float4 diffuseProbe = DiffuseCubeArray.SampleLevel( SampStateTrilinearClamp, float4( surfNormal, light.resIndex ), 0 );
+					float4 diffuseProbe = DiffuseCubeArray.SampleLevel( SampStateTrilinearClamp, float4( surfNormal, resIndexClamps.x ), resIndexClamps.y );
 					diffuseProbe.rgb = DecodeHDRCubemap( diffuseProbe );
 					[branch] if (surfIsTranslucent)
 					{
-						float4 diffuseProbe2 = DiffuseCubeArray.SampleLevel( SampStateTrilinearClamp, float4( -surfNormal, light.resIndex ), 0 );
+						float4 diffuseProbe2 = DiffuseCubeArray.SampleLevel( SampStateTrilinearClamp, float4( -surfNormal, resIndexClamps.x ), resIndexClamps.y );
 						diffuseProbe.rgb += DecodeHDRCubemap( diffuseProbe2 ) * surfTransmittanceColor;
 					}
 					float probeWeight = (1 - probeWeightSum) * attenuation * clipVolumeBlendWeight;
@@ -785,7 +782,7 @@ void TiledDeferredShadingCS( uint3 GroupID : SV_GroupID,
 					float tmpGloss = 0;
 					float3 tmpReflVec = reflVec;
 					CubemapBoxParallaxCorrection( tmpReflVec, position, light.posRad.xyz - GetWorldViewPos(), light.shadowMatrix[0].xyz, light.shadowMatrix[1].xyz, tmpGloss );
-					float4 specularProbe = SpecCubeArray.SampleLevel( SampStateTrilinearClamp, float4( tmpReflVec, light.resIndex ), specCubeLod );
+					float4 specularProbe = SpecCubeArray.SampleLevel( SampStateTrilinearClamp, float4( tmpReflVec, resIndexClamps.x ), max(specCubeLod, resIndexClamps.z) );
 					specularProbe.rgb = DecodeHDRCubemap( specularProbe );
 					specularAcc += specularProbe.rgb * light.color.rgb * light.color.a * probeWeight;
 					
@@ -808,7 +805,7 @@ void TiledDeferredShadingCS( uint3 GroupID : SV_GroupID,
 		#endif
 
 		ApplyGI(specularAcc, diffuseAcc, 0, pixelUV + .5f / ScreenSize.xy, surfGloss, surfSpecCol,
-		        GiDiffuseRT, GiSpecularRT, SampStateTrilinearClamp, nIntegrMode);
+		        GiDiffuseRT, GiSpecularRT, SampStateTrilinearClamp, nIntegrMode, ForwGiIntegrationMode);
 #endif
 	}
 		
@@ -881,7 +878,10 @@ void TiledDeferredShadingCS( uint3 GroupID : SV_GroupID,
 						vProjTC.xy /= vProjTC.w;
 						
 						if (vProjTC.w > 0 && max( abs(vProjTC.x * 2 - 1), abs(vProjTC.y * 2 - 1) ) < 1)  // Avoid back-projection
-							filter = SpotTexArray.SampleLevel( SampStateTrilinearClamp, float3( vProjTC.xy, light.resIndex ), 0 ).x;
+						{
+							uint4 resIndexClamps = GetResourceIndexAndMipClamps(light.resIndex);
+							filter = SpotTexArray.SampleLevel( SampStateTrilinearClamp, float3( vProjTC.xy, resIndexClamps.x ), resIndexClamps.y ).x;
+						}
 					}
 				}
 				else
@@ -980,14 +980,15 @@ void TiledDeferredShadingCS( uint3 GroupID : SV_GroupID,
 					[branch] if (vProjTC.w < 0 || max( abs(vProjTC.x * 2 - 1), abs(vProjTC.y * 2 - 1) ) > 1)  // Avoid back-projection
 						skipShading = true;
 					else
-						lightTerm = SpotTexArray.SampleLevel( SampStateTrilinearClamp, float3( vProjTC.xy, light.resIndex ), 0 ).r;
+					{
+						uint4 resIndexClamps = GetResourceIndexAndMipClamps(light.resIndex);
+						lightTerm = SpotTexArray.SampleLevel( SampStateTrilinearClamp, float3( vProjTC.xy, resIndexClamps.x ), resIndexClamps.y ).r;
+					}
 				}
 				else if (lightType == TILEDLIGHT_TYPE_REGULAR_POINTFACE)
 				{
-					float3 dir = abs( lightVec );
-					uint cubeFace = dir.x > dir.y ? (dir.x > dir.z ? (lightVec.x < 0 ? 0 : 1) : (lightVec.z < 0 ? 4 : 5)) :
-																					(dir.y > dir.z ? (lightVec.y < 0 ? 2 : 3) : (lightVec.z < 0 ? 4 : 5));
-					
+					uint cubeFace = selectCubeFace(lightVec);
+			
 					if (light.resIndex != cubeFace)
 						skipShading = true;
 				}

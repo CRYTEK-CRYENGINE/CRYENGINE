@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "../Common/Textures/TextureStreamPool.h"
@@ -51,7 +51,6 @@ STexPoolItem::~STexPoolItem()
 	Unlink();
 	UnlinkFree();
 
-	m_pDevTexture->Unbind();
 	m_pDevTexture->Release();
 }
 
@@ -219,12 +218,6 @@ STexPoolItem* CTextureStreamPoolMgr::GetItem(const STextureLayout& pLayout, bool
 
 		pIT->Link(&pPool->m_ItemsList);
 		CryInterlockedAdd(&m_nDeviceMemReserved, pPool->m_nDevTextureSize);
-
-#if !defined (_RELEASE) && defined(ENABLE_X360_TEXTURE_CAPTURE)
-		HRESULT h = S_OK;
-		h = PIXSetTextureName(pIT->m_pDevTexture->GetBaseTexture(), sName);
-		assert(SUCCEEDED(h));
-#endif
 
 #if !defined(_RELEASE)
 		++m_frameStats.nHardCreates;

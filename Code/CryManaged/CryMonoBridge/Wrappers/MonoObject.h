@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -15,8 +15,6 @@ namespace MonoInternals
 class CMonoObject
 {
 	friend class CMonoClass;
-	friend class CMonoMethod;
-	friend class CMonoProperty;
 
 	// Begin public API
 public:
@@ -32,6 +30,7 @@ public:
 	// Gets the address of an element inside the array
 	char* GetArrayAddress(size_t elementSize, size_t index) const;
 
+	void InvalidateBeforeDeserialization();
 	// Gets the internal handle for the object
 	MonoInternals::MonoObject* GetManagedObject() const { return m_pObject; }
 	// Gets the class of the object, queries if not already available
@@ -47,6 +46,9 @@ public:
 	{
 		return static_cast<T*>(UnboxObject());
 	}
+
+	bool ReferenceEquals(const CMonoObject& other) const;
+	bool ReferenceEquals(MonoInternals::MonoObject* pOtherObject) const;
 
 protected:
 	void AssignObject(MonoInternals::MonoObject* pObject);

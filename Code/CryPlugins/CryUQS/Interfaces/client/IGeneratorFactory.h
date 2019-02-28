@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -37,6 +37,7 @@ namespace UQS
 			virtual const CryGUID&                   GetGUID() const = 0;
 			virtual const char*                      GetDescription() const = 0;
 			virtual const IInputParameterRegistry&   GetInputParameterRegistry() const = 0;
+			virtual const Shared::CTypeInfo*         GetTypeOfShuttledItemsToExpect() const = 0;
 			virtual const Shared::CTypeInfo&         GetTypeOfItemsToGenerate() const = 0;
 			virtual GeneratorUniquePtr               CreateGenerator(const void* pParams) = 0;
 			virtual void                             DestroyGenerator(IGenerator* pGeneratorToDestroy) = 0;

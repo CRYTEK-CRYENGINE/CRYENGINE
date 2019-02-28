@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -10,6 +10,7 @@
 
 #include <CryCore/ToolsHelpers/SettingsManagerHelpers.h>
 #include <CryCore/Platform/CryWindows.h>
+#include <CryString/CryPath.h>
 #include <shellapi.h>
 #include <shlobj.h>  // SHGetSpecialFolderPath
 
@@ -111,7 +112,7 @@ static string GetLastSessionCmdLine()
 	return string();
 }
 
-static wstring FindEditorExecutable(CSettingsManagerTools& smt)
+static string FindEditorExecutable(CSettingsManagerTools& smt)
 {
 	wchar_t buffer[1024];
 
@@ -125,27 +126,30 @@ static wstring FindEditorExecutable(CSettingsManagerTools& smt)
 
 		if (buffer[0] <= 0)
 		{
-			return wstring();
+			return string();
 		}
 	}
 
-	std::vector<wstring> results;
-	{
-		std::vector<wstring> dirsToIgnore;
-		dirsToIgnore.push_back(wstring(L"BinTemp"));
-		dirsToIgnore.push_back(wstring(L"Code"));
-		dirsToIgnore.push_back(wstring(L"Tools"));
+	string bufferString;
+	Unicode::Convert(bufferString, buffer);
 
-		FileUtil::FindFiles(results, 1, wstring(buffer), L"", true, L"Sandbox.exe", dirsToIgnore);
+	std::vector<string> results;
+	{
+		std::vector<string> dirsToIgnore;
+		dirsToIgnore.push_back(string("BinTemp"));
+		dirsToIgnore.push_back(string("Code"));
+		dirsToIgnore.push_back(string("Tools"));
+
+		FileUtil::FindFiles(results, 1, bufferString, "", true, "Sandbox.exe", dirsToIgnore);
 	}
 
 	if (results.empty())
 	{
 		::MessageBoxA(NULL, "Can't find the Editor.\nPlease setup correct CryENGINE root path by using Tools\\SettingsMgr.exe.", "Error", MB_ICONERROR | MB_OK);
-		return wstring();
+		return string();
 	}
 
-	return PathHelpers::Join(wstring(buffer), results[0]);
+	return PathUtil::Make(bufferString, results[0]);
 }
 
 
@@ -185,11 +189,14 @@ bool EditorHelpers::CallEditor(void** pEditorWindow, void* hParent, const char* 
 	{
 		*pEditorWindow = 0;
 
-		wstring editorPath = FindEditorExecutable(smt);
+		string editorPath = FindEditorExecutable(smt);
 
 		if (!editorPath.empty())
 		{
-			const INT_PTR hIns = (INT_PTR)::ShellExecuteW(NULL, L"open", editorPath.c_str(), szOptions, NULL, SW_SHOWNORMAL);
+			wstring weditorPath;
+			Unicode::Convert(weditorPath, editorPath);
+
+			const INT_PTR hIns = (INT_PTR)::ShellExecuteW(NULL, L"open", weditorPath.c_str(), szOptions, NULL, SW_SHOWNORMAL);
 			if (hIns > 32)
 			{
 				return true;
@@ -199,7 +206,9 @@ bool EditorHelpers::CallEditor(void** pEditorWindow, void* hParent, const char* 
 				::MessageBoxA(0,"Sandbox.exe was not found.\n\nPlease verify CryENGINE root path.","Error",MB_ICONERROR|MB_OK);
 				smt.CallSettingsManagerExe(hParent);
 				editorPath = FindEditorExecutable(smt);
-				::ShellExecuteW(NULL, L"open", editorPath.c_str(), szOptions, NULL, SW_SHOWNORMAL);
+
+				Unicode::Convert(weditorPath, editorPath);
+				::ShellExecuteW(NULL, L"open", weditorPath.c_str(), szOptions, NULL, SW_SHOWNORMAL);
 			}
 		}
 	}

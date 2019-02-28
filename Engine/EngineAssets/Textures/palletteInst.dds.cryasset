@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="1a666678-84cd-592d-9e01-8dc196a929d0">
+ <Files>
+  <File path="palletteInst.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">2</Detail>
+  <Detail name="height">512</Detail>
+  <Detail name="mipCount">1</Detail>
+ </Details>
+</AssetMetadata>

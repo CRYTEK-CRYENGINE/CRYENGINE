@@ -1,0 +1,12 @@
+<AssetMetadata version="0" type="Material" guid="59e883ad-aad4-da79-0106-9e6e7d0b5d8b">
+ <Files>
+  <File path="lens_optics.mtl"/>
+ </Files>
+ <Details>
+  <Detail name="subMaterialCount">0</Detail>
+  <Detail name="textureCount">1</Detail>
+ </Details>
+ <Dependencies>
+  <Path usageCount="1">textures/lights/lens_flare1.dds</Path>
+ </Dependencies>
+</AssetMetadata>

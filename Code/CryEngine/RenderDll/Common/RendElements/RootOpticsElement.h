@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -51,6 +51,8 @@ private:
 
 	static const float        kExtendedFlareRadiusRatio;
 
+	void RT_RenderPreview(const SLensFlareRenderParam* pParam, const Vec3& vPos);
+
 public:
 
 	RootOpticsElement() :
@@ -92,8 +94,8 @@ public:
 
 	void                Load(IXmlNode* pNode) override;
 
-	void                RenderPreview(SLensFlareRenderParam* pParam, const Vec3& vPos) override;
-	bool                ProcessAll(CPrimitiveRenderPass& targetPass, std::vector<CPrimitiveRenderPass*>& prePasses, const SFlareLight& light, const CStandardGraphicsPipeline::SViewInfo* pViewInfo, int viewInfoCount, bool bForceRender = false, bool bUpdateOcclusion = true);
+	void                RenderPreview(const SLensFlareRenderParam* pParam, const Vec3& vPos) override;
+	bool                ProcessAll(CPrimitiveRenderPass& targetPass, std::vector<CPrimitiveRenderPass*>& prePasses, const SFlareLight& light, const SRenderViewInfo* pViewInfo, int viewInfoCount, bool bForceRender = false, bool bUpdateOcclusion = true);
 
 	IOpticsElementBase* GetParent() const override                 { return NULL; }
 

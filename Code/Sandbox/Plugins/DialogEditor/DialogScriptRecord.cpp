@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "DialogScriptRecord.h"
@@ -562,10 +562,7 @@ struct MsgHelper
 
 void CDialogScriptRecord::OnBrowseAudioTrigger(string& value, CDialogScriptRecord* pRecord)
 {
-	SResourceSelectorContext x;
-	x.typeName = "AudioTrigger";
-
-	dll_string newValue = GetIEditor()->GetResourceSelectorHost()->SelectResource(x, value);
+	dll_string newValue = GetIEditor()->GetResourceSelectorHost()->GetSelector("AudioTrigger")->SelectResource(SResourceSelectorContext(), value);
 	value = newValue.c_str();
 }
 
@@ -733,3 +730,4 @@ void CDialogScriptRecord::Swap(CDialogScriptRecord* pOther)
 	pOther->m_pScript = pTmpScript;
 	pOther->FillItems();
 }
+

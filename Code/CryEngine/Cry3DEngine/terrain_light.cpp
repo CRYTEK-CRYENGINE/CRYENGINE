@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   terrain_light.cpp
@@ -32,23 +32,21 @@ _smart_ptr<IRenderMesh> CTerrain::MakeAreaRenderMesh(const Vec3& vPos, float fRa
 	PodArray<SPipTangents> tangBasises;
 	tangBasises.Clear();
 
-	Vec3 vPt(vPos);
-	int nSID = WorldToSegment(vPt, GetDefSID());
-	int nUnitSize = GetTerrain()->GetHeightMapUnitSize();
+	float unitSize = GetTerrain()->GetHeightMapUnitSize();
 
-	Vec3i vBoxMin = vPos - Vec3(fRadius, fRadius, fRadius);
-	Vec3i vBoxMax = vPos + Vec3(fRadius, fRadius, fRadius);
+	Vec3 vBoxMin = vPos - Vec3(fRadius, fRadius, fRadius);
+	Vec3 vBoxMax = vPos + Vec3(fRadius, fRadius, fRadius);
 
-	vBoxMin.x = vBoxMin.x / nUnitSize * nUnitSize;
-	vBoxMin.y = vBoxMin.y / nUnitSize * nUnitSize;
-	vBoxMin.z = vBoxMin.z / nUnitSize * nUnitSize;
+	vBoxMin.x = floor((float)vBoxMin.x / unitSize) * unitSize;
+	vBoxMin.y = floor((float)vBoxMin.y / unitSize) * unitSize;
+	vBoxMin.z = floor((float)vBoxMin.z / unitSize) * unitSize;
 
-	vBoxMax.x = vBoxMax.x / nUnitSize * nUnitSize + nUnitSize;
-	vBoxMax.y = vBoxMax.y / nUnitSize * nUnitSize + nUnitSize;
-	vBoxMax.z = vBoxMax.z / nUnitSize * nUnitSize + nUnitSize;
+	vBoxMax.x = floor((float)vBoxMax.x / unitSize) * unitSize + unitSize;
+	vBoxMax.y = floor((float)vBoxMax.y / unitSize) * unitSize + unitSize;
+	vBoxMax.z = floor((float)vBoxMax.z / unitSize) * unitSize + unitSize;
 
-	int nSizeX = (vBoxMax.x - vBoxMin.x) / nUnitSize;
-	int nSizeY = (vBoxMax.y - vBoxMin.y) / nUnitSize;
+	int nSizeX = int((vBoxMax.x - vBoxMin.x) / unitSize);
+	int nSizeY = int((vBoxMax.y - vBoxMin.y) / unitSize);
 
 	int nEstimateVerts = nSizeX * nSizeY;
 	nEstimateVerts = clamp_tpl(nEstimateVerts, 100, 10000);
@@ -56,11 +54,11 @@ _smart_ptr<IRenderMesh> CTerrain::MakeAreaRenderMesh(const Vec3& vPos, float fRa
 	lstIndices.reserve(nEstimateVerts * 6);
 
 	const CTerrain* pTerrain = GetTerrain();
-	for (int x = vBoxMin.x; x <= vBoxMax.x; x += nUnitSize)
+	for (float x = vBoxMin.x; x <= vBoxMax.x; x += unitSize)
 	{
-		for (int y = vBoxMin.y; y <= vBoxMax.y; y += nUnitSize)
+		for (float y = vBoxMin.y; y <= vBoxMax.y; y += unitSize)
 		{
-			Vec3 vTmp = Vec3((float)x, (float)y, (float)(pTerrain->GetZ(x, y, nSID)));
+			Vec3 vTmp = Vec3((float)x, (float)y, (float)(pTerrain->GetZ(x, y)));
 			posBuffer.Add(vTmp);
 		}
 	}
@@ -76,9 +74,9 @@ _smart_ptr<IRenderMesh> CTerrain::MakeAreaRenderMesh(const Vec3& vPos, float fRa
 
 			assert((int)id3 < posBuffer.Count());
 
-			if (pTerrain->GetHole(vBoxMin.x + x, vBoxMin.y + y, nSID)) continue;
+			if (pTerrain->GetHole(vBoxMin.x + x, vBoxMin.y + y)) continue;
 
-			if (pTerrain->IsMeshQuadFlipped(vBoxMin.x + x, vBoxMin.y + y, nUnitSize, nSID))
+			if (pTerrain->IsMeshQuadFlipped(vBoxMin.x + x, vBoxMin.y + y, unitSize))
 			{
 				lstIndices.Add(id0);
 				lstIndices.Add(id1);
@@ -134,7 +132,7 @@ _smart_ptr<IRenderMesh> CTerrain::MakeAreaRenderMesh(const Vec3& vPos, float fRa
 		SPipTangents basis;
 
 		Vec3 vTang = Vec3(0, 1, 0);
-		Vec3 vNormal = GetTerrain()->GetTerrainSurfaceNormal_Int(fastround_positive(posBuffer[i].x), fastround_positive(posBuffer[i].y), GetDefSID());
+		Vec3 vNormal = GetTerrain()->GetTerrainSurfaceNormal_Int(posBuffer[i].x, posBuffer[i].y);
 
 		// Orthonormalize Tangent Frame
 		Vec3 vBitang = -vNormal.Cross(vTang);

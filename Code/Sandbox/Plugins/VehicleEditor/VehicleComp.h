@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __VehicleComponent_h__
 #define __VehicleComponent_h__
@@ -32,7 +32,7 @@ public:
 	//////////////////////////////////////////////////////////////////////////
 	virtual void Done();
 	virtual void InitVariables() {}
-	virtual void Display(DisplayContext& dc);
+	virtual void Display(CObjectRenderHelper& objRenderHelper);
 
 	virtual bool HitTest(HitContext& hc);
 
@@ -98,3 +98,4 @@ public:
 };
 
 #endif // __VehicleComponent_h__
+

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // GnmShaderCompiler.cpp implements the shader compiler binary ran by RemoteShaderCompiler
 // Essentially, it performs HLSL to PSSL conversion, then runs Wave PSSLC and writes out the SB and SDB files.

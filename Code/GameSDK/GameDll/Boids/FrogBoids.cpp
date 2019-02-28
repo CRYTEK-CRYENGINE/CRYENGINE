@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   FrogBoids.cpp
@@ -131,7 +131,7 @@ void CFrogBoid::OnPickup( bool bPickup,float fSpeed )
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CFrogBoid::OnCollision( SEntityEvent &event )
+void CFrogBoid::OnCollision(const SEntityEvent &event)
 {
 	if (m_bThrown)
 	{

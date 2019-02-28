@@ -1,4 +1,4 @@
-﻿// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 using System;
 using System.Collections.Generic;
@@ -9,14 +9,22 @@ namespace CryEngine.Game
 	/// <summary>
 	/// Helper class for entities to easily manage animations.
 	/// </summary>
-	[EntityComponent(Category = "Animation")]
+	[EntityComponent(Category = "Animation", Guid = "78583bcc-4cc4-67e7-b83d-88a4bdc53e0f")]
 	public class CharacterAnimator : EntityComponent
 	{
+		[SerializeValue]
+		private string _characterGeometry = "";
+		[SerializeValue]
 		private int _characterSlot = 0;
+		[SerializeValue]
 		private string _controllerDefinition = "";
+		[SerializeValue]
 		private string _mannequinContext = "";
+		[SerializeValue]
 		private string _animationDatabase = "";
+		[SerializeValue]
 		private bool _animationDrivenMotion = false;
+		[SerializeValue]
 		private float _playbackScale = 1.0f;
 
 		private ActionController _actionController;
@@ -51,6 +59,28 @@ namespace CryEngine.Game
 		/// <value>The start name of the fragment.</value>
 		[EntityProperty(Description = "The name of the fragment that is set active when initializing this Animator.")]
 		public string StartFragmentName { get; set; }
+
+		/// <summary>
+		/// The Character geometry file to load. Usually a .cdf file.
+		/// </summary>
+		[EntityProperty(Description = "The Character geometry file to load. Usually a .cdf file.", Type = EntityPropertyType.Character)]
+		public string CharacterGeometry
+		{
+			get
+			{
+				return _characterGeometry;
+			}
+			set
+			{
+				if(_characterGeometry != value)
+				{
+					_characterGeometry = value;
+					CharacterSlot = Entity.LoadCharacter(CharacterSlot, value);
+					_dirty = true;
+				}
+			}
+		}
+
 		/// <summary>
 		/// The Animator will try to animate the character in this slot of its Entity.
 		/// </summary>
@@ -140,8 +170,8 @@ namespace CryEngine.Game
 		/// </summary>
 		/// <value><c>true</c> if animation driven motion; otherwise, <c>false</c>.</value>
 		[EntityProperty(Description = "If true, the animation will move this Entity.")]
-		public bool AnimationDrivenMotion 
-		{ 
+		public bool AnimationDrivenMotion
+		{
 			get
 			{
 				var skeleton = _character?.AnimationSkeleton;
@@ -172,8 +202,8 @@ namespace CryEngine.Game
 		/// </summary>
 		/// <value>The animation speed.</value>
 		[EntityProperty(Description = "Influences the speed at which animations play.")]
-		public float PlaybackScale 
-		{ 
+		public float PlaybackScale
+		{
 			get
 			{
 				if(_character == null)
@@ -196,8 +226,6 @@ namespace CryEngine.Game
 
 		protected override void OnInitialize()
 		{
-			base.OnInitialize();
-
 			// The user might have just added the component, or it might have been loaded from the map-data.
 			// We try to initialize it, but we don't want to spam the log if the user might not have put in all the right values.
 			Initialize(true);
@@ -205,23 +233,17 @@ namespace CryEngine.Game
 
 		protected override void OnRemove()
 		{
-			base.OnRemove();
-
 			Deinitialize();
 		}
 
 		protected override void OnGameplayStart()
 		{
-			base.OnGameplayStart();
-
 			// When the gameplay starts all values are assumed to be set correctly, so log any errors that might occur.
-            Initialize(false);
+			Initialize(false);
 		}
 
 		protected override void OnEditorGameModeChange(bool enterGame)
 		{
-			base.OnEditorGameModeChange(enterGame);
-
 			if(!enterGame)
 			{
 				Deinitialize();
@@ -235,8 +257,6 @@ namespace CryEngine.Game
 
 		protected override void OnUpdate(float frameTime)
 		{
-			base.OnUpdate(frameTime);
-
 			if(_destroyed)
 			{
 				return;
@@ -279,12 +299,15 @@ namespace CryEngine.Game
 				return;
 			}
 
+			string characterGeometry = _characterGeometry;
 			string mannequinControllerDefinition = ControllerDefinition;
 			string mannequinContextName = MannequinContext;
 			string animationDatabasePath = AnimationDatabase;
 			string startFragmentName = StartFragmentName;
 
-			if(string.IsNullOrWhiteSpace(mannequinControllerDefinition) ||
+
+			if(string.IsNullOrWhiteSpace(characterGeometry) ||
+			   string.IsNullOrWhiteSpace(mannequinControllerDefinition) ||
 			   string.IsNullOrWhiteSpace(mannequinContextName) ||
 			   string.IsNullOrWhiteSpace(animationDatabasePath) ||
 			   string.IsNullOrWhiteSpace(startFragmentName))
@@ -296,6 +319,7 @@ namespace CryEngine.Game
 				return;
 			}
 
+			CharacterSlot = entity.LoadCharacter(CharacterSlot, characterGeometry);
 			var character = entity.GetCharacter(CharacterSlot);
 			if(character == null)
 			{
@@ -372,7 +396,7 @@ namespace CryEngine.Game
 			_actionController.Queue(animationContextAction);
 
 			// Decide if movement is coming from the animation (root joint offset). If false, we control this entirely via physics.
-			var skeleton = character.AnimationSkeleton;
+			var skeleton = character?.AnimationSkeleton;
 			if(skeleton == null)
 			{
 				if(!silent)
@@ -439,7 +463,7 @@ namespace CryEngine.Game
 
 			foreach(var keyValue in _tagValues)
 			{
-				_animationContext.SetTagValue(keyValue.Key, keyValue.Value);
+				_animationContext?.SetTagValue(keyValue.Key, keyValue.Value);
 			}
 			_tagValues.Clear();
 		}
@@ -453,7 +477,7 @@ namespace CryEngine.Game
 
 			foreach(var keyValue in _motionValues)
 			{
-				_character.SetAnimationSkeletonParameter(keyValue.Key, keyValue.Value);
+				_character?.SetAnimationSkeletonParameter(keyValue.Key, keyValue.Value);
 			}
 			_motionValues.Clear();
 		}
@@ -500,7 +524,7 @@ namespace CryEngine.Game
 
 			if(_dirty)
 			{
-                Initialize(false);
+				Initialize(false);
 			}
 
 			if(tag == null)
@@ -541,7 +565,7 @@ namespace CryEngine.Game
 
 			if(_dirty)
 			{
-                Initialize(false);
+				Initialize(false);
 			}
 
 			if(_character == null)
@@ -560,29 +584,29 @@ namespace CryEngine.Game
 
 				switch(id)
 				{
-				// Most values can have the accumulated values from over multiple frames
-				case MotionParameterId.TravelSpeed:
-				case MotionParameterId.TurnSpeed:
-				case MotionParameterId.TurnAngle:
-				case MotionParameterId.TravelDist:
-				case MotionParameterId.StopLeg:
-				case MotionParameterId.BlendWeight1:
-				case MotionParameterId.BlendWeight2:
-				case MotionParameterId.BlendWeight3:
-				case MotionParameterId.BlendWeight4:
-				case MotionParameterId.BlendWeight5:
-				case MotionParameterId.BlendWeight6:
-				case MotionParameterId.BlendWeight7:
-					_motionValues[id] += value;
-					break;
+					// Most values can have the accumulated values from over multiple frames
+					case MotionParameterId.TravelSpeed:
+					case MotionParameterId.TurnSpeed:
+					case MotionParameterId.TurnAngle:
+					case MotionParameterId.TravelDist:
+					case MotionParameterId.StopLeg:
+					case MotionParameterId.BlendWeight1:
+					case MotionParameterId.BlendWeight2:
+					case MotionParameterId.BlendWeight3:
+					case MotionParameterId.BlendWeight4:
+					case MotionParameterId.BlendWeight5:
+					case MotionParameterId.BlendWeight6:
+					case MotionParameterId.BlendWeight7:
+						_motionValues[id] += value;
+						break;
 
-				// Some values need absolute values
-				case MotionParameterId.TravelAngle:
-				case MotionParameterId.TravelSlope:
-					_motionValues[id] = value;
-					break;
-				default:
-					throw new ArgumentOutOfRangeException();
+					// Some values need absolute values
+					case MotionParameterId.TravelAngle:
+					case MotionParameterId.TravelSlope:
+						_motionValues[id] = value;
+						break;
+					default:
+						throw new ArgumentOutOfRangeException();
 				}
 			}
 			else

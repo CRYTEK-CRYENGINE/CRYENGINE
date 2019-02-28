@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   statobjmandraw.cpp
@@ -302,7 +302,7 @@ void CVisArea::UpdatePortalCameraPlanes(CCamera& cam, Vec3* pVerts, bool NotForc
 	if (GetCVars()->e_Portals == 5)
 	{
 		float farrColor[4] = { 1, 1, 1, 1 };
-		//		GetRenderer()->SetMaterialColor(1,1,1,1);
+
 		DrawLine(pVerts[0], pVerts[1]);
 		IRenderAuxText::DrawLabelEx(pVerts[0], 1, farrColor, false, true, "0");
 		DrawLine(pVerts[1], pVerts[2]);
@@ -353,7 +353,7 @@ void        CVisArea::PreRender(int nReqursionLevel,
 	s_tmpCameras[m_lstCurCamerasIdx + m_lstCurCamerasLen] = CurCamera;
 	++m_lstCurCamerasLen;
 
-	if (lstVisibleAreas.Find(this) < 0)
+	if (lstVisibleAreas.Find(this) < 0 && GetCVars()->e_ClipVolumes)
 	{
 		lstVisibleAreas.Add(this);
 		m_nStencilRef = passInfo.GetIRenderView()->AddClipVolume(this);
@@ -511,8 +511,8 @@ void        CVisArea::PreRender(int nReqursionLevel,
 			arrPortVerts[3] = vCenter - Vec3(0, 0, 1.f) * fRadius + vBorder;
 		}
 
-		if (GetCVars()->e_Portals == 4) // make color recursion dependent
-			GetRenderer()->SetMaterialColor(1, 1, passInfo.IsGeneralPass(), 1);
+		//if (GetCVars()->e_Portals == 4) // make color recursion dependent
+			//GetRenderer()->SetMaterialColor(1, 1, passInfo.IsGeneralPass(), 1);
 
 		Vec3 vPortalFaceCenter = (arrPortVerts[0] + arrPortVerts[1] + arrPortVerts[2] + arrPortVerts[3]) / 4;
 		vPortToCamDir = CurCamera.GetPosition() - vPortalFaceCenter;
@@ -558,11 +558,11 @@ void        CVisArea::PreRender(int nReqursionLevel,
 
 			// get 3d positions of portal bounds
 			{
-				int i = 0;
-				float w = (float)GetRenderer()->GetWidth();
-				float h = (float)GetRenderer()->GetHeight();
-				float d = 0.01f;
+				const float w = float(CurCamera.GetViewSurfaceX());
+				const float h = float(CurCamera.GetViewSurfaceZ());
+				const float d = 0.01f;
 
+				int i = 0;
 				GetRenderer()->UnProjectFromScreen(aabb.min.x * w / 100, aabb.min.y * h / 100, d, &lstPortVertsSS[i].x, &lstPortVertsSS[i].y, &lstPortVertsSS[i].z);
 				i++;
 				GetRenderer()->UnProjectFromScreen(aabb.min.x * w / 100, aabb.max.y * h / 100, d, &lstPortVertsSS[i].x, &lstPortVertsSS[i].y, &lstPortVertsSS[i].z);
@@ -669,7 +669,7 @@ void        CVisArea::PreRender(int nReqursionLevel,
 					continue;
 			}
 
-			if ((bCanSeeThruThisArea || m_lstConnections.Count() == 1) && (m_bThisIsPortal || CurCamera.IsAABBVisible_F(pNeibVolume->m_boxStatics)))
+			if (bCanSeeThruThisArea && (m_bThisIsPortal || CurCamera.IsAABBVisible_F(pNeibVolume->m_boxStatics)))
 				pNeibVolume->PreRender(nReqursionLevel - 1, CurCamera, this, pCurPortal, pbOutdoorVisible, plstOutPortCameras, pbSkyVisible, pbOceanVisible, lstVisibleAreas, passInfo);
 		}
 	}
@@ -872,20 +872,18 @@ void CVisArea::ClipPortalVerticesByCameraFrustum(PodArray<Vec3>* pPolygon, const
 
 void CVisArea::GetMemoryUsage(ICrySizer* pSizer)
 {
-	//  pSizer->AddContainer(m_lstEntities[STATIC_OBJECTS]);
-	//pSizer->AddContainer(m_lstEntities[DYNAMIC_OBJECTS]);
+	// pSizer->AddContainer(m_lstEntities[STATIC_OBJECTS]);
+	// pSizer->AddContainer(m_lstEntities[DYNAMIC_OBJECTS]);
 
-	// TODO: include obects tree
-
-	if (m_pObjectsTree)
+	if (IsObjectsTreeValid())
 	{
 		SIZER_COMPONENT_NAME(pSizer, "IndoorObjectsTree");
-		m_pObjectsTree->GetMemoryUsage(pSizer);
+		GetObjectsTree()->GetMemoryUsage(pSizer);
 	}
 
-	//  for(int nStatic=0; nStatic<2; nStatic++)
-	//for(int i=0; i<m_lstEntities[nStatic].Count(); i++)
-	//    nSize += m_lstEntities[nStatic][i].pNode->GetMemoryUsage();
+	// for(int nStatic=0; nStatic<2; nStatic++)
+	//   for(int i=0; i<m_lstEntities[nStatic].Count(); i++)
+	//     nSize += m_lstEntities[nStatic][i].pNode->GetMemoryUsage();
 
 	pSizer->AddObject(this, sizeof(*this));
 }
@@ -895,7 +893,7 @@ void CVisArea::UpdateOcclusionFlagInTerrain()
 	if (m_bAffectedByOutLights && !m_bThisIsPortal)
 	{
 		Vec3 vCenter = GetAABBox()->GetCenter();
-		if (vCenter.z < GetTerrain()->GetZApr(vCenter.x, vCenter.y, GetDefSID()))
+		if (vCenter.z < GetTerrain()->GetZApr(vCenter.x, vCenter.y))
 		{
 			AABB box = *GetAABBox();
 			box.min.z = 0;
@@ -904,7 +902,7 @@ void CVisArea::UpdateOcclusionFlagInTerrain()
 			box.max += Vec3(8, 8, 8);
 			PodArray<CTerrainNode*>& lstResult = s_tmpLstTerrainNodeResult;
 			lstResult.Clear();
-			GetTerrain()->IntersectWithBox(box, &lstResult, GetDefSID());
+			GetTerrain()->IntersectWithBox(box, &lstResult);
 			for (int i = 0; i < lstResult.Count(); i++)
 				if (lstResult[i]->m_nTreeLevel <= 2)
 					lstResult[i]->m_bNoOcclusion = true;
@@ -1027,8 +1025,10 @@ void CVisArea::OffsetPosition(const Vec3& delta)
 	{
 		m_lstShapePoints[i] += delta;
 	}
-	if (m_pObjectsTree)
-		m_pObjectsTree->OffsetObjects(delta);
+	if (IsObjectsTreeValid())
+	{
+		GetObjectsTree()->OffsetObjects(delta);
+	}
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1093,91 +1093,90 @@ bool InsideSpherePolygon(Vec3* polygon, int N, Sphere& S)
 
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
+namespace
+{
+	inline void HelperGetNearestCubeProbe(PodArray<CVisArea*>& arrayVisArea, float& fMinDistance, int& nMaxPriority, CLightEntity*& pNearestLight, const AABB* pBBox)
+	{
+		int s = arrayVisArea.Count();
+		for (int i = 0; i < s; ++i)
+		{
+			if (arrayVisArea[i]->IsObjectsTreeValid())
+			{
+				if (!pBBox || Overlap::AABB_AABB(*arrayVisArea[i]->GetAABBox(), *pBBox))
+				{
+					arrayVisArea[i]->GetObjectsTree()->GetNearestCubeProbe(fMinDistance, nMaxPriority, pNearestLight, pBBox);
+				}
+			}
+		}
+	}
+
+	inline void HelperGetObjectsByType(PodArray<CVisArea*>& arrayVisArea, PodArray<IRenderNode*>& lstObjects, EERType objType, const AABB* pBBox, bool* pInstStreamReady, uint64 dwFlags)
+	{		
+		int s = arrayVisArea.Count();
+		for (int i = 0; i < s; ++i)
+		{
+			if (arrayVisArea[i]->IsObjectsTreeValid())
+			{
+				if (!pBBox || Overlap::AABB_AABB(*arrayVisArea[i]->GetAABBox(), *pBBox))
+				{
+					arrayVisArea[i]->GetObjectsTree()->GetObjectsByType(lstObjects, objType, pBBox, pInstStreamReady, dwFlags);
+				}
+			}
+		}
+	}
+
+	inline int HelperGetObjectsCount(PodArray<CVisArea*>& arrayVisArea, EOcTeeNodeListType eListType)
+	{
+		int nCount = 0;
+		int s = arrayVisArea.Count();
+		for (int i = 0; i < s; ++i)
+		{
+			if (arrayVisArea[i]->IsObjectsTreeValid())
+			{
+				nCount += arrayVisArea[i]->GetObjectsTree()->GetObjectsCount(eListType);
+			}
+		}
+		return nCount;
+	}
+
+	inline void HelperGetStreamedInNodesNum(PodArray<CVisArea*>& arrayVisArea, int& nAllStreamable, int& nReady)
+	{
+		int s = arrayVisArea.Count();
+		for (int dwI = 0; dwI < s; ++dwI)
+		{
+			if (arrayVisArea[dwI]->IsObjectsTreeValid())
+			{
+				arrayVisArea[dwI]->GetObjectsTree()->GetStreamedInNodesNum(nAllStreamable, nReady);
+			}
+		}
+	}
+
+}
+
 void CVisAreaManager::GetNearestCubeProbe(float& fMinDistance, int& nMaxPriority, CLightEntity*& pNearestLight, const AABB* pBBox)
 {
-	{
-		uint32 dwSize = m_lstVisAreas.Count();
-
-		for (uint32 dwI = 0; dwI < dwSize; ++dwI)
-			if (m_lstVisAreas[dwI]->m_pObjectsTree)
-				if (!pBBox || Overlap::AABB_AABB(*m_lstVisAreas[dwI]->GetAABBox(), *pBBox))
-					m_lstVisAreas[dwI]->m_pObjectsTree->GetNearestCubeProbe(fMinDistance, nMaxPriority, pNearestLight, pBBox);
-	}
-
-	{
-		uint32 dwSize = m_lstPortals.Count();
-
-		for (uint32 dwI = 0; dwI < dwSize; ++dwI)
-			if (m_lstPortals[dwI]->m_pObjectsTree)
-				if (!pBBox || Overlap::AABB_AABB(*m_lstPortals[dwI]->GetAABBox(), *pBBox))
-					m_lstPortals[dwI]->m_pObjectsTree->GetNearestCubeProbe(fMinDistance, nMaxPriority, pNearestLight, pBBox);
-	}
+	HelperGetNearestCubeProbe(m_lstVisAreas, fMinDistance, nMaxPriority, pNearestLight, pBBox);
+	HelperGetNearestCubeProbe(m_lstPortals,  fMinDistance, nMaxPriority, pNearestLight, pBBox);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 void CVisAreaManager::GetObjectsByType(PodArray<IRenderNode*>& lstObjects, EERType objType, const AABB* pBBox, bool* pInstStreamReady, uint64 dwFlags)
 {
-	{
-		uint32 dwSize = m_lstVisAreas.Count();
-
-		for (uint32 dwI = 0; dwI < dwSize; ++dwI)
-			if (m_lstVisAreas[dwI]->m_pObjectsTree)
-				if (!pBBox || Overlap::AABB_AABB(*m_lstVisAreas[dwI]->GetAABBox(), *pBBox))
-					m_lstVisAreas[dwI]->m_pObjectsTree->GetObjectsByType(lstObjects, objType, pBBox, pInstStreamReady, dwFlags);
-	}
-
-	{
-		uint32 dwSize = m_lstPortals.Count();
-
-		for (uint32 dwI = 0; dwI < dwSize; ++dwI)
-			if (m_lstPortals[dwI]->m_pObjectsTree)
-				if (!pBBox || Overlap::AABB_AABB(*m_lstPortals[dwI]->GetAABBox(), *pBBox))
-					m_lstPortals[dwI]->m_pObjectsTree->GetObjectsByType(lstObjects, objType, pBBox, pInstStreamReady, dwFlags);
-	}
+	HelperGetObjectsByType(m_lstVisAreas, lstObjects, objType, pBBox, pInstStreamReady, dwFlags);
+	HelperGetObjectsByType(m_lstPortals,  lstObjects, objType, pBBox, pInstStreamReady, dwFlags);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 int CVisAreaManager::GetObjectsCount(EOcTeeNodeListType eListType)
 {
-	int nCount = 0;
-
-	{
-		uint32 dwSize = m_lstVisAreas.Count();
-
-		for (uint32 dwI = 0; dwI < dwSize; ++dwI)
-			if (m_lstVisAreas[dwI]->m_pObjectsTree)
-				nCount += m_lstVisAreas[dwI]->m_pObjectsTree->GetObjectsCount(eListType);
-	}
-
-	{
-		uint32 dwSize = m_lstPortals.Count();
-
-		for (uint32 dwI = 0; dwI < dwSize; ++dwI)
-			if (m_lstPortals[dwI]->m_pObjectsTree)
-				nCount += m_lstPortals[dwI]->m_pObjectsTree->GetObjectsCount(eListType);
-	}
-
-	return nCount;
+	return HelperGetObjectsCount(m_lstVisAreas, eListType) + HelperGetObjectsCount(m_lstPortals, eListType);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 void CVisAreaManager::GetStreamedInNodesNum(int& nAllStreamable, int& nReady)
 {
-	{
-		uint32 dwSize = m_lstVisAreas.Count();
-
-		for (uint32 dwI = 0; dwI < dwSize; ++dwI)
-			if (m_lstVisAreas[dwI]->m_pObjectsTree)
-				m_lstVisAreas[dwI]->m_pObjectsTree->GetStreamedInNodesNum(nAllStreamable, nReady);
-	}
-
-	{
-		uint32 dwSize = m_lstPortals.Count();
-
-		for (uint32 dwI = 0; dwI < dwSize; ++dwI)
-			if (m_lstPortals[dwI]->m_pObjectsTree)
-				m_lstPortals[dwI]->m_pObjectsTree->GetStreamedInNodesNum(nAllStreamable, nReady);
-	}
+	HelperGetStreamedInNodesNum(m_lstVisAreas, nAllStreamable, nReady);
+	HelperGetStreamedInNodesNum(m_lstPortals,  nAllStreamable, nReady);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1248,10 +1247,10 @@ void CVisArea::UpdateGeometryBBox()
 		m_boxStatics.min -= Vec3(PORTAL_GEOM_BBOX_EXTENT, PORTAL_GEOM_BBOX_EXTENT, PORTAL_GEOM_BBOX_EXTENT);
 	}
 
-	if (m_pObjectsTree)
+	if (IsObjectsTreeValid())
 	{
 		PodArray<IRenderNode*> lstObjects;
-		m_pObjectsTree->GetObjectsByType(lstObjects, eERType_Brush, NULL);
+		GetObjectsTree()->GetObjectsByType(lstObjects, eERType_Brush, NULL);
 
 		for (int i = 0; i < lstObjects.Count(); i++)
 		{
@@ -1434,6 +1433,18 @@ void CVisArea::UpdatePortalBlendInfo(const SRenderingPassInfo& passInfo)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
+namespace
+{
+	void HelperInsertObject(CVisArea* pVisArea, IRenderNode* pEnt, const AABB& objBox, const float fObjRadiusSqr, Vec3& vEntCenter)
+	{
+		if (!pVisArea->IsObjectsTreeValid())
+		{
+			pVisArea->SetObjectsTree(COctreeNode::Create(pVisArea->m_boxArea, pVisArea));
+		}
+		pVisArea->GetObjectsTree()->InsertObject(pEnt, objBox, fObjRadiusSqr, vEntCenter);
+	}
+}
+
 bool CVisAreaManager::SetEntityArea(IRenderNode* pEnt, const AABB& objBox, const float fObjRadiusSqr)
 {
 	assert(pEnt);
@@ -1452,11 +1463,7 @@ bool CVisAreaManager::SetEntityArea(IRenderNode* pEnt, const AABB& objBox, const
 		if (pCurrentPortal->IsPointInsideVisArea(vEntCenter))
 		{
 			pVisArea = pCurrentPortal;
-			if (!pVisArea->m_pObjectsTree)
-			{
-				pVisArea->m_pObjectsTree = COctreeNode::Create(DEFAULT_SID, pVisArea->m_boxArea, pVisArea);
-			}
-			pVisArea->m_pObjectsTree->InsertObject(pEnt, objBox, fObjRadiusSqr, vEntCenter);
+			HelperInsertObject(pVisArea, pEnt, objBox, fObjRadiusSqr, vEntCenter);
 			break;
 		}
 	}
@@ -1474,12 +1481,7 @@ bool CVisAreaManager::SetEntityArea(IRenderNode* pEnt, const AABB& objBox, const
 			if (pCurrentPortal->IsBoxOverlapVisArea(aabb))
 			{
 				pVisArea = pCurrentPortal;
-				if (!pVisArea->m_pObjectsTree)
-				{
-					pVisArea->m_pObjectsTree = COctreeNode::Create(DEFAULT_SID, pVisArea->m_boxArea, pVisArea);
-				}
-
-				pVisArea->m_pObjectsTree->InsertObject(pEnt, objBox, fObjRadiusSqr, vEntCenter);
+				HelperInsertObject(pVisArea, pEnt, objBox, fObjRadiusSqr, vEntCenter);
 				break;
 			}
 		}
@@ -1496,11 +1498,7 @@ bool CVisAreaManager::SetEntityArea(IRenderNode* pEnt, const AABB& objBox, const
 			if (pCurrentVisArea->IsPointInsideVisArea(vEntCenter))
 			{
 				pVisArea = pCurrentVisArea;
-				if (!pVisArea->m_pObjectsTree)
-				{
-					pVisArea->m_pObjectsTree = COctreeNode::Create(DEFAULT_SID, pVisArea->m_boxArea, pVisArea);
-				}
-				pVisArea->m_pObjectsTree->InsertObject(pEnt, objBox, fObjRadiusSqr, vEntCenter);
+				HelperInsertObject(pVisArea, pEnt, objBox, fObjRadiusSqr, vEntCenter);
 				break;
 			}
 		}

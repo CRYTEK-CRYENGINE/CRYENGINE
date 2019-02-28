@@ -11,6 +11,7 @@ add_sources("CryAudioImpl_uber_0.cpp"
 		"AudioImplCVars.h"
 		"Common.h"
 		"FileIOHandler.h"
+		"GlobalData.h"
 		"resource.h"
 		"stdafx.h"
 	SOURCE_GROUP "Source Files"
@@ -31,7 +32,7 @@ end_sources()
 #END-FILE-LIST
 
 if (AUDIO_WWISE)
-	CryEngineModule(CryAudioImplWwise FORCE_SHARED PCH "stdafx.cpp" SOLUTION_FOLDER "CryEngine/Audio/Implementations")
+	CryEngineModule(CryAudioImplWwise FORCE_SHARED_WIN PCH "stdafx.cpp" SOLUTION_FOLDER "CryEngine/Audio/Implementations")
 	target_include_directories(${THIS_PROJECT} PRIVATE ../../Common "${SDK_DIR}/Audio/oculus/wwise/Include" "${SDK_DIR}/Audio/wwise/SDK/include" )
 	
 	if(AUDIO_OCULUS_HRTF)
@@ -64,7 +65,23 @@ if (AUDIO_WWISE)
 	endif()
 
 	if ((WIN64 OR WIN32 OR DURANGO) AND MSVC)
-		set(WWISE_LIB_PATH "${SDK_DIR}/Audio/wwise/SDK/${WWISE_PLATFORM_PATH}_${MSVC_LIB_PREFIX}/$<CONFIG>/lib/")
+		if (MSVC_VERSION EQUAL 1700)
+			# Visual Studio 2012
+			set(MSVC_LIB_PREFIX_WWISE "vc110")
+		elseif (MSVC_VERSION EQUAL 1800)
+			# Visual Studio 2013
+			set(MSVC_LIB_PREFIX_WWISE "vc120")
+		elseif (MSVC_VERSION EQUAL 1900)
+			# Visual Studio 2015
+			set(MSVC_LIB_PREFIX_WWISE "vc140")
+		elseif ((MSVC_VERSION GREATER 1900) AND (MSVC_VERSION LESS_EQUAL 1919))
+			# Visual Studio 2017
+			set(MSVC_LIB_PREFIX_WWISE "vc150")
+		elseif (MSVC_VERSION GREATER 1919)
+			# Visual Studio 20??
+			set(MSVC_LIB_PREFIX_WWISE "vc150")
+		endif()
+		set(WWISE_LIB_PATH "${SDK_DIR}/Audio/wwise/SDK/${WWISE_PLATFORM_PATH}_${MSVC_LIB_PREFIX_WWISE}/$<CONFIG>/lib/")
 	else()
 		set(WWISE_LIB_PATH "${SDK_DIR}/Audio/wwise/SDK/${WWISE_PLATFORM_PATH}/$<CONFIG>/lib/")
 	endif()
@@ -89,6 +106,8 @@ if (AUDIO_WWISE)
 		AkHarmonizerFX
 		AkMatrixReverbFX
 		AkMeterFX
+		AkMotionSourceSource
+		AkOpusDecoder
 		AkParametricEQFX
 		AkPeakLimiterFX
 		AkPitchShifterFX
@@ -98,11 +117,11 @@ if (AUDIO_WWISE)
 		AkSilenceSource
 		AkSineSource
 		AkSoundSeedImpactFX
-		AkSoundSeedWind
-		AkSoundSeedWoosh
+		AkSoundSeedWindSource
+		AkSoundSeedWooshSource
 		AkSpatialAudio
 		AkStereoDelayFX
-		AkSynthOne
+		AkSynthOneSource
 		AkTimeStretchFX
 		AkToneSource
 		AkTremoloFX
@@ -120,35 +139,38 @@ if (AUDIO_WWISE)
 		iZTrashDynamicsFX
 		iZTrashFiltersFX
 		iZTrashMultibandDistortionFX
-		AkMotionGenerator
-		AkRumble
-		)
+		AuroHeadphoneFX
+		ResonanceAudioFX
+	)
 
 	set( COMMON_WWISE_LIBS ${WWISE_CORE_LIBS} ${WWISE_PLUGIN_LIBS} )
 
 	make_library(COMMON_WWISE_LIBS "${WWISE_LIB_PATH}")
 	make_library(COMM_CENTRAL_LIBS "${WWISE_LIB_PATH}")
 
-	set( WIN_LIBS Ole32 dxguid ws2_32 Dsound XINPUT9_1_0 Msacm32 )
-	set( WIN_WWISE_LIBS ${WWISE_EXTRA_PLUGIN_LIBS} AuroHeadphoneFX AuroPannerMixer )
+	# TODO: ws2_32 is not needed in release builds (Wwise profiling)
+	set( WIN_LIBS Ole32 Msacm32 dinput8 Winmm dsound dxguid ws2_32 xinput )
+	set( WIN_WWISE_LIBS ${WWISE_EXTRA_PLUGIN_LIBS} AkMotionGeneratorSource AkMotionSink )
 	make_library(WIN_WWISE_LIBS "${WWISE_LIB_PATH}")
 	set( WIN_RELEASE_LIBS ${COMMON_WWISE_LIBS} ${WIN_WWISE_LIBS} ${WIN_LIBS} )
 	set( WIN_NONRELEASE_LIBS ${COMM_CENTRAL_LIBS} ${WIN_RELEASE_LIBS} "${WWISE_LIB_PATH}SFLib.lib" )
 
 	set( DURANGO_LIBS MMDevApi Ws2_32 combase kernelx SmartGlassInterop d3dcompiler dxguid xg_x uuid xaudio2 acphal )
-	set( DURANGO_WWISE_LIBS ${WWISE_EXTRA_PLUGIN_LIBS} AuroHeadphoneFX AuroPannerMixer)
+	set( DURANGO_WWISE_LIBS ${WWISE_EXTRA_PLUGIN_LIBS} AkMotionGeneratorSource AkMotionSink )
 	make_library(DURANGO_WWISE_LIBS "${WWISE_LIB_PATH}")
 	set( DURANGO_RELEASE_LIBS ${COMMON_WWISE_LIBS} ${DURANGO_WWISE_LIBS} ${DURANGO_LIBS} )
 	set( DURANGO_NONRELEASE_LIBS ${COMM_CENTRAL_LIBS} ${DURANGO_RELEASE_LIBS} )
 
 	set( ORBIS_LIBS SceAudioOut_stub_weak SceAjm_stub_weak SceAudio3d_stub_weak SceMove_Stub_weak)
-	set( ORBIS_WWISE_LIBS ${WWISE_EXTRA_PLUGIN_LIBS} SceAudio3dEngine AuroHeadphoneFX AuroPannerMixer )
+	set( ORBIS_WWISE_LIBS ${WWISE_EXTRA_PLUGIN_LIBS} SceAudio3dEngine AkMotionGeneratorSource AkMotionSink )
 	make_library(ORBIS_WWISE_LIBS "${WWISE_LIB_PATH}")
 	set( ORBIS_RELEASE_LIBS ${COMMON_WWISE_LIBS} ${ORBIS_WWISE_LIBS} ${ORBIS_LIBS} )
 	set( ORBIS_NONRELEASE_LIBS ${COMM_CENTRAL_LIBS} ${ORBIS_RELEASE_LIBS} )
 	
 	set( LINUX_LIBS pthread)
-	set( LINUX_RELEASE_LIBS ${COMMON_WWISE_LIBS} ${LINUX_LIBS} )
+	set( LINUX_WWISE_LIBS ${WWISE_EXTRA_PLUGIN_LIBS})
+	make_library(LINUX_WWISE_LIBS "${WWISE_LIB_PATH}")
+	set( LINUX_RELEASE_LIBS ${COMMON_WWISE_LIBS} ${LINUX_WWISE_LIBS} ${LINUX_LIBS} )
 	set( LINUX_NONRELEASE_LIBS ${COMM_CENTRAL_LIBS} ${LINUX_RELEASE_LIBS} )
 	
 	set( DARWIN_WWISE_LIBS AkAACDecoder )
@@ -162,7 +184,6 @@ if (AUDIO_WWISE)
 	set( ANDROID_RELEASE_LIBS ${COMMON_WWISE_LIBS} ${ANDROID_WWISE_LIBS} )
 	set( ANDROID_NONRELEASE_LIBS ${COMM_CENTRAL_LIBS} ${ANDROID_RELEASE_LIBS} )
 
-	
 	target_compile_definitions(${THIS_PROJECT} PRIVATE -DWWISE_FOR_$<UPPER_CASE:$<CONFIG>>)
 	
 	if( ${WWISE_PLATFORM_PREFIX}_RELEASE_LIBS )

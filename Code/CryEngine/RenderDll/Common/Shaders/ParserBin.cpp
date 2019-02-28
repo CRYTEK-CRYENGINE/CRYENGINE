@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*=============================================================================
    ParserBin.cpp : Script parser implementations.
@@ -193,8 +193,6 @@ void CParserBin::Init()
 	fxTokenKey("%_HS", eT__HS);
 	fxTokenKey("%_DS", eT__DS);
 	fxTokenKey("%_CS", eT__CS);
-
-	FX_REGISTER_TOKEN(_g_SkinQuat);
 
 	FX_REGISTER_TOKEN(tex2D);
 	FX_REGISTER_TOKEN(tex2Dproj);
@@ -605,7 +603,6 @@ void CParserBin::Init()
 	FX_REGISTER_TOKEN(Glass);
 	FX_REGISTER_TOKEN(Vegetation);
 	FX_REGISTER_TOKEN(Particle);
-	FX_REGISTER_TOKEN(GenerateSprites);
 	FX_REGISTER_TOKEN(GenerateClouds);
 	FX_REGISTER_TOKEN(ScanWater);
 
@@ -619,7 +616,6 @@ void CParserBin::Init()
 	FX_REGISTER_TOKEN(TechniqueCustomRender);
 	FX_REGISTER_TOKEN(TechniqueEffectLayer);
 	FX_REGISTER_TOKEN(TechniqueDebug);
-	FX_REGISTER_TOKEN(TechniqueSoftAlphaTest);
 	FX_REGISTER_TOKEN(TechniqueWaterRefl);
 	FX_REGISTER_TOKEN(TechniqueWaterCaustic);
 	FX_REGISTER_TOKEN(TechniqueThickness);
@@ -736,7 +732,7 @@ void CParserBin::Init()
 		uint32 Macro[64];
 		if (pr->m_szMacro[0])
 		{
-			char* szBuf = (char*)pr->m_szMacro.c_str();
+			const char* szBuf = (char*)pr->m_szMacro.c_str();
 			SkipCharacters(&szBuf, " ");
 			if (!szBuf[0])
 				break;
@@ -754,118 +750,78 @@ void CParserBin::Init()
 	if (!CParserBin::m_bShaderCacheGen)
 	{
 #if CRY_PLATFORM_ORBIS
-		SetupForOrbis();
+		SetupForPlatform(SF_ORBIS);
 #elif CRY_PLATFORM_DURANGO
-		SetupForDurango();
+		SetupForPlatform(SF_DURANGO);
 #elif CRY_RENDERER_OPENGLES && DXGL_INPUT_GLSL
-		SetupForGLES3();
+		SetupForPlatform(SF_GLES3);
 #elif CRY_RENDERER_OPENGL && DXGL_INPUT_GLSL
-		SetupForGL4();
+		SetupForPlatform(SF_GL4);
 #elif CRY_RENDERER_VULKAN
-		SetupForVulkan();
+		SetupForPlatform(SF_VULKAN);
 #else
-		SetupForD3D11();
+		SetupForPlatform(SF_D3D11);
 #endif
 	}
 }
 
-void CParserBin::SetupForD3D11()
+void CParserBin::SetupForPlatform(uint32 nPlatform)
 {
 	CleanPlatformMacros();
 	uint32 nMacro[1] = { eT_1 };
+
+	switch (nPlatform)
+	{
+	case SF_D3D11:
 #if CRY_PLATFORM_WINDOWS || CRY_RENDERER_OPENGL
-	AddMacro(CParserBin::fxToken("PCDX11"), nMacro, 1, 0, m_StaticMacros);
+		AddMacro(CParserBin::fxToken("PCDX11"), nMacro, 1, 0, m_StaticMacros);
 #endif
-	m_nPlatform = SF_D3D11;
-	gRenDev->m_cEF.m_ShadersCache = "Shaders/Cache/D3D11/";
-	gRenDev->m_cEF.m_ShadersFilter = "D3D11";
-	SetupFeatureDefines();
-	gRenDev->m_cEF.m_Bin.InvalidateCache();
-	gRenDev->m_cEF.mfInitLookups();
+		gRenDev->m_cEF.m_ShadersCache = "Shaders/Cache/D3D11/";
+		gRenDev->m_cEF.m_ShadersFilter = "D3D11";
+		break;
 
-	SAFE_DELETE(gRenDev->m_cEF.m_pGlobalExt);
-	gRenDev->m_cEF.m_pGlobalExt = gRenDev->m_cEF.mfCreateShaderGenInfo("RunTime", true);
-}
+	case SF_ORBIS:
+		AddMacro(CParserBin::fxToken("ORBIS"), nMacro, 1, 0, m_StaticMacros);
+		gRenDev->m_cEF.m_ShadersCache = "Shaders/Cache/Orbis/";
+		gRenDev->m_cEF.m_ShadersFilter = "Orbis";
+		break;
 
-void CParserBin::SetupForGL4()
-{
-	CleanPlatformMacros();
-	uint32 nMacro[1] = { eT_1 };
+	case SF_GL4:
 #if CRY_PLATFORM_WINDOWS || CRY_RENDERER_OPENGL
-	AddMacro(CParserBin::fxToken("PCDX11"), nMacro, 1, 0, m_StaticMacros);
-	AddMacro(CParserBin::fxToken("OPENGL"), nMacro, 1, 0, m_StaticMacros);
+		AddMacro(CParserBin::fxToken("PCDX11"), nMacro, 1, 0, m_StaticMacros);
+		AddMacro(CParserBin::fxToken("OPENGL"), nMacro, 1, 0, m_StaticMacros);
 #endif
-	m_nPlatform = SF_GL4;
-	gRenDev->m_cEF.m_ShadersCache = "Shaders/Cache/GL4/";
-	gRenDev->m_cEF.m_ShadersFilter = "GL4";
-	SetupFeatureDefines();
-	gRenDev->m_cEF.m_Bin.InvalidateCache();
-	gRenDev->m_cEF.mfInitLookups();
+		gRenDev->m_cEF.m_ShadersCache = "Shaders/Cache/GL4/";
+		gRenDev->m_cEF.m_ShadersFilter = "GL4";
+		break;
 
-	SAFE_DELETE(gRenDev->m_cEF.m_pGlobalExt);
-	gRenDev->m_cEF.m_pGlobalExt = gRenDev->m_cEF.mfCreateShaderGenInfo("RunTime", true);
-}
+	case SF_DURANGO:
+		AddMacro(CParserBin::fxToken("DURANGO"), nMacro, 1, 0, m_StaticMacros);
+		gRenDev->m_cEF.m_ShadersCache = "Shaders/Cache/Durango/";
+		gRenDev->m_cEF.m_ShadersFilter = "Durango";
+		break;
 
-void CParserBin::SetupForGLES3()
-{
-	CleanPlatformMacros();
-	uint32 nMacro[1] = { eT_1 };
+	case SF_GLES3:
 #if CRY_PLATFORM_WINDOWS || CRY_RENDERER_OPENGL
-	AddMacro(CParserBin::fxToken("PCDX11"), nMacro, 1, 0, m_StaticMacros);
+		AddMacro(CParserBin::fxToken("PCDX11"), nMacro, 1, 0, m_StaticMacros);
 #endif
-	m_nPlatform = SF_GLES3;
-	gRenDev->m_cEF.m_ShadersCache = "Shaders/Cache/GLES3/";
-	gRenDev->m_cEF.m_ShadersFilter = "GLES3";
-	SetupFeatureDefines();
-	gRenDev->m_cEF.m_Bin.InvalidateCache();
-	gRenDev->m_cEF.mfInitLookups();
+		gRenDev->m_cEF.m_ShadersCache = "Shaders/Cache/GLES3/";
+		gRenDev->m_cEF.m_ShadersFilter = "GLES3";
+		break;
 
-	SAFE_DELETE(gRenDev->m_cEF.m_pGlobalExt);
-	gRenDev->m_cEF.m_pGlobalExt = gRenDev->m_cEF.mfCreateShaderGenInfo("RunTime", true);
-}
+	case SF_VULKAN:
+		AddMacro(CParserBin::fxToken("VULKAN"), nMacro, 1, 0, m_StaticMacros);
+		gRenDev->m_cEF.m_ShadersCache = "Shaders/Cache/Vulkan/";
+		gRenDev->m_cEF.m_ShadersFilter = "Vulkan";
+		break;
 
-void CParserBin::SetupForOrbis()
-{
-	CleanPlatformMacros();
-	uint32 nMacro[1] = { eT_1 };
-	AddMacro(CParserBin::fxToken("ORBIS"), nMacro, 1, 0, m_StaticMacros);
-	m_nPlatform = SF_ORBIS;
-	gRenDev->m_cEF.m_ShadersCache = "Shaders/Cache/Orbis/";
-	gRenDev->m_cEF.m_ShadersFilter = "Orbis";
-	SetupFeatureDefines();
-	gRenDev->m_cEF.m_Bin.InvalidateCache();
-	gRenDev->m_cEF.mfInitLookups();
-	SAFE_DELETE(gRenDev->m_cEF.m_pGlobalExt);
-	gRenDev->m_cEF.m_pGlobalExt = gRenDev->m_cEF.mfCreateShaderGenInfo("RunTime", true);
-}
+	default:
+		CRY_ASSERT_MESSAGE(false, "Unknown platform.");
+		gRenDev->m_cEF.m_ShadersCache = "Shaders/Cache/INVALIDPATH/";
+		gRenDev->m_cEF.m_ShadersFilter = "INVALIDFILTER";
+	}
 
-void CParserBin::SetupForDurango()
-{
-	CleanPlatformMacros();
-	uint32 nMacro[1] = { eT_1 };
-
-	m_nPlatform = SF_DURANGO;
-	gRenDev->m_cEF.m_ShadersCache = "Shaders/Cache/Durango/";
-	gRenDev->m_cEF.m_ShadersFilter = "Durango";
-	AddMacro(CParserBin::fxToken("DURANGO"), nMacro, 1, 0, m_StaticMacros);
-
-	SetupFeatureDefines();
-	gRenDev->m_cEF.m_Bin.InvalidateCache();
-	gRenDev->m_cEF.mfInitLookups();
-
-	SAFE_DELETE(gRenDev->m_cEF.m_pGlobalExt);
-	gRenDev->m_cEF.m_pGlobalExt = gRenDev->m_cEF.mfCreateShaderGenInfo("RunTime", true);
-}
-
-void CParserBin::SetupForVulkan()
-{
-	CleanPlatformMacros();
-	uint32 nMacro[1] = { eT_1 };
-
-	m_nPlatform = SF_VULKAN;
-	gRenDev->m_cEF.m_ShadersCache = "Shaders/Cache/Vulkan/";
-	gRenDev->m_cEF.m_ShadersFilter = "Vulkan";
-	AddMacro(CParserBin::fxToken("VULKAN"), nMacro, 1, 0, m_StaticMacros);
+	m_nPlatform = nPlatform;
 
 	SetupFeatureDefines();
 	gRenDev->m_cEF.m_Bin.InvalidateCache();
@@ -877,22 +833,7 @@ void CParserBin::SetupForVulkan()
 
 const char* CParserBin::GetPlatformShaderlistName()
 {
-	if (CParserBin::m_nPlatform == SF_D3D11)
-		return "ShaderList_PC.txt";
-	else if (CParserBin::m_nPlatform == SF_GL4)
-		return "ShaderList_GL4.txt";
-	else if (CParserBin::m_nPlatform == SF_GLES3)
-		return "ShaderList_GLES3.txt";
-	else if (CParserBin::m_nPlatform == SF_DURANGO)
-		return "ShaderList_Durango.txt";
-	else if (CParserBin::m_nPlatform == SF_ORBIS)
-		return "ShaderList_Orbis.txt";
-	else if (CParserBin::m_nPlatform == SF_VULKAN)
-		return "ShaderList_Vulkan.txt";
-
-	CryFatalError("Unexpected Shader Platform/No platform specified");
-
-	return "ShaderList.txt";
+	return GetShaderlistName(CParserBin::m_nPlatform);
 }
 
 CCryNameTSCRC CParserBin::GetPlatformSpecName(CCryNameTSCRC orgName)
@@ -982,6 +923,31 @@ uint32 CParserBin::NewUserToken(uint32 nToken, const char* psToken, bool bUseFin
 	return nToken;
 }
 
+uint32 CParserBin::NextToken(const char*& buf, char* com, bool& bKey)
+{
+	char ch;
+	int n = 0;
+	while ((ch = *buf) != 0)
+	{
+		if (SkipChar(ch))
+			break;
+		com[n++] = ch;
+		++buf;
+		if (ch == '/')
+			break;
+	}
+	if (!n)
+	{
+		if (ch != ' ')
+		{
+			com[n++] = ch;
+			++buf;
+		}
+	}
+	com[n] = 0;
+	uint32 dwToken = fxToken(com, &bKey);
+	return dwToken;
+}
 uint32 CParserBin::NextToken(char*& buf, char* com, bool& bKey)
 {
 	char ch;
@@ -1113,9 +1079,8 @@ string CParserBin::GetString(SParserFrame& Frame)
 	return string(Str.c_str());
 }
 
-const char* CParserBin::GetString(uint32 nToken, FXShaderToken& Table, bool bOnlyKey)
+const char* CParserBin::GetString(uint32 nToken, const FXShaderToken& Table, bool bOnlyKey)
 {
-	FXShaderTokenItor it;
 	if (nToken < eT_max)
 	{
 		assert(g_KeyTokens[nToken]);
@@ -1123,11 +1088,9 @@ const char* CParserBin::GetString(uint32 nToken, FXShaderToken& Table, bool bOnl
 	}
 	if (!bOnlyKey)
 	{
-		it = std::lower_bound(Table.begin(), Table.end(), nToken, SortByToken());
-		if (it != Table.end() && (*it).Token == nToken)
-		{
-			return (*it).SToken.c_str();
-		}
+		auto it = std::lower_bound(Table.begin(), Table.end(), nToken, SortByToken());
+		if (it != Table.end() && it->Token == nToken)
+			return it->SToken.c_str();
 	}
 
 	assert(0);
@@ -1183,7 +1146,7 @@ bool CParserBin::CorrectScript(uint32* pTokens, uint32& i, uint32 nT, TArray<cha
 	return false;
 }
 
-bool CParserBin::ConvertToAscii(uint32* pTokens, uint32 nT, FXShaderToken& Table, TArray<char>& Text, bool bInclSkipTokens)
+bool CParserBin::ConvertToAscii(uint32* pTokens, uint32 nT, const FXShaderToken& Table, TArray<char>& Text, bool bInclSkipTokens)
 {
 	uint32 i;
 	bool bRes = true;
@@ -1888,7 +1851,7 @@ bool CParserBin::PreprocessTokens(ShaderTokensVec& Tokens, int nPass, PodArray<u
 	return bRet;
 }
 
-bool CParserBin::Preprocess(int nPass, ShaderTokensVec& Tokens, FXShaderToken* pSrcTable)
+bool CParserBin::Preprocess(int nPass, ShaderTokensVec& Tokens, const FXShaderToken& srcTable)
 {
 	m_IfAffectMask.Reserve(5);
 	m_IfAffectMask.SetUse(0);
@@ -1903,7 +1866,7 @@ bool CParserBin::Preprocess(int nPass, ShaderTokensVec& Tokens, FXShaderToken* p
 
 	PodArray<uint32> tokensBuffer(TOKENS_BUFFER_SIZE);
 
-	m_TokenTable = *pSrcTable;
+	m_TokenTable = srcTable;
 	bool bRes = PreprocessTokens(Tokens, nPass, tokensBuffer);
 #ifndef _RELEASE
 	if (tokensBuffer.Size() > TOKENS_BUFFER_SIZE)
@@ -3180,7 +3143,9 @@ void CParserBin::SetupFeatureDefines()
 	}
 
 #if defined(FEATURE_SVO_GI)
-	if (m_nPlatform == SF_D3D11 || m_nPlatform == SF_DURANGO || m_nPlatform == SF_ORBIS)
+	if (m_nPlatform & (SF_D3D11 | SF_ORBIS | SF_DURANGO | SF_VULKAN))
+	{
 		AddMacro(CParserBin::GetCRC32("FEATURE_SVO_GI"), nEnable, 1, 0, m_StaticMacros);
+	}
 #endif
 }

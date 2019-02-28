@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -22,7 +22,7 @@ public:
 	CImpl& operator=(CImpl&&) = delete;
 
 	// CryAudio::Impl::IImpl
-	virtual void                Update(float const deltaTime) override;
+	virtual void                Update() override;
 	virtual ERequestStatus      Init(uint32 const objectPoolSize, uint32 const eventPoolSize) override;
 	virtual ERequestStatus      OnBeforeShutDown() override;
 	virtual ERequestStatus      ShutDown() override;
@@ -31,12 +31,15 @@ public:
 	virtual ERequestStatus      OnGetFocus() override;
 	virtual ERequestStatus      MuteAll() override;
 	virtual ERequestStatus      UnmuteAll() override;
+	virtual ERequestStatus      PauseAll() override;
+	virtual ERequestStatus      ResumeAll() override;
 	virtual ERequestStatus      StopAllSounds() override;
 	virtual ERequestStatus      RegisterInMemoryFile(SFileInfo* const pFileInfo) override;
 	virtual ERequestStatus      UnregisterInMemoryFile(SFileInfo* const pFileInfo) override;
 	virtual ERequestStatus      ConstructFile(XmlNodeRef const pRootNode, SFileInfo* const pFileInfo) override;
 	virtual void                DestructFile(IFile* const pIFile) override;
 	virtual char const* const   GetFileLocation(SFileInfo* const pFileInfo) override;
+	virtual void                GetInfo(SImplInfo& implInfo) const override;
 	virtual ITrigger const*     ConstructTrigger(XmlNodeRef const pRootNode) override;
 	virtual void                DestructTrigger(ITrigger const* const pITrigger) override;
 	virtual IParameter const*   ConstructParameter(XmlNodeRef const pRootNode) override;
@@ -60,48 +63,47 @@ public:
 	virtual void                SetLanguage(char const* const szLanguage) override;
 
 	// Below data is only used when INCLUDE_FMOD_IMPL_PRODUCTION_CODE is defined!
-	virtual char const* const GetName() const override;
-	virtual void              GetMemoryInfo(SMemoryInfo& memoryInfo) const override;
-	virtual void              GetFileData(char const* const szName, SFileData& fileData) const override;
+	virtual void GetMemoryInfo(SMemoryInfo& memoryInfo) const override;
+	virtual void GetFileData(char const* const szName, SFileData& fileData) const override;
 	// ~CryAudio::Impl::IImpl
 
 private:
 
-	static char const* const s_szFmodEventTag;
-	static char const* const s_szFmodSnapshotTag;
-	static char const* const s_szFmodEventParameterTag;
-	static char const* const s_szFmodSnapshotParameterTag;
-	static char const* const s_szFmodFileTag;
-	static char const* const s_szFmodBusTag;
-	static char const* const s_szFmodNameAttribute;
-	static char const* const s_szFmodValueAttribute;
-	static char const* const s_szFmodMutiplierAttribute;
-	static char const* const s_szFmodShiftAttribute;
-	static char const* const s_szFmodPathAttribute;
-	static char const* const s_szFmodLocalizedAttribute;
-	static char const* const s_szFmodEventTypeAttribute;
-	static char const* const s_szFmodEventPrefix;
-	static char const* const s_szFmodSnapshotPrefix;
-	static char const* const s_szFmodBusPrefix;
+	static char const* const s_szEventPrefix;
+	static char const* const s_szSnapshotPrefix;
+	static char const* const s_szBusPrefix;
+	static char const* const s_szVcaPrefix;
 
-	void           CreateVersionString(CryFixedStringT<MaxMiscStringLength>& stringOut) const;
-	bool           LoadMasterBanks();
-	void           UnloadMasterBanks();
-	ERequestStatus MuteMasterBus(bool const bMute);
+	void        CreateVersionString(CryFixedStringT<MaxInfoStringLength>& stringOut) const;
+	bool        LoadMasterBanks();
+	void        UnloadMasterBanks();
+	void        MuteMasterBus(bool const shouldMute);
+	void        PauseMasterBus(bool const shouldPause);
+
+	FMOD_RESULT LoadBankCustom(char const* const szFileName, FMOD::Studio::Bank** ppBank);
+
+	bool                                  m_isMuted;
 
 	Objects                               m_constructedObjects;
 
 	CryFixedStringT<MaxFilePathLength>    m_regularSoundBankFolder;
 	CryFixedStringT<MaxFilePathLength>    m_localizedSoundBankFolder;
 
+	CryFixedStringT<MaxFilePathLength>    m_masterBankPath;
+	CryFixedStringT<MaxFilePathLength>    m_masterAssetsBankPath;
+	CryFixedStringT<MaxFilePathLength>    m_masterStreamsBankPath;
+	CryFixedStringT<MaxFilePathLength>    m_masterStringsBankPath;
+
 	FMOD::Studio::System*                 m_pSystem;
 	FMOD::System*                         m_pLowLevelSystem;
 	FMOD::Studio::Bank*                   m_pMasterBank;
-	FMOD::Studio::Bank*                   m_pStringsBank;
+	FMOD::Studio::Bank*                   m_pMasterAssetsBank;
+	FMOD::Studio::Bank*                   m_pMasterStreamsBank;
+	FMOD::Studio::Bank*                   m_pMasterStringsBank;
 	CryFixedStringT<MaxControlNameLength> m_language;
 
 #if defined(INCLUDE_FMOD_IMPL_PRODUCTION_CODE)
-	CryFixedStringT<MaxMiscStringLength> m_name;
+	CryFixedStringT<MaxInfoStringLength> m_name;
 #endif  // INCLUDE_FMOD_IMPL_PRODUCTION_CODE
 };
 } // namespace Fmod

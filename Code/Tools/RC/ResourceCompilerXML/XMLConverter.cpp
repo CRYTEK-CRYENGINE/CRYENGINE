@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "XMLConverter.h"
@@ -105,7 +105,7 @@ void XMLConverter::Init(const ConverterInitContext& context)
 				sLine.TrimLeft();
 				if (!sLine.empty())
 				{
-					m_tableFilemasks.push_back(PathHelpers::ToDosPath(sLine));
+					m_tableFilemasks.push_back(PathUtil::ToDosPath(sLine));
 				}
 			}
 			continue;
@@ -330,7 +330,7 @@ static string GetNormalizedFullPath(const string& relativePath)
 		return string();
 	}
 	// note: maybe normalization via ToDosPath() is unneeded, but MSDN is not very clear about it.
-	return PathHelpers::ToDosPath(string(fullname));
+	return PathUtil::ToDosPath(string(fullname));
 }
 
 static XmlNodeRef ConvertFromExcelXmlToCryEngineTableXml(XmlNodeRef root, IXMLSerializer* pSerializer, const string& sInputFile)
@@ -498,7 +498,7 @@ bool XMLCompiler::Process()
 	string sOutputFile = GetOutputPath();
 	if (m_pNameConverter->HasRules()) 
 	{
-		const string oldFilename = PathHelpers::GetFilename(sOutputFile);
+		const string oldFilename = PathUtil::GetFile(sOutputFile);
 		const string newFilename = m_pNameConverter->GetConvertedName(oldFilename);
 		if (newFilename.empty())
 		{
@@ -510,7 +510,7 @@ bool XMLCompiler::Process()
 			{
 				RCLog("Target file name changed: %s -> %s", oldFilename.c_str(), newFilename.c_str());
 			}
-			sOutputFile = PathHelpers::Join(PathHelpers::GetDirectory(sOutputFile), newFilename);
+			sOutputFile = PathUtil::Make(PathUtil::GetPathWithoutFilename(sOutputFile), newFilename);
 		}
 	}
 
@@ -586,7 +586,7 @@ bool XMLCompiler::Process()
 	// Convert Excel's XML format to CryEngine's table XML format, if requested.
 	{
 		bool bConvert = false;
-		const string filename = PathHelpers::ToDosPath(sInputFile);
+		const string filename = PathUtil::ToDosPath(sInputFile);
 		for (size_t i = 0; i < m_pTableFilemasks->size(); ++i)
 		{
 			if (StringHelpers::MatchesWildcardsIgnoreCase(filename, (*m_pTableFilemasks)[i]))
@@ -680,7 +680,7 @@ string XMLCompiler::GetOutputFileNameOnly() const
 
 string XMLCompiler::GetOutputPath() const
 {
-	return PathHelpers::Join(m_CC.GetOutputFolder(), GetOutputFileNameOnly());
+	return PathUtil::Make(m_CC.GetOutputFolder(), GetOutputFileNameOnly());
 }
 
 const char* XMLConverter::GetExt(int index) const

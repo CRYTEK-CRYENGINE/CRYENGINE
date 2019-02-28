@@ -1,5 +1,4 @@
-// CRYENGINE Source Code File
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "LightVolumes.cfi"
 
@@ -24,6 +23,13 @@
 #define BLOCK_SIZE_Z								4
 
 
+#if !VULKAN
+#define control_flow_branch [branch]
+#else
+// Work around for vulkan shader compiler issues
+#define control_flow_branch
+#endif
+
 ////////////////////////////////////////////////////////////////////////////
 // Shared constants, structures and functions
 ////////////////////////////////////////////////////////////////////////////
@@ -34,9 +40,6 @@ float4 FrustumBL;
 
 // xyz: size of thread groups, w: number of entities
 float4 DispatchSize;
-
-float4 vfCameraFrontVector : PB_CameraFront;
-
 
 struct SVolumeLightCullInfo
 {
@@ -118,7 +121,6 @@ float3 vfDecodeInscattering(float3 rawVal)
 	return rawVal.xyz / VOLUMETRIC_FOG_RANGE_SHIFT_INSCATTER;
 }
 
-
 ////////////////////////////////////////////////////////////////////////////
 // 
 ////////////////////////////////////////////////////////////////////////////
@@ -154,7 +156,7 @@ void BlurHorizontalInscatteringVolumeCS(uint3 DispatchThreadID : SV_DispatchThre
 	for(int i = 0; i < 2; ++i)
 	{
 		int2 offset;
-		offset.x = gtid.x + (gtid.y & 0x1 ? 8: 0);
+		offset.x = gtid.x + (gtid.y & 0x1) * 8;
 		offset.y = (i * 4) + (gtid.y >> 1);
 
 		int4 p = loc;
@@ -402,7 +404,7 @@ void BlurHorizontalDensityVolumeCS(uint3 DispatchThreadID : SV_DispatchThreadID,
 	for(int i = 0; i < 2; ++i)
 	{
 		int2 offset;
-		offset.x = gtid.x + (gtid.y & 0x1 ? 8: 0);
+		offset.x = gtid.x + (gtid.y & 0x1) * 8;
 		offset.y = (i * 4) + (gtid.y >> 1);
 
 		int4 p = loc;
@@ -789,7 +791,7 @@ void AccumulateDensityFogVolume(inout float density, inout float3 densityColor, 
 		// fine-grained culling and finding intersected eye ray segment
 		float tS = 0.0f;
 		float tE = 0.0f;
-		[branch] if(injectFlag)
+		control_flow_branch if(injectFlag)
 		{
 			float3 eyeDirInWS = eyeRay.xyz;
 			float3 cameraLookDirInOS = mul( (float3x3)fv.worldToObjMatrix, eyeDirInWS.xyz );
@@ -845,15 +847,12 @@ void AccumulateDensityFogVolume(inout float density, inout float3 densityColor, 
 			}
 
 			const float3 cameraLookDirInWS = eyeDirInWS.xyz * invOfScaledCamDirLength;
-			float toLinearDepth = dot( cameraLookDirInWS, -vfCameraFrontVector.xyz );
+			float toLinearDepth = dot( cameraLookDirInWS, -CV_CameraFrontVector.xyz );
 			tS *= toLinearDepth;
 			tE *= toLinearDepth;
 
 			// cull a voxel which isn't included in intersected line segment.
-			if(tE < depthFront || depth < tS)
-			{
-				injectFlag = 0;
-			}
+			injectFlag = (tE >= depthFront) && (depth >= tS);	
 		}
 
 		[branch] if(injectFlag)
@@ -943,14 +942,14 @@ void InjectFogDensityCS(uint3 DispatchThreadID : SV_DispatchThreadID
 	int nStencilVal = VolumetricClipVolumeStencil.Load(int4(DispatchThreadID.xyz, 0)).g;
 #endif
 #endif
-	const uint clipVolumeStencilID = vfGetClipVolumeStencilID(nStencilVal);
-	const uint clipVolumeIndex = clipVolumeStencilID & (MAX_CLIPVOLUMES-1);
+    const uint clipVolumeStencilID = vfGetClipVolumeStencilID(nStencilVal);
+	const uint clipVolumeIndex = clipVolumeStencilID & MAX_CLIPVOLUMES;
 	const uint clipVolumeData = VL_TiledClipVolumeInfo[clipVolumeIndex].data;
 
 	// Barycentric interpolation for reconstructing position
 	float2 vPixelUV = (pixelCoord.xy + 0.5f) * ScreenSize.zw;
 	float3 vCamVec = ((1 - vPixelUV.x - vPixelUV.y) * FrustumTL.xyz + (vPixelUV.x * FrustumTR.xyz + (vPixelUV.y * FrustumBL.xyz)));
-	float n = dot(-vfCameraFrontVector.xyz, vCamVec);
+	float n = dot(-CV_CameraFrontVector.xyz, vCamVec);
 	float3 normalizedCamVec = vCamVec / n;
 
 	float depthIndex = pixelCoord.z;
@@ -1248,7 +1247,46 @@ Texture2D vfCloudShadowTex : register(t4) = TS_CloudShadow;
 SamplerComparisonState vfShadowLinearClampCompSS : register(s0) = SS_Shadow2;
 SamplerState vfShadowBilinearWrapSS : register(s1) = SS_MaterialBilinearWrap;
 
+float4x4 TexGen0;
+float4x4 TexGen1;
+float4x4 TexGen2;
+float4x4 TexGen3;
+
+float4 vInvShadowMapSize;
+float4 fDepthTestBias; // defines how hard depth test is (default is 100 - hard test)
+float4 fOneDivFarDist;
+float4 fKernelRadius;
+
+float4 CloudShadowParams;
+float4 CloudShadowAnimParams;
+
+float4 irreg_kernel_2d[HALF_MAX_SHADOW_SAMPLES_NUM];
+
+float4 volFogShadowRange;
+
 float4 vfSunDir;
+
+SShadowSamplingParams GetShadowSamplingParams()
+{
+    SShadowSamplingParams s;
+
+    s.TexGen0 = TexGen0;
+    s.TexGen1 = TexGen1;
+    s.TexGen2 = TexGen2;
+    s.TexGen3 = TexGen3;
+
+    s.vInvShadowMapSize = vInvShadowMapSize;
+    s.fDepthTestBias = fDepthTestBias; // defines how hard depth test is (default is 100 - hard test)
+    s.fOneDivFarDist = fOneDivFarDist;
+    s.fKernelRadius = fKernelRadius;
+
+    s.CloudShadowParams = CloudShadowParams;
+    s.CloudShadowAnimParams = CloudShadowAnimParams;
+
+    s.irreg_kernel_2d = irreg_kernel_2d;
+
+    return s;
+}
 
 bool ShadowCascadeSampleVolumetricFog(Texture2D depthMap, SamplerComparisonState comparisonSampler, float4 p, float2 randDirTC, float fDepthTestBias, out float fShadow, bool bSingleTap = false)
 {
@@ -1268,7 +1306,9 @@ bool ShadowCascadeSampleVolumetricFog(Texture2D depthMap, SamplerComparisonState
 
 float ShadowDepthTestVolumetricFog(float3 worldPos, bool bSampleCloudShadows = true)
 {
-	const uint nCascadeMask = GetForwardShadowsCascadeMask();
+    SShadowSamplingParams ss = GetShadowSamplingParams();
+
+    const uint nCascadeMask = GetForwardShadowsCascadeMask(ss);
 
 	const Texture2D cascade0 = vfDepthMapSampler0;
 	const Texture2D cascade1 = vfDepthMapSampler1;
@@ -1284,36 +1324,36 @@ float ShadowDepthTestVolumetricFog(float3 worldPos, bool bSampleCloudShadows = t
 	if(nCascadeMask != 0)
 	{
 		float4 p;
-		ShadowTexSpace(float4(worldPos, 1), TexGen0, fOneDivFarDist.x, p);
+        ShadowTexSpace(float4(worldPos, 1), ss.TexGen0, ss.fOneDivFarDist.x, p);
 		const float2 randDirTC = 0;
-		bool bDone = ShadowCascadeSampleVolumetricFog(cascade0, compSS, p, randDirTC, fDepthTestBias.x, fShadow, true);
+        bool bDone = ShadowCascadeSampleVolumetricFog(cascade0, compSS, p, randDirTC, ss.fDepthTestBias.x, fShadow, true);
 
 		[branch]
 		if(!bDone && (nCascadeMask & FORWARD_SHADOWS_CASCADE_1))
 		{
-			ShadowTexSpace(float4(worldPos, 1), TexGen1, fOneDivFarDist.y, p);
-			bDone = ShadowCascadeSampleVolumetricFog(cascade1, compSS, p, randDirTC, fDepthTestBias.y, fShadow, true);
+            ShadowTexSpace(float4(worldPos, 1), ss.TexGen1, ss.fOneDivFarDist.y, p);
+            bDone = ShadowCascadeSampleVolumetricFog(cascade1, compSS, p, randDirTC, ss.fDepthTestBias.y, fShadow, true);
 
 #if %_RT_SAMPLE0 && %_RT_SAMPLE1
 			[branch]
 			if(!bDone && (nCascadeMask & FORWARD_SHADOWS_CASCADE_3))
 			{
-				ShadowTexSpace(float4(worldPos, 1), TexGen3, fOneDivFarDist.w, p);
-				ShadowCascadeSampleVolumetricFog(cascade3, compSS, p, randDirTC, fDepthTestBias.w, fShadow, true);
+				ShadowTexSpace(float4(worldPos, 1), ss.TexGen3, ss.fOneDivFarDist.w, p);
+				ShadowCascadeSampleVolumetricFog(cascade3, compSS, p, randDirTC, ss.fDepthTestBias.w, fShadow, true);
 			}
 #else // %_RT_SAMPLE1 || %_RT_SAMPLE0 || (!%_RT_SAMPLE0 && !%_RT_SAMPLE1)
 			[branch]
 			if(!bDone && (nCascadeMask & FORWARD_SHADOWS_CASCADE_2))
 			{
-				ShadowTexSpace(float4(worldPos, 1), TexGen2, fOneDivFarDist.z, p);
-				bDone = ShadowCascadeSampleVolumetricFog(cascade2, compSS, p, randDirTC, fDepthTestBias.z, fShadow, true);
+                ShadowTexSpace(float4(worldPos, 1), ss.TexGen2, ss.fOneDivFarDist.z, p);
+                bDone = ShadowCascadeSampleVolumetricFog(cascade2, compSS, p, randDirTC, ss.fDepthTestBias.z, fShadow, true);
 
 				[branch]
 				if(!bDone && (nCascadeMask & FORWARD_SHADOWS_CASCADE_3))
 				{
-					ShadowTexSpace(float4(worldPos, 1), TexGen3, fOneDivFarDist.w, p);
-					ShadowCascadeSampleVolumetricFog(cascade3, compSS, p, randDirTC, fDepthTestBias.w, fShadow, true);
-				}
+                    ShadowTexSpace(float4(worldPos, 1), ss.TexGen3, ss.fOneDivFarDist.w, p);
+                    ShadowCascadeSampleVolumetricFog(cascade3, compSS, p, randDirTC, ss.fDepthTestBias.w, fShadow, true);
+                }
 			}
 #endif
 		}
@@ -1321,8 +1361,8 @@ float ShadowDepthTestVolumetricFog(float3 worldPos, bool bSampleCloudShadows = t
 
 	if(bSampleCloudShadows && (nCascadeMask & FORWARD_SHADOWS_CLOUD_SHADOWS))
 	{
-		float fCloudShadow = GetCloudShadowCommon(worldPos, cloudTex, cloudSS, CloudShadowAnimParams, 
-		                                          CloudShadowParams, vfSunDir);
+        float fCloudShadow = GetCloudShadowCommon(worldPos, cloudTex, cloudSS, ss.CloudShadowAnimParams,
+		                                          ss.CloudShadowParams, vfSunDir);
 		fShadow *= fCloudShadow;
 	}
 
@@ -1446,9 +1486,10 @@ void AccumulateInscatteringRegularLights(inout float3 inscatter, in float depth,
 
 					const float AttenuationFalloffMax = 0.8f;// keep AttenuationFalloffMax as high as possible to mitigate sharp transition between probes.
 					float attenuation = GetAttenuation( tmpLightVec, 1, true, AttenuationFalloffMax) * light.attenuationParams.x;
+					uint4 resIndexClamps = GetResourceIndexAndMipClamps(light.resIndex);
 
 					// Diffuse
-					float4 diffuseProbe = VL_DiffuseCubeArray.SampleLevel( vfTrilinearClampSampler, float4( eyeRay, light.resIndex ), 0 );
+					float4 diffuseProbe = VL_DiffuseCubeArray.SampleLevel( vfTrilinearClampSampler, float4( eyeRay, resIndexClamps.x ), resIndexClamps.y );
 					diffuseProbe.rgb = DecodeHDRCubemap( diffuseProbe ).xyz;
 
 					VolumetricFogLight fragLight;
@@ -1515,7 +1556,11 @@ void AccumulateInscatteringRegularLights(inout float3 inscatter, in float depth,
 							vProjTC.xy /= vProjTC.w;
 						
 							if (vProjTC.w > 0 && max( abs(vProjTC.x * 2 - 1), abs(vProjTC.y * 2 - 1) ) < 1)  // Avoid back-projection
-								filter = VL_SpotTexArray.SampleLevel( vfTrilinearClampSampler, float3( vProjTC.xy, light.resIndex ), 4 ).x;
+							{
+								// TODO: base the mip-level selection on distance from the projector source (variable width "shadows")
+								uint4 resIndexClamps = GetResourceIndexAndMipClamps(light.resIndex);
+								filter = VL_SpotTexArray.SampleLevel( vfTrilinearClampSampler, float3( vProjTC.xy, resIndexClamps.x ), max(resIndexClamps.y, 4) ).x;
+							}
 						}
 					}
 					else
@@ -1739,7 +1784,11 @@ void AccumulateInscatteringRegularLights(inout float3 inscatter, in float depth,
 							if (projTC.w < plane || min( projTC.x, projTC.y ) < 0 || max( projTC.x, projTC.y ) > 1)  // Avoid back-projection
 								flag |= SkipShading;
 							else
-								fragLight.cDiffuse *= VL_SpotTexArray.SampleLevel( vfTrilinearClampSampler, float3(projTC.xy, light.resIndex), 4 ).xxx;
+							{
+								// TODO: base the mip-level selection on distance from the projector source (variable width "shadows")
+								uint4 resIndexClamps = GetResourceIndexAndMipClamps(light.resIndex);
+								fragLight.cDiffuse *= VL_SpotTexArray.SampleLevel( vfTrilinearClampSampler, float3(projTC.xy, resIndexClamps.x), max(resIndexClamps.y, 4) ).xxx;
+							}
 
 							if (light.shadowParams.x > 0)
 								flag |= ShadowMap;
@@ -1747,9 +1796,7 @@ void AccumulateInscatteringRegularLights(inout float3 inscatter, in float depth,
 					}
 					else if (lightType == TILEDLIGHT_TYPE_REGULAR_POINTFACE)
 					{
-						float3 dir = abs( vLight );
-						uint cubeFace = dir.x > dir.y ? (dir.x > dir.z ? (vLight.x < 0 ? 0 : 1) : (vLight.z < 0 ? 4 : 5)) :
-																						(dir.y > dir.z ? (vLight.y < 0 ? 2 : 3) : (vLight.z < 0 ? 4 : 5));
+						uint cubeFace = selectCubeFace(vLight);
 
 						if (light.resIndex != cubeFace)
 							flag |= SkipShading;
@@ -1911,15 +1958,15 @@ void InjectVolumetricInscatteringCS(uint3 DispatchThreadID : SV_DispatchThreadID
 	nStencilVal = ClipVolumeStencil.Load(int4(DispatchThreadID.xyz, 0)).g;
 #endif
 #endif
-	const uint clipVolumeStencilID = vfGetClipVolumeStencilID(nStencilVal);
-	const uint clipVolumeData = VL_TiledClipVolumeInfo[clipVolumeStencilID & (MAX_CLIPVOLUMES-1)].data;
+    const uint clipVolumeStencilID = vfGetClipVolumeStencilID(nStencilVal);
+	const uint clipVolumeData = VL_TiledClipVolumeInfo[clipVolumeStencilID & MAX_CLIPVOLUMES].data;
 
 	// Barycentric interpolation for reconstructing position
 	const float3 pixelCoord = DispatchThreadID.xyz;
 	float2 vPixelUV = (pixelCoord.xy + 0.5f) * ScreenSize.zw;
 	float3 vCamVec = ((1 - vPixelUV.x - vPixelUV.y) * FrustumTL.xyz + (vPixelUV.x * FrustumTR.xyz + (vPixelUV.y * FrustumBL.xyz)));
 
-	float n = dot(-vfCameraFrontVector.xyz, vCamVec);
+	float n = dot(-CV_CameraFrontVector.xyz, vCamVec);
 	float3 normalizedCamVec = vCamVec / n;
 	float3 normalizedEyeRay = normalize(normalizedCamVec);
 
@@ -1962,8 +2009,7 @@ void InjectVolumetricInscatteringCS(uint3 DispatchThreadID : SV_DispatchThreadID
 		// clip global fog by VisArea
 		globalFogDensity = (clipVolumeData & CLIPVOLUME_AFFECTED_BY_SUN) ? globalFogDensity : 0.0f;
 
-
-		bool exec = (clipVolumeData & CLIPVOLUME_AFFECTED_BY_SUN) ? 1 : 0;
+		bool exec = (clipVolumeData & CLIPVOLUME_AFFECTED_BY_SUN) != 0 ;
 
 #if %_RT_SAMPLE4
 		float shadowSun = 0.0f;
@@ -2041,7 +2087,7 @@ void RaymarchVolumetricFogCS(uint3 DispatchThreadID : SV_DispatchThreadID)
 		// Barycentric interpolation for reconstructing position
 		float3 vCamVec = ((1 - vPixelUV.x - vPixelUV.y) * FrustumTL.xyz + (vPixelUV.x * FrustumTR.xyz + (vPixelUV.y * FrustumBL.xyz)));
 
-		float n = dot(-vfCameraFrontVector.xyz, normalize(vCamVec));
+		float n = dot(-CV_CameraFrontVector.xyz, normalize(vCamVec));
 		float3 normalizedFactor = 1 / n;
 
 		const uint maxStepNum = ScreenInfo.w;
@@ -2149,7 +2195,7 @@ void ReprojectVolumetricFogCS(uint3 DispatchThreadID : SV_DispatchThreadID, uint
 		for(int i = 0; i < 4; ++i)
 		{
 			int3 offset;
-			offset.x = gtid.x + (gtid.y & 0x1 ? 4: 0);
+			offset.x = gtid.x + (gtid.y & 0x1) * 4;
 			offset.y = (gtid.z * 2) + (gtid.y >> 1);
 			offset.z = i;
 
@@ -2168,7 +2214,7 @@ void ReprojectVolumetricFogCS(uint3 DispatchThreadID : SV_DispatchThreadID, uint
 		for(int i = 0; i < 6; ++i)
 		{
 			int3 offset;
-			offset.x = gtid.x + (gtid.y & 0x1 ? 4: 0);
+			offset.x = gtid.x + (gtid.y & 0x1) * 4;
 			offset.y = (gtid.z * 2) + (gtid.y >> 1);
 			offset.z = i;
 
@@ -2189,7 +2235,7 @@ void ReprojectVolumetricFogCS(uint3 DispatchThreadID : SV_DispatchThreadID, uint
 	float2 vPixelUV = (pixelCoord.xy + 0.5f) * ScreenSize.zw;
 	float3 vCamVec = ((1 - vPixelUV.x - vPixelUV.y) * FrustumTL.xyz + (vPixelUV.x * FrustumTR.xyz + (vPixelUV.y * FrustumBL.xyz)));
 
-	float n = dot(-vfCameraFrontVector.xyz, vCamVec);
+	float n = dot(-CV_CameraFrontVector.xyz, vCamVec);
 	float3 normalizedCamVec = vCamVec / n;
 
 	float depthIndex = pixelCoord.z;
@@ -2454,23 +2500,23 @@ technique ReprojectVolumetricFog
 ////////////////////////////////////////////////////////////////////////////
 struct vtxOutVolumetricFog
 {
-  float4 HPosition : POSITION;
+  float4 HPosition : SV_POSITION;
   float2 baseTC : TEXCOORD;
 };
 
 float4 ParamDepth;
 
-vtxOutVolumetricFog StoreJitteringDepthToClipVolumeDepthVS(vtxIn IN)
+vtxOutVolumetricFog StoreJitteringDepthToClipVolumeDepthVS(uint VertexID : SV_VertexID)
 {
 	vtxOutVolumetricFog OUT; 
-	OUT.HPosition = Get2dHPos(IN.Position);
-	OUT.baseTC.xy = IN.baseTC.xy;
+	OUT.HPosition = GetHPos_FromTriVertexID(VertexID);
+	OUT.baseTC.xy = GetBaseTC_FromTriVertexID(VertexID);
 	return OUT;
 }
 
 void StoreJitteringDepthToClipVolumeDepthPS(vtxOutVolumetricFog IN,
-                                            out float4 Color : COLOR0,
-                                            out float Depth : DEPTH)
+                                            out float4 Color : SV_Target0,
+                                            out float Depth : SV_Depth)
 {
 	Color = 0.0f;
 
@@ -2506,15 +2552,15 @@ Texture2D<float4> DownscaleShadowMapTexture : register(t0);
 
 SamplerState DownscaleShadowMapSampler : register(s0);
 
-vtxOutVolumetricFog RenderDownscaledShadowMapVS(vtxIn IN)
+vtxOutVolumetricFog RenderDownscaledShadowMapVS(uint VertexID : SV_VertexID)
 {
 	vtxOutVolumetricFog OUT; 
-	OUT.HPosition = Get2dHPos(IN.Position);
-	OUT.baseTC.xy = IN.baseTC.xy;
+	OUT.HPosition = GetHPos_FromTriVertexID(VertexID);
+	OUT.baseTC.xy = GetBaseTC_FromTriVertexID(VertexID);
 	return OUT;
 }
 
-void RenderDownscaledShadowMapPS(vtxOutVolumetricFog IN, out float Depth : DEPTH)
+void RenderDownscaledShadowMapPS(vtxOutVolumetricFog IN, out float Depth : SV_Depth)
 {
 #if %_RT_LIGHTVOLUME0 && %_RT_LIGHTVOLUME1
 	Texture2D depthMap = SrcShadowMapTex2;
@@ -2534,7 +2580,7 @@ void RenderDownscaledShadowMapPS(vtxOutVolumetricFog IN, out float Depth : DEPTH
 	Depth = min(min(min(shadow.x, shadow.y), shadow.z), shadow.w);
 }
 
-void DownscaleShadowMap2PS(vtxOutVolumetricFog IN, out float Depth : DEPTH)
+void DownscaleShadowMap2PS(vtxOutVolumetricFog IN, out float Depth : SV_Depth)
 {
 	// downscale depth shadow map
 #if ENABLE_DOWNSCALE_AVERAGED_DEPTH_SHADOW_MAP
@@ -2546,7 +2592,7 @@ void DownscaleShadowMap2PS(vtxOutVolumetricFog IN, out float Depth : DEPTH)
 #endif
 }
 
-void DownscaleShadowMap4PS(vtxOutVolumetricFog IN, out float Depth : DEPTH)
+void DownscaleShadowMap4PS(vtxOutVolumetricFog IN, out float Depth : SV_Depth)
 {
 	// downscale depth shadow map
 #if ENABLE_DOWNSCALE_AVERAGED_DEPTH_SHADOW_MAP

@@ -1,14 +1,14 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include <Cry3DEngine/I3DEngine.h> // <> required for Interfuscator
 
 STRUCT_INFO_BEGIN(STerrainInfo)
-STRUCT_VAR_INFO(nHeightMapSize_InUnits, TYPE_INFO(int))
-STRUCT_VAR_INFO(nUnitSize_InMeters, TYPE_INFO(int))
-STRUCT_VAR_INFO(nSectorSize_InMeters, TYPE_INFO(int))
-STRUCT_VAR_INFO(nSectorsTableSize_InSectors, TYPE_INFO(int))
-STRUCT_VAR_INFO(fHeightmapZRatio, TYPE_INFO(float))
-STRUCT_VAR_INFO(fOceanWaterLevel, TYPE_INFO(float))
+STRUCT_VAR_INFO(heightMapSize_InUnits, TYPE_INFO(int))
+STRUCT_VAR_INFO(unitSize_InMeters, TYPE_INFO(float))
+STRUCT_VAR_INFO(sectorSize_InMeters, TYPE_INFO(int))
+STRUCT_VAR_INFO(sectorsTableSize_InSectors, TYPE_INFO(int))
+STRUCT_VAR_INFO(heightmapZRatio, TYPE_INFO(float))
+STRUCT_VAR_INFO(oceanWaterLevel, TYPE_INFO(float))
 STRUCT_INFO_END(STerrainInfo)
 
 STRUCT_INFO_BEGIN(STerrainChunkHeader)

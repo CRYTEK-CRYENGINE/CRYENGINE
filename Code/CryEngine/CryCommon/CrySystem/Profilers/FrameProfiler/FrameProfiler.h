@@ -1,9 +1,12 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+
+//! \cond INTERNAL
 
 #pragma once
 
 #include <CryCore/Platform/platform.h>
 #include <CrySystem/ISystem.h>
+#include <CrySystem/ITimer.h>
 
 #include "FrameProfiler_Shared.h"
 #include "FrameProfiler_Internal.h"
@@ -256,6 +259,74 @@ protected:
 	// Adds the entry to the timer history (current timer value).
 };
 
+struct SCountTraits
+{
+	typedef uint32 TValue;
+	typedef uint32 TDisplay;
+
+	ILINE static TDisplay ToDisplay(TValue val) { return val; }
+	ILINE static TDisplay ToDisplay(float val)  { return pos_round(val); }
+};
+
+struct STickTraits
+{
+	typedef int64 TValue;
+	typedef float TDisplay;
+
+	static TDisplay ToDisplay(TValue val) { return gEnv->pTimer->TicksToSeconds(val) * 1000.0f; }
+	static TDisplay ToDisplay(float val)  { return val / (float)gEnv->pTimer->GetTicksPerSecond() * 1000.0f; }
+};
+
+template<class Traits>
+class CSamplerHistory
+{
+public:
+	using_type(Traits, TValue);
+	using_type(Traits, TDisplay);
+
+	//! Add a new sample to history.
+	void Update(float blendCur)
+	{
+		float last = float(m_current);
+		Blend(m_average, last, blendCur);
+		Blend(m_deviationSqr, sqr(last - m_average), blendCur);
+		Blend(m_minDecay, last, blendCur);
+		if (last <= m_minDecay)
+			m_minDecay = float(m_min = m_current);
+		Blend(m_maxDecay, last, blendCur);
+		if (last >= m_maxDecay)
+			m_maxDecay = float(m_max = m_current);
+	}
+	//! Cleans up the data history.
+	void Clear()                   { *this = {}; }
+
+	operator TValue() const        { return m_current; }
+	TValue& operator=(TValue val)  { return m_current = val; }
+	TValue& operator+=(TValue val) { return m_current += val; }
+	void operator++(int)           { m_current++; }
+
+	TValue Current() const         { return m_current; }
+	TDisplay Last() const          { return Traits::ToDisplay(m_current); }
+	TDisplay Average() const       { return Traits::ToDisplay(m_average); }
+	TDisplay Variance() const      { return Traits::ToDisplay(sqrt(m_deviationSqr)); }
+	TDisplay Max() const           { return Traits::ToDisplay(m_max); }
+	TDisplay Min() const           { return Traits::ToDisplay(m_min); }
+
+protected:
+	TValue m_current      = 0;
+	float  m_average      = 0,
+           m_deviationSqr = 0,
+           m_minDecay     = 0,
+           m_maxDecay     = 0;
+	TValue m_min          = 0,
+           m_max          = 0;
+
+	static void Blend(float& stat, float cur, float blendCur)
+	{
+		stat += (cur - stat) * blendCur;
+	}
+};
+
 //////////////////////////////////////////////////////////////////////////
 class CFrameProfilerGraph
 {
@@ -288,19 +359,20 @@ public:
 	const char*   m_fileName;
 	unsigned long m_fileLine;
 
+	//! How many times this profiler counter was executed.
+	CSamplerHistory<SCountTraits> m_count;
+
 	//! Total time spent in this counter including time of child profilers in current frame.
-	int64 m_totalTime;
+	CSamplerHistory<STickTraits>  m_totalTime;
 
 	//! Self frame time spent only in this counter (But includes recursive calls to same counter) in current frame.
-	int64 m_selfTime;
-
+	CSamplerHistory<STickTraits>  m_selfTime;
+	
 	//! Latest frame ID.
 	uint64 m_latestFrame;
+	
 	//! Displayed quantity (interpolated or average).
 	float  m_displayedValue;
-
-	//! How many times this profiler counter was executed.
-	int m_count;
 
 	//! How variant this value.
 	float m_variance;
@@ -312,17 +384,18 @@ public:
 	CFrameProfiler* m_pParent;
 
 	//! Expended or collapsed displaying state.
-	uint64 m_bExpended     : 8;
-	uint64 m_bHaveChildren : 8;
-	uint64 m_subsystem     : 8;
+	bool m_bExpended;
+	bool m_bHaveChildren;
+	uint8 m_subsystem;
 
 	//! Identifier to be used for color lookup
-	uint64      m_colorIdentifier : 8;
+	uint8      m_colorIdentifier;
 
 	const char* m_stallCause;     //!< Additional information of stall cause.
 
 	//! Thread Id of this instance.
 	threadID            m_threadId;
+	uint                m_activeThreads;
 	//! Linked list to other thread instances.
 	CFrameProfiler*     m_pNextThread;
 
@@ -335,10 +408,6 @@ public:
 	//! Tells if this FrameProfiler has yet been added to the FrameProfileSystem.
 	bool m_bInitialized;
 
-	CFrameProfilerSamplesHistory<float, PROFILE_HISTORY_COUNT> m_totalTimeHistory;
-	CFrameProfilerSamplesHistory<float, PROFILE_HISTORY_COUNT> m_selfTimeHistory;
-	CFrameProfilerSamplesHistory<int, PROFILE_HISTORY_COUNT>   m_countHistory;
-
 	//! Graph data for this frame profiler.
 
 	//! Graph associated with this profiler.
@@ -347,24 +416,21 @@ public:
 
 	CFrameProfiler(const EProfiledSubsystem subsystem, const EProfileDescription desc,
 	               const char* sCollectorName, const char* fileName, const unsigned long fileLine)
-		: m_pISystem(GetISystem())
-		, m_name(sCollectorName)
+		: m_name(sCollectorName)
 		, m_fileName(fileName)
 		, m_fileLine(fileLine)
-		, m_totalTime(0)
-		, m_selfTime(0)
 		, m_latestFrame(0)
 		, m_displayedValue(0.0f)
-		, m_count(0)
 		, m_variance(0.0f)
 		, m_peak(0)
 		, m_pParent(nullptr)
-		, m_bExpended(0)
-		, m_bHaveChildren(0)
+		, m_bExpended(false)
+		, m_bHaveChildren(false)
 		, m_subsystem((uint8)subsystem)
 		, m_colorIdentifier(0)
 		, m_stallCause(nullptr)
 		, m_threadId(0)
+		, m_activeThreads(0)
 		, m_pNextThread(nullptr)
 		, m_description(desc)
 		, m_bInitialized(false)
@@ -374,22 +440,36 @@ public:
 		, m_pGraph(nullptr)
 		, m_pOfflineHistory(nullptr)
 	{
-		if (IFrameProfileSystem* const pFrameProfileSystem = m_pISystem->GetIProfileSystem())
+		if (ISystem* const pSystem = GetISystem())
 		{
-			pFrameProfileSystem->AddFrameProfiler(this);
+			if (IFrameProfileSystem* const pFrameProfileSystem = pSystem->GetIProfileSystem())
+			{
+				pFrameProfileSystem->AddFrameProfiler(this);
+			}
 		}
 	}
 
 	~CFrameProfiler()
 	{
 		// This is needed for when modules get unloaded at runtime.
-		if (m_pISystem != nullptr)
+		if (ISystem* const pSystem = GetISystem())
 		{
-			if (IFrameProfileSystem* const pFrameProfileSystem = m_pISystem->GetIProfileSystem())
+			if (IFrameProfileSystem* const pFrameProfileSystem = pSystem->GetIProfileSystem())
 			{
 				pFrameProfileSystem->RemoveFrameProfiler(this);
 			}
 		}
+	}
+
+	void Reset()
+	{
+		m_count = {};
+		m_totalTime = {};
+		m_selfTime = {};
+		m_peak = 0;
+		m_displayedValue = 0;
+		m_variance = 0;
+		m_activeThreads = 0;
 	}
 };
 
@@ -421,7 +501,7 @@ public:
 		, m_brofilerEventData(nullptr)
 #endif
 	{
-		m_pRecord = (gEnv->bBootProfilerEnabledFrames) ? gEnv->pSystem->StartBootSectionProfiler(sectionName, instanceArguments) : nullptr;
+		m_pRecord = (gEnv->bBootProfilerEnabledFrames) ? gEnv->pSystem->StartBootSectionProfiler(sectionName, instanceArguments,profileDescription) : nullptr;
 		if (gEnv->bDeepProfiling || profileDescription == EProfileDescription::REGION)
 		{
 			m_pFrameProfiler = profiler;
@@ -460,16 +540,16 @@ public:
 		  , m_pFrameProfiler(profiler)
 		  , m_pParent(nullptr)
 	{
-		if (profiler)
+		if (ISystem* const pSystem = GetISystem())
 		{
-			m_pFrameProfiler->m_pISystem->GetIProfileSystem()->StartCustomSection(this);
+			pSystem->GetIProfileSystem()->StartCustomSection(this);
 		}
 	}
 	ILINE ~CCustomProfilerSection()
 	{
-		if (m_pFrameProfiler)
+		if (ISystem* const pSystem = GetISystem())
 		{
-			m_pFrameProfiler->m_pISystem->GetIProfileSystem()->EndCustomSection(this);
+			pSystem->GetIProfileSystem()->EndCustomSection(this);
 		}
 	}
 };
@@ -547,22 +627,21 @@ public:
 		  BROFILER_SECTION_WAITING(szName)                     \
 		  PLATFORM_PROFILER_SECTION_WAITING(szName)
 
-		#define CRY_PROFILE_MARKER(szName) \
-		  INTERNAL_PROFILER_MARKER(szName) \
-		  BROFILER_MARKER(szName)          \
-		  PLATFORM_PROFILER_MARKER(szName)
+		#define CRY_PROFILE_MARKER(szLabel) \
+		  INTERNAL_PROFILER_MARKER(szLabel) \
+		  BROFILER_MARKER(szLabel)          \
+		  PLATFORM_PROFILER_MARKER(szLabel)
 
-/*
- # define CRY_PROFILE_PUSH(subsystem, szName) \
-   INTERNAL_PROFILER_PUSH(subsystem, szName) \
-   BROFILER_PUSH(szName) \
-   PLATFORM_PROFILER_PUSH(szName)
 
- # define CRY_PROFILE_POP() \
-   INTERNAL_PROFILER_POP() \
-   BROFILER_POP() \
-   PLATFORM_PROFILER_POP()
- */
+		#define CRY_PROFILE_PUSH_MARKER(szLabel) \
+		  INTERNAL_PROFILER_PUSH(szLabel) \
+		  BROFILER_PUSH(szLabel) \
+		  PLATFORM_PROFILER_PUSH(szLabel)
+
+		#define CRY_PROFILE_POP_MARKER(szLabel) \
+		  INTERNAL_PROFILER_POP(szLabel) \
+		  BROFILER_POP() \
+		  PLATFORM_PROFILER_POP(szLabel)
 
 	#else
 		#define CRY_PROFILE_FUNCTION(subsystem)                /*do nothing*/
@@ -570,8 +649,8 @@ public:
 		#define CRY_PROFILE_SECTION(subsystem, szName)         /*do nothing*/
 		#define CRY_PROFILE_SECTION_WAITING(subsystem, szName) /*do nothing*/
 		#define CRY_PROFILE_MARKER(szName)                     /*do nothing*/
-//#	define CRY_PROFILE_PUSH(subsystem, szName) /*do nothing*/
-//#	define CRY_PROFILE_POP() /*do nothing*/
+		#define CRY_PROFILE_PUSH_MARKER(szLabel)               /*do nothing*/
+		#define CRY_PROFILE_POP_MARKER(szLabel)                /*do nothing*/
 	#endif
 
 #else
@@ -586,20 +665,133 @@ public:
 	#define CRY_PROFILE_FUNCTION_WAITING(subsystem)             /*do nothing*/
 	#define CRY_PROFILE_SECTION(subsystem, szName)              /*do nothing*/
 	#define CRY_PROFILE_SECTION_WAITING(subsystem, szName)      /*do nothing*/
-	#define CRY_PROFILE_MARKER(szName)                          /*do nothing*/
-//#define CRY_PROFILE_PUSH(subsystem, szName) /*do nothing*/
-//#define CRY_PROFILE_POP() /*do nothing*/
+	#define CRY_PROFILE_MARKER(szLabel)                         /*do nothing*/
+	#define CRY_PROFILE_PUSH_MARKER(szLabel)                    /*do nothing*/
+	#define CRY_PROFILE_POP_MARKER(szLabel)                     /*do nothing*/
 #endif
 
-/////////// DEPRECATED - do not use anymore /////////////
+#if defined(ENABLE_LOADING_PROFILER)
 
-#define FUNCTION_PROFILER(pISystem, subsystem) \
-  CRY_PROFILE_FUNCTION(subsystem)
+struct DiskOperationInfo
+{
+	DiskOperationInfo() : m_nSeeksCount(0), m_nFileOpenCount(0), m_nFileReadCount(0), m_dOperationSize(0.), m_dOperationTime(0.) {}
+	int    m_nSeeksCount;
+	int    m_nFileOpenCount;
+	int    m_nFileReadCount;
+	double m_dOperationTime;
+	double m_dOperationSize;
 
-#define FRAME_PROFILER(szName, pISystem, subsystem) \
-  CRY_PROFILE_SECTION(subsystem, szName)
+	DiskOperationInfo& operator-=(const DiskOperationInfo& rv)
+	{
+		m_nSeeksCount -= rv.m_nSeeksCount;
+		m_nFileOpenCount -= rv.m_nFileOpenCount;
+		m_nFileReadCount -= rv.m_nFileReadCount;
+		m_dOperationSize -= rv.m_dOperationSize;
+		m_dOperationTime -= rv.m_dOperationTime;
+		return *this;
+	}
 
-// STALL_PROFILER labels should be converted to WAITING sections
-#define STALL_PROFILER(cause)
+	DiskOperationInfo& operator+=(const DiskOperationInfo& rv)
+	{
+		m_nSeeksCount += rv.m_nSeeksCount;
+		m_nFileOpenCount += rv.m_nFileOpenCount;
+		m_nFileReadCount += rv.m_nFileReadCount;
+		m_dOperationSize += rv.m_dOperationSize;
+		m_dOperationTime += rv.m_dOperationTime;
+		return *this;
+	}
 
-/////////////////////////////////////////////////////////
+	DiskOperationInfo operator-(const DiskOperationInfo& rv)
+	{
+		DiskOperationInfo res(*this);
+		return res -= rv;
+	}
+
+	DiskOperationInfo operator+(const DiskOperationInfo& rv)
+	{
+		DiskOperationInfo res(*this);
+		return res += rv;
+	}
+
+};
+
+struct CLoadingTimeProfiler
+{
+	CLoadingTimeProfiler(ISystem* pSystem, const char* szFuncName) : m_pSystem(pSystem)
+	{
+		m_pSystem = pSystem;
+		m_pTimeContainer = m_pSystem->StartLoadingSectionProfiling(this, szFuncName);
+	}
+
+	~CLoadingTimeProfiler()
+	{
+		m_pSystem->EndLoadingSectionProfiling(this);
+	}
+
+	struct SLoadingTimeContainer* m_pTimeContainer;
+	double                        m_fConstructorTime;
+	double                        m_fConstructorMemUsage;
+
+	DiskOperationInfo             m_constructorInfo;
+
+	ISystem*                      m_pSystem;
+};
+
+class CSYSBootProfileBlock
+{
+	ISystem*             m_pSystem;
+	CBootProfilerRecord* m_pRecord;
+public:
+	CSYSBootProfileBlock(ISystem* pSystem, const char* name, const char* args = NULL) : m_pSystem(pSystem)
+	{
+		m_pRecord = m_pSystem ? m_pSystem->StartBootSectionProfiler(name, args,EProfileDescription::FUNCTIONENTRY) : nullptr;
+	}
+
+	~CSYSBootProfileBlock()
+	{
+		if (m_pRecord)
+		{
+			m_pSystem->StopBootSectionProfiler(m_pRecord);
+		}
+	}
+};
+
+class CSYSBootProfileAutoSession
+{
+	ISystem*    m_pSystem;
+	const char* m_szSessionName;
+public:
+	CSYSBootProfileAutoSession(ISystem* pSystem, const char* szSessionName)
+		: m_pSystem(pSystem), m_szSessionName(szSessionName)
+	{
+		m_pSystem->StartBootProfilerSession(m_szSessionName);
+	}
+
+	~CSYSBootProfileAutoSession()
+	{
+		m_pSystem->StopBootProfilerSession(m_szSessionName);
+	}
+};
+
+// CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
+#define LOADING_TIME_PROFILE_SECTION \
+	static CFrameProfiler staticFrameProfilerLoading(PROFILE_LOADING_ONLY, EProfileDescription::FUNCTIONENTRY, __FUNC__, __FILE__, __LINE__); \
+	CFrameProfilerSection frameProfilerSectionLoading(&staticFrameProfilerLoading, __FILE__, nullptr, EProfileDescription::FUNCTIONENTRY);
+
+#define LOADING_TIME_PROFILE_SECTION_ARGS(args)                    CSYSBootProfileBlock _profileBlockLine_args(gEnv->pSystem, __FUNC__, args);
+#define LOADING_TIME_PROFILE_SECTION_NAMED(sectionName)            CSYSBootProfileBlock _profileBlockLine_named(gEnv->pSystem, sectionName);
+#define LOADING_TIME_PROFILE_SECTION_NAMED_ARGS(sectionName, args) CSYSBootProfileBlock _profileBlockLine_named_args(gEnv->pSystem, sectionName, args);
+#define LOADING_TIME_PROFILE_AUTO_SESSION(sessionName)             CSYSBootProfileAutoSession _profileAutoSession(gEnv->pSystem, (sessionName));
+
+
+#else //ENABLE_LOADING_PROFILER
+
+#define LOADING_TIME_PROFILE_SECTION
+#define LOADING_TIME_PROFILE_SECTION_ARGS(args)
+#define LOADING_TIME_PROFILE_SECTION_NAMED(sectionName)
+#define LOADING_TIME_PROFILE_SECTION_NAMED_ARGS(sectionName, args)
+#define LOADING_TIME_PROFILE_AUTO_SESSION(sessionName)
+
+#endif ////ENABLE_LOADING_PROFILER
+
+//! \endcond

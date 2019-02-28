@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __CRYGAMESPYVOICECODEC_H__
 #define __CRYGAMESPYVOICECODEC_H__

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "AnimatedCharacterEventProxies.h"
@@ -22,7 +22,7 @@ CAnimatedCharacterComponent_Base::CAnimatedCharacterComponent_Base()
 {
 }
 
-void CAnimatedCharacterComponent_Base::ProcessEvent(SEntityEvent& event)
+void CAnimatedCharacterComponent_Base::ProcessEvent(const SEntityEvent& event)
 {
 	switch (event.event)
 	{
@@ -34,7 +34,7 @@ void CAnimatedCharacterComponent_Base::ProcessEvent(SEntityEvent& event)
 
 uint64 CAnimatedCharacterComponent_Base::GetEventMask() const
 {
-	return BIT64(ENTITY_EVENT_PREPHYSICSUPDATE);
+	return ENTITY_EVENT_BIT(ENTITY_EVENT_PREPHYSICSUPDATE);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -51,7 +51,7 @@ void CAnimatedCharacterComponent_PrepareAnimatedCharacterForUpdate::OnPrePhysics
 
 	if (CAnimationGraphCVars::Get().m_useQueuedRotation && m_hasQueuedRotation)
 	{
-		m_pEntity->SetRotation(m_queuedRotation, ENTITY_XFORM_USER | ENTITY_XFORM_NOT_REREGISTER);
+		m_pEntity->SetRotation(m_queuedRotation, { ENTITY_XFORM_USER, ENTITY_XFORM_NOT_REREGISTER });
 		ClearQueuedRotation();
 	}
 

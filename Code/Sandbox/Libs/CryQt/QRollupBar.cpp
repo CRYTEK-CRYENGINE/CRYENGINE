@@ -1,3 +1,5 @@
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+
 #include <StdAfx.h>
 #include <QVBoxLayout>
 #include "QScrollableBox.h"
@@ -302,5 +304,6 @@ bool QRollupBar::eventFilter(QObject * o, QEvent * e)
 	}
 	return QWidget::eventFilter(o, e);
 }
+
 
 

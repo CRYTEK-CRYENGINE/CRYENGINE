@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
 -------------------------------------------------------------------------
@@ -662,7 +662,7 @@ void CHeavyMountedWeapon::SetUnMountedConfiguration()
 }
 
 
-void CHeavyMountedWeapon::ProcessEvent(SEntityEvent& event)
+void CHeavyMountedWeapon::ProcessEvent(const SEntityEvent& event)
 {
 	if ((event.event == ENTITY_EVENT_XFORM) && IsMounted() && GetOwnerId())
 	{

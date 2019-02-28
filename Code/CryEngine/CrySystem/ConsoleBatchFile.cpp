@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -49,12 +49,7 @@ bool CConsoleBatchFile::ExecuteConfigFile(const char* sFilename)
 	if (!m_pConsole)
 		Init();
 
-	string filename;
-	string root = gEnv->pSystem->GetRootFolder();
-	if (!root.empty())
-		filename = PathUtil::Make(root, PathUtil::GetFile(sFilename));
-	else
-		filename = sFilename;
+	string filename = PathUtil::Make(gEnv->pSystem->GetRootFolder(), PathUtil::GetFile(sFilename));
 	if (strlen(PathUtil::GetExt(filename)) == 0)
 	{
 		filename = PathUtil::ReplaceExtension(filename, "cfg");
@@ -130,7 +125,8 @@ bool CConsoleBatchFile::ExecuteConfigFile(const char* sFilename)
 			continue;
 
 #if defined(CVARS_WHITELIST)
-		if ((ignoreWhitelist) || (gEnv->pSystem->GetCVarsWhiteList()->IsWhiteListed(strLine, false)))
+		auto pWhiteList = gEnv->pSystem->GetCVarsWhiteList();
+		if ((ignoreWhitelist) || (pWhiteList && pWhiteList->IsWhiteListed(strLine, false)))
 #endif // defined(CVARS_WHITELIST)
 		{
 			m_pConsole->ExecuteString(strLine);

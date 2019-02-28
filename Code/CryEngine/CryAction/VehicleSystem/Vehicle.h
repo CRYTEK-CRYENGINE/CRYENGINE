@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -177,7 +177,7 @@ public:
 	};
 
 	//IEntityEvent
-	virtual void                   ProcessEvent(SEntityEvent& entityEvent) final;
+	virtual void                   ProcessEvent(const SEntityEvent& entityEvent) final;
 	virtual uint64                 GetEventMask() const final;
 	virtual ComponentEventPriority GetEventPriority() const final;
 	//~IEntityEvent

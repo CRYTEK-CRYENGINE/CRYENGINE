@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "CryHeaders.h"
 
@@ -465,6 +465,6 @@ STRUCT_INFO_BEGIN(VCLOTH_CHUNK)
 VAR_INFO(vertexCount)
 VAR_INFO(bendTrianglePairCount)
 VAR_INFO(bendTriangleCount)
-VAR_INFO(lraNotAttachedOrderedIdxCount)
+VAR_INFO(nndcNotAttachedOrderedIdxCount)
 VAR_INFO(linkCount)
 STRUCT_INFO_END(VCLOTH_CHUNK)

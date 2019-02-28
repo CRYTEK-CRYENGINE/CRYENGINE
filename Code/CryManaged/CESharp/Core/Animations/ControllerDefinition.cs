@@ -1,11 +1,15 @@
-//Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 using CryEngine.Common;
 
 namespace CryEngine.Animations
 {
+	/// <summary>
+	/// Handles scope contexts and fragments for animations.
+	/// </summary>
 	public class ControllerDefinition
 	{
+		[SerializeValue]
 		internal SControllerDef NativeHandle { get; private set; }
 
 		internal ControllerDefinition(SControllerDef nativeHandle)

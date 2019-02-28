@@ -1,10 +1,9 @@
-if(OPTION_BUILD_CSHARP_WITH_MCS)
+if(OPTION_BUILD_CSHARP_WITH_CSC)
 	project(CESharp NONE)
 
-	set(SDK_DIR "${CMAKE_CURRENT_LIST_DIR}/../../../SDKs")
-	set(MCS_PATH "${SDK_DIR}/Mono/bin/mcs.bat")
+	set(SDK_DIR "${CMAKE_SOURCE_DIR}/Code/SDKs")
 	create_mono_compiler_settings()
-	
+
 	set(AI_FILES AI/Attributes.cs AI/BehaviorTreeNode.cs AI/BehaviorTreeNodeFactory.cs AI/LastingMovementRequest.cs)
 	source_group("AI" FILES ${AI_FILES})
 
@@ -37,8 +36,12 @@ if(OPTION_BUILD_CSHARP_WITH_MCS)
 	source_group("Debugging" FILES ${Debugging_FILES})
 
 
-	set(EntitySystem_Attributes_FILES EntitySystem/Attributes/EntityClassAttribute.cs EntitySystem/Attributes/EntityComponentAttribute.cs)
+	set(EntitySystem_Attributes_FILES EntitySystem/Attributes/EntityClassAttribute.cs EntitySystem/Attributes/EntityComponentAttribute.cs EntitySystem/Attributes/SchematycMethodAttribute.cs EntitySystem/Attributes/SchematycSignalAttribute.cs)
 	source_group("EntitySystem\\Attributes" FILES ${EntitySystem_Attributes_FILES})
+
+
+	set(EntitySystem_Enums_FILES EntitySystem/Enums/Primitives.cs)
+	source_group("EntitySystem\\Enums" FILES ${EntitySystem_Enums_FILES})
 
 
 	set(EntitySystem_Native_FILES EntitySystem/Native/NativeEntityMethods.cs)
@@ -93,6 +96,10 @@ if(OPTION_BUILD_CSHARP_WITH_MCS)
 	source_group("Physics" FILES ${Physics_FILES})
 
 
+	set(Properties_FILES Properties/AssemblyInfo.cs)
+	source_group("Properties" FILES ${Properties_FILES})
+
+
 	set(Rendering_FILES Rendering/Renderer.cs)
 	source_group("Rendering" FILES ${Rendering_FILES})
 
@@ -101,7 +108,7 @@ if(OPTION_BUILD_CSHARP_WITH_MCS)
 	source_group("Resources" FILES ${Resources_FILES})
 
 
-	set(Serialization_FILES Serialization/CachedTypeInfo.cs Serialization/DomainSerializer.cs Serialization/ObjectReader.cs Serialization/ObjectWriter.cs)
+	set(Serialization_FILES Serialization/CachedTypeInfo.cs Serialization/DomainSerializer.cs Serialization/ISerializedObject.cs Serialization/ObjectReader.cs Serialization/ObjectWriter.cs Serialization/SerializeValueAttribute.cs)
 	source_group("Serialization" FILES ${Serialization_FILES})
 
 
@@ -109,17 +116,17 @@ if(OPTION_BUILD_CSHARP_WITH_MCS)
 	source_group("Util" FILES ${Util_FILES})
 
 
-	set(Core_FILES Attributes.cs Camera.cs Engine.cs Extensions.cs GameFramework.cs ICryEnginePlugin.cs LevelSystem.cs Random.cs SystemEventHandler.cs Timer.cs)
+	set(Core_FILES Camera.cs Engine.cs Extensions.cs GameFramework.cs ICryEnginePlugin.cs LevelSystem.cs Random.cs SystemEventHandler.cs Timer.cs)
 	source_group("Core" FILES ${Core_FILES})
 
 
-	set(SOURCE ${AI_FILES} ${Animations_FILES} ${Audio_Native_FILES} ${Audio_FILES} ${Compilation_FILES} ${Console_Native_FILES} ${Console_FILES} ${Debugging_FILES} ${EntitySystem_Attributes_FILES} ${EntitySystem_Native_FILES} ${EntitySystem_FILES} ${FileSystem_FILES} ${Input_Enums_FILES} ${Input_FILES} ${Lights_FILES} ${Math_FILES} ${Particles_FILES} ${Physics_Enums_FILES} ${Physics_Parameters_FILES} ${Physics_PhysicalizeParameters_FILES} ${Physics_PhysicsStatus_FILES} ${Physics_FILES} ${Rendering_FILES} ${Resources_FILES} ${Serialization_FILES} ${Util_FILES} ${Core_FILES})
+	set(SOURCE ${AI_FILES} ${Animations_FILES} ${Audio_Native_FILES} ${Audio_FILES} ${Compilation_FILES} ${Console_Native_FILES} ${Console_FILES} ${Debugging_FILES} ${EntitySystem_Attributes_FILES} ${EntitySystem_Enums_FILES} ${EntitySystem_Native_FILES} ${EntitySystem_FILES} ${FileSystem_FILES} ${Input_Enums_FILES} ${Input_FILES} ${Lights_FILES} ${Math_FILES} ${Particles_FILES} ${Physics_Enums_FILES} ${Physics_Parameters_FILES} ${Physics_PhysicalizeParameters_FILES} ${Physics_PhysicsStatus_FILES} ${Physics_FILES} ${Properties_FILES} ${Rendering_FILES} ${Resources_FILES} ${Serialization_FILES} ${Util_FILES} ${Core_FILES})
 
 	add_custom_target(CryEngine.Core ALL
-		COMMAND "${MCS_PATH}" -target:library -langversion:${MONO_LANGUAGE_VERSION} -platform:${MONO_CPU_PLATFORM} -optimize -debug -define:${MONO_PREPROCESSOR_DEFINE} -lib:${MONO_LIB_PATH} -r:System -r:System.Data -r:System.Drawing -r:System.Runtime.Serialization -r:System.Windows.Forms -r:System.Xml "${MONO_SWIG_OUTPUT_ASSEMBLY_REFERENCE}" ${SOURCE} "-out:${OUTPUT_DIRECTORY}/CryEngine.Core.dll" "-doc:${OUTPUT_DIRECTORY}/CryEngine.Core.xml"
+		COMMAND "${CSC_PATH}" /target:library /langversion:${MONO_LANGUAGE_VERSION} /platform:${MONO_CPU_PLATFORM} /optimize /debug:portable /define:${MONO_PREPROCESSOR_DEFINE} /reference:System.dll /reference:System.Data.dll /reference:System.Drawing.dll /reference:System.Runtime.Serialization.dll /reference:System.Windows.Forms.dll /reference:System.Xml.dll "${MONO_SWIG_OUTPUT_ASSEMBLY_REFERENCE}" ${SOURCE} /out:"${OUTPUT_DIRECTORY}/CryEngine.Core.dll" /doc:"${OUTPUT_DIRECTORY}/CryEngine.Core.xml"
 		WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
 		SOURCES ${SOURCE})
-		
+
 	#Doesn't seem to do anything...
 	set_target_properties(CryEngine.Core PROPERTIES VS_DOTNET_REFERENCES "System;System.Data")
 else()

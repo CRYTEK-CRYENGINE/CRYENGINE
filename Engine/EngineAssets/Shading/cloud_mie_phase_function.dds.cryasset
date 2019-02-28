@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="7af1f8b7-80a3-13d8-9b7c-dee757149b1a">
+ <Files>
+  <File path="cloud_mie_phase_function.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">2048</Detail>
+  <Detail name="height">1</Detail>
+  <Detail name="mipCount">1</Detail>
+ </Details>
+</AssetMetadata>

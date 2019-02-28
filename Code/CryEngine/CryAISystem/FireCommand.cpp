@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /********************************************************************
    -------------------------------------------------------------------------
@@ -495,7 +495,7 @@ void CFireCommandLob::ClearDebugEvals()
 //---------------------------------------------------------------------------------------------------------------
 EAIFireState CFireCommandLob::Update(IAIObject* pTarget, bool canFire, EFireMode fireMode, const AIWeaponDescriptor& descriptor, Vec3& outShootTargetPos)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	EAIFireState state = eAIFS_Off;
 
@@ -550,7 +550,7 @@ EAIFireState CFireCommandLob::Update(IAIObject* pTarget, bool canFire, EFireMode
 //---------------------------------------------------------------------------------------------------------------
 EAIFireState CFireCommandLob::GetBestLob(IAIObject* pTarget, const AIWeaponDescriptor& descriptor, Vec3& outShootTargetPos)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 	assert(m_pShooter);
 	assert(pTarget);
@@ -722,7 +722,7 @@ float CFireCommandLob::EvaluateThrow(const Vec3& targetPos, const Vec3& targetVi
                                      Trajectory& trajectory, const float maxAllowedDistanceFromTarget,
                                      const float minimumDistanceToFriendsSq) const
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_GAME);
+	CRY_PROFILE_FUNCTION(PROFILE_GAME);
 	CCCPOINT(CFireCommandLob_EvaluateThisThrow);
 
 	IAIActorProxy* pPuppetProxy = m_pShooter->GetProxy();

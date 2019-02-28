@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -113,6 +113,7 @@ public:
 	virtual ~CNodesDictionary();
 
 	// CAbstractDictionary
+	virtual void                            ClearEntries() override;
 	virtual int32                           GetNumEntries() const override { return m_categories.size() + m_nodes.size(); }
 	virtual const CAbstractDictionaryEntry* GetEntry(int32 index) const override;
 
@@ -126,8 +127,6 @@ public:
 
 	void LoadLoadsFromScriptGraph(Schematyc::IScriptGraph& scriptGraph);
 	void SetStyle(const CryGraphEditor::CNodeGraphViewStyle* pStyle) { m_pStyle = pStyle; }
-
-	void Clear();
 
 private:
 	const CryGraphEditor::CNodeGraphViewStyle*  m_pStyle;
@@ -157,3 +156,4 @@ private:
 };
 
 }
+

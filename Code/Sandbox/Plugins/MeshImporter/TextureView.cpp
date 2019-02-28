@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "TextureView.h"
@@ -67,3 +67,4 @@ void CTextureView::CreateContextMenu(const QPoint& point)
 	const QPoint popupLocation = point + QPoint(1, 1); // Otherwise double-right-click immediately executes first option
 	pMenu->popup(viewport()->mapToGlobal(popupLocation));
 }
+

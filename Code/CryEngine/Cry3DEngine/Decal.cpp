@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   decals.cpp
@@ -147,7 +147,7 @@ void CDecal::Render(const float fCurTime, int nAfterWater, float fDistanceFading
 				break;
 
 			// setup transformation
-			CRenderObject* pObj = GetRenderer()->EF_GetObject_Temp(passInfo.ThreadID());
+			CRenderObject* pObj = passInfo.GetIRenderView()->AllocateTemporaryRenderObject();
 			if (!pObj)
 				return;
 			pObj->m_fSort = 0;
@@ -169,7 +169,7 @@ void CDecal::Render(const float fCurTime, int nAfterWater, float fDistanceFading
 				}
 			}
 
-			pObj->m_II.m_Matrix = objMat;
+			pObj->SetMatrix(objMat, passInfo);
 			if (m_ownerInfo.pRenderNode)
 				pObj->m_ObjFlags |= FOB_TRANS_MASK;
 
@@ -234,7 +234,7 @@ void CDecal::Render(const float fCurTime, int nAfterWater, float fDistanceFading
 
 				if (pVegetation && pBody && bUseBending)
 				{
-					pVegetation->FillBendingData(pObj);
+					pVegetation->FillBendingData(pObj, passInfo);
 				}
 				IMaterial* pMat = m_ownerInfo.pRenderNode->GetMaterial();
 				pMat = pMat->GetSubMtl(m_ownerInfo.nMatID);
@@ -262,7 +262,7 @@ void CDecal::Render(const float fCurTime, int nAfterWater, float fDistanceFading
 					SRenderObjData* pOD = pObj->GetObjData();
 					if (pOD)
 					{
-						pOD->m_pSkinningData = pFol->GetSkinningData(pObj->m_II.m_Matrix, passInfo);
+						pOD->m_pSkinningData = pFol->GetSkinningData(objMat, passInfo);
 					}
 				}
 				if (pBody && pBody->m_pRenderMesh)
@@ -274,48 +274,8 @@ void CDecal::Render(const float fCurTime, int nAfterWater, float fDistanceFading
 			// draw complex decal using new indices and original object vertices
 			pObj->m_fAlpha = fAlpha;
 			pObj->m_ObjFlags |= FOB_DECAL | FOB_DECAL_TEXGEN_2D | FOB_INSHADOW;
-			pObj->m_II.m_AmbColor = m_vAmbient;
-			if (GetCVars()->e_DecalsScissor)
-			{
-				Matrix44 view;
-				GetRenderer()->GetModelViewMatrix(view.GetData());
+			pObj->SetAmbientColor(m_vAmbient, passInfo);
 
-				Matrix44 proj;
-				GetRenderer()->GetProjectionMatrix(proj.GetData());
-
-				Vec4 viewspacePos = Vec4(m_vWSPos, 1) * view;
-				//if (fabsf(viewspacePos.z) >= 1e-4f && fabsf(proj.m23) == 1)
-				if (viewspacePos.z < -1e-4f)
-				{
-					int width = GetRenderer()->GetWidth();
-					int height = GetRenderer()->GetHeight();
-
-					float corner1x = viewspacePos.x - 1.5f * m_fWSSize;
-					float corner1y = viewspacePos.y + 1.5f * m_fWSSize;
-					float corner2x = viewspacePos.x + 1.5f * m_fWSSize;
-					float corner2y = viewspacePos.y - 1.5f * m_fWSSize;
-
-					float w = 0.5f / viewspacePos.z * proj.m23;
-					float scissorMinX = (corner1x * proj.m00) * w;
-					float scissorMinY = -(corner1y * proj.m11) * w;
-					float scissorMaxX = (corner2x * proj.m00) * w;
-					float scissorMaxY = -(corner2y * proj.m11) * w;
-
-					uint16 scissorX1 = max(min((int)(width * (scissorMinX + 0.5f)), width), 0);
-					uint16 scissorY1 = max(min((int)(height * (scissorMinY + 0.5f)), height), 0);
-					uint16 scissorX2 = max(min((int)(width * (scissorMaxX + 0.5f)), width), 0);
-					uint16 scissorY2 = max(min((int)(height * (scissorMaxY + 0.5f)), height), 0);
-
-					if (scissorX1 < scissorX2 && scissorY1 < scissorY2)
-					{
-						SRenderObjData* pOD = pObj->GetObjData();
-						pOD->m_scissorX = scissorX1;
-						pOD->m_scissorY = scissorY1;
-						pOD->m_scissorWidth = scissorX2 - scissorX1;
-						pOD->m_scissorHeight = scissorY2 - scissorY1;
-					}
-				}
-			}
 			m_pRenderMesh->SetREUserData(m_arrBigDecalRMCustomData, 0, fAlpha);
 			m_pRenderMesh->AddRenderElements(m_pMaterial, pObj, passInfo, EFSLIST_GENERAL, nAfterWater);
 		}
@@ -384,10 +344,9 @@ void CDecal::RenderBigDecalOnTerrain(float fAlpha, float fScale, const SRenderin
 	if (m_vPos.x >= CTerrain::GetTerrainSize() + fRadius || m_vPos.y >= CTerrain::GetTerrainSize() + fRadius)
 		return;
 
-	const int nUsintSize = CTerrain::GetHeightMapUnitSize();
-	fRadius += nUsintSize;
+	fRadius += CTerrain::GetHeightMapUnitSize();
 
-	if (fabs(m_vPos.z - Get3DEngine()->GetTerrainZ(int(m_vPos.x), int(m_vPos.y))) > fRadius)
+	if (fabs(m_vPos.z - Get3DEngine()->GetTerrainZ((m_vPos.x), (m_vPos.y))) > fRadius)
 		return; // too far from ground surface
 
 	// setup texgen
@@ -426,16 +385,15 @@ void CDecal::RenderBigDecalOnTerrain(float fAlpha, float fScale, const SRenderin
 	m_arrBigDecalRMCustomData[14] = vNormal.z;
 	m_arrBigDecalRMCustomData[15] = 0;
 
-	CRenderObject* pObj = GetIdentityCRenderObject(passInfo.ThreadID());
+	CRenderObject* pObj = GetIdentityCRenderObject(passInfo);
 	if (!pObj)
 		return;
-
-	pObj->m_II.m_Matrix.SetTranslation(m_vPos);
+	pObj->SetMatrix(Matrix34::CreateTranslationMat(m_vPos), passInfo);
 	pObj->m_ObjFlags |= FOB_TRANS_TRANSLATE;
 
 	pObj->m_fAlpha = fAlpha;
 	pObj->m_ObjFlags |= FOB_DECAL | FOB_DECAL_TEXGEN_2D | FOB_INSHADOW;
-	pObj->m_II.m_AmbColor = m_vAmbient;
+	pObj->SetAmbientColor(m_vAmbient, passInfo);
 
 	pObj->m_nSort = m_sortPrio;
 
@@ -467,14 +425,14 @@ void CDecal::AddDecalToRenderView(float fDistance,
 	FUNCTION_PROFILER_3DENGINE;
 	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "AddDecalToRenderer");
 
-	CRenderObject* pRenderObject(GetIdentityCRenderObject(passInfo.ThreadID()));
+	CRenderObject* pRenderObject(GetIdentityCRenderObject(passInfo));
 	if (!pRenderObject)
 		return;
 
 	// prepare render object
 	pRenderObject->m_fDistance = fDistance;
 	pRenderObject->m_fAlpha = (float)ucResCol.bcolor[3] / 255.f;
-	pRenderObject->m_II.m_AmbColor = vAmbientColor;
+	pRenderObject->SetAmbientColor(vAmbientColor, passInfo);
 	pRenderObject->m_fSort = 0;
 	pRenderObject->m_ObjFlags |= FOB_DECAL | FOB_INSHADOW;
 	pRenderObject->m_nSort = sortPrio;
@@ -486,9 +444,9 @@ void CDecal::AddDecalToRenderView(float fDistance,
 		// transfer decal into object space
 		Matrix34A objMat;
 		IStatObj* pEntObject = pVegetation->GetEntityStatObj(0, &objMat);
-		pRenderObject->m_II.m_Matrix = objMat;
+		pRenderObject->SetMatrix(objMat, passInfo);
 		pRenderObject->m_ObjFlags |= FOB_TRANS_MASK;
-		pVegetation->FillBendingData(pRenderObject);
+		pVegetation->FillBendingData(pRenderObject, passInfo);
 		assert(pEntObject);
 		if (pEntObject)
 		{

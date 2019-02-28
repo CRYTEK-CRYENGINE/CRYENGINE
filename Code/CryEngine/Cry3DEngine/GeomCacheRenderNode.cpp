@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // ------------------------------------------------------------------------
 //  File name:   GeomCacheRenderNode.cpp
@@ -147,10 +147,8 @@ void CGeomCacheRenderNode::GetLocalBounds(AABB& bbox)
 
 void CGeomCacheRenderNode::OffsetPosition(const Vec3& delta)
 {
-	#ifdef SEG_WORLD
 	m_matrix.SetTranslation(m_matrix.GetTranslation() + delta);
 	UpdateBBox();
-	#endif
 }
 
 bool CGeomCacheRenderNode::DidBoundsChange()
@@ -205,7 +203,7 @@ void CGeomCacheRenderNode::Render(const struct SRendParams& rendParams, const SR
 			drawParams.pMaterial = m_pMaterial;
 
 			IRenderer* const pRenderer = GetRenderer();
-			CRenderObject* pRenderObject = pRenderer->EF_GetObject_Temp(passInfo.ThreadID());
+			CRenderObject* pRenderObject = passInfo.GetIRenderView()->AllocateTemporaryRenderObject();
 
 			if (pRenderObject)
 			{
@@ -227,7 +225,7 @@ void CGeomCacheRenderNode::Render(const struct SRendParams& rendParams, const SR
 
 					if (pGraphicsPipelineCV->GetIVal() == 0)
 					{
-						pRenderer->EF_AddEf(pCREGeomCache, shaderItem, pRenderObject, passInfo, EFSLIST_GENERAL, afterWater);
+						passInfo.GetIRenderView()->AddRenderObject(pCREGeomCache, shaderItem, pRenderObject, passInfo, EFSLIST_GENERAL, afterWater);
 					}
 					else
 					{
@@ -268,7 +266,7 @@ void CGeomCacheRenderNode::Render(const struct SRendParams& rendParams, const SR
 									}
 
 									auto pInstanceRenderObject = pRenderer->EF_DuplicateRO(pRenderObject, passInfo);
-									pInstanceRenderObject->m_II.m_Matrix = pieceMatrix;
+									pInstanceRenderObject->SetMatrix(pieceMatrix, passInfo);
 
 									if (pMotionVectorsCV->GetIVal() && passInfo.IsGeneralPass() && ((pInstanceRenderObject->m_ObjFlags & FOB_DYNAMIC_OBJECT) != 0))
 									{
@@ -289,7 +287,7 @@ void CGeomCacheRenderNode::Render(const struct SRendParams& rendParams, const SR
 										}
 									}
 
-									pRenderer->EF_AddEf(pREMesh, shaderItem, pInstanceRenderObject, passInfo, EFSLIST_GENERAL, afterWater);
+									passInfo.GetIRenderView()->AddRenderObject(pREMesh, shaderItem, pInstanceRenderObject, passInfo, EFSLIST_GENERAL, afterWater);
 								}
 							}
 						}
@@ -884,14 +882,14 @@ void CGeomCacheRenderNode::FillRenderObject(const SRendParams& rendParams, const
 	pRenderObject->m_ObjFlags |= FOB_TRANS_MASK | FOB_DYNAMIC_OBJECT;
 	pRenderObject->m_ObjFlags |= rendParams.dwFObjFlags;
 
-	pRenderObject->m_II.m_AmbColor = rendParams.AmbientColor;
+	pRenderObject->SetAmbientColor(rendParams.AmbientColor, passInfo);
 
 	if (rendParams.nTextureID >= 0)
 	{
 		pRenderObject->m_nTextureID = rendParams.nTextureID;
 	}
 
-	pRenderObject->m_II.m_Matrix = *rendParams.pMatrix;
+	pRenderObject->SetMatrix(*rendParams.pMatrix, passInfo);
 	pRenderObject->m_nClipVolumeStencilRef = rendParams.nClipVolumeStencilRef;
 
 	SRenderObjData* pRenderObjData = pRenderObject->GetObjData();

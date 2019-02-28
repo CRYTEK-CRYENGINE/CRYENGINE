@@ -1,0 +1,9 @@
+<AssetMetadata version="0" type="Material" guid="b504200a-8db6-e495-9acc-4d1ff8acf3d7">
+ <Files>
+  <File path="FogVolumeEllipsoid.mtl"/>
+ </Files>
+ <Details>
+  <Detail name="subMaterialCount">0</Detail>
+  <Detail name="textureCount">0</Detail>
+ </Details>
+</AssetMetadata>

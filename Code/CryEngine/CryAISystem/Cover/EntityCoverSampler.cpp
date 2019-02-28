@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "EntityCoverSampler.h"
@@ -59,7 +59,7 @@ void EntityCoverSampler::Cancel(EntityId entityID)
 
 void EntityCoverSampler::Update()
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	CTimeValue now = gEnv->pTimer->GetFrameStartTime();
 

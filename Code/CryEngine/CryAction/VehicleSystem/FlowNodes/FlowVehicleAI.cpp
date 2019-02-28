@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -60,7 +60,7 @@ public:
 
 	//////////////////////////////////////////////////////////////////////////
 	// IEntityEventListener
-	virtual void OnEntityEvent(IEntity* pEntity, SEntityEvent& event);
+	virtual void OnEntityEvent(IEntity* pEntity, const SEntityEvent& event);
 
 	void         RegisterEvents();
 	virtual void UnregisterEvents();
@@ -416,16 +416,10 @@ template<bool TBlocking> void CFlowNode_AIBase<TBlocking >::OnGoalPipeEvent(IPip
 
 //
 //-------------------------------------------------------------------------------------------------------------
-template<bool TBlocking> void CFlowNode_AIBase<TBlocking >::OnEntityEvent(IEntity* pEntity, SEntityEvent& event)
+template<bool TBlocking> void CFlowNode_AIBase<TBlocking >::OnEntityEvent(IEntity* pEntity, const SEntityEvent& event)
 {
 	switch (event.event)
 	{
-	case ENTITY_EVENT_AI_DONE:
-		if (m_pGraph->IsSuspended())
-			return;
-		Finish();
-		break;
-
 	case ENTITY_EVENT_RESET:
 	case ENTITY_EVENT_DONE:
 		Cancel();
@@ -502,7 +496,6 @@ template<bool TBlocking> void CFlowNode_AIBase<TBlocking >::RegisterEntityEvents
 	if (m_EntityId)
 	{
 		IEntitySystem* pSystem = gEnv->pEntitySystem;
-		pSystem->AddEntityEventListener(m_EntityId, ENTITY_EVENT_AI_DONE, this);
 		pSystem->AddEntityEventListener(m_EntityId, ENTITY_EVENT_POST_SERIALIZE, this);
 		//	pSystem->AddEntityEventListener( m_EntityId, ENTITY_EVENT_DONE, this );
 		//	pSystem->AddEntityEventListener( m_EntityId, ENTITY_EVENT_RESET, this );
@@ -546,7 +539,6 @@ template<bool TBlocking> void CFlowNode_AIBase<TBlocking >::UnregisterEvents()
 		IEntitySystem* pSystem = gEnv->pEntitySystem;
 		if (pSystem)
 		{
-			pSystem->RemoveEntityEventListener(m_EntityId, ENTITY_EVENT_AI_DONE, this);
 			pSystem->RemoveEntityEventListener(m_EntityId, ENTITY_EVENT_POST_SERIALIZE, this);
 		}
 
@@ -1090,7 +1082,7 @@ public:
 	virtual EForceMethod GetForceMethod(IFlowNode::SActivationInfo* pActInfo) const;
 	virtual void         PreExecute(SActivationInfo* pActInfo);
 
-	void                 OnEntityEvent(IEntity* pEntity, SEntityEvent& event);
+	void                 OnEntityEvent(IEntity* pEntity, const SEntityEvent& event);
 
 	virtual IFlowNodePtr Clone(SActivationInfo* pActInfo);
 
@@ -1136,7 +1128,7 @@ public:
 	virtual EForceMethod GetForceMethod(IFlowNode::SActivationInfo* pActInfo) const;
 	virtual void         PreExecute(SActivationInfo* pActInfo);
 
-	void                 OnEntityEvent(IEntity* pEntity, SEntityEvent& event);
+	void                 OnEntityEvent(IEntity* pEntity, const SEntityEvent& event);
 
 	virtual IFlowNodePtr Clone(SActivationInfo* pActInfo);
 	virtual void         Serialize(SActivationInfo*, TSerialize ser);
@@ -1473,7 +1465,7 @@ CFlowNode_AIVehicleStickPath::EForceMethod CFlowNode_AIVehicleStickPath::GetForc
 	return static_cast<EForceMethod>(GetPortInt(pActInfo, 9));   // Replace this number with an enum value
 }
 
-void CFlowNode_AIVehicleStickPath::OnEntityEvent(IEntity* pEntity, SEntityEvent& event)
+void CFlowNode_AIVehicleStickPath::OnEntityEvent(IEntity* pEntity, const SEntityEvent& event)
 {
 	if (event.event == ENTITY_EVENT_SCRIPT_EVENT)
 	{
@@ -1662,7 +1654,7 @@ CFlowNode_AIVehicleChaseTarget::EForceMethod CFlowNode_AIVehicleChaseTarget::Get
 	return static_cast<EForceMethod>(GetPortInt(pActInfo, 7));   // Replace this number with an enum value
 }
 
-void CFlowNode_AIVehicleChaseTarget::OnEntityEvent(IEntity* pEntity, SEntityEvent& event)
+void CFlowNode_AIVehicleChaseTarget::OnEntityEvent(IEntity* pEntity, const SEntityEvent& event)
 {
 	if (event.event == ENTITY_EVENT_SCRIPT_EVENT)
 	{

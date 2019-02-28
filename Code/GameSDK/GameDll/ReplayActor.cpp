@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
 -------------------------------------------------------------------------
@@ -75,7 +75,7 @@ void CReplayActor::PostInit(IGameObject *pGameObject)
 
 
 //------------------------------------------------------------------------
-void CReplayActor::ProcessEvent(SEntityEvent &event)
+void CReplayActor::ProcessEvent(const SEntityEvent& event)
 {
 	switch (event.event)
 	{
@@ -145,8 +145,8 @@ void CReplayActor::ProcessEvent(SEntityEvent &event)
 uint64 CReplayActor::GetEventMask() const
 {
 	return 
-		BIT64(ENTITY_EVENT_PREPHYSICSUPDATE) |
-		BIT64(ENTITY_EVENT_DONE);
+		ENTITY_EVENT_BIT(ENTITY_EVENT_PREPHYSICSUPDATE) |
+		ENTITY_EVENT_BIT(ENTITY_EVENT_DONE);
 }
 
 //------------------------------------------------------------------------
@@ -604,7 +604,7 @@ void SBasicReplayMovementParams::SetDesiredLocalLocation2( ISkeletonAnim* pSkele
 	pSkeletonAnim->SetDesiredMotionParam(eMotionParamID_TravelDist, travelDist, fDeltaTime);
 }
 
-void CReplayActor::GunRemovalListener::OnEntityEvent( IEntity *pEntity,SEntityEvent &event )
+void CReplayActor::GunRemovalListener::OnEntityEvent( IEntity *pEntity, const SEntityEvent& event )
 {
 	if(event.event == ENTITY_EVENT_DONE)
 	{

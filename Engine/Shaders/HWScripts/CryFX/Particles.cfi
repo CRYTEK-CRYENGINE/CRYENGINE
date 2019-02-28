@@ -1,5 +1,4 @@
-// CRYENGINE Source Code File
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 DISSOLVE_NOISE_MAP
 
@@ -7,7 +6,7 @@ DISSOLVE_NOISE_MAP
 
 struct OutputVS
 {
-	float4 HPosition  : POSITION;
+	float4 HPosition : SV_POSITION;
 
 	float4 baseTC    : TEXCOORDN;   // zw = orig tc
 
@@ -18,10 +17,10 @@ struct OutputVS
 	half4 alphaClip  : TEXCOORDN;
 
 #if (FEATURE_PARTICLES_TESSELLATION && !%_RT_NO_TESSELLATION) || %BUMP_MAP || USE_MATERIAL
-	half4 vWorldPos : TEXCOORDN;
+	half4 vWorldPos  : TEXCOORDN;
 #endif
 #if USE_MATERIAL
-	half4 vTangent  : TEXCOORDN;
+	half4 vTangent   : TEXCOORDN;
 #endif
 
 #if !%REFRACTION
@@ -38,10 +37,10 @@ struct OutputVS
 
 struct pixoutParticle
 {
-	half4 Color : COLOR0;
+	half4 Color        : SV_Target0;
 
 #if %DEPTH_FIXUP
-	half4 BlendFactors : COLOR1;
+	half4 BlendFactors : SV_Target1;
 #endif
 };
 
@@ -136,7 +135,7 @@ float GetShadowOccl(float3 worldPos)
 	samplingContext.pointSamplerClamp = ssPointClamp;
 	samplingContext.bilinearSamplerWrap = ssForwardBilinearWrap;
 
-	return ShadowDepthTest((SShadowSamplingParams)cbShadowSampling, shadowCascades, samplingContext, worldPos, true, true);
+	return ShadowDepthTest(GetShadowSamplingParams(), shadowCascades, samplingContext, worldPos, true, true);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
@@ -877,7 +876,7 @@ pixoutParticle ParticlePS(OutputVS IN)
 		envMapIndex = Fwd_TiledLightsShadeInfo[particleInstance.envCubemapIndex].resIndex;
 		envMapColor = Fwd_TiledLightsShadeInfo[particleInstance.envCubemapIndex].color;
 		float3 envDiffuseColor = Fwd_DiffuseCubeArray.SampleLevel(
-			TrilinearClampSamplerState,
+			ssMaterialTrilinearClamp,
 			float4(vNormal.xyz, envMapIndex), 0.0).rgb;
 		envDiffuseColor *= envMapColor.rgb * particleParams.diffuseLighting;
 		cDiffuseAcc.rgb += envDiffuseColor;
@@ -911,7 +910,7 @@ pixoutParticle ParticlePS(OutputVS IN)
 					// #PFX2_TODO : copy-pasted from ShadeLib.cfi. tileShading also uses the exact same thing. Make it consistent.
 					const float numCMapMips = 6.0;
 					const float fGlossinessLod = numCMapMips - fGloss * numCMapMips;
-					cSpecularAcc.rgb = Fwd_SpecCubeArray.SampleLevel(TrilinearClampSamplerState, float4(vNormal.xyz, envMapIndex), fGlossinessLod).rgb;
+					cSpecularAcc.rgb = Fwd_SpecCubeArray.SampleLevel(ssMaterialTrilinearClamp, float4(vNormal.xyz, envMapIndex), fGlossinessLod).rgb;
 					cSpecularAcc.rgb *= envMapColor.rgb * envMapColor.a;
 				}
 			#endif	
@@ -959,7 +958,7 @@ pixoutParticle ParticlePS(OutputVS IN)
 	OUT.Color = cFinal;
 
 #if %DEPTH_FIXUP
-	const float fZ = tcScreen.w * PS_NearFarClipDist.w;
+	const float fZ = tcScreen.w * CV_NearFarClipDist.w;
 	OUT.Color.a = cFinal.a > DepthFixupThreshold ? -fZ : 1;
 	OUT.BlendFactors = cFinal.a;
 #endif
@@ -1003,9 +1002,9 @@ struct OutputParticleVolumeFogGS
 
 struct pixoutParticleVolumeFogPS
 {
-	half4 Color : COLOR0;
-	half4 Color1 : COLOR1;
-	half4 Color2 : COLOR2;
+	half4 Color  : SV_Target0;
+	half4 Color1 : SV_Target1;
+	half4 Color2 : SV_Target2;
 };
 
 cbuffer CBPerPassVolFogInj : register(b5)
@@ -1255,11 +1254,6 @@ pixoutParticleVolumeFogPS ParticleVolumeFogPS(OutputParticleVolumeFogGS IN)
 // Needs to match the technique numbers in CRenderer::EF_GetParticleListAndBatchFlags function.
 
 technique ParticlesTessellated
-<
-	string Script =  
-		"TechniqueCustomRender=CustomRenderPass;"
-//    "TechniqueThickness=ThicknessPass;"
->
 {
 	pass p0
 	{
@@ -1276,11 +1270,6 @@ technique ParticlesTessellated
 }
 
 technique Particles
-<
-	string Script =  
-			"TechniqueCustomRender=CustomRenderPass;"
-//    "TechniqueThickness=ThicknessPass;"
->
 {
 	pass p0
 	{
@@ -1295,9 +1284,6 @@ technique Particles
 }
 
 technique ParticlesPulled
-<
-	string Script = "TechniqueCustomRender=CustomRenderPass;"
->
 {
 	pass p0
 	{
@@ -1312,9 +1298,6 @@ technique ParticlesPulled
 }
 
 technique ParticlesGpu
-<
-	string Script = "TechniqueCustomRender=CustomRenderPass;"
->
 {
 	pass p0
 	{
@@ -1345,6 +1328,4 @@ technique ParticlesVolumeFog
 		AlphaBlendEnable = true;
 	}
 }
-
-#include "ParticlesCustomPass.cfi"
 

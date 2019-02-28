@@ -35,3 +35,4 @@ target_link_libraries(${THIS_PROJECT} PRIVATE Sandbox)
 target_link_libraries(${THIS_PROJECT} PRIVATE MFCToolsPlugin)
 
 use_xt()
+

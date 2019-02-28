@@ -1,14 +1,20 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
-struct ISensorMap;
-struct ISensorTagLibrary;
-
-struct ISensorSystem
+namespace Cry
 {
-	virtual ~ISensorSystem() {}
+	namespace SensorSystem
+	{
+		struct ISensorMap;
+		struct ISensorTagLibrary;
 
-	virtual ISensorTagLibrary& GetTagLibrary() = 0;
-	virtual ISensorMap&        GetMap() = 0;
-};
+		struct ISensorSystem
+		{
+			virtual ~ISensorSystem() {}
+
+			virtual ISensorTagLibrary& GetTagLibrary() = 0;
+			virtual ISensorMap&        GetMap() = 0;
+		};
+	}
+}

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "MetadataCompiler.h"
@@ -117,10 +117,10 @@ void CollectCgfDetails(XmlNodeRef& xmlnode, const CContentCGF& cgf)
 		details.emplace_back("bonesCount", string().Format("%i", pSkin->m_arrBoneEntities.size()));
 	}
 
-	std::vector<string> dependencies;
+	std::vector<std::pair<string,int32>> dependencies;
 	if (materialCount)
 	{
-		dependencies.emplace_back(PathUtil::ReplaceExtension(cgf.GetMaterial(0)->name, "mtl"));
+		dependencies.emplace_back(PathUtil::ReplaceExtension(cgf.GetMaterial(0)->name, "mtl"), 1);
 	}
 
 	AssetManager::AddDetails(xmlnode, details);
@@ -165,7 +165,7 @@ bool CollectMtlDetails(XmlNodeRef& xmlnode, const char* szFilename, IResourceCom
 
 	int subMaterialCount = 0;
 	int textureCount = 0;
-	std::vector<string> dependencies;
+	std::vector<std::pair<string, int32>> dependencies;
 	std::stack<XmlNodeRef> mtls;
 	mtls.push(mtl);
 	while (!mtls.empty())
@@ -185,7 +185,18 @@ bool CollectMtlDetails(XmlNodeRef& xmlnode, const char* szFilename, IResourceCom
 				{
 					continue;
 				}
-				dependencies.emplace_back(PathUtil::ReplaceExtension(filename, "dds"));
+				const string path = PathUtil::ReplaceExtension(filename, "dds");
+				auto it = std::find_if(dependencies.begin(), dependencies.end(), [&path](const auto& x) 
+				{ 
+					return path.CompareNoCase(x.first) == 0; 
+				});
+
+				if (it != dependencies.end())
+				{
+					++(it->second);
+					continue;
+				}
+				dependencies.emplace_back(path, 1);
 				++textureCount;
 			}
 		}
@@ -252,16 +263,16 @@ bool CollectCdfDetails(XmlNodeRef& xmlnode, const char* szFilename, IResourceCom
 		return false;
 	}
 
-	std::vector<string> dependencies;
+	std::vector<std::pair<string,int32>> dependencies;
 
 	const char* filename;
 	const XmlNodeRef model = cdf->findChild("Model");
 	if (model && model->getAttr("File", &filename))
 	{
-		dependencies.emplace_back(filename);
+		dependencies.emplace_back(filename, 0);
 		if (model->getAttr("Material", &filename))
 		{
-			dependencies.emplace_back(filename);
+			dependencies.emplace_back(filename, 0);
 		}
 	}
 
@@ -285,7 +296,7 @@ bool CollectCdfDetails(XmlNodeRef& xmlnode, const char* szFilename, IResourceCom
 			{
 				if (item->getAttr(szAttr, &filename))
 				{
-					dependencies.emplace_back(filename);
+					dependencies.emplace_back(filename, 0);
 				}
 			}
 		}
@@ -326,6 +337,16 @@ bool CMetadataCompiler::Process()
 {
 	const string sourceFilename = m_CC.GetSourcePath();
 	const string metadataFilename = IAssetManager::GetMetadataFilename(sourceFilename);
+
+	// If source file does not exist, ignore it.
+	if (!FileUtil::FileExists(sourceFilename))
+	{
+		if (!m_CC.config->GetAsBool("skipmissing", false, true))
+		{
+			RCLogWarning("File does not exist: %s", sourceFilename.c_str());
+		}
+		return true;
+	}
 
 	if (m_CC.config->GetAsBool("stripMetadata", false, true))
 	{

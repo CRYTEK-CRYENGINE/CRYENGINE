@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="ae2a29b5-8a68-dc00-c7a4-448fdd2acbc7">
+ <Files>
+  <File path="SearchTex.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">66</Detail>
+  <Detail name="height">33</Detail>
+  <Detail name="mipCount">1</Detail>
+ </Details>
+</AssetMetadata>

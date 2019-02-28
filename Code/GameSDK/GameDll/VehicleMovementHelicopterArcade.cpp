@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
 -------------------------------------------------------------------------
@@ -268,7 +268,7 @@ void CVehicleMovementHelicopterArcade::OnAction(const TVehicleActionId actionId,
 //------------------------------------------------------------------------
 void CVehicleMovementHelicopterArcade::ProcessActions(const float deltaTime)
 {
-	FUNCTION_PROFILER( GetISystem(), PROFILE_GAME );
+	CRY_PROFILE_FUNCTION( PROFILE_GAME );
 
 	UpdateDamages(deltaTime);
 	UpdateEngine(deltaTime);
@@ -291,7 +291,7 @@ void CVehicleMovementHelicopterArcade::ProcessActions(const float deltaTime)
 // NOTE: This function must be thread-safe. Before adding stuff contact MarcoC.
 void CVehicleMovementHelicopterArcade::ProcessAI(const float deltaTime)
 {
-	FUNCTION_PROFILER( GetISystem(), PROFILE_GAME );
+	CRY_PROFILE_FUNCTION( PROFILE_GAME );
 	
 	// it's useless to progress further if the engine has yet to be turned on
 	if (!m_isEnginePowered)
@@ -306,7 +306,7 @@ void CVehicleMovementHelicopterArcade::ProcessAI(const float deltaTime)
 // NOTE: This function must be thread-safe. Before adding stuff contact MarcoC.
 void CVehicleMovementHelicopterArcade::ProcessMovement(const float dt)
 {
-  FUNCTION_PROFILER( GetISystem(), PROFILE_GAME );
+  CRY_PROFILE_FUNCTION( PROFILE_GAME );
 
 	IPhysicalEntity* pPhysics = GetPhysics();
 	if (!pPhysics)
@@ -377,7 +377,7 @@ void CVehicleMovementHelicopterArcade::UpdateEngine(float deltaTime)
 //------------------------------------------------------------------------
 void CVehicleMovementHelicopterArcade::Update(const float deltaTime)
 {
-	FUNCTION_PROFILER( GetISystem(), PROFILE_GAME );
+	CRY_PROFILE_FUNCTION( PROFILE_GAME );
 
 	CVehicleMovementBase::Update(deltaTime);
 
@@ -523,7 +523,7 @@ void CVehicleMovementHelicopterArcade::RequestActions(const SVehicleMovementActi
 //------------------------------------------------------------------------
 bool CVehicleMovementHelicopterArcade::RequestMovement(CMovementRequest& movementRequest)
 {
-	FUNCTION_PROFILER( gEnv->pSystem, PROFILE_GAME );
+	CRY_PROFILE_FUNCTION( PROFILE_GAME );
  
 	m_movementAction.isAI = true;
 	if (!m_isEnginePowered)

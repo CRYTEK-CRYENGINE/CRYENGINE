@@ -1,3 +1,5 @@
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+
 #ifndef GLOBAL_H
 #define GLOBAL_H
 
@@ -44,3 +46,4 @@
 
 
 #endif // GLOBAL_H
+

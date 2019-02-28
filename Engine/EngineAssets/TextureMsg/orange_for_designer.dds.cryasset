@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="a6dc7592-7541-20e5-a743-8133f6ac9903" source="orange_for_designer.tif">
+ <Files>
+  <File path="orange_for_designer.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">4</Detail>
+  <Detail name="height">4</Detail>
+  <Detail name="mipCount">1</Detail>
+ </Details>
+</AssetMetadata>

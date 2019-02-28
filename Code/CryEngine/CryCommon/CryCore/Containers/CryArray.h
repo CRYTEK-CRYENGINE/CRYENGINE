@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // Created by: J Scott Peter
 //---------------------------------------------------------------------------
@@ -23,6 +23,12 @@
 #define STACK_ARRAY(T, name, size)               \
   ALIGNED_STACK_ARRAY(T, name, size, alignof(T)) \
 
+#if defined(_DEBUG)
+#	define debug_assert(cond) assert(cond)
+#else
+#	define debug_assert(cond)
+#endif
+
 //---------------------------------------------------------------------------
 //! Specify semantics for moving objects.
 //! If raw_movable() is true, objects will be moved with memmove().
@@ -44,7 +50,7 @@ bool raw_movable(T const&)
 template<class T>
 void move_init(T& dest, T& source)
 {
-	assert(&dest != &source);
+	debug_assert(&dest != &source);
 	new(&dest) T(std::move(source));
 	source.~T();
 }
@@ -103,25 +109,25 @@ struct Storage
 		Store(T* elems, I count)
 			: m_aElems(elems), m_nCount(count)
 		{
-			assert(IsAligned(m_aElems, alignof(T)));
+			debug_assert(IsAligned(m_aElems, alignof(T)));
 		}
 		Store(T* start, T* finish)
 			: m_aElems(start), m_nCount(check_cast<I>(finish - start))
 		{
-			assert(IsAligned(m_aElems, alignof(T)));
+			debug_assert(IsAligned(m_aElems, alignof(T)));
 		}
 		template<size_t N>
 		Store(T (&ar)[N])
 			: m_aElems(ar), m_nCount(check_cast<I>(N))
 		{
-			assert(IsAligned(m_aElems, alignof(T)));
+			debug_assert(IsAligned(m_aElems, alignof(T)));
 		}
 
 		void set(T* elems, I count)
 		{
 			m_aElems = elems;
 			m_nCount = count;
-			assert(IsAligned(m_aElems, alignof(T)));
+			debug_assert(IsAligned(m_aElems, alignof(T)));
 		}
 
 		//! Basic storage.
@@ -132,20 +138,20 @@ struct Storage
 		//! Modifiers, alter range in place.
 		void erase_front(I count = 1)
 		{
-			assert(count >= 0 && count <= m_nCount);
+			debug_assert(count >= 0 && count <= m_nCount);
 			m_nCount -= count;
 			m_aElems += count;
 		}
 
 		void erase_back(I count = 1)
 		{
-			assert(count >= 0 && count <= m_nCount);
+			debug_assert(count >= 0 && count <= m_nCount);
 			m_nCount -= count;
 		}
 
 		void resize(I count)
 		{
-			assert(count >= 0 && count <= m_nCount);
+			debug_assert(count >= 0 && count <= m_nCount);
 			m_nCount = count;
 		}
 
@@ -219,34 +225,26 @@ struct Array : STORE::template Store<T, I>
 
 	CONST_VAR_FUNCTION(T & front(),
 	{
-		assert(!empty());
+		debug_assert(!empty());
 		return *begin();
 	})
 	CONST_VAR_FUNCTION(T & back(),
 	{
-		assert(!empty());
+		debug_assert(!empty());
 		return *rbegin();
 	})
 
-#if defined(_DEBUG)
-#	define debug_only_assert(cond) assert(cond)
-#else
-#	define debug_only_assert(cond)
-#endif
-
 	CONST_VAR_FUNCTION(T & at(I i),
 	{
-		debug_only_assert(i >= 0 && i < size());
+		debug_assert(i >= 0 && i < size());
 		return begin()[i];
 	})
 
 	CONST_VAR_FUNCTION(T & operator[](I i),
 	{
-		debug_only_assert(i >= 0 && i < size());
+		debug_assert(i >= 0 && i < size());
 		return begin()[i];
 	})
-
-#	undef debug_only_assert
 
 	//! Conversion to canonical array type.
 	ILINE operator const_array() const { return const_array(begin(), size()); }
@@ -255,13 +253,13 @@ struct Array : STORE::template Store<T, I>
 	//! Additional conversion via operator() to full or sub array.
 	ILINE const_array operator()(I pos = 0, I count = npos) const
 	{
-		assert(pos >= 0 && pos <= size());
+		debug_assert(pos >= 0 && pos <= size());
 		count = std::min(count, size() - pos);
 		return const_array(begin() + pos, count);
 	}
 	ILINE array operator()(I pos = 0, I count = npos)
 	{
-		assert(pos >= 0 && pos <= size());
+		debug_assert(pos >= 0 && pos <= size());
 		count = std::min(count, size() - pos);
 		return array(begin() + pos, count);
 	}
@@ -526,7 +524,7 @@ struct FixedDynStorage
 		// Resize functions; no allocation, just set size
 		ILINE bool reallocate(array&, I new_size, bool allow_slack = true)
 		{
-			assert(new_size >= 0 && new_size <= capacity());
+			debug_assert(new_size >= 0 && new_size <= capacity());
 			m_nCount = new_size;
 			return false;
 		}
@@ -566,7 +564,7 @@ struct StaticDynStorage
 
 		ILINE bool reallocate(array&, I new_size, bool allow_slack = true)
 		{
-			assert(new_size >= 0 && new_size <= capacity());
+			debug_assert(new_size >= 0 && new_size <= capacity());
 			m_nCount = new_size;
 			return false;
 		}
@@ -647,6 +645,17 @@ struct AllocFunction
 		return m_Function(a, nSize, nAlign, bSlack);
 	}
 };
+
+//! Adds alignment to allocation
+template<class A, size_t nAlignment>
+struct AllocAlign : A
+{
+	AllocArray alloc(AllocArray a, size_t nSize, size_t nAlign = 1, bool bSlack = false)
+	{
+		return A::alloc(a, Align(nSize, nAlignment), std::max(nAlign, nAlignment), bSlack);
+	}
+};
+
 
 //! Adds prefix bytes to allocation, preserving alignment.
 template<class A, class Prefix, int nSizeAlign = 1>
@@ -878,10 +887,10 @@ struct SmallDynStorage
 		};
 
 		CONST_VAR_FUNCTION(Header * header(),
-			{
-				assert(m_aElems);
-				return ((Header*)m_aElems) - 1;
-			})
+		{
+			debug_assert(m_aElems);
+			return ((Header*)m_aElems) - 1;
+		})
 
 		ILINE static T* null_header()
 		{
@@ -1112,6 +1121,13 @@ struct DynArray : Array<T, I, STORE>
 	DynArray(Val1&& val1, Val2&& val2)
 	{
 		create(std::forward<Val1>(val1), std::forward<Val2>(val2));
+	}
+
+	DynArray(std::initializer_list<T> list)
+	{
+		reserve(list.size());
+		for (const T& element : list)
+			emplace_back(element);
 	}
 
 	template<class Val>
@@ -1354,28 +1370,28 @@ protected:
 	//
 	ILINE I index(I i) const
 	{
-		assert(i >= 0 && i <= size());
+		debug_assert(i >= 0 && i <= size());
 		return i;
 	}
 	ILINE I index(const_iterator it) const
 	{
-		assert(it >= begin() && it <= end());
+		debug_assert(it >= begin() && it <= end());
 		return I(it - begin());
 	}
 
 	ILINE I index_count(I pos, I count) const
 	{
-		assert(pos + count <= size());
+		debug_assert(pos + count <= size());
 		return count;
 	}
 	ILINE I index_count(iterator start, iterator finish) const
 	{
-		assert(start >= begin() && finish >= start && finish <= end());
+		debug_assert(start >= begin() && finish >= start && finish <= end());
 		return I(finish - start);
 	}
 	ILINE I index_count(iterator start, I count) const
 	{
-		assert(start >= begin() && start + count <= end());
+		debug_assert(start >= begin() && start + count <= end());
 		return count;
 	}
 
@@ -1430,6 +1446,8 @@ using LocalDynArray = DynArray<T, I, NArray::LocalDynStorage<nSIZE, A>>;
 //! Legacy base class of DynArray, only used for read-only access.
 template<class T>
 using DynArrayRef = DynArray<T>;
+
+#undef debug_assert
 
 #include <Cry3DEngine/CryPodArray.h>
 

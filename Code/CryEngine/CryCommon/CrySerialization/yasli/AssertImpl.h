@@ -15,11 +15,6 @@
 
 namespace yasli{
 
-#ifdef WIN32
-# define WIN32_LEAN_AND_MEAN
-# include <windows.h>
-#endif
-
 static LogHandler logHandler;
 void setLogHandler(LogHandler handler)
 {
@@ -78,7 +73,7 @@ bool assertionDialog(const char* function, const char* fileName, int line, const
 
 #ifdef WIN32
     if(interactiveAssertion || IsDebuggerPresent()){
-        int result = MessageBoxA(0, text.c_str(), "Debug Assertion Triggered", MB_ICONERROR | MB_ABORTRETRYIGNORE | MB_TASKMODAL);
+        int result = CryMessageBox( text.c_str(), "Debug Assertion Triggered", eMB_Error);
         switch(result){
         case IDRETRY: 
 			return false;

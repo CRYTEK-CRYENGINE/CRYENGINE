@@ -1,145 +1,101 @@
-// CRYENGINE Source Code File
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
+#include "Reflection.cfi"
 
 // Adapted from DeferredShading.cfx SSRefl - todo: generalize for plane
 half4 ReflectionPassPS( v2f_hs IN, half4 vNormal )
 {
-	half4 OUT = 0;
-	
 	// Do the specular reflection with ray marching.
-	float4 specularRefl = float4(0,0,0,0);
-
-	const float borderSize = 0.15 * CV_HPosScale.y;  // Fade out at borders
-
-	const float fDepth = IN.screenProj.w * CV_NearFarClipDist.w;
-	float3 vPositionWS = IN.vPosWS.xyz + float3(0,0,0.0);
-	
-	float3 viewVec = normalize( vPositionWS - g_VS_WorldViewPos);
-	float3 reflVec = normalize( reflect( viewVec, vNormal.xyz ) );
-
-	float4 rayStart = mul( CV_ViewProjMatr, float4( vPositionWS, 1 ) ); 
-	rayStart.z = fDepth;
-	rayStart.xy = rayStart.xy * float2(0.5, -0.5) + 0.5 * rayStart.w;
-
-	rayStart.xy = GetScaledScreenTC(rayStart.xy);
+	half4 specularRefl = half4(0,0,0,0);
+	half  specularPrec = 0;
 
 	{
-		const int numSamples = 1;
-		
-		// far reflection setup
-		float vecLen = 128* vNormal.w + 1;
-		float stepSize = 1.0 / numSamples;
-		float intervalSize = 3*vecLen / (numSamples * 2) / CV_NearFarClipDist.y; 
+		const float3 vPositionWS = IN.vPosWS.xyz;
+		const float2 ScreenTC = MapViewportToRaster(IN.baseTC.xy);
+		const float2 halfTexel = 0;
 
-		float3 rayVec = reflVec;
-		rayVec *= vecLen;
-		float4 rayEnd = mul( CV_ViewProjMatr, float4( vPositionWS + rayVec, 1 ) );
-
-		// Compute linear z
-		rayEnd.z = g_PS_ProjRatio.y / (rayEnd.z / rayEnd.w - g_PS_ProjRatio.x);
-
-		// Precomputation to reduce work in loop
-		rayEnd.xy = GetScaledScreenTC(rayEnd.xy * float2(0.5, -0.5) + 0.5 * rayEnd.w);
-
-		float4 ray = rayEnd - rayStart;
-
-		float len = stepSize;
-		float bestLen = 0;
-
-		float4 projPos = rayStart + ray * len;
-		projPos.xy /= projPos.w;
-
-		float2 projPosSampleTC = MapViewportToRaster(projPos.xy);
-
-		float fDepthTapBuf = sceneDepthScaledTex.Sample(ssPointClamp, projPosSampleTC);
-		bestLen = len;
-
-		{
-			float4 projPos = rayStart + ray * bestLen;
-			projPos.xy /= projPos.w;
-
-			float3 color = refractionHalfResTex.SampleLevel(ssMaterialTrilinearClamp, projPos.xy, 0.0f);
-			specularRefl.rgb = color;
-
-			float borderDist = projPos.y;
-			borderDist = min( 1 - projPos.y, borderDist );
-			float edgeWeight = borderDist > borderSize ? 1 : saturate((borderDist / borderSize) );
-
-			half alpha = edgeWeight;
-			specularRefl.a += alpha;
-		}
-
+		SPerPassWaterParams perPassParams = GetPerPassWaterParams();
+		ReflParams params = (ReflParams)0;
+	
+		params.ScreenTC = ScreenTC;
+		params.ProjRatio = g_PS_ProjRatio.xy;
+		params.JitterUV = IN.Position.xy;
+		params.NearFarClipDist = CV_NearFarClipDist.xy;
+		params.UnscaledMultiplier = float2(2.0f, 2.0f);
+		params.ViewVec = normalize(vPositionWS - g_VS_WorldViewPos);
+		params.fDepth = IN.screenProj.w * CV_NearFarClipDist.w;
+		params.vPositionWS = vPositionWS;
+		params.maxLum = 10000.0f;
+		params.NormalWorld = vNormal.xyz;
+		params.Smoothness = vNormal.w;
+		params.Reproject = false;
+		params.ViewProjPrev = 0;
+		params.limitMask =
+			// Don't clip left and right because we use X-mirroring to hide the end-of-data seam
+			FRUSTUM_NOCLIP_LEFT | FRUSTUM_NOCLIP_RIGHT;
+	
 		// local reflections setup
-		bestLen = 0;
-		const int numSamples2 = 8;
-		vecLen = 16*vNormal.w + 1; // The length of ray varies from 1 to 16 depending on the glossiness.
-		stepSize = 1.0 / numSamples2;
-		intervalSize = 3* vecLen / (numSamples2 * 2) / CV_NearFarClipDist.y; //3*  // far reflection
-		  
-		rayVec = reflVec;
-		rayVec *= vecLen;
-		rayEnd = mul( CV_ViewProjMatr, float4( vPositionWS + rayVec, 1 ) );
+		{
+			params.bgMultiplier = 0;
+			params.MaxDistance = perPassParams.ssrParams.z * ssrDistanceAtt;
+			params.MaxSamples = perPassParams.ssrParams.w * ssrSamplingAtt;
+			params.borderSize = float3(0.0f, 1.0f - (1.0f - ssrBorderSizeY) * 1.0f, ssrBorderSizeZ);
 
-		// Compute linear z
-		rayEnd.z = g_PS_ProjRatio.y / (rayEnd.z / rayEnd.w - g_PS_ProjRatio.x);
+			half4 color = SSRRaytrace
+			(
+				sceneDepthScaledTex,
 
-		// Precomputation to reduce work in loop
-		rayEnd.xy = GetScaledScreenTC(rayEnd.xy * float2(0.5, -0.5) + 0.5 * rayEnd.w);
+				refractionHalfResTex,
+				refractionHalfResTex,
+				ssLinearMirrorX,
 
-		ray = rayEnd - rayStart;
+				refractionHalfResTex,
+				ssLinearMirrorX,
 
-		len = stepSize;
+				params
+			);
 		
-		[unroll]
-		for(int step = 0; step < numSamples2; step++)
+			specularRefl = color;
+			specularPrec = params.blendWeight;
+		}
+
+		// far reflection setup (if no or partially hit only)
+		[branch] if (specularRefl.a < 1.0f)
 		{
-			projPos = rayStart + ray * len;
-			projPos.xy /= projPos.w;
+			params.bgMultiplier = ssrBGMultiplier;
+			params.MaxDistance = perPassParams.ssrParams.z * ssrDistanceAtt;
+			params.MaxSamples = 1;
+			params.borderSize = float3(0.0f, 1.0f - (1.0f - ssrBorderSizeY) * 1.0f, ssrBorderSizeZ);
 
-			projPosSampleTC = MapViewportToRaster(projPos.xy);
+			half4 color = SSRaycast
+			(
+				sceneDepthScaledTex,
 
-			fDepthTapBuf = sceneDepthScaledTex.Sample(ssPointClamp, projPosSampleTC.xy);
-			if( abs(fDepthTapBuf - projPos.z) < intervalSize ) 
+				refractionHalfResTex,
+				refractionHalfResTex,
+				ssLinearMirrorX,
+
+				refractionHalfResTex,
+				ssLinearMirrorX,
+
+				params
+			);
+
+			// Merge local and far reflections
+			float l = specularRefl.a + color.a;
+			if (l > 0)
 			{
-				bestLen = len;
-				break;
+				l = color.a / l;
+
+				specularRefl = lerp(specularRefl, color, l);
+				specularPrec = lerp(specularPrec, params.blendWeight, l);
 			}
-
-			len += stepSize;
 		}
 
-		if( bestLen > 0 )
-		{
-			projPos = rayStart + ray * bestLen;
-			projPos.xy /= projPos.w;
-
-			projPosSampleTC = MapViewportToRaster(projPos.xy);
-
-			half3 color = refractionHalfResTex.SampleLevel(ssMaterialTrilinearClamp, projPosSampleTC.xy, 0.0f);
-			specularRefl.rgb = color;
-
-			float borderDist = projPos.y;
-			borderDist = min( 1 - projPos.y, borderDist );
-			float edgeWeight = borderDist > borderSize ? 1 : saturate((borderDist / borderSize) );
-
-			half alpha = edgeWeight;
-			// Apply distance attenuation
-			alpha *= saturate( 1 - bestLen );
-			specularRefl.a += alpha;
-		}
+		specularRefl.a = pow(specularPrec * specularRefl.a, ssrBorderFadeExponent);
 	}
 
-	OUT = specularRefl;
-	
-	
-	// Fade out in reflections directions where less information is available
-	half dirAtten = saturate( dot( viewVec, reflVec ) + 0.5 );
-	OUT *= dirAtten;
-	
-	OUT = float4(OUT.rgb * OUT.a, OUT.a);
-	
-	return OUT;
+	return specularRefl;
 }
 
 pixout WaterReflPS(v2f_hs IN)
@@ -158,36 +114,39 @@ pixout WaterReflPS(v2f_hs IN)
 #if 0
 	// Generate normal map from 4 normal map layers + paralax
 	float2 vParalaxOffset = GetParalaxOffset( IN, vView );  
-	half4 cSpecularMap = 1;
-	half4 cDiffuseMap = 1;
-	half3 vNormal = BumpGen( IN, vParalaxOffset, cSpecularMap, cDiffuseMap);
+	half  cSmoothness = (half)  1;
+	half4 cDiffuseMap = (half4) 1;
+	half3 vNormal = BumpGen( IN, vParalaxOffset, cSmoothness, cDiffuseMap);
 #else
-	half3 vNormal = float3(0.0f, 0.0f, 1.0f);
+	half  cSmoothness = 1;
+	half4 cDiffuseMap = (half4) 1;
+	half3 vNormal = half3(0, 0, 1); // TODO: flip normal when under water (see BOT/TOP clipping above)
 #endif
 
 	half fNdotE =  (dot( vView.xyz, vNormal ) ) * IN.vView.w;
 
 	//////////////////////////////////////////////////////////////////////////////////////////////////    
 	// Get reflection color
-
-	const half ReflectionBumpScale = 0.3;
-
+	const half ReflectionBumpScale = NormalsFlatten;
+	
 	half3 vDir = g_VS_WorldViewPos - IN.vPosWS.xyz;
 	half3 vReflN = lerp(half3(0,0,1), vNormal, ReflectionBumpScale);
 	half3 vRefl = reflect(vDir, vReflN);
-
 	half3 vReflNorm = normalize( vRefl );
-
-	half3 cSpecularAcc = MatSpecColor * EnvCubeBoxProjected( IN.vPosWS.xyz, vReflNorm, half4(1,1,1,1) );
-
+	half3 cCubeRefl = GatherCubemapSpecular(screenTC, IN.vPosWS.xyz - GetWorldViewPos(), vNormal, cSmoothness);
+	
 	// Blend in screenspace reflections
+	half4 cSSRefl = ReflectionPassPS(IN, half4(vReflN.xyz, 1)) / PS_HDR_RANGE_ADAPT_MAX;
 
-	half4 cSSRefl = ReflectionPassPS( IN, half4(vReflN.xyz,1));
-	cSSRefl.rgb /= PS_HDR_RANGE_ADAPT_MAX;
+	// EnvCubeReflMul, RealtimeReflMul
+	half3 cReflCurr = lerp(cCubeRefl, cSSRefl, saturate(cSSRefl.a));
 
-	cSpecularAcc = lerp(cSpecularAcc * EnvCubeReflMul, cSSRefl * RealtimeReflMul, saturate(cSSRefl.a));
-	OUT.Color.rgb =cSpecularAcc;
-	 
+	// TODO: Remove fog from reflection
+#if %_RT_FOG && %_RT_VOLUMETRIC_FOG
+	//cReflCurr -= fogColor * ReflFogScale;
+#endif
+
+	//////////////////////////////////////////////////////////////////////////////////////////////////    
 	// Continuously blend previous frame, minimize shimering
 	float4 vPrevHSPos = HPosToScreenTC( mul(CV_PrevViewProjMatr, float4(IN.vPosWS.xyz, 1.0 )), false );
 	half2 prevTC = vPrevHSPos.xy / vPrevHSPos.w;
@@ -199,15 +158,9 @@ pixout WaterReflPS(v2f_hs IN)
 	half3 cReflPrev = reflectionPrevTex.Sample(ssMaterialTrilinearClamp, prevTC.xy).rgb / PS_HDR_RANGE_ADAPT_MAX;
 	cReflPrev = isfinite( cReflPrev ) ? cReflPrev : 0;  // Filter out NANs that we still have sometimes, otherwise they get propagated and remain in the view
 
-	half3 cReflCur = cSpecularAcc;
+	OUT.Color.rgb = cReflCurr;//(cReflCurr * 0.75 + cReflPrev * 0.25) * PS_HDR_RANGE_ADAPT_MAX;
 
-	cSpecularAcc = (cReflCur* 0.75 + cReflPrev*0.25) ; 
-
-	cSpecularAcc*=PS_HDR_RANGE_ADAPT_MAX;
-
-	OUT.Color = half4(cSpecularAcc,1);
-
-  return OUT;
+	return OUT;
 }
 
 //////////////////////////////// technique ////////////////

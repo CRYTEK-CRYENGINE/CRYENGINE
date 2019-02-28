@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "VKDevice.hpp"
@@ -11,7 +11,7 @@ static int g_cvar_vk_heap_summary;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-_smart_ptr<CDevice> CDevice::Create(const SPhysicalDeviceInfo* pDeviceInfo, VkAllocationCallbacks* hostAllocator, VkSurfaceKHR Surface, const std::vector<const char*>& layersToEnable, const std::vector<const char*>& extensionsToEnable)
+_smart_ptr<CDevice> CDevice::Create(const SPhysicalDeviceInfo* pDeviceInfo, VkAllocationCallbacks* hostAllocator, const std::vector<const char*>& layersToEnable, const std::vector<const char*>& extensionsToEnable)
 {
 	std::vector<VkDeviceQueueCreateInfo> queueRequests;
 	std::vector<float> queuePriorities(64, 1.0f);
@@ -62,16 +62,15 @@ _smart_ptr<CDevice> CDevice::Create(const SPhysicalDeviceInfo* pDeviceInfo, VkAl
 	}
 
 	_smart_ptr<CDevice> pSmart;
-	pSmart.Assign_NoAddRef(new CDevice(pDeviceInfo, hostAllocator, Device, Surface));
+	pSmart.Assign_NoAddRef(new CDevice(pDeviceInfo, hostAllocator, Device));
 	return pSmart;
 }
 
 //---------------------------------------------------------------------------------------------------------------------
-CDevice::CDevice(const SPhysicalDeviceInfo* pDeviceInfo, VkAllocationCallbacks* hostAllocator, VkDevice Device, VkSurfaceKHR surface)
+CDevice::CDevice(const SPhysicalDeviceInfo* pDeviceInfo, VkAllocationCallbacks* hostAllocator, VkDevice Device)
 	: m_pDeviceInfo(pDeviceInfo)
 	, m_Allocator(*hostAllocator)
 	, m_device(Device)
-	, m_surface(surface)
 	, m_pipelineCache(VK_NULL_HANDLE)
 	// Must be constructed last as it relies on functionality from the heaps
 	, m_Scheduler(this)
@@ -181,10 +180,22 @@ void CDevice::DeferDestruction(VkRenderPass renderPass, VkFramebuffer frameBuffe
 	m_deferredRenderPasses->emplace_back(std::move(helper));
 }
 
+void CDevice::DeferDestruction(VkPipeline pipeline)
+{
+	SPipeline helper = { GetVkDevice(), pipeline };
+	CryAutoCriticalSection lock(m_deferredLock);
+	m_deferredPipelines->emplace_back(std::move(helper));
+}
+
 CDevice::SRenderPass::~SRenderPass()
 {
 	renderPass.Destroy(vkDestroyRenderPass, self);
 	frameBuffer.Destroy(vkDestroyFramebuffer, self);
+}
+
+CDevice::SPipeline::~SPipeline()
+{
+	pipeline.Destroy(vkDestroyPipeline, self);
 }
 
 template<typename T, size_t N>
@@ -219,6 +230,7 @@ void CDevice::TickDestruction()
 	auto imageViews = TickDestructionHelper(m_deferredImageViews);
 	auto samplers = TickDestructionHelper(m_deferredSamplers);
 	auto renderPasses = TickDestructionHelper(m_deferredRenderPasses);
+	auto pipelines = TickDestructionHelper(m_deferredPipelines);
 	m_deferredLock.Unlock();
 
 	// Automatic cleanup happens here.
@@ -237,17 +249,26 @@ VkResult vkCreateResource(VkDevice device, const VkImageCreateInfo * pCreateInfo
 void vkDestroyResource(VkDevice device, VkBuffer buffer, const VkAllocationCallbacks* pAllocator) { vkDestroyBuffer(device, buffer, pAllocator); }
 void vkDestroyResource(VkDevice device, VkImage  image , const VkAllocationCallbacks* pAllocator) { vkDestroyImage (device, image , pAllocator); }
 
-CryCriticalSectionNonRecursive CDevice::m_ReleaseHeapTheadSafeScope[2];
-CryCriticalSectionNonRecursive CDevice::m_RecycleHeapTheadSafeScope[2];
+CryCriticalSectionNonRecursive CDevice::m_ReleaseHeapTheadSafeScope[3];
+CryCriticalSectionNonRecursive CDevice::m_RecycleHeapTheadSafeScope[3];
 
 template<> CryCriticalSectionNonRecursive& CDevice::GetReleaseHeapCriticalSection<CBufferResource>() { return m_ReleaseHeapTheadSafeScope[0]; }
-template<> CryCriticalSectionNonRecursive& CDevice::GetReleaseHeapCriticalSection<CImageResource >() { return m_ReleaseHeapTheadSafeScope[1]; }
 template<> CryCriticalSectionNonRecursive& CDevice::GetRecycleHeapCriticalSection<CBufferResource>() { return m_RecycleHeapTheadSafeScope[0]; }
-template<> CryCriticalSectionNonRecursive& CDevice::GetRecycleHeapCriticalSection<CImageResource >() { return m_RecycleHeapTheadSafeScope[1]; }
+
+template<> CryCriticalSectionNonRecursive& CDevice::GetReleaseHeapCriticalSection<CDynamicOffsetBufferResource>() { return m_ReleaseHeapTheadSafeScope[1]; }
+template<> CryCriticalSectionNonRecursive& CDevice::GetRecycleHeapCriticalSection<CDynamicOffsetBufferResource>() { return m_RecycleHeapTheadSafeScope[1]; }
+
+template<> CryCriticalSectionNonRecursive& CDevice::GetReleaseHeapCriticalSection<CImageResource>() { return m_ReleaseHeapTheadSafeScope[2]; }
+template<> CryCriticalSectionNonRecursive& CDevice::GetRecycleHeapCriticalSection<CImageResource>() { return m_RecycleHeapTheadSafeScope[2]; }
+
 template<> CDevice::TReleaseHeap<CBufferResource>& CDevice::GetReleaseHeap<CBufferResource>() { return m_BufferReleaseHeap; }
-template<> CDevice::TReleaseHeap<CImageResource >& CDevice::GetReleaseHeap<CImageResource >() { return m_ImageReleaseHeap; }
 template<> CDevice::TRecycleHeap<CBufferResource>& CDevice::GetRecycleHeap<CBufferResource>() { return m_BufferRecycleHeap; }
-template<> CDevice::TRecycleHeap<CImageResource >& CDevice::GetRecycleHeap<CImageResource >() { return m_ImageRecycleHeap; }
+
+template<> CDevice::TReleaseHeap<CDynamicOffsetBufferResource>& CDevice::GetReleaseHeap<CDynamicOffsetBufferResource>() { return m_DynamicOffsetBufferReleaseHeap; }
+template<> CDevice::TRecycleHeap<CDynamicOffsetBufferResource>& CDevice::GetRecycleHeap<CDynamicOffsetBufferResource>() { return m_DynamicOffsetBufferRecycleHeap; }
+
+template<> CDevice::TReleaseHeap<CImageResource>& CDevice::GetReleaseHeap<CImageResource>() { return m_ImageReleaseHeap; }
+template<> CDevice::TRecycleHeap<CImageResource>& CDevice::GetRecycleHeap<CImageResource>() { return m_ImageRecycleHeap; }
 
 //---------------------------------------------------------------------------------------------------------------------
 template<class CResource>
@@ -324,7 +345,7 @@ VkResult CDevice::SubstituteUsedCommittedResource(const FVAL64 (&fenceValues)[CM
 	}
 
 	CResource* pDisposableResource = *ppSubstituteResource;
-	VkResult result = DuplicateCommittedResource(pDisposableResource, ppSubstituteResource);
+	VkResult result = DuplicateCommittedResource<CResource>(pDisposableResource, ppSubstituteResource);
 
 	if (result == VK_SUCCESS && *ppSubstituteResource != nullptr)
 	{
@@ -361,7 +382,7 @@ VkResult CDevice::CreateOrReuseStagingResource(CResource* pInputResource, VkDevi
 	EHeapType heapType = bUpload ? kHeapUpload : kHeapDownload;
 
 	CBufferResource* stagingResource = nullptr;
-	VkResult result = CreateOrReuseCommittedResource(
+	VkResult result = CreateOrReuseCommittedResource<CBufferResource, typename CBufferResource::VkCreateInfo>(
 		heapType,
 		createInfo,
 		&stagingResource);
@@ -431,10 +452,13 @@ VkResult CDevice::CreateOrReuseCommittedResource(EHeapType HeapHint, const VkCre
 		{
 			if (ppOutputResource)
 			{
-				(*ppOutputResource = result->second.pObject)->AddRef();
-				VK_ASSERT(result->second.pObject->IsUniquelyOwned(), "Ref-Counter of VK resource is not 1, implementation will crash!");
+				// Guaranteed O(1) lookup
+				(*ppOutputResource = result->second.front().pObject)->AddRef();
+				VK_ASSERT(result->second.front().pObject->IsUniquelyOwned(), "Ref-Counter of VK resource is not 1, implementation will crash!");
 
-				RecycleHeap.erase(result);
+				result->second.pop_front();
+				if (!result->second.size())
+					RecycleHeap.erase(result);
 			}
 
 			return VK_SUCCESS;
@@ -482,8 +506,20 @@ void CDevice::FlushReleaseHeap(const UINT64 (&completedFenceValues)[CMDQUEUE_NUM
 					recycleInfo.fenceValues[CMDQUEUE_COMPUTE ] = completedFenceValues[CMDQUEUE_COMPUTE ];
 					recycleInfo.fenceValues[CMDQUEUE_COPY    ] = completedFenceValues[CMDQUEUE_COPY    ];
 
+
 					// TODO: could be accumulated to a local list and batch-merged in the next code-block to prevent the locking
-					RecycleHeap.emplace(it->second.hHash, std::move(recycleInfo));
+					auto& sorted = RecycleHeap[it->second.hHash];
+#if OUT_OF_ODER_RELEASE_LATER
+					if (sorted.size())
+					{
+						auto insertionpoint = sorted.begin();
+						while (insertionpoint->fenceValue > recycleInfo.fenceValue)
+							++insertionpoint;
+						sorted.insert(insertionpoint, std::move(recycleInfo));
+					}
+					else
+#endif
+						sorted.push_front(std::move(recycleInfo));
 				}
 				else
 				{
@@ -507,14 +543,20 @@ void CDevice::FlushReleaseHeap(const UINT64 (&completedFenceValues)[CMDQUEUE_NUM
 			nx = it;
 			++nx;
 
-			if (((it->second.fenceValues[CMDQUEUE_GRAPHICS]) <= pruneFenceValues[CMDQUEUE_GRAPHICS]) /*&&
-			    ((it->second.fenceValues[CMDQUEUE_COMPUTE ]) <= pruneFenceValues[CMDQUEUE_COMPUTE ]) &&
-			    ((it->second.fenceValues[CMDQUEUE_COPY    ]) <= pruneFenceValues[CMDQUEUE_COPY    ])*/)
+			while (((it->second.back().fenceValues[CMDQUEUE_GRAPHICS]) <= pruneFenceValues[CMDQUEUE_GRAPHICS]) /*&&
+			       ((it->second.back().fenceValues[CMDQUEUE_COMPUTE ]) <= pruneFenceValues[CMDQUEUE_COMPUTE ]) &&
+			       ((it->second.back().fenceValues[CMDQUEUE_COPY    ]) <= pruneFenceValues[CMDQUEUE_COPY    ])*/)
 			{
-			//	ULONG counter = it->second.pObject->Release();
-				VK_ASSERT(it->second.pObject->IsDeletable(), "Ref-Counter of VK resource is not 0, implementation will crash!");
-				delete it->second.pObject;
-				RecycleHeap.erase(it);
+			//	ULONG counter = it->second.back().pObject->Release();
+				VK_ASSERT(it->second.back().pObject->IsDeletable(), "Ref-Counter of VK resource is not 0, implementation will crash!");
+				delete it->second.back().pObject;
+
+				it->second.pop_back();
+				if (!it->second.size())
+				{
+					RecycleHeap.erase(it);
+					break;
+				}
 			}
 		}
 	}
@@ -522,8 +564,9 @@ void CDevice::FlushReleaseHeap(const UINT64 (&completedFenceValues)[CMDQUEUE_NUM
 
 void CDevice::FlushReleaseHeaps(const UINT64 (&completedFenceValues)[CMDQUEUE_NUM], const UINT64 (&pruneFenceValues)[CMDQUEUE_NUM]) threadsafe
 {
-	FlushReleaseHeap<CBufferResource>(completedFenceValues, pruneFenceValues);
-	FlushReleaseHeap<CImageResource >(completedFenceValues, pruneFenceValues);
+	FlushReleaseHeap<CBufferResource             >(completedFenceValues, pruneFenceValues);
+	FlushReleaseHeap<CDynamicOffsetBufferResource>(completedFenceValues, pruneFenceValues);
+	FlushReleaseHeap<CImageResource              >(completedFenceValues, pruneFenceValues);
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -533,26 +576,51 @@ void CDevice::ReleaseLater(const FVAL64 (&fenceValues)[CMDQUEUE_NUM], CResource*
 	if (pObject == VK_NULL_HANDLE)
 		return;
 
-	TReleaseHeap<CResource>& ReleaseHeap = GetReleaseHeap<CResource>();
+	THash hHash = CalculateResourceHash(pObject->GetCreateInfo(), pObject->GetHeapType());
+	const bool isGPUOnly =
+		pObject->GetHeapType() == kHeapTargets ||
+		pObject->GetHeapType() == kHeapSources;
 
-	ReleaseInfo releaseInfo;
-	releaseInfo.hHash = CalculateResourceHash(pObject->GetCreateInfo(), pObject->GetHeapType());
-	releaseInfo.bFlags = bReusable ? 1 : 0;
-	releaseInfo.fenceValues[CMDQUEUE_GRAPHICS] = fenceValues[CMDQUEUE_GRAPHICS];
-	releaseInfo.fenceValues[CMDQUEUE_COMPUTE ] = fenceValues[CMDQUEUE_COMPUTE ];
-	releaseInfo.fenceValues[CMDQUEUE_COPY    ] = fenceValues[CMDQUEUE_COPY    ];
-
+	// GPU-only resources can't race each other when they are managed by ref-counts/pools
+	if (isGPUOnly && bReusable)
 	{
+		TRecycleHeap<CResource>& RecycleHeap = GetRecycleHeap<CResource>();
+		CryAutoLock<CryCriticalSectionNonRecursive> lThreadSafeScope(GetRecycleHeapCriticalSection<CResource>());
+
+		RecycleInfo<CResource> recycleInfo;
+
+		recycleInfo.pObject = pObject;
+		recycleInfo.fenceValues[CMDQUEUE_GRAPHICS] = fenceValues[CMDQUEUE_GRAPHICS];
+		recycleInfo.fenceValues[CMDQUEUE_COMPUTE] = fenceValues[CMDQUEUE_COMPUTE];
+		recycleInfo.fenceValues[CMDQUEUE_COPY] = fenceValues[CMDQUEUE_COPY];
+
+		auto& sorted = RecycleHeap[hHash];
+#if OUT_OF_ODER_RELEASE_LATER
+		if (sorted.size())
+		{
+			auto insertionpoint = sorted.begin();
+			while (insertionpoint->fenceValue > recycleInfo.fenceValue)
+				++insertionpoint;
+			sorted.insert(insertionpoint, std::move(recycleInfo));
+		}
+		else
+#endif
+			sorted.push_front(std::move(recycleInfo));
+	}
+	else
+	{
+		TReleaseHeap<CResource>& ReleaseHeap = GetReleaseHeap<CResource>();
 		CryAutoLock<CryCriticalSectionNonRecursive> lThreadSafeScope(GetReleaseHeapCriticalSection<CResource>());
 
-		std::pair<typename TReleaseHeap<CResource>::iterator, bool> result = ReleaseHeap.emplace(pObject, std::move(releaseInfo));
+		ReleaseInfo releaseInfo;
 
-		VK_ASSERT(pObject->IsDeletable(), "Ref-Counter is not 0, this might work, but is bad practice.");
-	//	// Only count if insertion happened
-	//	if (result.second)
-	//	{
-	//		pObject->AddRef();
-	//	}
+		releaseInfo.hHash = hHash;
+		releaseInfo.bFlags = bReusable ? 1 : 0;
+		releaseInfo.fenceValues[CMDQUEUE_GRAPHICS] = fenceValues[CMDQUEUE_GRAPHICS];
+		releaseInfo.fenceValues[CMDQUEUE_COMPUTE] = fenceValues[CMDQUEUE_COMPUTE];
+		releaseInfo.fenceValues[CMDQUEUE_COPY] = fenceValues[CMDQUEUE_COPY];
+
+		std::pair<typename TReleaseHeap<CResource>::iterator, bool> result = ReleaseHeap.emplace(pObject, std::move(releaseInfo));
 	}
 }
 
@@ -560,19 +628,23 @@ void CDevice::ReleaseLater(const FVAL64 (&fenceValues)[CMDQUEUE_NUM], CResource*
 // Explicit instantiations
 template VkResult CDevice::CommitResource<CBufferResource>(EHeapType HeapHint, CBufferResource* pInputResource) threadsafe;
 template VkResult CDevice::CommitResource<CImageResource >(EHeapType HeapHint, CImageResource * pInputResource) threadsafe;
-template VkResult CDevice::CreateCommittedResource<CBufferResource, VkBufferCreateInfo>(EHeapType HeapHint, const VkBufferCreateInfo& createInfo, CBufferResource** ppOutputResource) threadsafe;
+template VkResult CDevice::CreateCommittedResource<CBufferResource             , VkBufferCreateInfo>(EHeapType HeapHint, const VkBufferCreateInfo& createInfo, CBufferResource             ** ppOutputResource) threadsafe;
 template VkResult CDevice::CreateCommittedResource<CDynamicOffsetBufferResource, VkBufferCreateInfo>(EHeapType HeapHint, const VkBufferCreateInfo& createInfo, CDynamicOffsetBufferResource** ppOutputResource) threadsafe;
-template VkResult CDevice::CreateCommittedResource<CImageResource, VkImageCreateInfo >(EHeapType HeapHint, const VkImageCreateInfo & createInfo, CImageResource ** ppOutputResource) threadsafe;
-template VkResult CDevice::DuplicateCommittedResource<CBufferResource>(CBufferResource* pInputResource, CBufferResource** ppOutputResource) threadsafe;
-template VkResult CDevice::DuplicateCommittedResource<CImageResource >(CImageResource * pInputResource, CImageResource ** ppOutputResource) threadsafe;
-template VkResult CDevice::SubstituteUsedCommittedResource<CBufferResource>(const FVAL64 (&fenceValues)[CMDQUEUE_NUM], CBufferResource** ppSubstituteResource) threadsafe;
-template VkResult CDevice::SubstituteUsedCommittedResource<CImageResource >(const FVAL64 (&fenceValues)[CMDQUEUE_NUM], CImageResource ** ppSubstituteResource) threadsafe;
+template VkResult CDevice::CreateCommittedResource<CImageResource              , VkImageCreateInfo >(EHeapType HeapHint, const VkImageCreateInfo & createInfo, CImageResource              ** ppOutputResource) threadsafe;
+template VkResult CDevice::DuplicateCommittedResource<CBufferResource             >(CBufferResource             * pInputResource, CBufferResource             ** ppOutputResource) threadsafe;
+template VkResult CDevice::DuplicateCommittedResource<CDynamicOffsetBufferResource>(CDynamicOffsetBufferResource* pInputResource, CDynamicOffsetBufferResource** ppOutputResource) threadsafe;
+template VkResult CDevice::DuplicateCommittedResource<CImageResource              >(CImageResource              * pInputResource, CImageResource              ** ppOutputResource) threadsafe;
+template VkResult CDevice::SubstituteUsedCommittedResource<CBufferResource             >(const FVAL64 (&fenceValues)[CMDQUEUE_NUM], CBufferResource             ** ppSubstituteResource) threadsafe;
+template VkResult CDevice::SubstituteUsedCommittedResource<CDynamicOffsetBufferResource>(const FVAL64 (&fenceValues)[CMDQUEUE_NUM], CDynamicOffsetBufferResource** ppSubstituteResource) threadsafe;
+template VkResult CDevice::SubstituteUsedCommittedResource<CImageResource              >(const FVAL64 (&fenceValues)[CMDQUEUE_NUM], CImageResource              ** ppSubstituteResource) threadsafe;
 template VkResult CDevice::CreateOrReuseStagingResource<CBufferResource>(CBufferResource* pInputResource, VkDeviceSize minSize, CBufferResource** ppStagingResource, bool Upload) threadsafe;
 template VkResult CDevice::CreateOrReuseStagingResource<CImageResource >(CImageResource * pInputResource, VkDeviceSize minSize, CBufferResource** ppStagingResource, bool Upload) threadsafe;
-template VkResult CDevice::CreateOrReuseCommittedResource<CBufferResource, VkBufferCreateInfo>(EHeapType HeapHint, const VkBufferCreateInfo& createInfo, CBufferResource** ppOutputResource) threadsafe;
-template VkResult CDevice::CreateOrReuseCommittedResource<CImageResource , VkImageCreateInfo >(EHeapType HeapHint, const VkImageCreateInfo & createInfo, CImageResource ** ppOutputResource) threadsafe;
-template void     CDevice::ReleaseLater<CBufferResource>(const FVAL64 (&fenceValues)[CMDQUEUE_NUM], CBufferResource* pObject, bool bReusable) threadsafe;
-template void     CDevice::ReleaseLater<CImageResource >(const FVAL64 (&fenceValues)[CMDQUEUE_NUM], CImageResource * pObject, bool bReusable) threadsafe;
+template VkResult CDevice::CreateOrReuseCommittedResource<CBufferResource             , VkBufferCreateInfo>(EHeapType HeapHint, const VkBufferCreateInfo& createInfo, CBufferResource             ** ppOutputResource) threadsafe;
+template VkResult CDevice::CreateOrReuseCommittedResource<CDynamicOffsetBufferResource, VkBufferCreateInfo>(EHeapType HeapHint, const VkBufferCreateInfo& createInfo, CDynamicOffsetBufferResource** ppOutputResource) threadsafe;
+template VkResult CDevice::CreateOrReuseCommittedResource<CImageResource              , VkImageCreateInfo >(EHeapType HeapHint, const VkImageCreateInfo & createInfo, CImageResource              ** ppOutputResource) threadsafe;
+template void     CDevice::ReleaseLater<CBufferResource             >(const FVAL64 (&fenceValues)[CMDQUEUE_NUM], CBufferResource             * pObject, bool bReusable) threadsafe;
+template void     CDevice::ReleaseLater<CDynamicOffsetBufferResource>(const FVAL64 (&fenceValues)[CMDQUEUE_NUM], CDynamicOffsetBufferResource* pObject, bool bReusable) threadsafe;
+template void     CDevice::ReleaseLater<CImageResource              >(const FVAL64 (&fenceValues)[CMDQUEUE_NUM], CImageResource              * pObject, bool bReusable) threadsafe;
 
 //---------------------------------------------------------------------------------------------------------------------
 void CDevice::FlushAndWaitForGPU()

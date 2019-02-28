@@ -1,10 +1,8 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
 #include "IViewSystem.h"
-#include <CrySystem/VR/IHMDDevice.h>
-#include <CrySystem/VR/IHMDManager.h>
 
 class CGameObject;
 struct IGameObjectView;
@@ -20,7 +18,7 @@ class CListenerComponent;
 } // namespace Audio
 } // namespace Cry
 
-class CView final : public IView, public IEntityEventListener, public IHmdDevice::IAsyncCameraCallback
+class CView final : public IView, public IEntityEventListener
 {
 public:
 
@@ -122,7 +120,7 @@ public:
 	// ~IView
 
 	// IEntityEventListener
-	virtual void OnEntityEvent(IEntity* pEntity, SEntityEvent& event) override;
+	virtual void OnEntityEvent(IEntity* pEntity, const SEntityEvent& event) override;
 	// ~IEntityEventListener
 
 	virtual void ProcessShaking(float frameTime);
@@ -150,10 +148,6 @@ protected:
 	void         ApplyFrameAdditiveAngles(Quat& cameraOrientation);
 
 	const float  GetScale();
-
-	// IAsyncCameraCallback
-	virtual bool OnAsyncCameraCallback(const HmdTrackingState& state, IHmdDevice::AsyncCameraContext& context) override;
-	// ~IAsyncCameraCallback
 
 private:
 

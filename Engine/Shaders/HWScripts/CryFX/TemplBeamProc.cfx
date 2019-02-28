@@ -1,5 +1,4 @@
-// CRYENGINE Source Code File
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "Common.cfi"
 #include "ShadeLib.cfi"
@@ -128,7 +127,7 @@ SamplerState ssForwardBilinearWrap : register(s10) = SS_MaterialBilinearWrap;
 
 struct v2f
 {
-	float4 HPosition   : POSITION;
+	float4 HPosition   : SV_POSITION;
 	float4 baseTC      : TEXCOORDN; 
 	float4 screenProj  : TEXCOORDN; 
 	half4 Color        : TEXCOORDN; 

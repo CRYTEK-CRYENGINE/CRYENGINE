@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -81,7 +81,7 @@ CTargetTrackGroup::~CTargetTrackGroup()
 //////////////////////////////////////////////////////////////////////////
 void CTargetTrackGroup::Reset()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	// Add all active tracks back to the pool
 	TTargetTrackContainer::iterator itTrack = m_TargetTracks.begin();
@@ -182,7 +182,7 @@ void CTargetTrackGroup::InitDummy()
 //////////////////////////////////////////////////////////////////////////
 void CTargetTrackGroup::Update(TargetTrackHelpers::ITargetTrackConfigProxy* pConfigProxy)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	const float fCurrTime = GetAISystem()->GetFrameStartTimeSeconds();
 
@@ -278,7 +278,7 @@ CTargetTrack* CTargetTrackGroup::GetTargetTrack(tAIObjectID aiTargetId)
 //////////////////////////////////////////////////////////////////////////
 bool CTargetTrackGroup::HandleStimulusEvent(const TargetTrackHelpers::STargetTrackStimulusEvent& stimulusEvent, uint32 uStimulusNameHash)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	assert(!stimulusEvent.m_sStimulusName.empty());
 
@@ -288,7 +288,7 @@ bool CTargetTrackGroup::HandleStimulusEvent(const TargetTrackHelpers::STargetTra
 
 bool CTargetTrackGroup::TriggerPulse(tAIObjectID targetID, uint32 uStimulusNameHash, uint32 uPulseNameHash)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	bool bResult = false;
 
@@ -301,7 +301,7 @@ bool CTargetTrackGroup::TriggerPulse(tAIObjectID targetID, uint32 uStimulusNameH
 //////////////////////////////////////////////////////////////////////////
 bool CTargetTrackGroup::TriggerPulse(uint32 uStimulusNameHash, uint32 uPulseNameHash)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	bool bResult = true;
 
@@ -321,7 +321,7 @@ bool CTargetTrackGroup::TriggerPulse(uint32 uStimulusNameHash, uint32 uPulseName
 //////////////////////////////////////////////////////////////////////////
 bool CTargetTrackGroup::HandleStimulusEvent_All(const TargetTrackHelpers::STargetTrackStimulusEvent& stimulusEvent, uint32 uStimulusNameHash)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	bool bResult = true;
 
@@ -338,7 +338,7 @@ bool CTargetTrackGroup::HandleStimulusEvent_All(const TargetTrackHelpers::STarge
 //////////////////////////////////////////////////////////////////////////
 bool CTargetTrackGroup::HandleStimulusEvent_Target(const TargetTrackHelpers::STargetTrackStimulusEvent& stimulusEvent, uint32 uStimulusNameHash, CTargetTrack* pTrack)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	assert(pTrack);
 
@@ -365,7 +365,7 @@ bool CTargetTrackGroup::IsDesiredTarget(tAIObjectID aiTargetId) const
 //////////////////////////////////////////////////////////////////////////
 bool CTargetTrackGroup::GetDesiredTarget(TargetTrackHelpers::EDesiredTargetMethod eMethod, CWeakRef<CAIObject>& outTarget, SAIPotentialTarget*& pOutTargetInfo)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	bool bResult = false;
 
@@ -480,7 +480,7 @@ bool CTargetTrackGroup::TestTrackAgainstFilters(CTargetTrack* pTrack, TargetTrac
 //////////////////////////////////////////////////////////////////////////
 void CTargetTrackGroup::UpdateTargetRepresentation(const CTargetTrack* pBestTrack, CWeakRef<CAIObject>& outTarget, SAIPotentialTarget*& pOutTargetInfo)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	CWeakRef<CAIObject> refTarget = pBestTrack->GetAITarget();
 

@@ -12,6 +12,9 @@ namespace Cry
 	{
 		class CPointConstraintComponent
 			: public IEntityComponent
+#ifndef RELEASE
+			, public IEntityComponentPreviewer
+#endif
 		{
 		protected:
 			friend CPlugin_CryDefaultEntities;
@@ -20,12 +23,23 @@ namespace Cry
 			// IEntityComponent
 			virtual void Initialize() final;
 
-			virtual void ProcessEvent(SEntityEvent& event) final;
+			virtual void ProcessEvent(const SEntityEvent& event) final;
 			virtual uint64 GetEventMask() const final;
+
+			virtual void OnShutDown() final;
 			// ~IEntityComponent
 
+#ifndef RELEASE
+			// IEntityComponentPreviewer
+			virtual IEntityComponentPreviewer* GetPreviewer() final { return this; }
+
+			virtual void SerializeProperties(Serialization::IArchive& archive) final {}
+			virtual void Render(const IEntity& entity, const IEntityComponent& component, SEntityPreviewContext &context) const final;
+			// ~IEntityComponentPreviewer
+#endif
+
 		public:
-			virtual ~CPointConstraintComponent();
+			virtual ~CPointConstraintComponent() = default;
 
 			static void ReflectType(Schematyc::CTypeDesc<CPointConstraintComponent>& desc)
 			{
@@ -41,7 +55,6 @@ namespace Cry
 
 				desc.AddMember(&CPointConstraintComponent::m_rotationLimitsX0, 'rlx0', "RotationLimitsX0", "Minimum X Angle", nullptr, 0.0_degrees);
 				desc.AddMember(&CPointConstraintComponent::m_rotationLimitsX1, 'rlx1', "RotationLimitsX1", "Maximum X Angle", nullptr, 360.0_degrees);
-				desc.AddMember(&CPointConstraintComponent::m_rotationLimitsYZ0, 'rly0', "RotationLimitsYZ0", "Minimum YZ Angle", nullptr, 0.0_degrees);
 				desc.AddMember(&CPointConstraintComponent::m_rotationLimitsYZ1, 'rly1', "RotationLimitsYZ1", "Maximum YZ Angle", nullptr, 360.0_degrees);
 
 				desc.AddMember(&CPointConstraintComponent::m_damping, 'damp', "Damping", "Damping", nullptr, 0.f);
@@ -107,7 +120,7 @@ namespace Cry
 					constraint.qframe[0] = constraint.qframe[1] = Quat(slotTransform) * Quat::CreateRotationV0V1(Vec3(1, 0, 0), m_axis);
 					constraint.xlimits[0] = m_rotationLimitsX0.ToRadians();
 					constraint.xlimits[1] = m_rotationLimitsX1.ToRadians();
-					constraint.yzlimits[0] = m_rotationLimitsYZ0.ToRadians();
+					constraint.yzlimits[0] = 0;
 					constraint.yzlimits[1] = m_rotationLimitsYZ1.ToRadians();
 					constraint.damping = m_damping;
 
@@ -160,8 +173,7 @@ namespace Cry
 			CryTransform::CAngle GetRotationLimitXMin() const { return m_rotationLimitsX0; }
 			CryTransform::CAngle GetRotationLimitXMax() const { return m_rotationLimitsX1; }
 
-			virtual void SetRotationLimitsyz(CryTransform::CAngle minValue, CryTransform::CAngle maxValue) { m_rotationLimitsYZ0 = minValue; m_rotationLimitsYZ1 = maxValue; }
-			CryTransform::CAngle GetRotationLimitYZMin() const { return m_rotationLimitsYZ0; }
+			virtual void SetRotationLimitsyz(CryTransform::CAngle maxValue) { m_rotationLimitsYZ1 = maxValue; }
 			CryTransform::CAngle GetRotationLimitYZMax() const { return m_rotationLimitsYZ1; }
 
 			virtual void SetDamping(float damping) { m_damping = damping; }
@@ -176,9 +188,8 @@ namespace Cry
 			Schematyc::UnitLength<Vec3> m_axis = Vec3(0, 0, 1);
 
 			CryTransform::CClampedAngle<-360, 360> m_rotationLimitsX0 = 0.0_degrees;
-			CryTransform::CClampedAngle<-360, 360> m_rotationLimitsX1 = 360.0_degrees;
-			CryTransform::CClampedAngle<-360, 360> m_rotationLimitsYZ0 = 0.0_degrees;
-			CryTransform::CClampedAngle<-360, 360> m_rotationLimitsYZ1 = 360.0_degrees;
+			CryTransform::CClampedAngle<-360, 360> m_rotationLimitsX1 = 0.0_degrees;
+			CryTransform::CClampedAngle<0, 180> m_rotationLimitsYZ1 = 0.0_degrees;
 
 			Schematyc::Range<-10000, 10000> m_damping = 0.f;
 

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "ClusterDetector.h"
@@ -163,7 +163,7 @@ bool ClusterDetector::IsNewClusterNeeded()
 
 bool ClusterDetector::ExecuteClusteringStep()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	bool isFurtherRefinementNeeded = false;
 	ClusterRequest::PointsList& points = m_internalState.pCurrentRequest->m_points;
@@ -224,7 +224,7 @@ size_t ClusterDetector::CalculateRuleOfThumbClusterSize(const size_t numberOfPoi
 
 bool ClusterDetector::InitializeNextRequest()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	m_internalState.Reset();
 
@@ -268,7 +268,7 @@ void ClusterDetector::InitializeClusters()
 
 Vec3 ClusterDetector::CalculateInitialClusterPosition(const size_t clusterIndex, const float spreadAngleUnit) const
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	Vec3 offset(2.0f, 0.0f, 0.0f);
 	offset = offset.GetRotated(Vec3Constants<float>::fVec3_OneZ, spreadAngleUnit * clusterIndex);
@@ -277,7 +277,7 @@ Vec3 ClusterDetector::CalculateInitialClusterPosition(const size_t clusterIndex,
 
 void ClusterDetector::UpdateClustersCenter()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	ClusterDetector::ClustersArray::iterator it = m_internalState.clusters.begin();
 	for (; it != m_internalState.clusters.end(); ++it)

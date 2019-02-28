@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include <DriverD3D.h>
 ////////////////////////////////////////////////////////////////////////////
@@ -301,7 +301,24 @@ SResourceLayout CDeviceResource::GetLayout() const
 
 CDeviceResource::ESubstitutionResult CDeviceResource::SubstituteUsedResource()
 {
-	return eSubResult_Failed;
+	auto& rFactory = CDeviceObjectFactory::GetInstance();
+	const auto& fenceManager = rFactory.GetDX11Scheduler()->GetFenceManager();
+
+	// NOTE: Poor man's resource tracking (take current time as last-used moment)
+	HRESULT hResult = rFactory.GetDX11Device()->SubstituteUsedCommittedResource(fenceManager.GetCurrentValues(), &m_pNativeResource);
+
+	if (hResult == S_FALSE)
+		return eSubResult_Kept;
+	if (hResult == E_FAIL)
+		return eSubResult_Failed;
+
+	ReleaseResourceViews();
+	AllocatePredefinedResourceViews();
+
+	// TODO: also call this when it is moved to CDeviceResource
+	// InvalidateDeviceResource(uint32 dirtyFlags);
+
+	return eSubResult_Substituted;
 }
 
 ////////////////////////////////////////////////////////////////////////////
@@ -363,7 +380,8 @@ STextureLayout CDeviceTexture::GetLayout() const
 {
 	STextureLayout Layout = {};
 
-	Layout.m_eDstFormat = Layout.m_eSrcFormat = gcpRendD3D->m_hwTexFormatSupport.GetClosestFormatSupported(DeviceFormats::ConvertToTexFormat(m_eNativeFormat), Layout.m_pPixelFormat);
+	Layout.m_eSrcFormat =
+	Layout.m_eDstFormat = CRendererResources::s_hwTexFormatSupport.GetClosestFormatSupported(DeviceFormats::ConvertToTexFormat(m_eNativeFormat), Layout.m_pPixelFormat);
 	Layout.m_eTT = m_eTT;
 	Layout.m_eFlags = m_eFlags;
 	Layout.m_bIsSRGB = m_bIsSrgb;
@@ -692,8 +710,8 @@ STextureLayout CDeviceTexture::GetLayout(D3DBaseView* pView)
 
 	STextureLayout Layout = {};
 
-	Layout.m_eDstFormat       = 
-	Layout.m_eSrcFormat       = gcpRendD3D->m_hwTexFormatSupport.GetClosestFormatSupported(eTF, Layout.m_pPixelFormat);
+	Layout.m_eSrcFormat   =
+	Layout.m_eDstFormat   = CRendererResources::s_hwTexFormatSupport.GetClosestFormatSupported(eTF, Layout.m_pPixelFormat);
 	Layout.m_eTT          = eTT;
 	Layout.m_eFlags       = nFlags;
 	Layout.m_nWidth       = nWidth;
@@ -740,20 +758,6 @@ SResourceDimension CDeviceTexture::GetDimension(uint8 mip /*= 0*/, uint8 slices 
 	Dimension.Subresources = (slices ? slices : Layout.m_nArraySize) * (Layout.m_nMips - mip);
 
 	return Dimension;
-}
-
-void CDeviceTexture::Unbind()
-{
-	for (uint32 i = 0; i < MAX_TMU; i++)
-	{
-		if (CTexture::s_TexStages[i].m_DevTexture == this)
-		{
-			CTexture::s_TexStages[i].m_DevTexture = NULL;
-
-			ID3D11ShaderResourceView* RV = NULL;
-			gcpRendD3D->GetDeviceContext().PSSetShaderResources(i, 1, &RV);
-		}
-	}
 }
 
 #ifdef DEVRES_USE_STAGING_POOL
@@ -822,8 +826,13 @@ void CDeviceTexture::UploadFromStagingResource(const uint32 nSubRes, StagingHook
 
 	assert(pStagingResource);
 
+	// ID3D11DeviceContext::Map : Map cannot be called with MAP_WRITE access, because the Resource was created as D3D11_USAGE_DYNAMIC.
+	// D3D11_USAGE_DYNAMIC Resources must use either MAP_WRITE_DISCARD or MAP_WRITE_NO_OVERWRITE with Map.
+
 	D3D11_MAPPED_SUBRESOURCE lrct;
-	HRESULT hr = gcpRendD3D->GetDeviceContext_ForMapAndUnmap().Map(pStagingResource, nSubRes, D3D11_MAP_WRITE_DISCARD, 0, &lrct);
+	HRESULT hr = gcpRendD3D->GetDeviceContext_ForMapAndUnmap().Map(pStagingResource, nSubRes, D3D11_MAP_WRITE_NO_OVERWRITE_SR, 0, &lrct);
+	if (S_OK != hr)
+		hr = gcpRendD3D->GetDeviceContext_ForMapAndUnmap().Map(pStagingResource, nSubRes, D3D11_MAP_WRITE_DISCARD_SR, 0, &lrct);
 
 	if (S_OK == hr)
 	{

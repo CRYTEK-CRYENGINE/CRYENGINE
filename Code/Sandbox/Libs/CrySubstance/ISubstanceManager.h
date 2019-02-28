@@ -1,3 +1,5 @@
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+
 #pragma once
 
 #include "SubstanceCommon.h"
@@ -21,5 +23,6 @@ class CRY_SUBSTANCE_API ISubstanceManager
 		virtual SubstanceAir::UInt GenerateOutputsAsync(ISubstancePreset* preset, ISubstanceInstanceRenderer* renderer) = 0;
 		virtual SubstanceAir::UInt GenerateOutputsAsync(const std::vector<ISubstancePreset*>& preset, ISubstanceInstanceRenderer* renderer) = 0;
 };
+
 
 

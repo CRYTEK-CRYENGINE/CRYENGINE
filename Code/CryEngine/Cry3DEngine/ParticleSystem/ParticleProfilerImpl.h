@@ -1,42 +1,37 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 namespace pfx2
 {
 
-#if !defined(_RELEASE)
 
-ILINE void CParticleProfiler::AddEntry(CParticleComponentRuntime* pRuntime, EProfileStat type, uint value)
+ILINE void CParticleProfiler::AddEntry(const CParticleComponentRuntime& runtime, EProfileStat type, uint value)
 {
+#if !defined(_RELEASE)
+	if (!IsEnabled())
+		return;
 	const uint32 threadId = JobManager::GetWorkerThreadId();
-	SEntry entry;
-	entry.m_pRuntime = pRuntime;
-	entry.m_type = type;
-	entry.m_value = value;
+	SEntry entry { &runtime, type, value };
 	m_entries[threadId + 1].push_back(entry);
+#endif
 }
 
-ILINE CTimeProfiler::CTimeProfiler(CParticleProfiler& profiler, CParticleComponentRuntime* pRuntime, EProfileStat stat)
+ILINE CTimeProfiler::CTimeProfiler(CParticleProfiler& profiler, const CParticleComponentRuntime& runtime, EProfileStat stat)
 	: m_profiler(profiler)
-	, m_pRuntime(pRuntime)
+	, m_runtime(runtime)
+#if !defined(_RELEASE)
 	, m_stat(stat)
 	, m_startTicks(CryGetTicks())
+#endif
 {
 }
 
 ILINE CTimeProfiler::~CTimeProfiler()
 {
+#if !defined(_RELEASE)
 	const int64 endTicks = CryGetTicks();
 	const uint time = uint(gEnv->pTimer->TicksToSeconds(endTicks - m_startTicks) * 1000000.0f);
-	m_profiler.AddEntry(m_pRuntime, m_stat, time);
-	m_profiler.AddEntry(m_pRuntime, EPS_TotalTiming, time);
-}
-
-#else
-
-ILINE void CParticleProfiler::AddEntry(CParticleComponentRuntime* pRuntime, EProfileStat type, uint value)  {}
-ILINE CTimeProfiler::CTimeProfiler(CParticleProfiler& profiler, CParticleComponentRuntime* pRuntime, EProfileStat stat) : m_profiler(profiler) {}
-ILINE CTimeProfiler::~CTimeProfiler() {}
-
+	m_profiler.AddEntry(m_runtime, m_stat, time);
+	m_profiler.AddEntry(m_runtime, EPS_TotalTiming, time);
 #endif
-
+}
 }

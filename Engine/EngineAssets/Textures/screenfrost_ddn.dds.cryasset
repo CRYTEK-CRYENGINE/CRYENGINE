@@ -1,0 +1,15 @@
+<AssetMetadata version="0" type="Texture" guid="3f4481b8-87d9-b662-3ef0-22bf776b1036" source="screenfrost_ddn.TIF">
+ <Files>
+  <File path="screenfrost_ddn.dds"/>
+  <File path="screenfrost_ddn.dds.1"/>
+  <File path="screenfrost_ddn.dds.2"/>
+  <File path="screenfrost_ddn.dds.3"/>
+  <File path="screenfrost_ddn.dds.4"/>
+  <File path="screenfrost_ddn.dds.5"/>
+ </Files>
+ <Details>
+  <Detail name="width">512</Detail>
+  <Detail name="height">512</Detail>
+  <Detail name="mipCount">8</Detail>
+ </Details>
+</AssetMetadata>

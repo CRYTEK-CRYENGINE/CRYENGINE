@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __IXMLSERIALIZER_H__
 #define __IXMLSERIALIZER_H__
@@ -19,6 +19,10 @@ public:
 	explicit FileXmlBufferSource(const char* path)
 	{
 		file = std::fopen(path, "r");
+	}
+	explicit FileXmlBufferSource(const wchar_t* path)
+	{
+		file = _wfopen(path, L"r");
 	}
 	~FileXmlBufferSource()
 	{

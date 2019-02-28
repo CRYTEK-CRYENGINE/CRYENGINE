@@ -33,6 +33,8 @@ namespace CryEngine.Serialization
 		Type,
         Assembly,
 		Enum,
-		MemberInfo
+		MemberInfo,
+
+        EntityComponent
 	}
 }

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __TREECONTROLUTILS_H__
 #define __TREECONTROLUTILS_H__
@@ -258,3 +258,4 @@ template<typename T> SelectedTreeItemDataIterator<T> EndSelectedTreeItemData(CXT
 }
 
 #endif //__TREECONTROLUTILS_H__
+

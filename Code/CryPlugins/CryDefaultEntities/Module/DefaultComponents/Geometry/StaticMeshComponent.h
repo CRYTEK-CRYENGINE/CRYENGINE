@@ -2,6 +2,8 @@
 
 #include "BaseMeshComponent.h"
 
+#include <CrySchematyc/Utils/SharedString.h>
+
 class CPlugin_CryDefaultEntities;
 
 namespace Cry
@@ -10,6 +12,9 @@ namespace DefaultComponents
 {
 class CStaticMeshComponent
 	: public CBaseMeshComponent
+#ifndef RELEASE
+	, public IEntityComponentPreviewer
+#endif
 {
 protected:
 	friend CPlugin_CryDefaultEntities;
@@ -18,8 +23,20 @@ protected:
 	// IEntityComponent
 	virtual void   Initialize() final;
 
-	virtual void   ProcessEvent(SEntityEvent& event) final;
+	virtual void   ProcessEvent(const SEntityEvent& event) final;
 	// ~IEntityComponent
+
+#ifndef RELEASE
+	virtual IEntityComponentPreviewer* GetPreviewer() final { return this; }
+#endif
+	// ~IEntityComponent
+
+#ifndef RELEASE
+	// IEntityComponentPreviewer
+	virtual void SerializeProperties(Serialization::IArchive& archive) final {}
+	virtual void Render(const IEntity& entity, const IEntityComponent& component, SEntityPreviewContext &context) const final;
+	// ~IEntityComponentPreviewer
+#endif
 
 public:
 	CStaticMeshComponent() {}
@@ -36,7 +53,7 @@ public:
 
 		desc.AddMember(&CStaticMeshComponent::m_type, 'type', "Type", "Type", "Determines the behavior of the static mesh", EMeshType::RenderAndCollider);
 
-		desc.AddMember(&CStaticMeshComponent::m_filePath, 'file', "FilePath", "File", "Determines the CGF to load", "%ENGINE%/EngineAssets/Objects/Default.cgf");
+		desc.AddMember(&CStaticMeshComponent::m_filePath, 'file', "FilePath", "File", "Determines the CGF to load", "%ENGINE%/EngineAssets/Objects/primitive_sphere.cgf");
 		desc.AddMember(&CStaticMeshComponent::m_materialPath, 'mat', "Material", "Material", "Specifies the override material for the selected object", "");
 
 		desc.AddMember(&CStaticMeshComponent::m_renderParameters, 'rend', "Render", "Rendering Settings", "Settings for the rendered representation of the component", SRenderParameters());
@@ -47,14 +64,18 @@ public:
 	const char*     GetFilePath() const { return m_filePath.value.c_str(); }
 
 	virtual void LoadFromDisk();
-	virtual void SetObject(IStatObj* pObject, bool bSetDefaultMass = false);
+	// Sets an new object for this component. 
+	virtual void SetObjectDirect(IStatObj* pObject, bool bSetDefaultMass = false);
+	// Sets an new object for this component. Path is relative to the asset directory. Example path: "Objects/MyAsset.cfg"
+	virtual void SetObject(Schematyc::CSharedString path, bool bSetDefaultMass = false);
+	// Reloads the object
 	virtual void ResetObject();
 
 	// Helper to allow exposing derived function to Schematyc
 	virtual void SetMeshType(EMeshType type) { SetType(type); }
 
 protected:
-	Schematyc::GeomFileName m_filePath = "%ENGINE%/EngineAssets/Objects/Default.cgf";
+	Schematyc::GeomFileName m_filePath = "%ENGINE%/EngineAssets/Objects/primitive_sphere.cgf";
 	Schematyc::MaterialFileName m_materialPath;
 
 	_smart_ptr<IStatObj>    m_pCachedStatObj = nullptr;

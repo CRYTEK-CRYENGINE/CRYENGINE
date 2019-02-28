@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /********************************************************************
    -------------------------------------------------------------------------
@@ -302,16 +302,10 @@ template<bool TBlocking> void CFlowNode_AIBase<TBlocking >::OnGoalPipeEvent(IPip
 
 //
 //-------------------------------------------------------------------------------------------------------------
-template<bool TBlocking> void CFlowNode_AIBase<TBlocking >::OnEntityEvent(IEntity* pEntity, SEntityEvent& event)
+template<bool TBlocking> void CFlowNode_AIBase<TBlocking >::OnEntityEvent(IEntity* pEntity, const SEntityEvent& event)
 {
 	switch (event.event)
 	{
-	case ENTITY_EVENT_AI_DONE:
-		if (m_pGraph->IsSuspended())
-			return;
-		Finish();
-		break;
-
 	case ENTITY_EVENT_RESET:
 	case ENTITY_EVENT_DONE:
 		Cancel();
@@ -388,7 +382,6 @@ template<bool TBlocking> void CFlowNode_AIBase<TBlocking >::RegisterEntityEvents
 	if (m_EntityId)
 	{
 		IEntitySystem* pSystem = gEnv->pEntitySystem;
-		pSystem->AddEntityEventListener(m_EntityId, ENTITY_EVENT_AI_DONE, this);
 		pSystem->AddEntityEventListener(m_EntityId, ENTITY_EVENT_POST_SERIALIZE, this);
 		//	pSystem->AddEntityEventListener( m_EntityId, ENTITY_EVENT_DONE, this );
 		//	pSystem->AddEntityEventListener( m_EntityId, ENTITY_EVENT_RESET, this );
@@ -432,7 +425,6 @@ template<bool TBlocking> void CFlowNode_AIBase<TBlocking >::UnregisterEvents()
 		IEntitySystem* pSystem = gEnv->pEntitySystem;
 		if (pSystem)
 		{
-			pSystem->RemoveEntityEventListener(m_EntityId, ENTITY_EVENT_AI_DONE, this);
 			pSystem->RemoveEntityEventListener(m_EntityId, ENTITY_EVENT_POST_SERIALIZE, this);
 		}
 

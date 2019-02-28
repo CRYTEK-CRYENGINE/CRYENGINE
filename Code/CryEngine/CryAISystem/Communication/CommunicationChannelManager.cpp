@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "CommunicationChannelManager.h"
@@ -116,7 +116,7 @@ void CommunicationChannelManager::Reset()
 
 void CommunicationChannelManager::Update(float updateTime)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	Channels::iterator glit = m_globalChannels.begin();
 	Channels::iterator glend = m_globalChannels.end();

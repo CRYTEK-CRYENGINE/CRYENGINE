@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -77,8 +77,8 @@ CameraOrbs::CameraOrbs(const char* name, const int numOrbs)
 
 	// share one constant buffer between both primitives
 	CConstantBufferPtr pSharedCB = gcpRendD3D->m_DevBufMan.CreateConstantBuffer(sizeof(SShaderParams), true, true);
-	m_GlowPrimitive.SetInlineConstantBuffer(eConstantBufferShaderSlot_PerBatch,       pSharedCB, EShaderStage_Vertex | EShaderStage_Pixel);
-	m_CameraLensPrimitive.SetInlineConstantBuffer(eConstantBufferShaderSlot_PerBatch, pSharedCB, EShaderStage_Vertex | EShaderStage_Pixel);
+	m_GlowPrimitive.SetInlineConstantBuffer(eConstantBufferShaderSlot_PerPrimitive,       pSharedCB, EShaderStage_Vertex | EShaderStage_Pixel);
+	m_CameraLensPrimitive.SetInlineConstantBuffer(eConstantBufferShaderSlot_PerPrimitive, pSharedCB, EShaderStage_Vertex | EShaderStage_Pixel);
 }
 
 void CameraOrbs::Load(IXmlNode* pNode)
@@ -257,7 +257,7 @@ void CameraOrbs::ApplyAdvancedShadingFlag(uint64& rtFlags) const
 
 void CameraOrbs::ApplyAdvancedShadingParams(SShaderParams& shaderParams, CRenderPrimitive& primitive, const ColorF& ambDiffuseRGBK, float absorptance, float transparency, float scattering) const
 {
-	CTexture* pAmbTex = CTexture::s_ptexSceneTarget;
+	CTexture* pAmbTex = CRendererResources::s_ptexSceneTarget;
 
 	shaderParams.ambientDiffuseRGBK = Vec4(ambDiffuseRGBK.r, ambDiffuseRGBK.g, ambDiffuseRGBK.b, ambDiffuseRGBK.a);
 	shaderParams.advShadingParams = Vec4(absorptance, transparency, scattering, 0);
@@ -283,15 +283,15 @@ bool CameraOrbs::PreparePrimitives(const SPreparePrimitivesContext& context)
 	m_GlowPrimitive.SetRenderState(GS_NODEPTHTEST | GS_BLSRC_ONE | GS_BLDST_ONE);
 
 	CTexture* pOrbTex = GetOrbTex();
-	m_GlowPrimitive.SetTexture(0, pOrbTex ? pOrbTex : CTexture::s_ptexBlack);
+	m_GlowPrimitive.SetTexture(0, pOrbTex ? pOrbTex : CRendererResources::s_ptexBlack);
 	m_GlowPrimitive.SetSampler(0, EDefaultSamplerStates::LinearBorder_Black);
 
 	if (!m_globalOcclusionBokeh)
-		m_GlowPrimitive.SetTexture(5, CTexture::s_ptexBlack);
+		m_GlowPrimitive.SetTexture(5, CRendererResources::s_ptexBlack);
 
 	// update constants
 	{
-		auto constants = m_GlowPrimitive.GetConstantManager().BeginTypedConstantUpdate<SShaderParams>(eConstantBufferShaderSlot_PerBatch, EShaderStage_Vertex | EShaderStage_Pixel);
+		auto constants = m_GlowPrimitive.GetConstantManager().BeginTypedConstantUpdate<SShaderParams>(eConstantBufferShaderSlot_PerPrimitive, EShaderStage_Vertex | EShaderStage_Pixel);
 
 		ApplyCommonParams(constants, context.pViewInfo->viewport, context.lightScreenPos[0], Vec2(m_globalSize));
 		constants->lensDetailParams = Vec4(1, 1, GetLensDetailBumpiness(), 0);
@@ -327,7 +327,7 @@ bool CameraOrbs::PreparePrimitives(const SPreparePrimitivesContext& context)
 
 	// geometry
 	{
-		m_spriteAspectRatio = context.pViewInfo[0].viewport.nWidth / float(context.pViewInfo[0].viewport.nHeight);
+		m_spriteAspectRatio = context.pViewInfo[0].viewport.width / float(context.pViewInfo[0].viewport.height);
 
 		ValidateMesh();
 
@@ -349,8 +349,8 @@ bool CameraOrbs::PreparePrimitives(const SPreparePrimitivesContext& context)
 		m_CameraLensPrimitive.SetPrimitiveType(CRenderPrimitive::ePrim_FullscreenQuadTess);
 
 		CTexture* pLensTex = GetLensTex();
-		m_CameraLensPrimitive.SetTexture(0, pOrbTex ? pOrbTex : CTexture::s_ptexBlack);
-		m_CameraLensPrimitive.SetTexture(2, pLensTex ? pLensTex : CTexture::s_ptexBlack);
+		m_CameraLensPrimitive.SetTexture(0, pOrbTex ? pOrbTex : CRendererResources::s_ptexBlack);
+		m_CameraLensPrimitive.SetTexture(2, pLensTex ? pLensTex : CRendererResources::s_ptexBlack);
 		m_CameraLensPrimitive.SetSampler(0, EDefaultSamplerStates::LinearBorder_Black);
 		m_CameraLensPrimitive.Compile(context.pass);
 

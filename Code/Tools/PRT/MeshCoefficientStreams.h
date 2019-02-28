@@ -13,16 +13,6 @@
 
 namespace NSH
 {
-	//!< describes the compression for each material(set of decompression values and so on)
-	struct SCompressionInfo
-	{
-		TFloatPairVec compressionValue;						//!< compression scale values and center offset for direct coeffs, individual for each mesh and material
-		bool isCompressed;												//!< indicates the compression
-		SCompressionInfo() : isCompressed(false), compressionValue((const uint32)0){}
-	};
-
-	typedef prtvector<NSH::SCompressionInfo> TCompressionInfo;
-
 	//!< stream manager, creates streams for export with possible compression
 	//!< template arguments for all coefficient types
 	//!< individual instance per mesh

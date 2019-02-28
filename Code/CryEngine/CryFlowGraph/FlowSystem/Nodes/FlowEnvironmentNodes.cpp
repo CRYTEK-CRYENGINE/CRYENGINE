@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -819,6 +819,70 @@ public:
 	}
 };
 
+
+
+class CFlowNode_GetCurrentPreset : public CFlowBaseNode<eNCT_Singleton>
+{
+public:
+	CFlowNode_GetCurrentPreset(SActivationInfo* pActInfo)
+	{
+	}
+
+	virtual void GetMemoryUsage(ICrySizer* s) const
+	{
+		s->Add(*this);
+	}
+
+	enum EInputs
+	{
+		eIP_Get = 0
+	};
+
+	enum EOutputPorts
+	{
+		eOP_PresetName = 0
+	};
+
+	void GetConfiguration(SFlowNodeConfig& config)
+	{
+		static const SInputPortConfig in_config[] = {
+			InputPortConfig_Void("Get",  _HELP("Get the current Preset name")),
+			//blend time might be here
+			{ 0 }
+		};
+
+		static const SOutputPortConfig out_config[] = {
+			OutputPortConfig<string>("PresetName", _HELP("Current Preset Name")),
+			{ 0 }
+		};
+
+		config.pInputPorts = in_config;
+		config.pOutputPorts = out_config;
+		config.sDescription = _HELP("Get current preset");
+		config.SetCategory(EFLN_ADVANCED);
+	}
+
+	void ProcessEvent(EFlowEvent event, SActivationInfo* pActInfo)
+	{
+		switch (event)
+		{
+		case eFE_Activate:
+		{
+			if (IsPortActive(pActInfo, eIP_Get))
+			{
+				ITimeOfDay* pTOD = gEnv->p3DEngine->GetTimeOfDay();
+
+				string presetName = (pTOD ? pTOD->GetCurrentPresetName() : "");
+
+				ActivateOutput(pActInfo, eOP_PresetName, presetName);
+			}
+		}
+		break;
+		}
+	}
+};
+
+
 REGISTER_FLOW_NODE("Environment:MoonDirection", CFlowNode_EnvMoonDirection);
 REGISTER_FLOW_NODE("Environment:Sun", CFlowNode_EnvSun);
 REGISTER_FLOW_NODE("Time:TimeOfDayTransitionTrigger", CFlowNode_TimeOfDayTransitionTrigger)
@@ -827,3 +891,4 @@ REGISTER_FLOW_NODE("Environment:SetOceanMaterial", CFlowNode_SetOceanMat)
 REGISTER_FLOW_NODE("Environment:SkyMaterialSwitch", CFlowNode_SkyMaterialSwitch);
 REGISTER_FLOW_NODE("Environment:VolumetericCloudSwitch", CFlowNode_SetVolumetricCloudSwitch);
 REGISTER_FLOW_NODE("Environment:PresetSwitch", CFlowNode_PresetSwitch);
+REGISTER_FLOW_NODE("Environment:GetCurrentPreset", CFlowNode_GetCurrentPreset);

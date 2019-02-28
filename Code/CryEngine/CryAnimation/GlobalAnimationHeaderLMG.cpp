@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "GlobalAnimationHeaderLMG.h"
@@ -406,6 +406,7 @@ bool GlobalAnimationHeaderLMG::LoadFromXML(CAnimationSet* pAnimationSet, XmlNode
 						//define the scope of the blend-space for each dimension
 						nodeExample->getAttr("min", m_DimPara[d].m_min);
 						nodeExample->getAttr("max", m_DimPara[d].m_max);
+						m_DimPara[d].m_max = (m_DimPara[d].m_max - m_DimPara[d].m_min < 0.01f) ? (m_DimPara[d].m_min + 0.01f) : (m_DimPara[d].m_max);
 
 						nodeExample->getAttr("cells", m_DimPara[d].m_cells);
 						m_DimPara[d].m_cells = m_DimPara[d].m_cells < 3 ? 3 : m_DimPara[d].m_cells;
@@ -675,6 +676,7 @@ bool GlobalAnimationHeaderLMG::LoadFromXML(CAnimationSet* pAnimationSet, XmlNode
 						m_arrBSAnnotations.push_back(face);
 					}
 				}
+
 				continue;
 			}
 

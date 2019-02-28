@@ -1,9 +1,12 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 using CryEngine.Common;
 
 namespace CryEngine.Animations
 {
+	/// <summary>
+	/// Manages an animation database file and returns requested information from the database.
+	/// </summary>
 	public sealed class AnimationDatabase
 	{
 		/// <summary>
@@ -12,6 +15,7 @@ namespace CryEngine.Animations
 		/// <value>The name of the file.</value>
 		public string FileName { get { return NativeHandle.GetFilename(); } }
 
+		[SerializeValue]
 		internal IAnimationDatabase NativeHandle { get; private set; }
 
 		internal AnimationDatabase(IAnimationDatabase nativeHandle)

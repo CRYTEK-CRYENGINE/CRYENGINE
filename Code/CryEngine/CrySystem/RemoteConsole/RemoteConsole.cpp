@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   RemoteConsole.cpp
@@ -330,10 +330,30 @@ void SRemoteServer::ThreadEntry()
 	local.sin_addr.s_addr = htonl(INADDR_ANY);
 	local.sin_family = AF_INET;
 
-	bool bindOk = false;
-	for (uint32 i = 0; i < MAX_BIND_ATTEMPTS; ++i)
+	int port = DEFAULT_PORT;
+	int maxAttempts = MAX_BIND_ATTEMPTS;
+
+	// Get the port from the commandline if provided.
+	const ICmdLineArg* pRemoteConsolePortArg = gEnv->pSystem->GetICmdLine()->FindArg(ECmdLineArgType::eCLAT_Pre, "remoteConsolePort");
+	if (pRemoteConsolePortArg != nullptr)
 	{
-		local.sin_port = htons(DEFAULT_PORT + i);
+		// If a valid port is retrieved, only one bind attempt will be made.
+		// Otherwise, use the default values.
+		port = pRemoteConsolePortArg->GetIValue();
+		if (port <= 0)
+		{
+			port = DEFAULT_PORT;
+		}
+		else
+		{
+			maxAttempts = 1;
+		}
+	}
+
+	bool bindOk = false;
+	for (uint32 i = 0; i < maxAttempts; ++i)
+	{
+		local.sin_port = htons(port + i);
 		const int result = CrySock::bind(m_socket, (CRYSOCKADDR*)&local, sizeof(local));
 		if (CrySock::TranslateSocketError(result) == CrySock::eCSE_NO_ERROR)
 		{
@@ -342,9 +362,9 @@ void SRemoteServer::ThreadEntry()
 		}
 	}
 
-	if (bindOk == false)
+	if (!bindOk)
 	{
-		CryLog("Remote console FAILED. bind() => CRY_SOCKET_ERROR. Faild ports from %d to %d", DEFAULT_PORT, DEFAULT_PORT + MAX_BIND_ATTEMPTS - 1);
+		CryLog("Remote console FAILED. bind() => CRY_SOCKET_ERROR. Faild ports from %d to %d", port, port + maxAttempts - 1);
 		return;
 	}
 

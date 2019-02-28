@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -89,7 +89,7 @@ public:
 	virtual const IVertexFrames* GetVertexFrames() const { return &m_arrModelMeshes[0].m_softwareMesh.GetVertexFrames(); }
 
 	SAttachmentVClothPreProcessData const& GetVClothData() const { return m_VClothData; }
-	bool HasVCloth() const { return (m_VClothData.m_listBendTrianglePairs.size()>0) || (m_VClothData.m_listBendTriangles.size()>0) || (m_VClothData.m_lra.size()>0) || (m_VClothData.m_lraNotAttachedOrderedIdx.size()>0); }
+	bool HasVCloth() const { return (m_VClothData.m_listBendTrianglePairs.size()>0) || (m_VClothData.m_listBendTriangles.size()>0) || (m_VClothData.m_nndc.size()>0) || (m_VClothData.m_nndcNotAttachedOrderedIdx.size()>0); }
 	void SetNeedsComputeSkinningBuffers() { m_needsComputeSkinningBuffers = true;  }
 	bool NeedsComputeSkinningBuffers() const { return m_needsComputeSkinningBuffers; }
 public:

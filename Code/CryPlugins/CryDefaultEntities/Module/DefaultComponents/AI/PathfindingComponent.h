@@ -41,15 +41,14 @@ namespace Cry
 			// IEntityComponent
 			virtual void Initialize() final;
 
-			virtual void ProcessEvent(SEntityEvent& event) final;
+			virtual void ProcessEvent(const SEntityEvent& event) final;
 			virtual uint64 GetEventMask() const final;
+
+			virtual void ShutDown() final { Reset(); }
 			// ~IEntityComponent
 
 		public:
-			virtual ~CPathfindingComponent() 
-			{
-				Reset();
-			}
+			virtual ~CPathfindingComponent() = default;
 
 			static void ReflectType(Schematyc::CTypeDesc<CPathfindingComponent>& desc)
 			{
@@ -58,7 +57,7 @@ namespace Cry
 				desc.SetLabel("Pathfinder");
 				desc.SetDescription("Exposes the ability to get path finding callbacks");
 				//desc.SetIcon("icons:ObjectTypes/object.ico");
-				desc.SetComponentFlags({ IEntityComponent::EFlags::Socket, IEntityComponent::EFlags::Attach });
+				desc.SetComponentFlags({ IEntityComponent::EFlags::HiddenFromUser, IEntityComponent::EFlags::Socket, IEntityComponent::EFlags::Attach });
 
 				desc.AddMember(&CPathfindingComponent::m_maxAcceleration, 'maxa', "MaxAcceleration", "Maximum Acceleration", "Maximum possible physical acceleration", 10.f);
 			}
@@ -72,10 +71,7 @@ namespace Cry
 				movementRequest.destination = position;
 				movementRequest.callback = functor(*this, &CPathfindingComponent::MovementRequestCallback);
 				movementRequest.style.SetSpeed(MovementStyle::Walk);
-
 				movementRequest.type = MovementRequest::Type::MoveTo;
-
-				m_state = Movement::StillFinding;
 
 				m_movementRequestId = gEnv->pAISystem->GetMovementSystem()->QueueRequest(movementRequest);
 			}
@@ -92,6 +88,7 @@ namespace Cry
 					gEnv->pAISystem->GetMNMPathfinder()->CancelPathRequest(m_pathFinderRequestId);
 
 					m_pathFinderRequestId = 0;
+					m_pathfindingState = Movement::Canceled;
 				}
 			}
 
@@ -139,12 +136,6 @@ namespace Cry
 			virtual bool                  PrepareNavigateSmartObject(CSmartObject* pSmartObject, OffMeshLink_SmartObject* pSmartObjectLink) final { return false; }
 			virtual void                  InvalidateSmartObjectLink(CSmartObject* pSmartObject, OffMeshLink_SmartObject* pSmartObjectLink) final {}
 
-			virtual void                  SetInCover(const bool inCover) final {}
-			virtual void                  UpdateCoverLocations() final {}
-			virtual void                  InstallInLowCover(const bool inCover) final {}
-			virtual void                  SetupCoverInformation() final {}
-			virtual bool                  IsInCover() const final { return false; }
-
 			virtual bool                  GetDesignedPath(SShape& pathShape) const final { return false; }
 			virtual void                  CancelRequestedPath() final {}
 			virtual void                  ConfigurePathfollower(const MovementStyle& style) final {}
@@ -170,23 +161,8 @@ namespace Cry
 
 			virtual const AgentMovementAbility& GetPathAgentMovementAbility() const final { return m_movementAbility; }
 
-			virtual void GetPathAgentNavigationBlockers(NavigationBlockers& blockers, const PathfindRequest* pRequest) final {}
-
-			virtual unsigned int GetPathAgentLastNavNode() const final { return 0; }
-			virtual void SetPathAgentLastNavNode(unsigned int lastNavNode) final {}
-
 			virtual void SetPathToFollow(const char* pathName) final {}
 			virtual void         SetPathAttributeToFollow(bool bSpline) final {}
-
-			virtual void SetPFBlockerRadius(int blockerType, float radius) final {}
-
-			virtual ETriState CanTargetPointBeReached(CTargetPointRequest& request) final
-			{
-				request.SetResult(eTS_false);
-				return eTS_false;
-			}
-
-			virtual bool UseTargetPointRequest(const CTargetPointRequest& request) final { return false; }
 
 			virtual bool GetValidPositionNearby(const Vec3& proposedPosition, Vec3& adjustedPosition) const final { return false; }
 			virtual bool GetTeleportPosition(Vec3& teleportPos) const final { return false; }
@@ -206,15 +182,20 @@ namespace Cry
 			void MovementRequestCallback(const MovementRequestResult &result) {}
 
 			INavPath *GetINavPath() { return m_pFoundPath; };
-			Movement::PathfinderState GetPathfinderState() { return m_state; }
+			Movement::PathfinderState GetPathfinderState()
+			{ 
+				// This function should always return the state of the last path finding request.
+				// m_pathfindingState shouldn't be changed anywhere but when RequestPathTo callback is called or path finding request is completed or canceled 
+				return m_pathfindingState;
+			}
 			void RequestPathTo(MNMPathRequest& request)
 			{
-				m_state = Movement::StillFinding;
+				m_pathfindingState = Movement::StillFinding;
 
 				request.resultCallback = functor(*this, &CPathfindingComponent::OnMNMPathResult);
 				request.agentTypeID = m_navigationAgentTypeId;
 
-				m_pathFinderRequestId = gEnv->pAISystem->GetMNMPathfinder()->RequestPathTo(this, request);
+				m_pathFinderRequestId = gEnv->pAISystem->GetMNMPathfinder()->RequestPathTo(GetEntityId(), request);
 			}
 
 			void OnMNMPathResult(const MNM::QueuedPathID& requestId, MNMPathRequestResult& result)
@@ -223,7 +204,7 @@ namespace Cry
 
 				if (result.HasPathBeenFound())
 				{
-					m_state = Movement::FoundPath;
+					m_pathfindingState = Movement::FoundPath;
 
 					SAFE_DELETE(m_pFoundPath);
 					m_pFoundPath = result.pPath->Clone();
@@ -236,7 +217,7 @@ namespace Cry
 				}
 				else
 				{
-					m_state = Movement::CouldNotFindPath;
+					m_pathfindingState = Movement::CouldNotFindPath;
 				}
 			}
 
@@ -249,7 +230,7 @@ namespace Cry
 			std::shared_ptr<IPathFollower> m_pPathFollower;
 			CPathObstacles m_pathObstacles;
 
-			Movement::PathfinderState m_state;
+			Movement::PathfinderState m_pathfindingState = Movement::CouldNotFindPath;
 			INavPath *m_pFoundPath = nullptr;
 
 			AgentMovementAbility m_movementAbility;

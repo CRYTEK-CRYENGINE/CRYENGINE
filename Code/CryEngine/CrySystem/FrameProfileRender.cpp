@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   frameprofilerender.cpp
@@ -36,9 +36,6 @@ LINK_SYSTEM_LIBRARY("psapi.lib")
 #endif
 
 #ifdef USE_FRAME_PROFILER
-
-//! Time is in milliseconds.
-	#define PROFILER_MIN_DISPLAY_TIME 0.01f
 
 	#define VARIANCE_MULTIPLIER       2.0f
 
@@ -111,10 +108,8 @@ void CFrameProfileSystem::DrawLabel(float col, float row, float* fColor, float g
 //////////////////////////////////////////////////////////////////////////
 void CFrameProfileSystem::DrawRect(float x1, float y1, float x2, float y2, float* fColor)
 {
-	//m_pRenderer->SetMaterialColor( fColor[0],fColor[1],fColor[2],fColor[3] );
-	//m_pRenderer->SetMaterialColor( fColor[0],fColor[1],fColor[2],fColor[3] );
-	int w = m_pRenderer->GetWidth();
-	int h = m_pRenderer->GetHeight();
+	int w = m_pRenderer->GetOverlayWidth();
+	int h = m_pRenderer->GetOverlayHeight();
 
 	y1 -= m_offset;
 	y2 -= m_offset;
@@ -185,27 +180,12 @@ inline void CalculateColor(float value, float variance, float* outColor, float& 
 }
 
 //////////////////////////////////////////////////////////////////////////
-inline bool CompareFrameProfilersValue(const CFrameProfileSystem::SProfilerDisplayInfo& p1, const CFrameProfileSystem::SProfilerDisplayInfo& p2)
-{
-	return p1.pProfiler->m_displayedValue > p2.pProfiler->m_displayedValue;
-}
-
-//////////////////////////////////////////////////////////////////////////
-inline bool CompareFrameProfilersCount(const CFrameProfileSystem::SProfilerDisplayInfo& p1, const CFrameProfileSystem::SProfilerDisplayInfo& p2)
-{
-	return p1.averageCount > p2.averageCount;
-}
-
-//////////////////////////////////////////////////////////////////////////
 void CFrameProfileSystem::AddDisplayedProfiler(CFrameProfiler* pProfiler, int level)
 {
-	//if (pProfiler->m_displayedValue == 0)
-	//return;
-
-	char bExpended = pProfiler->m_bExpended;
+	bool bExpended = pProfiler->m_bExpended;
 
 	int newLevel = level + 1;
-	if (!m_bSubsystemFilterEnabled || pProfiler->m_subsystem == (uint8)m_subsystemFilter)
+	if (!IsSubSystemFiltered(pProfiler))
 	{
 		SProfilerDisplayInfo info;
 		info.level = level;
@@ -214,7 +194,7 @@ void CFrameProfileSystem::AddDisplayedProfiler(CFrameProfiler* pProfiler, int le
 	}
 	else
 	{
-		bExpended = 1;
+		bExpended = true;
 		newLevel = level;
 	}
 	// Find childs.
@@ -271,56 +251,34 @@ void CFrameProfileSystem::CalcDisplayedProfilers()
 		return;
 	}
 
-	if (m_displayQuantity == COUNT_INFO)
-	{
-		// Go through all profilers.
-		for (int i = 0; i < (int)m_pProfilers->size(); i++)
-		{
-			CFrameProfiler* pProfiler = (*m_pProfilers)[i];
-			// Skip this profiler if its filtered out.
-			if (m_bSubsystemFilterEnabled && pProfiler->m_subsystem != (uint8)m_subsystemFilter)
-				continue;
-			int count = pProfiler->m_countHistory.GetAverage();
-			if (count > 1)
-			{
-				SProfilerDisplayInfo info;
-				info.level = 0;
-				info.averageCount = count;
-				info.pProfiler = pProfiler;
-				m_displayedProfilers.push_back(info);
-			}
-		}
-		std::sort(m_displayedProfilers.begin(), m_displayedProfilers.end(), CompareFrameProfilersCount);
-		if ((int)m_displayedProfilers.size() > m_maxProfileCount)
-			m_displayedProfilers.resize(m_maxProfileCount);
-		return;
-	}
-
 	// Go through all profilers.
 	for (int i = 0; i < (int)m_pProfilers->size(); i++)
 	{
 		CFrameProfiler* pProfiler = (*m_pProfilers)[i];
 		// Skip this profiler if its filtered out.
-		if (m_bSubsystemFilterEnabled && pProfiler->m_subsystem != (uint8)m_subsystemFilter)
+		if (IsSubSystemFiltered(pProfiler))
 			continue;
 
-		if (pProfiler->m_displayedValue > PROFILER_MIN_DISPLAY_TIME)
+		SProfilerDisplayInfo info;
+		info.averageCount = pProfiler->m_count.Average();
+		if (!info.averageCount)
+			continue;
+		if (m_displayQuantity != COUNT_INFO)
 		{
-			SProfilerDisplayInfo info;
-			info.level = 0;
-			info.pProfiler = pProfiler;
-			m_displayedProfilers.push_back(info);
+			if (pProfiler->m_displayedValue < profile_min_display_ms)
+				continue;
 		}
+		info.level = 0;
+		info.pProfiler = pProfiler;
+		m_displayedProfilers.push_back(info);
 	}
-	//if (m_displayQuantity != EXTENDED_INFO)
-	{
-		//////////////////////////////////////////////////////////////////////////
-		// sort displayed profilers by thier time.
-		// Sort profilers by display value or count.
-		std::sort(m_displayedProfilers.begin(), m_displayedProfilers.end(), CompareFrameProfilersValue);
-		if ((int)m_displayedProfilers.size() > m_maxProfileCount)
-			m_displayedProfilers.resize(m_maxProfileCount);
-	}
+
+	if (m_displayQuantity == COUNT_INFO)
+		stl::sort(m_displayedProfilers, [](SProfilerDisplayInfo const& info) { return -info.averageCount; });
+	else
+		stl::sort(m_displayedProfilers, [](SProfilerDisplayInfo const& info) { return -info.pProfiler->m_displayedValue; });
+	if ((int)m_displayedProfilers.size() > m_maxProfileCount)
+		m_displayedProfilers.resize(m_maxProfileCount);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -338,21 +296,29 @@ CFrameProfiler* CFrameProfileSystem::GetSelectedProfiler()
 //////////////////////////////////////////////////////////////////////////
 void CFrameProfileSystem::Render()
 {
+	// EndFrame();
+
 	m_textModeBaseExtra = 0;
 
-	if (m_bDisplayMemoryInfo)
+	static int memProfileValueOld = 0;
+	if (memProfileValueOld != profile_meminfo)
+	{
+		m_bLogMemoryInfo = true;
+		memProfileValueOld = profile_meminfo;
+	}
+	if (profile_meminfo)
 		RenderMemoryInfo();
 
 	if (!m_bDisplay)
 		return;
 
-	FUNCTION_PROFILER(GetISystem(), PROFILE_SYSTEM);
-
-	m_baseY = 80;
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 
 	m_textModeBaseExtra = 2;
 	ROW_SIZE = 10;
 	COL_SIZE = 11;
+
+	m_baseY = profile_row * ROW_SIZE;
 
 	m_pRenderer = GetISystem()->GetIRenderer();
 
@@ -361,13 +327,13 @@ void CFrameProfileSystem::Render()
 		m_selectedRow = -1;
 	}
 
-	float colText = 60.0f - 4 * gEnv->IsDedicated();
+	float colText = profile_col - 4 * gEnv->IsDedicated();
 	float colExtended = 1.0f;
 	float row = 0;
 
 	if (m_pRenderer)
 	{
-		m_pRenderer->Set2DMode(true, m_pRenderer->GetWidth(), m_pRenderer->GetHeight());
+		m_pRenderer->GetIRenderAuxGeom()->SetOrthographicProjection(true, 0.0f, static_cast<float>(m_pRenderer->GetOverlayWidth()), static_cast<float>(m_pRenderer->GetOverlayHeight()), 0.0f);
 	}
 
 	//////////////////////////////////////////////////////////////////////////
@@ -430,19 +396,19 @@ void CFrameProfileSystem::Render()
 	}
 
 	// Render Peaks.
-	if (m_displayQuantity == PEAK_TIME || m_bDrawGraph || m_bPageFaultsGraph)
+	if (m_displayQuantity == PEAK_TIME || profile_graph || profile_pagefaults)
 	{
 		DrawGraph();
 	}
 
 	float fpeaksLastRow = 0;
 
-	if (m_peaks.size() > 0 && m_displayQuantity != PEAK_TIME)
+	if (m_peaks.size() > 0 && m_displayQuantity != PEAK_TIME && profile_peak_display > 0.0f)
 	{
 		fpeaksLastRow = RenderPeaks();
 	}
 
-	if (GetAdditionalSubsystems())
+	if (profile_additionalsub)
 	{
 		float colPeaks = 16.0f;
 		RenderSubSystems(colPeaks, 30.0f);  // can visually collide with waiting peaks
@@ -450,11 +416,13 @@ void CFrameProfileSystem::Render()
 
 	if (m_pRenderer)
 	{
-		m_pRenderer->Set2DMode(false, 0, 0);
+		m_pRenderer->GetIRenderAuxGeom()->SetOrthographicProjection(false);
 	}
 
 	if (m_bEnableHistograms)
 		RenderHistograms();
+
+	// StartFrame();
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -473,30 +441,31 @@ void CFrameProfileSystem::RenderProfilers(float col, float row, bool bExtended)
 
 	if (CFrameProfileSystem::profile_log)
 	{
-		CryLogAlways("======================= Start Profiler Frame %d ==========================", gEnv->pRenderer->GetFrameID(false));
+		CryLogAlways("====================Start Profiler Frame %d, Time %.2f ======================", gEnv->pRenderer->GetFrameID(false), m_frameSecAvg * 1000.f);
 		CryLogAlways("|\tCount\t|\tSelf\t|\tTotal\t|\tModule\t|");
 		CryLogAlways("|\t____\t|\t_____\t|\t_____\t|\t_____\t|");
 
 		int logType = abs(CFrameProfileSystem::profile_log);
+
 		for (int i = 0; i < (int)m_displayedProfilers.size(); i++)
 		{
 			CFrameProfiler* pProfiler = m_displayedProfilers[i].pProfiler;
 
 			if (logType == 1)
 			{
-				int cave = pProfiler->m_countHistory.GetAverage();
-				float fTotalTimeMs = pProfiler->m_totalTimeHistory.GetAverage();
-				float fSelfTimeMs = pProfiler->m_selfTimeHistory.GetAverage();
+				uint cave = pProfiler->m_count.Average();
+				float fTotalTimeMs = pProfiler->m_totalTime.Average();
+				float fSelfTimeMs = pProfiler->m_selfTime.Average();
 				CryLogAlways("|\t%d\t|\t%.2f\t|\t%.2f%%\t|\t%s\t|\t %s", cave, fSelfTimeMs, fTotalTimeMs, GetModuleName(pProfiler), GetFullName(pProfiler));
 			}
 			else if (logType == 2)
 			{
-				int c_min = pProfiler->m_countHistory.GetMin();
-				int c_max = pProfiler->m_countHistory.GetMax();
-				float t1_min = pProfiler->m_totalTimeHistory.GetMin();
-				float t1_max = pProfiler->m_totalTimeHistory.GetMax();
-				float t0_min = pProfiler->m_selfTimeHistory.GetMin();
-				float t0_max = pProfiler->m_selfTimeHistory.GetMax();
+				int c_min = pProfiler->m_count.Min();
+				int c_max = pProfiler->m_count.Max();
+				float t1_min = pProfiler->m_totalTime.Min();
+				float t1_max = pProfiler->m_totalTime.Max();
+				float t0_min = pProfiler->m_selfTime.Min();
+				float t0_max = pProfiler->m_selfTime.Max();
 				CryLogAlways("|\t%d/%d\t|\t%.2f/%.2f\t|\t%.2f/%.2f%%\t|\t%s\t|\t %s", c_min, c_max, t0_min, t0_max, t1_min, t1_max, GetModuleName(pProfiler), GetFullName(pProfiler));
 			}
 		}
@@ -567,6 +536,9 @@ void CFrameProfileSystem::RenderProfilers(float col, float row, bool bExtended)
 	}
 	#endif // JOBMANAGER_SUPPORT_FRAMEPROFILER
 
+	int width  = GetISystem()->GetViewCamera().GetViewSurfaceX();
+	int height = GetISystem()->GetViewCamera().GetViewSurfaceZ();
+
 	// Go through all profilers.
 	for (int i = 0; i < (int)m_displayedProfilers.size(); i++)
 	{
@@ -580,9 +552,6 @@ void CFrameProfileSystem::RenderProfilers(float col, float row, bool bExtended)
 			break;
 		}
 
-		int width = m_pRenderer ? m_pRenderer->GetWidth() : 800;
-		int height = m_pRenderer ? m_pRenderer->GetHeight() : 600;
-
 		float rectX1 = col * COL_SIZE;
 		float rectX2 = width - 2.0f;
 		float rectY1 = m_baseY + row * ROW_SIZE + 2;
@@ -593,17 +562,6 @@ void CFrameProfileSystem::RenderProfilers(float col, float row, bool bExtended)
 
 		if (dispInfo.y - m_offset + ROW_SIZE >= height)
 			continue;
-
-		/*
-		   if (m_bCollectionPaused)
-		   {
-		   if (m_mouseX > rectX1 && m_mouseX < rectX2 && m_mouseY > rectY1 && m_mouseY < rectY2)
-		   {
-		   // Mouse inside this rectangle.
-		   m_selectedRow = i;
-		   }
-		   }
-		 */
 
 		if (i == m_selectedRow && m_bCollectionPaused)
 		{
@@ -835,8 +793,8 @@ void CFrameProfileSystem::RenderProfiler(CFrameProfiler* pProfiler, int level, f
 	float GraphColor[4] = { 1, 0.3f, 0, 1 };
 
 	float colTextOfs = 5.0f + 4 * gEnv->IsDedicated();
-	float colThreadfs = -10.0f + 4 * gEnv->IsDedicated();
-	float colCountOfs = -4.5f - 3 * gEnv->IsDedicated();
+	float colThreadfs = -11.0f + 4 * gEnv->IsDedicated();
+	float colCountOfs = -5.0f - 3 * gEnv->IsDedicated();
 	float glow = 0;
 
 	const char* sValueFormat = "%4.2f";
@@ -868,7 +826,7 @@ void CFrameProfileSystem::RenderProfiler(CFrameProfiler* pProfiler, int level, f
 		cry_sprintf(szText, sValueFormat, value);
 		DrawLabel(col, row, ValueColor, 0, szText);
 
-		int cave = pProfiler->m_countHistory.GetAverage();
+		int cave = pProfiler->m_count.Average();
 		if (cave > 1)
 		{
 			cry_sprintf(szText, "%6d/", cave);
@@ -900,18 +858,18 @@ void CFrameProfileSystem::RenderProfiler(CFrameProfiler* pProfiler, int level, f
 		float tmin = 0, tmax = 0;
 		if (m_displayQuantity == TOTAL_TIME)
 		{
-			tmin = pProfiler->m_totalTimeHistory.GetMin();
-			tmax = pProfiler->m_totalTimeHistory.GetMax();
+			tmin = pProfiler->m_totalTime.Min();
+			tmax = pProfiler->m_totalTime.Max();
 		}
 		else if (m_displayQuantity == SELF_TIME)
 		{
-			tmin = pProfiler->m_selfTimeHistory.GetMin();
-			tmax = pProfiler->m_selfTimeHistory.GetMax();
+			tmin = pProfiler->m_selfTime.Min();
+			tmax = pProfiler->m_selfTime.Max();
 		}
 		else if (m_displayQuantity == COUNT_INFO)
 		{
-			tmin = (float)pProfiler->m_countHistory.GetMin();
-			tmax = (float)pProfiler->m_countHistory.GetMax();
+			tmin = (float)pProfiler->m_count.Min();
+			tmax = (float)pProfiler->m_count.Max();
 		}
 		cry_sprintf(szText, "%4.2f/%4.2f", tmin, tmax);
 		DrawLabel(col + colTextOfs - 21, row, ValueColor, glow, szText, 0.8f);
@@ -929,24 +887,25 @@ void CFrameProfileSystem::RenderProfiler(CFrameProfiler* pProfiler, int level, f
 		int cmin, cmax, cave, cnow;
 		if (m_displayQuantity == TOTAL_TIME_EXTENDED)
 		{
-			tmin = pProfiler->m_totalTimeHistory.GetMin();
-			tmax = pProfiler->m_totalTimeHistory.GetMax();
-			tave = pProfiler->m_totalTimeHistory.GetAverage();
-			tnow = pProfiler->m_selfTimeHistory.GetAverage();
-			//tnow = pProfiler->m_totalTimeHistory.GetLast();
+			tmin = pProfiler->m_totalTime.Min();
+			tmax = pProfiler->m_totalTime.Max();
+			tave = pProfiler->m_totalTime.Average();
+			tnow = pProfiler->m_selfTime.Average();
+			//tnow = pProfiler->m_totalTime.Last();
 		}
 		else
 		{
-			tmin = pProfiler->m_selfTimeHistory.GetMin();
-			tmax = pProfiler->m_selfTimeHistory.GetMax();
-			tave = pProfiler->m_selfTimeHistory.GetAverage();
-			tnow = pProfiler->m_selfTimeHistory.GetLast();
+			tmin = pProfiler->m_selfTime.Min();
+			tmax = pProfiler->m_selfTime.Max();
+			tave = pProfiler->m_selfTime.Average();
+			tnow = pProfiler->m_selfTime.Last();
 		}
 
-		cmin = pProfiler->m_countHistory.GetMin();
-		cmax = pProfiler->m_countHistory.GetMax();
-		cave = pProfiler->m_countHistory.GetAverage();
-		cnow = pProfiler->m_countHistory.GetLast();
+		cmin = pProfiler->m_count.Min();
+		cmax = pProfiler->m_count.Max();
+		cave = pProfiler->m_count.Average();
+		cnow = pProfiler->m_count.Last();
+
 		// Extensive info.
 		cry_sprintf(szText, sValueFormat, tmax);
 		DrawLabel(col, row, ValueColor, 0, szText);
@@ -978,11 +937,6 @@ void CFrameProfileSystem::RenderProfiler(CFrameProfiler* pProfiler, int level, f
 			DrawLabel(col + 15 + 3, row, CounterColor, 0, szText);
 		}
 
-		// Simple info.
-		//    float value = pProfiler->m_displayedValue;
-		//    float variance = pProfiler->m_variance;
-		//CalculateColor( value,variance,TextColor,glow );
-
 		if (pProfiler->m_bHaveChildren)
 		{
 			cry_strcpy(szText, pProfiler->m_bExpended ? "-" : "+");
@@ -994,15 +948,6 @@ void CFrameProfileSystem::RenderProfiler(CFrameProfiler* pProfiler, int level, f
 		cry_strcat(szText, GetFullName(pProfiler));
 
 		DrawLabel(col + 20 + level, row, TextColor, glow, szText);
-
-		//float x1 = (col-1)*COL_SIZE + 2;
-		//float y1 = m_baseY + row*ROW_SIZE;
-		//float x2 = x1 + ROW_SIZE;
-		//float y2 = y1 + ROW_SIZE;
-		//float half = ROW_SIZE/2.0f;
-		//DrawRect( x1,y1+half,x2,y1+half+1,ValueColor );
-		//DrawRect( x1+half,y1,x1+half+1,y2,ValueColor );
-		//DrawRect( x1,y1,x2,y2,HeaderColor );
 	}
 }
 
@@ -1020,7 +965,7 @@ float CFrameProfileSystem::RenderPeaks()
 	float PageFaultsColor[4] = { 1, 0.2f, 1, 1 };
 
 	// changed from define to adjustable value
-	float fHotToColdTime = GetPeakDisplayDuration();
+	float fHotToColdTime = profile_peak_display;
 	float colPeaks = 8.0f;
 	float row = 0.0f;
 	float waitRow = 35.0f;
@@ -1146,6 +1091,7 @@ void DrawMeter(IRenderer* pRenderer, float& x, float& y, float scale, float scre
 	flags.SetDepthTestFlag(e_DepthTestOff);
 	flags.SetDepthWriteFlag(e_DepthWriteOff);
 	flags.SetCullMode(e_CullModeNone);
+	flags.SetMode2D3DFlag(e_ModeUnit);
 	pAuxRenderer->SetRenderFlags(flags);
 
 	// draw frame for meter
@@ -1278,7 +1224,6 @@ void CFrameProfileSystem::DrawGraph()
 	const float VALUE_EPSILON = 0.000001f;
 
 	#if defined(JOBMANAGER_SUPPORT_FRAMEPROFILER)
-
 	if (!m_ThreadFrameStats)
 		return;
 
@@ -1299,9 +1244,11 @@ void CFrameProfileSystem::DrawGraph()
 	float labelColorSuspended[4] = { 0.25f, 0.25f, 0.25f, 1.f };
 	ColorF graphColor(0, 0.85, 0, 1);
 
+	IRenderAuxGeom* pRenderAux = m_pRenderer->GetIRenderAuxGeom();
+
 	// RT Area
-	const float nRtWidth = (float)m_pRenderer->GetWidth();
-	const float nRtHeight = (float)m_pRenderer->GetHeight();
+	const float nRtWidth  = float(pRenderAux->GetCamera().GetViewSurfaceX());
+	const float nRtHeight = float(pRenderAux->GetCamera().GetViewSurfaceZ());
 
 	// Calculate overscan adjustment (for those elements that do not obey it)(see r_OverScanBoarder)
 	Vec2 overscanBorder = Vec2(0.0f, 0.0f);
@@ -1584,14 +1531,14 @@ void CFrameProfileSystem::RenderHistograms()
 	ColorF HistColor(0, 1, 0, 1);
 
 	// Draw histograms.
-	int h = m_pRenderer->GetHeight();
-	int w = m_pRenderer->GetWidth();
+	int h = m_pRenderer->GetOverlayHeight();
+	int w = m_pRenderer->GetOverlayWidth();
 
 	int graphStyle = 2; // histogram.
 
 	float fScale = 1.0f; // histogram.
 
-	m_pRenderer->SetMaterialColor(1, 1, 1, 1);
+
 	for (int i = 0; i < (int)m_displayedProfilers.size(); i++)
 	{
 		if (i > MAX_DISPLAY_ROWS)
@@ -1716,7 +1663,7 @@ void CFrameProfileSystem::RenderMemoryInfo()
 	//////////////////////////////////////////////////////////////////////////
 	// Show memory usage.
 	//////////////////////////////////////////////////////////////////////////
-	int memUsage = 0;//CryMemoryGetAllocatedSize();
+	uint64 memUsage = 0;//CryMemoryGetAllocatedSize();
 	int64 totalAll = 0;
 	int luaMemUsage = gEnv->pScriptSystem->GetScriptAllocSize();
 
@@ -1730,35 +1677,35 @@ void CFrameProfileSystem::RenderMemoryInfo()
 	if (m_bLogMemoryInfo) pLog->Log(szText);
 	//////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////////
-	float col1 = col + 15;
-	float col2 = col1 + 8;
+	float col1 = col + 20;
+	float col2 = col1 + 20;
 		#if CRY_PLATFORM_LINUX || CRY_PLATFORM_ANDROID
 	float col3 = col2;
 		#else
-	float col3 = col2 + 7;
+	float col3 = col2 + 12;
 		#endif
-	float col4 = col3 + 7;
+	float col4 = col3 + 12;
 
 	DrawLabel(col, row++, HeaderColor, 0, "-----------------------------------------------------------------------------------------------------------------------------------", fLabelScale);
 	DrawLabel(col, row, HeaderColor, 0, "Module", fLabelScale);
-	DrawLabel(col1, row, HeaderColor, 0, "Dynamic(KB)", fLabelScale);
+	DrawLabel(col1, row, HeaderColor, 0, "Dynamic(MB)", fLabelScale);
 		#if !(CRY_PLATFORM_LINUX || CRY_PLATFORM_ANDROID)
 	DrawLabel(col2, row, HeaderColor, 0, "Static(KB)", fLabelScale);
 		#endif
 	DrawLabel(col3, row, HeaderColor, 0, "Num Allocs", fLabelScale);
 	DrawLabel(col4, row, HeaderColor, 0, "Total Allocs(KB)", fLabelScale);
-	float col5 = col4 + 10;
+	float col5 = col4 + 20;
 	DrawLabel(col5, row, HeaderColor, 0, "Total Wasted(KB)", fLabelScale);
 	int totalUsedInModulesStatic = 0;
 
 	row++;
 
-	int totalUsedInModules = 0;
+	uint64 totalUsedInModules = 0;
 	int countedMemoryModules = 0;
 	uint64 totalAllocatedInModules = 0;
 	int totalNumAllocsInModules = 0;
 
-	const std::vector<const char*>& szModules = GetModuleNames();
+	const std::vector<string>& szModules = GetModuleNames();
 	const int numModules = szModules.size();
 
 	for (int i = 0; i < numModules; i++)
@@ -1829,7 +1776,7 @@ void CFrameProfileSystem::RenderMemoryInfo()
 			fpCryModuleGetAllocatedMemory(&memInfo);
 		#endif
 
-		int usedInModule = (int)(memInfo.allocated - memInfo.freed);
+		uint64 usedInModule = memInfo.allocated - memInfo.freed;
 		#ifndef _LIB
 
 			#if !(CRY_PLATFORM_LINUX || CRY_PLATFORM_ANDROID)
@@ -1854,15 +1801,17 @@ void CFrameProfileSystem::RenderMemoryInfo()
 		#if !(CRY_PLATFORM_LINUX || CRY_PLATFORM_ANDROID)
 		totalUsedInModulesStatic += moduleStaticSize;
 		#endif
-		cry_sprintf(szText, "%s", szModule);
+		string szModuleName = PathUtil::GetFileName(szModule);
+		
+		cry_sprintf(szText, "%.19s", szModuleName.c_str());
 		DrawLabel(col, row, ModuleColor, 0, szText, fLabelScale);
-		cry_sprintf(szText, "%5.2f", usedInModule / 1024.0f / 1024.0f);
+		cry_sprintf(szText, "%9.2f", usedInModule / 1024.0f / 1024.0f);
 		DrawLabel(col1, row, StaticColor, 0, szText, fLabelScale);
 		#if !(CRY_PLATFORM_LINUX || CRY_PLATFORM_ANDROID)
 		cry_sprintf(szText, "%d", moduleStaticSize / 1024);
 		DrawLabel(col2, row, StaticColor, 0, szText, fLabelScale);
 		#endif
-		cry_sprintf(szText, "%d", memInfo.num_allocations);
+		cry_sprintf(szText, "%d",  memInfo.num_allocations);
 		DrawLabel(col3, row, NumColor, 0, szText, fLabelScale);
 		cry_sprintf(szText, "%" PRIu64, memInfo.allocated / 1024u);
 
@@ -1895,7 +1844,7 @@ void CFrameProfileSystem::RenderMemoryInfo()
 	DrawLabel(col, row++, HeaderColor, 0, "-----------------------------------------------------------------------------------------------------------------------------------", fLabelScale);
 	cry_sprintf(szText, "Sum %d Modules", countedMemoryModules);
 	DrawLabel(col, row, HeaderColor, 0, szText, fLabelScale);
-	cry_sprintf(szText, "%d", totalUsedInModules / 1024);
+	cry_sprintf(szText, "%d", totalUsedInModules / 1024 / 1024);
 	DrawLabel(col1, row, HeaderColor, 0, szText, fLabelScale);
 		#if !(CRY_PLATFORM_LINUX || CRY_PLATFORM_ANDROID)
 	cry_sprintf(szText, "%d", totalUsedInModulesStatic / 1024);

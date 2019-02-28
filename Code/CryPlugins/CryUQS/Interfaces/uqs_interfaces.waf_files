@@ -52,7 +52,8 @@
 			"core/ITimeBudget.h",
 			"core/ILeafFunctionReturnValue.h",
 			"core/IScoreTransformFactory.h",
-			"core/ITextualEvaluatorBlueprint.h"
+			"core/ITextualEvaluatorBlueprint.h",
+			"core/ISettingsManager.h"
 		],
 		"client":
 		[

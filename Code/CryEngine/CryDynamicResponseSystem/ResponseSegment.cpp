@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "ResponseSegment.h"
@@ -83,7 +83,7 @@ CResponseSegment* CResponseSegment::GetNextResponseSegment(CResponseInstance* pR
 
 	for (CResponseSegment& currentSegment : * m_pChildSegments)
 	{
-		DRS_DEBUG_DATA_ACTION(AddResponseSegmentStarted(&currentSegment));
+		DRS_DEBUG_DATA_ACTION(AddResponseSegmentEvaluated(&currentSegment));
 		const uint32 numConditions = currentSegment.GetNumConditions();
 		if (numConditions < bestMatchedConditionsCountYet)
 		{

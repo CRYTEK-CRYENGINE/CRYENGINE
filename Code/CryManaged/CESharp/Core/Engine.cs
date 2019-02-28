@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 using System;
 using System.Collections.Generic;
@@ -31,42 +31,63 @@ namespace CryEngine
 		public static IPhysicalWorld PhysicalWorld { get { return Global.gEnv.pPhysicalWorld; } }
 
 		/// <summary>
-		/// Indicates whether this <see cref="T:CryEngine.Engine"/> is running in the Sandbox.
+		/// Returns <c>true</c> if the application is currently simulating physics and AI.
 		/// </summary>
-		/// <value><c>true</c> if this is running in the Sandbox; otherwise, <c>false</c>.</value>
+		public static bool IsInSimulationMode { get { return Global.gEnv.IsEditorSimulationMode(); } }
+
+		/// <summary>
+		/// Returns <c>true</c> if the application currently running in the Sandbox.
+		/// </summary>
 		public static bool IsSandbox { get { return Global.gEnv.IsEditor(); } }
 
 		/// <summary>
-		/// True if the application is currently running in the sandbox and GameMode has been started.
+		/// Returns <c>true</c> if the application is currently running in the sandbox and GameMode has been started.
 		/// </summary>
-		/// <value><c>true</c> if in GameMode; otherwise, <c>false</c>.</value>
 		public static bool IsSandboxGameMode { get { return Global.gEnv.IsEditorGameMode(); } }
 
 		/// <summary>
-		/// True if the <see cref="T:CryEngine.Engine"/> is currently running as a dedicated server.
-		/// This means that certain systems like the <see cref="T:CryEngine.Renderer"/> and <see cref="T:CryEngine.Input"/> and input are not initialized.
+		/// Returns <c>true</c> if the application is currently running as a dedicated server.
+		/// This means that certain systems like the <see cref="T:CryEngine.Rendering.Renderer"/> and <see cref="T:CryEngine.Input"/> are not initialized.
 		/// </summary>
-		/// <value><c>true</c> if is dedicated server; otherwise, <c>false</c>.</value>
 		public static bool IsDedicatedServer { get { return Global.gEnv.IsDedicated(); } }
 
 		/// <summary>
 		/// Root directory of the engine.
 		/// </summary>
-		/// <value>The engine root directory.</value>
 		public static string EngineRootDirectory => Global.GetEnginePath().c_str();
 
 		/// <summary>
 		/// Path where application data should be stored.
 		/// </summary>
-		/// <value>The data directory.</value>
 		public static string DataDirectory => Global.GetGameFolder().c_str() + "/";
 
 		internal static string MonoDirectory => Path.Combine(EngineRootDirectory, "bin", "common", "Mono");
 
 		internal static string GlobalAssemblyCacheDirectory => Path.Combine(MonoDirectory, "lib", "mono", "gac");
 
+		/// <summary>
+		/// Internal event before the assemblies are reloaded.
+		/// This is always called before the public event.
+		/// </summary>
 		internal static event Action StartReload;
+		
+		/// <summary>
+		/// Internal event after reloading the assemblies is done.
+		/// This is always called before the public event.
+		/// </summary>
 		internal static event Action EndReload;
+
+		/// <summary>
+		/// Event that's called when the engine starts unloading the assemblies. 
+		/// This happens whenever the Sandbox reloads the managed plugins, or when the <c>mono_reload</c> command is executed from the console.
+		/// </summary>
+		public static event Action EngineUnloading;
+
+		/// <summary>
+		/// Event that's called when the engine has reloaded the assemblies.
+		/// This happens after the Sandbox reloaded the managed plugins, or after the <c>mono_reload</c> command is executed from the console.
+		/// </summary>
+		public static event Action EngineReloaded;
 
 		/// <summary>
 		/// Called by C++ runtime. Do not call directly.
@@ -80,6 +101,7 @@ namespace CryEngine
 				Input.Initialize();
 				Renderer.Instance = new Renderer();
 				Mouse.Instance = new Mouse();
+				AudioManager.Initialize();
 			}
 
 			CryEngine.GameFramework.Instance = new GameFramework();
@@ -94,6 +116,8 @@ namespace CryEngine
 			// Make sure we unify shutdown behavior with unload
 			OnUnloadStart();
 
+			CryEngine.GameFramework.Instance?.Dispose();
+
 			GC.Collect();
 			GC.WaitForPendingFinalizers();
 		}
@@ -104,6 +128,7 @@ namespace CryEngine
 		internal static void OnUnloadStart()
 		{
 			StartReload?.Invoke();
+			EngineUnloading?.Invoke();
 		}
 
 		/// <summary>
@@ -113,6 +138,12 @@ namespace CryEngine
 		internal static void OnReloadDone()
 		{
 			EndReload?.Invoke();
+			EngineReloaded?.Invoke();
+		}
+
+		internal static void ScanEngineAssembly()
+		{
+			ScanAssembly(typeof(Engine).Assembly);
 		}
 
 		internal static void ScanAssembly(Assembly assembly)
@@ -120,13 +151,11 @@ namespace CryEngine
 			var registeredTypes = new List<Type>();
 			foreach(Type t in assembly.GetTypes())
 			{
-				if(typeof(EntityComponent).IsAssignableFrom(t) && t != typeof(object))
+				if(typeof(EntityComponent).IsAssignableFrom(t) && 
+				   t != typeof(object) &&
+				   t.Assembly == assembly &&
+				   !registeredTypes.Contains(t))
 				{
-					if(registeredTypes.Contains(t))
-					{
-						continue;
-					}
-
 					RegisterComponent(t, ref registeredTypes);
 				}
 
@@ -141,12 +170,12 @@ namespace CryEngine
 		{
 			// Get the base class so those can be registered first.
 			var baseType = component.BaseType;
-			if(baseType != null && baseType != typeof(object))
+			if(baseType != null && baseType != typeof(object) && baseType.Assembly == component.Assembly)
 			{
 				var registerQueue = new List<Type>();
 				registerQueue.Add(baseType);
 
-				while(baseType.BaseType != null && baseType != typeof(EntityComponent))
+				while(baseType.BaseType != null && baseType.BaseType.Assembly == component.Assembly)
 				{
 					baseType = baseType.BaseType;
 					registerQueue.Add(baseType);
@@ -181,7 +210,6 @@ namespace CryEngine
 			else
 			{
 				Console.ExecuteString("ed_disable_game_mode", false, true);
-				OnUnloadStart();
 			}
 		}
 

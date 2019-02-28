@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /********************************************************************
    -------------------------------------------------------------------------
@@ -19,7 +19,6 @@
 #include "GoalOpFactory.h"
 #include "Communication/Communication.h"
 #include "PostureManager.h"
-#include "FlightNavRegion2.h"
 #include "GenericAStarSolver.h"
 
 // Forward declarations
@@ -247,7 +246,7 @@ class COPAcquirePosition : public CGoalOp
 	Vec3                              m_destination;
 	std::vector<Vec3i>                m_Coords;
 
-	const CFlightNavRegion2::NavData* m_Graph;
+	//const CFlightNavRegion2::NavData* m_Graph;
 
 public:
 
@@ -373,14 +372,15 @@ class COPCrysis2Fly : public CGoalOpParallel
 	bool               m_Circular;
 public:
 
-	typedef GenericAStarSolver<CFlightNavRegion2::NavData, CFlightNavRegion2::NavData, CFlightNavRegion2::NavData, DefaultOpenList<Vec3i>, ClosedListFlight, NodeContainerFlight> ASTARSOLVER;
-	typedef stl::PoolAllocator<sizeof(ASTARSOLVER)>                                                                                                                               SolverAllocator;
+	//typedef GenericAStarSolver<CFlightNavRegion2::NavData, CFlightNavRegion2::NavData, CFlightNavRegion2::NavData, DefaultOpenList<Vec3i>, ClosedListFlight, NodeContainerFlight> ASTARSOLVER;
+	//typedef stl::PoolAllocator<sizeof(ASTARSOLVER)>                                                                                                                               SolverAllocator;
 
 private:
 
-	ASTARSOLVER*                      m_Solver;
 	std::vector<Vec3>                 m_PathOut;
 	std::vector<Vec3>                 m_Reversed;
+
+	/*ASTARSOLVER*                      m_Solver;
 
 	const CFlightNavRegion2::NavData* m_Graph;
 
@@ -395,7 +395,7 @@ private:
 	{
 		solver->~ASTARSOLVER();
 		m_Solvers.Deallocate(solver);
-	}
+	}*/
 
 	TargetResult  GetTarget(CPipeUser* pPipeUser, Vec3& target) const;
 	EGoalOpResult CalculateTarget(CPipeUser* pPipeUser);

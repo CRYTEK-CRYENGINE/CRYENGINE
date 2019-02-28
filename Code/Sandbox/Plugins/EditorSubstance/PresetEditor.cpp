@@ -1,3 +1,5 @@
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+
 #include "StdAfx.h"
 #include "PresetEditor.h"
 #include "SandboxPlugin.h"
@@ -41,10 +43,11 @@ CSubstancePresetEditor::CSubstancePresetEditor(QWidget* pParent /*= nullptr*/)
 	, m_pOutputsGraphEditor(nullptr)
 	, m_pPreset(nullptr)
 {
-	m_pScrollBox = new QScrollableBox();
+	AddToMenu(CEditor::MenuItems::SaveAs);
 
+	m_pScrollBox = new QScrollableBox();
 	
-	m_pSubstanceMenu = GetMenu()->CreateMenu("Substance Preset");
+	m_pSubstanceMenu = GetMenu("Substance Preset");
 	QAction* const pAction = m_pSubstanceMenu->CreateAction("Reset Inputs");
 	connect(pAction, &QAction::triggered, [=]()
 	{
@@ -140,7 +143,7 @@ CSubstancePresetEditor::CSubstancePresetEditor(QWidget* pParent /*= nullptr*/)
 	}
 	);
 	SetPreviewResolution();
-	m_pResolutionWidget->hide();
+	m_pScrollBox->hide();
 
 }
 
@@ -192,7 +195,7 @@ bool CSubstancePresetEditor::OnOpenAsset(CAsset* pAsset)
 		m_pOutputsWidget->deleteLater();
 		m_pOutputsWidget = nullptr;
 	}
-	m_pResolutionWidget->show();
+	m_pScrollBox->show();
 	m_pPreset = CManager::Instance()->GetSubstancePreset(pAsset);
 	if (!m_pPreset)
 	{
@@ -217,19 +220,19 @@ bool CSubstancePresetEditor::OnOpenAsset(CAsset* pAsset)
 	});
 	SetPreviewResolution();
 
-	signalAssetClosed.DisconnectObject(CManager::Instance());
-	signalAssetClosed.Connect(CManager::Instance(), &CManager::ForcePresetRegeneration);
-
 	return true;
 }
 
 bool CSubstancePresetEditor::OnSaveAsset(CEditableAsset& editAsset)
 {
 	m_pPreset->Save();
-	std::vector<string> dependencies;
-	dependencies.push_back(m_pPreset->GetSubstanceArchive());
+	std::vector<SAssetDependencyInfo> dependencies;
+	dependencies.emplace_back(m_pPreset->GetSubstanceArchive(), 1);
 	const std::vector<string> images = m_pPreset->GetInputImages();
-	dependencies.insert(dependencies.end(), images.begin(), images.end());
+	for( const string& image : images)
+	{
+		dependencies.emplace_back(image, 1);
+	}
 	editAsset.SetDependencies(dependencies);
 
 	GetAssetBeingEdited()->SetModified(false);
@@ -239,17 +242,7 @@ bool CSubstancePresetEditor::OnSaveAsset(CEditableAsset& editAsset)
 void CSubstancePresetEditor::OnCloseAsset()
 {
 	CManager::Instance()->PresetEditEnded(m_pPreset);
-	m_pResolutionWidget->hide();
-}
-
-
-bool CSubstancePresetEditor::CanQuit(std::vector<string>& unsavedChanges)
-{
-	if (GetAssetBeingEdited())
-	{
-		GetAssetBeingEdited()->IsModified();
-	}
-	return true;
+	m_pScrollBox->hide();
 }
 
 void CSubstancePresetEditor::PushPresetToRender()

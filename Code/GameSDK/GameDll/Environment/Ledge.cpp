@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "Ledge.h"
@@ -224,7 +224,7 @@ void CLedgeObject::HandleEvent( const SGameObjectEvent& gameObjectEvent )
 	}
 }
 
-void CLedgeObject::ProcessEvent( SEntityEvent& entityEvent )
+void CLedgeObject::ProcessEvent( const SEntityEvent& entityEvent )
 {
 	switch( entityEvent.event )
 	{
@@ -241,6 +241,11 @@ void CLedgeObject::ProcessEvent( SEntityEvent& entityEvent )
 		}
 		break;
 	}
+}
+
+uint64 CLedgeObject::GetEventMask() const
+{
+	return ENTITY_EVENT_BIT(ENTITY_EVENT_XFORM) | ENTITY_EVENT_BIT(ENTITY_EVENT_EDITOR_PROPERTY_CHANGED);
 }
 
 void CLedgeObject::GetMemoryUsage( ICrySizer *pSizer ) const

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 
@@ -35,7 +35,7 @@ BlendSpacePreview::BlendSpacePreview(QWidget* parent, CharacterDocument* documen
 	toolbar->setIconSize(QSize(16, 16));
 	toolbar->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
 	{
-		m_actionShowGrid = toolbar->addAction(CryIcon("icons:Animation/Grid.ico"), "Show Grid");
+		m_actionShowGrid = toolbar->addAction(CryIcon("icons:common/animation_grid.ico"), "Show Grid");
 		m_actionShowGrid->setCheckable(true);
 		m_actionShowGrid->setChecked(true);
 		EXPECTED(connect(toolbar->addAction("Reset View"), SIGNAL(triggered()), this, SLOT(OnResetView())));
@@ -125,3 +125,4 @@ void BlendSpacePreview::IdleUpdate()
 }
 
 }
+

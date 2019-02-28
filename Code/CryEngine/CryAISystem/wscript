@@ -1,4 +1,4 @@
-# Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+# Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 def build(bld):
 
@@ -7,5 +7,9 @@ def build(bld):
 		vs_filter  = 'CryEngine',		
 		file_list  = 'cryaisystem.waf_files',
 
-		pch        = 'StdAfx.cpp'
+		pch        = 'StdAfx.cpp',
+
+
+		use_module    = [ 		
+		],
 	)	

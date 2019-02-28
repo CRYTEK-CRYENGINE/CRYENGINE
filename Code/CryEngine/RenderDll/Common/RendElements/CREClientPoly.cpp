@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*=============================================================================
    CREClientPoly.cpp : implementation of 3D Client polygons RE.
@@ -74,80 +74,6 @@ CRenderElement* CREClientPoly::mfCopyConstruct(void)
 	return cp;
 }
 
-void CREClientPoly::mfPrepare(bool bCheckOverflow)
-{
-	CRenderer* rd = gRenDev;
-	CShader* ef = rd->m_RP.m_pShader;
-	int i, n;
-
-	if (rd->m_RP.m_CurVFormat == EDefaultInputLayouts::P3S_C4B_T2S)
-		rd->m_RP.m_CurVFormat = EDefaultInputLayouts::P3F_C4B_T2F;
-
-	rd->FX_StartMerging();
-
-	int savev = rd->m_RP.m_RendNumVerts;
-	int savei = rd->m_RP.m_RendNumIndices;
-
-	int nThreadID = rd->m_RP.m_nProcessThreadID;
-
-	int nVerts = 0;
-	int nInds = 0;
-	if (bCheckOverflow)
-		rd->FX_CheckOverflow(m_vertexCount, m_indexCount, this, &nVerts, &nInds);
-
-	CRenderPolygonDataPool* pPolygonDataPool = rd->m_RP.m_pCurrentRenderView->GetPolygonDataPool();
-	auto& vertexPool = pPolygonDataPool->m_vertices;
-	auto& tangentPool = pPolygonDataPool->m_tangents;
-	auto& indexPool = pPolygonDataPool->m_indices;
-
-	if (m_indexOffset >= (int)(indexPool.size()))
-	{
-		assert(0);
-		return;
-	}
-
-	uint16* pSrcInds = &indexPool[m_indexOffset];
-	n = rd->m_RP.m_RendNumVerts;
-	uint16* dinds = &rd->m_RP.m_RendIndices[gRenDev->m_RP.m_RendNumIndices];
-	for (i = 0; i < nInds; i++, dinds++, pSrcInds++)
-	{
-		*dinds = *pSrcInds + n;
-	}
-	rd->m_RP.m_RendNumIndices += i;
-
-	UVertStreamPtr ptr = rd->m_RP.m_NextStreamPtr;
-	byte* OffsTC, * OffsColor;
-	SVF_P3F_C4B_T2F* pSrc = (SVF_P3F_C4B_T2F*)&vertexPool[m_vertexOffset];
-	assert(rd->m_RP.m_CurVFormat == EDefaultInputLayouts::P3F_C4B_T2F);
-	{
-		OffsTC = rd->m_RP.m_StreamOffsetTC + ptr.PtrB;
-		OffsColor = rd->m_RP.m_StreamOffsetColor + ptr.PtrB;
-		for (i = 0; i < nVerts; i++, ptr.PtrB += rd->m_RP.m_StreamStride, OffsTC += rd->m_RP.m_StreamStride, OffsColor += rd->m_RP.m_StreamStride)
-		{
-			*(float*)(ptr.PtrB + 0) = pSrc[i].xyz[0];
-			*(float*)(ptr.PtrB + 4) = pSrc[i].xyz[1];
-			*(float*)(ptr.PtrB + 8) = pSrc[i].xyz[2];
-			*(float*)(OffsTC) = pSrc[i].st[0];
-			*(float*)(OffsTC + 4) = pSrc[i].st[1];
-			*(uint32*)OffsColor = pSrc[i].color.dcolor;
-		}
-	}
-	rd->m_RP.m_NextStreamPtr = ptr;
-
-	if (m_tangentOffset >= 0)
-	{
-		UVertStreamPtr ptrTang = rd->m_RP.m_NextStreamPtrTang;
-		SPipTangents* pTangents = (SPipTangents*)&tangentPool[m_tangentOffset];
-		for (i = 0; i < nVerts; i++, ptrTang.PtrB += sizeof(SPipTangents))
-		{
-			*(SPipTangents*)(ptrTang.PtrB) = pTangents[i];
-		}
-		rd->m_RP.m_NextStreamPtrTang = ptrTang;
-	}
-
-	rd->m_RP.m_RendNumVerts += nVerts;
-}
-
 //////////////////////////////////////////////////////////////////////////
 void CREClientPoly::AssignPolygon(const SRenderPolygonDescription& poly, const SRenderingPassInfo& passInfo, CRenderPolygonDataPool* pPolygonDataPool)
 {
@@ -170,7 +96,7 @@ void CREClientPoly::AssignPolygon(const SRenderPolygonDescription& poly, const S
 	auto& verts = poly.pVertices;
 	auto& tangs = poly.pTangents;
 
-	size_t nSize = CDeviceObjectFactory::LookupInputLayout(EDefaultInputLayouts::P3F_C4B_T2F).first.m_Stride * poly.numVertices;
+	size_t nSize = CDeviceObjectFactory::GetInputLayoutDescriptor(EDefaultInputLayouts::P3F_C4B_T2F)->m_Strides[0] * poly.numVertices;
 	int nOffs = vertexPool.size();
 	vertexPool.resize(nOffs + nSize);
 	SVF_P3F_C4B_T2F* vt = (SVF_P3F_C4B_T2F*)&vertexPool[nOffs];
@@ -247,11 +173,11 @@ bool CREClientPoly::GetGeometryInfo(SGeometryInfo& geomInfo, bool bSupportTessel
 	geomInfo.indexStream.hStream = m_pPolygonDataPool->m_indexBuffer;
 
 	geomInfo.vertexStreams[VSF_GENERAL].nSlot = VSF_GENERAL;
-	geomInfo.vertexStreams[VSF_GENERAL].nStride = CDeviceObjectFactory::LookupInputLayout(EDefaultInputLayouts::P3F_C4B_T2F).first.m_Stride;
+	geomInfo.vertexStreams[VSF_GENERAL].nStride = CDeviceObjectFactory::GetInputLayoutDescriptor(EDefaultInputLayouts::P3F_C4B_T2F)->m_Strides[0];
 	geomInfo.vertexStreams[VSF_GENERAL].hStream = m_pPolygonDataPool->m_vertexBuffer;
 
 	geomInfo.vertexStreams[VSF_TANGENTS].nSlot = VSF_TANGENTS;
-	geomInfo.vertexStreams[VSF_TANGENTS].nStride = CDeviceObjectFactory::LookupInputLayout(EDefaultInputLayouts::T4S_B4S).first.m_Stride;
+	geomInfo.vertexStreams[VSF_TANGENTS].nStride = CDeviceObjectFactory::GetInputLayoutDescriptor(EDefaultInputLayouts::T4S_B4S)->m_Strides[0];
 	geomInfo.vertexStreams[VSF_TANGENTS].hStream = m_pPolygonDataPool->m_tangentsBuffer;
 
 	return true;

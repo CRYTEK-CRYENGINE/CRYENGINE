@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 #include "StdAfx.h"
 #include "Viewport.h"
 #include "DisplayOptions.h"
@@ -103,3 +103,4 @@ QSize CSplitViewportContainer::minimumSizeHint() const
 {
 	return QSize(0, 0);
 }
+

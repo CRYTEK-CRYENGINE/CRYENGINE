@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
    CryGame Source File.
@@ -24,7 +24,7 @@
 #endif // _MSC_VER > 1000
 
 #include <CryCore/Project/CryModuleDefs.h>
-#define eCryModule  eCryM_Action
+#define eCryModule  eCryM_GameFramework
 #define RWI_NAME_TAG "RayWorldIntersection(Action)"
 #define PWI_NAME_TAG "PrimitiveWorldIntersection(Action)"
 

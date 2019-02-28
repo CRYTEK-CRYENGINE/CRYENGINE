@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -10,13 +10,13 @@ namespace VClothPreProcessUtils {
 struct STriInfo;
 }
 
-struct AttachmentVClothPreProcessLra
+struct AttachmentVClothPreProcessNndc
 {
-	// long range attachments
-	int   lraIdx;        // index of closest constraint / attached vtx
-	float lraDist;       // distance to closest constraint
-	int   lraNextParent; // index of next parent on path to closest constraint
-	AttachmentVClothPreProcessLra() : lraIdx(-1), lraDist(0), lraNextParent(-1) {}
+	// Nearest Neighbor Distance Constraints
+	int   nndcIdx;        // index of closest constraint (i.e., closest attached vertex)
+	float nndcDist;       // distance to closest constraint
+	int   nndcNextParent; // index of next parent on path to closest constraint
+	AttachmentVClothPreProcessNndc() : nndcIdx(-1), nndcDist(0), nndcNextParent(-1) {}
 };
 
 struct SBendTriangle // one triangle which is used for bending forces by neighboring triangle angle
@@ -54,9 +54,9 @@ struct SLink
 
 struct SAttachmentVClothPreProcessData
 {
-	// Lra
-	std::vector<AttachmentVClothPreProcessLra> m_lra;
-	std::vector<int>                           m_lraNotAttachedOrderedIdx;
+	// Nearest Neighbor Distance Constraints
+	std::vector<AttachmentVClothPreProcessNndc> m_nndc;
+	std::vector<int>                            m_nndcNotAttachedOrderedIdx;
 
 	// Bending by triangle angles, not springs
 	std::vector<SBendTrianglePair> m_listBendTrianglePairs; // triangle pairs sharing an edge
@@ -78,15 +78,15 @@ struct AttachmentVClothPreProcess
 {
 	bool                                              PreProcess(std::vector<Vec3> const& vtx, std::vector<int> const& idx, std::vector<bool> const& attached);
 
-	std::vector<AttachmentVClothPreProcessLra> const& GetLra() const                      { return m_lra; }
-	std::vector<int> const&                           GetLraNotAttachedOrderedIdx() const { return m_lraNotAttachedOrderedIdx; }
+	std::vector<AttachmentVClothPreProcessNndc> const& GetNndc() const                     { return m_nndc; }
+	std::vector<int> const&                           GetNndcNotAttachedOrderedIdx() const { return m_nndcNotAttachedOrderedIdx; }
 
-	std::vector<SBendTrianglePair> const&             GetListBendTrianglePair() const     { return m_listBendTrianglePairs; }
-	std::vector<SBendTriangle> const&                 GetListBendTriangle() const         { return m_listBendTriangles; }
+	std::vector<SBendTrianglePair> const&             GetListBendTrianglePair() const      { return m_listBendTrianglePairs; }
+	std::vector<SBendTriangle> const&                 GetListBendTriangle() const          { return m_listBendTriangles; }
 
-	std::vector<SLink> const&                         GetLinksStretch() const             { return m_linksStretch; }
-	std::vector<SLink> const&                         GetLinksShear() const               { return m_linksShear; }
-	std::vector<SLink> const&                         GetLinksBend() const                { return m_linksBend; }
+	std::vector<SLink> const&                         GetLinksStretch() const              { return m_linksStretch; }
+	std::vector<SLink> const&                         GetLinksShear() const                { return m_linksShear; }
+	std::vector<SLink> const&                         GetLinksBend() const                 { return m_linksBend; }
 	std::vector<SLink> const&                         GetLinks(int idx) const
 	{
 		switch (idx)
@@ -110,15 +110,15 @@ struct AttachmentVClothPreProcess
 
 private:
 
-	bool LraDijkstra(std::vector<Vec3> const& vtx, std::vector<int> const& idx, std::vector<bool> const& attached);
+	bool NndcDijkstra(std::vector<Vec3> const& vtx, std::vector<int> const& idx, std::vector<bool> const& attached);
 	bool BendByTriangleAngle(std::vector<Vec3> const& vtx, std::vector<int> const& idx, std::vector<bool> const& attached);
 	// links
 	bool CreateLinks(std::vector<Vec3> const& vtx, std::vector<int> const& idx);
 	bool CalculateTopology(std::vector<Vec3> const& vtx, std::vector<int> const& idx, std::vector<VClothPreProcessUtils::STriInfo>& pTopology); // determine neighboring triangles
 
-	// Lra
-	std::vector<AttachmentVClothPreProcessLra> m_lra;
-	std::vector<int>                           m_lraNotAttachedOrderedIdx;
+	// Nearest Neighbor Distance Constraints
+	std::vector<AttachmentVClothPreProcessNndc> m_nndc;
+	std::vector<int>                            m_nndcNotAttachedOrderedIdx;
 
 	// Bending by triangle angles, not springs
 	std::vector<SBendTrianglePair> m_listBendTrianglePairs; // triangle pairs sharing an edge

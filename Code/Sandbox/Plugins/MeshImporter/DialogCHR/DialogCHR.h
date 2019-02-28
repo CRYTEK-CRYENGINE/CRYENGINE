@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -88,6 +88,7 @@ public:
 	virtual int          GetOpenFileFormatFlags() override { return eFileFormat_CHR; }
 
 	virtual void         AssignScene(const SImportScenePayload* pUserData) override;
+	virtual void         UnloadScene() override;
 
 	virtual const char*  GetDialogName() const override;
 	virtual bool         MayUnloadScene() override { return true; }
@@ -153,3 +154,4 @@ private:
 };
 
 } // namespace MeshImporter
+

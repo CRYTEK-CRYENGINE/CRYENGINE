@@ -1,11 +1,11 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 namespace pfx2
 {
 
-ILINE Vec3 CTargetSource::GetTarget(const SUpdateContext& context, TParticleId particleId, bool isParentId)
+ILINE Vec3 CTargetSource::GetTarget(const CParticleComponentRuntime& runtime, TParticleId particleId, bool isParentId)
 {
-	const CParticleEmitter& emitter = *context.m_runtime.GetEmitter();
+	const CParticleEmitter& emitter = *runtime.GetEmitter();
 	const Quat defaultQuat = emitter.GetLocation().q;
 
 	if (m_source == ETargetSource::Target)
@@ -17,7 +17,7 @@ ILINE Vec3 CTargetSource::GetTarget(const SUpdateContext& context, TParticleId p
 		return wTarget + defaultQuat * m_offset;
 	}
 
-	CParticleContainer* pContainer = &context.m_container;
+	const CParticleContainer* pContainer = &runtime.GetContainer();
 
 	if (m_source == ETargetSource::Parent || isParentId)
 	{
@@ -26,7 +26,7 @@ ILINE Vec3 CTargetSource::GetTarget(const SUpdateContext& context, TParticleId p
 			const IPidStream parentIds = pContainer->GetIPidStream(EPDT_ParentId);
 			particleId = parentIds.Load(particleId);
 		}
-		pContainer = &context.m_parentContainer;
+		pContainer = &runtime.GetParentContainer();
 	}
 
 	const IVec3Stream positions = pContainer->GetIVec3Stream(EPVF_Position);

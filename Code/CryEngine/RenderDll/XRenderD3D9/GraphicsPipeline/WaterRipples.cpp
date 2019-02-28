@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "WaterRipples.h"
@@ -13,8 +13,6 @@ CWaterRipplesStage::CWaterRipplesStage()
 	, m_pCVarWaterRipplesDebug(nullptr)
 	, m_ripplesGenTechName("WaterRipplesGen")
 	, m_ripplesHitTechName("WaterRipplesHit")
-	, m_ripplesParamName("WaterRipplesParams")
-	, m_ripplesTransformParamName("WaterRipplesTransform")
 	, m_frameID(-1)
 	, m_lastSpawnTime(0.0f)
 	, m_lastUpdateTime(0.0f)
@@ -44,61 +42,54 @@ void CWaterRipplesStage::Init()
 	const int32 flags = FT_FORCE_MIPS | FT_DONT_STREAM | FT_USAGE_RENDERTARGET;
 
 	CRY_ASSERT(m_pTexWaterRipplesDDN == nullptr);
-	m_pTexWaterRipplesDDN = CTexture::GetOrCreateTextureObjectPtr("$WaterRipplesDDN_0", 0, 0, 1, eTT_2D, flags, eTF_Unknown);
+	m_pTexWaterRipplesDDN = CTexture::GetOrCreateTextureObjectPtr("$WaterRipplesDDN_0", nGridSize, nGridSize, 1, eTT_2D, flags, eTF_R8G8B8A8S);
 
 	CRY_ASSERT(m_pTempTexture == nullptr);
-	m_pTempTexture = CTexture::GetOrCreateTextureObjectPtr("$WaterRippleGenTemp", 0, 0, 1, eTT_2D, flags, eTF_Unknown);
+	m_pTempTexture = CTexture::GetOrCreateTextureObjectPtr("$WaterRippleGenTemp", nGridSize, nGridSize, 1, eTT_2D, flags, eTF_R8G8B8A8);
+
+	// Shared constant buffer
+	m_constants.CreateDeviceBuffer();
+	m_constants.UploadZeros();
+
+	m_passSnapToCenter.SetInlineConstantBuffer(eConstantBufferShaderSlot_PerPrimitive, m_constants.GetDeviceConstantBuffer(), EShaderStage_Vertex | EShaderStage_Pixel);
+	m_passWaterWavePropagation.SetInlineConstantBuffer(eConstantBufferShaderSlot_PerPrimitive, m_constants.GetDeviceConstantBuffer(), EShaderStage_Pixel);
 
 	int32 vertexOffset = 0;
 	for (auto& prim : m_ripplePrimitive)
 	{
-		prim.SetFlags(CRenderPrimitive::eFlags_ReflectShaderConstants);
 		prim.SetCullMode(eCULL_None);
 		prim.SetCustomVertexStream(m_vertexBuffer, sVertexFormat, sVertexStride);
 		prim.SetCustomIndexStream(~0u, RenderIndexType(0));
 		prim.SetDrawInfo(eptTriangleStrip, 0, vertexOffset, sVertexCount);
+		prim.SetInlineConstantBuffer(eConstantBufferShaderSlot_PerPrimitive, m_constants.GetDeviceConstantBuffer(), EShaderStage_Vertex);
 
 		// only update blue channel: current frame
-		prim.SetRenderState(GS_BLSRC_ONE | GS_BLDST_ONE | GS_NODEPTHTEST | GS_NOCOLMASK_R | GS_NOCOLMASK_G | GS_NOCOLMASK_A);
+		prim.SetRenderState(GS_BLSRC_ONE | GS_BLDST_ONE | GS_NODEPTHTEST | GS_NOCOLMASK_RGA);
 
 		vertexOffset += sVertexCount;
 	}
 }
 
-void CWaterRipplesStage::Prepare(CRenderView* pRenderView)
+void CWaterRipplesStage::Update()
 {
-	CRY_ASSERT(pRenderView);
 	CRY_ASSERT(m_pTexWaterRipplesDDN);
 
-	if (!CTexture::IsTextureExist(m_pTexWaterRipplesDDN))
+	const auto shouldApplyRipples = IsVisible();
+
+	// Create/release the occlusion texture on demand
+	if (!shouldApplyRipples && CTexture::IsTextureExist(m_pTexWaterRipplesDDN))
+		m_pTexWaterRipplesDDN->ReleaseDeviceTexture(false);
+	else if (shouldApplyRipples && !CTexture::IsTextureExist(m_pTexWaterRipplesDDN))
+		m_pTexWaterRipplesDDN->CreateRenderTarget(eTF_R8G8B8A8S, Clr_Transparent);
+
+	// Create/release the occlusion texture on demand
+	if (!shouldApplyRipples && CTexture::IsTextureExist(m_pTempTexture))
+		m_pTempTexture->ReleaseDeviceTexture(false);
+	else if (shouldApplyRipples && !CTexture::IsTextureExist(m_pTempTexture))
+		m_pTempTexture->CreateRenderTarget(eTF_R8G8B8A8, Clr_Transparent);
+
+	if (shouldApplyRipples && CTexture::IsTextureExist(m_pTempTexture))
 	{
-		const int32 width = 256;
-		const int32 height = 256;
-		const int32 flags = FT_DONT_STREAM | FT_USAGE_RENDERTARGET | FT_FORCE_MIPS;
-		const ETEX_Format format = eTF_R8G8B8A8;
-		if (!m_pTexWaterRipplesDDN->Create2DTexture(width, height, 0, flags, nullptr, format))
-		{
-			CryFatalError("Couldn't allocate texture.");
-		}
-	}
-
-	if (IsVisible(pRenderView) && CTexture::IsTextureExist(m_pTexWaterRipplesDDN))
-	{
-		const int32 width = m_pTexWaterRipplesDDN->GetWidth();
-		const int32 height = m_pTexWaterRipplesDDN->GetHeight();
-		const auto format = m_pTexWaterRipplesDDN->GetTextureDstFormat();
-		const uint32 flags = FT_DONT_STREAM | FT_USAGE_RENDERTARGET | FT_FORCE_MIPS;
-
-		if (m_pTempTexture != nullptr
-		    && (!CTexture::IsTextureExist(m_pTempTexture)
-		        || m_pTempTexture->Invalidate(width, height, format)))
-		{
-			if (!m_pTempTexture->Create2DTexture(width, height, 0, flags, nullptr, format))
-			{
-				CryFatalError("Couldn't allocate texture.");
-			}
-		}
-
 		m_TempCopyParams =
 		{
 			{ 0, 0, 0, 0 }, // src position
@@ -113,16 +104,17 @@ void CWaterRipplesStage::Prepare(CRenderView* pRenderView)
 	}
 }
 
-bool CWaterRipplesStage::Update(CRenderView* pRenderView)
+bool CWaterRipplesStage::RefreshParameters()
 {
+	const CRenderView* pRenderView = RenderView();
 	CRY_ASSERT(pRenderView);
 
-	const bool bAlreadyUpdated = (m_frameID == gRenDev->GetFrameID());
+	const bool bAlreadyUpdated = (m_frameID == pRenderView->GetFrameId());
 	if (bAlreadyUpdated)
 	{
 		return false;
 	}
-	m_frameID = gRenDev->GetFrameID();
+	m_frameID = pRenderView->GetFrameId();
 
 	const auto& waterRipples = pRenderView->GetWaterRipples();
 	for (auto& ripple : waterRipples)
@@ -134,27 +126,29 @@ bool CWaterRipplesStage::Update(CRenderView* pRenderView)
 	}
 
 #if !defined(_RELEASE)
-	UpdateAndDrawDebugInfo(pRenderView);
+	UpdateAndDrawDebugInfo();
 #endif
 
-	const uint32 nThreadID = gRenDev->m_RP.m_nProcessThreadID;
-	const float fTime = gRenDev->m_RP.m_TI[nThreadID].m_RealTime;
+	const uint32 nThreadID = gRenDev->GetRenderThreadID();
+	const float fTime = GetGraphicsPipeline().GetAnimationTime().GetSeconds();
 	const uint32 gpuCount = gRenDev->GetActiveGPUCount();
 
 	const float simGridSize = static_cast<float>(SWaterRippleInfo::WaveSimulationGridSize);
 	const float halfSimGridSize = 0.5f * simGridSize;
 
+	const auto& viewInfo = GetCurrentViewInfo();
+
 	// always snap by entire pixels to avoid errors when displacing the simulation
 	const float fPixelSizeWS =
-	  (m_pTexWaterRipplesDDN->GetWidth() > 0)
-	  ? (simGridSize / m_pTexWaterRipplesDDN->GetWidth())
+	  (nGridSize > 0)
+	  ? (simGridSize / nGridSize)
 	  : 1.0f;
 	m_simGridSnapRange = max(ceilf(m_simGridSnapRange / fPixelSizeWS), 1.f) * fPixelSizeWS;
 
 	// only allow updates every 25ms - for lower frames, would need to iterate multiple times
 	if (gpuCount == 1)
 	{
-		if (fTime - m_lastUpdateTime < 0.025f)
+		if (std::abs(fTime - m_lastUpdateTime) < 0.025f)
 		{
 			return false;
 		}
@@ -168,7 +162,7 @@ bool CWaterRipplesStage::Update(CRenderView* pRenderView)
 			return false;
 		}
 
-		m_lastUpdateTime = gRenDev->m_RP.m_TI[nThreadID].m_RealTime;
+		m_lastUpdateTime = fTime;
 	}
 
 	Vec4 vParams = Vec4(0, 0, 0, 0);
@@ -180,7 +174,7 @@ bool CWaterRipplesStage::Update(CRenderView* pRenderView)
 
 	if (!m_updateMask)
 	{
-		const Vec3& cameraPos = gRenDev->GetRCamera().vOrigin;
+		const Vec3& cameraPos = viewInfo.cameraOrigin;
 		const float xsnap = ceilf(cameraPos.x / m_simGridSnapRange) * m_simGridSnapRange;
 		const float ysnap = ceilf(cameraPos.y / m_simGridSnapRange) * m_simGridSnapRange;
 
@@ -213,11 +207,9 @@ bool CWaterRipplesStage::Update(CRenderView* pRenderView)
 	return true;
 }
 
-void CWaterRipplesStage::Execute(CRenderView* pRenderView)
+void CWaterRipplesStage::Execute()
 {
-	CRY_ASSERT(pRenderView);
-
-	if (!IsVisible(pRenderView))
+	if (!IsVisible())
 	{
 		m_bInitializeSim = true;
 
@@ -231,7 +223,7 @@ void CWaterRipplesStage::Execute(CRenderView* pRenderView)
 		return;
 	}
 
-	if (!Update(pRenderView))
+	if (!RefreshParameters())
 	{
 		return;
 	}
@@ -246,42 +238,41 @@ void CWaterRipplesStage::Execute(CRenderView* pRenderView)
 		{
 			m_bInitializeSim = false;
 
-			const RECT rect = { 0, 0, m_pTexWaterRipplesDDN->GetWidth(), m_pTexWaterRipplesDDN->GetHeight() };
-			gcpRendD3D->FX_ClearTarget(m_pTexWaterRipplesDDN, Clr_Transparent, 1, &rect, true);
+			CClearSurfacePass::Execute(m_pTexWaterRipplesDDN, Clr_Transparent);
 		}
 
 		D3DViewPort viewport;
 		viewport.TopLeftX = 0.0f;
 		viewport.TopLeftY = 0.0f;
-		viewport.Width = static_cast<float>(m_pTexWaterRipplesDDN->GetWidth());
-		viewport.Height = static_cast<float>(m_pTexWaterRipplesDDN->GetHeight());
+		viewport.Width = static_cast<float>(nGridSize);
+		viewport.Height = static_cast<float>(nGridSize);
 		viewport.MinDepth = 0.0f;
 		viewport.MaxDepth = 1.0f;
+
+		// update shared constant buffer
+		m_constants->params = m_shaderParam;
+		m_constants.CopyToDevice();
 
 		// Snapping occurred - update simulation to new offset
 		if (m_bSnapToCenter)
 		{
 			auto& pass = m_passSnapToCenter;
 
-			if (pass.InputChanged())
+			if (pass.IsDirty())
 			{
 				uint64 rtMask = g_HWSR_MaskBit[HWSR_SAMPLE0];
-
+				pass.SetPrimitiveFlags(CRenderPrimitive::eFlags_None);
+				pass.SetPrimitiveType(CRenderPrimitive::ePrim_ProceduralTriangle);
 				pass.SetTechnique(CShaderMan::s_shPostEffects, m_ripplesGenTechName, rtMask);
 
 				pass.SetTexture(0, m_pTexWaterRipplesDDN);
 				pass.SetSampler(0, EDefaultSamplerStates::LinearClamp);
 
 				pass.SetRenderTarget(0, pTempTex);
-				pass.SetViewport(viewport);
 
 				pass.SetState(GS_NODEPTHTEST);
 			}
-
-			pass.BeginConstantUpdate();
-
-			pass.SetConstant(m_ripplesParamName, m_shaderParam, eHWSC_Pixel);
-
+			
 			pass.Execute();
 		}
 		else
@@ -293,16 +284,16 @@ void CWaterRipplesStage::Execute(CRenderView* pRenderView)
 		{
 			auto& pass = m_passWaterWavePropagation;
 
-			if (pass.InputChanged())
+			if (pass.IsDirty())
 			{
-				pass.SetPrimitiveFlags(CRenderPrimitive::eFlags_ReflectShaderConstants_VS);
+				pass.SetPrimitiveFlags(CRenderPrimitive::eFlags_None);
+				pass.SetPrimitiveType(CRenderPrimitive::ePrim_ProceduralTriangle);
 				pass.SetTechnique(CShaderMan::s_shPostEffects, m_ripplesGenTechName, 0);
 
 				pass.SetTexture(0, pTempTex);
 				pass.SetSampler(0, EDefaultSamplerStates::LinearClamp);
 
 				pass.SetRenderTarget(0, m_pTexWaterRipplesDDN);
-				pass.SetViewport(viewport);
 
 				pass.SetState(GS_NODEPTHTEST);
 			}
@@ -310,7 +301,7 @@ void CWaterRipplesStage::Execute(CRenderView* pRenderView)
 			pass.Execute();
 		}
 
-		ExecuteWaterRipples(pRenderView, m_pTexWaterRipplesDDN, viewport);
+		ExecuteWaterRipples(m_pTexWaterRipplesDDN, viewport);
 
 		m_passMipmapGen.Execute(m_pTexWaterRipplesDDN);
 	}
@@ -320,11 +311,12 @@ void CWaterRipplesStage::Execute(CRenderView* pRenderView)
 
 CTexture* CWaterRipplesStage::GetWaterRippleTex() const
 {
-	return (CTexture::IsTextureExist(m_pTexWaterRipplesDDN) ? m_pTexWaterRipplesDDN.get() : CTexture::s_ptexBlack);
+	return (CTexture::IsTextureExist(m_pTexWaterRipplesDDN) ? m_pTexWaterRipplesDDN.get() : CRendererResources::s_ptexBlack);
 }
 
-bool CWaterRipplesStage::IsVisible(CRenderView* pRenderView) const
+bool CWaterRipplesStage::IsVisible() const
 {
+	const CRenderView* pRenderView = RenderView();
 	const float fTimeOut = 10.0f; // 10 seconds
 	const bool bSimTimeOut = (gEnv->pTimer->GetCurrTime() - m_lastSpawnTime) > fTimeOut;
 
@@ -339,17 +331,15 @@ bool CWaterRipplesStage::IsVisible(CRenderView* pRenderView) const
 	return bRunnable;
 }
 
-void CWaterRipplesStage::ExecuteWaterRipples(CRenderView* pRenderView, CTexture* pTargetTex, const D3DViewPort& viewport)
+void CWaterRipplesStage::ExecuteWaterRipples(CTexture* pTargetTex, const D3DViewPort& viewport)
 {
-	CRY_ASSERT(pRenderView);
-
 	auto& waterRipples = m_waterRipplesMGPU;
 	if (waterRipples.empty())
 	{
 		return;
 	}
 
-	const float z = (gRenDev->m_RP.m_TI[gRenDev->m_RP.m_nProcessThreadID].m_PersFlags & RBPF_REVERSE_DEPTH) ? 1.0f : 0.0f;
+	const float z = 1.0f;
 
 	const float fWidth = viewport.Width;
 	const float fHeight = viewport.Height;
@@ -359,8 +349,6 @@ void CWaterRipplesStage::ExecuteWaterRipples(CRenderView* pRenderView, CTexture*
 
 	const float fWidthHit = 2.0f * fWidthRcp * fRatio;
 	const float fHeightHit = 2.0f * fHeightRcp;
-
-	gcpRendD3D->Set2DMode(true, static_cast<int32>(viewport.Width), (int32)viewport.Height);
 
 	{
 		auto& pass = m_passAddWaterRipples;
@@ -383,66 +371,24 @@ void CWaterRipplesStage::ExecuteWaterRipples(CRenderView* pRenderView, CTexture*
 			float ymapped = ripple.position.y * m_lookupParam.x + m_lookupParam.w;
 
 			// Render a sprite at hit location
-			float x0 = (xmapped - 0.5f * (fWidthHit * ripple.scale)) * fWidth;
-			float y0 = (ymapped - 0.5f * (fHeightHit * ripple.scale)) * fHeight;
+			float x0 = (xmapped - 0.5f * (fWidthHit * ripple.scale));
+			float y0 = (ymapped - 0.5f * (fHeightHit * ripple.scale));
 
-			float x1 = (xmapped + 0.5f * (fWidthHit * ripple.scale)) * fWidth;
-			float y1 = (ymapped + 0.5f * (fHeightHit * ripple.scale)) * fHeight;
+			float x1 = (xmapped + 0.5f * (fWidthHit * ripple.scale));
+			float y1 = (ymapped + 0.5f * (fHeightHit * ripple.scale));
 
 			// sprite vertices for a water ripple
-			ripplesVertices[vertexOffset++] = {
-				Vec3(x0, y0, z),
-				{
-					{ 0 }
-				},
-				Vec2(0,  0)
-			};
-			ripplesVertices[vertexOffset++] = {
-				Vec3(x0, y1, z),
-				{
-					{ 0 }
-				},
-				Vec2(0,  1)
-			};
-			ripplesVertices[vertexOffset++] = {
-				Vec3(x1, y0, z),
-				{
-					{ 0 }
-				},
-				Vec2(1,  0)
-			};
-			ripplesVertices[vertexOffset++] = {
-				Vec3(x1, y1, z),
-				{
-					{ 0 }
-				},
-				Vec2(1,  1)
-			};
+			// *INDENT-OFF*
+			ripplesVertices[vertexOffset++] = { Vec3(x0, y0, ripple.strength), { { 0 } }, Vec2(0,  0) };
+			ripplesVertices[vertexOffset++] = { Vec3(x0, y1, ripple.strength), { { 0 } }, Vec2(0,  1) };
+			ripplesVertices[vertexOffset++] = { Vec3(x1, y0, ripple.strength), { { 0 } }, Vec2(1,  0) };
+			ripplesVertices[vertexOffset++] = { Vec3(x1, y1, ripple.strength), { { 0 } }, Vec2(1,  1) };
+			// *INDENT-ON*
 
 			auto& primitive = m_ripplePrimitive[i];
 
 			primitive.SetTechnique(CShaderMan::s_shPostEffects, m_ripplesHitTechName, 0);
 			primitive.Compile(pass);
-
-			// update constant buffer
-			{
-				uint64 prevRTMask = gcpRendD3D->m_RP.m_FlagsShader_RT;
-				gcpRendD3D->m_RP.m_FlagsShader_RT = primitive.GetShaderRtMask();
-				primitive.GetConstantManager().BeginNamedConstantUpdate();
-
-				// Pass height scale to shader
-				param.w = ripple.strength;
-				primitive.GetConstantManager().SetNamedConstant(m_ripplesParamName, param, eHWSC_Pixel);
-
-				// Pass ripples transform matrix to shader
-				primitive.GetConstantManager().SetNamedConstantArray(m_ripplesTransformParamName, (Vec4*)gcpRendD3D->m_CameraProjMatrix.GetData(), 4, eHWSC_Vertex);
-
-				// Engine viewport needs to be set so that data is available when filling reflected PB constants
-				gcpRendD3D->RT_SetViewport((int32)viewport.TopLeftX, (int32)viewport.TopLeftY, (int32)viewport.Width, (int32)viewport.Height);
-
-				primitive.GetConstantManager().EndNamedConstantUpdate(); // Unmap constant buffers and mark as bound
-				gcpRendD3D->m_RP.m_FlagsShader_RT = prevRTMask;
-			}
 
 			pass.AddPrimitive(&primitive);
 		}
@@ -453,13 +399,12 @@ void CWaterRipplesStage::ExecuteWaterRipples(CRenderView* pRenderView, CTexture*
 
 		pass.Execute();
 	}
-
-	gcpRendD3D->Set2DMode(false, (int32)viewport.Width, (int32)viewport.Height);
 }
 
-void CWaterRipplesStage::UpdateAndDrawDebugInfo(CRenderView* pRenderView)
+void CWaterRipplesStage::UpdateAndDrawDebugInfo()
 {
 #if !defined(_RELEASE)
+	const CRenderView* pRenderView = RenderView();
 	const float maxLifetime = 2.0f;
 	const float frameTime = std::max(0.0f, gEnv->pTimer->GetFrameTime());
 
@@ -540,7 +485,7 @@ void CWaterRipplesStage::UpdateAndDrawDebugInfo(CRenderView* pRenderView)
 			}
 		}
 
-		Vec3 simCenter = Vec3(m_simOrigin.x, m_simOrigin.y, gRenDev->GetRCamera().vOrigin.z - 1.5f);
+		Vec3 simCenter = Vec3(m_simOrigin.x, m_simOrigin.y, GetCurrentViewInfo().cameraOrigin.z - 1.5f);
 		pAuxRenderer->DrawSphere(simCenter, 0.15f, ColorB(0, 255, 0, 255));
 
 		pAuxRenderer->SetRenderFlags(oldRenderFlags);

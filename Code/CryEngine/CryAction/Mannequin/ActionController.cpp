@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 //
 ////////////////////////////////////////////////////////////////////////////
@@ -2156,7 +2156,7 @@ void CActionController::DebugDraw() const
 		}
 	}
 
-	if (m_cachedEntity)
+	if (m_cachedEntity && gEnv->pRenderer)
 	{
 		AABB bbox;
 		m_cachedEntity->GetWorldBounds(bbox);

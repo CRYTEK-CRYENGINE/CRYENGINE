@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "VehicleSeat.h"
@@ -53,10 +53,11 @@ bool CVehicleSeat::Init(CBaseObject* prev, const string& file)
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CVehicleSeat::Display(DisplayContext& dc)
+void CVehicleSeat::Display(CObjectRenderHelper& objRenderHelper)
 {
 	return;
-
+	
+	DisplayContext& dc = objRenderHelper.GetDisplayContextRef();
 	COLORREF color = GetColor();
 
 	if (IsSelected())
@@ -271,3 +272,4 @@ void CVehicleSeat::AttachChild(CBaseObject* child, bool bKeepPos, bool bInvalida
 
 	CBaseObject::AttachChild(child, bKeepPos, bInvalidateTM);
 }
+

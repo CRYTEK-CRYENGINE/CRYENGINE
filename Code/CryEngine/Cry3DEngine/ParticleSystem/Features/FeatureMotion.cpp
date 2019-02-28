@@ -1,12 +1,10 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "FeatureMotion.h"
 #include "ParticleSystem/ParticleEmitter.h"
 #include <CrySerialization/Math.h>
 #include <CrySystem/CryUnitTest.h>
-
-CRY_PFX2_DBG
 
 namespace pfx2
 {
@@ -19,12 +17,12 @@ void ILocalEffector::Serialize(Serialization::IArchive& ar)
 //////////////////////////////////////////////////////////////////////////
 // CFeatureMotionPhysics
 
-EParticleDataType PDT(EPDT_Gravity, float, 1, BHasInit(true));
-EParticleDataType PDT(EPDT_Drag, float, 1, BHasInit(true));
-EParticleDataType PDT(EPVF_Acceleration, float, 3);
-EParticleDataType PDT(EPVF_VelocityField, float, 3);
-EParticleDataType PDT(EPVF_PositionPrev, float, 3);
-extern EParticleDataType EPDT_MeshGeometry;
+MakeDataType(EPDT_Gravity,       float, EDD_ParticleUpdate);
+MakeDataType(EPDT_Drag,          float, EDD_ParticleUpdate);
+MakeDataType(EPVF_Acceleration,  Vec3);
+MakeDataType(EPVF_VelocityField, Vec3);
+
+extern TDataType<IMeshObj*> EPDT_MeshGeometry;
 
 CFeatureMotionPhysics::CFeatureMotionPhysics()
 	: m_gravity(0.0f)
@@ -33,16 +31,31 @@ CFeatureMotionPhysics::CFeatureMotionPhysics()
 	, m_angularDragMultiplier(1.0f)
 	, m_uniformAcceleration(ZERO)
 	, m_uniformWind(ZERO)
-	, CParticleFeature(gpu_pfx2::eGpuFeatureType_Motion)
+	, m_perParticleForceComputation(true)
 {
 }
 
 void CFeatureMotionPhysics::AddToComponent(CParticleComponent* pComponent, SComponentParams* pParams)
 {
-	pComponent->AddToUpdateList(EUL_Update, this);
+	pComponent->UpdateParticles.add(this);
 
 	m_gravity.AddToComponent(pComponent, this, EPDT_Gravity);
 	m_drag.AddToComponent(pComponent, this, EPDT_Drag);
+
+	m_environFlags = 0;
+	if (m_gravity.GetBaseValue() != 0.0f)
+	{
+		m_environFlags |= ENV_GRAVITY;
+		if (m_perParticleForceComputation)
+			pComponent->AddParticleData(EPVF_Acceleration);
+	}
+	if (m_drag.GetBaseValue() * m_windMultiplier != 0.0f)
+	{
+		m_environFlags |= ENV_WIND;
+		if (m_perParticleForceComputation)
+			pComponent->AddParticleData(EPVF_VelocityField);
+	}
+	pComponent->GetEffect()->AddEnvironFlags(m_environFlags);
 
 	auto it = std::remove_if(m_localEffectors.begin(), m_localEffectors.end(), [](const PLocalEffector& ptr) { return !ptr; });
 	m_localEffectors.erase(it, m_localEffectors.end());
@@ -54,7 +67,7 @@ void CFeatureMotionPhysics::AddToComponent(CParticleComponent* pComponent, SComp
 			pEffector->AddToMotionFeature(pComponent, this);
 	}
 
-	if (auto pInt = GetGpuInterface())
+	if (auto pInt = MakeGpuInterface(pComponent, gpu_pfx2::eGpuFeatureType_Motion))
 	{
 		gpu_pfx2::SFeatureParametersMotionPhysics params;
 		params.gravity = m_gravity.GetBaseValue();
@@ -77,52 +90,45 @@ void CFeatureMotionPhysics::Serialize(Serialization::IArchive& ar)
 	CParticleFeature::Serialize(ar);
 	ar(m_gravity, "gravity", "Gravity Scale");
 	ar(m_drag, "drag", "Drag");
+	ar(m_windMultiplier, "windMultiplier", "Level Wind Scale");
+	ar(m_angularDragMultiplier, "AngularDragMultiplier", "Angular Drag Multiplier");
+	ar(m_perParticleForceComputation, "perParticleForceComputation", "Per-Particle Force Computation");
 	ar(m_uniformAcceleration, "UniformAcceleration", "Uniform Acceleration");
 	ar(m_uniformWind, "UniformWind", "Uniform Wind");
-	ar(m_windMultiplier, "windMultiplier", "Level Wind Scale");
-	if (!ar(m_angularDragMultiplier, "AngularDragMultiplier", "Angular Drag Multiplier"))
-		m_angularDragMultiplier = 0.0f;
 	ar(m_localEffectors, "localEffectors", "Local Effectors");
 }
 
-void CFeatureMotionPhysics::InitParticles(const SUpdateContext& context)
+void CFeatureMotionPhysics::InitParticles(CParticleComponentRuntime& runtime)
 {
-	m_gravity.InitParticles(context, EPDT_Gravity);
-	m_drag.InitParticles(context, EPDT_Drag);
+	m_gravity.InitParticles(runtime, EPDT_Gravity);
+	m_drag.InitParticles(runtime, EPDT_Drag);
 }
 
-void CFeatureMotionPhysics::Update(const SUpdateContext& context)
+void CFeatureMotionPhysics::UpdateParticles(CParticleComponentRuntime& runtime)
 {
 	CRY_PFX2_PROFILE_DETAIL;
 
-	CParticleContainer& container = context.m_container;
-	m_gravity.Update(context, EPDT_Gravity);
-	m_drag.Update(context, EPDT_Drag);
-
-	container.CopyData(EPVF_PositionPrev, EPVF_Position, context.m_updateRange);
-
-	IOVec3Stream velocityField = container.GetIOVec3Stream(EPVF_VelocityField);
-	IOVec3Stream accelerations = container.GetIOVec3Stream(EPVF_Acceleration);
-	for (ILocalEffector* pEffector : m_computeList)
-		pEffector->ComputeEffector(context, velocityField, accelerations);
+	CParticleContainer& container = runtime.GetContainer();
+	m_gravity.Update(runtime, EPDT_Gravity);
+	m_drag.Update(runtime, EPDT_Drag);
 
 	if (!m_moveList.empty())
 	{
-		STempVec3Stream moveBefore(context.m_pMemHeap, context.m_updateRange);
-		STempVec3Stream moveAfter(context.m_pMemHeap, context.m_updateRange);
-		moveBefore.Clear(context.m_updateRange);
-		moveAfter.Clear(context.m_updateRange);
+		STempVec3Stream moveBefore(&runtime.MemHeap(), runtime.FullRange());
+		STempVec3Stream moveAfter(&runtime.MemHeap(), runtime.FullRange());
+		moveBefore.Clear(runtime.FullRange());
+		moveAfter.Clear(runtime.FullRange());
 
 		for (ILocalEffector* pEffector : m_moveList)
-			pEffector->ComputeMove(context, moveBefore.GetIOVec3Stream(), 0.0f);
+			pEffector->ComputeMove(runtime, moveBefore.GetIOVec3Stream(), 0.0f);
 		
-		Integrate(context);
+		Integrate(runtime);
 		
 		for (ILocalEffector* pEffector : m_moveList)
-			pEffector->ComputeMove(context, moveAfter.GetIOVec3Stream(), context.m_deltaTime);
+			pEffector->ComputeMove(runtime, moveAfter.GetIOVec3Stream(), runtime.DeltaTime());
 
 		IOVec3Stream positions = container.GetIOVec3Stream(EPVF_Position);
-		CRY_PFX2_FOR_ACTIVE_PARTICLESGROUP(context)
+		for (auto particleGroupId : runtime.FullRangeV())
 		{
 			const Vec3v position0 = positions.Load(particleGroupId);
 			const Vec3v move0 = moveBefore.GetIOVec3Stream().Load(particleGroupId);
@@ -130,12 +136,47 @@ void CFeatureMotionPhysics::Update(const SUpdateContext& context)
 			const Vec3v position1 = position0 + (move1 - move0);
 			positions.Store(particleGroupId, position1);
 		}
-		CRY_PFX2_FOR_END;
 	}
 	else
 	{
-		Integrate(context);
+		Integrate(runtime);
 	}
+}
+
+uint CFeatureMotionPhysics::ComputeEffectors(CParticleComponentRuntime& runtime, const SArea& area) const
+{
+	CRY_PFX2_PROFILE_DETAIL;
+
+	auto hasGravity = area.m_nFlags & ENV_GRAVITY;
+	auto hasWind = area.m_nFlags & ENV_WIND;
+	assert(hasGravity || hasWind);
+	assert(!(hasGravity && hasWind));
+
+	CParticleContainer& container = runtime.GetContainer();
+	IVec3Stream positions = container.GetIVec3Stream(EPVF_Position);
+	IOVec3Stream fieldStream = container.GetIOVec3Stream(hasGravity ? EPVF_Acceleration : EPVF_VelocityField);
+
+	Vec3v center = area.m_vCenter;
+	Vec3v force = hasGravity ? area.m_Forces.vAccel : area.m_Forces.vWind;
+	Vec3v forceVec = force * ToFloatv(!area.m_bRadial);
+	floatv forceRad = force.z * ToFloatv(area.m_bRadial);
+	Matrix33_tpl<floatv> matToLocal = area.m_matToLocal;
+
+	for (auto particleId : runtime.FullRangeV())
+	{
+		Vec3v posRel = positions.Load(particleId) - center;
+		Vec3v posLoc = matToLocal * posRel;
+		floatv dist = area.m_nGeomShape == GEOM_BOX ? 
+			max(max(abs(posLoc.x), abs(posLoc.y)), abs(posLoc.z)) :
+			posLoc.GetLengthFast();
+		if (Any(dist < ToFloatv(1)))
+		{
+			floatv strength = saturate((ToFloatv(1) - dist) * ToFloatv(area.m_fFalloffScale));
+			Vec3v particleForce = (forceVec + posRel * forceRad) * strength;
+			fieldStream.Store(particleId, fieldStream.Load(particleId) + particleForce);
+		}
+	}
+	return area.m_nFlags;
 }
 
 void CFeatureMotionPhysics::AddToComputeList(ILocalEffector* pEffector)
@@ -148,89 +189,6 @@ void CFeatureMotionPhysics::AddToMoveList(ILocalEffector* pEffector)
 {
 	if (std::find(m_moveList.begin(), m_moveList.end(), pEffector) == m_moveList.end())
 		m_moveList.push_back(pEffector);
-}
-
-void CFeatureMotionPhysics::Integrate(const SUpdateContext& context)
-{
-	CParticleContainer& container = context.m_container;
-
-	const bool hasDrag = m_drag.GetValueRange().end > 0.0f;
-	const bool hasGravity = m_gravity.GetBaseValue() != 0.0f || !m_uniformAcceleration.IsZero();
-	const bool hasEffectors = !m_localEffectors.empty();
-	if (hasDrag)
-		DragFastIntegral(context);
-	else if (hasGravity || hasEffectors)
-		QuadraticIntegral(context);
-	else
-		LinearIntegral(context);
-
-	const bool spin2D = container.HasData(EPDT_Spin2D) && container.HasData(EPDT_Angle2D);
-	const bool spin3D = container.HasData(EPVF_AngularVelocity) && container.HasData(EPQF_Orientation);
-	if (spin2D || spin3D)
-	{
-		if (m_angularDragMultiplier == 0.0f)
-			AngularLinearIntegral(context);
-		else
-			AngularDragFastIntegral(context);
-	}
-}
-
-void CFeatureMotionPhysics::LinearIntegral(const SUpdateContext& context)
-{
-	CRY_PFX2_PROFILE_DETAIL;
-
-	CParticleContainer& container = context.m_container;
-	IOVec3Stream position = container.GetIOVec3Stream(EPVF_Position);
-	IVec3Stream velocity = container.GetIVec3Stream(EPVF_Velocity);
-	IFStream normAges = container.GetIFStream(EPDT_NormalAge);
-	IFStream lifeTimes = container.GetIFStream(EPDT_LifeTime);
-	const floatv deltaTime = ToFloatv(context.m_deltaTime);
-	
-	CRY_PFX2_FOR_ACTIVE_PARTICLESGROUP(context)
-	{
-		const Vec3v p0 = position.Load(particleGroupId);
-		const Vec3v v0 = velocity.Load(particleGroupId);
-		const floatv dT = DeltaTime(deltaTime, particleGroupId, normAges, lifeTimes);
-		const Vec3v p1 = MAdd(v0, dT, p0);
-		position.Store(particleGroupId, p1);
-	}
-	CRY_PFX2_FOR_END;
-}
-
-void CFeatureMotionPhysics::QuadraticIntegral(const SUpdateContext& context)
-{
-	CRY_PFX2_PROFILE_DETAIL;
-
-	CParticleEmitter* pEmitter = context.m_runtime.GetEmitter();
-	CParticleContainer& container = context.m_container;
-
-	IOVec3Stream positions = container.GetIOVec3Stream(EPVF_Position);
-	IOVec3Stream velocities = container.GetIOVec3Stream(EPVF_Velocity);
-	IVec3Stream accelerations = container.GetIVec3Stream(EPVF_Acceleration);
-	IFStream gravities = container.GetIFStream(EPDT_Gravity, 0.0f);
-	IFStream normAges = container.GetIFStream(EPDT_NormalAge);
-	IFStream lifeTimes = container.GetIFStream(EPDT_LifeTime);
-	const floatv deltaTime = ToFloatv(context.m_deltaTime);
-
-	const Vec3v physAccel = ToVec3v(pEmitter->GetPhysicsEnv().m_UniformForces.vAccel);
-	const Vec3v uniformAccel = ToVec3v(m_uniformAcceleration);
-
-	CRY_PFX2_FOR_ACTIVE_PARTICLESGROUP(context)
-	{
-		const floatv dT = DeltaTime(deltaTime, particleGroupId, normAges, lifeTimes);
-		const Vec3v partAccel = accelerations.SafeLoad(particleGroupId);
-		const floatv gravMult = gravities.SafeLoad(particleGroupId);
-		const Vec3v p0 = positions.Load(particleGroupId);
-		const Vec3v v0 = velocities.Load(particleGroupId);
-
-		Vec3v a = MAdd(physAccel, gravMult, partAccel) + uniformAccel;
-		const Vec3v v1 = MAdd(a, dT, v0);
-		const Vec3v p1 = MAdd(v0 + v1, dT * ToFloatv(0.5f), p0);
-
-		positions.Store(particleGroupId, p1);
-		velocities.Store(particleGroupId, v1);
-	}
-	CRY_PFX2_FOR_END;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -350,12 +308,12 @@ CRY_UNIT_TEST(DragFast)
 	}
 }
 
-void CFeatureMotionPhysics::DragFastIntegral(const SUpdateContext& context)
+void CFeatureMotionPhysics::Integrate(CParticleComponentRuntime& runtime)
 {
 	CRY_PFX2_PROFILE_DETAIL;
 
-	CParticleEmitter* pEmitter = context.m_runtime.GetEmitter();
-	CParticleContainer& container = context.m_container;
+	CParticleEmitter* pEmitter = runtime.GetEmitter();
+	CParticleContainer& container = runtime.GetContainer();
 
 	IOVec3Stream positions = container.GetIOVec3Stream(EPVF_Position);
 	IOVec3Stream velocities = container.GetIOVec3Stream(EPVF_Velocity);
@@ -365,59 +323,123 @@ void CFeatureMotionPhysics::DragFastIntegral(const SUpdateContext& context)
 	IFStream drags = container.GetIFStream(EPDT_Drag);
 	IFStream normAges = container.GetIFStream(EPDT_NormalAge);
 	IFStream lifeTimes = container.GetIFStream(EPDT_LifeTime);
-	const floatv deltaTime = ToFloatv(context.m_deltaTime);
+	const floatv deltaTime = ToFloatv(runtime.DeltaTime());
 
-	const Vec3v physAccel = ToVec3v(pEmitter->GetPhysicsEnv().m_UniformForces.vAccel);
-	const Vec3v physWind = ToVec3v(pEmitter->GetPhysicsEnv().m_UniformForces.vWind * m_windMultiplier + m_uniformWind);
+	uint effectorFlags = 0;
+	for (ILocalEffector* pEffector : m_computeList)
+		effectorFlags |= pEffector->ComputeEffector(runtime, velocityField, accelerations);
+
+	const auto& physEnv = pEmitter->GetPhysicsEnv();
+	SPhysForces uniformForces;
+	if (m_perParticleForceComputation && !(C3DEngine::GetCVars()->e_ParticlesDebug & AlphaBit('f')))
+	{
+		// Get per-particle forces for each area
+		uniformForces = physEnv.m_UniformForces; // Base forces ignore non-uniform areas
+		physEnv.ForNonumiformAreas(runtime.GetBounds(), m_environFlags, 
+			[&](const SArea& area)
+			{
+				effectorFlags |= ComputeEffectors(runtime, area); 
+			}
+		);
+	}
+	else
+	{
+		// Get average forces for each area
+		physEnv.GetForces(uniformForces, runtime.GetBounds(), m_environFlags, true);
+	}
+
 	const Vec3v uniformAccel = ToVec3v(m_uniformAcceleration);
+	const Vec3v uniformGravity = ToVec3v(uniformForces.vAccel);
+	const Vec3v uniformWind = ToVec3v(uniformForces.vWind * m_windMultiplier + m_uniformWind);
 
-	// Approximate e^(-d t) with b/(d t + a) + c
-	const float maxDragFactor = m_drag.GetValueRange(context).end * context.m_deltaTime;
-	
-	float coeffs[3];
-	DragAdjustCoeffs(coeffs, maxDragFactor);
-	floatv coeffsv[3] = { ToFloatv(coeffs[0]), ToFloatv(coeffs[1]), ToFloatv(coeffs[2]) };
+	floatv coeffsv[3];
+	const float maxDragFactor = m_drag.GetValueRange(runtime).end * runtime.DeltaTime();
+	if (maxDragFactor)
+	{
+		// Approximate e^(-d t) with b/(d t + a) + c
+		float coeffs[3];
+		DragAdjustCoeffs(coeffs, maxDragFactor);
+		for (int i = 0; i < 3; ++i)
+			coeffsv[i] = ToFloatv(coeffs[i]);
+	}
 
-	CRY_PFX2_FOR_ACTIVE_PARTICLESGROUP(context)
+	const bool isLinear = !(m_environFlags | effectorFlags) && !m_drag.GetBaseValue() && m_uniformAcceleration.IsZero();
+
+	// Integrate positions and velocities
+	for (auto particleGroupId : runtime.FullRangeV())
 	{
 		const floatv dT = DeltaTime(deltaTime, particleGroupId, normAges, lifeTimes);
-		const floatv gravMult = gravities.SafeLoad(particleGroupId);
-		const floatv drag = drags.SafeLoad(particleGroupId);
-		const floatv dragT = drag * dT;
-
-		const Vec3v vWind = physWind + velocityField.SafeLoad(particleGroupId);
-		const Vec3v partAccel = accelerations.SafeLoad(particleGroupId);
 		const Vec3v p0 = positions.Load(particleGroupId);
 		const Vec3v v0 = velocities.Load(particleGroupId);
-		const Vec3v a = uniformAccel + partAccel + physAccel * gravMult + (vWind - v0) * drag;
+		
+		if (isLinear)
+		{
+			const Vec3v p1 = MAdd(v0, dT, p0);
+			positions.Store(particleGroupId, p1);
+			continue;
+		}
 
-		floatv dv, da; DragAdjust(dv, da, dragT, coeffsv);
-		const Vec3v v1 = v0 + a * (dT * dv);
-		const Vec3v p1 = p0 + v0 * dT + a * (sqr(dT) * da);
+		const floatv gravMult = gravities.SafeLoad(particleGroupId);
+		Vec3v accel = MAdd(uniformGravity, gravMult, uniformAccel);
+		if (effectorFlags & ENV_GRAVITY)
+			accel += accelerations.Load(particleGroupId);
+
+		Vec3v v1, p1;
+		if (maxDragFactor)
+		{
+			// Fast approximation using acceleration and drag
+			const floatv drag = drags.SafeLoad(particleGroupId);
+			const floatv dragT = drag * dT;
+
+			Vec3v vWind = uniformWind;
+			if (effectorFlags & ENV_WIND)
+				vWind += velocityField.Load(particleGroupId);
+			accel += (vWind - v0) * drag;
+
+			floatv dv, da; DragAdjust(dv, da, dragT, coeffsv);
+			v1 = MAdd(accel, dT * dv, v0);
+			p1 = MAdd(v0 + accel * (dT * da), dT, p0);
+		}
+		else
+		{
+			// Quadratic integration using acceleration
+			v1 = MAdd(accel, dT, v0);
+			p1 = MAdd(v0 + v1, dT * ToFloatv(0.5f), p0);
+		}
 
 		positions.Store(particleGroupId, p1);
 		velocities.Store(particleGroupId, v1);
 	}
-	CRY_PFX2_FOR_END;
+
+	// Integrate angles
+	const bool spin2D = container.HasData(EPDT_Spin2D) && container.HasData(EPDT_Angle2D);
+	const bool spin3D = container.HasData(EPVF_AngularVelocity) && container.HasData(EPQF_Orientation);
+	if (spin2D || spin3D)
+	{
+		if (m_angularDragMultiplier == 0.0f)
+			AngularLinearIntegral(runtime);
+		else
+			AngularDragFastIntegral(runtime);
+	}
 }
 
-void CFeatureMotionPhysics::AngularLinearIntegral(const SUpdateContext& context)
+void CFeatureMotionPhysics::AngularLinearIntegral(CParticleComponentRuntime& runtime)
 {
 	CRY_PFX2_PROFILE_DETAIL;
 
-	CParticleContainer& container = context.m_container;
+	CParticleContainer& container = runtime.GetContainer();
 	const IFStream normAges = container.GetIFStream(EPDT_NormalAge);
 	const IFStream lifeTimes = container.GetIFStream(EPDT_LifeTime);
 	const IFStream spins = container.GetIFStream(EPDT_Spin2D);
 	const IVec3Stream angularVelocities = container.GetIVec3Stream(EPVF_AngularVelocity);
-	const floatv deltaTime = ToFloatv(context.m_deltaTime);
+	const floatv deltaTime = ToFloatv(runtime.DeltaTime());
 	IOFStream angles = container.GetIOFStream(EPDT_Angle2D);
 	IOQuatStream orientations = container.GetIOQuatStream(EPQF_Orientation);
 
 	const bool spin2D = container.HasData(EPDT_Spin2D) && container.HasData(EPDT_Angle2D);
 	const bool spin3D = container.HasData(EPVF_AngularVelocity) && container.HasData(EPQF_Orientation);
 
-	CRY_PFX2_FOR_ACTIVE_PARTICLESGROUP(context)
+	for (auto particleGroupId : runtime.FullRangeV())
 	{
 		const floatv dT = DeltaTime(deltaTime, particleGroupId, normAges, lifeTimes);
 
@@ -437,30 +459,29 @@ void CFeatureMotionPhysics::AngularLinearIntegral(const SUpdateContext& context)
 			orientations.Store(particleGroupId, orientation1);
 		}
 	}
-	CRY_PFX2_FOR_END;
 }
 
-void CFeatureMotionPhysics::AngularDragFastIntegral(const SUpdateContext& context)
+void CFeatureMotionPhysics::AngularDragFastIntegral(CParticleComponentRuntime& runtime)
 {
 	CRY_PFX2_PROFILE_DETAIL;
 
-	CParticleContainer& container = context.m_container;
+	CParticleContainer& container = runtime.GetContainer();
 	const IFStream normAges = container.GetIFStream(EPDT_NormalAge);
 	const IFStream lifeTimes = container.GetIFStream(EPDT_LifeTime);
 	const IFStream drags = container.GetIFStream(EPDT_Drag);
-	const floatv deltaTime = ToFloatv(context.m_deltaTime);
+	const floatv deltaTime = ToFloatv(runtime.DeltaTime());
 	IOFStream spins = container.GetIOFStream(EPDT_Spin2D);
 	IOVec3Stream angularVelocities = container.GetIOVec3Stream(EPVF_AngularVelocity);
 	IOFStream angles = container.GetIOFStream(EPDT_Angle2D);
 	IOQuatStream orientations = container.GetIOQuatStream(EPQF_Orientation);
 
-	const float maxDragFactor = m_drag.GetValueRange(context).end * context.m_deltaTime;
+	const float maxDragFactor = m_drag.GetValueRange(runtime).end * runtime.DeltaTime();
 	const floatv dragReduction = ToFloatv(div_min(1.0f - exp_tpl(-maxDragFactor), maxDragFactor, 1.0f) * m_angularDragMultiplier);
 
 	const bool spin2D = container.HasData(EPDT_Spin2D) && container.HasData(EPDT_Angle2D);
 	const bool spin3D = container.HasData(EPVF_AngularVelocity) && container.HasData(EPQF_Orientation);
 
-	CRY_PFX2_FOR_ACTIVE_PARTICLESGROUP(context)
+	for (auto particleGroupId : runtime.FullRangeV())
 	{
 		const floatv dT = DeltaTime(deltaTime, particleGroupId, normAges, lifeTimes);
 		const floatv drag = drags.SafeLoad(particleGroupId) * dragReduction;
@@ -487,7 +508,6 @@ void CFeatureMotionPhysics::AngularDragFastIntegral(const SUpdateContext& contex
 			angularVelocities.Store(particleGroupId, angularVelocity1);
 		}
 	}
-	CRY_PFX2_FOR_END;
 }
 
 
@@ -496,7 +516,7 @@ CRY_PFX2_IMPLEMENT_FEATURE(CParticleFeature, CFeatureMotionPhysics, "Motion", "P
 //////////////////////////////////////////////////////////////////////////
 // CFeatureMotionCryPhysics
 
-EParticleDataType PDT(EPDT_PhysicalEntity, IPhysicalEntity*);
+MakeDataType(EPDT_PhysicalEntity, IPhysicalEntity*);
 
 void PopulateSurfaceTypes()
 {
@@ -532,8 +552,9 @@ CFeatureMotionCryPhysics::CFeatureMotionCryPhysics()
 
 void CFeatureMotionCryPhysics::AddToComponent(CParticleComponent* pComponent, SComponentParams* pParams)
 {
-	pComponent->AddToUpdateList(EUL_PostInitUpdate, this);
-	pComponent->AddToUpdateList(EUL_Update, this);
+	pComponent->PostInitParticles.add(this);
+	pComponent->UpdateParticles.add(this);
+	pComponent->DestroyParticles.add(this);
 	pComponent->AddParticleData(EPDT_PhysicalEntity);
 	pComponent->AddParticleData(EPVF_Position);
 	pComponent->AddParticleData(EPVF_Velocity);
@@ -555,28 +576,28 @@ void CFeatureMotionCryPhysics::Serialize(Serialization::IArchive& ar)
 	ar(m_uniformAcceleration, "UniformAcceleration", "Uniform Acceleration");
 }
 
-void CFeatureMotionCryPhysics::PostInitParticles(const SUpdateContext& context)
+void CFeatureMotionCryPhysics::PostInitParticles(CParticleComponentRuntime& runtime)
 {
 	CRY_PFX2_PROFILE_DETAIL;
 
 	IPhysicalWorld* pPhysicalWorld = gEnv->pPhysicalWorld;
-	CParticleEmitter* pEmitter = context.m_runtime.GetEmitter();
+	CParticleEmitter* pEmitter = runtime.GetEmitter();
 	const SPhysEnviron& physicsEnv = pEmitter->GetPhysicsEnv();
 
-	CParticleContainer& container = context.m_container;
-	auto physicalEntities = container.GetTIOStream<IPhysicalEntity*>(EPDT_PhysicalEntity);
+	CParticleContainer& container = runtime.GetContainer();
+	auto physicalEntities = container.IOStream(EPDT_PhysicalEntity);
 	const IVec3Stream positions = container.GetIVec3Stream(EPVF_Position);
 	const IVec3Stream velocities = container.GetIVec3Stream(EPVF_Velocity);
 	const IVec3Stream angularVelocities = container.GetIVec3Stream(EPVF_AngularVelocity);
 	const IQuatStream orientations = container.GetIQuatStream(EPQF_Orientation);
 	const IFStream sizes = container.GetIFStream(EPDT_Size);
-	const TIStream<IMeshObj*> meshes = container.GetTIStream<IMeshObj*>(EPDT_MeshGeometry);
+	const TIStream<IMeshObj*> meshes = container.IStream(EPDT_MeshGeometry);
 
 	const float sphereVolume = 4.0f / 3.0f * gf_PI;
 	const Vec3 acceleration = physicsEnv.m_UniformForces.vAccel * m_gravity + m_uniformAcceleration;
 	const int surfaceTypeId = m_surfaceType;
 
-	CRY_PFX2_FOR_SPAWNED_PARTICLES(context)
+	for (auto particleId : runtime.SpawnedRange())
 	{
 		// Check if mesh geometry exists
 		pe_type physicsType = PE_PARTICLE;
@@ -587,8 +608,8 @@ void CFeatureMotionCryPhysics::PostInitParticles(const SUpdateContext& context)
 			{
 				pGeom = pMesh->GetPhysGeom();
 			}
-			if (!pGeom && context.m_params.m_pMesh)
-				pGeom = context.m_params.m_pMesh->GetPhysGeom();
+			if (!pGeom && runtime.ComponentParams().m_pMesh)
+				pGeom = runtime.ComponentParams().m_pMesh->GetPhysGeom();
 			if (pGeom)
 				physicsType = PE_RIGID;
 		}
@@ -660,23 +681,22 @@ void CFeatureMotionCryPhysics::PostInitParticles(const SUpdateContext& context)
 
 		physicalEntities.Store(particleId, pPhysicalEntity);
 	}
-	CRY_PFX2_FOR_END;
 }
 
-void CFeatureMotionCryPhysics::Update(const SUpdateContext& context)
+void CFeatureMotionCryPhysics::UpdateParticles(CParticleComponentRuntime& runtime)
 {
 	CRY_PFX2_PROFILE_DETAIL;
 
 	IPhysicalWorld* pPhysicalWorld = gEnv->pPhysicalWorld;
-	CParticleContainer& container = context.m_container;
-	auto physicalEntities = container.GetTIOStream<IPhysicalEntity*>(EPDT_PhysicalEntity);
+	CParticleContainer& container = runtime.GetContainer();
+	auto physicalEntities = container.IOStream(EPDT_PhysicalEntity);
 	IOVec3Stream positions = container.GetIOVec3Stream(EPVF_Position);
 	IOVec3Stream velocities = container.GetIOVec3Stream(EPVF_Velocity);
 	IOVec3Stream angularVelocities = container.GetIOVec3Stream(EPVF_AngularVelocity);
 	IOQuatStream orientations = container.GetIOQuatStream(EPQF_Orientation);
-	auto states = container.GetTIStream<uint8>(EPDT_State);
+	const IFStream ages = container.GetIFStream(EPDT_NormalAge);
 
-	CRY_PFX2_FOR_ACTIVE_PARTICLES(context)
+	for (auto particleId : runtime.FullRange())
 	{
 		IPhysicalEntity* pPhysicalEntity = physicalEntities.Load(particleId);
 		if (!pPhysicalEntity)
@@ -696,20 +716,31 @@ void CFeatureMotionCryPhysics::Update(const SUpdateContext& context)
 			angularVelocities.Store(particleId, statusDynamics.w);
 		}
 
-		const uint8 state = states.Load(particleId);
-		if (state == ES_Expired)
+		if (IsExpired(ages.Load(particleId)))
 		{
 			pPhysicalWorld->DestroyPhysicalEntity(pPhysicalEntity);
 			physicalEntities.Store(particleId, 0);
 		}
 	}
-	CRY_PFX2_FOR_END;
+}
+
+void CFeatureMotionCryPhysics::DestroyParticles(CParticleComponentRuntime& runtime)
+{
+	auto physicalEntities = runtime.GetContainer().IStream(EPDT_PhysicalEntity);
+	for (auto particleId : runtime.FullRange())
+	{
+		if (auto pPhysicalEntity = physicalEntities.Load(particleId))
+			gEnv->pPhysicalWorld->DestroyPhysicalEntity(pPhysicalEntity);
+	}
 }
 
 CRY_PFX2_IMPLEMENT_FEATURE(CParticleFeature, CFeatureMotionCryPhysics, "Motion", "CryPhysics", colorMotion);
 
 //////////////////////////////////////////////////////////////////////////
 // CFeatureMoveRelativeToEmitter
+
+MakeDataType(EPVF_ParentPosition,    Vec3);
+MakeDataType(EPQF_ParentOrientation, Quat);
 
 class CFeatureMoveRelativeToEmitter : public CParticleFeature
 {
@@ -730,18 +761,16 @@ public:
 		const bool inheritVelOnDeath = (m_velocityInheritAfterDeath != 0.0f);
 
 		if (inheritPositions || inheritVelocities || inheritAngles)
-			pComponent->AddToUpdateList(EUL_PreUpdate, this);
-		if (inheritPositions)
-			pComponent->AddParticleData(EPVF_LocalPosition);
-		if (inheritVelocities)
-			pComponent->AddParticleData(EPVF_LocalVelocity);
-		if (inheritAngles)
 		{
-			pComponent->AddParticleData(EPQF_Orientation);
-			pComponent->AddParticleData(EPQF_LocalOrientation);
+			pComponent->PreUpdateParticles.add(this);
+			pComponent->AddParticleData(EPQF_ParentOrientation);
 		}
+		if (inheritPositions)
+			pComponent->AddParticleData(EPVF_ParentPosition);
+		if (inheritAngles)
+			pComponent->AddParticleData(EPQF_Orientation);
 		if (inheritVelOnDeath)
-			pComponent->AddToUpdateList(EUL_Update, this);
+			pComponent->UpdateParticles.add(this);
 	}
 
 	virtual void Serialize(Serialization::IArchive& ar) override
@@ -753,19 +782,18 @@ public:
 		ar(m_velocityInheritAfterDeath, "VelocityInheritAfterDeath", "Velocity Inherit After Death");
 	}
 
-	virtual void PreUpdate(const SUpdateContext& context) override
+	virtual void PreUpdateParticles(CParticleComponentRuntime& runtime) override
 	{
 		CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 
-		CParticleContainer& container = context.m_container;
-		const CParticleContainer& parentContainer = context.m_parentContainer;
+		CParticleContainer& container = runtime.GetContainer();
+		const CParticleContainer& parentContainer = runtime.GetParentContainer();
 		const IPidStream parentIds = container.GetIPidStream(EPDT_ParentId);
-		const auto parentStates = parentContainer.GetTIStream<uint8>(EPDT_State);
+		const IFStream parentAges = parentContainer.GetIFStream(EPDT_NormalAge);
 		const IVec3Stream parentPositions = parentContainer.GetIVec3Stream(EPVF_Position);
 		const IQuatStream parentOrientations = parentContainer.GetIQuatStream(EPQF_Orientation);
-		const IVec3Stream localPositions = container.GetIVec3Stream(EPVF_LocalPosition);
-		const IVec3Stream localVelocities = container.GetIVec3Stream(EPVF_LocalVelocity);
-		const IQuatStream localOrientations = container.GetIQuatStream(EPQF_LocalOrientation);
+		IOVec3Stream parentPrevPositions = container.GetIOVec3Stream(EPVF_ParentPosition);
+		IOQuatStream parentPrevOrientations = container.GetIOQuatStream(EPQF_ParentOrientation);
 		IOVec3Stream worldPositions = container.GetIOVec3Stream(EPVF_Position);
 		IOVec3Stream worldVelocities = container.GetIOVec3Stream(EPVF_Velocity);
 		IOQuatStream worldOrientations = container.GetIOQuatStream(EPQF_Orientation);
@@ -774,33 +802,34 @@ public:
 		const bool inheritVelocities = (m_velocityInherit != 0.0f);
 		const bool inheritAngles = (m_angularInherit != 0.0f);
 
-		CRY_PFX2_FOR_ACTIVE_PARTICLES(context)
+		for (auto particleId : runtime.FullRange())
 		{
 			const TParticleId parentId = parentIds.Load(particleId);
-			const uint8 parentState = (parentId != gInvalidId) ? parentStates.Load(parentId) : ES_Dead;
-			if (parentState == ES_Dead)
+			if (parentId == gInvalidId)
 				continue;
 
-			const Vec3 wParentPos = parentPositions.SafeLoad(parentId);
 			const Quat parentOrientation = parentOrientations.SafeLoad(parentId);
-			const QuatT parentToWorld = QuatT(wParentPos, parentOrientation);
+			const Quat parentPrevOrientation = parentPrevOrientations.Load(particleId);
+			const Quat deltaOrientation = parentOrientation * parentPrevOrientation.GetInverted();
+			parentPrevOrientations.Store(particleId, parentOrientation);
 
 			if (inheritPositions)
 			{
+				const Vec3 parentPos = parentPositions.SafeLoad(parentId);
+				const Vec3 parentPrevPos = parentPrevPositions.Load(particleId);
 				const Vec3 wPosition0 = worldPositions.Load(particleId);
-				const Vec3 oPosition = localPositions.Load(particleId);
-				const Vec3 wPosition1 = Lerp(
-					wPosition0, parentToWorld * oPosition,
+				const Vec3 wPosition1 = Lerp(wPosition0, 
+					deltaOrientation * (wPosition0 - parentPrevPos) + parentPos, 
 					m_positionInherit);
 				worldPositions.Store(particleId, wPosition1);
+				parentPrevPositions.Store(particleId, parentPos);
 			}
 
 			if (inheritVelocities)
 			{
 				const Vec3 wVelocity0 = worldVelocities.Load(particleId);
-				const Vec3 oVelocity = localVelocities.Load(particleId);
 				const Vec3 wVelocity1 = Lerp(
-					wVelocity0, parentToWorld.q * oVelocity,
+					wVelocity0, deltaOrientation * wVelocity0,
 					m_velocityInherit);
 				worldVelocities.Store(particleId, wVelocity1);
 			}
@@ -808,32 +837,29 @@ public:
 			if (inheritAngles)
 			{
 				const Quat wOrientation0 = worldOrientations.Load(particleId);
-				const Quat oOrientation = localOrientations.Load(particleId);
 				const Quat wOrientation1 = Lerp(
-					wOrientation0, parentToWorld.q * oOrientation,
+					wOrientation0, deltaOrientation * wOrientation0,
 					m_angularInherit);
 				worldOrientations.Store(particleId, wOrientation1);
 			}
 		}
-		CRY_PFX2_FOR_END;
 	}
 
-	virtual void Update(const SUpdateContext& context) override
+	virtual void UpdateParticles(CParticleComponentRuntime& runtime) override
 	{
 		CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 
-		CParticleContainer& container = context.m_container;
-		const CParticleContainer& parentContainer = context.m_parentContainer;
+		CParticleContainer& container = runtime.GetContainer();
+		const CParticleContainer& parentContainer = runtime.GetParentContainer();
 		const IPidStream parentIds = container.GetIPidStream(EPDT_ParentId);
-		const auto parentStates = parentContainer.GetTIStream<uint8>(EPDT_State);
+		const IFStream parentAges = parentContainer.GetIFStream(EPDT_NormalAge);
 		const IVec3Stream parentVelocities = parentContainer.GetIVec3Stream(EPVF_Velocity);
 		IOVec3Stream worldVelocities = container.GetIOVec3Stream(EPVF_Velocity);
 
-		CRY_PFX2_FOR_ACTIVE_PARTICLES(context)
+		for (auto particleId : runtime.FullRange())
 		{
 			const TParticleId parentId = parentIds.Load(particleId);
-			const uint8 parentState = (parentId != gInvalidId) ? parentStates.Load(parentId) : 0;
-			if (parentState == ES_Expired)
+			if (parentId != gInvalidId && IsExpired(parentAges.Load(parentId)))
 			{
 				const Vec3 wParentVelocity = parentVelocities.Load(parentId);
 				const Vec3 wVelocity0 = worldVelocities.Load(particleId);
@@ -841,7 +867,6 @@ public:
 				worldVelocities.Store(particleId, wVelocity1);
 			}
 		}
-		CRY_PFX2_FOR_END;
 	}
 
 private:
@@ -851,7 +876,7 @@ private:
 	SFloat m_velocityInheritAfterDeath;
 };
 
+CRY_PFX2_LEGACY_FEATURE(CFeatureMoveRelativeToEmitter, "Velocity", "MoveRelativeToEmitter");
 CRY_PFX2_IMPLEMENT_FEATURE(CParticleFeature, CFeatureMoveRelativeToEmitter, "Motion", "MoveRelativeToEmitter", colorMotion);
-CRY_PFX2_LEGACY_FEATURE(CParticleFeature, CFeatureMoveRelativeToEmitter, "VelocityMoveRelativeToEmitter");
 
 }

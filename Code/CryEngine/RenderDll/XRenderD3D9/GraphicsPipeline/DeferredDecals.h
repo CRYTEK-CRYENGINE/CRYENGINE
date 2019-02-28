@@ -1,4 +1,4 @@
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -9,21 +9,21 @@
 class CDeferredDecalsStage : public CGraphicsPipelineStage
 {
 public:
-	enum { kMaxDeferredDecals = 256 };
+	enum { MaxPersistentDecals = 512 };
 	
 public:
 	CDeferredDecalsStage();
 	virtual ~CDeferredDecalsStage();
 
-	void Init();
-	void Prepare(CRenderView* pRenderView) final;
+	void Init() final;
 	void Execute();
 
 private:
+	void ResizeDecalBuffers(size_t requiredDecalCount);
 	void SetupDecalPrimitive(const SDeferredDecal& decal, CRenderPrimitive& primitive, _smart_ptr<IRenderShaderResources>& pShaderResources);
 
 private:
-	_smart_ptr<IRenderShaderResources> m_decalShaderResources[kMaxDeferredDecals];
-	CRenderPrimitive                   m_decalPrimitives[kMaxDeferredDecals];
-	CPrimitiveRenderPass               m_decalPass;
+	std::vector<_smart_ptr<IRenderShaderResources> > m_decalShaderResources;
+	std::vector<CRenderPrimitive>                    m_decalPrimitives;
+	CPrimitiveRenderPass                             m_decalPass;
 };

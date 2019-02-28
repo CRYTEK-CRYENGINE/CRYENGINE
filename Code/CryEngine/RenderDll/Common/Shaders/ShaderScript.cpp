@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*=============================================================================
    ShaderScript.cpp : loading/reloading/hashing of shader scipts.
@@ -96,7 +96,8 @@ bool CShaderMan::mfReloadShaderIncludes(const char* szPath, int nFlags)
 				continue;
 			if (!stricmp(&nmf[len], ".cfi"))
 			{
-				fpStripExtension(fileinfo.name, nmf);
+				cry_strcpy(nmf, fileinfo.name);
+				PathUtil::RemoveExtension(nmf);
 				bool bCh = false;
 				SShaderBin* pBin = m_Bin.GetBinShader(nmf, true, 0, &bCh);
 				if (bCh)
@@ -113,7 +114,7 @@ bool CShaderMan::mfReloadShaderIncludes(const char* szPath, int nFlags)
 	return bChanged;
 }
 
-bool CShaderMan::mfReloadAllShaders(int nFlags, uint32 nFlagsHW)
+bool CShaderMan::mfReloadAllShaders(int nFlags, uint32 nFlagsHW, int currentFrameID)
 {
 	bool bState = true;
 	m_nFrameForceReload++;
@@ -124,7 +125,6 @@ bool CShaderMan::mfReloadAllShaders(int nFlags, uint32 nFlagsHW)
 
 	if (!gRenDev->IsShaderCacheGenMode())
 	{
-		gRenDev->m_pRT->RC_ResetToDefault();
 		gRenDev->FlushRTCommands(true, true, true);
 	}
 
@@ -200,7 +200,7 @@ bool CShaderMan::mfReloadAllShaders(int nFlags, uint32 nFlagsHW)
 		}
 	}
 
-	GetDeviceObjectFactory().ReloadPipelineStates();
+	GetDeviceObjectFactory().ReloadPipelineStates(currentFrameID);
 
 	return bState;
 }
@@ -254,12 +254,12 @@ bool CShaderMan::mfReloadFile(const char* szPath, const char* szName, int nFlags
 
 	m_nFrameForceReload++;
 
-	const char* szExt = fpGetExtension(szName);
-	if (!stricmp(szExt, ".cfx"))
+	const char* szExt = PathUtil::GetExt(szName);
+	if (!stricmp(szExt, "cfx"))
 	{
 		m_bReload = true;
 		char szShaderName[256];
-		cry_strcpy(szShaderName, szName, (size_t)(szExt - szName));
+		cry_strcpy(szShaderName, szName, std::distance(szName, szExt - 1)); // skip '.' as well
 		strlwr(szShaderName);
 
 		// Check if this shader already loaded
@@ -271,7 +271,7 @@ bool CShaderMan::mfReloadFile(const char* szPath, const char* szName, int nFlags
 		}
 		m_bReload = false;
 	}
-	else if (!stricmp(szExt, ".cfi"))
+	else if (!stricmp(szExt, "cfi"))
 	{
 		CCryNameTSCRC Name = CShader::mfGetClassName();
 		SResourceContainer* pRL = CBaseResource::GetResourcesForClass(Name);
@@ -279,7 +279,7 @@ bool CShaderMan::mfReloadFile(const char* szPath, const char* szName, int nFlags
 		{
 			m_bReload = true;
 			char szShaderName[256];
-			cry_strcpy(szShaderName, szName, (size_t)(szExt - szName));
+			cry_strcpy(szShaderName, szName, std::distance(szName, szExt - 1)); // skip '.' as well
 			strlwr(szShaderName);
 			SShaderBin* pBin = m_Bin.GetBinShader(szShaderName, true, 0);
 			bool bAffect = false;
@@ -662,6 +662,8 @@ CShader* CShaderMan::mfForName(const char* nameSh, int flags, const CShaderResou
 	else if (CParserBin::m_nPlatform == SF_VULKAN)
 		cry_strcat(nameRes, "(VK)");
 
+	const auto nameEfCrc = CCrc32::ComputeLowercase(nameEf);
+
 	CShader* efGen = nullptr;
 
 	// Check if this shader already loaded
@@ -755,7 +757,7 @@ CShader* CShaderMan::mfForName(const char* nameSh, int flags, const CShaderResou
 		}
 	}
 	ef->m_NameShader = nameEf;
-	ef->m_NameShaderICRC = CCrc32::ComputeLowercase(nameEf);
+	ef->m_NameShaderICRC = nameEfCrc;
 
 	bool bSuccess = false;
 
@@ -763,8 +765,14 @@ CShader* CShaderMan::mfForName(const char* nameSh, int flags, const CShaderResou
 	cry_sprintf(nameNew, "%sCryFX/%s.cfx", m_ShadersPath, nameEf);
 	ef->m_NameFile = nameNew;
 	ef->m_Flags |= flags;
-	gRenDev->m_pRT->RC_ParseShader(ef, nMaskGen | nMaskGenHW, flags, (CShaderResources*)Res);
-	return ef;
+	
+	_smart_ptr<CShader> pShader(ef);
+	_smart_ptr<CShaderResources> pResources( const_cast<CShaderResources*>(Res) );
+	gRenDev->ExecuteRenderThreadCommand([=] 
+		{
+			RT_ParseShader(pShader, nMaskGen | nMaskGenHW, flags, pResources);
+		}
+	);
 
 	return ef;
 }
@@ -861,8 +869,11 @@ void CShaderMan::RT_ParseShader(CShader* pSH, uint64 nMaskGen, uint32 flags, CSh
 		CRY_PROFILE_REGION(PROFILE_RENDERER, "Renderer: RT_ParseShader");
 		CRYPROFILE_SCOPE_PROFILE_MARKER("RT_ParseShader");
 
+
+		bool nukeCaches = false;
+
 #if !defined(SHADER_NO_SOURCES)
-		SShaderBin* pBin = m_Bin.GetBinShader(pSH->m_NameShader, false, 0);
+		SShaderBin* pBin = m_Bin.GetBinShader(pSH->m_NameShader, false, 0, &nukeCaches);
 		if (pBin)
 #endif
 		{
@@ -877,7 +888,7 @@ void CShaderMan::RT_ParseShader(CShader* pSH, uint64 nMaskGen, uint32 flags, CSh
 						gRenDev->m_cEF.m_Bin.m_BinValidCRCs.insert(FXShaderBinValidCRCItor::value_type(pBin->m_dwName, false));
 
 					m_Bin.DeleteFromCache(pBin);
-					pBin = m_Bin.GetBinShader(pSH->m_NameShader, false, nCRC32);
+					pBin = m_Bin.GetBinShader(pSH->m_NameShader, false, nCRC32, &nukeCaches);
 				}
 			}
 #endif
@@ -909,6 +920,31 @@ void CShaderMan::RT_ParseShader(CShader* pSH, uint64 nMaskGen, uint32 flags, CSh
 		{
 			CryWarning(VALIDATOR_MODULE_RENDERER, VALIDATOR_ERROR, "[SHADERS] Failed to load shader '%s'!", pSH->m_NameShader.c_str());
 			pSH->m_Flags |= EF_NOTFOUND;
+		}
+
+		if (nukeCaches)
+		{
+			for (auto& pTech : pSH->m_HWTechniques)
+			{
+				for (auto& techPass : pTech->m_Passes)
+				{
+					CHWShader* shaders[] =
+					{
+						techPass.m_VShader,
+						techPass.m_PShader,
+						techPass.m_GShader,
+						techPass.m_DShader,
+						techPass.m_HShader,
+						techPass.m_CShader
+					};
+
+					for (auto pShader : shaders)
+					{
+						if (pShader)
+							pShader->InvalidateCaches();
+					}
+				}
+			}
 		}
 	}
 	pSH->m_Flags |= EF_LOADED;

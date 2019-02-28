@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "Plugin.h"
@@ -119,7 +119,7 @@ void CGraphView::ShowGraphContextMenu(QPointF screenPos)
 		CAbstractDictionary* pAvailableNodesDictionary = pModel->GetRuntimeContext().GetAvailableNodesDictionary();
 		if (pAvailableNodesDictionary)
 		{
-			m_pSearchPopupContent->SetDictionary(pAvailableNodesDictionary);
+			m_pSearchPopupContent->AddDictionary(*pAvailableNodesDictionary);
 			m_pSearchPopup->ShowAt(QPoint(screenPos.x(), screenPos.y()));
 		}
 	}
@@ -164,3 +164,4 @@ void CAssetWidget::mouseDoubleClickEvent(QGraphicsSceneMouseEvent* pEvent)
 
 	CryGraphEditor::CNodeWidget::mouseDoubleClickEvent(pEvent);
 }
+

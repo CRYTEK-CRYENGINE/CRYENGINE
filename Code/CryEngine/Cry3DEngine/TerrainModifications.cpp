@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "TerrainModifications.h"         // CTerrainModifications
@@ -19,7 +19,7 @@ bool CTerrainModifications::PushModification(const Vec3& vPos, const float fRadi
 	assert(fRadius > 0);
 	assert(m_pModifiedTerrain);       // you need to call SetTerrain()
 
-	m_TerrainMods.push_back(STerrainMod(vPos, fRadius, m_pModifiedTerrain->GetZ((int)vPos.x, (int)vPos.y, GetDefSID())));
+	m_TerrainMods.push_back(STerrainMod(vPos, fRadius, m_pModifiedTerrain->GetZ(vPos.x, vPos.y)));
 
 	MakeCrater(m_TerrainMods.back(), m_TerrainMods.size() - 1);
 
@@ -39,7 +39,7 @@ float CTerrainModifications::ComputeMaxDepthAt(const float fX, const float fY, c
 
 	std::vector<STerrainMod>::const_iterator it, end = m_TerrainMods.end();
 
-	float fGroundPos = m_pModifiedTerrain->GetZ((int)fX, (int)fY, GetDefSID());
+	float fGroundPos = m_pModifiedTerrain->GetZ(fX, fY);
 
 	uint32 dwI = 0;
 	for (it = m_TerrainMods.begin(); it != end && dwI < dwCheckExistingMods; ++it, ++dwI)
@@ -67,19 +67,19 @@ void CTerrainModifications::MakeCrater(const STerrainMod& ref, const uint32 dwCh
 	assert(m_pModifiedTerrain);
 
 	// calculate 2d area
-	int nUnitSize = m_pModifiedTerrain->GetHeightMapUnitSize();
-	int x1 = int(ref.m_vPos.x - ref.m_fRadius - nUnitSize);
-	int y1 = int(ref.m_vPos.y - ref.m_fRadius - nUnitSize);
-	int x2 = int(ref.m_vPos.x + ref.m_fRadius + nUnitSize);
-	int y2 = int(ref.m_vPos.y + ref.m_fRadius + nUnitSize);
-	x1 = x1 / nUnitSize * nUnitSize;
-	x2 = x2 / nUnitSize * nUnitSize;
-	y1 = y1 / nUnitSize * nUnitSize;
-	y2 = y2 / nUnitSize * nUnitSize;
+	float unitSize = m_pModifiedTerrain->GetHeightMapUnitSize();
+	float x1 = (ref.m_vPos.x - ref.m_fRadius - unitSize);
+	float y1 = (ref.m_vPos.y - ref.m_fRadius - unitSize);
+	float x2 = (ref.m_vPos.x + ref.m_fRadius + unitSize);
+	float y2 = (ref.m_vPos.y + ref.m_fRadius + unitSize);
+	x1 = x1 / unitSize * unitSize;
+	x2 = x2 / unitSize * unitSize;
+	y1 = y1 / unitSize * unitSize;
+	y2 = y2 / unitSize * unitSize;
 	if (x1 < 0) x1 = 0;
 	if (y1 < 0) y1 = 0;
-	if (x2 >= CTerrain::GetTerrainSize()) x2 = CTerrain::GetTerrainSize() - 1;
-	if (y2 >= CTerrain::GetTerrainSize()) y2 = CTerrain::GetTerrainSize() - 1;
+	if (x2 >= (float)CTerrain::GetTerrainSize()) x2 = (float)CTerrain::GetTerrainSize() - 1;
+	if (y2 >= (float)CTerrain::GetTerrainSize()) y2 = (float)CTerrain::GetTerrainSize() - 1;
 
 	float fOceanLevel = m_pModifiedTerrain->GetWaterLevel() + 0.25f;
 
@@ -89,10 +89,11 @@ void CTerrainModifications::MakeCrater(const STerrainMod& ref, const uint32 dwCh
 	float fMaxDepth = ComputeMaxDepthAt(ref.m_vPos.x, ref.m_vPos.y, dwCheckExistingMod);
 
 	// modify height map
-	for (int x = x1; x <= x2; x += nUnitSize)
-		for (int y = y1; y <= y2; y += nUnitSize)
+	for (float x = x1; x <= x2; x += unitSize)
+	{
+		for (float y = y1; y <= y2; y += unitSize)
 		{
-			float fHeight = m_pModifiedTerrain->GetZ(x, y, GetDefSID());
+			float fHeight = m_pModifiedTerrain->GetZ(x, y);
 
 			float fDamage = 1.0f - ref.m_vPos.GetDistance(Vec3((float)x, (float)y, fHeight)) * fInvExplRadius;
 			if (fDamage < 0)
@@ -110,13 +111,14 @@ void CTerrainModifications::MakeCrater(const STerrainMod& ref, const uint32 dwCh
 
 			m_pModifiedTerrain->m_bHeightMapModified = 1;
 
-			m_pModifiedTerrain->SetZ(x, y, fHeight, GetDefSID());
+			m_pModifiedTerrain->SetZ(x, y, fHeight);
 		}
+	}
 
 	// update mesh or terrain near sectors
 	PodArray<CTerrainNode*> lstNearSecInfos;
 	Vec3 vRadius(ref.m_fRadius, ref.m_fRadius, ref.m_fRadius);
-	m_pModifiedTerrain->IntersectWithBox(AABB(ref.m_vPos - vRadius, ref.m_vPos + vRadius), &lstNearSecInfos, GetDefSID());
+	m_pModifiedTerrain->IntersectWithBox(AABB(ref.m_vPos - vRadius, ref.m_vPos + vRadius), &lstNearSecInfos);
 	for (int s = 0; s < lstNearSecInfos.Count(); s++)
 		if (CTerrainNode* pSecInfo = lstNearSecInfos[s])
 			pSecInfo->ReleaseHeightMapGeometry();

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -20,6 +20,7 @@
 	#include "AutoDetectCPUTestSuit.h"
 	#include "AutoDetectSpec.h"
 
+	#pragma warning(push)
 	#pragma warning(disable: 4244)
 
 // both function live in CPUDetect.cpp
@@ -533,7 +534,7 @@ static void GetNumCPUCoresApic(unsigned int& totAvailToSystem, unsigned int& tot
 					SetThreadAffinityMask(hCurThread, threadAffinity);
 				}
 
-				Sleep(0);
+				CrySleep(0);
 
 				int CPUInfo[4];
 				__cpuid(CPUInfo, 0x00000001);
@@ -543,7 +544,7 @@ static void GetNumCPUCoresApic(unsigned int& totAvailToSystem, unsigned int& tot
 
 		SetProcessAffinityMask(hCurProcess, processAffinity);
 		SetThreadAffinityMask(hCurThread, prevThreadAffinity);
-		Sleep(0);
+		CrySleep(0);
 	}
 
 	CApicExtractor apicExtractor(numLogicalPerPhysical, numCoresPerPhysical);
@@ -1039,6 +1040,8 @@ void CSystem::AutoDetectSpec(const bool detectResolution)
 			m_rFullscreen->Set(1);
 	}
 }
+
+	#pragma warning(pop)
 
 #else
 

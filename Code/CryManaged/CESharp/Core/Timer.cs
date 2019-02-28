@@ -13,6 +13,8 @@ namespace CryEngine
 		private float _time;
 
 		public float Time { get { return _time; } }
+
+		[SerializeValue]
 		public bool Looping { get; private set; }
 
 		public Timer(float time, bool looping, Action onTimerExpired = null)

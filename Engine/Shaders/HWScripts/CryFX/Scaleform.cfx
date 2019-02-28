@@ -1,5 +1,4 @@
-// CRYENGINE Source Code File
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "common.cfi"
 
@@ -7,7 +6,7 @@
 //////////////////////////////////////////////////
 // shader constants
 
-cbuffer ScaleformMeshAttributes : register(b0)
+cbuffer CBScaleformMeshAttributes : register(b0)
 {
 	// VS
 	float4x4 cCompositeMat;
@@ -17,7 +16,7 @@ cbuffer ScaleformMeshAttributes : register(b0)
 	float2   cPad;
 };
 
-cbuffer ScaleformRenderParameters : register(b0)
+cbuffer CBScaleformRenderParameters : register(b0)
 {
 	// PS
 	float2x4 cBitmapColorTransform;
@@ -84,31 +83,31 @@ struct a2v_XY_C_F
 // PS
 struct v2f_XY
 {
-	float4 pos  : POSITION;
+	float4 pos  : SV_POSITION;
 	float2 tex0 : TEXCOORD0;
 };
 
 struct v2f_XY_noTex
 {
-	float4 pos  : POSITION;
+	float4 pos  : SV_POSITION;
 };
 
 struct v2f_Glyph
 {
-	float4 pos  : POSITION;
+	float4 pos  : SV_POSITION;
 	float2 tex0 : TEXCOORD0;
 	float4 col0 : COLOR0;
 };
 
 struct v2f_XY_C
 {
-	float4 pos  : POSITION;
+	float4 pos  : SV_POSITION;
 	float4 diff : COLOR;
 };
 
 struct v2f_XY_C_F
 {
-	float4 pos  : POSITION;
+	float4 pos  : SV_POSITION;
 	float2 tex0 : TEXCOORD0;
 	float4 diff : COLOR0;
 	float4 spec : COLOR1;
@@ -116,14 +115,14 @@ struct v2f_XY_C_F
 
 struct v2f_XY_C_F_noTex
 {
-	float4 pos  : POSITION;
+	float4 pos  : SV_POSITION;
 	float4 diff : COLOR0;
 	float4 spec : COLOR1;
 };
 
 struct v2f_XY_C_F_T2
 {
-	float4 pos  : POSITION;
+	float4 pos  : SV_POSITION;
 	float2 tex0 : TEXCOORD0;
 	float2 tex1 : TEXCOORD1;
 	float4 diff : COLOR0;
@@ -262,7 +261,7 @@ technique SolidColor
 
 half4 CxformTexture( v2f_XY IN )
 {
-	half4 tex = texScaleformInput0.Sample(ssScaleformInput0, IN.tex0);
+	half4 tex = GetTexture2D(texScaleformInput0, ssScaleformInput0, IN.tex0);
 	half4 res = tex * cBitmapColorTransform[0] + cBitmapColorTransform[1];
 	return res;
 }
@@ -313,7 +312,7 @@ technique CxformMultiplyTexture
 
 half4 GlyphTexture( v2f_Glyph IN )
 {
-	half4 tex = texScaleformInput0.Sample(ssScaleformInput0, IN.tex0);
+	half4 tex = GetTexture2D(texScaleformInput0, ssScaleformInput0, IN.tex0);
 	half4 res = tex * cBitmapColorTransform[0] + cBitmapColorTransform[1];
 	return res;
 }
@@ -370,7 +369,7 @@ half4 PS_GlyphAlphaTexture( v2f_Glyph IN ) : SV_Target
    return ret;
  #endif
 
-	half4 res = half4(IN.col0.rgb, IN.col0.a * texScaleformInput0.Sample(ssScaleformInput0, IN.tex0).a);
+	half4 res = half4(IN.col0.rgb, IN.col0.a * GetTexture2D(texScaleformInput0, ssScaleformInput0, IN.tex0).a);
 	return PremultiplyAlpha( res * cBitmapColorTransform[0] + cBitmapColorTransform[1] );
 }
 
@@ -389,9 +388,9 @@ technique GlyphAlphaTexture
 
 half3 YUV2RGB( float2 tex )
 {
-	half Y = (half)texScaleformInputY.Sample(ssScaleformInputM, tex).a;
-	half U = (half)texScaleformInputU.Sample(ssScaleformInputM, tex).a - 128.0h / 255.0h;
-	half V = (half)texScaleformInputV.Sample(ssScaleformInputM, tex).a - 128.0h / 255.0h;
+	half Y = (half)GetTexture2D(texScaleformInputY, ssScaleformInputM, tex).a;
+	half U = (half)GetTexture2D(texScaleformInputU, ssScaleformInputM, tex).a - 128.0h / 255.0h;
+	half V = (half)GetTexture2D(texScaleformInputV, ssScaleformInputM, tex).a - 128.0h / 255.0h;
 
 	half3 rgb = (Y - 16.0h / 255.0h) * 1.164h;
 	rgb.r +=  V * 1.596h;
@@ -453,7 +452,7 @@ technique GlyphMultiplyTextureYUV
 
 half4 GlyphTextureYUVA( v2f_Glyph IN )
 {
-	half4 res = half4(YUV2RGB(IN.tex0), texScaleformInputA.Sample(ssScaleformInputM, IN.tex0).a) * cBitmapColorTransform[0] + cBitmapColorTransform[1];
+	half4 res = half4(YUV2RGB(IN.tex0), GetTexture2D(texScaleformInputA, ssScaleformInputM, IN.tex0).a) * cBitmapColorTransform[0] + cBitmapColorTransform[1];
 	return res;
 }
 
@@ -602,7 +601,7 @@ technique CxformGouraudMultiplyNoAddAlpha
 
 half4 CxformGouraudTexture( v2f_XY_C_F IN )
 {
-	half4 tex = texScaleformInput0.Sample(ssScaleformInput0, IN.tex0);
+	half4 tex = GetTexture2D(texScaleformInput0, ssScaleformInput0, IN.tex0);
 	half4 res = lerp( IN.diff, tex, IN.spec.b );
 	res = res * cBitmapColorTransform[0] + cBitmapColorTransform[1];
 	return half4( res.rgb, res.a * IN.spec.a );
@@ -654,8 +653,8 @@ technique CxformGouraudMultiplyTexture
 
 half4 Cxform2Texture( v2f_XY_C_F_T2 IN )
 {
-	half4 tex0 = texScaleformInput0.Sample(ssScaleformInput0, IN.tex0);
-	half4 tex1 = texScaleformInput1.Sample(ssScaleformInput1, IN.tex1);
+	half4 tex0 = GetTexture2D(texScaleformInput0, ssScaleformInput0, IN.tex0);
+	half4 tex1 = GetTexture2D(texScaleformInput1, ssScaleformInput1, IN.tex1);
 	half4 res = lerp( tex1, tex0, IN.spec.b );
 	return res * cBitmapColorTransform[0] + cBitmapColorTransform[1];
 }
@@ -710,10 +709,10 @@ float4 PS_InnerShadow_Box2( v2f_Glyph IN ) : SV_Target
 	for (i.x = -cBlurFilterSize.x; i.x <= cBlurFilterSize.x; i.x++)
 	for (i.y = -cBlurFilterSize.y; i.y <= cBlurFilterSize.y; i.y++)
 	{
-		color += texScaleformInput0.SampleLevel(ssScaleformInput0, IN.tex0 + (cBlurFilterBias + i) * cBlurFilterScale, 0.f);
+		color += GetTexture2DLod(texScaleformInput0, ssScaleformInput0, IN.tex0 + (cBlurFilterBias + i) * cBlurFilterScale, 0.f);
 	}
 
-	float4 base = texScaleformInput1.SampleLevel(ssScaleformInput1, IN.tex0, 0.f);
+	float4 base = GetTexture2DLod(texScaleformInput1, ssScaleformInput1, IN.tex0, 0.f);
 	float4 fcolor = color * cBlurFilterSize.z;
 	fcolor = lerp(cBlurFilterColor1, base, fcolor.a) * base.a;
 	fcolor = fcolor * cBitmapColorTransform[0] + cBitmapColorTransform[1] * fcolor.a;
@@ -727,11 +726,11 @@ float4 PS_InnerShadowHighlight_Box2( v2f_Glyph IN ) : SV_Target
 	for (i.x = -cBlurFilterSize.x; i.x <= cBlurFilterSize.x; i.x++)
 	for (i.y = -cBlurFilterSize.y; i.y <= cBlurFilterSize.y; i.y++)
 	{
-		color.a += texScaleformInput0.SampleLevel(ssScaleformInput0, IN.tex0 + (cBlurFilterBias + i) * cBlurFilterScale, 0.f).a;
-		color.r += texScaleformInput0.SampleLevel(ssScaleformInput0, IN.tex0 - (cBlurFilterBias + i) * cBlurFilterScale, 0.f).a;
+		color.a += GetTexture2DLod(texScaleformInput0, ssScaleformInput0, IN.tex0 + (cBlurFilterBias + i) * cBlurFilterScale, 0.f).a;
+		color.r += GetTexture2DLod(texScaleformInput0, ssScaleformInput0, IN.tex0 - (cBlurFilterBias + i) * cBlurFilterScale, 0.f).a;
 	}
 	
-	float4 base = texScaleformInput1.SampleLevel(ssScaleformInput1, IN.tex0, 0.f);
+	float4 base = GetTexture2DLod(texScaleformInput1, ssScaleformInput1, IN.tex0, 0.f);
 	float4 fcolor = color * cBlurFilterSize.z;
 	fcolor.ar = saturate((1.0 - fcolor.ar) - (1.0 - fcolor.ra) * 0.5f);
 	fcolor = (cBlurFilterColor1 * fcolor.a + cBlurFilterColor2 * fcolor.r + base * (1.0 - fcolor.a - fcolor.r)) * base.a;
@@ -746,11 +745,11 @@ float4 PS_InnerShadowHighlightKnockout_Box2( v2f_Glyph IN ) : SV_Target
 	for (i.x = -cBlurFilterSize.x; i.x <= cBlurFilterSize.x; i.x++)
 	for (i.y = -cBlurFilterSize.y; i.y <= cBlurFilterSize.y; i.y++)
 	{
-		color.a += texScaleformInput0.SampleLevel(ssScaleformInput0, IN.tex0 + (cBlurFilterBias + i) * cBlurFilterScale, 0.f).a;
-		color.r += texScaleformInput0.SampleLevel(ssScaleformInput0, IN.tex0 - (cBlurFilterBias + i) * cBlurFilterScale, 0.f).a;
+		color.a += GetTexture2DLod(texScaleformInput0, ssScaleformInput0, IN.tex0 + (cBlurFilterBias + i) * cBlurFilterScale, 0.f).a;
+		color.r += GetTexture2DLod(texScaleformInput0, ssScaleformInput0, IN.tex0 - (cBlurFilterBias + i) * cBlurFilterScale, 0.f).a;
 	}
 	
-	float4 base = texScaleformInput1.SampleLevel(ssScaleformInput1, IN.tex0, 0.f);
+	float4 base = GetTexture2DLod(texScaleformInput1, ssScaleformInput1, IN.tex0, 0.f);
 	float4 fcolor = color * cBlurFilterSize.z;
 	fcolor.ar = saturate((1.0 - fcolor.ar) - (1.0 - fcolor.ra) * 0.5f);
 	fcolor = (cBlurFilterColor1 * fcolor.a + cBlurFilterColor2 * fcolor.r + base * (1.0 - fcolor.a - fcolor.r)) * base.a;
@@ -765,10 +764,10 @@ float4 PS_InnerShadowKnockout_Box2( v2f_Glyph IN ) : SV_Target
 	for (i.x = -cBlurFilterSize.x; i.x <= cBlurFilterSize.x; i.x++)
 	for (i.y = -cBlurFilterSize.y; i.y <= cBlurFilterSize.y; i.y++)
 	{
-		color += texScaleformInput0.SampleLevel(ssScaleformInput0, IN.tex0 + (cBlurFilterBias + i) * cBlurFilterScale, 0.f);
+		color += GetTexture2DLod(texScaleformInput0, ssScaleformInput0, IN.tex0 + (cBlurFilterBias + i) * cBlurFilterScale, 0.f);
 	}
 	
-	float4 base = texScaleformInput1.SampleLevel(ssScaleformInput1, IN.tex0, 0.f);
+	float4 base = GetTexture2DLod(texScaleformInput1, ssScaleformInput1, IN.tex0, 0.f);
 	float4 fcolor = color * cBlurFilterSize.z;
 	fcolor = cBlurFilterColor1 * (1.0 - fcolor.a) * base.a;
 	fcolor = fcolor * cBitmapColorTransform[0] + cBitmapColorTransform[1] * fcolor.a;
@@ -782,10 +781,10 @@ float4 PS_InnerShadowMul_Box2( v2f_Glyph IN ) : SV_Target
 	for (i.x = -cBlurFilterSize.x; i.x <= cBlurFilterSize.x; i.x++)
 	for (i.y = -cBlurFilterSize.y; i.y <= cBlurFilterSize.y; i.y++)
 	{
-		color += texScaleformInput0.SampleLevel(ssScaleformInput0, IN.tex0 + (cBlurFilterBias + i) * cBlurFilterScale, 0.f);
+		color += GetTexture2DLod(texScaleformInput0, ssScaleformInput0, IN.tex0 + (cBlurFilterBias + i) * cBlurFilterScale, 0.f);
 	}
 	
-	float4 base = texScaleformInput1.SampleLevel(ssScaleformInput1, IN.tex0, 0.f);
+	float4 base = GetTexture2DLod(texScaleformInput1, ssScaleformInput1, IN.tex0, 0.f);
 	float4 fcolor = color * cBlurFilterSize.z;
 	fcolor = lerp(cBlurFilterColor1, base, fcolor.a) * base.a;
 	fcolor = fcolor * cBitmapColorTransform[0] + cBitmapColorTransform[1] * fcolor.a;
@@ -800,11 +799,11 @@ float4 PS_InnerShadowMulHighlight_Box2( v2f_Glyph IN ) : SV_Target
 	for (i.x = -cBlurFilterSize.x; i.x <= cBlurFilterSize.x; i.x++)
 	for (i.y = -cBlurFilterSize.y; i.y <= cBlurFilterSize.y; i.y++)
 	{
-		color.a += texScaleformInput0.SampleLevel(ssScaleformInput0, IN.tex0 + (cBlurFilterBias + i) * cBlurFilterScale, 0.f).a;
-		color.r += texScaleformInput0.SampleLevel(ssScaleformInput0, IN.tex0 - (cBlurFilterBias + i) * cBlurFilterScale, 0.f).a;
+		color.a += GetTexture2DLod(texScaleformInput0, ssScaleformInput0, IN.tex0 + (cBlurFilterBias + i) * cBlurFilterScale, 0.f).a;
+		color.r += GetTexture2DLod(texScaleformInput0, ssScaleformInput0, IN.tex0 - (cBlurFilterBias + i) * cBlurFilterScale, 0.f).a;
 	}
 	
-	float4 base = texScaleformInput1.SampleLevel(ssScaleformInput1, IN.tex0, 0.f);
+	float4 base = GetTexture2DLod(texScaleformInput1, ssScaleformInput1, IN.tex0, 0.f);
 	float4 fcolor = color * cBlurFilterSize.z;
 	fcolor.ar = saturate((1.0 - fcolor.ar) - (1.0 - fcolor.ra) * 0.5f);
 	fcolor = (cBlurFilterColor1 * fcolor.a + cBlurFilterColor2 * fcolor.r + base * (1.0 - fcolor.a - fcolor.r)) * base.a;
@@ -820,11 +819,11 @@ float4 PS_InnerShadowMulHighlightKnockout_Box2( v2f_Glyph IN ) : SV_Target
 	for (i.x = -cBlurFilterSize.x; i.x <= cBlurFilterSize.x; i.x++)
 	for (i.y = -cBlurFilterSize.y; i.y <= cBlurFilterSize.y; i.y++)
 	{
-		color.a += texScaleformInput0.SampleLevel(ssScaleformInput0, IN.tex0 + (cBlurFilterBias + i) * cBlurFilterScale, 0.f).a;
-		color.r += texScaleformInput0.SampleLevel(ssScaleformInput0, IN.tex0 - (cBlurFilterBias + i) * cBlurFilterScale, 0.f).a;
+		color.a += GetTexture2DLod(texScaleformInput0, ssScaleformInput0, IN.tex0 + (cBlurFilterBias + i) * cBlurFilterScale, 0.f).a;
+		color.r += GetTexture2DLod(texScaleformInput0, ssScaleformInput0, IN.tex0 - (cBlurFilterBias + i) * cBlurFilterScale, 0.f).a;
 	}
 	
-	float4 base = texScaleformInput1.SampleLevel(ssScaleformInput1, IN.tex0, 0.f);
+	float4 base = GetTexture2DLod(texScaleformInput1, ssScaleformInput1, IN.tex0, 0.f);
 	float4 fcolor = color * cBlurFilterSize.z;
 	fcolor.ar = saturate((1.0 - fcolor.ar) - (1.0 - fcolor.ra) * 0.5f);
 	fcolor = (cBlurFilterColor1 * fcolor.a + cBlurFilterColor2 * fcolor.r + base * (1.0 - fcolor.a - fcolor.r)) * base.a;
@@ -840,10 +839,10 @@ float4 PS_InnerShadowMulKnockout_Box2( v2f_Glyph IN ) : SV_Target
 	for (i.x = -cBlurFilterSize.x; i.x <= cBlurFilterSize.x; i.x++)
 	for (i.y = -cBlurFilterSize.y; i.y <= cBlurFilterSize.y; i.y++)
 	{
-		color += texScaleformInput0.SampleLevel(ssScaleformInput0, IN.tex0 + (cBlurFilterBias + i) * cBlurFilterScale, 0.f);
+		color += GetTexture2DLod(texScaleformInput0, ssScaleformInput0, IN.tex0 + (cBlurFilterBias + i) * cBlurFilterScale, 0.f);
 	}
 	
-	float4 base = texScaleformInput1.SampleLevel(ssScaleformInput1, IN.tex0, 0.f);
+	float4 base = GetTexture2DLod(texScaleformInput1, ssScaleformInput1, IN.tex0, 0.f);
 	float4 fcolor = color * cBlurFilterSize.z;
 	fcolor = cBlurFilterColor1 * (1.0 - fcolor.a) * base.a;
 	fcolor = fcolor * cBitmapColorTransform[0] + cBitmapColorTransform[1] * fcolor.a;
@@ -858,10 +857,10 @@ float4 PS_Shadow_Box2( v2f_Glyph IN ) : SV_Target
 	for (i.x = -cBlurFilterSize.x; i.x <= cBlurFilterSize.x; i.x++)
 	for (i.y = -cBlurFilterSize.y; i.y <= cBlurFilterSize.y; i.y++)
 	{
-		color += texScaleformInput0.SampleLevel(ssScaleformInput0, IN.tex0 + (cBlurFilterBias + i) * cBlurFilterScale, 0.f);
+		color += GetTexture2DLod(texScaleformInput0, ssScaleformInput0, IN.tex0 + (cBlurFilterBias + i) * cBlurFilterScale, 0.f);
 	}
 	
-	float4 base = texScaleformInput1.SampleLevel(ssScaleformInput1, IN.tex0, 0.f);
+	float4 base = GetTexture2DLod(texScaleformInput1, ssScaleformInput1, IN.tex0, 0.f);
 	float4 fcolor = color * cBlurFilterSize.z;
 	fcolor = cBlurFilterColor1 * fcolor.a * (1.0-base.a) + base;
 	fcolor = fcolor * cBitmapColorTransform[0] + cBitmapColorTransform[1] * fcolor.a;
@@ -875,11 +874,11 @@ float4 PS_ShadowHighlight_Box2( v2f_Glyph IN ) : SV_Target
 	for (i.x = -cBlurFilterSize.x; i.x <= cBlurFilterSize.x; i.x++)
 	for (i.y = -cBlurFilterSize.y; i.y <= cBlurFilterSize.y; i.y++)
 	{
-		color.a += texScaleformInput0.SampleLevel(ssScaleformInput0, IN.tex0 + (cBlurFilterBias + i) * cBlurFilterScale, 0.f).a;
-		color.r += texScaleformInput0.SampleLevel(ssScaleformInput0, IN.tex0 - (cBlurFilterBias + i) * cBlurFilterScale, 0.f).a;
+		color.a += GetTexture2DLod(texScaleformInput0, ssScaleformInput0, IN.tex0 + (cBlurFilterBias + i) * cBlurFilterScale, 0.f).a;
+		color.r += GetTexture2DLod(texScaleformInput0, ssScaleformInput0, IN.tex0 - (cBlurFilterBias + i) * cBlurFilterScale, 0.f).a;
 	}
 	
-	float4 base = texScaleformInput1.SampleLevel(ssScaleformInput1, IN.tex0, 0.f);
+	float4 base = GetTexture2DLod(texScaleformInput1, ssScaleformInput1, IN.tex0, 0.f);
 	float4 fcolor = color * cBlurFilterSize.z;
 	fcolor = (cBlurFilterColor1 * fcolor.a + cBlurFilterColor2 * fcolor.r) * (1.0-base.a) + base;
 	fcolor = fcolor * cBitmapColorTransform[0] + cBitmapColorTransform[1] * fcolor.a;
@@ -893,11 +892,11 @@ float4 PS_ShadowHighlightKnockout_Box2( v2f_Glyph IN ) : SV_Target
 	for (i.x = -cBlurFilterSize.x; i.x <= cBlurFilterSize.x; i.x++)
 	for (i.y = -cBlurFilterSize.y; i.y <= cBlurFilterSize.y; i.y++)
 	{
-		color.a += texScaleformInput0.SampleLevel(ssScaleformInput0, IN.tex0 + (cBlurFilterBias + i) * cBlurFilterScale, 0.f).a;
-		color.r += texScaleformInput0.SampleLevel(ssScaleformInput0, IN.tex0 - (cBlurFilterBias + i) * cBlurFilterScale, 0.f).a;
+		color.a += GetTexture2DLod(texScaleformInput0, ssScaleformInput0, IN.tex0 + (cBlurFilterBias + i) * cBlurFilterScale, 0.f).a;
+		color.r += GetTexture2DLod(texScaleformInput0, ssScaleformInput0, IN.tex0 - (cBlurFilterBias + i) * cBlurFilterScale, 0.f).a;
 	}
 	
-	float4 base = texScaleformInput1.SampleLevel(ssScaleformInput1, IN.tex0, 0.f);
+	float4 base = GetTexture2DLod(texScaleformInput1, ssScaleformInput1, IN.tex0, 0.f);
 	float4 fcolor = color * cBlurFilterSize.z;
 	fcolor = (cBlurFilterColor1 * fcolor.a + cBlurFilterColor2 * fcolor.r) * (1.0-base.a) + base;
 	fcolor *= (1.0 - base.a);
@@ -912,10 +911,10 @@ float4 PS_ShadowKnockout_Box2( v2f_Glyph IN ) : SV_Target
 	for (i.x = -cBlurFilterSize.x; i.x <= cBlurFilterSize.x; i.x++)
 	for (i.y = -cBlurFilterSize.y; i.y <= cBlurFilterSize.y; i.y++)
 	{
-		color += texScaleformInput0.SampleLevel(ssScaleformInput0, IN.tex0 + (cBlurFilterBias + i) * cBlurFilterScale, 0.f);
+		color += GetTexture2DLod(texScaleformInput0, ssScaleformInput0, IN.tex0 + (cBlurFilterBias + i) * cBlurFilterScale, 0.f);
 	}
 	
-	float4 base = texScaleformInput1.SampleLevel(ssScaleformInput1, IN.tex0, 0.f);
+	float4 base = GetTexture2DLod(texScaleformInput1, ssScaleformInput1, IN.tex0, 0.f);
 	float4 fcolor = color * cBlurFilterSize.z;
 	fcolor = cBlurFilterColor1 * fcolor.a * (1.0-base.a) + base;
 	fcolor *= (1.0 - base.a);
@@ -930,10 +929,10 @@ float4 PS_ShadowMul_Box2( v2f_Glyph IN ) : SV_Target
 	for (i.x = -cBlurFilterSize.x; i.x <= cBlurFilterSize.x; i.x++)
 	for (i.y = -cBlurFilterSize.y; i.y <= cBlurFilterSize.y; i.y++)
 	{
-		color += texScaleformInput0.SampleLevel(ssScaleformInput0, IN.tex0 + (cBlurFilterBias + i) * cBlurFilterScale, 0.f);
+		color += GetTexture2DLod(texScaleformInput0, ssScaleformInput0, IN.tex0 + (cBlurFilterBias + i) * cBlurFilterScale, 0.f);
 	}
 	
-	float4 base = texScaleformInput1.SampleLevel(ssScaleformInput1, IN.tex0, 0.f);
+	float4 base = GetTexture2DLod(texScaleformInput1, ssScaleformInput1, IN.tex0, 0.f);
 	float4 fcolor = color * cBlurFilterSize.z;
 	fcolor = cBlurFilterColor1 * fcolor.a * (1.0-base.a) + base;
 	fcolor = fcolor * cBitmapColorTransform[0] + cBitmapColorTransform[1] * fcolor.a;
@@ -948,11 +947,11 @@ float4 PS_ShadowMulHighlight_Box2( v2f_Glyph IN ) : SV_Target
 	for (i.x = -cBlurFilterSize.x; i.x <= cBlurFilterSize.x; i.x++)
 	for (i.y = -cBlurFilterSize.y; i.y <= cBlurFilterSize.y; i.y++)
 	{
-		color.a += texScaleformInput0.SampleLevel(ssScaleformInput0, IN.tex0 + (cBlurFilterBias + i) * cBlurFilterScale, 0.f).a;
-		color.r += texScaleformInput0.SampleLevel(ssScaleformInput0, IN.tex0 - (cBlurFilterBias + i) * cBlurFilterScale, 0.f).a;
+		color.a += GetTexture2DLod(texScaleformInput0, ssScaleformInput0, IN.tex0 + (cBlurFilterBias + i) * cBlurFilterScale, 0.f).a;
+		color.r += GetTexture2DLod(texScaleformInput0, ssScaleformInput0, IN.tex0 - (cBlurFilterBias + i) * cBlurFilterScale, 0.f).a;
 	}
 	
-	float4 base = texScaleformInput1.SampleLevel(ssScaleformInput1, IN.tex0, 0.f);
+	float4 base = GetTexture2DLod(texScaleformInput1, ssScaleformInput1, IN.tex0, 0.f);
 	float4 fcolor = color * cBlurFilterSize.z;	
 	fcolor = (cBlurFilterColor1 * fcolor.a + cBlurFilterColor2 * fcolor.r) * (1.0-base.a) + base;
 	fcolor = fcolor * cBitmapColorTransform[0] + cBitmapColorTransform[1] * fcolor.a;
@@ -967,11 +966,11 @@ float4 PS_ShadowMulHighlightKnockout_Box2( v2f_Glyph IN ) : SV_Target
 	for (i.x = -cBlurFilterSize.x; i.x <= cBlurFilterSize.x; i.x++)
 	for (i.y = -cBlurFilterSize.y; i.y <= cBlurFilterSize.y; i.y++)
 	{
-		color.a += texScaleformInput0.SampleLevel(ssScaleformInput0, IN.tex0 + (cBlurFilterBias + i) * cBlurFilterScale, 0.f).a;
-		color.r += texScaleformInput0.SampleLevel(ssScaleformInput0, IN.tex0 - (cBlurFilterBias + i) * cBlurFilterScale, 0.f).a;
+		color.a += GetTexture2DLod(texScaleformInput0, ssScaleformInput0, IN.tex0 + (cBlurFilterBias + i) * cBlurFilterScale, 0.f).a;
+		color.r += GetTexture2DLod(texScaleformInput0, ssScaleformInput0, IN.tex0 - (cBlurFilterBias + i) * cBlurFilterScale, 0.f).a;
 	}
 	
-	float4 base = texScaleformInput1.SampleLevel(ssScaleformInput1, IN.tex0, 0.f);
+	float4 base = GetTexture2DLod(texScaleformInput1, ssScaleformInput1, IN.tex0, 0.f);
 	float4 fcolor = color * cBlurFilterSize.z;
 	fcolor = (cBlurFilterColor1 * fcolor.a + cBlurFilterColor2 * fcolor.r) * (1.0-base.a) + base;
 	fcolor *= (1.0 - base.a);
@@ -987,10 +986,10 @@ float4 PS_ShadowMulKnockout_Box2( v2f_Glyph IN ) : SV_Target
 	for (i.x = -cBlurFilterSize.x; i.x <= cBlurFilterSize.x; i.x++)
 	for (i.y = -cBlurFilterSize.y; i.y <= cBlurFilterSize.y; i.y++)
 	{
-		color += texScaleformInput0.SampleLevel(ssScaleformInput0, IN.tex0 + (cBlurFilterBias + i) * cBlurFilterScale, 0.f);
+		color += GetTexture2DLod(texScaleformInput0, ssScaleformInput0, IN.tex0 + (cBlurFilterBias + i) * cBlurFilterScale, 0.f);
 	}
 	
-	float4 base = texScaleformInput1.SampleLevel(ssScaleformInput1, IN.tex0, 0.f);
+	float4 base = GetTexture2DLod(texScaleformInput1, ssScaleformInput1, IN.tex0, 0.f);
 	float4 fcolor = color * cBlurFilterSize.z;
 	fcolor = cBlurFilterColor1 * fcolor.a * (1.0-base.a) + base;
 	fcolor *= (1.0 - base.a);
@@ -1007,7 +1006,7 @@ float4 PS_Shadowonly_Box2( v2f_Glyph IN ) : SV_Target
 	for (i.x = -cBlurFilterSize.x; i.x <= cBlurFilterSize.x; i.x++)
 	for (i.y = -cBlurFilterSize.y; i.y <= cBlurFilterSize.y; i.y++)
 	{
-		color += texScaleformInput0.SampleLevel(ssScaleformInput0, IN.tex0 + (cBlurFilterBias + i) * cBlurFilterScale, 0.f);
+		color += GetTexture2DLod(texScaleformInput0, ssScaleformInput0, IN.tex0 + (cBlurFilterBias + i) * cBlurFilterScale, 0.f);
 	}
 	
 	float4 fcolor = color * cBlurFilterSize.z;
@@ -1023,8 +1022,8 @@ float4 PS_ShadowonlyHighlight_Box2( v2f_Glyph IN ) : SV_Target
 	for (i.x = -cBlurFilterSize.x; i.x <= cBlurFilterSize.x; i.x++)
 	for (i.y = -cBlurFilterSize.y; i.y <= cBlurFilterSize.y; i.y++)
 	{
-		color.a += texScaleformInput0.SampleLevel(ssScaleformInput0, IN.tex0 + (cBlurFilterBias + i) * cBlurFilterScale, 0.f).a;
-		color.r += texScaleformInput0.SampleLevel(ssScaleformInput0, IN.tex0 - (cBlurFilterBias + i) * cBlurFilterScale, 0.f).a;
+		color.a += GetTexture2DLod(texScaleformInput0, ssScaleformInput0, IN.tex0 + (cBlurFilterBias + i) * cBlurFilterScale, 0.f).a;
+		color.r += GetTexture2DLod(texScaleformInput0, ssScaleformInput0, IN.tex0 - (cBlurFilterBias + i) * cBlurFilterScale, 0.f).a;
 	}
 	
 	float4 fcolor = color * cBlurFilterSize.z;
@@ -1040,7 +1039,7 @@ float4 PS_ShadowonlyMul_Box2( v2f_Glyph IN ) : SV_Target
 	for (i.x = -cBlurFilterSize.x; i.x <= cBlurFilterSize.x; i.x++)
 	for (i.y = -cBlurFilterSize.y; i.y <= cBlurFilterSize.y; i.y++)
 	{
-		color += texScaleformInput0.SampleLevel(ssScaleformInput0, IN.tex0 + (cBlurFilterBias + i) * cBlurFilterScale, 0.f);
+		color += GetTexture2DLod(texScaleformInput0, ssScaleformInput0, IN.tex0 + (cBlurFilterBias + i) * cBlurFilterScale, 0.f);
 	}
 	
 	float4 fcolor = color * cBlurFilterSize.z;
@@ -1057,8 +1056,8 @@ float4 PS_ShadowonlyMulHighlight_Box2( v2f_Glyph IN ) : SV_Target
 	for (i.x = -cBlurFilterSize.x; i.x <= cBlurFilterSize.x; i.x++)
 	for (i.y = -cBlurFilterSize.y; i.y <= cBlurFilterSize.y; i.y++)
 	{
-		color.a += texScaleformInput0.SampleLevel(ssScaleformInput0, IN.tex0 + (cBlurFilterBias + i) * cBlurFilterScale, 0.f).a;
-		color.r += texScaleformInput0.SampleLevel(ssScaleformInput0, IN.tex0 - (cBlurFilterBias + i) * cBlurFilterScale, 0.f).a;
+		color.a += GetTexture2DLod(texScaleformInput0, ssScaleformInput0, IN.tex0 + (cBlurFilterBias + i) * cBlurFilterScale, 0.f).a;
+		color.r += GetTexture2DLod(texScaleformInput0, ssScaleformInput0, IN.tex0 - (cBlurFilterBias + i) * cBlurFilterScale, 0.f).a;
 	}
 	
 	float4 fcolor = color * cBlurFilterSize.z;
@@ -1074,7 +1073,7 @@ float4 PS_BlurFilter_Box1( v2f_Glyph IN ) : SV_Target
 	float  i = 0.0f;
 	for (i = -cBlurFilterSize.x; i <= cBlurFilterSize.x; i++)
 	{	
-		color += texScaleformInput0.SampleLevel(ssScaleformInput0, IN.tex0 + i * cBlurFilterScale, 0.f);
+		color += GetTexture2DLod(texScaleformInput0, ssScaleformInput0, IN.tex0 + i * cBlurFilterScale, 0.f);
 	}
 	
 	float4 fcolor = color * cBlurFilterSize.z;
@@ -1089,7 +1088,7 @@ float4 PS_BlurFilterMul_Box1( v2f_Glyph IN ) : SV_Target
 	for (i.x = -cBlurFilterSize.x; i.x <= cBlurFilterSize.x; i.x++)
 	for (i.y = -cBlurFilterSize.y; i.y <= cBlurFilterSize.y; i.y++)
 	{	
-		color += texScaleformInput0.SampleLevel(ssScaleformInput0, IN.tex0 + i * cBlurFilterScale, 0.f);
+		color += GetTexture2DLod(texScaleformInput0, ssScaleformInput0, IN.tex0 + i * cBlurFilterScale, 0.f);
 	}
 	
 	float4 fcolor = color * cBlurFilterSize.z;
@@ -1105,7 +1104,7 @@ float4 PS_BlurFilter_Box2( v2f_Glyph IN ) : SV_Target
 	for (i.x = -cBlurFilterSize.x; i.x <= cBlurFilterSize.x; i.x++)
 	for (i.y = -cBlurFilterSize.y; i.y <= cBlurFilterSize.y; i.y++)	
 	{
-		color += texScaleformInput0.SampleLevel(ssScaleformInput0, IN.tex0 + i * cBlurFilterScale, 0.f);
+		color += GetTexture2DLod(texScaleformInput0, ssScaleformInput0, IN.tex0 + i * cBlurFilterScale, 0.f);
 	}
 	
 	float4 fcolor = color * cBlurFilterSize.z;
@@ -1120,7 +1119,7 @@ float4 PS_BlurFilterMul_Box2( v2f_Glyph IN ) : SV_Target
 	for (i.x = -cBlurFilterSize.x; i.x <= cBlurFilterSize.x; i.x++)
 	for (i.y = -cBlurFilterSize.y; i.y <= cBlurFilterSize.y; i.y++)
 	{
-		color += texScaleformInput0.SampleLevel(ssScaleformInput0, IN.tex0 + i * cBlurFilterScale, 0.f);
+		color += GetTexture2DLod(texScaleformInput0, ssScaleformInput0, IN.tex0 + i * cBlurFilterScale, 0.f);
 	}
 	
 	float4 fcolor = color * cBlurFilterSize.z;
@@ -1131,14 +1130,14 @@ float4 PS_BlurFilterMul_Box2( v2f_Glyph IN ) : SV_Target
 
 float4 PS_GlyphTextureMat( v2f_Glyph IN ) : SV_Target
 {
-	float4 c = texScaleformInput0.Sample(ssScaleformInput0, IN.tex0);
+	float4 c = GetTexture2D(texScaleformInput0, ssScaleformInput0, IN.tex0);
 	float4 fcolor = mul(c, cColorTransformMat) + cBitmapColorTransform[1] * (c.a + cBitmapColorTransform[1].a);
 	return fcolor;
 }
 
 float4 PS_GlyphTextureMatMul( v2f_Glyph IN ) : SV_Target
 {
-	float4 c = texScaleformInput0.Sample(ssScaleformInput0, IN.tex0);
+	float4 c = GetTexture2D(texScaleformInput0, ssScaleformInput0, IN.tex0);
 	float4 fcolor = mul(c, cColorTransformMat) + cBitmapColorTransform[1] * (c.a + cBitmapColorTransform[1].a);
 	fcolor = lerp(1, fcolor, fcolor.a);
 	return fcolor;

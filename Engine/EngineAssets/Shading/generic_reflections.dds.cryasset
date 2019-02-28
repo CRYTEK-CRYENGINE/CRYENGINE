@@ -1,0 +1,14 @@
+<AssetMetadata version="0" type="Texture" guid="8d7b50fb-85c4-6360-7d14-d8ed7c2c9c24" source="generic_reflections.tif">
+ <Files>
+  <File path="generic_reflections.dds"/>
+  <File path="generic_reflections.dds.1"/>
+  <File path="generic_reflections.dds.2"/>
+  <File path="generic_reflections.dds.3"/>
+  <File path="generic_reflections.dds.4"/>
+ </Files>
+ <Details>
+  <Detail name="width">1536</Detail>
+  <Detail name="height">256</Detail>
+  <Detail name="mipCount">7</Detail>
+ </Details>
+</AssetMetadata>

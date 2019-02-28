@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "VehiclePartPulsingLight.h"
@@ -50,7 +50,7 @@ void CVehiclePartPulsingLight::UpdateLight(const float frameTime)
 		m_colorMult += m_minColorMult;
 		m_colorChangeTimer = fNewColorTimer;
 
-		CDLight& light = info.pLight->GetLightProperties();
+		SRenderLight& light = info.pLight->GetLightProperties();
 		light.SetLightColor(ColorF(m_diffuseCol * m_diffuseMult[0] * m_colorMult));
 	}
 }

@@ -1,4 +1,4 @@
-﻿// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 using System;
 using System.Collections.Generic;
@@ -72,28 +72,28 @@ namespace CryEngine
 		/// <value><c>true</c> if shift down; otherwise, <c>false</c>.</value>
 		public static bool ShiftDown { get { return _lShiftDown || _rShiftDown; } }
 
-		private static Dictionary<string, string> _charByDescription = new Dictionary<string, string> { { "comma", "," }, { "period", "." }, { "minus", "-" }, { "plus", "+" } };
+		private static readonly Dictionary<string, string> _charByDescription = new Dictionary<string, string> { { "comma", "," }, { "period", "." }, { "minus", "-" }, { "plus", "+" } };
 
 		static Input()
 		{
-			Engine.StartReload += UnloadListener;
-			Engine.EndReload += LoadListener;
+			Engine.StartReload += RemoveListener;
+			Engine.EndReload += AddListener;
 		}
 
-		private static void LoadListener()
+		private static void AddListener()
 		{
 			if(_listener != null)
 			{
-				UnloadListener();
+				RemoveListener();
 			}
 
 			_listener = new InputListener();
 			_listener.OnInputReceived += OnInput;
 		}
 
-		private static void UnloadListener()
+		private static void RemoveListener()
 		{
-			_listener.Dispose();
+			_listener?.Dispose();
 			_listener = null;
 		}
 
@@ -102,7 +102,7 @@ namespace CryEngine
 		/// </summary>
 		internal static void Initialize()
 		{
-			LoadListener();
+			AddListener();
 
 			if(_listener == null)
 			{

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -12,16 +12,19 @@ class CDevice : public CRefCounted
 public:
 	static CDevice*                  Create(CCryDX12GIAdapter* adapter, D3D_FEATURE_LEVEL* pFeatureLevel);
 
-	ILINE ID3D12Device*              GetD3D12Device() const        { return /*PassAddRef*/ (m_pDevice); }
+	ILINE ID3D12Device*              GetD3D12Device() const        { return /*PassAddRef*/ (m_pDevice ); } // RTM
+#if NTDDI_WIN10_RS1 && (WDK_NTDDI_VERSION >= NTDDI_WIN10_RS1)
+	ILINE ID3D12Device1*             GetD3D12Device1() const       { return /*PassAddRef*/ (m_pDevice1); } // Anniversary Update
+#endif
+#if NTDDI_WIN10_RS2 && (WDK_NTDDI_VERSION >= NTDDI_WIN10_RS2)
+	ILINE ID3D12Device2*             GetD3D12Device2() const       { return /*PassAddRef*/ (m_pDevice2); } // Creator's Update
+#endif
 
 	ILINE CPSOCache&                 GetPSOCache()                 { return m_PSOCache; }
 	ILINE const CPSOCache&           GetPSOCache() const           { return m_PSOCache; }
 
 	ILINE CRootSignatureCache&       GetRootSignatureCache()       { return m_RootSignatureCache; }
 	ILINE const CRootSignatureCache& GetRootSignatureCache() const { return m_RootSignatureCache; }
-
-	// TODO: Move this outside
-	void RequestUploadHeapMemory(UINT64 size, DX12_PTR(ID3D12Resource) & result);
 
 	#ifdef DX12_LINKEDADAPTER
 	bool                      IsMultiAdapter() const;
@@ -40,21 +43,28 @@ protected:
 	virtual ~CDevice();
 
 private:
-	DX12_PTR(ID3D12Device) m_pDevice;
+	DX12_PTR(ID3D12Device)  m_pDevice;  // RTM
+#if NTDDI_WIN10_RS1 && (WDK_NTDDI_VERSION >= NTDDI_WIN10_RS1)
+	DX12_PTR(ID3D12Device1) m_pDevice1; // Anniversary Update
+#endif
+#if NTDDI_WIN10_RS2 && (WDK_NTDDI_VERSION >= NTDDI_WIN10_RS2)
+	DX12_PTR(ID3D12Device2) m_pDevice2; // Creator's Update
+#endif
 	D3D_FEATURE_LEVEL      m_featureLevel;
 	UINT                   m_nodeCount;
 	UINT                   m_nodeMask;
-
+	
 	CPSOCache              m_PSOCache;
 	CRootSignatureCache    m_RootSignatureCache;
 
 public:
-	HRESULT                     CheckFeatureSupport(D3D12_FEATURE Feature, void *pFeatureSupportData, UINT FeatureSupportDataSize) { m_pDevice->CheckFeatureSupport(Feature, pFeatureSupportData, FeatureSupportDataSize); }
+	HRESULT                     CheckFeatureSupport(D3D12_FEATURE Feature, void *pFeatureSupportData, UINT FeatureSupportDataSize) { return m_pDevice->CheckFeatureSupport(Feature, pFeatureSupportData, FeatureSupportDataSize); }
 	D3D_FEATURE_LEVEL           GetFeatureLevel() const { return m_featureLevel; }
 	UINT                        GetNodeCount() const    { return m_nodeCount; }
 	UINT                        GetNodeMask() const     { return m_nodeMask; }
 
 	CCommandScheduler&          GetScheduler() { return m_Scheduler; }
+	const CCommandScheduler&    GetScheduler() const { return m_Scheduler; }
 
 	D3D12_CPU_DESCRIPTOR_HANDLE CacheSampler(const D3D12_SAMPLER_DESC* pDesc) threadsafe;
 	D3D12_CPU_DESCRIPTOR_HANDLE CacheShaderResourceView(const D3D12_SHADER_RESOURCE_VIEW_DESC* pDesc, ID3D12Resource* pResource) threadsafe;
@@ -169,8 +179,8 @@ private:
 		UINT64          fenceValues[CMDQUEUE_NUM];
 	};
 
-	typedef std::unordered_map<ID3D12Resource*, ReleaseInfo> TReleaseHeap;
-	typedef std::unordered_multimap<THash, RecycleInfo>      TRecycleHeap;
+	typedef std::unordered_map<ID3D12Resource*, ReleaseInfo>   TReleaseHeap;
+	typedef std::unordered_map<THash, std::deque<RecycleInfo>> TRecycleHeap;
 
 	TReleaseHeap m_ReleaseHeap;
 	TRecycleHeap m_RecycleHeap;

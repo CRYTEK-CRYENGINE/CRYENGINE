@@ -1,213 +1,218 @@
-<?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-	<PropertyGroup>
-		<Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
-		<Platform Condition=" '$(Platform)' == '' ">x64</Platform>
-		<ProjectGuid>{7B3F4428-1CFE-4CCF-B1CB-DEFA5F86D6FB}</ProjectGuid>
-		<OutputType>Library</OutputType>
-		<RootNamespace>CryEngine</RootNamespace>
-		<AssemblyName>CryEngine.Core</AssemblyName>
-		<TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
-		<UseMSBuildEngine>False</UseMSBuildEngine>
-		<TargetFrameworkProfile>
-		</TargetFrameworkProfile>
-	</PropertyGroup>
-	<PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
-		<DebugSymbols>true</DebugSymbols>
-		<OutputPath>..\..\..\..\bin\win_x64</OutputPath>
-		<DefineConstants>DEBUG;TRACE;WIN64</DefineConstants>
-		<DebugType>full</DebugType>
-		<PlatformTarget>AnyCPU</PlatformTarget>
-		<ErrorReport>prompt</ErrorReport>
-		<CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
-		<Optimize>false</Optimize>
-	</PropertyGroup>
-	<PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
-		<OutputPath>..\..\..\..\bin\win_x64</OutputPath>
-		<DefineConstants>TRACE;WIN64</DefineConstants>
-		<Optimize>true</Optimize>
-		<PlatformTarget>AnyCPU</PlatformTarget>
-		<ErrorReport>prompt</ErrorReport>
-		<CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
-		<WarningLevel>4</WarningLevel>
-	</PropertyGroup>
-	<PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x86'">
-		<DebugSymbols>true</DebugSymbols>
-		<OutputPath>..\..\..\..\bin\win_x86</OutputPath>
-		<DefineConstants>TRACE;DEBUG;WIN86;WIN32</DefineConstants>
-		<DebugType>full</DebugType>
-		<PlatformTarget>AnyCPU</PlatformTarget>
-		<ErrorReport>prompt</ErrorReport>
-		<CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
-		<PlatformTarget>AnyCPU</PlatformTarget>
-		<WarningLevel>4</WarningLevel>
-		<Optimize>false</Optimize>
-	</PropertyGroup>
-	<PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x86'">
-		<OutputPath>..\..\..\..\bin\win_x86_release</OutputPath>
-		<DefineConstants>TRACE;WIN86</DefineConstants>
-		<Optimize>true</Optimize>
-		<PlatformTarget>AnyCPU</PlatformTarget>
-		<ErrorReport>prompt</ErrorReport>
-		<CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
-		<PlatformTarget>AnyCPU</PlatformTarget>
-		<WarningLevel>4</WarningLevel>
-	</PropertyGroup>
-	<PropertyGroup>
-		<RunPostBuildEvent>Always</RunPostBuildEvent>
-	</PropertyGroup>
-	<ItemGroup>
-		<Reference Include="System" />
-		<Reference Include="System.Data" />
-		<Reference Include="System.Drawing" />
-		<Reference Include="System.Runtime.Serialization" />
-		<Reference Include="System.Windows.Forms" />
-		<Reference Include="System.Xml" />
-		<Reference Include="CryEngine.Common">
-			<HintPath>..\..\..\..\bin\win_x64\CryEngine.Common.dll</HintPath>
-		</Reference>
-	</ItemGroup>
-	<ItemGroup>
-		<Compile Include="AI\Attributes.cs" />
-		<Compile Include="AI\BehaviorTreeNode.cs" />
-		<Compile Include="AI\BehaviorTreeNodeFactory.cs" />
-		<Compile Include="AI\LastingMovementRequest.cs" />
-		<Compile Include="Animations\Character.cs" />
-		<Compile Include="Animations\CharacterAttachment.cs" />
-		<Compile Include="Animations\MotionParameterID.cs" />
-		<Compile Include="Audio\Audio.cs" />
-		<Compile Include="Audio\AudioFile.cs" />
-		<Compile Include="Audio\AudioManager.cs" />
-		<Compile Include="Audio\AudioObject.cs" />
-		<Compile Include="Audio\AudioRequestInfo.cs" />
-		<Compile Include="Audio\AudioListener.cs" />
-		<Compile Include="Audio\AudioObjectTransformation.cs" />
-		<Compile Include="Audio\Native\NativeAudioMethods.cs" />
-		<Compile Include="Console\Attributes.cs" />
-		<Compile Include="Console\ConsoleCommand.cs" />
-		<Compile Include="Console\ConsoleVariable.cs" />
-		<Compile Include="Console\Native\NativeConsoleMethods.cs" />
-		<Compile Include="Debugging\DebugDraw.cs" />
-		<Compile Include="Debugging\ExceptionHandler.cs" />
-		<Compile Include="Debugging\ExceptionMessage.cs">
-			<SubType>Form</SubType>
-		</Compile>
-		<Compile Include="Debugging\ExceptionMessage.Designer.cs">
-			<DependentUpon>ExceptionMessage.cs</DependentUpon>
-		</Compile>
-		<Compile Include="Debugging\Log.cs" />
-		<Compile Include="EntitySystem\Entity.cs" />
-		<Compile Include="EntitySystem\EntityComponent.cs" />
-		<Compile Include="EntitySystem\EntityId.cs" />
-		<Compile Include="EntitySystem\EntityProperty.cs" />
-		<Compile Include="EntitySystem\EntityStatics.cs" />
-		<Compile Include="EntitySystem\Native\NativeEntityMethods.cs" />
-		<Compile Include="EntitySystem\PhysicsEntity.cs" />
-		<Compile Include="Input\ActionHandler.cs" />
-		<Compile Include="Input\Input.cs" />
-		<Compile Include="Input\Mouse.cs" />
-		<Compile Include="Math\Angles3.cs" />
-		<Compile Include="Math\Color.cs" />
-		<Compile Include="Math\MathHelpers.cs" />
-		<Compile Include="Math\Matrix3x3.cs" />
-		<Compile Include="Math\Matrix3x4.cs" />
-		<Compile Include="Math\Matrix4x4.cs" />
-		<Compile Include="Math\Primitives.cs" />
-		<Compile Include="Math\Quaternion.cs" />
-		<Compile Include="Math\Vector2.cs" />
-		<Compile Include="Math\Vector3.cs" />
-		<Compile Include="Math\Vector4.cs" />
-		<Compile Include="Physics\Enums\AreaType.cs" />
-		<Compile Include="Physics\Enums\EntityRaycastFlags.cs" />
-		<Compile Include="Physics\Enums\PhysicalizationType.cs" />
-		<Compile Include="Physics\Enums\PhysicsEntityFlags.cs" />
-		<Compile Include="Physics\Parameters\AreaParameters.cs" />
-		<Compile Include="Physics\Parameters\BasePhysicsParameters.cs" />
-		<Compile Include="Physics\Parameters\BuoyancyParameters.cs" />
-		<Compile Include="Physics\Parameters\CarParameters.cs" />
-		<Compile Include="Physics\Parameters\ParticleParameters.cs" />
-		<Compile Include="Physics\Parameters\PlayerDimensionsParameters.cs" />
-		<Compile Include="Physics\Parameters\PlayerDynamicsParameters.cs" />
-		<Compile Include="Physics\PhysicalizeParameters\AreaPhysicalizeParams.cs" />
-		<Compile Include="Physics\PhysicalizeParameters\ArticulatedPhysicalizeParams.cs" />
-		<Compile Include="Physics\PhysicalizeParameters\EntityPhysicalizeParams.cs" />
-		<Compile Include="Physics\PhysicalizeParameters\LivingPhysicalizeParams.cs" />
-		<Compile Include="Physics\PhysicalizeParameters\ParticlePhysicalizeParams.cs" />
-		<Compile Include="Physics\PhysicalizeParameters\RigidPhysicalizeParams.cs" />
-		<Compile Include="Physics\PhysicalizeParameters\RopePhysicalizeParams.cs" />
-		<Compile Include="Physics\PhysicalizeParameters\SoftPhysicalizeParams.cs" />
-		<Compile Include="Physics\PhysicalizeParameters\StaticPhysicalizeParams.cs" />
-		<Compile Include="Physics\PhysicalizeParameters\WheeledVehiclePhysicalizeParams.cs" />
-		<Compile Include="Physics\Physics.cs" />
-		<Compile Include="Physics\PhysicsStatus\BasePhysicsStatus.cs" />
-		<Compile Include="Physics\PhysicsStatus\DynamicsStatus.cs" />
-		<Compile Include="Physics\PhysicsStatus\LivingStatus.cs" />
-		<Compile Include="Physics\PhysicsStatus\VehicleStatus.cs" />
-		<Compile Include="Physics\Ray.cs" />
-		<Compile Include="Physics\RaycastHit.cs" />
-		<Compile Include="Rendering\Renderer.cs" />
-		<Compile Include="Serialization\CachedTypeInfo.cs" />
-		<Compile Include="Serialization\DomainSerializer.cs" />
-		<Compile Include="Serialization\ObjectReader.cs" />
-		<Compile Include="Serialization\ObjectWriter.cs" />
-		<Compile Include="Util\Attribute.cs" />
-		<Compile Include="Util\Event.cs" />
-		<Compile Include="Util\IconType.cs" />
-		<Compile Include="Util\ReflectionHelper.cs" />
-		<Compile Include="Util\Tools.cs" />
-		<Compile Include="Attributes.cs" />
-		<Compile Include="Camera.cs" />
-		<Compile Include="Extensions.cs" />
-		<Compile Include="GameFramework.cs" />
-		<Compile Include="ICryEnginePlugin.cs" />
-		<Compile Include="LevelSystem.cs" />
-		<Compile Include="Random.cs" />
-		<Compile Include="SystemEventHandler.cs" />
-		<Compile Include="Timer.cs" />
-		<Compile Include="Input\Enums\KeyId.cs" />
-		<Compile Include="Input\Enums\InputDeviceType.cs" />
-		<Compile Include="Input\Enums\InputState.cs" />
-		<Compile Include="Input\Enums\InputModifierFlags.cs" />
-		<Compile Include="Input\InputEvent.cs" />
-		<Compile Include="Util\AutoPinner.cs" />
-		<Compile Include="FileSystem\File.cs" />
-		<Compile Include="FileSystem\Directory.cs" />
-		<Compile Include="FileSystem\Path.cs" />
-		<Compile Include="FileSystem\CryPakFile.cs" />
-		<Compile Include="FileSystem\FileMode.cs" />
-		<Compile Include="Engine.cs" />
-		<Compile Include="EntitySystem\Attributes\EntityClassAttribute.cs" />
-		<Compile Include="EntitySystem\Attributes\EntityComponentAttribute.cs" />
-		<Compile Include="Particles\ParticleManager.cs" />
-		<Compile Include="Particles\ParticleEffectListener.cs" />
-		<Compile Include="Particles\ParticleEffect.cs" />
-		<Compile Include="Particles\ParticleEmitter.cs" />
-		<Compile Include="Particles\ParticleLocation.cs" />
-		<Compile Include="Particles\SpawnParameters.cs" />
-		<Compile Include="Particles\ParticleAttributes.cs" />
-		<Compile Include="Lights\DynamicLight.cs" />
-		<Compile Include="Lights\RenderLight.cs" />
-		<Compile Include="EntitySystem\EntitySlotFlags.cs" />
-		<Compile Include="Animations\ActionController.cs" />
-		<Compile Include="Animations\AnimationContext.cs" />
-		<Compile Include="Animations\AnimationContextAction.cs" />
-		<Compile Include="Animations\AnimationDatabase.cs" />
-		<Compile Include="Animations\AnimationDatabaseManager.cs" />
-		<Compile Include="Animations\AnimationTag.cs" />
-		<Compile Include="Animations\ControllerDefinition.cs" />
-		<Compile Include="Animations\Mannequin.cs" />
-		<Compile Include="Animations\TagState.cs" />
-		<Compile Include="Util\View.cs" />
-		<Compile Include="Resources\Texture.cs" />
-	</ItemGroup>
-	<ItemGroup>
-		<EmbeddedResource Include="Debugging\ExceptionMessage.resx">
-			<DependentUpon>ExceptionMessage.cs</DependentUpon>
-		</EmbeddedResource>
-	</ItemGroup>
-	<ItemGroup>
-	  <Folder Include="Particles\" />
-	  <Folder Include="Lights\" />
-	</ItemGroup>
-	<Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">x64</Platform>
+    <ProjectGuid>{7B3F4428-1CFE-4CCF-B1CB-DEFA5F86D6FB}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <RootNamespace>CryEngine</RootNamespace>
+    <AssemblyName>CryEngine.Core</AssemblyName>
+    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
+    <UseMSBuildEngine>False</UseMSBuildEngine>
+    <TargetFrameworkProfile>
+    </TargetFrameworkProfile>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
+    <DebugSymbols>true</DebugSymbols>
+    <OutputPath>..\..\..\..\bin\win_x64</OutputPath>
+    <DefineConstants>DEBUG;TRACE;WIN64</DefineConstants>
+    <DebugType>portable</DebugType>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <ErrorReport>prompt</ErrorReport>
+    <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
+    <Optimize>false</Optimize>
+    <DocumentationFile>..\..\..\..\bin\win_x64\CryEngine.Core.XML</DocumentationFile>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
+    <OutputPath>..\..\..\..\bin\win_x64</OutputPath>
+    <DefineConstants>TRACE;WIN64</DefineConstants>
+    <Optimize>true</Optimize>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <ErrorReport>prompt</ErrorReport>
+    <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x86'">
+    <DebugSymbols>true</DebugSymbols>
+    <OutputPath>..\..\..\..\bin\win_x86</OutputPath>
+    <DefineConstants>TRACE;DEBUG;WIN86;WIN32</DefineConstants>
+    <DebugType>portable</DebugType>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <ErrorReport>prompt</ErrorReport>
+    <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <WarningLevel>4</WarningLevel>
+    <Optimize>false</Optimize>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x86'">
+    <OutputPath>..\..\..\..\bin\win_x86_release</OutputPath>
+    <DefineConstants>TRACE;WIN86</DefineConstants>
+    <Optimize>true</Optimize>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <ErrorReport>prompt</ErrorReport>
+    <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup>
+    <RunPostBuildEvent>Always</RunPostBuildEvent>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Runtime.Serialization" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Xml" />
+    <Reference Include="CryEngine.Common">
+      <HintPath>..\..\..\..\bin\win_x64\CryEngine.Common.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="AI\Attributes.cs" />
+    <Compile Include="AI\BehaviorTreeNode.cs" />
+    <Compile Include="AI\BehaviorTreeNodeFactory.cs" />
+    <Compile Include="AI\LastingMovementRequest.cs" />
+    <Compile Include="Animations\Character.cs" />
+    <Compile Include="Animations\CharacterAttachment.cs" />
+    <Compile Include="Animations\MotionParameterID.cs" />
+    <Compile Include="Audio\Audio.cs" />
+    <Compile Include="Audio\AudioFile.cs" />
+    <Compile Include="Audio\AudioManager.cs" />
+    <Compile Include="Audio\AudioObject.cs" />
+    <Compile Include="Audio\AudioRequestInfo.cs" />
+    <Compile Include="Audio\AudioListener.cs" />
+    <Compile Include="Audio\AudioObjectTransformation.cs" />
+    <Compile Include="Audio\Native\NativeAudioMethods.cs" />
+    <Compile Include="Compilation\CompilationFailedException.cs" />
+    <Compile Include="Compilation\Compiler.cs" />
+    <Compile Include="Console\Attributes.cs" />
+    <Compile Include="Console\ConsoleCommand.cs" />
+    <Compile Include="Console\ConsoleVariable.cs" />
+    <Compile Include="Console\Native\NativeConsoleMethods.cs" />
+    <Compile Include="Debugging\DebugDraw.cs" />
+    <Compile Include="Debugging\ExceptionHandler.cs" />
+    <Compile Include="Debugging\ExceptionMessage.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Debugging\ExceptionMessage.Designer.cs">
+      <DependentUpon>ExceptionMessage.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Debugging\Log.cs" />
+    <Compile Include="EntitySystem\Entity.cs" />
+    <Compile Include="EntitySystem\EntityComponent.cs" />
+    <Compile Include="EntitySystem\EntityId.cs" />
+    <Compile Include="EntitySystem\EntityProperty.cs" />
+    <Compile Include="EntitySystem\EntityStatics.cs" />
+    <Compile Include="EntitySystem\Enums\Primitives.cs" />
+    <Compile Include="EntitySystem\Native\NativeEntityMethods.cs" />
+    <Compile Include="EntitySystem\PhysicsEntity.cs" />
+    <Compile Include="Input\ActionHandler.cs" />
+    <Compile Include="Input\Input.cs" />
+    <Compile Include="Input\Mouse.cs" />
+    <Compile Include="Math\Angles3.cs" />
+    <Compile Include="Math\Color.cs" />
+    <Compile Include="Math\MathHelpers.cs" />
+    <Compile Include="Math\Matrix3x3.cs" />
+    <Compile Include="Math\Matrix3x4.cs" />
+    <Compile Include="Math\Matrix4x4.cs" />
+    <Compile Include="Math\Primitives.cs" />
+    <Compile Include="Math\Quaternion.cs" />
+    <Compile Include="Math\Vector2.cs" />
+    <Compile Include="Math\Vector3.cs" />
+    <Compile Include="Math\Vector4.cs" />
+    <Compile Include="Physics\Enums\AreaType.cs" />
+    <Compile Include="Physics\Enums\EntityRaycastFlags.cs" />
+    <Compile Include="Physics\Enums\PhysicalizationType.cs" />
+    <Compile Include="Physics\Enums\PhysicsEntityFlags.cs" />
+    <Compile Include="Physics\Parameters\AreaParameters.cs" />
+    <Compile Include="Physics\Parameters\BasePhysicsParameters.cs" />
+    <Compile Include="Physics\Parameters\BuoyancyParameters.cs" />
+    <Compile Include="Physics\Parameters\CarParameters.cs" />
+    <Compile Include="Physics\Parameters\ParticleParameters.cs" />
+    <Compile Include="Physics\Parameters\PlayerDimensionsParameters.cs" />
+    <Compile Include="Physics\Parameters\PlayerDynamicsParameters.cs" />
+    <Compile Include="Physics\PhysicalizeParameters\AreaPhysicalizeParams.cs" />
+    <Compile Include="Physics\PhysicalizeParameters\ArticulatedPhysicalizeParams.cs" />
+    <Compile Include="Physics\PhysicalizeParameters\EntityPhysicalizeParams.cs" />
+    <Compile Include="Physics\PhysicalizeParameters\LivingPhysicalizeParams.cs" />
+    <Compile Include="Physics\PhysicalizeParameters\ParticlePhysicalizeParams.cs" />
+    <Compile Include="Physics\PhysicalizeParameters\RigidPhysicalizeParams.cs" />
+    <Compile Include="Physics\PhysicalizeParameters\RopePhysicalizeParams.cs" />
+    <Compile Include="Physics\PhysicalizeParameters\SoftPhysicalizeParams.cs" />
+    <Compile Include="Physics\PhysicalizeParameters\StaticPhysicalizeParams.cs" />
+    <Compile Include="Physics\PhysicalizeParameters\WheeledVehiclePhysicalizeParams.cs" />
+    <Compile Include="Physics\Physics.cs" />
+    <Compile Include="Physics\PhysicsStatus\BasePhysicsStatus.cs" />
+    <Compile Include="Physics\PhysicsStatus\DynamicsStatus.cs" />
+    <Compile Include="Physics\PhysicsStatus\LivingStatus.cs" />
+    <Compile Include="Physics\PhysicsStatus\VehicleStatus.cs" />
+    <Compile Include="Physics\Ray.cs" />
+    <Compile Include="Physics\RaycastHit.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Rendering\Renderer.cs" />
+    <Compile Include="Serialization\CachedTypeInfo.cs" />
+    <Compile Include="Serialization\DomainSerializer.cs" />
+    <Compile Include="Serialization\ObjectReader.cs" />
+    <Compile Include="Serialization\ObjectWriter.cs" />
+    <Compile Include="Serialization\ISerializedObject.cs" />
+    <Compile Include="Serialization\SerializeValueAttribute.cs" />
+    <Compile Include="Util\Attribute.cs" />
+    <Compile Include="Util\Event.cs" />
+    <Compile Include="Util\IconType.cs" />
+    <Compile Include="Util\ReflectionHelper.cs" />
+    <Compile Include="Util\Tools.cs" />
+    <Compile Include="Camera.cs" />
+    <Compile Include="Extensions.cs" />
+    <Compile Include="GameFramework.cs" />
+    <Compile Include="ICryEnginePlugin.cs" />
+    <Compile Include="LevelSystem.cs" />
+    <Compile Include="Random.cs" />
+    <Compile Include="SystemEventHandler.cs" />
+    <Compile Include="Timer.cs" />
+    <Compile Include="Input\Enums\KeyId.cs" />
+    <Compile Include="Input\Enums\InputDeviceType.cs" />
+    <Compile Include="Input\Enums\InputState.cs" />
+    <Compile Include="Input\Enums\InputModifierFlags.cs" />
+    <Compile Include="Input\InputEvent.cs" />
+    <Compile Include="Util\AutoPinner.cs" />
+    <Compile Include="FileSystem\File.cs" />
+    <Compile Include="FileSystem\Directory.cs" />
+    <Compile Include="FileSystem\Path.cs" />
+    <Compile Include="FileSystem\CryPakFile.cs" />
+    <Compile Include="FileSystem\FileMode.cs" />
+    <Compile Include="Engine.cs" />
+    <Compile Include="EntitySystem\Attributes\EntityClassAttribute.cs" />
+    <Compile Include="EntitySystem\Attributes\EntityComponentAttribute.cs" />
+    <Compile Include="EntitySystem\Attributes\SchematycMethodAttribute.cs" />
+    <Compile Include="EntitySystem\Attributes\SchematycSignalAttribute.cs" />
+    <Compile Include="Particles\ParticleManager.cs" />
+    <Compile Include="Particles\ParticleEffectListener.cs" />
+    <Compile Include="Particles\ParticleEffect.cs" />
+    <Compile Include="Particles\ParticleEmitter.cs" />
+    <Compile Include="Particles\ParticleLocation.cs" />
+    <Compile Include="Particles\SpawnParameters.cs" />
+    <Compile Include="Particles\ParticleAttributes.cs" />
+    <Compile Include="Lights\DynamicLight.cs" />
+    <Compile Include="Lights\RenderLight.cs" />
+    <Compile Include="EntitySystem\EntitySlotFlags.cs" />
+    <Compile Include="Animations\ActionController.cs" />
+    <Compile Include="Animations\AnimationContext.cs" />
+    <Compile Include="Animations\AnimationContextAction.cs" />
+    <Compile Include="Animations\AnimationDatabase.cs" />
+    <Compile Include="Animations\AnimationDatabaseManager.cs" />
+    <Compile Include="Animations\AnimationTag.cs" />
+    <Compile Include="Animations\ControllerDefinition.cs" />
+    <Compile Include="Animations\Mannequin.cs" />
+    <Compile Include="Animations\TagState.cs" />
+    <Compile Include="Util\View.cs" />
+    <Compile Include="Resources\Texture.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Debugging\ExceptionMessage.resx">
+      <DependentUpon>ExceptionMessage.cs</DependentUpon>
+    </EmbeddedResource>
+  </ItemGroup>
+  <ItemGroup />
+  <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
 </Project>

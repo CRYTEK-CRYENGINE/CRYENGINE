@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 //
 //	File:IStatObj.h
@@ -18,7 +18,6 @@ struct    IMaterial;
 struct    ShadowMapFrustum;
 class CRenderObject;
 struct    IShader;
-class CDLight;
 class IReadStream;
 struct    SRenderingPassInfo;
 TYPEDEF_AUTOPTR(IReadStream);
@@ -79,6 +78,7 @@ enum EStaticObjectFlags
 #define HIT_OBJ_TYPE_TERRAIN 1
 #define HIT_OBJ_TYPE_VISAREA 2
 
+//! \cond INTERNAL
 //! Used for on-CPU voxelization.
 struct SRayHitTriangle
 {
@@ -92,6 +92,7 @@ struct SRayHitTriangle
 	uint8      nOpacity;
 	uint8      nHitObjType;
 };
+//! \endcond
 
 struct SRayHitInfo
 {
@@ -200,8 +201,7 @@ struct IStreamable
 	uint32                m_nStatsInUse      : 1;
 };
 
-// Summary:
-//     Interface to hold static object data
+//! Represents a static object that can be rendered in the scene, represented by the .CGF format
 struct IStatObj : IMeshObj, IStreamable
 {
 	//! Loading flags.
@@ -212,6 +212,7 @@ struct IStatObj : IMeshObj, IStreamable
 		ELoadingFlagsIgnoreLoDs     = BIT(2),
 		ELoadingFlagsTessellate     = BIT(3), //!< If e_StatObjTessellation enabled.
 		ELoadingFlagsJustGeometry   = BIT(4), //!< For streaming, to avoid parsing all chunks.
+		ELoadingFlagsNoErrorIfFail  = BIT(5), //!< Don't log error message if the file is not found
 	};
 
 	struct SSubObject
@@ -379,7 +380,7 @@ struct IStatObj : IMeshObj, IStreamable
 	virtual IStatObj* GetLodObject(int nLodLevel, bool bReturnNearest = false) = 0;
 	virtual void      SetLodObject(int nLodLevel, IStatObj* pLod) = 0;
 	virtual IStatObj* GetLowestLod() = 0;
-	virtual int       FindNearesLoadedLOD(int nLodIn, bool bSearchUp = false) = 0;
+	virtual int       FindNearestLoadedLOD(int nLodIn, bool bSearchUp = false) = 0;
 	virtual int       FindHighestLOD(int nBias) = 0;
 
 	//! Returns the filename of the object.
@@ -478,11 +479,12 @@ struct IStatObj : IMeshObj, IStreamable
 	virtual IStatObj::SSubObject& AddSubObject(IStatObj* pStatObj) = 0;
 
 	//! Adds subobjects to pent, meshes as parts, joint helpers as breakable joints
-	virtual int PhysicalizeSubobjects(IPhysicalEntity* pent, const Matrix34* pMtx, float mass, float density = 0.0f, int id0 = 0, strided_pointer<int> pJointsIdMap = 0, const char* szPropsOverride = 0) = 0;
+	virtual int PhysicalizeSubobjects(IPhysicalEntity* pent, const Matrix34* pMtx, float mass, float density = 0.0f, int id0 = 0, strided_pointer<int> pJointsIdMap = 0, const char* szPropsOverride = 0, int idbodyArtic = -1) = 0;
 
 	//! Adds all phys geometries to pent, assigns ids starting from id; takes mass and density from the StatObj properties if not set in pgp.
 	//! id == -1 means that compound objects will use the 0th level in the id space (i.e. slot#==phys id), and simple objects will let the physics allocate an id
 	//! for compound objects calls PhysicalizeSubobjects
+	//! if >=0, idbodyArtic sets it for all parts as idbody, otherwise idbody is set to each node's phys part id
 	//! \return Physical id of the last physicalized part
 	virtual int  Physicalize(IPhysicalEntity* pent, pe_geomparams* pgp, int id = -1, const char* szPropsOverride = 0) = 0;
 

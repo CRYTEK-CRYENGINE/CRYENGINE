@@ -1,0 +1,8 @@
+<AssetMetadata version="0" type="Xml" guid="5c44161f-e018-5ca7-3191-666106cde60c">
+ <Files>
+  <File path="defaulttextures.xml"/>
+ </Files>
+ <Details>
+  <Detail name="rootTag">textures</Detail>
+ </Details>
+</AssetMetadata>

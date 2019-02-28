@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -378,7 +378,7 @@ public:
 	virtual void EnableMovementProcessing(bool enable) override { m_bMovementProcessingEnabled = enable; }
 	virtual bool IsMovementProcessingEnabled() override { return m_bMovementProcessingEnabled; }
 
-	virtual void ProcessEvent(SEntityEvent& event) override;
+	virtual void ProcessEvent(const SEntityEvent& event) override;
 	virtual CryCriticalSection* GetNetworkLock() override { return &m_networkLock; }
 
 	virtual float GetEnginePedal() override { return m_movementAction.power; }

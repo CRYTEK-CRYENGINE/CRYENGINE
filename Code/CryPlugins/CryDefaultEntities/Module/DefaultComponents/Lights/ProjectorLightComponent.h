@@ -1,9 +1,5 @@
 #pragma once
-
-#include "PointLightComponent.h"
-
-#include <CrySchematyc/MathTypes.h>
-#include <CrySchematyc/Env/IEnvRegistrar.h>
+#include "ILightComponent.h"
 #include <CryMath/Angle.h>
 
 class CPlugin_CryDefaultEntities;
@@ -13,7 +9,7 @@ namespace Cry
 	namespace DefaultComponents
 	{
 		class CProjectorLightComponent
-			: public IEntityComponent
+			: public ILightComponent
 #ifndef RELEASE
 			, public IEntityComponentPreviewer
 #endif
@@ -25,7 +21,7 @@ namespace Cry
 			// IEntityComponent
 			virtual void Initialize() final;
 
-			virtual void ProcessEvent(SEntityEvent& event) final;
+			virtual void ProcessEvent(const SEntityEvent& event) final;
 			virtual uint64 GetEventMask() const final;
 
 #ifndef RELEASE
@@ -45,6 +41,13 @@ namespace Cry
 			CProjectorLightComponent() {}
 			virtual ~CProjectorLightComponent() {}
 
+			virtual void SetOptics(const char* szOpticsFullName) override
+			{
+				m_optics.m_lensFlareName = szOpticsFullName;
+
+				Initialize(); 
+			}
+
 			static void ReflectType(Schematyc::CTypeDesc<CProjectorLightComponent>& desc)
 			{
 				desc.SetGUID("{07D0CAD1-8E79-4177-9ADD-A2464A009FA5}"_cry_guid);
@@ -52,18 +55,19 @@ namespace Cry
 				desc.SetLabel("Projector Light");
 				desc.SetDescription("Emits light from its position in a general direction, constrained to a specified angle");
 				desc.SetIcon("icons:ObjectTypes/light.ico");
-				desc.SetComponentFlags({ IEntityComponent::EFlags::Transform, IEntityComponent::EFlags::Socket, IEntityComponent::EFlags::Attach, IEntityComponent::EFlags::ClientOnly });
+				desc.SetComponentFlags({ IEntityComponent::EFlags::Transform, IEntityComponent::EFlags::Socket, IEntityComponent::EFlags::Attach, IEntityComponent::EFlags::ClientOnly, IEntityComponent::EFlags::NoCreationOffset });
 
 				desc.AddMember(&CProjectorLightComponent::m_bActive, 'actv', "Active", "Active", "Determines whether the light is enabled", true);
-				desc.AddMember(&CProjectorLightComponent::m_radius, 'radi', "Radius", "Range", "Determines whether the range of the point light", 10.f);
+				desc.AddMember(&CProjectorLightComponent::m_radius, 'radi', "Radius", "Range", "Determines whether the range of the light", 10.f);
 				desc.AddMember(&CProjectorLightComponent::m_angle, 'angl', "Angle", "Angle", "Maximum angle to emit light to, from the light's forward axis.", 45.0_degrees);
 
 				desc.AddMember(&CProjectorLightComponent::m_projectorOptions, 'popt', "ProjectorOptions", "Projector Options", nullptr, CProjectorLightComponent::SProjectorOptions());
 
-				desc.AddMember(&CProjectorLightComponent::m_color, 'colo', "Color", "Color", "Color emission information", CPointLightComponent::SColor());
-				desc.AddMember(&CProjectorLightComponent::m_shadows, 'shad', "Shadows", "Shadows", "Shadow casting settings", CPointLightComponent::SShadows());
-				desc.AddMember(&CProjectorLightComponent::m_options, 'opt', "Options", "Options", "Specific Light Options", CPointLightComponent::SOptions());
-				desc.AddMember(&CProjectorLightComponent::m_animations, 'anim', "Animations", "Animations", "Light style / animation properties", CPointLightComponent::SAnimations());
+				desc.AddMember(&CProjectorLightComponent::m_optics, 'opti', "Optics", "Optics", "Specific Optic Options", SOptics());
+				desc.AddMember(&CProjectorLightComponent::m_color, 'colo', "Color", "Color", "Color emission information", SColor());
+				desc.AddMember(&CProjectorLightComponent::m_shadows, 'shad', "Shadows", "Shadows", "Shadow casting settings", SShadows());
+				desc.AddMember(&CProjectorLightComponent::m_options, 'opt', "Options", "Options", "Specific Light Options", SOptions());
+				desc.AddMember(&CProjectorLightComponent::m_animations, 'anim', "Animations", "Animations", "Light style / animation properties", SAnimations());
 			}
 
 			struct SProjectorOptions
@@ -110,8 +114,7 @@ namespace Cry
 				Schematyc::TextureFileName m_texturePath;
 			};
 
-			virtual void Enable(bool bEnable);
-			bool IsEnabled() const { return m_bActive; }
+			virtual void Enable(bool bEnable) override;
 
 			virtual void SetRadius(float radius) { m_radius = radius; }
 			float GetRadius() const { return m_radius; }
@@ -122,18 +125,6 @@ namespace Cry
 			virtual void SetNearPlane(float nearPlane) { m_projectorOptions.m_nearPlane = nearPlane; }
 			float GetNearPlane() const { return m_projectorOptions.m_nearPlane; }
 
-			virtual CPointLightComponent::SOptions& GetOptions() { return m_options; }
-			const CPointLightComponent::SOptions& GetOptions() const { return m_options; }
-
-			virtual CPointLightComponent::SColor& GetColorParameters() { return m_color; }
-			const CPointLightComponent::SColor& GetColorParameters() const { return m_color; }
-
-			virtual CPointLightComponent::SShadows& GetShadowParameters() { return m_shadows; }
-			const CPointLightComponent::SShadows& GetShadowParameters() const { return m_shadows; }
-
-			virtual CPointLightComponent::SAnimations& GetAnimationParameters() { return m_animations; }
-			const CPointLightComponent::SAnimations& GetAnimationParameters() const { return m_animations; }
-
 			virtual void SetFlareAngle(CryTransform::CAngle angle) { m_flare.m_angle = angle; }
 			CryTransform:: CAngle GetFlareAngle() const { return m_flare.m_angle; }
 
@@ -143,10 +134,6 @@ namespace Cry
 			CryTransform::CClampedAngle<0, 180> m_angle = 45.0_degrees;
 
 			SProjectorOptions m_projectorOptions;
-			CPointLightComponent::SOptions m_options;
-			CPointLightComponent::SColor m_color;
-			CPointLightComponent::SShadows m_shadows;
-			CPointLightComponent::SAnimations m_animations;
 
 			SFlare m_flare;
 		};

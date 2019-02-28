@@ -119,14 +119,6 @@
         "InitialSpin": [ 0.0, 0.0, 0.0 ],
         "RandomAngle": [ 180.0, 180.0, 180.0 ]
       }
-    },
-    {
-      "SecondGenOnCollide": {
-        "Components": [ ],
-        "Enabled": false,
-        "Mode": "All",
-        "Probability": 1.0
-      }
     }
   ]
 }

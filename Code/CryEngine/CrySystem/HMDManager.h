@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -30,7 +30,7 @@ public:
 	virtual bool IsStereoSetupOk() const override;
 
 	// populates o_info with the asymmetric camera information returned by the current Hmd device
-	virtual bool GetAsymmetricCameraSetupInfo(int nEye, SAsymmetricCameraSetupInfo& outInfo) const override;
+	virtual HMDCameraSetup GetHMDCameraSetup(int nEye, float projRatio, float fnear) const override;
 
 	virtual void RecenterPose() override;
 

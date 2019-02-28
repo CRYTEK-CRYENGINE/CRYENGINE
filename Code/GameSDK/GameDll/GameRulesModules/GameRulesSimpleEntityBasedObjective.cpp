@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
 	-------------------------------------------------------------------------
@@ -220,7 +220,7 @@ void CGameRulesSimpleEntityBasedObjective::Init(XmlNodeRef xml)
 	m_moduleRMIIndex = pGameRules->RegisterModuleRMIListener(this);
 	pGameRules->RegisterClientConnectionListener(this);
 
-	gEnv->pEntitySystem->AddSink(this, IEntitySystem::OnSpawn | IEntitySystem::OnRemove, 0);
+	gEnv->pEntitySystem->AddSink(this, IEntitySystem::OnSpawn | IEntitySystem::OnRemove);
 
 	CRY_ASSERT_MESSAGE(m_pObjective, "Sub-objective not created, this will crash!");
 }

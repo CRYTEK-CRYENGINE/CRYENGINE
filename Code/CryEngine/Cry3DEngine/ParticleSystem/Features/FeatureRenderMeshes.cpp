@@ -1,18 +1,16 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
+#include "FeatureCommon.h"
 #include <CrySerialization/Decorators/Resources.h>
-#include <CrySerialization/Math.h>
-#include "ParticleSystem/ParticleFeature.h"
-
-CRY_PFX2_DBG
 
 namespace pfx2
 {
 
-EParticleDataType PDT(EPDT_MeshGeometry, IMeshObj*);
+MakeDataType(EPDT_MeshGeometry, IMeshObj*, EDataDomain(EDD_PerParticle | EDD_NeedsClear)); // Submesh pointers must be cleared on edit to avoid referencing freed parent mesh
 
-extern EParticleDataType EPDT_Alpha, EPDT_Color;
+extern TDataType<float> EPDT_Alpha;
+extern TDataType<UCol>  EPDT_Color;
 
 
 SERIALIZATION_ENUM_DEFINE(ESizeMode, : uint8,
@@ -63,17 +61,23 @@ public:
 
 	virtual EFeatureType GetFeatureType() override { return EFT_Render; }
 
-	virtual void         AddToComponent(CParticleComponent* pComponent, SComponentParams* pParams) override
+	virtual void AddToComponent(CParticleComponent* pComponent, SComponentParams* pParams) override
 	{
-		pParams->m_pMesh = m_pStaticObject = Get3DEngine()->LoadStatObj(m_meshName.c_str(), NULL, NULL, m_piecesMode == EPiecesMode::Whole);
+		if (!(m_pStaticObject = Get3DEngine()->FindStatObjectByFilename(m_meshName)))
+		{
+			GetPSystem()->CheckFileAccess(m_meshName);
+			m_pStaticObject = Get3DEngine()->LoadStatObj(m_meshName, NULL, NULL, m_piecesMode == EPiecesMode::Whole);
+		}
+		pParams->m_pMesh = m_pStaticObject;
 		pParams->m_meshCentered = m_originMode == EOriginMode::Center;
 		if (m_pStaticObject)
 		{
-			pComponent->AddToUpdateList(EUL_RenderDeferred, this);
+			pComponent->RenderDeferred.add(this);
 			pComponent->AddParticleData(EPVF_Position);
 			pComponent->AddParticleData(EPQF_Orientation);
 
 			m_aSubObjects.clear();
+			float maxRadiusSqr = 0.0f;
 			if (m_piecesMode != EPiecesMode::Whole)
 			{
 				int subObjectCount = m_pStaticObject->GetSubObjectCount();
@@ -85,44 +89,59 @@ public:
 							if (string(pSub->name).Right(5) == "_main")
 								continue;
 							m_aSubObjects.push_back(pSub);
+							SetMax(maxRadiusSqr, MeshRadiusSqr(pSub->pStatObj));
 						}
 				}
+			}
 
-				if (m_aSubObjects.size() > 0)
+			if (m_aSubObjects.size() > 0)
+			{
+				// Require per-particle sub-objects
+				assert(m_aSubObjects.size() < 256);
+				pComponent->InitParticles.add(this);
+				pComponent->AddParticleData(EPDT_MeshGeometry);
+				if (m_piecesMode == EPiecesMode::AllPieces)
 				{
-					// Require per-particle sub-objects
-					assert(m_aSubObjects.size() < 256);
-					pComponent->AddToUpdateList(EUL_InitUpdate, this);
-					pComponent->AddParticleData(EPDT_MeshGeometry);
-					if (m_piecesMode == EPiecesMode::AllPieces)
-					{
-						pComponent->AddParticleData(EPDT_SpawnId);
-						pParams->m_scaleParticleCount *= m_aSubObjects.size();
-					}
+					pComponent->AddParticleData(EPDT_SpawnId);
+					pParams->m_scaleParticleCount *= m_aSubObjects.size();
 				}
 			}
+			else
+			{
+				maxRadiusSqr = MeshRadiusSqr(m_pStaticObject);
+			}
+			if (m_sizeMode == ESizeMode::Scale)
+				pParams->m_physicalSizeSlope.scale *= sqrt(maxRadiusSqr);
 		}
 	}
 
-	virtual void InitParticles(const SUpdateContext& context) override
+	float MeshRadiusSqr(IMeshObj* pMesh) const
+	{
+		AABB bb = pMesh->GetAABB();
+		return m_originMode == EOriginMode::Center ? 
+			bb.GetRadiusSqr() :
+			max(bb.min.GetLengthSquared(), bb.max.GetLengthSquared());
+	}
+
+	virtual void InitParticles(CParticleComponentRuntime& runtime) override
 	{
 		CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 
-		CParticleContainer& container = context.m_container;
-		TIOStream<IMeshObj*> meshes = container.GetTIOStream<IMeshObj*>(EPDT_MeshGeometry);
-		TIStream<uint> spawnIds = container.GetTIStream<uint>(EPDT_SpawnId);
+		CParticleContainer& container = runtime.GetContainer();
+		TIOStream<IMeshObj*> meshes = container.IOStream(EPDT_MeshGeometry);
+		TIStream<uint> spawnIds = container.IStream(EPDT_SpawnId);
 		IOVec3Stream positions = container.GetIOVec3Stream(EPVF_Position);
 		IOQuatStream orientations = container.GetIOQuatStream(EPQF_Orientation);
 		IFStream sizes = container.GetIFStream(EPDT_Size, 1.0f);
 		uint pieceCount = m_aSubObjects.size();
 		Vec3 center = m_pStaticObject->GetAABB().GetCenter();
 
-		CRY_PFX2_FOR_SPAWNED_PARTICLES(context)
+		for (auto particleId : runtime.SpawnedRange())
 		{
 			uint piece;
 			if (m_piecesMode == EPiecesMode::RandomPiece)
 			{
-				piece = context.m_spawnRng.Rand();
+				piece = runtime.Chaos().Rand();
 			}
 			else if (m_piecesMode == EPiecesMode::AllPieces)
 			{
@@ -151,7 +170,7 @@ public:
 				position += orientation * localTM.GetTranslation() * size;
 				orientation = orientation * Quat(localTM);
 
-				if (context.m_params.m_meshCentered)
+				if (m_originMode == EOriginMode::Center)
 				{
 					Vec3 subCenter = m_aSubObjects[piece]->pStatObj->GetAABB().GetCenter();
 					position += orientation * subCenter * size;
@@ -161,57 +180,51 @@ public:
 				orientations.Store(particleId, orientation);
 			}
 		}
-		CRY_PFX2_FOR_END;
 	}
 
-	virtual void Render(CParticleEmitter* pEmitter, ICommonParticleComponentRuntime* pCommonComponentRuntime, CParticleComponent* pComponent, const SRenderContext& renderContext) override
+	virtual void RenderDeferred(const CParticleComponentRuntime& runtime, const SRenderContext& renderContext) override
 	{
 		CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 
-		CParticleComponentRuntime* pComponentRuntime = pCommonComponentRuntime->GetCpuRuntime();
-		if (!pComponentRuntime)
+		if (!runtime.IsCPURuntime())
 			return;
-		auto context = SUpdateContext(pComponentRuntime);
 		auto& passInfo = renderContext.m_passInfo;
 		SRendParams renderParams = renderContext.m_renderParams;
 
-		const CParticleContainer& container = context.m_container;
+		const CParticleContainer& container = runtime.GetContainer();
 		const IVec3Stream positions = container.GetIVec3Stream(EPVF_Position);
 		const IQuatStream orientations = container.GetIQuatStream(EPQF_Orientation);
 		const IFStream alphas = container.GetIFStream(EPDT_Alpha, 1.0f);
 		const IFStream sizes = container.GetIFStream(EPDT_Size, 1.0f);
-		const TIStream<IMeshObj*> meshes = container.GetTIStream<IMeshObj*>(EPDT_MeshGeometry);
+		const TIStream<IMeshObj*> meshes = container.IStream(EPDT_MeshGeometry);
 		const Vec3 camPosition = passInfo.GetCamera().GetPosition();
 		const bool hasAlphas = container.HasData(EPDT_Alpha);
-		const bool hasPieces = container.HasData(EPDT_MeshGeometry);
 
 		IMeshObj* pMeshObj = m_pStaticObject;
-
-		const AABB bBox = m_pStaticObject->GetAABB();
-		const float invObjectSize = (m_sizeMode == ESizeMode::Size) ? rsqrt_fast(bBox.GetRadiusSqr()) : 1.0f;
-		Vec3 offset = -bBox.GetCenter();
+		AABB bBox = pMeshObj->GetAABB();
+		float sizeScale = m_sizeMode == ESizeMode::Size ? rsqrt_fast(MeshRadiusSqr(pMeshObj)) : 1.0f;
 
 		renderParams.dwFObjFlags |= FOB_TRANS_MASK;
 
-		CRY_PFX2_FOR_ACTIVE_PARTICLES(context)
+		for (auto particleId : runtime.FullRange())
 		{
-			const Vec3 position = positions.Load(particleId);
-			const Quat orientation = orientations.Load(particleId);
-			const float size = sizes.Load(particleId);
-			const Vec3 scale = m_scale * size * invObjectSize;
-
-			Matrix34 wsMatrix(scale, orientation, position);
-
-			if (hasPieces)
+			if (m_aSubObjects.size())
 			{
-				pMeshObj = meshes.Load(particleId);
+				pMeshObj = meshes.SafeLoad(particleId);
 				if (!pMeshObj)
 					continue;
-				offset = -pMeshObj->GetAABB().GetCenter();
+				bBox = pMeshObj->GetAABB();
+				sizeScale = m_sizeMode == ESizeMode::Size ? rsqrt_fast(MeshRadiusSqr(pMeshObj)) : 1.0f;
 			}
 
-			if (context.m_params.m_meshCentered)
-				wsMatrix.SetTranslation(wsMatrix * offset);
+			const Vec3 position = positions.Load(particleId);
+			const Quat orientation = orientations.Load(particleId);
+			float size = sizes.Load(particleId);
+
+			const Vec3 scale = m_scale * size;
+			Matrix34 wsMatrix(scale, orientation, position);
+			if (m_originMode == EOriginMode::Center)
+				wsMatrix.SetTranslation(wsMatrix * -bBox.GetCenter());
 
 			renderParams.fAlpha = alphas.SafeLoad(particleId);
 
@@ -224,7 +237,6 @@ public:
 			renderParams.pInstance = &non_const(*this);
 			pMeshObj->Render(renderParams, passInfo);
 		}
-		CRY_PFX2_FOR_END;
 	}
 
 	virtual uint GetNumResources() const override

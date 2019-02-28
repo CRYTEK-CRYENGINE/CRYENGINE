@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef trimesh_h
 #define trimesh_h
@@ -94,7 +94,7 @@ public:
 	virtual int UnprojectSphere(Vec3 center,float r,float rsep, contact *pcontact);
 
 	virtual float GetExtent(EGeomForm eForm) const;
-	virtual void GetRandomPos(PosNorm& ran, CRndGen& seed, EGeomForm eForm) const;
+	virtual void GetRandomPoints(Array<PosNorm> points, CRndGen& seed, EGeomForm eForm) const;
 
 	virtual void GetMemoryStatistics(ICrySizer *pSizer);
 	virtual void Save(CMemStream &stm);
@@ -125,7 +125,7 @@ public:
 	int TraceTriangleInters(int iop, primitive *pprims[], int idx_buddy,int type_buddy, prim_inters *pinters, 
 													geometry_under_test *pGTest, border_trace *pborder);
 	void HashTrianglesToPlane(const coord_plane &hashplane, const Vec2 &hashsize, grid &hashgrid,index_t *&pHashGrid,index_t *&pHashData,float rcellsize=0, 
-		float pad=1E-5f, const index_t* pIndices=0,int nTris=0);
+		float pad=1E-5f, const index_t* pIndices=0,int nTris=0,int maxhash=0);
 	int CalculateTopology(index_t *pIndices, int bCheckOnly=0);
 	int BuildIslandMap();
 	void RebuildBVTree(CBVTree *pRefTree=0);

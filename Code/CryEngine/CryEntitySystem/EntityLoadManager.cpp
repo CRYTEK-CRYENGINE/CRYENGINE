@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -19,67 +19,36 @@
 #include "EntityLayer.h"
 
 #include <CryNetwork/INetwork.h>
-
-//////////////////////////////////////////////////////////////////////////
-CEntityLoadManager::CEntityLoadManager(CEntitySystem* pEntitySystem)
-	: m_pEntitySystem(pEntitySystem)
-	, m_bSWLoading(false)
-{
-	assert(m_pEntitySystem);
-}
+#include <CrySchematyc/CoreAPI.h>
 
 //////////////////////////////////////////////////////////////////////////
 CEntityLoadManager::~CEntityLoadManager()
 {
-	stl::free_container(m_queuedAttachments);
 	stl::free_container(m_queuedFlowgraphs);
 }
 
 //////////////////////////////////////////////////////////////////////////
 void CEntityLoadManager::Reset()
 {
+	m_entityPool.clear();
 }
 
 //////////////////////////////////////////////////////////////////////////
-bool CEntityLoadManager::LoadEntities(XmlNodeRef& entitiesNode, bool bIsLoadingLevelFile, const Vec3& segmentOffset, std::vector<IEntity*>* outGlobalEntityIds, std::vector<IEntity*>* outLocalEntityIds)
+bool CEntityLoadManager::LoadEntities(XmlNodeRef& entitiesNode, bool bIsLoadingLevelFile, const Vec3& segmentOffset)
 {
 	bool bResult = false;
-	m_bSWLoading = gEnv->p3DEngine->IsSegmentOperationInProgress();
 
 	if (entitiesNode && ReserveEntityIds(entitiesNode))
 	{
 		PrepareBatchCreation(entitiesNode->getChildCount());
 
-		bResult = ParseEntities(entitiesNode, bIsLoadingLevelFile, segmentOffset, outGlobalEntityIds, outLocalEntityIds);
+		bResult = ParseEntities(entitiesNode, bIsLoadingLevelFile, segmentOffset);
 
 		OnBatchCreationCompleted();
 	}
 
 	return bResult;
 }
-
-//////////////////////////////////////////////////////////////////////////
-//bool CEntityLoadManager::CreateEntities(TEntityLoadParamsContainer &container)
-//{
-//	bool bResult = container.empty();
-//
-//	if (!bResult)
-//	{
-//		PrepareBatchCreation(container.size());
-//
-//		bResult = true;
-//		TEntityLoadParamsContainer::iterator itLoadParams = container.begin();
-//		TEntityLoadParamsContainer::iterator itLoadParamsEnd = container.end();
-//		for (; itLoadParams != itLoadParamsEnd; ++itLoadParams)
-//		{
-//			bResult &= CreateEntity(*itLoadParams);
-//		}
-//
-//		OnBatchCreationCompleted();
-//	}
-//
-//	return bResult;
-//}
 
 //////////////////////////////////////////////////////////////////////////
 bool CEntityLoadManager::ReserveEntityIds(XmlNodeRef& entitiesNode)
@@ -99,7 +68,7 @@ bool CEntityLoadManager::ReserveEntityIds(XmlNodeRef& entitiesNode)
 			EntityGUID guid;
 			if (entityNode->getAttr("EntityId", entityId))
 			{
-				m_pEntitySystem->ReserveEntityId(entityId);
+				g_pIEntitySystem->ReserveEntityId(entityId);
 				bResult = true;
 			}
 			else if (entityNode->getAttr("EntityGuid", guid))
@@ -118,7 +87,7 @@ bool CEntityLoadManager::ReserveEntityIds(XmlNodeRef& entitiesNode)
 }
 
 //////////////////////////////////////////////////////////////////////////
-bool CEntityLoadManager::CanParseEntity(XmlNodeRef& entityNode, std::vector<IEntity*>* outGlobalEntityIds)
+bool CEntityLoadManager::CanParseEntity(XmlNodeRef& entityNode)
 {
 	assert(entityNode);
 
@@ -136,30 +105,10 @@ bool CEntityLoadManager::CanParseEntity(XmlNodeRef& entityNode, std::vector<IEnt
 		bResult = (obj_quality >= nMinSpec || obj_quality == 0);
 	}
 
-	int globalInSW = 0;
-	if (m_bSWLoading && outGlobalEntityIds && entityNode && entityNode->getAttr("GlobalInSW", globalInSW) && globalInSW)
-	{
-		EntityGUID guid;
-		if (entityNode->getAttr("EntityGuid", guid))
-		{
-			EntityId id = gEnv->pEntitySystem->FindEntityByGuid(guid);
-			if (IEntity* pEntity = gEnv->pEntitySystem->GetEntity(id))
-			{
-#ifdef SEG_WORLD
-				pEntity->SetLocalSeg(false);
-#endif
-				outGlobalEntityIds->push_back(pEntity);
-			}
-		}
-
-		// In segmented world, global entity will not be loaded while streaming each segment
-		bResult &= false;
-	}
-
 	if (bResult)
 	{
 		const char* pLayerName = entityNode->getAttr("Layer");
-		IEntityLayer* pLayer = m_pEntitySystem->FindLayer(pLayerName);
+		IEntityLayer* pLayer = g_pIEntitySystem->FindLayer(pLayerName);
 
 		if (pLayer)
 			bResult = !pLayer->IsSkippedBySpec();
@@ -169,7 +118,7 @@ bool CEntityLoadManager::CanParseEntity(XmlNodeRef& entityNode, std::vector<IEnt
 }
 
 //////////////////////////////////////////////////////////////////////////
-bool CEntityLoadManager::ParseEntities(XmlNodeRef& entitiesNode, bool bIsLoadingLevelFile, const Vec3& segmentOffset, std::vector<IEntity*>* outGlobalEntityIds, std::vector<IEntity*>* outLocalEntityIds)
+bool CEntityLoadManager::ParseEntities(XmlNodeRef& entitiesNode, bool bIsLoadingLevelFile, const Vec3& segmentOffset)
 {
 #if !defined(SYS_ENV_AS_STRUCT)
 	assert(gEnv);
@@ -183,56 +132,42 @@ bool CEntityLoadManager::ParseEntities(XmlNodeRef& entitiesNode, bool bIsLoading
 	static ICVar* pAsyncLoad = gEnv->pConsole->GetCVar("g_asynclevelload");
 	const bool bAsyncLoad = pAsyncLoad && pAsyncLoad->GetIVal() > 0;
 
-	const int iChildCount = entitiesNode->getChildCount();
+	const int entityCount = entitiesNode->getChildCount();
 
-	CryLog("Parsing %d entities...", iChildCount);
+	CryLog("Parsing %d entities...", entityCount);
 	INDENT_LOG_DURING_SCOPE();
 
-	for (int i = 0; i < iChildCount; ++i)
+	// Entity loading is deferred so we can allocate a giant buffer for all saved entities and their components
+	// This way we have them close to each other in memory, and save tons of small allocations.
+	std::vector<SEntityLoadParams> loadParameterStorage;
+	size_t requiredAllocationSize = 0;
+
+	for (int i = 0; i < entityCount; ++i)
 	{
 		//Update loading screen and important tick functions
 		SYNCHRONOUS_LOADING_TICK();
 
 		XmlNodeRef entityNode = entitiesNode->getChild(i);
-		if (entityNode && entityNode->isTag("Entity") && CanParseEntity(entityNode, outGlobalEntityIds))
+		if (entityNode && entityNode->isTag("Entity") && CanParseEntity(entityNode))
 		{
-
 			// Create entities only if we are not in editor game mode.
 			if (!gEnv->IsEditorGameMode())
 			{
 				INDENT_LOG_DURING_SCOPE(true, "Parsing entity '%s'", entityNode->getAttr("Name"));
 
-				bool bSuccess = false;
-				SEntityLoadParams loadParams;
-				if (ExtractEntityLoadParams(entityNode, loadParams, segmentOffset, true))
+				loadParameterStorage.emplace_back();
+
+				if (!ExtractEntityLoadParams(entityNode, loadParameterStorage.back(), segmentOffset, true))
 				{
-					// Default to just creating the entity
-					if (!bSuccess)
-					{
-						EntityId usingId = 0;
+					loadParameterStorage.pop_back();
 
-						bSuccess = CreateEntity(loadParams, usingId, bIsLoadingLevelFile);
-
-						if (m_bSWLoading && outLocalEntityIds && usingId)
-						{
-							if (IEntity* pEntity = m_pEntitySystem->GetEntity(usingId))
-							{
-#ifdef SEG_WORLD
-								pEntity->SetLocalSeg(true);
-#endif
-								outLocalEntityIds->push_back(pEntity);
-							}
-
-						}
-					}
-				}
-
-				if (!bSuccess)
-				{
 					string sName = entityNode->getAttr("Name");
 					EntityWarning("CEntityLoadManager::ParseEntities : Failed when parsing entity \'%s\'", sName.empty() ? "Unknown" : sName.c_str());
 				}
-				bResult &= bSuccess;
+				else
+				{
+					requiredAllocationSize += loadParameterStorage.back().allocationSize;
+				}
 			}
 		}
 
@@ -242,6 +177,24 @@ bool CEntityLoadManager::ParseEntities(XmlNodeRef& entitiesNode, bool bIsLoading
 			gEnv->pNetwork->SyncWithGame(eNGS_FrameEnd);
 			gEnv->pNetwork->SyncWithGame(eNGS_WakeNetwork);
 		}
+	}
+
+	m_entityPool.resize(requiredAllocationSize);
+	uint8* pBuffer = m_entityPool.data();
+
+	for (SEntityLoadParams& entityLoadParams : loadParameterStorage)
+	{
+		EntityId usingId = 0;
+
+		new(pBuffer) CEntity;
+
+		if (!CreateEntity(reinterpret_cast<CEntity*>(pBuffer), entityLoadParams, usingId, bIsLoadingLevelFile))
+		{
+			string sName = entityLoadParams.spawnParams.entityNode->getAttr("Name");
+			EntityWarning("CEntityLoadManager::ParseEntities : Failed when parsing entity \'%s\'", sName.empty() ? "Unknown" : sName.c_str());
+		}
+
+		pBuffer += entityLoadParams.allocationSize;
 	}
 
 	return bResult;
@@ -259,13 +212,13 @@ bool CEntityLoadManager::ExtractCommonEntityLoadParams(XmlNodeRef& entityNode, S
 	if (entityNode->getAttr("ClassGUID", classGUID))
 	{
 		// Class GUID exist, so use it instead of the class name
-		pClass = m_pEntitySystem->GetClassRegistry()->FindClassByGUID(classGUID);
+		pClass = g_pIEntitySystem->GetClassRegistry()->FindClassByGUID(classGUID);
 	}
 
 	if (!pClass)
 	{
 		// (Legacy) If class not found by GUID try to find it by class name
-		pClass = m_pEntitySystem->GetClassRegistry()->FindClass(szEntityClass);
+		pClass = g_pIEntitySystem->GetClassRegistry()->FindClass(szEntityClass);
 	}
 
 	if (pClass)
@@ -299,22 +252,6 @@ bool CEntityLoadManager::ExtractCommonEntityLoadParams(XmlNodeRef& entityNode, S
 		spawnParams.id = 0;
 		entityNode->getAttr("EntityId", spawnParams.id);
 		entityNode->getAttr("EntityGuid", spawnParams.guid);
-
-		ISegmentsManager* const pSegmentsManager = gEnv->p3DEngine->GetSegmentsManager();
-		if (pSegmentsManager)
-		{
-			Vec2 coordInSW(Vec2Constants<float>::fVec2_Zero);
-			if (entityNode->getAttr("CoordInSW", coordInSW))
-			{
-				pSegmentsManager->GlobalSegVecToLocalSegVec(pos, coordInSW, spawnParams.vPosition);
-			}
-
-			EntityGUID parentGuid;
-			if (!entityNode->getAttr("ParentGuid", parentGuid))
-			{
-				spawnParams.vPosition += segmentOffset;
-			}
-		}
 
 		int castShadowMinSpec = CONFIG_LOW_SPEC;
 		if (entityNode->getAttr("CastShadowMinSpec", castShadowMinSpec))
@@ -360,12 +297,47 @@ bool CEntityLoadManager::ExtractCommonEntityLoadParams(XmlNodeRef& entityNode, S
 		if (szArchetypeName && szArchetypeName[0])
 		{
 			MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_Other, 0, "%s", szArchetypeName);
-			spawnParams.pArchetype = m_pEntitySystem->LoadEntityArchetype(szArchetypeName);
+			spawnParams.pArchetype = g_pIEntitySystem->LoadEntityArchetype(szArchetypeName);
 
 			if (!spawnParams.pArchetype)
 			{
 				EntityWarning("Archetype %s used by entity %s cannot be found! Entity cannot be loaded.", szArchetypeName, spawnParams.sName);
 				bResult = false;
+			}
+		}
+
+		if (XmlNodeRef componentsNode = entityNode->findChild("Components"))
+		{
+			for (int i = 0, n = componentsNode->getChildCount(); i < n; ++i)
+			{
+				XmlNodeRef componentNode = componentsNode->getChild(i);
+				if (!componentNode->haveAttr("typeId"))
+				{
+					CryGUID typeGUID;
+					// Read format we currently save to
+					if (!componentNode->getAttr("TypeGUID", typeGUID))
+					{
+						// Fall back to reading legacy setup as child
+						if (XmlNodeRef typeGUIDNode = componentNode->findChild("TypeGUID"))
+						{
+							typeGUIDNode->getAttr("value", typeGUID);
+						}
+					}
+
+					// Ensure that type GUID was read
+					CRY_ASSERT(!typeGUID.IsNull());
+
+					if (const Schematyc::IEnvComponent* pEnvComponent = gEnv->pSchematyc->GetEnvRegistry().GetComponent(typeGUID))
+					{
+						size_t componentSize = pEnvComponent->GetSize();
+
+						// Ensure alignment of component is consistent with CEntity (likely 16, very important due to the SIMD Matrix used for world transformation
+						uint32 remainder = componentSize % alignof(CEntity);
+						uint32 adjustedSize = remainder != 0 ? componentSize + alignof(CEntity) - remainder : componentSize;
+
+						outLoadParams.allocationSize += adjustedSize;
+					}
+				}
 			}
 		}
 	}
@@ -431,13 +403,13 @@ bool CEntityLoadManager::CreateEntity(XmlNodeRef& entityNode, SEntitySpawnParams
 	    ((loadParams.spawnParams.pClass->GetFlags() & ECLF_DO_NOT_SPAWN_AS_STATIC) == 0))
 	{
 		// If ID is not set we generate a static ID.
-		loadParams.spawnParams.id = m_pEntitySystem->GenerateEntityId(true);
+		loadParams.spawnParams.id = g_pIEntitySystem->GenerateEntityId(true);
 	}
-	return(CreateEntity(loadParams, outUsingId, true));
+	return(CreateEntity(nullptr, loadParams, outUsingId, true));
 }
 
 //////////////////////////////////////////////////////////////////////////
-bool CEntityLoadManager::CreateEntity(SEntityLoadParams& loadParams, EntityId& outUsingId, bool bIsLoadingLevellFile)
+bool CEntityLoadManager::CreateEntity(CEntity* pPreallocatedEntity, SEntityLoadParams& loadParams, EntityId& outUsingId, bool bIsLoadingLevellFile)
 {
 	MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_Entity, 0, "Entity %s", loadParams.spawnParams.pClass->GetName());
 
@@ -458,21 +430,13 @@ bool CEntityLoadManager::CreateEntity(SEntityLoadParams& loadParams, EntityId& o
 		}
 	}
 
-	IEntity* pSpawnedEntity = NULL;
-	bool bWasSpawned = false;
-	if (m_pEntitySystem->OnBeforeSpawn(spawnParams))
-	{
-		// Create a new one
-		pSpawnedEntity = m_pEntitySystem->SpawnEntity(spawnParams, false);
-		bWasSpawned = true;
-	}
+	CEntity* pSpawnedEntity = static_cast<CEntity*>(g_pIEntitySystem->SpawnPreallocatedEntity(pPreallocatedEntity, spawnParams, false));
 
 	if (bResult && pSpawnedEntity)
 	{
-		m_pEntitySystem->AddEntityToLayer(spawnParams.sLayerName, pSpawnedEntity->GetId());
+		g_pIEntitySystem->AddEntityToLayer(spawnParams.sLayerName, pSpawnedEntity->GetId());
 
-		CEntity* pCSpawnedEntity = (CEntity*)pSpawnedEntity;
-		pCSpawnedEntity->SetLoadedFromLevelFile(bIsLoadingLevellFile);
+		pSpawnedEntity->SetLoadedFromLevelFile(bIsLoadingLevellFile);
 
 		const char* szMtlName(NULL);
 
@@ -506,7 +470,7 @@ bool CEntityLoadManager::CreateEntity(SEntityLoadParams& loadParams, EntityId& o
 
 			// Load RenderNodeParams
 			{
-				auto& renderNodeParams = pCSpawnedEntity->GetEntityRender()->GetRenderNodeParams();
+				auto& renderNodeParams = pSpawnedEntity->GetEntityRender()->GetRenderNodeParams();
 				int nLodRatio = 0;
 				int nViewDistRatio = 0;
 				if (entityNode->getAttr("LodRatio", nLodRatio))
@@ -533,13 +497,13 @@ bool CEntityLoadManager::CreateEntity(SEntityLoadParams& loadParams, EntityId& o
 			}
 
 			// Prepare the entity from Xml if it was just spawned
-			if (pCSpawnedEntity && bWasSpawned)
+			if (pSpawnedEntity)
 			{
-				if (IEntityEventHandler* pEventHandler = pCSpawnedEntity->GetClass()->GetEventHandler())
-					pEventHandler->LoadEntityXMLEvents(pCSpawnedEntity, entityNode);
+				if (IEntityEventHandler* pEventHandler = pSpawnedEntity->GetClass()->GetEventHandler())
+					pEventHandler->LoadEntityXMLEvents(pSpawnedEntity, entityNode);
 
 				// Serialize script proxy.
-				CEntityComponentLuaScript* pScriptProxy = pCSpawnedEntity->GetScriptProxy();
+				CEntityComponentLuaScript* pScriptProxy = pSpawnedEntity->GetScriptProxy();
 				if (pScriptProxy)
 				{
 					XmlNodeRef componentNode;
@@ -551,7 +515,7 @@ bool CEntityLoadManager::CreateEntity(SEntityLoadParams& loadParams, EntityId& o
 							componentNode = componentsNode->getChild(i);
 							if (!componentNode->getAttr("typeId", componentTypeId))
 								continue;
-							
+
 							if (componentTypeId == pScriptProxy->GetCID())
 								break;
 						}
@@ -559,7 +523,7 @@ bool CEntityLoadManager::CreateEntity(SEntityLoadParams& loadParams, EntityId& o
 
 					pScriptProxy->LegacySerializeXML(entityNode, componentNode, true);
 				}
-					
+
 			}
 		}
 
@@ -575,25 +539,41 @@ bool CEntityLoadManager::CreateEntity(SEntityLoadParams& loadParams, EntityId& o
 			}
 		}
 
-		if (bWasSpawned)
+		const char* szAttachmentType = entityNode->getAttr("AttachmentType");
+		spawnParams.attachmentParams.m_target = entityNode->getAttr("AttachmentTarget");
+
+		if (strcmp(szAttachmentType, "GeomCacheNode") == 0)
 		{
-			const bool bInited = m_pEntitySystem->InitEntity(pSpawnedEntity, spawnParams);
-			if (!bInited)
-			{
-				// Failed to initialise an entity, need to bail or we'll crash
-				return true;
-			}
+			spawnParams.attachmentParams.m_nAttachFlags |= IEntity::ATTACHMENT_GEOMCACHENODE;
+		}
+		else if (strcmp(szAttachmentType, "CharacterBone") == 0)
+		{
+			spawnParams.attachmentParams.m_nAttachFlags |= IEntity::ATTACHMENT_CHARACTERBONE;
+		}
+
+		// Add attachment to parent.
+		EntityGUID parentGuid;
+		if (entityNode->getAttr("ParentGuid", parentGuid))
+		{
+			spawnParams.pParent = g_pIEntitySystem->GetEntity(g_pIEntitySystem->FindEntityByGuid(parentGuid));
+			CRY_ASSERT_MESSAGE(spawnParams.pParent != nullptr, "Parent must have been spawned before the child!");
 		}
 		else
 		{
-			m_pEntitySystem->OnEntityReused(pSpawnedEntity, spawnParams);
-
-			if (pCSpawnedEntity && loadParams.bCallInit)
+			// Legacy maps loading.
+			EntityId nParentId = 0;
+			if (entityNode->getAttr("ParentId", nParentId))
 			{
-				CEntityComponentLuaScript* pScriptProxy = pCSpawnedEntity->GetScriptProxy();
-				if (pScriptProxy)
-					pScriptProxy->CallInitEvent(true);
+				spawnParams.pParent = g_pIEntitySystem->GetEntity(nParentId);
+				CRY_ASSERT_MESSAGE(spawnParams.pParent != nullptr, "Parent must have been spawned before the child!");
 			}
+		}
+
+		const bool bInited = g_pIEntitySystem->InitEntity(pSpawnedEntity, spawnParams);
+		if (!bInited)
+		{
+			// Failed to initialise an entity, need to bail or we'll crash
+			return true;
 		}
 
 		if (entityNode)
@@ -611,35 +591,6 @@ bool CEntityLoadManager::CreateEntity(SEntityLoadParams& loadParams, EntityId& o
 				else
 				{
 					pSpawnedEntity->LoadGeometry(0, sGeom, 0, IEntity::EF_AUTO_PHYSICALIZE);
-				}
-			}
-
-			const char* attachmentType = entityNode->getAttr("AttachmentType");
-			const char* attachmentTarget = entityNode->getAttr("AttachmentTarget");
-
-			int flags = 0;
-			if (strcmp(attachmentType, "GeomCacheNode") == 0)
-			{
-				flags |= IEntity::ATTACHMENT_GEOMCACHENODE;
-			}
-			else if (strcmp(attachmentType, "CharacterBone") == 0)
-			{
-				flags |= IEntity::ATTACHMENT_CHARACTERBONE;
-			}
-
-			// Add attachment to parent.
-			EntityGUID parentGuid;
-			if (entityNode->getAttr("ParentGuid", parentGuid))
-			{
-				AddQueuedAttachment(0, parentGuid, spawnParams.id, spawnParams.vPosition, spawnParams.qRotation, spawnParams.vScale, flags, attachmentTarget);
-			}
-			else
-			{
-				// Legacy maps loading.
-				EntityId nParentId = 0;
-				if (entityNode->getAttr("ParentId", nParentId))
-				{
-					AddQueuedAttachment(nParentId, CryGUID::Null(), spawnParams.id, spawnParams.vPosition, spawnParams.qRotation, spawnParams.vScale, flags, attachmentTarget);
 				}
 			}
 
@@ -669,13 +620,10 @@ bool CEntityLoadManager::CreateEntity(SEntityLoadParams& loadParams, EntityId& o
 			}
 
 			// Hide entity in game. Done after potential RenderProxy is created, so it catches the Hide
-			if (bWasSpawned)
-			{
-				bool bHiddenInGame = false;
-				entityNode->getAttr("HiddenInGame", bHiddenInGame);
-				if (bHiddenInGame)
-					pSpawnedEntity->Hide(true);
-			}
+			bool bHiddenInGame = false;
+			entityNode->getAttr("HiddenInGame", bHiddenInGame);
+			if (bHiddenInGame)
+				pSpawnedEntity->Hide(true);
 		}
 	}
 
@@ -692,31 +640,12 @@ bool CEntityLoadManager::CreateEntity(SEntityLoadParams& loadParams, EntityId& o
 //////////////////////////////////////////////////////////////////////////
 void CEntityLoadManager::PrepareBatchCreation(int nSize)
 {
-	m_queuedAttachments.clear();
 	m_queuedFlowgraphs.clear();
-
-	m_queuedAttachments.reserve(nSize);
 	m_queuedFlowgraphs.reserve(nSize);
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CEntityLoadManager::AddQueuedAttachment(EntityId nParent, EntityGUID parentGuid, EntityId nChild, const Vec3& pos, const Quat& rot, const Vec3& scale, const int flags, const char* target)
-{
-	SEntityAttachment entityAttachment;
-	entityAttachment.child = nChild;
-	entityAttachment.parent = nParent;
-	entityAttachment.parentGuid = parentGuid;
-	entityAttachment.pos = pos;
-	entityAttachment.rot = rot;
-	entityAttachment.scale = scale;
-	entityAttachment.flags = flags;
-	entityAttachment.target = target;
-
-	m_queuedAttachments.push_back(entityAttachment);
-}
-
-//////////////////////////////////////////////////////////////////////////
-void CEntityLoadManager::AddQueuedFlowgraph(IEntity* pEntity, XmlNodeRef& pNode)
+void CEntityLoadManager::AddQueuedFlowgraph(CEntity* pEntity, XmlNodeRef& pNode)
 {
 	SQueuedFlowGraph f;
 	f.pEntity = pEntity;
@@ -726,7 +655,7 @@ void CEntityLoadManager::AddQueuedFlowgraph(IEntity* pEntity, XmlNodeRef& pNode)
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CEntityLoadManager::AddQueuedEntityLink(IEntity* pEntity, XmlNodeRef& pNode)
+void CEntityLoadManager::AddQueuedEntityLink(CEntity* pEntity, XmlNodeRef& pNode)
 {
 	SQueuedFlowGraph f;
 	f.pEntity = pEntity;
@@ -738,32 +667,6 @@ void CEntityLoadManager::AddQueuedEntityLink(IEntity* pEntity, XmlNodeRef& pNode
 //////////////////////////////////////////////////////////////////////////
 void CEntityLoadManager::OnBatchCreationCompleted()
 {
-	// Load attachments
-	TQueuedAttachments::iterator itQueuedAttachment = m_queuedAttachments.begin();
-	TQueuedAttachments::iterator itQueuedAttachmentEnd = m_queuedAttachments.end();
-	for (; itQueuedAttachment != itQueuedAttachmentEnd; ++itQueuedAttachment)
-	{
-		const SEntityAttachment& entityAttachment = *itQueuedAttachment;
-
-		IEntity* pChild = m_pEntitySystem->GetEntity(entityAttachment.child);
-		if (pChild)
-		{
-			EntityId parentId = entityAttachment.parent;
-			if (!entityAttachment.parentGuid.IsNull())
-			{
-				parentId = m_pEntitySystem->FindEntityByGuid(entityAttachment.parentGuid);
-			}
-			IEntity* pParent = m_pEntitySystem->GetEntity(parentId);
-			if (pParent)
-			{
-				SChildAttachParams attachParams(entityAttachment.flags, entityAttachment.target.c_str());
-				pParent->AttachChild(pChild, attachParams);
-				pChild->SetLocalTM(Matrix34::Create(entityAttachment.scale, entityAttachment.rot, entityAttachment.pos));
-			}
-		}
-	}
-	m_queuedAttachments.clear();
-
 	// Load flowgraphs
 	TQueuedFlowgraphs::iterator itQueuedFlowgraph = m_queuedFlowgraphs.begin();
 	TQueuedFlowgraphs::iterator itQueuedFlowgraphEnd = m_queuedFlowgraphs.end();
@@ -791,10 +694,10 @@ void CEntityLoadManager::OnBatchCreationCompleted()
 		{
 			EntityGUID targetGuid;
 			EntityId targetId = 0;
-			f.pNode->getAttr("TargetId",targetId);
+			f.pNode->getAttr("TargetId", targetId);
 			if (f.pNode->getAttr("TargetGuid", targetGuid))
 			{
-				targetId = gEnv->pEntitySystem->FindEntityByGuid(targetGuid);
+				targetId = g_pIEntitySystem->FindEntityByGuid(targetGuid);
 			}
 			const char* sLinkName = f.pNode->getAttr("Name");
 			Quat relRot(IDENTITY);
@@ -808,5 +711,5 @@ void CEntityLoadManager::OnBatchCreationCompleted()
 	// Resume loading by calling POST SERIALZIE event
 	SEntityEvent event;
 	event.event = ENTITY_EVENT_POST_SERIALIZE;
-	gEnv->pEntitySystem->SendEventToAll(event);
+	g_pIEntitySystem->SendEventToAll(event);
 }

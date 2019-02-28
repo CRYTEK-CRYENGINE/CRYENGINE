@@ -1,17 +1,20 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 using System;
 using System.Globalization;
+using System.Runtime.InteropServices;
 using CryEngine.Common;
 
 namespace CryEngine
 {
+	[StructLayout(LayoutKind.Sequential)]
 	public struct Quaternion : IEquatable<Quaternion>
-
 	{
 		public static readonly Quaternion Identity = new Quaternion(1, new Vector3(0, 0, 0));
 
+		[MarshalAs(UnmanagedType.Struct)]
 		private Vector3 _v;
+		[MarshalAs(UnmanagedType.R4)]
 		private float _w;
 
 		public float x { get { return _v.x; } set { _v.x = value; } }
@@ -50,21 +53,21 @@ namespace CryEngine
 		{
 			_v = new Vector3();
 			_w = 0.0f;
-			SetFromMatrix(matrix.m00, matrix.m01, matrix.m02, matrix.m10, matrix.m11, matrix.m12, matrix.m20, matrix.m21, matrix.m22);
+			SetFromMatrix(matrix[0, 0], matrix[0, 1], matrix[0, 2], matrix[1, 0], matrix[1, 1], matrix[1, 2], matrix[2, 0], matrix[2, 1], matrix[2, 2]);
 		}
 
 		public Quaternion(Matrix3x4 matrix)
 		{
 			_v = new Vector3();
 			_w = 0.0f;
-			SetFromMatrix(matrix.m00, matrix.m01, matrix.m02, matrix.m10, matrix.m11, matrix.m12, matrix.m20, matrix.m21, matrix.m22);
+			SetFromMatrix(matrix[0, 0], matrix[0, 1], matrix[0, 2], matrix[1, 0], matrix[1, 1], matrix[1, 2], matrix[2, 0], matrix[2, 1], matrix[2, 2]);
 		}
 
 		public Quaternion(Matrix4x4 matrix)
 		{
 			_v = new Vector3();
 			_w = 0.0f;
-			SetFromMatrix(matrix.m00, matrix.m01, matrix.m02, matrix.m10, matrix.m11, matrix.m12, matrix.m20, matrix.m21, matrix.m22);
+			SetFromMatrix(matrix[0, 0], matrix[0, 1], matrix[0, 2], matrix[1, 0], matrix[1, 1], matrix[1, 2], matrix[2, 0], matrix[2, 1], matrix[2, 2]);
 		}
 
 		public Quaternion(Vector3 forwardDirection)

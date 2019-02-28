@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   FlashUIAction.cpp
@@ -273,7 +273,7 @@ void CUIActionManager::GetMemoryUsage(ICrySizer* s) const
 //------------------------------------------------------------------------------------
 void CUIActionManager::Update()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	if (!m_actionEnableMap.empty())
 	{
@@ -309,7 +309,7 @@ void CUIActionManager::Update()
 //------------------------------------------------------------------------------------
 void CUIActionManager::StartActionInt(IUIAction* pAction, const SUIArguments& args)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	if (pAction && pAction->IsValid())
 	{
@@ -330,7 +330,7 @@ void CUIActionManager::StartActionInt(IUIAction* pAction, const SUIArguments& ar
 //------------------------------------------------------------------------------------
 void CUIActionManager::EndActionInt(IUIAction* pAction, const SUIArguments& args)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	if (pAction && m_actionStateMap[pAction])     // only allow to end actions that are started
 	{

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -23,4 +23,5 @@ CSceneElementPhysProxies* GetSelectedPhysProxiesElement(CSceneElementCommon* pSe
 
 CSceneElementPhysProxies* FindSceneElementOfPhysProxies(CScene& scene, const SPhysProxies* pPhysProxies);
 CSceneElementProxyGeom* FindSceneElementOfProxyGeom(CScene& scene, const phys_geometry* pProxyGeom);
+
 

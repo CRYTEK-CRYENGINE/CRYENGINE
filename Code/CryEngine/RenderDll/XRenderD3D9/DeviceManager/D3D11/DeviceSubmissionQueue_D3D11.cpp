@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*=============================================================================
    DeviceManager.cpp : Device manager
@@ -328,6 +328,9 @@ void CSubmissionQueue_DX11::BindConstantBuffers(SHADER_TYPE type, CCryDeviceCont
 		const unsigned hbit = bsf(~(m_CB[type].dirty) & ~(lsb - 1));
 		const unsigned base = lbit;
 		const unsigned count = hbit - lbit;
+		#if DEVICE_MANAGER_USE_TYPE_DELEGATES
+		rDeviceContext.TSSetConstantBuffers(type, base, count, &m_CB[type].buffers[base]);
+		#else
 		switch (type)
 		{
 		case TYPE_VS:
@@ -349,6 +352,7 @@ void CSubmissionQueue_DX11::BindConstantBuffers(SHADER_TYPE type, CCryDeviceCont
 			rDeviceContext.CSSetConstantBuffers(base, count, &m_CB[TYPE_CS].buffers[base]);
 			break;
 		}
+		#endif
 		;
 		const signed mask = iszero(32 - (signed)hbit) - 1;
 		m_CB[type].dirty &= (~((1 << hbit) - (1 << lbit)) & mask);
@@ -360,6 +364,9 @@ void CSubmissionQueue_DX11::BindConstantBuffers(SHADER_TYPE type, CCryDeviceCont
 		{
 			const unsigned base = i;
 			const unsigned count = 1;
+			#if DEVICE_MANAGER_USE_TYPE_DELEGATES
+			rDeviceContext.TSSetConstantBuffers(type, base, count, &m_CB[type].buffers[base]);
+			#else
 			switch (type)
 			{
 			case TYPE_VS:
@@ -381,6 +388,7 @@ void CSubmissionQueue_DX11::BindConstantBuffers(SHADER_TYPE type, CCryDeviceCont
 				rDeviceContext.CSSetConstantBuffers(base, count, &m_CB[TYPE_CS].buffers[base]);
 				break;
 			}
+			#endif
 			;
 			m_CB[type].dirty &= ~(1 << i);
 		}
@@ -400,6 +408,9 @@ void CSubmissionQueue_DX11::BindOffsetConstantBuffers(SHADER_TYPE type, CCryDevi
 		const unsigned hbit = bsf(~(m_CB[type].dirty1) & ~(lsb - 1));
 		const unsigned base = lbit;
 		const unsigned count = hbit - lbit;
+		#if DEVICE_MANAGER_USE_TYPE_DELEGATES
+		rDeviceContext.TSSetConstantBuffers1(type, base, count, &m_CB[type].buffers1[base], &m_CB[type].offsets[base], &m_CB[type].sizes[base]);
+		#else
 		switch (type)
 		{
 		case TYPE_VS:
@@ -421,6 +432,7 @@ void CSubmissionQueue_DX11::BindOffsetConstantBuffers(SHADER_TYPE type, CCryDevi
 			rDeviceContext.CSSetConstantBuffers1(base, count, &m_CB[TYPE_CS].buffers1[base], &m_CB[TYPE_CS].offsets[base], &m_CB[TYPE_CS].sizes[base]);
 			break;
 		}
+		#endif
 		;
 		const signed mask = iszero(32 - (signed)hbit) - 1;
 		m_CB[type].dirty1 &= (~((1 << hbit) - (1 << lbit)) & mask);
@@ -432,6 +444,9 @@ void CSubmissionQueue_DX11::BindOffsetConstantBuffers(SHADER_TYPE type, CCryDevi
 		{
 			const unsigned base = i;
 			const unsigned count = 1;
+			#if DEVICE_MANAGER_USE_TYPE_DELEGATES
+			rDeviceContext.TSSetConstantBuffers1(type, base, count, &m_CB[type].buffers1[base], &m_CB[type].offsets[base], &m_CB[type].sizes[base]);
+			#else
 			switch (type)
 			{
 			case TYPE_VS:
@@ -453,6 +468,7 @@ void CSubmissionQueue_DX11::BindOffsetConstantBuffers(SHADER_TYPE type, CCryDevi
 				rDeviceContext.CSSetConstantBuffers1(base, count, &m_CB[TYPE_CS].buffers1[base], &m_CB[TYPE_CS].offsets[base], &m_CB[TYPE_CS].sizes[base]);
 				break;
 			}
+			#endif
 			;
 			m_CB[type].dirty1 &= ~(1 << i);
 		}
@@ -472,6 +488,9 @@ void CSubmissionQueue_DX11::BindSamplers(SHADER_TYPE type, CCryDeviceContextWrap
 		const unsigned hbit = bsf(~(m_Samplers[type].dirty) & ~(lsb - 1));
 		const unsigned base = lbit;
 		const unsigned count = hbit - lbit;
+		#if DEVICE_MANAGER_USE_TYPE_DELEGATES
+		rDeviceContext.TSSetSamplers(type, base, count, &m_Samplers[type].samplers[base]);
+		#else
 		switch (type)
 		{
 		case TYPE_VS:
@@ -493,6 +512,7 @@ void CSubmissionQueue_DX11::BindSamplers(SHADER_TYPE type, CCryDeviceContextWrap
 			rDeviceContext.CSSetSamplers(base, count, &m_Samplers[TYPE_CS].samplers[base]);
 			break;
 		}
+		#endif
 		;
 		const signed mask = iszero(32 - (signed)hbit) - 1;
 		m_Samplers[type].dirty &= (~((1 << hbit) - (1 << lbit)) & mask);
@@ -504,6 +524,9 @@ void CSubmissionQueue_DX11::BindSamplers(SHADER_TYPE type, CCryDeviceContextWrap
 		{
 			const unsigned base = i;
 			const unsigned count = 1;
+			#if DEVICE_MANAGER_USE_TYPE_DELEGATES
+			rDeviceContext.TSSetSamplers(type, base, count, &m_Samplers[type].samplers[base]);
+			#else
 			switch (type)
 			{
 			case TYPE_VS:
@@ -525,6 +548,7 @@ void CSubmissionQueue_DX11::BindSamplers(SHADER_TYPE type, CCryDeviceContextWrap
 				rDeviceContext.CSSetSamplers(base, count, &m_Samplers[TYPE_CS].samplers[base]);
 				break;
 			}
+			#endif
 			;
 			m_Samplers[type].dirty &= ~(1 << i);
 		}
@@ -545,27 +569,31 @@ void CSubmissionQueue_DX11::BindSRVs(SHADER_TYPE type, CCryDeviceContextWrapper&
 			const unsigned hbit = bsf(~(m_SRV[type].dirty[j]) & ~(lsb - 1));
 			const unsigned base = j * 32 + lbit;
 			const unsigned count = hbit - lbit;
+			#if DEVICE_MANAGER_USE_TYPE_DELEGATES
+			rDeviceContext.TSSetShaderResources(type, base, count, &m_SRV[type].views[base]);
+			#else
 			switch (type)
 			{
 			case TYPE_VS:
-				rDeviceContext.VSSetShaderResources(base, count, &m_SRV[type].views[base]);
+				rDeviceContext.VSSetShaderResources(base, count, &m_SRV[TYPE_VS].views[base]);
 				break;
 			case TYPE_PS:
-				rDeviceContext.PSSetShaderResources(base, count, &m_SRV[type].views[base]);
+				rDeviceContext.PSSetShaderResources(base, count, &m_SRV[TYPE_PS].views[base]);
 				break;
 			case TYPE_GS:
-				rDeviceContext.GSSetShaderResources(base, count, &m_SRV[type].views[base]);
+				rDeviceContext.GSSetShaderResources(base, count, &m_SRV[TYPE_GS].views[base]);
 				break;
 			case TYPE_DS:
-				rDeviceContext.DSSetShaderResources(base, count, &m_SRV[type].views[base]);
+				rDeviceContext.DSSetShaderResources(base, count, &m_SRV[TYPE_DS].views[base]);
 				break;
 			case TYPE_HS:
-				rDeviceContext.HSSetShaderResources(base, count, &m_SRV[type].views[base]);
+				rDeviceContext.HSSetShaderResources(base, count, &m_SRV[TYPE_HS].views[base]);
 				break;
 			case TYPE_CS:
-				rDeviceContext.CSSetShaderResources(base, count, &m_SRV[type].views[base]);
+				rDeviceContext.CSSetShaderResources(base, count, &m_SRV[TYPE_CS].views[base]);
 				break;
 			}
+			#endif
 			const signed mask = iszero(32 - (signed)hbit) - 1;
 			m_SRV[type].dirty[j] &= (~((1 << hbit) - (1 << lbit)) & mask);
 		}
@@ -576,27 +604,31 @@ void CSubmissionQueue_DX11::BindSRVs(SHADER_TYPE type, CCryDeviceContextWrapper&
 			{
 				const unsigned base = j * 32 + i;
 				const unsigned count = 1;
+				#if DEVICE_MANAGER_USE_TYPE_DELEGATES
+				rDeviceContext.TSSetShaderResources(type, base, count, &m_SRV[type].views[base]);
+				#else
 				switch (type)
 				{
 				case TYPE_VS:
-					rDeviceContext.VSSetShaderResources(base, count, &m_SRV[type].views[base]);
+					rDeviceContext.VSSetShaderResources(base, count, &m_SRV[TYPE_VS].views[base]);
 					break;
 				case TYPE_PS:
-					rDeviceContext.PSSetShaderResources(base, count, &m_SRV[type].views[base]);
+					rDeviceContext.PSSetShaderResources(base, count, &m_SRV[TYPE_PS].views[base]);
 					break;
 				case TYPE_GS:
-					rDeviceContext.GSSetShaderResources(base, count, &m_SRV[type].views[base]);
+					rDeviceContext.GSSetShaderResources(base, count, &m_SRV[TYPE_GS].views[base]);
 					break;
 				case TYPE_DS:
-					rDeviceContext.DSSetShaderResources(base, count, &m_SRV[type].views[base]);
+					rDeviceContext.DSSetShaderResources(base, count, &m_SRV[TYPE_DS].views[base]);
 					break;
 				case TYPE_HS:
-					rDeviceContext.HSSetShaderResources(base, count, &m_SRV[type].views[base]);
+					rDeviceContext.HSSetShaderResources(base, count, &m_SRV[TYPE_HS].views[base]);
 					break;
 				case TYPE_CS:
-					rDeviceContext.CSSetShaderResources(base, count, &m_SRV[type].views[base]);
+					rDeviceContext.CSSetShaderResources(base, count, &m_SRV[TYPE_CS].views[base]);
 					break;
 				}
+				#endif
 				m_SRV[type].dirty[j] &= ~(1 << i);
 			}
 		}
@@ -623,7 +655,7 @@ void CSubmissionQueue_DX11::BindUAVs(SHADER_TYPE type, CCryDeviceContextWrapper&
 				assert(0 && "NOT IMPLEMENTED ON D3D11.0");
 				break;
 			case TYPE_PS:
-				rDeviceContext.OMSetRenderTargetsAndUnorderedAccessViews(D3D11_KEEP_RENDER_TARGETS_AND_DEPTH_STENCIL, NULL, NULL, base, count, &m_UAV[type].views[base], &m_UAV[type].counts[base]);
+				rDeviceContext.OMSetRenderTargetsAndUnorderedAccessViews(D3D11_KEEP_RENDER_TARGETS_AND_DEPTH_STENCIL, NULL, NULL, base, count, &m_UAV[TYPE_PS].views[base], &m_UAV[TYPE_PS].counts[base]);
 				break;
 			case TYPE_GS:
 				assert(0 && "NOT IMPLEMENTED ON D3D11.0");
@@ -635,7 +667,7 @@ void CSubmissionQueue_DX11::BindUAVs(SHADER_TYPE type, CCryDeviceContextWrapper&
 				assert(0 && "NOT IMPLEMENTED ON D3D11.0");
 				break;
 			case TYPE_CS:
-				rDeviceContext.CSSetUnorderedAccessViews(base, count, &m_UAV[type].views[base], &m_UAV[type].counts[base]);
+				rDeviceContext.CSSetUnorderedAccessViews(base, count, &m_UAV[TYPE_CS].views[base], &m_UAV[TYPE_CS].counts[base]);
 				break;
 			}
 			const signed mask = iszero(32 - (signed)hbit) - 1;
@@ -654,7 +686,7 @@ void CSubmissionQueue_DX11::BindUAVs(SHADER_TYPE type, CCryDeviceContextWrapper&
 					assert(0 && "NOT IMPLEMENTED ON D3D11.0");
 					break;
 				case TYPE_PS:
-					rDeviceContext.OMSetRenderTargetsAndUnorderedAccessViews(D3D11_KEEP_RENDER_TARGETS_AND_DEPTH_STENCIL, NULL, NULL, base, count, &m_UAV[type].views[base], &m_UAV[type].counts[base]);
+					rDeviceContext.OMSetRenderTargetsAndUnorderedAccessViews(D3D11_KEEP_RENDER_TARGETS_AND_DEPTH_STENCIL, NULL, NULL, base, count, &m_UAV[TYPE_PS].views[base], &m_UAV[TYPE_PS].counts[base]);
 					break;
 				case TYPE_GS:
 					assert(0 && "NOT IMPLEMENTED ON D3D11.0");
@@ -666,7 +698,7 @@ void CSubmissionQueue_DX11::BindUAVs(SHADER_TYPE type, CCryDeviceContextWrapper&
 					assert(0 && "NOT IMPLEMENTED ON D3D11.0");
 					break;
 				case TYPE_CS:
-					rDeviceContext.CSSetUnorderedAccessViews(base, count, &m_UAV[type].views[base], &m_UAV[type].counts[base]);
+					rDeviceContext.CSSetUnorderedAccessViews(base, count, &m_UAV[TYPE_CS].views[base], &m_UAV[TYPE_CS].counts[base]);
 					break;
 				}
 				m_UAV[type].dirty[j] &= ~(1 << i);
@@ -744,34 +776,38 @@ void CSubmissionQueue_DX11::BindShader(SHADER_TYPE type, CCryDeviceContextWrappe
 {
 	if (m_Shaders[type].dirty)
 	{
+		#if DEVICE_MANAGER_USE_TYPE_DELEGATES
+		rDeviceContext.TSSetShader(type, (ID3D11DeviceChild*)m_Shaders[type].shader, NULL, 0);
+		#else
 		switch (type)
 		{
 		case TYPE_VS:
-			rDeviceContext.VSSetShader((D3DVertexShader*)m_Shaders[type].shader, NULL, 0);
+			rDeviceContext.VSSetShader((D3DVertexShader*)m_Shaders[TYPE_VS].shader, NULL, 0);
 			break;
 		case TYPE_PS:
-			rDeviceContext.PSSetShader((D3DPixelShader*)m_Shaders[type].shader, NULL, 0);
+			rDeviceContext.PSSetShader((D3DPixelShader*)m_Shaders[TYPE_PS].shader, NULL, 0);
 			break;
 		case TYPE_HS:
-			rDeviceContext.HSSetShader((ID3D11HullShader*)m_Shaders[type].shader, NULL, 0);
+			rDeviceContext.HSSetShader((ID3D11HullShader*)m_Shaders[TYPE_HS].shader, NULL, 0);
 			break;
 		case TYPE_GS:
-			rDeviceContext.GSSetShader((ID3D11GeometryShader*)m_Shaders[type].shader, NULL, 0);
+			rDeviceContext.GSSetShader((ID3D11GeometryShader*)m_Shaders[TYPE_GS].shader, NULL, 0);
 			break;
 		case TYPE_DS:
-			rDeviceContext.DSSetShader((ID3D11DomainShader*)m_Shaders[type].shader, NULL, 0);
+			rDeviceContext.DSSetShader((ID3D11DomainShader*)m_Shaders[TYPE_DS].shader, NULL, 0);
 			break;
 		case TYPE_CS:
-			rDeviceContext.CSSetShader((ID3D11ComputeShader*)m_Shaders[type].shader, NULL, 0);
+			rDeviceContext.CSSetShader((ID3D11ComputeShader*)m_Shaders[TYPE_CS].shader, NULL, 0);
 			break;
 		}
+		#endif
 		m_Shaders[type].dirty = false;
 	}
 }
 
 void CSubmissionQueue_DX11::CommitDeviceStates()
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_RENDERER);
+	CRY_PROFILE_FUNCTION(PROFILE_RENDERER);
 	DETAILED_PROFILE_MARKER("CommitDeviceStates");
 
 	#if DURANGO_ENABLE_ASYNC_DIPS
@@ -780,7 +816,7 @@ void CSubmissionQueue_DX11::CommitDeviceStates()
 	#if defined(BUFFER_ENABLE_DIRECT_ACCESS) && (CRY_RENDERER_DIRECT3D >= 110) && (CRY_RENDERER_DIRECT3D < 120) && !CRY_RENDERER_GNM
 	{
 		DETAILED_PROFILE_MARKER("InvalidateBuffers");
-		const uint32 threadid = gRenDev->m_RP.m_nProcessThreadID;
+		const uint32 threadid = gRenDev->GetRenderThreadID();
 		CDeviceObjectFactory::BufferInvalidationsT& invalidated = GetDeviceObjectFactory().m_buffer_invalidations[threadid];
 
 		for (size_t i = 0, end = invalidated.size(); i < end; ++i)
@@ -801,27 +837,12 @@ void CSubmissionQueue_DX11::CommitDeviceStates()
 		BindState(rDeviceContext);
 		for (signed i = 0; i < MAX_TYPE; ++i)
 		{
-			BindShader(static_cast<SHADER_TYPE>(i), rDeviceContext);
-		}
-		for (signed i = 0; i < MAX_TYPE; ++i)
-		{
-			BindConstantBuffers(static_cast<SHADER_TYPE>(i), rDeviceContext);
-		}
-		for (signed i = 0; i < MAX_TYPE; ++i)
-		{
+			BindShader               (static_cast<SHADER_TYPE>(i), rDeviceContext);
+			BindConstantBuffers      (static_cast<SHADER_TYPE>(i), rDeviceContext);
 			BindOffsetConstantBuffers(static_cast<SHADER_TYPE>(i), rDeviceContext);
-		}
-		for (signed i = 0; i < MAX_TYPE; ++i)
-		{
-			BindSRVs(static_cast<SHADER_TYPE>(i), rDeviceContext);
-		}
-		for (signed i = 0; i < MAX_TYPE; ++i)
-		{
-			BindUAVs((SHADER_TYPE)i, rDeviceContext);
-		}
-		for (signed i = 0; i < MAX_TYPE; ++i)
-		{
-			BindSamplers(static_cast<SHADER_TYPE>(i), rDeviceContext);
+			BindSRVs                 (static_cast<SHADER_TYPE>(i), rDeviceContext);
+			BindUAVs                 (static_cast<SHADER_TYPE>(i), rDeviceContext);
+			BindSamplers             (static_cast<SHADER_TYPE>(i), rDeviceContext);
 		}
 	}
 }

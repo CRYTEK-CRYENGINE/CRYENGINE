@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="97e26fae-9608-20bc-c1f7-a6388f853455" source="bokeh_music.TIF">
+ <Files>
+  <File path="bokeh_music.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">64</Detail>
+  <Detail name="height">64</Detail>
+  <Detail name="mipCount">1</Detail>
+ </Details>
+</AssetMetadata>

@@ -1,5 +1,4 @@
-// CRYENGINE Source Code File
-// Copyright 2001-2016 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 
 //////////////////////////////////////////////////////////////////////////
@@ -34,6 +33,7 @@ struct SPerPassWaterParams
 {
 	float4x4 causticViewProjMatr;
 	float4   waterRippleLookup;
+	float4   ssrParams;
 };
 
 struct SVolumetricFogShadowParams
@@ -48,6 +48,7 @@ cbuffer CBPerPassWater : register(b5)
 	{
 		float4x4 causticViewProjMatr;
 		float4   waterRippleLookup;
+		float4   ssrParams;
 	} cbPerPassWater;
 
 	// fog parameters
@@ -114,9 +115,11 @@ SPerPassWaterParams GetPerPassWaterParams()
 #if %_RT_COMPUTE_SKINNING
 	params.causticViewProjMatr = cbPerPassWater.causticViewProjMatr;
 	params.waterRippleLookup = cbPerPassWater.waterRippleLookup;
+	params.ssrParams = cbPerPassWater.ssrParams;
 #else
-	params.causticViewProjMatr = vpMatrix;
+	params.causticViewProjMatr = CV_ViewProjMatr;
 	params.waterRippleLookup = WaterRipplesLookupParams;
+	params.ssrParams = float4(1, 1, 1, 28);
 #endif
 
 	return params;
@@ -322,102 +325,87 @@ SVolumetricFogParams GetVolumetricFogParams()
 
 SShadowSamplingParams GetShadowSamplingParams()
 {
-	SShadowSamplingParams params;
+	SShadowSamplingParams s;
 
-#if %_RT_COMPUTE_SKINNING
-	params.TexGen0 = cbShadowSampling.TexGen0;
-	params.TexGen1 = cbShadowSampling.TexGen1;
-	params.TexGen2 = cbShadowSampling.TexGen2;
-	params.TexGen3 = cbShadowSampling.TexGen3;
-	params.vInvShadowMapSize = cbShadowSampling.vInvShadowMapSize;
-	params.fDepthTestBias = cbShadowSampling.fDepthTestBias;
-	params.fOneDivFarDist = cbShadowSampling.fOneDivFarDist;
+    s.TexGen0 = cbShadowSampling.TexGen0;
+    s.TexGen1 = cbShadowSampling.TexGen1;
+    s.TexGen2 = cbShadowSampling.TexGen2;
+    s.TexGen3 = cbShadowSampling.TexGen3;
 
-	// NOTE: water fog volume doesn't need these because bForceSingleTap = true, bSampleCloudShadows = false.
-	params.fKernelRadius = cbShadowSampling.fKernelRadius;
-	params.CloudShadowParams = cbShadowSampling.CloudShadowParams;
-	params.CloudShadowAnimParams = cbShadowSampling.CloudShadowAnimParams;
-	params.irreg_kernel_2d = cbShadowSampling.irreg_kernel_2d;
-#else
-	params.TexGen0 = TexGen0;
-	params.TexGen1 = TexGen1;
-	params.TexGen2 = TexGen2;
-	params.TexGen3 = TexGen3;
-	params.vInvShadowMapSize = vInvShadowMapSize;
-	params.fDepthTestBias = fDepthTestBias;
-	params.fOneDivFarDist = fOneDivFarDist;
-	params.fKernelRadius = fKernelRadius;
-	params.CloudShadowParams = CloudShadowParams;
-	params.CloudShadowAnimParams = CloudShadowAnimParams;
-	params.irreg_kernel_2d = irreg_kernel_2d;
-#endif
+    s.vInvShadowMapSize = cbShadowSampling.vInvShadowMapSize;
+    s.fDepthTestBias = cbShadowSampling.fDepthTestBias; // defines how hard depth test is (default is 100 - hard test)
+    s.fOneDivFarDist = cbShadowSampling.fOneDivFarDist;
+    s.fKernelRadius = cbShadowSampling.fKernelRadius;
 
-	return params;
+    s.CloudShadowParams = cbShadowSampling.CloudShadowParams;
+    s.CloudShadowAnimParams = cbShadowSampling.CloudShadowAnimParams;
+
+    s.irreg_kernel_2d = cbShadowSampling.irreg_kernel_2d;
+
+    return s;
 }
 
 //////////////////////////////////////////////////////////////////////////
 // per instance textures for water volume
 
-Texture2D FlowOffTex : register(t14) = "%ENGINE%/EngineAssets/Textures/perlinNoise2d.tif";
+Texture2D FoamTex : register(t14) = "%ENGINE%/EngineAssets/Shading/WaterFoam.tif";
 
-// volumetric fog shadow
-Texture2D interleaveSampleTex : register(t15) = "%ENGINE%/EngineAssets/Textures/FogVolShadowJitter.tif";
+// eTF_BC5S
+Texture2D RainRipplesTex : register(t16) = "%ENGINE%/EngineAssets/Textures/Rain/Ripple/ripple#01_24_ddn.tif";
 
 //////////////////////////////////////////////////////////////////////////
 // per instance textures for water ocean
 
 // eTF_A32B32G32R32F
-Texture2D WaterDisplMapSampler : register(t14) = TS_WaterOceanMap;
+Texture2D WaterDisplMapSampler : register(t15) = TS_WaterOceanMap;
 
-Texture2D oceanReflectionTex : register(t15);
+Texture2D oceanReflectionTex : register(t16);
 
 //////////////////////////////////////////////////////////////////////////
 // per pass textures
 
-// water ocean gloss
-Texture2D waterGlossTex : register(t16) = "%ENGINE%/EngineAssets/Textures/water_gloss.tif";
-
-Texture2D FoamTex : register(t17) = "%ENGINE%/EngineAssets/Shading/WaterFoam.tif";
-
-// eTF_BC5S
-Texture2D RainRipplesTex : register(t18) = "%ENGINE%/EngineAssets/Textures/Rain/Ripple/ripple#01_24_ddn.tif";
-
-// forward sun shadow
-Texture2D<float4> shadowMapTex0 : register(t19) = TS_Shadow0;
-Texture2D<float4> shadowMapTex1 : register(t20) = TS_Shadow2;
-Texture2D<float4> shadowMapTex2 : register(t21) = TS_Shadow4;
-Texture2D<float4> shadowMapTex3 : register(t22) = TS_Shadow6;
-
 // volumetric fog shadow
-Texture2D volFogShadowTex : register(t23) = TS_VolumetricFogShadow0;
+Texture2D volFogShadowTex : register(t21) = TS_VolumetricFogShadow0;
+Texture2D interleaveSampleTex : register(t26) = "%ENGINE%/EngineAssets/Textures/FogVolShadowJitter.tif";
 
 // voxel-based volumetric fog
-Texture3D<float4> volFogSamplingTex : register(t24) = TS_VolumetricFog;
-TextureCube<float4> volFogGlobalEnvProbeTex0 : register(t25) = TS_VolumetricFogGlobalEnvProbe0;
-TextureCube<float4> volFogGlobalEnvProbeTex1 : register(t26) = TS_VolumetricFogGlobalEnvProbe1;
+Texture3D<float4> volFogSamplingTex : register(t22) = TS_VolumetricFog;
+TextureCube<float4> volFogGlobalEnvProbeTex0 : register(t23) = TS_VolumetricFogGlobalEnvProbe0;
+TextureCube<float4> volFogGlobalEnvProbeTex1 : register(t24) = TS_VolumetricFogGlobalEnvProbe1;
 
+Texture2D FlowOffTex : register(t25) = "%ENGINE%/EngineAssets/Textures/perlinNoise2D.dds";
+
+// water ocean gloss
 Texture2D WaterDynRipplesTex : register(t27);
 Texture2D WaterNormalTex : register(t28) = TS_WaterVolumeDDN;
+Texture2D waterGlossTex : register(29) = "%ENGINE%/EngineAssets/Textures/water_gloss.tif";
 
-Texture2D sceneDepthTex : register(t29) = TS_ZTarget;
 Texture2D refractionTex : register(t30) = TS_SceneTarget;
 Texture2D reflectionTex : register(t31) = TS_WaterVolumeRefl;
+Texture2D sceneDepthTex : register(t32) = TS_ZTarget;
 
-SamplerState aniso16xWrapSState : register(s1) = SS_MaterialAnisoHighWrap;
-SamplerState aniso16xClampSState : register(s10) = SS_MaterialAnisoHighWrap;
-SamplerComparisonState linearClampCompSState : register(s11) = SS_Shadow2;
+// forward sun shadow
+Texture2D<float4> shadowMapTex0 : register(t33) = TS_Shadow0;
+Texture2D<float4> shadowMapTex1 : register(t34) = TS_Shadow2;
+Texture2D<float4> shadowMapTex2 : register(t35) = TS_Shadow4;
+Texture2D<float4> shadowMapTex3 : register(t36) = TS_Shadow6;
+
+SamplerState aniso16xWrapSState              : register(s0) = SS_MaterialAnisoHighWrap;
+SamplerState aniso16xClampSState             : register(s1) = SS_MaterialAnisoLowWrap;
+SamplerComparisonState linearClampCompSState : register(s10) = SS_Shadow2;
+SamplerState ssLinearMirrorX                 : register(s11);
 
 //////////////////////////////////////////////////////////////////////////
 // per pass textures for water volume reflection gen pass
 
-Texture2D sceneDepthScaledTex : register(t29) = TS_ZTargetScaled_d2;
 Texture2D refractionHalfResTex : register(t30) = TS_HDR_TargetPrev;
 Texture2D reflectionPrevTex : register(t31) = TS_WaterVolumeReflPrev;
+Texture2D sceneDepthScaledTex : register(t32) = TS_ZTargetScaled_d2;
 
 //////////////////////////////////////////////////////////////////////////
 // per pass textures for water fog volume pass
 
-Texture2D oceanMaskTex : register(t16);
+Texture2D oceanMaskTex : register(29);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -472,11 +460,11 @@ float4 GetWaterRipplesUvs( inout float4 vPos, SPerPassWaterParams perPassParams 
 }
 
 //////////////////////////////////////////////////////////////////////////
-// Per instance constant buffer for water volume and water fog volume.
+// Per draw constant buffer for water volume and water fog volume.
 
 struct SWaterVolumeParams
 {
-	float4x4 PerInstanceWorldMatrix;
+	float4x4 WorldMatrix;
 
 	// ocean related parameters
 	float4 OceanParams0;
@@ -501,11 +489,11 @@ struct SWaterVolumeParams
 	float4 vCausticParams;
 };
 
-cbuffer CBWaterVolume : register(b12)
+cbuffer CBWaterVolume : register(b0)
 {
 	struct
 	{
-		float4x4 PerInstanceWorldMatrix;
+		float4x4 WorldMatrix;
 
 		// ocean related parameters
 		float4 OceanParams0;
@@ -536,7 +524,7 @@ SWaterVolumeParams GetWaterVolumeParams()
 	SWaterVolumeParams params;
 
 #if %_RT_COMPUTE_SKINNING
-	params.PerInstanceWorldMatrix = cbWaterVolume.PerInstanceWorldMatrix;
+	params.WorldMatrix = cbWaterVolume.WorldMatrix;
 	params.OceanParams0 = cbWaterVolume.OceanParams0;
 	params.OceanParams1 = cbWaterVolume.OceanParams1;
 	params.vBBoxMin = cbWaterVolume.vBBoxMin;
@@ -550,7 +538,7 @@ SWaterVolumeParams GetWaterVolumeParams()
 	params.volFogShadowRange = cbWaterVolume.volFogShadowRange;
 	params.vCausticParams = cbWaterVolume.vCausticParams;
 #else
-	params.PerInstanceWorldMatrix = float4x4(ObjWorldMatrix, float4(0.0f, 0.0f, 0.0f, 1.0f));
+	params.WorldMatrix = float4x4(Get_SPI_ObjWorldMat(0), float4(0.0f, 0.0f, 0.0f, 1.0f));
 	params.OceanParams0 = OceanParams0;
 	params.OceanParams1 = OceanParams1;
 	params.vBBoxMin = vBBoxMin;

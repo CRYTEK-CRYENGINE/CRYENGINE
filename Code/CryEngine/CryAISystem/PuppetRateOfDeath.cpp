@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -135,7 +135,7 @@ float CPuppet::GetTargetAliveTime()
 //===================================================================
 void CPuppet::UpdateHealthTracking()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	// Update target health tracking.
 	float fTargetHealth = 0.0f;

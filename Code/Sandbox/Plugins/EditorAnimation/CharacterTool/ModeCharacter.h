@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 #include "ViewportMode.h"
@@ -35,6 +35,10 @@ public:
 	void OnViewportRender(const SRenderContext& rc) override;
 	void OnViewportKey(const SKeyEvent& ev) override;
 	void OnViewportMouse(const SMouseEvent& ev) override;
+
+	bool OnViewportMouseProxy(const SMouseEvent& ev);
+
+	void CommenceRagdollTest();
 protected slots:
 	void OnTransformPanelChanged();
 	void OnTransformPanelChangeFinished();
@@ -63,6 +67,7 @@ private:
 	void WriteTransformPanel();
 	void UpdateToolbar();
 	void HandleSceneChange(int layerMask, bool continuous);
+	void OnClickProxyCreate();
 
 	ICharacterInstance*         m_character;
 	unique_ptr<QAction>         m_actionMoveTool;
@@ -76,6 +81,11 @@ private:
 	CharacterToolForm*          m_window;
 	TransformPanel*             m_transformPanel;
 	std::vector<QPropertyTree*> m_layerPropertyTrees;
+
+	string                      m_curBoneName;
+	Vec2                        m_posMouse;
+	bool                        m_isCurBoneFree;
 };
 
 }
+

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   PhysCallbacks.cpp
@@ -119,7 +119,7 @@ foundbox:
 			pEngine->m_arrEntsInFoliage[i].timeIdle = 0;
 
 		IRenderNode* pVeg = GetRenderNodeFromPhys(pOverlap->pForeignData[1], pOverlap->iForeignData[1]);
-		CCamera& cam = gEnv->pSystem->GetViewCamera();
+		const CCamera& cam = gEnv->pSystem->GetViewCamera();
 		int cullDist = GetCVars()->e_CullVegActivation;
 		int iSource = 0;
 
@@ -181,8 +181,7 @@ void CDeferredCollisionEventOnPhysCollision::RayTraceVegetation()
 	if (!(pSrfType && pSrfType->GetFlags() & SURFACE_TYPE_NO_COLLIDE))
 		return;
 
-	FRAME_PROFILER("3dEngine::RaytraceVegetation", GetISystem(), PROFILE_3DENGINE);
-
+	CRY_PROFILE_FUNCTION(PROFILE_3DENGINE);
 	IRenderNode* pVeg = GetRenderNodeFromPhys(pCollision->pForeignData[1], pCollision->iForeignData[1]);
 	if (!pVeg)
 	{
@@ -190,7 +189,7 @@ void CDeferredCollisionEventOnPhysCollision::RayTraceVegetation()
 		return;
 	}
 
-	CCamera& cam = gEnv->pSystem->GetViewCamera();
+	const CCamera& cam = gEnv->pSystem->GetViewCamera();
 	int cullDist = GetCVars()->e_CullVegActivation;
 	if (cullDist && (static_cast<unsigned>(pVeg->GetDrawFrame() + 10) < gEnv->nMainFrameID ||
 	                 (cam.GetPosition() - pVeg->GetPos()).len2() * sqr(cam.GetFov()) > sqr(cullDist * 1.04f)))
@@ -421,7 +420,7 @@ void CDeferredCollisionEventOnPhysCollision::TestCollisionWithRenderMesh()
 	// do not spawn if too far
 	float fZoom = gEnv->p3DEngine->GetZoomFactor();
 	float fCollisionDistance = pCollisionEvent->pt.GetDistance(vCamPos);
-	if (fCollisionDistance * fZoom > GetFloatCVar(e_DecalsRange) && pCollisionEvent->mass[0] < 0.5f)
+	if (fCollisionDistance * fZoom > GetFloatCVar(e_DecalsRange) && pCollisionEvent->mass[0] < GetFloatCVar(e_MinMassDistanceCheckRenderMeshCollision))
 	{
 		// only apply distance check for bullets; heavier particles should use it always
 		MarkFinished(1);
@@ -454,7 +453,7 @@ void CDeferredCollisionEventOnPhysCollision::TestCollisionWithRenderMesh()
 	}
 
 	if (pStatObj)
-		if (int nMinLod = ((CStatObj*)pStatObj)->GetMinUsableLod())
+		if (int nMinLod = GetCVars()->e_RenderMeshCollisionLod)
 			if (IStatObj* pLodObj = pStatObj->GetLodObject(nMinLod))
 				pStatObj = pLodObj;
 
@@ -574,12 +573,9 @@ int CPhysStreamer::CreatePhysicalEntity(void* pForeignData, int iForeignData, in
 
 int CPhysStreamer::CreatePhysicalEntitiesInBox(const Vec3& boxMin, const Vec3& boxMax)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_3DENGINE);
-	for (int nSID = 0; nSID < ((C3DEngine*)gEnv->p3DEngine)->m_pObjectsTree.Count(); nSID++)
-	{
-		if (((C3DEngine*)gEnv->p3DEngine)->IsSegmentSafeToUse(nSID))
-			((C3DEngine*)gEnv->p3DEngine)->m_pObjectsTree[nSID]->PhysicalizeInBox(AABB(boxMin, boxMax));
-	}
+	CRY_PROFILE_FUNCTION(PROFILE_3DENGINE);
+	if (((C3DEngine*)gEnv->p3DEngine)->m_pObjectsTree)
+		((C3DEngine*)gEnv->p3DEngine)->m_pObjectsTree->PhysicalizeInBox(AABB(boxMin, boxMax));
 	if (((C3DEngine*)gEnv->p3DEngine)->m_pVisAreaManager)
 		((C3DEngine*)gEnv->p3DEngine)->m_pVisAreaManager->PhysicalizeInBox(AABB(boxMin, boxMax));
 	return 1;
@@ -587,12 +583,9 @@ int CPhysStreamer::CreatePhysicalEntitiesInBox(const Vec3& boxMin, const Vec3& b
 
 int CPhysStreamer::DestroyPhysicalEntitiesInBox(const Vec3& boxMin, const Vec3& boxMax)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_3DENGINE);
-	for (int nSID = 0; nSID < ((C3DEngine*)gEnv->p3DEngine)->m_pObjectsTree.Count(); nSID++)
-	{
-		if (((C3DEngine*)gEnv->p3DEngine)->m_pObjectsTree[nSID])
-			((C3DEngine*)gEnv->p3DEngine)->m_pObjectsTree[nSID]->DephysicalizeInBox(AABB(boxMin, boxMax));
-	}
+	CRY_PROFILE_FUNCTION(PROFILE_3DENGINE);
+	if (((C3DEngine*)gEnv->p3DEngine)->m_pObjectsTree)
+		((C3DEngine*)gEnv->p3DEngine)->m_pObjectsTree->DephysicalizeInBox(AABB(boxMin, boxMax));
 	if (((C3DEngine*)gEnv->p3DEngine)->m_pVisAreaManager)
 		((C3DEngine*)gEnv->p3DEngine)->m_pVisAreaManager->DephysicalizeInBox(AABB(boxMin, boxMax));
 	return 1;

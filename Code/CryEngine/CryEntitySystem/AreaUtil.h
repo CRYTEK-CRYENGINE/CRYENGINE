@@ -1,15 +1,6 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  File name:   AreaUtil.h
-//  Version:     v1.00
-//  Created:     23/Nov/2011 by Jaesik.
-//  Compilers:   Visual Studio 2010
-//  Description:
-////////////////////////////////////////////////////////////////////////////
-
-#ifndef __AREAUTIL_H_
-#define __AREAUTIL_H_
+#pragma once
 
 namespace AreaUtil
 {
@@ -166,5 +157,3 @@ enum ESplitResult
 	eSR_COINCIDENCE
 };
 };
-
-#endif // __AREAUTIL_H_

@@ -28,11 +28,3 @@ if not init_script:
 if init_script:
     print 'Loading crytools from ' + os.path.dirname(init_script)
     imp.load_source('sandbox_init_script', init_script)
-
-    # Crytools framework now setup, we can register our tool windows.
-    from console import Console
-
-    SandboxBridge.register_window(Console, "Python Interactive Console", menu_path="Advanced")
-
-    import autocomplete
-    autocomplete.generate_auto_complete_dummy_files()

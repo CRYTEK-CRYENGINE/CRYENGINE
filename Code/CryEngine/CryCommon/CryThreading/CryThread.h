@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -48,6 +48,35 @@ public:
 private:
 	LockClass* m_pLock;
 };
+
+template<class LockClass> class CryAutoReadLock
+{
+public:
+	CryAutoReadLock() = delete;
+	CryAutoReadLock(const CryAutoReadLock<LockClass>&) = delete;
+	CryAutoReadLock<LockClass>& operator=(const CryAutoReadLock<LockClass>&) = delete;
+
+	CryAutoReadLock(LockClass& Lock) : m_pLock(&Lock) { m_pLock->RLock(); }
+	CryAutoReadLock(const LockClass& Lock) : m_pLock(const_cast<LockClass*>(&Lock)) { m_pLock->RLock(); }
+	~CryAutoReadLock() { m_pLock->RUnlock(); }
+private:
+	LockClass* m_pLock;
+};
+
+template<class LockClass> class CryAutoWriteLock
+{
+public:
+	CryAutoWriteLock() = delete;
+	CryAutoWriteLock(const CryAutoWriteLock<LockClass>&) = delete;
+	CryAutoWriteLock<LockClass>& operator=(const CryAutoWriteLock<LockClass>&) = delete;
+
+	CryAutoWriteLock(LockClass& Lock) : m_pLock(&Lock) { m_pLock->WLock(); }
+	CryAutoWriteLock(const LockClass& Lock) : m_pLock(const_cast<LockClass*>(&Lock)) { m_pLock->WLock(); }
+	~CryAutoWriteLock() { m_pLock->WUnlock(); }
+private:
+	LockClass* m_pLock;
+};
+
 
 //! CryOptionalAutoLock implements a helper class to automatically.
 //! Lock critical section (if needed) in constructor and release on destructor.

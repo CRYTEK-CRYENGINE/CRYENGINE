@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 
@@ -862,7 +862,7 @@ public:
 			RCLogWarning("Missing material infos in JSON data.");
 		}
 
-		CExportMaterial exportMaterial(PathHelpers::RemoveExtension(ir.materialFilename));
+		CExportMaterial exportMaterial(PathUtil::RemoveExtension(ir.materialFilename));
 		if (!exportMaterial.PrepareMaterials(m_pScene, ir, m_pRc))
 		{
 			return false;
@@ -1707,7 +1707,7 @@ private:
 
 		compressor.m_GlobalAnimationHeader.m_nCompressedControllerCount = compressor.m_GlobalAnimationHeader.CountCompressedControllers();
 
-		if (!FileUtil::EnsureDirectoryExists(PathHelpers::GetDirectory(cgf.GetFilename())))
+		if (!FileUtil::EnsureDirectoryExists(PathUtil::GetPathWithoutFilename(cgf.GetFilename())))
 		{
 			RCLogError("Failed to create directory for '%s'.", cgf.GetFilename());
 			return false;
@@ -1761,47 +1761,12 @@ private:
 		CSaverAnim::SaveTiming(&chunkFile, startFrame, endFrame);
 
 		std::vector<CryKeyPQS> frames(frameCount);
+		std::vector<bool> nontrivialRoot(m_nodes.size(), false);
 
-		// If the root bone has translation or scale or it is not ortonormal. 
-		const bool bNontrivialRoot = std::any_of(m_nodes.begin(), m_nodes.end(), [&mapSceneNodesToBoneId](const auto& node)
+		for (size_t i = 0; i < m_nodes.size(); ++i)
 		{
-			if (node.parentNode != -1)
-			{
-				return false;
-			}
+			const auto& node = m_nodes[i];
 
-			// bones only.
-			const int boneId = mapSceneNodesToBoneId[node.sourceSceneNode];
-			if (boneId == -1)
-			{
-				return false;
-			}
-
-			Vec3 t;
-			Quat r;
-			Vec3 s;
-			GetDecomposedTransform(node.worldOriginal, t, r, s);
-
-			if (!IsEquivalent(s, Vec3(1)))
-			{
-				return true;
-			}
-
-			if (!IsEquivalent(t, Vec3(0)))
-			{
-				return true;
-			}
-
-			if (!node.worldOriginal.IsOrthonormal())
-			{
-				return true;
-			}
-
-			return false;
-		});
-
-		for (const auto& node : m_nodes)
-		{
 			const int boneId = mapSceneNodesToBoneId[node.sourceSceneNode];
 			
 			// Exports bones animation only.
@@ -1810,32 +1775,32 @@ private:
 				continue;
 			}
 
+			// Animation does not work well if root bone has initial translation or scale or it is not orthonormal. 
+			// In this case we:
+			// 1. Set the bone transformation to identity.
+			// 2. Save child nodes of such a node in the world coordinate system.
+			if (node.parentNode == -1)
+			{
+				Vec3 t;
+				Quat r;
+				Vec3 s;
+				GetDecomposedTransform(node.worldOriginal, t, r, s);
+				nontrivialRoot[i] = !IsEquivalent(s, Vec3(1)) || !IsEquivalent(t, Vec3(0)) || !node.worldOriginal.IsOrthonormal();
+			}
+			const bool saveNodeAnimation = !nontrivialRoot[i];
+			const bool transformToLocalSpace = node.parentNode != -1 && !nontrivialRoot[node.parentNode];
+
 			for (int frame = 0; frame < frameCount; ++frame)
 			{
 				Matrix34 nodeTransform(IDENTITY);
 				Matrix34 parentTransform(IDENTITY);
 
-				if (bNontrivialRoot)
-				{
-					// Move root animation to child node.
-					if (node.parentNode != -1)
-					{
-						const Scene::STrs trs = m_pScene->EvaluateNodeGlobalTransform(node.sourceSceneNode, startFrame + frame);
-						nodeTransform = m_sceneWorldToCryWorldTM * Matrix34::Create(trs.scale, trs.rotation, trs.translation);
-
-						if (m_nodes[node.parentNode].parentNode != -1)
-						{
-							const Scene::STrs trs = m_pScene->EvaluateNodeGlobalTransform(m_nodes[node.parentNode].sourceSceneNode, startFrame + frame);
-							parentTransform = m_sceneWorldToCryWorldTM * Matrix34::Create(trs.scale, trs.rotation, trs.translation);
-						}
-					}
-				}
-				else
+				if (saveNodeAnimation)
 				{
 					const Scene::STrs trs = m_pScene->EvaluateNodeGlobalTransform(node.sourceSceneNode, startFrame + frame);
 					nodeTransform = m_sceneWorldToCryWorldTM * Matrix34::Create(trs.scale, trs.rotation, trs.translation);
 
-					if (node.parentNode != -1)
+					if (transformToLocalSpace)
 					{
 						const Scene::STrs trs = m_pScene->EvaluateNodeGlobalTransform(m_nodes[node.parentNode].sourceSceneNode, startFrame + frame);
 						parentTransform = m_sceneWorldToCryWorldTM * Matrix34::Create(trs.scale, trs.rotation, trs.translation);
@@ -2744,13 +2709,13 @@ bool CFbxConverter::Process()
 
 	if (ir.sourceFilename.empty())
 	{
-		sourceSceneFilename = PathHelpers::ReplaceExtension(inputFilepath, "fbx");
+		sourceSceneFilename = PathUtil::ReplaceExtension(inputFilepath, "fbx");
 	}
 	else
 	{
 		if (PathHelpers::IsRelative(ir.sourceFilename))
 		{
-			sourceSceneFilename = PathHelpers::Join(PathHelpers::GetDirectory(inputFilepath), ir.sourceFilename);
+			sourceSceneFilename = PathUtil::Make(PathUtil::GetPathWithoutFilename(inputFilepath), ir.sourceFilename);
 		}
 		else
 		{
@@ -2764,7 +2729,7 @@ bool CFbxConverter::Process()
 		sourceSceneFilename = overwriteSource;
 	}
 
-	const string outputFilename = PathHelpers::ReplaceExtension(inputFilepath, ir.outputFilenameExt).c_str();
+	const string outputFilename = PathUtil::ReplaceExtension(inputFilepath, ir.outputFilenameExt).c_str();
 	const bool bVerboseLog = m_CC.pRC->GetVerbosityLevel() > 0;
 	const bool bCollectSkinningInfo = ir.outputFilenameExt != "cgf";
 	const bool bGenerateTextureCoordinates = ir.bIgnoreTextureCoordinates;

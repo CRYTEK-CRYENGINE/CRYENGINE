@@ -1,6 +1,9 @@
 #include "StdAfx.h"
 #include "RigidBodyComponent.h"
 
+#include "CharacterControllerComponent.h"
+#include "Vehicles/VehicleComponent.h"
+
 #include <Cry3DEngine/IRenderNode.h>
 
 namespace Cry
@@ -77,7 +80,7 @@ static void ReflectType(Schematyc::CTypeDesc<CRigidBodyComponent::SCollisionSign
 {
 	desc.SetGUID("{3E2E1015-0B63-44EC-9993-21E568295CB4}"_cry_guid);
 	desc.SetLabel("On Collision");
-	desc.AddMember(&CRigidBodyComponent::SCollisionSignal::otherEntity, 'ent', "OtherEntityId", "OtherEntityId", "Other Colliding Entity Id", Schematyc::ExplicitEntityId());
+	desc.AddMember(&CRigidBodyComponent::SCollisionSignal::otherEntity, 'ent', "OtherEntity", "OtherEntity", "Other Colliding Entity", Schematyc::ExplicitEntityId());
 	desc.AddMember(&CRigidBodyComponent::SCollisionSignal::surfaceType, 'srf', "SurfaceType", "SurfaceType", "Material Surface Type at the collision point", "");
 }
 
@@ -92,9 +95,11 @@ void CRigidBodyComponent::Initialize()
 {
 	Physicalize();
 
-	if (m_bNetworked)
+	if (m_isNetworked)
 	{
+		m_pEntity->GetNetEntity()->EnableDelegatableAspect(eEA_Physics, false);
 		m_pEntity->GetNetEntity()->BindToNetwork();
+		m_pEntity->GetNetEntity()->SetAspectProfile(eEA_Physics, static_cast<int>(m_type));
 	}
 }
 
@@ -102,15 +107,22 @@ void CRigidBodyComponent::Physicalize()
 {
 	SEntityPhysicalizeParams physParams;
 	physParams.type = (int)m_type;
+	
+	Enable(m_isEnabledByDefault);
 
 	// Don't physicalize a slot by default
 	physParams.nSlot = std::numeric_limits<int>::max();
 	m_pEntity->Physicalize(physParams);
 
-	Enable(m_bEnabledByDefault);
+	pe_params_buoyancy buoyancyParams;
+	buoyancyParams.waterDensity = m_buoyancyParameters.density;
+	buoyancyParams.waterResistance = m_buoyancyParameters.resistance;
+	buoyancyParams.waterDamping = m_buoyancyParameters.damping;
+	m_pEntity->GetPhysicalEntity()->SetParams(&buoyancyParams);
+
 }
 
-void CRigidBodyComponent::ProcessEvent(SEntityEvent& event)
+void CRigidBodyComponent::ProcessEvent(const SEntityEvent& event)
 {
 
 	switch (event.event)
@@ -124,15 +136,27 @@ void CRigidBodyComponent::ProcessEvent(SEntityEvent& event)
 			EntityId otherEntityId = INVALID_ENTITYID;
 
 			ISurfaceTypeManager* pSurfaceTypeManager = gEnv->p3DEngine->GetMaterialManager()->GetSurfaceTypeManager();
-			if (ISurfaceType* pSurfaceType = pSurfaceTypeManager->GetSurfaceType(physCollision->idmat[1]))
+
+			IEntity* pOtherEntity = gEnv->pEntitySystem->GetEntityFromPhysics(physCollision->pEntity[0]);
+			ISurfaceType* pSurfaceType = pSurfaceTypeManager->GetSurfaceType(physCollision->idmat[0]);
+
+			if (pOtherEntity == m_pEntity || pOtherEntity == nullptr)
+			{
+				pSurfaceType = pSurfaceTypeManager->GetSurfaceType(physCollision->idmat[1]);
+				pOtherEntity = gEnv->pEntitySystem->GetEntityFromPhysics(physCollision->pEntity[1]);
+			}
+
+			if (pSurfaceType != nullptr)
 			{
 				surfaceTypeName = pSurfaceType->GetName();
 			}
 
-			if (IEntity* pOtherEntity = gEnv->pEntitySystem->GetEntityFromPhysics(physCollision->pEntity[1]))
+			if (pOtherEntity == nullptr)
 			{
-				otherEntityId = pOtherEntity->GetId();
+				return;
 			}
+
+			otherEntityId = pOtherEntity->GetId();
 
 			// Send OnCollision signal
 			if (Schematyc::IObject* pSchematycObject = m_pEntity->GetSchematycObject())
@@ -150,9 +174,10 @@ void CRigidBodyComponent::ProcessEvent(SEntityEvent& event)
 		break;
 	case ENTITY_EVENT_START_GAME:
 		{
-			if (m_bEnabledByDefault)
+			if (m_isEnabledByDefault)
 			{
 				pe_action_awake pa;
+				pa.bAwake = !m_isResting;
 				int result = m_pEntity->GetPhysicalEntity()->Action(&pa);
 			}
 		}
@@ -164,10 +189,24 @@ void CRigidBodyComponent::ProcessEvent(SEntityEvent& event)
 
 uint64 CRigidBodyComponent::GetEventMask() const
 {
-	uint64 bitFlags = m_bSendCollisionSignal ? BIT64(ENTITY_EVENT_COLLISION) : 0;
-	bitFlags |= BIT64(ENTITY_EVENT_COMPONENT_PROPERTY_CHANGED) | BIT64(ENTITY_EVENT_START_GAME);
+	uint64 bitFlags = ENTITY_EVENT_BIT(ENTITY_EVENT_COMPONENT_PROPERTY_CHANGED) | ENTITY_EVENT_BIT(ENTITY_EVENT_START_GAME);
+	if (m_bSendCollisionSignal)
+	{
+		bitFlags |= ENTITY_EVENT_BIT(ENTITY_EVENT_COLLISION);
+	}
 
 	return bitFlags;
+}
+
+bool CRigidBodyComponent::NetSerialize(TSerialize ser, EEntityAspects aspect, uint8 profile, int flags)
+{
+	if (aspect == eEA_Physics)
+	{
+		// Serialize physics state in order to keep the clients in sync
+		m_pEntity->PhysicsNetSerializeTyped(ser, static_cast<int>(m_type), flags);
+	}
+
+	return true;
 }
 
 }

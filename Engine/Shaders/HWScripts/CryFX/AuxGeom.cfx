@@ -1,18 +1,28 @@
-// CRYENGINE Source Code File
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "common.cfi"
 
 
 // Uniform data
-float4x4 matViewProj;
-float4x4 matWorldViewProj;
+cbuffer CBAuxGeom : register(b0)
+{
+	struct
+	{
+		float4x4 matViewProj;
+		float2   invScreenDim;
+	} cbAuxGeom;
+};
 
-float4 auxGeomObjColor;
-float3 globalLightLocal;
-float2 auxGeomObjShading;
-
-float4 invScreenDim;
+cbuffer CBAuxGeomObject : register(b0)
+{
+	struct
+	{
+		float4x4 matViewProj;
+		float4   auxGeomObjColor;
+		float2   auxGeomObjShading;
+		float3   globalLightLocal;
+	} cbAuxGeomObject;
+};
 
 // Structure of vertex shader input for geometries
 struct SAuxGeomApp2VS
@@ -52,19 +62,19 @@ AuxGeomVS( SAuxGeomApp2VS IN )
 {
   SAuxVS2PS OUT = (SAuxVS2PS) 0;
 
-  OUT.pos = mul( matViewProj, IN.pos );
+  OUT.pos = mul( cbAuxGeom.matViewProj, IN.pos );
   OUT.col = GetInputColor( IN.col );
 
   return OUT;
 }
 
 // Default vertex shader to transform auxiliary 3D geometries
-SAuxGeomApp2VS
+SAuxVS2PSWithColor
 AuxGeomTextureVS( SAuxGeomApp2VS IN )
 {
-  SAuxGeomApp2VS OUT;
+  SAuxVS2PSWithColor OUT;
 
-  OUT.pos = mul( matViewProj, IN.pos );
+  OUT.pos = mul( cbAuxGeom.matViewProj, IN.pos );
   OUT.col = GetInputColor( IN.col );
   OUT.tex = IN.tex;
 
@@ -78,11 +88,11 @@ AuxGeomObjVS( SAuxGeomObjApp2VS IN )
 {
   SAuxVS2PS OUT = (SAuxVS2PS) 0;
 
-  OUT.pos = mul( matWorldViewProj, IN.pos );
+  OUT.pos = mul( cbAuxGeomObject.matViewProj, IN.pos );
 
-  float shading = dot( IN.normal, globalLightLocal );
-  shading = auxGeomObjShading.x * shading + auxGeomObjShading.y;
-  OUT.col = float4( auxGeomObjColor.rgb * shading, auxGeomObjColor.a );
+  float shading = dot( IN.normal, cbAuxGeomObject.globalLightLocal );
+  shading = cbAuxGeomObject.auxGeomObjShading.x * shading + cbAuxGeomObject.auxGeomObjShading.y;
+  OUT.col = float4( cbAuxGeomObject.auxGeomObjColor.rgb * shading, cbAuxGeomObject.auxGeomObjColor.a );
 
   return OUT;
 }
@@ -90,7 +100,7 @@ AuxGeomObjVS( SAuxGeomObjApp2VS IN )
 
 // Default pixel shader to render auxiliary 2D/3D geometries and geometry objects
 float4
-AuxGeomPS( SAuxVS2PS IN ) : COLOR0
+AuxGeomPS( SAuxVS2PS IN ) : SV_Target0
 {
   return IN.col;
 }
@@ -102,9 +112,11 @@ SamplerState smpAux : register(s0);
 
 // Default pixel shader to render auxiliary 2D/3D geometries and geometry objects with texture
 float4
-AuxGeomTexturePS( SAuxGeomApp2VS IN ) : COLOR0
+AuxGeomTexturePS( SAuxVS2PSWithColor IN ) : SV_Target0
 {
-  return GetTexture2D(texAux, smpAux, IN.tex.xy);
+  float4 col = IN.col;
+  float4 tex = GetTexture2D(texAux, smpAux, IN.tex.xy);
+  return col.rgba * tex.rgba;
 }
 
 SAuxVS2PSWithColor
@@ -112,7 +124,7 @@ AuxGeomThickLineVS( SAuxGeomApp2VS IN )
 {
   SAuxVS2PSWithColor OUT = (SAuxVS2PSWithColor) 0;
 
-  OUT.pos = mul( matViewProj, IN.pos );
+  OUT.pos = mul( cbAuxGeom.matViewProj, IN.pos );
   OUT.col = GetInputColor( IN.col );
   OUT.tex = IN.tex;
 
@@ -156,7 +168,7 @@ void AuxThickLineGS(line SAuxGeomApp2VS points[2], inout TriangleStream<SAuxVS2P
     float4 dir = vertsArray[1].pos / vertsArray[1].pos.w - vertsArray[0].pos / vertsArray[0].pos.w;
     dir = float4(-dir.y, dir.x, 0.0, 0.0);
     // scale by inverse screen dimensions to scale thickness from pixel values to clip space
-    dir = normalize(dir) * 0.5 * invScreenDim;
+    dir = normalize(dir) * 0.5 * float4(cbAuxGeom.invScreenDim.x,cbAuxGeom.invScreenDim.y,0,0);
 
     vert.col = vertsArray[0].col;
 
@@ -233,13 +245,13 @@ SamplerState smpFont : register(s0) = SS_Font;
 SAuxVS2PSWithColor AuxTextVS(SAuxGeomApp2VS IN)
 {
   SAuxVS2PSWithColor OUT = (SAuxVS2PSWithColor)0;
-  OUT.pos = mul(matViewProj, IN.pos);
+  OUT.pos = mul(cbAuxGeom.matViewProj, IN.pos);
   OUT.tex = IN.tex;
   OUT.col = IN.col;
   return OUT;
 }
 
-float4 AuxTextPS(SAuxVS2PSWithColor IN) : COLOR0
+float4 AuxTextPS(SAuxVS2PSWithColor IN) : SV_Target0
 {
   float4 col = GetInputColor(IN.col);
   float4 tex = GetTexture2D(texFont, smpFont, IN.tex.xy);

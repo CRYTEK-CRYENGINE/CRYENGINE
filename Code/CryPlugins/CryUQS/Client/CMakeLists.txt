@@ -4,12 +4,6 @@
 start_sources()
 # -- uqs_client.waf_files --
 sources_platform(ALL)
-add_sources("NoUberFile"
-	SOURCE_GROUP "client"
-		"client/StdAfx.cpp"
-		"client/StdAfx.h"
-)
-
 add_sources("UQS_uber_client.cpp"
 	SOURCE_GROUP "Root"
 		"ClientIncludes.h"
@@ -17,7 +11,6 @@ add_sources("UQS_uber_client.cpp"
 		"client/ItemFactory.h"
 		"client/ItemListProxy.h"
 		"client/InputParameterRegistry.h"
-		"client/InputParameterRegistry.cpp"
 		"client/FunctionBase.h"
 		"client/ContainedTypeRetriever.h"
 		"client/FunctionFactory.h"
@@ -25,6 +18,7 @@ add_sources("UQS_uber_client.cpp"
 		"client/Func_IteratedItem.h"
 		"client/Func_Literal.h"
 		"client/Func_ShuttledItems.h"
+		"client/Gen_PropagateShuttledItems.h"
 		"client/InstantEvaluatorBase.h"
 		"client/InstantEvaluatorFactory.h"
 		"client/DeferredEvaluatorBase.h"
@@ -33,28 +27,12 @@ add_sources("UQS_uber_client.cpp"
 		"client/GeneratorFactory.h"
 		"client/ParamsHolder.h"
 		"client/FactoryRegistrationHelper.h"
-		"client/FactoryRegistrationHelper.cpp"
 		"client/TypeWrapper.h"
 		"client/ItemConverter.h"
 		"client/QueryHost.h"
-		"client/QueryHost.cpp"
 )
 
 end_sources()
 #END-FILE-LIST
 
-CryEngineStaticModule(CryUQS_Client PCH "client/StdAfx.cpp" SOLUTION_FOLDER "CryPlugins/CryUQS")
-target_link_libraries (${THIS_PROJECT} PRIVATE CryUQS_Shared)
-
-target_include_directories(${THIS_PROJECT}
-	PRIVATE client
-	PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}"
-	INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/../.."
-)
-
-if(OPTION_UQS_SCHEMATYC_SUPPORT)
-	target_include_directories(${THIS_PROJECT}
-		PUBLIC "${CRYENGINE_DIR}/Code/CryEngine/CrySchematyc/Core/Interface"
-		PUBLIC "${CRYENGINE_DIR}/Code/CryEngine/CrySchematyc/STDEnv/Interface"
-	)
-endif()
+CryFileContainer(CryUQS_Client_inline SOLUTION_FOLDER "CryPlugins/CryUQS")

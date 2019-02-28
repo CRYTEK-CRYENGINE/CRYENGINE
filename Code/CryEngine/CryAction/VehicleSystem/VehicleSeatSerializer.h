@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -42,7 +42,8 @@ public:
 	virtual ISerializableInfoPtr GetSpawnInfo();
 	virtual void                 Update(SEntityUpdateContext& ctx, int);
 	virtual void                 HandleEvent(const SGameObjectEvent& event);
-	virtual void                 ProcessEvent(SEntityEvent& event)  {};
+	virtual void                 ProcessEvent(const SEntityEvent& event)  {};
+	virtual uint64               GetEventMask() const { return 0; }
 	virtual void                 SetChannelId(uint16 id)            {};
 	virtual void                 PostUpdate(float frameTime)        { CRY_ASSERT(false); };
 	virtual void                 PostRemoteSpawn()                  {};

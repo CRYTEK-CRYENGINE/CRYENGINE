@@ -1,3 +1,5 @@
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+
 #include "StdAfx.h"
 #include "CharacterRenderNode.h"
 
@@ -23,10 +25,9 @@ CCharacterRenderNode::CCharacterRenderNode()
 	: m_pCharacterInstance(nullptr)
 	, m_pPhysicsEntity(nullptr)
 {
-	m_boundsWorld = AABB(0.0f);
-	m_boundsLocal = AABB(0.0f);
+	m_cachedBoundsWorld = AABB(0.0f);
+	m_cachedBoundsLocal = AABB(0.0f);
 	m_matrix.SetIdentity();
-	m_renderOffset.SetIdentity();
 
 	GetInstCount(GetRenderNodeType())++;
 }
@@ -68,6 +69,7 @@ void CCharacterRenderNode::Render(const SRendParams& inputRendParams, const SRen
 	// some parameters will be modified
 	SRendParams rParms(inputRendParams);
 
+	rParms.pRenderNode = this;
 	rParms.nMaterialLayers = m_nMaterialLayers;
 	rParms.pMatrix = &m_matrix;
 	rParms.pMaterial = m_pMaterial;
@@ -86,17 +88,16 @@ void CCharacterRenderNode::Render(const SRendParams& inputRendParams, const SRen
 
 		// Nearest objects recalculate instance matrix every frame
 		//m_bPermanentRenderObjectMatrixValid = false;
-		QuatTS offset;
-		offset.SetIdentity();
-		Matrix34 nearestMatrix = m_matrix;
+		
+		auto nearestMatrix = m_matrix;	
 		CalcNearestTransform(nearestMatrix, passInfo);
-		rParms.pMatrix = &nearestMatrix;
+		rParms.pNearestMatrix = &nearestMatrix;
 
-		m_pCharacterInstance->Render(rParms, offset, passInfo);
+		m_pCharacterInstance->Render(rParms, passInfo);
 	}
 	else
 	{
-		m_pCharacterInstance->Render(rParms, m_renderOffset, passInfo);
+		m_pCharacterInstance->Render(rParms, passInfo);
 	}
 }
 
@@ -107,23 +108,52 @@ void CCharacterRenderNode::SetMatrix(const Matrix34& transform)
 
 	if (!IsMatrixValid(transform))
 	{
-		Warning("Error: IRenderNode::SetMatrix: Invalid matrix ignored");
+		const Vec3 pos = transform.GetTranslation();
+		stack_string message;
+		message.Format("Error: IRenderNode::SetMatrix: Invalid matrix ignored (name=\"%s\", position=[%.2f,%.2f,%.2f])", GetName(), pos.x, pos.y, pos.z);
+		Warning(message.c_str());
 		return;
 	}
 
-	bool bMoved = !Matrix34::IsEquivalent(m_matrix, transform, 0.00001f);
+	if (m_matrix == transform)
+		return;
+
 	m_matrix = transform;
 
-	//if (bMoved)
+	m_cachedBoundsLocal = m_cachedBoundsWorld = AABB(0.0f);
+
+	Get3DEngine()->UnRegisterEntityAsJob(this);
+	Get3DEngine()->RegisterEntity(this);
+
+	m_pCharacterInstance->SetAttachmentLocation_DEPRECATED(QuatTS(transform));
+}
+
+void CCharacterRenderNode::GetLocalBounds(AABB& bbox)
+{
+	if (!m_pCharacterInstance)
 	{
-		m_boundsLocal = m_pCharacterInstance->GetAABB();
-		m_boundsWorld.SetTransformedAABB(m_matrix, m_boundsLocal);
-
-		Get3DEngine()->UnRegisterEntityAsJob(this);
-		Get3DEngine()->RegisterEntity(this);
-
-		m_pCharacterInstance->SetAttachmentLocation_DEPRECATED(QuatTS(transform));
+		return;
 	}
+
+	bbox = m_pCharacterInstance->GetAABB();
+}
+
+const AABB CCharacterRenderNode::GetBBox() const
+{
+	if (!m_pCharacterInstance)
+	{
+		return AABB(AABB::RESET);
+	}
+
+	AABB boundsLocal = m_pCharacterInstance->GetAABB();
+
+	if (IsEquivalent(boundsLocal, m_cachedBoundsLocal))
+		return m_cachedBoundsWorld;
+
+	m_cachedBoundsLocal = boundsLocal;
+	m_cachedBoundsWorld = AABB::CreateTransformedAABB(m_matrix, boundsLocal);
+
+	return m_cachedBoundsWorld;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -144,14 +174,18 @@ float CCharacterRenderNode::GetMaxViewDist()
 
 	if (GetRndFlags() & ERF_CUSTOM_VIEW_DIST_RATIO)
 	{
-		float s = max(max((m_boundsWorld.max.x - m_boundsWorld.min.x), (m_boundsWorld.max.y - m_boundsWorld.min.y)), (m_boundsWorld.max.z - m_boundsWorld.min.z));
+		const AABB boundsWorld = GetBBox();
+		float s = max(max((boundsWorld.max.x - boundsWorld.min.x), (boundsWorld.max.y - boundsWorld.min.y)), (boundsWorld.max.z - boundsWorld.min.z));
 		return max(GetCVars()->e_ViewDistMin, s * GetCVars()->e_ViewDistRatioCustom * GetViewDistRatioNormilized());
 	}
 
-	if (GetMinSpecFromRenderNodeFlags(m_dwRndFlags) == CONFIG_DETAIL_SPEC)
-		return max(GetCVars()->e_ViewDistMin, min(GetFloatCVar(e_ViewDistCompMaxSize), m_boundsLocal.GetRadius()) * GetCVars()->e_ViewDistRatioDetail * GetViewDistRatioNormilized());
+	AABB boundsLocal;
+	GetLocalBounds(boundsLocal);
 
-	return max(GetCVars()->e_ViewDistMin, min(GetFloatCVar(e_ViewDistCompMaxSize), m_boundsLocal.GetRadius()) * GetCVars()->e_ViewDistRatio * GetViewDistRatioNormilized());
+	if (GetMinSpecFromRenderNodeFlags(m_dwRndFlags) == CONFIG_DETAIL_SPEC)
+		return max(GetCVars()->e_ViewDistMin, min(GetFloatCVar(e_ViewDistCompMaxSize), boundsLocal.GetRadius()) * GetCVars()->e_ViewDistRatioDetail * GetViewDistRatioNormilized());
+
+	return max(GetCVars()->e_ViewDistMin, min(GetFloatCVar(e_ViewDistCompMaxSize), boundsLocal.GetRadius()) * GetCVars()->e_ViewDistRatio * GetViewDistRatioNormilized());
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -239,18 +273,12 @@ void CCharacterRenderNode::SetCharacter(ICharacterInstance* pCharacter)
 	}
 }
 
-void CCharacterRenderNode::SetCharacterRenderOffset(const QuatTS& renderOffset)
-{
-	m_renderOffset = renderOffset;
-}
-
 //////////////////////////////////////////////////////////////////////////
 void CCharacterRenderNode::OffsetPosition(const Vec3& delta)
 {
-	if (m_pTempData)
-		m_pTempData->OffsetPosition(delta);
+	if (const auto pTempData = m_pTempData.load()) pTempData->OffsetPosition(delta);
 	m_matrix.SetTranslation(m_matrix.GetTranslation() + delta);
-	m_boundsWorld.Move(delta);
+	m_cachedBoundsLocal = m_cachedBoundsWorld = AABB(0.0f);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -501,12 +529,13 @@ void CCharacterRenderNode::UpdateStreamingPriority(const SUpdateStreamingPriorit
 		bDrawNear = true;
 	}
 
-	FRAME_PROFILER("UpdateObjectsStreamingPriority_PrecacheCharacter", GetSystem(), PROFILE_3DENGINE);
+	CRY_PROFILE_REGION(PROFILE_3DENGINE, "UpdateObjectsStreamingPriority_PrecacheCharacter");
 
 	const SRenderingPassInfo& passInfo = *streamingContext.pPassInfo;
 	// If the object is in camera space, don't use the prediction position.
+	const AABB boundsWorld = GetBBox();
 	const float fApproximatePrecacheDistance = (bDrawNear)
-	                                           ? sqrt_tpl(Distance::Point_AABBSq(passInfo.GetCamera().GetPosition(), m_boundsWorld))
+	                                           ? sqrt_tpl(Distance::Point_AABBSq(passInfo.GetCamera().GetPosition(), boundsWorld))
 	                                           : streamingContext.distance;
 	float fObjScale = 1.0f;
 	PrecacheCharacter(streamingContext.importance, m_pCharacterInstance, m_pMaterial, m_matrix, fApproximatePrecacheDistance, fObjScale, bDrawNear ? 4 : 2, streamingContext.bFullUpdate, bDrawNear, streamingContext.lod);

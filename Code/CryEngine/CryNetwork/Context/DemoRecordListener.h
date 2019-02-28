@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -8,7 +8,7 @@
    -------------------------------------------------------------------------
    History:
    - ??/2005 : Created by Craig Tiller
-   - 04/2006 : Taken over by Jan MÃ¼ller
+   - 04/2006 : Taken over by Jan Müller
 *************************************************************************/
 
 #ifndef __DEMORECORDLISTENER_H__
@@ -266,7 +266,7 @@ L_continue:;
 		virtual bool                    IsFakeChannel() const                                           { return true; }
 		virtual bool                    IsConnectionEstablished() const                                 { return m_connected; }
 		virtual string                  GetRemoteAddressString() const                                  { return ""; }
-		virtual bool                    GetRemoteNetAddress(uint32& uip, uint16& port)                  { return false; }
+		virtual bool                    GetRemoteNetAddress(uint32& uip, uint16& port, bool firstLocal) { return false; }
 		virtual bool                    SendTo(const uint8* pData, size_t nSize, const TNetAddress& to) { return false; }
 		virtual const char*             GetName()                                                       { return "DemoRecorder"; }
 		virtual const char*             GetNickname()                                                   { return 0; }

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __OFFMESH_NAVIGATION_MANAGER_H__
 #define __OFFMESH_NAVIGATION_MANAGER_H__
@@ -120,7 +120,7 @@ public:
 #endif
 
 private:
-	bool       AddCustomLink(const NavigationMeshID& meshID, MNM::OffMeshLinkPtr& pLinkData, MNM::OffMeshLinkID& linkID, const bool bCloneLinkData);
+	bool       AddCustomLink(const NavigationMeshID& meshID, MNM::OffMeshLinkPtr& pLinkData, MNM::OffMeshLinkID& linkID, MNM::TriangleID* pOutStartTriangleID, MNM::TriangleID* pOutEndTriangleID, const bool bCloneLinkData);
 	void       RemoveCustomLink(const MNM::OffMeshLinkID& linkID);
 
 	bool       IsLinkRemovalRequested(const MNM::OffMeshLinkID& linkID) const;

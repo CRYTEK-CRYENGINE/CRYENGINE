@@ -1,4 +1,6 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+
+//! \cond INTERNAL
 
 #pragma once
 
@@ -188,3 +190,4 @@ template<class T> inline QuatTAsVec3Ang3<T> AsAng3(QuatT_tpl<T>& trans) { return
 }
 
 #include "MathImpl.h"
+//! \endcond

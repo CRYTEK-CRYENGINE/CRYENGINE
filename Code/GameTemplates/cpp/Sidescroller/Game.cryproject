@@ -1,50 +1,36 @@
 {
-    "version": 1,
-    "type": "",
-    "info": {
-        "name": "Sidescroller Game Template"
-    },
-    "content": {
-        "assets": [
-            "Assets"
-        ],
-        "code": [
-            "Code"
-        ]
-    },
-    "require": {
-        "engine": "engine-5.4",
-        "plugins": [
-            {
-                "type": "EPluginType::Native",
-                "path": "CryDefaultEntities"
-            },
-            {
-                "type": "EPluginType::Native",
-                "path": "CrySensorSystem"
-            },
-            {
-                "type": "EPluginType::Native",
-                "path": "CryPerceptionSystem"
-            },
-            {
-                "type": "EPluginType::Native",
-                "path": "bin/win_x64/Game.dll"
-            }
-        ]
-    },
-    "console_variables": [
-        {
-            "name": "ca_useIMG_CAF",
-            "value": "0"
-        },
-        {
-            "name": "e_waterocean",
-            "value": "0"
-        },
-        {
-            "name": "sys_target_platforms",
-            "value": "pc,ps4,xboxone,linux"
-        }
-    ]
+	"version": 3,
+	"type": "",
+	"info": {
+		"name": "Sidescroller Game Template",
+		"guid": "34995d13-f587-9695-de28-6cc71c9f68fa"
+	},
+	"content": {
+		"assets": [ "Assets" ],
+		"code": [ "Code" ],
+		"libs": [
+			{
+				"name": "Sidescroller Game Template",
+				"shared": { "any": "", "win_x64": "", "win_x86": "" }
+			}
+		]
+	},
+	"require": {
+		"engine": "engine-5.5",
+		"plugins": [
+			{ "type": "EPluginType::Native", "path": "CryDefaultEntities" },
+			{ "type": "EPluginType::Native", "path": "CrySensorSystem" },
+			{ "type": "EPluginType::Native", "path": "CryPerceptionSystem" },
+			{ "type": "EPluginType::Native", "path": "bin/win_x64/Game.dll" },
+			{
+				"type": "EPluginType::Native",
+				"path": "CryGamePlatform",
+				"platforms": [ "PS4" ]
+			}
+		]
+	},
+	"console_variables": [
+		{ "name": "sys_target_platforms", "value": "pc,ps4,xboxone,linux" }
+	],
+	"console_commands": [ ]
 }

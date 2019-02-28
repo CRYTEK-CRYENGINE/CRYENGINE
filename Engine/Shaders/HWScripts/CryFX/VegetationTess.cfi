@@ -1,5 +1,4 @@
-// CRYENGINE Source Code File
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #if ENABLE_TESSELLATION
 
@@ -17,10 +16,6 @@ struct HS_CONTROL_POINT_OUTPUT_VEGETATION
 #if !%GRASS
 	float4 tangVec : TEXCOORDN;
 	float4 binormVec : TEXCOORDN;
-#endif
-
-#if %_RT_FOG
-	float4 AvgFogVolumeContrib : TEXCOORDN;
 #endif
 };
 
@@ -54,10 +49,6 @@ HS_CONTROL_POINT_OUTPUT_VEGETATION VegetationHS(InputPatch<vtxOutVegetation, 3> 
 #if !%GRASS
 	output.tangVec = inputPatch[uCPID].tangVec;
 	output.binormVec = inputPatch[uCPID].binormVec;
-#endif
-
-#if %_RT_FOG
-	output.AvgFogVolumeContrib = inputPatch[uCPID].AvgFogVolumeContrib;
 #endif
 
 	return output;
@@ -95,10 +86,6 @@ void EvaluateVegetationSpecific(inout vtxOutVegetation output, in HS_CONTROL_POI
 	output.screenProj.z = EvalVec(triPatch[0].screenProj.z, triPatch[1].screenProj.z, triPatch[2].screenProj.z, vBaryCoords);
 
 	output.terrainParams = EvalVec(triPatch[0].terrainParams, triPatch[1].terrainParams, triPatch[2].terrainParams, vBaryCoords);
-
-#if %_RT_FOG
-	output.AvgFogVolumeContrib = EvalVec(triPatch[0].AvgFogVolumeContrib, triPatch[1].AvgFogVolumeContrib, triPatch[2].AvgFogVolumeContrib, vBaryCoords);
-#endif
 }
 
 [domain("tri")]

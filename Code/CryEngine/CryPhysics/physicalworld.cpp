@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -19,6 +19,7 @@
 #include "physicalplaceholder.h"
 #include "physicalentity.h"
 #include "rigidentity.h"
+#include "walkingrigidentity.h"
 #include "particleentity.h"
 #include "livingentity.h"
 #include "wheeledvehicleentity.h"
@@ -267,6 +268,7 @@ CPhysicalWorld::CPhysicalWorld(ILog *pLog) : m_nWorkerThreads(0)
 	0;
 #endif
 	m_vars.breakageMinAxisInertia = 0.01f;
+	m_vars.idEntBreakOnAwake = -1000;
 
 	memset(m_grpProfileData, 0, sizeof(m_grpProfileData));
 	m_grpProfileData[ 0].pName = "Rigid bodies";
@@ -438,6 +440,7 @@ void CPhysicalWorld::Init()
 	memset(&CPhysicalEntity::m_defpart,0,sizeof(geom));
 	CPhysicalEntity::m_defpart.q.SetIdentity();
 	CPhysicalEntity::m_defpart.scale = 1.0f;
+	CPhysicalEntity::m_defpart.pNewCoords = (coord_block_BBox*)&CPhysicalEntity::m_defpart.pos;
 	m_rwiQueueHead=-1; m_rwiQueueTail=-64; m_rwiQueueSz=m_rwiQueueAlloc = 0;
 	m_rwiQueue = 0; m_lockRwiQueue = 0;
 	m_pRwiHitsTail = (m_pRwiHitsHead = m_pRwiHitsPool+1)+255;
@@ -788,6 +791,8 @@ IPhysicalEntity *CPhysicalWorld::SetHeightfieldData(const heightfield *phf, int 
 		pHF->m_parts[0].BBox[1].zero();
 		m_pHeightfield[iCaller] = pHF;
 	}
+	if (!m_nEnts)
+		ReserveEntityCount(1);
 	return m_pHeightfield[0];
 }
 
@@ -830,7 +835,7 @@ void SEntityGrid::Setup(int axisz, Vec3 org, int nx,int ny, float stepx,float st
 	origin = org;
 	Basis.SetIdentity();
 	AllocateGrid(cells, size);
-	log2PODscale = log2PODscale;
+	log2PODscale = _log2PODscale;
 	PODstride.set(1,ny>>3+log2PODscale);
 	bCyclic = _bCyclic;
 }
@@ -1188,7 +1193,7 @@ int CPhysicalWorld::GetSurfaceParameters(int surface_idx, float &bounciness,floa
 IPhysicalEntity* CPhysicalWorld::CreatePhysicalEntity(pe_type type, float lifeTime, pe_params* params, void *pForeignData,int iForeignData,
 																											int id, IPhysicalEntity *pHostPlaceholder, IGeneralMemoryHeap* pHeap)
 {
-	FUNCTION_PROFILER( GetISystem(),PROFILE_PHYSICS );
+	CRY_PROFILE_FUNCTION(PROFILE_PHYSICS );
 	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other,0,"CreatePhysicalEntity");
 
 	CPhysicalEntity *res=0;
@@ -1202,6 +1207,7 @@ IPhysicalEntity* CPhysicalWorld::CreatePhysicalEntity(pe_type type, float lifeTi
 		case PE_RIGID : res = CPhysicalEntity::Create<CRigidEntity>(this, pHeap); break;
 		case PE_LIVING: res = CPhysicalEntity::Create<CLivingEntity>(this, pHeap); break;
 		case PE_WHEELEDVEHICLE: res = CPhysicalEntity::Create<CWheeledVehicleEntity>(this, pHeap); break;
+		case PE_WALKINGRIGID: res = CPhysicalEntity::Create<CWalkingRigidEntity>(this, pHeap); break;
 		case PE_PARTICLE: res = CPhysicalEntity::Create<CParticleEntity>(this, pHeap); break;
 		case PE_ARTICULATED: res = CPhysicalEntity::Create<CArticulatedEntity>(this, pHeap); break;
 		case PE_ROPE: res = CPhysicalEntity::Create<CRopeEntity>(this, pHeap); break;
@@ -1333,7 +1339,7 @@ IPhysicalEntity *CPhysicalWorld::CreatePhysicalPlaceholder(pe_type type, pe_para
 
 int CPhysicalWorld::DestroyPhysicalEntity(IPhysicalEntity* _pent,int mode,int bThreadSafe)
 {
-	FUNCTION_PROFILER( GetISystem(),PROFILE_PHYSICS );
+	CRY_PROFILE_FUNCTION(PROFILE_PHYSICS );
 
 	int idx;
 	CPhysicalPlaceholder *ppc = (CPhysicalPlaceholder*)_pent;
@@ -1549,13 +1555,13 @@ int CPhysicalWorld::ReserveEntityCount(int nNewEnts)
 	if (m_nEnts+nNewEnts > m_nEntsAlloc-1) {
 		m_nEntsAlloc = (m_nEnts+nNewEnts & ~4095) + 4096;
 		m_nEntListAllocs++; m_bEntityCountReserved = 1;
-		ReallocateList(m_pTmpEntList,m_nEnts-1,m_nEntsAlloc);
-		ReallocateList(m_pTmpEntList1,m_nEnts-1,m_nEntsAlloc);
-		ReallocateList(m_pTmpEntList2,m_nEnts-1,m_nEntsAlloc);
-		ReallocateList(m_pGroupMass,m_nEnts-1,m_nEntsAlloc);
-		ReallocateList(m_pMassList,m_nEnts-1,m_nEntsAlloc);
-		ReallocateList(m_pGroupIds,m_nEnts-1,m_nEntsAlloc);
-		ReallocateList(m_pGroupNums,m_nEnts-1,m_nEntsAlloc);
+		ReallocateList(m_pTmpEntList,m_nEnts,m_nEntsAlloc);
+		ReallocateList(m_pTmpEntList1,m_nEnts,m_nEntsAlloc);
+		ReallocateList(m_pTmpEntList2,m_nEnts,m_nEntsAlloc);
+		ReallocateList(m_pGroupMass,m_nEnts,m_nEntsAlloc);
+		ReallocateList(m_pMassList,m_nEnts,m_nEntsAlloc);
+		ReallocateList(m_pGroupIds,m_nEnts,m_nEntsAlloc);
+		ReallocateList(m_pGroupNums,m_nEnts,m_nEntsAlloc);
 	}
 	return m_nEntsAlloc;
 }
@@ -1817,7 +1823,7 @@ int CPhysicalWorld::GetEntitiesAround(const Vec3 &ptmin,const Vec3 &ptmax, CPhys
 		pList = pTmpEntList; return m_nprevGEAEnts[iCaller];
 	}
 
-	FUNCTION_PROFILER( GetISystem(),PROFILE_PHYSICS );
+	CRY_PROFILE_FUNCTION(PROFILE_PHYSICS );
 #ifndef PHYS_FUNC_PROFILER_DISABLED
 	INT_PTR mask = (INT_PTR)pPetitioner;
 	mask = mask>>sizeof(mask)*8-1 ^ (mask-1)>>sizeof(mask)*8-1;
@@ -1941,7 +1947,7 @@ int CPhysicalWorld::GetEntitiesAround(const Vec3 &ptmin,const Vec3 &ptmax, CPhys
 									AtomicAdd(&pent->m_lockUpdate, bProcessed^1);
 									volatile char *pw=(volatile char*)&pent->m_lockUpdate+(1+eBigEndian); for(;*pw;); // ReadLock(m_lockUpdate)
 									AtomicAdd(&pent->m_bProcessed, maskCaller & ~-bProcessed);
-									AtomicAdd(&pent->m_nUsedParts, (pent->m_nUsedParts & 15*maskCaller4)*(bProcessed-1));
+									AtomicAdd(&pent->m_nUsedParts, (pent->m_nUsedParts & 15*maskCaller4)*(bProcessed-1u));
 									int nUsedParts = pent->m_nUsedParts>>iCaller*4 & 15;
 									int notFull = nUsedParts+1>>4 ^ 1;
 									notFull &= 1-iszero((INT_PTR)pGridEnt->m_pEntBuddy);
@@ -2412,7 +2418,7 @@ int __curstep = 0; // debug
 
 void CPhysicalWorld::TimeStep(float time_interval, int flags)
 {
-	FUNCTION_PROFILER( GetISystem(),PROFILE_PHYSICS );
+	CRY_PROFILE_FUNCTION(PROFILE_PHYSICS );
 
 	float m,/*m_groupTimeStep,*/time_interval_org = time_interval;
 	CPhysicalEntity *pent,*phead,*ptail,**pentlist,*pent_next,*pent1,*pentmax;
@@ -2451,7 +2457,7 @@ void CPhysicalWorld::TimeStep(float time_interval, int flags)
 			i=m_nQueueSlotsAlloc; m_nQueueSlotsAlloc=m_nQueueSlotsAllocAux; m_nQueueSlotsAllocAux=i;
 			i=m_nQueueSlotSize; m_nQueueSlotSize=m_nQueueSlotSizeAux; m_nQueueSlotSizeAux=i;
 		}
-		if (time_interval>0)
+		if (time_interval>0 && !(flags & ent_flagged_only))
 			MarkAsPhysThread();
 		phys_geometry *pgeom;
 		for(i=0; i<nQueueSlots; i++) for(j=0; (iter=*(int*)(pQueueSlots[i]+j))!=-1; j+=*(int*)(pQueueSlots[i]+j+sizeof(int))) {
@@ -2491,7 +2497,9 @@ void CPhysicalWorld::TimeStep(float time_interval, int flags)
 		}
 		m_grpProfileData[14].nTicksLast = CryGetTicks()-timer;
 	}
-	{ WriteLock lock(m_lockStep);
+	{ 
+	WriteLockCond lock1(m_lockCaller[MAX_PHYS_THREADS], flags & ent_flagged_only);
+	WriteLock lock(m_lockStep);
 	if (time_interval>0 && !(flags & ent_flagged_only))
 		MarkAsPhysThread();
 	volatile int64 timer=CryGetTicks();
@@ -2939,6 +2947,9 @@ void CPhysicalWorld::DetachEntityGridThunks(CPhysicalPlaceholder *pobj)
 
 void CPhysicalWorld::SortThunks()
 {
+	if (m_thunkPoolSz == 0)
+		return;
+
 	int i,j,icell,nthunks=1;
 	int *new2old=new int[m_thunkPoolSz], *old2new=new int[m_thunkPoolSz];
 	SEntityGrid *pgrid;
@@ -3530,7 +3541,7 @@ void CPhysicalWorld::UnmarkEntityAsDeforming(CPhysicalEntity *pent)
 
 void CPhysicalWorld::SimulateExplosion(pe_explosion *pexpl, IPhysicalEntity **pSkipEnts,int nSkipEnts, int iTypes, int iCaller)
 {
-	FUNCTION_PROFILER( GetISystem(),PROFILE_PHYSICS );
+	CRY_PROFILE_FUNCTION(PROFILE_PHYSICS );
 
 	CPhysicalEntity **pents;
 	int nents,nents1,i,j,i1,bBreak,bEntChanged;
@@ -4085,18 +4096,34 @@ void CPhysicalWorld::DrawPhysicsHelperInformation(IPhysRenderer *pRenderer, int 
 
 	if (m_vars.bLogActiveObjects) {
 		ReadLock lock(m_lockList);
-		m_vars.bLogActiveObjects = 0;
 		int i,nPrims,nCount=0;
-		RigidBody *pbody;
-		for(pent=m_pTypedEnts[2]; pent; pent=pent->m_next) if (pent->GetMassInv()>0) {
-			for(i=nPrims=0;i<pent->m_nParts;i++) if (pent->m_parts[i].flags & geom_colltype0)
-				nPrims += ((CGeometry*)pent->m_parts[i].pPhysGeomProxy->pGeom)->GetPrimitiveCount();
-			pbody = pent->GetRigidBody();	++nCount;
-			CryLogAlways("%s @ %7.2f,%7.2f,%7.2f, mass %.2f, v %.1f, w %.1f, #polies %d, id %d",
-				m_pRenderer ? m_pRenderer->GetForeignName(pent->m_pForeignData,pent->m_iForeignData,pent->m_iForeignFlags):"",
-				pent->m_pos.x,pent->m_pos.y,pent->m_pos.z, pbody->M,pbody->v.len(),pbody->w.len(),nPrims,pent->m_id);
+		if (m_vars.bLogActiveObjects & 1)	{
+			RigidBody *pbody;
+			for(pent=m_pTypedEnts[2]; pent; pent=pent->m_next) if (pent->GetMassInv()>0) {
+				for(i=nPrims=0;i<pent->m_nParts;i++) if (pent->m_parts[i].flags & geom_colltype0)
+					nPrims += ((CGeometry*)pent->m_parts[i].pPhysGeomProxy->pGeom)->GetPrimitiveCount();
+				pbody = pent->GetRigidBody();	++nCount;
+				CryLogAlways("%s @ %7.2f,%7.2f,%7.2f, mass %.2f, v %.1f, w %.1f, #polies %d, id %d",
+					m_pRenderer ? m_pRenderer->GetForeignName(pent->m_pForeignData,pent->m_iForeignData,pent->m_iForeignFlags):"",
+					pent->m_pos.x,pent->m_pos.y,pent->m_pos.z, pbody->M,pbody->v.len(),pbody->w.len(),nPrims,pent->m_id);
+			}
 		}
+		if (m_vars.bLogActiveObjects & 2)
+			for(pent=m_pTypedEntsPerm[4]; pent; pent=pent->m_next) if (!(pent->m_flags & pef_disabled) && pent->IsAwake()) {
+				++nCount;
+				const char *type = "*wrong type*";
+				switch (pent->GetType()) {
+					case PE_ROPE: type = "Rope"; break;
+					case PE_SOFT: type = "Cloth"; break;
+					case PE_PARTICLE: type = "Particle"; break;
+					case PE_ARTICULATED: type = "Character"; break;
+				}
+				CryLogAlways("%s @ %7.2f,%7.2f,%7.2f, %s, id %d",
+					m_pRenderer ? m_pRenderer->GetForeignName(pent->m_pForeignData,pent->m_iForeignData,pent->m_iForeignFlags):"",
+					pent->m_pos.x,pent->m_pos.y,pent->m_pos.z, type, pent->m_id);
+			}
 		CryLogAlways("%d active object(s)",nCount);
+		m_vars.bLogActiveObjects = 0;
 	}
 #endif//_RELEASE
 }
@@ -4118,7 +4145,7 @@ int CPhysicalWorld::CollideEntityWithBeam(IPhysicalEntity *_pent, Vec3 org,Vec3 
 {
 	if (!_pent)
 		return 0;
-	FUNCTION_PROFILER( GetISystem(),PROFILE_PHYSICS );
+	CRY_PROFILE_FUNCTION(PROFILE_PHYSICS );
 
 	CPhysicalEntity *pent = (CPhysicalEntity*)_pent;
 	WriteLock lockc(m_lockCaller[get_iCaller()]);
@@ -4164,7 +4191,7 @@ int CPhysicalWorld::CollideEntityWithPrimitive(IPhysicalEntity *_pent, int itype
 	if (!_pent || ((CPhysicalPlaceholder*)_pent)->m_iSimClass==5)
 		return 0;
 
-	FUNCTION_PROFILER( GetISystem(),PROFILE_PHYSICS );
+	CRY_PROFILE_FUNCTION(PROFILE_PHYSICS );
 
 	CPhysicalEntity *pent = (CPhysicalEntity*)_pent;
 
@@ -4315,7 +4342,7 @@ float CPhysicalWorld::PrimitiveWorldIntersection(const SPWIParams &pp, WriteLock
 		return 1;
 	}
 
-	FUNCTION_PROFILER( GetISystem(),PROFILE_PHYSICS );
+	CRY_PROFILE_FUNCTION(PROFILE_PHYSICS );
 	PHYS_FUNC_PROFILER( pNameTag );
 	WriteLockCond lock(m_lockCaller[iCaller]), &lockContacts = pLockContactsExp ? *pLockContactsExp : const_cast<SPWIParams&>(pp).lockContacts;
 
@@ -4461,6 +4488,23 @@ int CPhysicalWorld::RayTraceEntity(IPhysicalEntity *pient, Vec3 origin,Vec3 dir,
 
 	if (((CPhysicalPlaceholder*)pient)->m_iSimClass!=5) {
 		CPhysicalEntity *pent = ((CPhysicalPlaceholder*)pient)->GetEntity();
+		auto FillHit = [pHit,pent](const geom_contact& cont, int ipart) {
+			pHit->dist = cont.t;
+			pHit->pCollider = pent; 
+			pHit->surface_idx = pent->GetMatId(cont.id[0], pHit->ipart=ipart);
+			pHit->pt = cont.pt;
+			pHit->n = cont.n;
+		};
+
+		if (pent->m_flags & pef_use_geom_callbacks || !pent->m_nParts) {
+			SRayTraceRes rtr(&aray, nullptr);
+			if (ncont = pent->RayTrace(rtr)) {
+				FillHit(rtr.pcontacts[ncont-1], 0);
+				pHit->partid = rtr.pcontacts[ncont-1].iNode[0];
+				return 1;
+			}
+			return 0;
+		}
 
 		if (pp) {
 			pos = pp->pos; qrot = pp->q;
@@ -4497,13 +4541,10 @@ int CPhysicalWorld::RayTraceEntity(IPhysicalEntity *pient, Vec3 origin,Vec3 dir,
 				ncont = part.pPhysGeom->pGeom->Intersect(&aray,&gwd,0,&ip,pcontacts);
 				for(; ncont>0 && (pcontacts[ncont-1].t>pHit->dist || pcontacts[ncont-1].n*dir>0); ncont--);
 				if (ncont>0) {
-					pHit->dist = pcontacts[ncont-1].t;
-					pHit->pCollider = pent; pHit->partid = pent->m_parts[pHit->ipart=i].id;
-					pHit->surface_idx = pent->GetMatId(pcontacts[ncont-1].id[0],i);
+					FillHit(pcontacts[ncont-1], i);
+					pHit->partid = pent->m_parts[i].id;
 					pHit->idmatOrg = pcontacts[ncont-1].id[0] + (part.surface_idx+1 & pcontacts[ncont-1].id[0]>>31);
 					pHit->foreignIdx = part.pPhysGeom->pGeom->GetForeignIdx(pcontacts[ncont-1].iPrim[0]);
-					pHit->pt = pcontacts[ncont-1].pt;
-					pHit->n = pcontacts[ncont-1].n;
 				}
 			}
 		}
@@ -4534,6 +4575,7 @@ void CPhysicalWorld::GetMemoryStatistics(ICrySizer *pSizer)
 		"areas","triggers", "deleted entities" };
 	int i,j,n;
 	CPhysicalEntity *pent;
+	ReadLock lockStep(m_lockStep);
 
 #ifndef _LIB // Only when compiling as dynamic library
 	{
@@ -4565,6 +4607,7 @@ void CPhysicalWorld::GetMemoryStatistics(ICrySizer *pSizer)
 #endif*/
 
 	{ SIZER_COMPONENT_NAME(pSizer,"world structures");
+		ReadLock lockGeo(m_lockGeoman);
 		pSizer->AddObject(this, sizeof(CPhysicalWorld));
 		pSizer->AddObject(m_pTmpEntList, m_nEntsAlloc*sizeof(m_pTmpEntList[0]));
 		pSizer->AddObject(m_pTmpEntList1, m_nEntsAlloc*sizeof(m_pTmpEntList1[0]));
@@ -4779,7 +4822,7 @@ uint32 CPhysicalWorld::GetPumpLoggedEventsTicks()
 
 void CPhysicalWorld::PumpLoggedEvents()
 {
-	FUNCTION_PROFILER( GetISystem(),PROFILE_PHYSICS );
+	CRY_PROFILE_FUNCTION(PROFILE_PHYSICS );
 #ifdef ENABLE_LW_PROFILERS
 	//simple timer shown in r_DisplayInfo=3
 	LARGE_INTEGER pumpStart, pumpEnd;

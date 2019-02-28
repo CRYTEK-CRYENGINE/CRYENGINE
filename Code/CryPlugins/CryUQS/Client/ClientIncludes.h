@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -17,6 +17,7 @@
 #include "client/ParamsHolder.h"
 #include "client/GeneratorBase.h"
 #include "client/GeneratorFactory.h"
+#include "client/Gen_PropagateShuttledItems.h"
 #include "client/ItemConverter.h"
 #include "client/ItemFactory.h"
 #include "client/InstantEvaluatorBase.h"

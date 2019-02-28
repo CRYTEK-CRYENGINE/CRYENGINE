@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -18,16 +18,14 @@ public:
 	CREFogVolume();
 	virtual ~CREFogVolume();
 
-	virtual void mfPrepare(bool bCheckOverflow) override;
-	virtual bool mfDraw(CShader* ef, SShaderPass* sfm) override;
 
 	virtual void GetMemoryUsage(ICrySizer* pSizer) const override
 	{
 		pSizer->AddObject(this, sizeof(*this));
 	}
 
-	virtual bool Compile(CRenderObject* pObj) override;
-	virtual void DrawToCommandList(CRenderObject* pObj, const struct SGraphicsPipelinePassContext& ctx) override;
+	virtual bool Compile(CRenderObject* pObj, CRenderView *pRenderView, bool updateInstanceDataOnly) override;
+	virtual void DrawToCommandList(CRenderObject* pObj, const struct SGraphicsPipelinePassContext& ctx, CDeviceCommandList* commandList) override;
 
 public:
 	std::unique_ptr<render_element::fogvolume::SCompiledFogVolume> m_pCompiledObject;
@@ -59,7 +57,7 @@ public:
 
 private:
 	void PrepareForUse(render_element::fogvolume::SCompiledFogVolume& RESTRICT_REFERENCE compiledObj, bool bInstanceOnly, CDeviceCommandList& RESTRICT_REFERENCE commandList) const;
-	void UpdatePerInstanceCB(render_element::fogvolume::SCompiledFogVolume& RESTRICT_REFERENCE compiledObj, const CRenderObject& renderObj) const;
+	void UpdatePerDrawCB(render_element::fogvolume::SCompiledFogVolume& RESTRICT_REFERENCE compiledObj, const CRenderObject& renderObj) const;
 	bool UpdateVertex(render_element::fogvolume::SCompiledFogVolume& RESTRICT_REFERENCE compiledObj);
 
 private:

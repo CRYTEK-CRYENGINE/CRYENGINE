@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -963,8 +963,9 @@ enum DXGI_SWAP_EFFECT
 
 enum DXGI_SWAP_CHAIN_FLAG
 {
-	DXGI_SWAP_CHAIN_FLAG_NONPREROTATED = 1,
-	DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH = 2
+	DXGI_SWAP_CHAIN_FLAG_NONPREROTATED =     0,
+	DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH = 1,
+	DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING =     2048,
 };
 
 struct DXGI_SAMPLE_DESC

@@ -21,5 +21,5 @@ public:
 	void Initialize();
 	bool IsInitialized() const { return m_pDomain != nullptr; }
 
-	CMonoLibrary* CRootMonoDomain::GetNetCoreLibrary();
+	CMonoLibrary& CRootMonoDomain::GetNetCoreLibrary();
 };

@@ -44,6 +44,7 @@ public:
 			archive(m_bVolumetricFogOnly, "VolumetricFogOnly", "Volumetric Fog Only");
 			archive(m_bAffectsVolumetricFog, "AffectsVolumetricFog", "Affects Volumetric Fog");
 			archive(m_bAffectsOnlyThisArea, "AffectsOnlyThisArea", "Affects Only This Area");
+			archive(m_bLinkToSkyColor, "LinkToSkyColor", "Link To Sky Color");
 
 			archive.closeBlock();
 		}
@@ -90,7 +91,7 @@ protected:
 	int m_lightSlot;
 
 	// Light parameters, updated in the OnResetState function
-	CDLight m_light;
+	SRenderLight m_light;
 
 	ColorF m_color = ColorF(1.0f, 1.0f, 1.0f);
 	float m_diffuseMultiplier = 1.0f;
@@ -100,6 +101,7 @@ protected:
 	bool m_bVolumetricFogOnly = false;
 	bool m_bAffectsVolumetricFog = true;
 	bool m_bAffectsOnlyThisArea = true;
+	bool m_bLinkToSkyColor = false;
 
 	bool m_bActive = true;
 	string m_cubemapPath;

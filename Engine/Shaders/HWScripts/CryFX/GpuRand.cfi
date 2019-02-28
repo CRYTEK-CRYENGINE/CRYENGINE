@@ -1,5 +1,4 @@
-// CRYENGINE Source Code File
-// Copyright 2001-2016 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // GPU Random number generators based on this article:
 //		http://www.reedbeta.com/blog/2013/01/12/quick-and-easy-gpu-random-numbers-in-d3d11/
@@ -32,52 +31,43 @@ uint WangHash(uint seed)
 	return seed;
 }
 
-// "private"
-int randKey;
-
-// initialization of Random Number Generator
-void SetKeyInt(int key)
+uint GenKeyFromFloat(float key)
 {
-	randKey = key;
-}
-
-void SetKeyFloat(float key)
-{
-	randKey = (uint)(key*1024.f*1024.f);
+	return (uint)(key*1024.f*1024.f);
 }
 
 // Public Random Number Generation Functions
-uint Rand()
+uint Rand(inout uint randKey)
 {
 	++randKey;
 	return WangHash(RandXorshift(randKey));
 }
 
-float RandUNorm()
+float RandUNorm(inout uint randKey)
 {
-	return float(Rand()) * (1.0f / 4294967296.0f);
+	return float(Rand(randKey)) * (1.0f / 4294967296.0f);
 }
 
-float RandSNorm()
+float RandSNorm(inout uint randKey)
 {
-	return RandUNorm() * 2.0f - 1.0f;
+	return RandUNorm(randKey) * 2.0f - 1.0f;
 }
 
 #define gf_PI 3.1415
 
-float3 RandSphere()
+float3 RandSphere(inout uint randKey)
 {
-	float z = RandSNorm();
-	float theta = RandSNorm() * gf_PI;
+	float z = RandSNorm(randKey);
+	float theta = RandSNorm(randKey) * gf_PI;
 	float z2 = sqrt(1.0f - z*z);
 	float s = sin(theta);
 	float c = cos(theta);
 	return float3(c * z2, s * z2, z);
 }
 
-float2 RandCircle()
+float2 RandCircle(inout uint randKey)
 {
-	const float theta = RandUNorm() * 2.0f * gf_PI;
+	const float theta = RandUNorm(randKey) * 2.0f * gf_PI;
 	float s = sin(theta);
 	float c = cos(theta);
 	return float2(c, s);

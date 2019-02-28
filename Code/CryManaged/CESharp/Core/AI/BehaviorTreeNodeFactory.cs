@@ -6,6 +6,9 @@ using CryEngine.Common.BehaviorTree;
 
 namespace CryEngine
 {
+	/// <summary>
+	/// Creator for a specific node type.
+	/// </summary>
 	public class GenericNodeCreator : IManagedNodeCreator
 	{
 		#region Fields
@@ -14,10 +17,17 @@ namespace CryEngine
 		#endregion
 
 		#region Properties
+		/// <summary>
+		/// The type of node that this creater handles.
+		/// </summary>
 		public Type NodeType { get { return _nodeType; } }
 		#endregion
 
 		#region Constructors
+		/// <summary>
+		/// Constructor for a node creator.
+		/// </summary>
+		/// <param name="nodeType"></param>
 		public GenericNodeCreator(Type nodeType)
 		{
 			_nodeType = nodeType;
@@ -25,6 +35,10 @@ namespace CryEngine
 		#endregion
 
 		#region Methods
+		/// <summary>
+		/// Creates a new instance of this creator's node type.
+		/// </summary>
+		/// <returns></returns>
 		public override Node Create()
 		{
 			var node = (Node)Activator.CreateInstance(_nodeType);
@@ -36,10 +50,17 @@ namespace CryEngine
 		#endregion
 	}
 
+	/// <summary>
+	/// Factory for behavior tree nodes.
+	/// </summary>
 	public static class BehaviorTreeNodeFactory
 	{
 		private static readonly Dictionary<string, GenericNodeCreator> _registry = new Dictionary<string, GenericNodeCreator>();
 
+		/// <summary>
+		/// Registers a node of the specified type.
+		/// </summary>
+		/// <param name="type"></param>
 		public static void TryRegister(Type type)
 		{
 			string name = type.Name;

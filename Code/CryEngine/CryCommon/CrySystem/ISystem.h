@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -20,9 +20,13 @@
 #include <CryMemory/IMemory.h>          // <> required for Interfuscator
 #include <CrySystem/ISystemScheduler.h> // <> required for Interfuscator
 
+#include <CrySystem/Profilers/FrameProfiler/FrameProfiler_Shared.h>
+#include <CrySchematyc/Utils/EnumFlags.h>
+
 #include <CryMath/LCGRandom.h>
 #include <CryExtension/ICryFactory.h>
 #include <CryExtension/ICryUnknown.h>
+#include <CrySystem/IManualFrameStepController.h>
 
 struct ILog;
 struct IProfileLogSystem;
@@ -34,6 +38,7 @@ struct IMouse;
 struct IRemoteConsole;
 struct IInput;
 struct IRenderer;
+struct SDisplayContextKey;
 struct IRenderAuxGeom;
 struct IConsole;
 namespace Telemetry {
@@ -59,6 +64,13 @@ namespace CryAudio
 struct IAudioSystem;
 }
 struct ISystem;
+namespace Cry
+{
+namespace Reflection
+{
+struct IReflection;
+}
+}
 struct IFrameProfileSystem;
 struct IStatoscope;
 class IDiskProfiler;
@@ -108,11 +120,16 @@ struct IRemoteCommandManager;
 struct IWindowMessageHandler;
 struct SFunctor;
 struct IScaleformHelper;
-struct ICryPluginManager;
 struct IProjectManager;
 class IImeManager;
+struct SDisplayContextKey;
 
 class CBootProfilerRecord;
+
+namespace Cry
+{
+	struct IPluginManager;
+}
 
 namespace UIFramework
 {
@@ -150,6 +167,10 @@ struct IJobManager;
 }
 
 struct ICrySchematycCore;
+namespace Schematyc2
+{
+	struct IFramework;
+}
 
 #define PROC_MENU     1
 #define PROC_3DENGINE 2
@@ -165,15 +186,15 @@ struct ICrySchematycCore;
 #define USER_DATA_POINTER     6
 //! ##@}.
 
-enum ESystemUpdateFlags
+enum ESystemUpdateFlags : uint8
 {
-	ESYSUPDATE_IGNORE_AI         = 0x0001,
-	ESYSUPDATE_IGNORE_PHYSICS    = 0x0002,
+	ESYSUPDATE_IGNORE_AI         = BIT(0),
+	ESYSUPDATE_IGNORE_PHYSICS    = BIT(2),
 	//! Special update mode for editor.
-	ESYSUPDATE_EDITOR            = 0x0004,
-	ESYSUPDATE_MULTIPLAYER       = 0x0008,
-	ESYSUPDATE_EDITOR_AI_PHYSICS = 0x0010,
-	ESYSUPDATE_EDITOR_ONLY       = 0x0020
+	ESYSUPDATE_EDITOR            = BIT(3),
+	ESYSUPDATE_MULTIPLAYER       = BIT(4),
+	ESYSUPDATE_EDITOR_AI_PHYSICS = BIT(5),
+	ESYSUPDATE_EDITOR_ONLY       = BIT(6)
 };
 
 //! Configuration specification, depends on user selected machine specification.
@@ -203,6 +224,7 @@ enum ESubsystem
 	ESubsys_Script   = 4
 };
 
+//! \cond INTERNAL
 //! Collates cycles taken per update.
 struct sUpdateTimes
 {
@@ -214,6 +236,7 @@ struct sUpdateTimes
 	uint64 streamingWaitTime;
 	uint64 animationWaitTime;
 };
+//! \endcond
 
 enum ESystemGlobalState
 {
@@ -277,6 +300,9 @@ enum ESystemEvent
 	//! Sent before starting loading a new level.
 	//! Used for a more efficient resource management.
 	ESYSTEM_EVENT_LEVEL_LOAD_START,
+
+	//! Sent before loading entities from disk
+	ESYSTEM_EVENT_LEVEL_LOAD_ENTITIES,
 
 	//! Sent after loading a level finished.
 	//! Used for a more efficient resource management.
@@ -374,15 +400,6 @@ enum ESystemEvent
 	//! Sent when frontend is reloaded.
 	ESYSTEM_EVENT_FRONTEND_RELOADED,
 
-	//! Sent before triggering a force loading of specified segments.
-	ESYSTEM_EVENT_SW_FORCE_LOAD_START,
-
-	//! Sent after triggering a force loading of specified segments.
-	ESYSTEM_EVENT_SW_FORCE_LOAD_END,
-
-	//! Sent once segmented world manager shifts the world.
-	ESYSTEM_EVENT_SW_SHIFT_WORLD,
-
 #if CRY_PLATFORM_DURANGO
 	// Description: PLM (Process Life Management) events.
 	ESYSTEM_EVENT_PLM_ON_RESUMING,
@@ -399,8 +416,6 @@ enum ESystemEvent
 	ESYSTEM_EVENT_GLOBAL_SYSCMD_PLAY,
 	ESYSTEM_EVENT_GLOBAL_SYSCMD_BACK,
 	ESYSTEM_EVENT_GLOBAL_SYSCMD_CHANGE_VIEW,
-
-	ESYSTEM_EVENT_ACTIVATION_EVENT, //!< Sent from external programs or the system.
 
 	//! ESYSTEM_EVENT_DURANGO_CHANGE_VISIBILITY is called when the app totally disappears or reappears.
 	//! ESYSTEM_EVENT_CHANGE_FOCUS is called in that situation, but also when the app is constantly visible and only the focus changes.
@@ -461,6 +476,12 @@ enum ESystemEvent
 	//! This is needed because some sub-systems still want to work even without focus on main application
 	//! while others would prefer to suspend their operation
 	ESYSTEM_EVENT_GAMEWINDOW_ACTIVATE,
+
+	//! Called when the display resolution has changed.
+	ESYSTEM_EVENT_DISPLAY_CHANGED,
+
+	//! Called when the hardware configuration has changed.
+	ESYSTEM_EVENT_DEVICE_CHANGED,
 
 	// Sent when flow nodes should be registered
 	ESYSTEM_EVENT_REGISTER_FLOWNODES,
@@ -618,14 +639,12 @@ struct SSystemInitParams
 	char                 szBinariesDir[256];
 
 	bool                 bEditor;             //!< When running in Editor mode.
-	bool                 bManualEngineLoop;   //!< Whether or not the engine should manage the engine loop by itself
 	bool                 bPreview;            //!< When running in Preview mode (Minimal initialization).
 	bool                 bDedicatedServer;    //!< When running a dedicated server.
 	bool                 bExecuteCommandLine; //!< can be switched of to suppress the feature or do it later during the initialization.
 	bool                 bUIFramework;
 	bool                 bSkipFont;            //!< Don't load CryFont.dll.
 	bool                 bSkipRenderer;        //!< Don't load Renderer.
-	bool                 bSkipConsole;         //!< Don't create console.
 	bool                 bSkipNetwork;         //!< Don't create Network.
 	bool                 bSkipLiveCreate;      //!< Don't create LiveCreate.
 	bool                 bSkipWebsocketServer; //!< Don't create the WebSocket server.
@@ -641,8 +660,6 @@ struct SSystemInitParams
 #endif
 
 	ISystem*        pSystem;              //!< Pointer to existing ISystem interface, it will be reused if not NULL.
-	IGameStartup*   pGameStartup;         //!< Pointer to the calling GameStartup instance, to allow use of some game specific data during engine init.
-	IGameFramework* pGameFramework;       //!< Pointer to the framework that started the engine
 	//! Char szLocalIP[256];              //! local IP address (needed if we have several servers on one machine).
 #if CRY_PLATFORM_LINUX || CRY_PLATFORM_ANDROID || CRY_PLATFORM_APPLE
 	void (* pCheckFunc)(void*);            //!< Authentication function (must be set).
@@ -658,28 +675,26 @@ struct SSystemInitParams
 	//! Initialization defaults.
 	SSystemInitParams()
 	{
-		hWnd = NULL;
-		pLog = NULL;
-		pLogCallback = NULL;
-		pUserCallback = NULL;
+		hWnd = nullptr;
+		pLog = nullptr;
+		pLogCallback = nullptr;
+		pUserCallback = nullptr;
 #if defined(CVARS_WHITELIST)
-		pCVarsWhitelist = NULL;
+		pCVarsWhitelist = nullptr;
 #endif // defined(CVARS_WHITELIST)
-		sLogFileName = NULL;
-		pValidator = NULL;
-		pPrintSync = NULL;
+		sLogFileName = nullptr;
+		pValidator = nullptr;
+		pPrintSync = nullptr;
 		memset(szSystemCmdLine, 0, sizeof(szSystemCmdLine));
 		memset(szUserPath, 0, sizeof(szUserPath));
 		memset(szBinariesDir, 0, sizeof(szBinariesDir));
 		bEditor = false;
-		bManualEngineLoop = false;
 		bPreview = false;
 		bDedicatedServer = false;
 		bExecuteCommandLine = true;
 		bUIFramework = false;
 		bSkipFont = false;
 		bSkipRenderer = false;
-		bSkipConsole = false;
 		bSkipNetwork = false;
 #if CRY_PLATFORM_WINDOWS
 		// create websocket server by default. bear in mind that USE_HTTP_WEBSOCKETS is not defined in release.
@@ -696,22 +711,22 @@ struct SSystemInitParams
 		bShaderCacheGen = false;
 		bUnattendedMode = false;
 
-		pSystem = NULL;
-		pGameStartup = NULL;
-		pCheckFunc = NULL;
+		pSystem = nullptr;
+		pCheckFunc = nullptr;
 
 #if CRY_PLATFORM_DURANGO
-		pLastPLMEvent = NULL;
+		pLastPLMEvent = nullptr;
 #endif
 
 		memset(pProtectedFunctions, 0, sizeof(pProtectedFunctions));
-		pCvarsDefault = NULL;
+		pCvarsDefault = nullptr;
 	}
 };
 
 //! Typedef for frame profile callback function.
 typedef void (* FrameProfilerSectionCallback)(class CFrameProfilerSection* pSection);
 
+//! \cond INTERNAL
 //! \note Can be used for LoadConfiguration().
 struct ILoadConfigurationEntrySink
 {
@@ -721,6 +736,7 @@ struct ILoadConfigurationEntrySink
 	virtual void OnLoadConfigurationEntry_End() {}
 	// </interfuscator:shuffle>
 };
+//! \endcond
 
 enum ELoadConfigurationType
 {
@@ -769,6 +785,7 @@ struct SPlatformInfo
 #define CPUF_AVX2         0x200
 #define CPUF_FMA          0x400
 
+//! \cond INTERNAL
 //! Holds info about system update stats over perior of time (cvar-tweakable)
 struct SSystemUpdateStats
 {
@@ -790,6 +807,7 @@ union UAsyncDipState
 	};
 	uint32 nValue;
 };
+//! \endcond
 
 //!	Global environment. Contains pointers to all global often needed interfaces.
 //!	This is a faster way to get interface pointer then calling ISystem interface to retrieve one.
@@ -841,6 +859,8 @@ struct SSystemGlobalEnvironment
 	IThreadManager*              pThreadManager;
 	IScaleformHelper*            pScaleformHelper; // nullptr when Scaleform support is not enabled
 	ICrySchematycCore*           pSchematyc;
+	Schematyc2::IFramework*      pSchematyc2;
+	Cry::Reflection::IReflection* pReflection;
 
 #if CRY_PLATFORM_DURANGO
 	void*      pWindow;
@@ -859,7 +879,7 @@ struct SSystemGlobalEnvironment
 
 	uint32                nMainFrameID;
 
-	const char*           szCmdLine;       //!< Startup command line.
+	const char*           szCmdLine = "";       //!< Startup command line.
 
 	//! Generic debug string which can be easily updated by any system and output by the debug handler
 	enum { MAX_DEBUG_STRING_LENGTH = 128 };
@@ -883,15 +903,16 @@ struct SSystemGlobalEnvironment
 	FrameProfilerSectionCallback callbackEndSection;
 	//////////////////////////////////////////////////////////////////////////
 
-	// Indicate Editor status.
+#if defined(USE_CRY_ASSERT)
+	bool ignoreAllAsserts = false;
+	bool stoppedOnAssert = false;
+	ECryAssertLevel cryAssertLevel = ECryAssertLevel::Enabled;
+#endif
 
-	//////////////////////////////////////////////////////////////////////////
-	// Used by CRY_ASSERT
-	bool bIgnoreAllAsserts;
-	bool bNoAssertDialog;
+	//! Whether we are running unattended, disallows message boxes and other blocking events that require human intervention
+	bool bUnattendedMode;
+	//! Whether we are unit testing
 	bool bTesting;
-	bool bStoppedOnAssert;
-	//////////////////////////////////////////////////////////////////////////
 
 	bool          bNoRandomSeed;
 
@@ -901,7 +922,7 @@ struct SSystemGlobalEnvironment
 	SSystemInitParams::ProtectedFunction pProtectedFunctions[eProtectedFuncsLast];
 
 	//////////////////////////////////////////////////////////////////////////
-	//! Flag to able to print out of memory conditon
+	//! Flag to able to print out of memory condition
 	bool             bIsOutOfMemory;
 	bool             bIsOutOfVideoMemory;
 
@@ -936,6 +957,11 @@ struct SSystemGlobalEnvironment
 		bEditorGameMode = isEditorGameMode;
 	}
 
+	ILINE void SetIsEditorSimulationMode(bool isEditorSimulationMode)
+	{
+		bEditorSimulationMode = isEditorSimulationMode;
+	}
+
 	ILINE void SetIsDedicated(bool isDedicated)
 	{
 	#if defined(DEDICATED_SERVER)
@@ -967,6 +993,24 @@ struct SSystemGlobalEnvironment
 		return bEditorGameMode;
 #else
 		return false;
+#endif
+	}
+
+	ILINE const bool IsEditorSimulationMode() const
+	{
+#if CRY_PLATFORM_DESKTOP
+		return bEditorSimulationMode;
+#else
+		return false;
+#endif
+	}
+
+	ILINE const bool IsGameOrSimulation() const
+	{
+#if CRY_PLATFORM_DESKTOP
+		return !bEditor || bEditorGameMode || bEditorSimulationMode;
+#else
+		return true;
 #endif
 	}
 
@@ -1036,13 +1080,14 @@ private:
 	bool bEditor;          //!< Engine is running under editor.
 	bool bEditorGameMode;  //!< Engine is in editor game mode.
 	bool bDedicated;       //!< Engine is in dedicated.
+	bool bEditorSimulationMode; //!< Engine is in editor Physics/AI simulation mode.
 #endif
 
 	bool m_isFMVPlaying;
 	bool m_isCutscenePlaying;
 
 public:
-	SSystemGlobalEnvironment() : szCmdLine("")
+	SSystemGlobalEnvironment()
 	{
 		mAsyncDipState.nValue = 0;
 	};
@@ -1104,9 +1149,6 @@ struct ISystem
 	// <interfuscator:shuffle>
 	virtual ~ISystem(){}
 
-	//! Releases ISystem.
-	virtual void Release() = 0;
-
 	//! Will return NULL if no whitelisting.
 	virtual ILoadConfigurationEntrySink* GetCVarsWhiteListConfigSink() const = 0;
 
@@ -1116,29 +1158,29 @@ struct ISystem
 	//! Returns the user-defined callback, notifies of system initialization flow.
 	virtual ISystemUserCallback* GetUserCallback() const = 0;
 
-	//! Returns the root folder specified by the command line option "-root <path>".
+	//! Returns the root folder of the engine installation.
 	virtual const char* GetRootFolder() const = 0;
 
-	//! Updates all subsystems (including the ScriptSink() ).
-	//! \param flags One or more flags from ESystemUpdateFlags structure.
-	//! \param nPauseMode 0=normal(no pause), 1=menu/pause, 2=cutscene.
-	virtual bool Update(int updateFlags = 0, int nPauseMode = 0) = 0;
+	//! Starts a new frame, updates engine systems, game logic and finally renders.
+	//! \return Returns true if the engine should continue running, false to quit.
+	virtual bool DoFrame(const SDisplayContextKey& displayContextKey, CEnumFlags<ESystemUpdateFlags> updateFlags = CEnumFlags<ESystemUpdateFlags>()) = 0;
 
-	//! Updates only require components during loading.
-	virtual bool UpdateLoadtime() = 0;
+	virtual void RenderBegin(const SDisplayContextKey& displayContextKey) = 0;
+	virtual void RenderEnd(bool bRenderStats = true) = 0;
 
-	//! Optimisation: do part of the update while waiting for occlusion queries to complete.
+	//! Updates the engine's systems without creating a rendered frame
+	virtual bool Update(CEnumFlags<ESystemUpdateFlags> updateFlags, int nPauseMode = 0) = 0;
+
 	virtual void DoWorkDuringOcclusionChecks() = 0;
 	virtual bool NeedDoWorkDuringOcclusionChecks() = 0;
 
-	//! Renders subsystems.
-	virtual void Render() = 0;
+	virtual void RenderPhysicsHelpers() = 0;
 
-	//! Begins rendering frame.
-	virtual void RenderBegin() = 0;
+	//! Get the manual frame step controller, allows for completely blocking per-frame update
+	virtual IManualFrameStepController* GetManualFrameStepController() const = 0;
 
-	//! Ends rendering frame and swap back buffer.
-	virtual void RenderEnd(bool bRenderStats = true) = 0;
+	//! Updates only require components during loading.
+	virtual bool UpdateLoadtime() = 0;
 
 	//! Update screen and call some important tick functions during loading.
 	virtual void SynchronousLoadingTick(const char* pFunc, int line) = 0;
@@ -1148,9 +1190,7 @@ struct ISystem
 	//! it may call this method to render the essential statistics.
 	virtual void RenderStatistics() = 0;
 	virtual void RenderPhysicsStatistics(IPhysicalWorld* pWorld) = 0;
-	//! Renders physics helper, e.g. physics proxies
-	virtual void RenderPhysicsHelpers() = 0;
-
+	
 	//! Returns the current used memory.
 	virtual uint32 GetUsedMemory() = 0;
 
@@ -1202,11 +1242,8 @@ struct ISystem
 	//! ##@{
 	virtual void WarningV(EValidatorModule module, EValidatorSeverity severity, int flags, const char* file, const char* format, va_list args) = 0;
 	virtual void Warning(EValidatorModule module, EValidatorSeverity severity, int flags, const char* file, const char* format, ...) = 0;
+	virtual void WarningOnce(EValidatorModule module, EValidatorSeverity severity, int flags, const char* file, const char* format, ...) = 0;
 	//! ##@}.
-
-	//! Report message by provider or by using CryMessageBox.
-	//! Doesn't terminate the execution.
-	virtual EQuestionResult ShowMessage(const char* text, const char* caption, EMessageBox uType) = 0;
 
 	//! Compare specified verbosity level to the one currently set.
 	virtual bool CheckLogVerbosity(int verbosity) = 0;
@@ -1253,7 +1290,7 @@ struct ISystem
 	virtual IConsole*               GetIConsole() = 0;
 	virtual IRemoteConsole*         GetIRemoteConsole() = 0;
 	virtual IUserAnalyticsSystem*   GetIUserAnalyticsSystem() = 0;
-	virtual ICryPluginManager*      GetIPluginManager() = 0;
+	virtual Cry::IPluginManager*    GetIPluginManager() = 0;
 	virtual IProjectManager*        GetIProjectManager() = 0;
 
 	//! \return Can be NULL, because it only exists when running through the editor, not in pure game mode.
@@ -1308,12 +1345,18 @@ struct ISystem
 	//////////////////////////////////////////////////////////////////////////
 	// IXmlNode interface.
 	//!	 Creates new xml node.
+	//! \par Example
+	//! \include CrySystem/Examples/XmlWriting.cpp
 	virtual XmlNodeRef CreateXmlNode(const char* sNodeName = "", bool bReuseStrings = false) = 0;
 
 	//! Loads xml from memory buffer, returns 0 if load failed.
+	//! \par Example
+	//! \include CrySystem/Examples/XmlParsing.cpp
 	virtual XmlNodeRef LoadXmlFromBuffer(const char* buffer, size_t size, bool bReuseStrings = false) = 0;
 
 	//! Loads xml file, returns 0 if load failed.
+	//! \par Example
+	//! \include CrySystem/Examples/XmlParsing.cpp
 	virtual XmlNodeRef LoadXmlFromFile(const char* sFilename, bool bReuseStrings = false) = 0;
 
 	//! Retrieves access to XML utilities interface.
@@ -1322,8 +1365,12 @@ struct ISystem
 	//! Interface to access different implementations of Serialization::IArchive in a centralized way.
 	virtual Serialization::IArchiveHost* GetArchiveHost() const = 0;
 
+	//! Sets the camera that will be used for main rendering next frame.
+	//! This has to be set before Cry::IEnginePlugin::UpdateBeforeFinalizeCamera is called in order to be set in time for occlusion culling and rendering.
 	virtual void                         SetViewCamera(CCamera& Camera) = 0;
-	virtual CCamera&                     GetViewCamera() = 0;
+	//! Gets the camera that will be used for main rendering next frame
+	//! Note that the camera might be overridden by user code, and is only considered final after Cry::IEnginePlugin::UpdateBeforeFinalizeCamera has been executed.
+	virtual const CCamera&               GetViewCamera() const = 0;
 
 	//! When ignore update sets to true, system will ignore and updates and render calls.
 	virtual void IgnoreUpdates(bool bIgnore) = 0;
@@ -1348,7 +1395,7 @@ struct ISystem
 	virtual void EndLoadingSectionProfiling(CLoadingTimeProfiler* pProfiler) = 0;
 
 	//! Starts function profiling with bootprofiler (session must be started).
-	virtual CBootProfilerRecord* StartBootSectionProfiler(const char* name, const char* args) = 0;
+	virtual CBootProfilerRecord* StartBootSectionProfiler(const char* name, const char* args,EProfileDescription type) = 0;
 
 	//! Ends function profiling with bootprofiler.
 	virtual void StopBootSectionProfiler(CBootProfilerRecord* record) = 0;
@@ -1457,6 +1504,10 @@ struct ISystem
 	//! It will return false if the pointer is not registered. Otherwise, returns true.
 	virtual bool UnregisterErrorObserver(IErrorObserver* errorObserver) = 0;
 
+	//! Returns true if the system is loading a level currently
+	virtual bool IsLoading() = 0;
+
+#if defined(USE_CRY_ASSERT)
 	//! Called after the processing of the assert message box(Windows or Xbox).
 	//! It will be called even when asserts are disabled by the console variables.
 	virtual void OnAssert(const char* condition, const char* message, const char* fileName, unsigned int fileLineNumber) = 0;
@@ -1467,15 +1518,14 @@ struct ISystem
 	//! OBS2: it will always return false, if asserts are disabled or ignored.
 	virtual bool IsAssertDialogVisible() const = 0;
 
-	//! Returns address controlled by sys_asserts CVar, if available.
-	//! The value at the address shall be non-zero if asserts are enabled.
-	//! The function shall return nullptr if sys_asserts CVar is not available (ie, release config).
-	virtual int* GetAssertFlagAddress() const = 0;
-
+	//! Checks if asserts are enabled for the specified module (see eCryModule)
+	virtual bool AreAssertsEnabledForModule(uint32 moduleId) = 0;
+	//! Disables assertions for the specified module (see eCryModule)
+	virtual void DisableAssertionsForModule(uint32 moduleId) = 0;
 	//! Sets the AssertVisisble internal variable.
 	//! Typically it should only be called by CryAssert.
 	virtual void SetAssertVisible(bool bAssertVisble) = 0;
-	//////////////////////////////////////////////////////////////////////////
+#endif
 
 	//! Get the index of the currently running Crytek application, (0 = first instance, 1 = second instance, etc).
 	virtual int GetApplicationInstance() = 0;
@@ -1550,9 +1600,6 @@ struct ISystem
 	virtual bool IsSavingResourceList() const = 0;
 #endif
 
-	//! Initializes Steam if needed and returns if it was successful.
-	virtual bool SteamInit() = 0;
-
 	//! Loads a dynamic library and returns the first factory with the specified interface id contained inside the module
 	virtual ICryFactory* LoadModuleWithFactory(const char* szDllName, const CryInterfaceID& moduleInterfaceId) = 0;
 
@@ -1572,9 +1619,6 @@ struct ISystem
 
 		return nullptr;
 	}
-
-	//! Loads a dynamic library, creates and initializes an instance of the module class
-	virtual bool InitializeEngineModule(const char* szDllName, const CryInterfaceID& moduleInterfaceId, bool bQuitIfNotFound) = 0;
 
 	//! Unloads a dynamic library as well as the corresponding instance of the module class
 	virtual bool UnloadEngineModule(const char* szDllName) = 0;
@@ -1610,127 +1654,8 @@ struct ISystem
 //! It this saves us lots of money on the dedicated server hardware.
 #define SYNCHRONOUS_LOADING_TICK() do { if (gEnv && gEnv->pSystem) gEnv->pSystem->SynchronousLoadingTick(__FUNC__, __LINE__); } while (0)
 
-#if defined(ENABLE_LOADING_PROFILER)
-
-struct DiskOperationInfo
-{
-	DiskOperationInfo() : m_nSeeksCount(0), m_nFileOpenCount(0), m_nFileReadCount(0), m_dOperationSize(0.), m_dOperationTime(0.) {}
-	int    m_nSeeksCount;
-	int    m_nFileOpenCount;
-	int    m_nFileReadCount;
-	double m_dOperationTime;
-	double m_dOperationSize;
-
-	DiskOperationInfo& operator-=(const DiskOperationInfo& rv)
-	{
-		m_nSeeksCount -= rv.m_nSeeksCount;
-		m_nFileOpenCount -= rv.m_nFileOpenCount;
-		m_nFileReadCount -= rv.m_nFileReadCount;
-		m_dOperationSize -= rv.m_dOperationSize;
-		m_dOperationTime -= rv.m_dOperationTime;
-		return *this;
-	}
-
-	DiskOperationInfo& operator+=(const DiskOperationInfo& rv)
-	{
-		m_nSeeksCount += rv.m_nSeeksCount;
-		m_nFileOpenCount += rv.m_nFileOpenCount;
-		m_nFileReadCount += rv.m_nFileReadCount;
-		m_dOperationSize += rv.m_dOperationSize;
-		m_dOperationTime += rv.m_dOperationTime;
-		return *this;
-	}
-
-	DiskOperationInfo operator-(const DiskOperationInfo& rv)
-	{
-		DiskOperationInfo res(*this);
-		return res -= rv;
-	}
-
-	DiskOperationInfo operator+(const DiskOperationInfo& rv)
-	{
-		DiskOperationInfo res(*this);
-		return res += rv;
-	}
-
-};
-
-struct CLoadingTimeProfiler
-{
-	CLoadingTimeProfiler(ISystem* pSystem, const char* szFuncName) : m_pSystem(pSystem)
-	{
-		m_pSystem = pSystem;
-		m_pTimeContainer = m_pSystem->StartLoadingSectionProfiling(this, szFuncName);
-	}
-
-	~CLoadingTimeProfiler()
-	{
-		m_pSystem->EndLoadingSectionProfiling(this);
-	}
-
-	struct SLoadingTimeContainer* m_pTimeContainer;
-	double                        m_fConstructorTime;
-	double                        m_fConstructorMemUsage;
-
-	DiskOperationInfo             m_constructorInfo;
-
-	ISystem*                      m_pSystem;
-};
-
-class CSYSBootProfileBlock
-{
-	ISystem*             m_pSystem;
-	CBootProfilerRecord* m_pRecord;
-public:
-	CSYSBootProfileBlock(ISystem* pSystem, const char* name, const char* args = NULL) : m_pSystem(pSystem)
-	{
-		m_pRecord = m_pSystem ? m_pSystem->StartBootSectionProfiler(name, args) : nullptr;
-	}
-
-	~CSYSBootProfileBlock()
-	{
-		if (m_pRecord)
-		{
-			m_pSystem->StopBootSectionProfiler(m_pRecord);
-		}
-	}
-};
-
-class CSYSBootProfileAutoSession
-{
-	ISystem*    m_pSystem;
-	const char* m_szSessionName;
-public:
-	CSYSBootProfileAutoSession(ISystem* pSystem, const char* szSessionName)
-		: m_pSystem(pSystem), m_szSessionName(szSessionName)
-	{
-		m_pSystem->StartBootProfilerSession(m_szSessionName);
-	}
-
-	~CSYSBootProfileAutoSession()
-	{
-		m_pSystem->StopBootProfilerSession(m_szSessionName);
-	}
-};
-
-	#define LOADING_TIME_PROFILE_SECTION CSYSBootProfileBlock _profileBlockLine(gEnv->pSystem, __FUNC__);
-	#define LOADING_TIME_PROFILE_SECTION_ARGS(args)                    CSYSBootProfileBlock _profileBlockLine_args(gEnv->pSystem, __FUNC__, args);
-	#define LOADING_TIME_PROFILE_SECTION_NAMED(sectionName)            CSYSBootProfileBlock _profileBlockLine_named(gEnv->pSystem, sectionName);
-	#define LOADING_TIME_PROFILE_SECTION_NAMED_ARGS(sectionName, args) CSYSBootProfileBlock _profileBlockLine_named_args(gEnv->pSystem, sectionName, args);
-	#define LOADING_TIME_PROFILE_AUTO_SESSION(sessionName)             CSYSBootProfileAutoSession _profileAutoSession(gEnv->pSystem, (sessionName));
-
-#else
-
-	#define LOADING_TIME_PROFILE_SECTION
-	#define LOADING_TIME_PROFILE_SECTION_ARGS(args)
-	#define LOADING_TIME_PROFILE_SECTION_NAMED(sectionName)
-	#define LOADING_TIME_PROFILE_SECTION_NAMED_ARGS(sectionName, args)
-	#define LOADING_TIME_PROFILE_AUTO_SESSION(sessionName)
-
-#endif
-
 // CrySystem DLL Exports.
-typedef ISystem* (* PFNCREATESYSTEMINTERFACE)(SSystemInitParams& initParams);
+typedef ISystem* (* PFNCREATESYSTEMINTERFACE)(SSystemInitParams& initParams, bool bManualEngineLoop);
 
 // Global environment variable.
 #if defined(SYS_ENV_AS_STRUCT)
@@ -1742,15 +1667,23 @@ extern SSystemGlobalEnvironment* gEnv;
 //! Gets the system interface.
 inline ISystem* GetISystem()
 {
+#if defined(SYS_ENV_AS_STRUCT)
 	return gEnv->pSystem;
-};
+#else
+	return gEnv != nullptr ? gEnv->pSystem : nullptr;
+#endif // defined(SYS_ENV_AS_STRUCT)
+}
 
 #if defined(MAP_LOADING_SLICING)
 //! Gets the system scheduler interface.
 inline ISystemScheduler* GetISystemScheduler(void)
 {
+#if defined(SYS_ENV_AS_STRUCT)
 	return gEnv->pSystemScheduler;
-};
+#else
+	return gEnv != nullptr ? gEnv->pSystemScheduler : nullptr;
+#endif // defined(SYS_ENV_AS_STRUCT)
+}
 #endif // defined(MAP_LOADING_SLICING)
 //! This function must be called once by each module at the beginning, to setup global pointers.
 extern "C" DLL_EXPORT void ModuleInitISystem(ISystem* pSystem, const char* moduleName);
@@ -1759,7 +1692,7 @@ extern int g_iTraceAllocations;
 //! Interface of the DLL.
 extern "C"
 {
-	CRYSYSTEM_API ISystem* CreateSystemInterface(const SSystemInitParams& initParams);
+	CRYSYSTEM_API ISystem* CreateSystemInterface(SSystemInitParams& initParams, bool bManualEngineLoop);
 }
 
 //! Displays error message, logs it to console and file and error message box, tThen terminates execution.
@@ -1888,20 +1821,9 @@ struct ConsoleRegistrationHelper
 	template<class T, class U>
 	static CRY_FORCE_INLINE ICVar* Register(const char* szName, T* pSrc, U defaultValue, int flags = 0, const char* szHelp = "", ConsoleVarFunc pChangeFunc = nullptr, bool bAllowModify = true)
 	{
-		static_assert(std::is_same<T, int>::value || std::is_same<T, float>::value || std::is_same<T, const char*>::value, "Invalid template type!");
-		static_assert(std::is_convertible<U, T>::value, "Invalid default value type!");
-
-		CRY_ASSERT(gEnv && gEnv->pConsole);
-		if (gEnv && gEnv->pConsole)
-		{
-			MODULE_REGISTER_CVAR(szName);
-			return gEnv->pConsole->Register(szName, pSrc, static_cast<T>(defaultValue), flags, szHelp, pChangeFunc, bAllowModify);
-		}
-		else
-		{
-			return nullptr;
-		}
+		return RegisterImpl(get_enum_tag<T>(), szName, pSrc, defaultValue, flags, szHelp, pChangeFunc, bAllowModify);
 	}
+
 	static CRY_FORCE_INLINE ICVar* Register(ICVar* pVar)
 	{
 		CRY_ASSERT(gEnv && gEnv->pConsole);
@@ -1909,6 +1831,39 @@ struct ConsoleRegistrationHelper
 		{
 			MODULE_REGISTER_CVAR(pVar->GetName());
 			return gEnv->pConsole->Register(pVar);
+		}
+		else
+		{
+			return nullptr;
+		}
+	}
+
+private:
+	struct enum_tag {};
+	struct non_enum_tag {};
+
+	template<class T>
+	struct get_enum_tag : std::conditional<std::is_enum<T>::value, enum_tag, non_enum_tag>::type {};
+
+	template<class T, class U>
+	static CRY_FORCE_INLINE ICVar* RegisterImpl(enum_tag, const char* szName, T* pSrc, U defaultValue, int flags = 0, const char* szHelp = "", ConsoleVarFunc pChangeFunc = nullptr, bool bAllowModify = true)
+	{
+		using ET = typename std::underlying_type<T>::type;
+		static_assert(std::is_same<ET, int>::value, "Invalid template type!");
+		return RegisterImpl(non_enum_tag(), szName, reinterpret_cast<ET*>(pSrc), static_cast<ET>(defaultValue), flags, szHelp, pChangeFunc, bAllowModify);
+	}
+
+
+	template<class T, class U>
+	static CRY_FORCE_INLINE ICVar* RegisterImpl(non_enum_tag, const char* szName, T* pSrc, U defaultValue, int flags = 0, const char* szHelp = "", ConsoleVarFunc pChangeFunc = nullptr, bool bAllowModify = true)
+	{
+		static_assert(std::is_same<T, int>::value || std::is_same<T, float>::value || std::is_same<T, const char*>::value, "Invalid template type!");
+		static_assert(std::is_convertible<U, T>::value, "Invalid default value type!");
+		CRY_ASSERT(gEnv && gEnv->pConsole);
+		if (gEnv && gEnv->pConsole)
+		{
+			MODULE_REGISTER_CVAR(szName);
+			return gEnv->pConsole->Register(szName, pSrc, static_cast<T>(defaultValue), flags, szHelp, pChangeFunc, bAllowModify);
 		}
 		else
 		{

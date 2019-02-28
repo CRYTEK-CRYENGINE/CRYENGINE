@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "CCryDX12Texture3D.hpp"
@@ -185,6 +185,11 @@ CCryDX12Texture3D* CCryDX12Texture3D::Create(CCryDX12Device* pDevice, const FLOA
 	}
 
 	ID3D12Resource* resource = NULL;
+	if (pInitialData)
+	{
+		// Anticipate deferred initial upload
+		resourceUsage = D3D12_RESOURCE_STATE_COPY_DEST;
+	}
 
 	HRESULT hresult = S_OK;
 	if (pDesc->MiscFlags & D3D11_RESOURCE_MISC_HIFREQ_HEAP)

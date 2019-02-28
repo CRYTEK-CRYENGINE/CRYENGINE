@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -11,11 +11,13 @@ struct IUtilityRenderPass
 		StretchRectPass = 0,
 		StretchRegionPass,
 		SharpeningUpsamplePass,
+		NearestDepthUpsamplePass,
 		DownsamplePass,
 		StableDownsamplePass,
 		DepthDownsamplePass,
 		GaussianBlurPass,
 		MipmapGenPass,
+		ClearSurfacePass,
 		ClearRegionPass,
 		AnisotropicVerticalBlurPass,
 
@@ -33,10 +35,16 @@ class CStretchRectPass : public IUtilityRenderPass
 public:
 	void Execute(CTexture* pSrcRT, CTexture* pDestRT);
 
+	static CStretchRectPass &GetPass();
+	static void Shutdown();
+
 	static EPassId GetPassId() { return EPassId::StretchRectPass; }
 
 protected:
 	CFullscreenPass m_pass;
+
+private:
+	static CStretchRectPass *s_pPass;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -48,8 +56,8 @@ public:
 	CStretchRegionPass() {};
 	~CStretchRegionPass() {};
 
-	void Execute(CTexture* pSrcRT, CTexture* pDestRT, const RECT *pSrcRect=NULL, const RECT *pDstRect=NULL, bool bBigDownsample=false);
-	void PreparePrimitive(CRenderPrimitive& prim, const RECT& rcS, int renderState, const D3DViewPort& targetViewport, bool bResample, bool bBigDownsample, CTexture *pSrcRT, CTexture *pDstRT);
+	void Execute(CTexture* pSrcRT, CTexture* pDestRT, const RECT *pSrcRect = NULL, const RECT *pDstRect = NULL, bool bBigDownsample = false, const ColorF& color = ColorF(1,1,1,1), const int renderStateFlags = 0);
+	bool PreparePrimitive(CRenderPrimitive& prim, CPrimitiveRenderPass& targetPass, const RECT& rcS, int renderState, const D3DViewPort& targetViewport, bool bResample, bool bBigDownsample, CTexture *pSrcRT, CTexture *pDstRT, const ColorF& color);
 
 	static CStretchRegionPass &GetPass();
 	static void Shutdown();
@@ -77,6 +85,20 @@ public:
 
 private:
 	CFullscreenPass m_pass;
+};
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+class CNearestDepthUpsamplePass : public IUtilityRenderPass
+{
+public:
+	void Execute(CTexture* pOrgDS, CTexture* pSrcRT, CTexture* pSrcDS, CTexture* pDestRT, bool bAlphaBased = false);
+
+	static EPassId GetPassId() { return EPassId::NearestDepthUpsamplePass; }
+
+private:
+	CFullscreenPass m_pass[2];
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -175,19 +197,35 @@ protected:
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-class CClearRegionPass : public IUtilityRenderPass
+class CClearSurfacePass : public IUtilityRenderPass
+{
+public:
+	static void Execute(const CTexture* pDepthTex, const int nFlags, const float cDepth, const uint8 cStencil);
+	static void Execute(const CTexture* pColorTex, const ColorF& cClear);
+	static void Execute(const CGpuBuffer* pBuf, const ColorF& cClear);
+	static void Execute(const CGpuBuffer* pBuf, const ColorI& cClear);
+
+	static EPassId GetPassId() { return EPassId::ClearSurfacePass; }
+};
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+class CClearRegionPass : public CClearSurfacePass
 {
 public:
 	CClearRegionPass();
 	virtual ~CClearRegionPass();
 
 	void Execute(CTexture* pDepthTex, const int nFlags, const float cDepth, const uint8 cStencil, const uint numRects, const RECT* pRects);
-	void Execute(CTexture* pTex, const ColorF& cClear, const uint numRects, const RECT* pRects);
+	void Execute(CTexture* pColorTex, const ColorF& cClear, const uint numRects, const RECT* pRects);
+	void Execute(CGpuBuffer* pBuf, const ColorF& cClear, const uint numRanges, const RECT* pRanges);
+	void Execute(CGpuBuffer* pBuf, const ColorI& cClear, const uint numRanges, const RECT* pRanges);
 
 	static EPassId GetPassId() { return EPassId::ClearRegionPass; }
 
 protected:
-	void PreparePrimitive(CRenderPrimitive& prim, int renderState, int stencilState, const ColorF& cClear, float cDepth, int stencilRef, const RECT& rect, const D3DViewPort& targetViewport);
+	bool PreparePrimitive(CRenderPrimitive& prim, int renderState, int stencilState, const ColorF& cClear, float cDepth, int stencilRef, const RECT& rect, const D3DViewPort& targetViewport);
 
 	CPrimitiveRenderPass          m_clearPass;
 	std::vector<CRenderPrimitive> m_clearPrimitives;

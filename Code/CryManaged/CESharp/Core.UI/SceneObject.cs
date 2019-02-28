@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 using System;
 using System.Collections.Generic;
@@ -12,13 +12,18 @@ namespace CryEngine.UI
 	/// Represents any single entity or a logical object in a scene. Allows for hierarchical representation of SceneObjects to form a scene tree. Handles a list of Components for own modification and control.
 	/// </summary>
 	[DebuggerDisplay("SceneObject({Name})")]
-	public class SceneObject : IUpdateReceiver
+	public class SceneObject
 	{
 		private static int _updateOrder;
 
 		private List<UIComponent> _components = new List<UIComponent>();
 		private bool _isActive = true;
 		private bool _isActiveByHierarchy = true;
+
+		internal Action AwakeAction{ get; private set; }
+		internal Action UpdateAction{ get; private set; }
+		internal Action RenderAction{ get; private set; }
+		internal Action DestroyAction{ get; private set; }
 
 		/// <summary>
 		/// Called if Active property was changed
@@ -63,17 +68,22 @@ namespace CryEngine.UI
 		/// <summary>
 		/// Called when this SceneObject is instantiated.
 		/// </summary>
-		public virtual void OnAwake() { }
+		protected virtual void OnAwake() { }
 
 		/// <summary>
 		/// Called once every frame.
 		/// </summary>
-		public virtual void OnUpdate() { }
+		protected virtual void OnUpdate() { }
+
+		/// <summary>
+		/// Called every frame before the frame is rendered and after the normal update.
+		/// </summary>
+		protected virtual void OnRender() { }
 
 		/// <summary>
 		/// Called when this SceneObject is destroyed.
 		/// </summary>
-		public virtual void OnDestroy() { }
+		protected virtual void OnDestroy() { }
 
 		/// <summary>
 		/// Defines whether this object and its children and components are updated or not 
@@ -132,10 +142,21 @@ namespace CryEngine.UI
 			}
 		}
 
-		void InspectOverrides(Type t)
+		private void InspectOverrides(Type t)
 		{
-			var thisType = typeof(SceneObject);
-			IsUpdateable = t.GetMethod("OnUpdate").DeclaringType != thisType;
+			var baseType = typeof(SceneObject);
+			var flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
+			var awake = t.GetMethod(nameof(OnAwake), flags);
+			var update = t.GetMethod(nameof(OnUpdate), flags);
+			var render = t.GetMethod(nameof(OnRender), flags);
+			var destroy = t.GetMethod(nameof(OnDestroy), flags);
+
+			AwakeAction = awake.DeclaringType == baseType ? null : (Action)Delegate.CreateDelegate(typeof(Action), this, awake);
+			UpdateAction = update.DeclaringType == baseType ? null : (Action)Delegate.CreateDelegate(typeof(Action), this, update);
+			RenderAction = render.DeclaringType == baseType ? null : (Action)Delegate.CreateDelegate(typeof(Action), this, render);
+			DestroyAction = destroy.DeclaringType == baseType ? null : (Action)Delegate.CreateDelegate(typeof(Action), this, destroy);
+
+			IsUpdateable = UpdateAction != null || RenderAction != null;
 		}
 
 		/// <summary>
@@ -161,7 +182,7 @@ namespace CryEngine.UI
 			instance.Transform = instance.AddComponent<Transform>();
 			instance.Transform.Parent = parent == null ? null : parent.Transform;
 			instance.InspectOverrides(typeof(T));
-			instance.OnAwake();
+			instance.AwakeAction?.Invoke();
 			if(instance.IsUpdateable)
 			{
 				SceneManager.InvalidateSceneOrder(instance.Root);
@@ -181,7 +202,7 @@ namespace CryEngine.UI
 
 			if(IsUpdateable)
 			{
-				SceneManager.RegisterUpdateReceiver(this, ++_updateOrder);
+				SceneManager.RegisterUpdateReceiver(Update, Render, Root, ++_updateOrder);
 			}
 
 			Components.ForEach(x => x.TryRegisterUpdateReceiver(++_updateOrder));
@@ -194,6 +215,25 @@ namespace CryEngine.UI
 		public T GetComponent<T>() where T : UIComponent
 		{
 			return Components.FirstOrDefault(x => x is T) as T;
+		}
+
+		/// <summary>
+		/// Returns all components of type T on this SceneObject. Returns an empty list if no components are found.
+		/// </summary>
+		/// <returns>The components.</returns>
+		/// <typeparam name="T">The type of the components to return.</typeparam>
+		public List<T> GetComponents<T>() where T : UIComponent
+		{
+			List<T> list = new List<T>(Components.Count);
+			foreach(var component in Components)
+			{
+				T tComponent = component as T;
+				if(tComponent != null)
+				{
+					list.Add(tComponent);
+				}
+			}
+			return list;
 		}
 
 		/// <summary>
@@ -384,11 +424,19 @@ namespace CryEngine.UI
 		/// <summary>
 		/// Called by Framweork internally. Not to be called actively.
 		/// </summary>
-		public void Update()
+		private void Update()
 		{
 			if(ActiveByHierarchy)
 			{
-				OnUpdate();
+				UpdateAction?.Invoke();
+			}
+		}
+
+		private void Render()
+		{
+			if(ActiveByHierarchy)
+			{
+				RenderAction?.Invoke();
 			}
 		}
 
@@ -425,10 +473,10 @@ namespace CryEngine.UI
 		{
 			if(IsUpdateable)
 			{
-				SceneManager.RemoveUpdateReceiver(this);
+				SceneManager.RemoveUpdateReceiver(Update, Render, Root);
 			}
 
-			OnDestroy();
+			DestroyAction?.Invoke();
 
 			var children = new List<Transform>(Transform.Children);
 			foreach(var t in children)

@@ -1,0 +1,45 @@
+{
+	"version": 2,
+	"type": "CRYENGINE Project",
+	"info": { "name": "CRYENGINE", "guid": "1D8FA2F0-9597-4FCB-8CD0-F457A170C54C" },
+	"content": {
+		"assets": ["GameSDK"],
+		"code": [""],
+		"libs": []
+	},
+	"require": {
+		"engine": ".",
+		"plugins": []
+	},
+	"console_variables": [
+		{ "name": "ca_useIMG_CAF", "value": "0" },
+		{ "name": "sys_ime", "value": "1" },
+		{ "name": "sys_target_platforms", "value": "pc,ps4,xboxone,linux" },
+		{ "name": "sys_splashscreen", "value": "Libs/UI/textures/startscreen.tif" },
+		{ "name": "sys_no_crash_dialog", "value": "1" },
+		{ "name": "d3d9_NullRefDevice", "value": "1" },
+		{ "name": "log_IncludeTime", "value": "3" },
+		{ "name": "log_Verbosity", "value": "3" },
+		{ "name": "log_FileVerbosity", "value": "3" },
+		{ "name": "e_profile_level_loading", "value": "0" },
+		{ "name": "r_ShadersAsyncCompiling", "value": "3" },
+		{ "name": "r_ShadersAsyncMaxThreads", "value": "16" },
+		{ "name": "r_ShadersRemoteCompiler", "value": "1" },
+		{ "name": "r_ShadersUserFolder", "value": "1" },
+		{ "name": "r_ShadersUseInstanceLookUpTable", "value": "1" },
+		{ "name": "r_multithreaded", "value": "0" },
+		{ "name": "r_ShadersSubmitRequestline", "value": "0" },
+		{ "name": "r_ShadersAllowCompilation", "value": "1" },
+		{ "name": "r_ShaderCompilerServer", "value": "192.168.14.176" },
+		{ "name": "r_VkShaderCompiler", "value": "DXC" },
+		{ "name": "r_ShaderCompilerPort", "value": "61453" },
+		{ "name": "r_ShaderCompilerFolderName", "value": "GameSDK" },
+		{ "name": "r_PrecacheShaderList", "value": "1" },
+		{ "name": "r_shaderscacheinmemory", "value": "0" },
+		{ "name": "sys_rendersplashscreen", "value": "0" },
+		{ "name": "sys_vr_support", "value": " 0" },
+		{ "name": "sys_asserts", "value": " 0" },
+		{ "name": "r_ShaderTarget", "value": "D3D11"},
+		{ "name": "r_driver", "value": "DX11" }
+	]
+}

@@ -1,0 +1,14 @@
+<AssetMetadata version="0" type="Texture" guid="a85f37e1-3329-75e7-3f27-a0203bb5bce3" source="WaterFoam.TIF">
+ <Files>
+  <File path="WaterFoam.dds"/>
+  <File path="WaterFoam.dds.1"/>
+  <File path="WaterFoam.dds.2"/>
+  <File path="WaterFoam.dds.3"/>
+  <File path="WaterFoam.dds.4"/>
+ </Files>
+ <Details>
+  <Detail name="width">256</Detail>
+  <Detail name="height">256</Detail>
+  <Detail name="mipCount">7</Detail>
+ </Details>
+</AssetMetadata>

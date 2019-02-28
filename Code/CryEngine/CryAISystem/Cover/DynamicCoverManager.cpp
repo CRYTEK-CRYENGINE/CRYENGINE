@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "DynamicCoverManager.h"
@@ -6,7 +6,7 @@
 
 const bool DynamicCoverDeferred = false;
 
-void DynamicCoverManager::OnEntityEvent(IEntity* entity, SEntityEvent& event)
+void DynamicCoverManager::OnEntityEvent(IEntity* entity, const SEntityEvent& event)
 {
 	assert(m_entityCover.find(entity->GetId()) != m_entityCover.end());
 	assert((event.event == ENTITY_EVENT_XFORM) || (event.event == ENTITY_EVENT_DONE));
@@ -188,7 +188,7 @@ void DynamicCoverManager::Update(float updateTime)
 void DynamicCoverManager::EntityCoverSampled(EntityId entityID, EntityCoverSampler::ESide side,
                                              const ICoverSystem::SurfaceInfo& surfaceInfo)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	EntityCover::iterator it = m_entityCover.find(entityID);
 	assert(it != m_entityCover.end());
@@ -279,7 +279,7 @@ void DynamicCoverManager::QueueValidation(int index)
 
 void DynamicCoverManager::ValidateOne()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	QueuedValidation& queuedValidation = m_validationQueue.front();
 	assert(queuedValidation.waitingCount == 0);

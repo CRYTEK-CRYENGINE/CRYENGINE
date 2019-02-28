@@ -1,17 +1,29 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "AudioSystem.h"
 #include "AudioCVars.h"
 #include "ATLAudioObject.h"
 #include "PropagationProcessor.h"
-#include "ProfileData.h"
 #include <CrySystem/ITimer.h>
 #include <CryString/CryPath.h>
 #include <CryEntitySystem/IEntitySystem.h>
 
+#if defined(INCLUDE_AUDIO_PRODUCTION_CODE)
+	#include <CryRenderer/IRenderer.h>
+#endif // INCLUDE_AUDIO_PRODUCTION_CODE
+
 namespace CryAudio
 {
+enum class ELoggingOptions : EnumFlagsType
+{
+	None,
+	Errors   = BIT(6), // a
+	Warnings = BIT(7), // b
+	Comments = BIT(8), // c
+};
+CRY_CREATE_ENUM_FLAG_OPERATORS(ELoggingOptions);
+
 ///////////////////////////////////////////////////////////////////////////
 void CMainThread::Init(CSystem* const pSystem)
 {
@@ -36,9 +48,9 @@ void CMainThread::SignalStopWork()
 ///////////////////////////////////////////////////////////////////////////
 void CMainThread::Activate()
 {
-	if (!gEnv->pThreadManager->SpawnThread(this, "MainAudioThread"))
+	if (!gEnv->pThreadManager->SpawnThread(this, "AudioMainThread"))
 	{
-		CryFatalError(R"(Error spawning "MainAudioThread" thread.)");
+		CryFatalError(R"(Error spawning "AudioMainThread" thread.)");
 	}
 }
 
@@ -59,13 +71,20 @@ bool CMainThread::IsActive()
 
 //////////////////////////////////////////////////////////////////////////
 CSystem::CSystem()
-	: m_bSystemInitialized(false)
-	, m_lastUpdateTime()
-	, m_deltaTime(0.0f)
+	: m_isInitialized(false)
+	, m_didThreadWait(false)
+	, m_accumulatedFrameTime(0.0f)
+	, m_externalThreadFrameId(0)
+	, m_lastExternalThreadFrameId(0)
 	, m_atl()
 {
 	gEnv->pSystem->GetISystemEventDispatcher()->RegisterListener(this, "CryAudio::CSystem");
-	m_mainThread.Init(this);
+
+#if defined(INCLUDE_AUDIO_PRODUCTION_CODE)
+	m_currentRenderAuxGeom.exchange(nullptr);
+	m_lastRenderAuxGeom.exchange(nullptr);
+#endif // INCLUDE_AUDIO_PRODUCTION_CODE
+
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -118,26 +137,32 @@ void CSystem::ExternalUpdate()
 #if defined(INCLUDE_AUDIO_PRODUCTION_CODE)
 	DrawAudioDebugData();
 #endif // INCLUDE_AUDIO_PRODUCTION_CODE
+
+	m_accumulatedFrameTime += gEnv->pTimer->GetFrameTime();
+	++m_externalThreadFrameId;
+
+	// If sleeping, wake up the audio thread to start processing requests again.
+	m_audioThreadWakeupEvent.Set();
 }
 
 //////////////////////////////////////////////////////////////////////////
 void CSystem::PushRequest(CAudioRequest const& request)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AUDIO);
+	CRY_PROFILE_FUNCTION(PROFILE_AUDIO);
 
 	if (m_atl.CanProcessRequests())
 	{
 		m_requestQueue.enqueue(request);
 
-		if ((request.flags & ERequestFlags::ExecuteBlocking) > 0)
+		if ((request.flags & ERequestFlags::ExecuteBlocking) != 0)
 		{
-			// If sleeping, wake up the audio thread to start processing requests again
+			// If sleeping, wake up the audio thread to start processing requests again.
 			m_audioThreadWakeupEvent.Set();
 
 			m_mainEvent.Wait();
 			m_mainEvent.Reset();
 
-			if ((request.flags & ERequestFlags::CallbackOnExternalOrCallingThread) > 0)
+			if ((request.flags & ERequestFlags::CallbackOnExternalOrCallingThread) != 0)
 			{
 				m_atl.NotifyListener(m_syncRequest);
 			}
@@ -145,16 +170,8 @@ void CSystem::PushRequest(CAudioRequest const& request)
 	}
 	else
 	{
-		g_logger.Log(ELogType::Warning, "Discarded PushRequest due to ATL not allowing for new ones!");
+		Log(ELogType::Warning, "Discarded PushRequest due to ATL not allowing for new ones!");
 	}
-}
-
-//////////////////////////////////////////////////////////////////////////
-void CSystem::UpdateTime()
-{
-	CTimeValue const currentAsyncTime(gEnv->pTimer->GetAsyncTime());
-	m_deltaTime += (currentAsyncTime - m_lastUpdateTime).GetMilliSeconds();
-	m_lastUpdateTime = currentAsyncTime;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -221,69 +238,105 @@ void CSystem::OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_PTR lparam
 //////////////////////////////////////////////////////////////////////////
 void CSystem::InternalUpdate()
 {
-	bool bWorkDone = false;
+	CRY_PROFILE_REGION(PROFILE_AUDIO, "Audio: Internal Update");
 
+	if (m_lastExternalThreadFrameId != m_externalThreadFrameId)
 	{
-		CRY_PROFILE_REGION(PROFILE_AUDIO, "Audio: Internal Update");
-
-		UpdateTime();
-		m_atl.Update(m_deltaTime);
-		m_deltaTime = 0.0f;
-
-		bWorkDone = ProcessRequests(m_requestQueue);
+		m_atl.Update(m_accumulatedFrameTime);
+		ProcessRequests(m_requestQueue);
+		m_lastExternalThreadFrameId = m_externalThreadFrameId;
+		m_accumulatedFrameTime = 0.0f;
+		m_didThreadWait = false;
 	}
-
-	if (bWorkDone == false)
+	else if (m_didThreadWait)
 	{
+		// Effectively no time has passed for the external thread as it didn't progress.
+		// Consequently 0.0f is passed for deltaTime.
+		m_atl.Update(0.0f);
+		ProcessRequests(m_requestQueue);
+		m_didThreadWait = false;
+	}
+	else
+	{
+		// If we're faster than the external thread let's wait to make room for other threads.
 		CRY_PROFILE_REGION_WAITING(PROFILE_AUDIO, "Wait - Audio Update");
 
-		if (m_audioThreadWakeupEvent.Wait(10))
+		// The external thread will wake the audio thread up effectively syncing it to itself.
+		// If not however, the audio thread will execute at a minimum of roughly 30 fps.
+		if (m_audioThreadWakeupEvent.Wait(30))
 		{
-			// Only reset if the event was signalled, not timed-out!
+			// Only reset if the event was signaled, not timed-out!
 			m_audioThreadWakeupEvent.Reset();
 		}
+
+		m_didThreadWait = true;
 	}
 }
 
 ///////////////////////////////////////////////////////////////////////////
 bool CSystem::Initialize()
 {
-	if (!m_bSystemInitialized)
+	if (!m_isInitialized)
 	{
-		if (m_mainThread.IsActive())
-		{
-			m_mainThread.Deactivate();
-		}
+#if defined(ENABLE_AUDIO_LOGGING)
+		REGISTER_CVAR2("s_LoggingOptions", &m_loggingOptions, AlphaBits64("abc"), VF_CHEAT | VF_CHEAT_NOCHECK | VF_BITFIELD,
+		               "Toggles the logging of audio related messages.\n"
+		               "Usage: s_LoggingOptions [0ab...] (flags can be combined)\n"
+		               "Default: abc\n"
+		               "0: Logging disabled\n"
+		               "a: Errors\n"
+		               "b: Warnings\n"
+		               "c: Comments\n");
+#endif // ENABLE_AUDIO_LOGGING
 
-		m_configPath = CryFixedStringT<MaxFilePathLength>((PathUtil::GetGameFolder() + CRY_NATIVE_PATH_SEPSTR AUDIO_SYSTEM_DATA_ROOT CRY_NATIVE_PATH_SEPSTR "ace" CRY_NATIVE_PATH_SEPSTR).c_str());
+		g_cvars.RegisterVariables();
 		m_atl.Initialize(this);
+		CRY_ASSERT_MESSAGE(!m_mainThread.IsActive(), "AudioSystem thread active before initialization!");
+		m_mainThread.Init(this);
 		m_mainThread.Activate();
-		m_bSystemInitialized = true;
+		AddRequestListener(&CSystem::OnCallback, nullptr, ESystemEvents::TriggerExecuted | ESystemEvents::TriggerFinished);
+		m_isInitialized = true;
+	}
+	else
+	{
+		CRY_ASSERT_MESSAGE(false, "AudioSystem has already been initialized!");
 	}
 
-	AddRequestListener(&CSystem::OnCallback, nullptr, ESystemEvents::TriggerExecuted | ESystemEvents::TriggerFinished);
-
-	return m_bSystemInitialized;
+	return m_isInitialized;
 }
 
 ///////////////////////////////////////////////////////////////////////////
 void CSystem::Release()
 {
-	RemoveRequestListener(&CSystem::OnCallback, nullptr);
+	if (m_isInitialized)
+	{
+		RemoveRequestListener(&CSystem::OnCallback, nullptr);
 
-	SAudioManagerRequestData<EAudioManagerRequestType::ReleaseAudioImpl> releaseImplData;
-	CAudioRequest releaseImplRequest(&releaseImplData);
-	releaseImplRequest.flags = ERequestFlags::ExecuteBlocking;
-	PushRequest(releaseImplRequest);
+		SAudioManagerRequestData<EAudioManagerRequestType::ReleaseAudioImpl> releaseImplData;
+		CAudioRequest releaseImplRequest(&releaseImplData);
+		releaseImplRequest.flags = ERequestFlags::ExecuteBlocking;
+		PushRequest(releaseImplRequest);
 
-	m_mainThread.Deactivate();
-	bool const bSuccess = m_atl.ShutDown();
-	m_bSystemInitialized = false;
+		m_mainThread.Deactivate();
+		bool const bSuccess = m_atl.ShutDown();
+		g_cvars.UnregisterVariables();
 
-	delete this;
+#if defined(ENABLE_AUDIO_LOGGING)
+		IConsole* const pIConsole = gEnv->pConsole;
 
-	g_cvars.UnregisterVariables();
+		if (pIConsole != nullptr)
+		{
+			pIConsole->UnregisterVariable("s_LoggingOptions");
+		}
+#endif // ENABLE_AUDIO_LOGGING
 
+		m_isInitialized = false;
+		delete this;
+	}
+	else
+	{
+		CRY_ASSERT_MESSAGE(false, "AudioSystem has already been released or was never properly initialized!");
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -462,54 +515,6 @@ void CSystem::ReportFinishedEvent(
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CSystem::LostFocus(SRequestUserData const& userData /* = SAudioRequestUserData::GetEmptyObject() */)
-{
-	SAudioManagerRequestData<EAudioManagerRequestType::LoseFocus> requestData;
-	CAudioRequest request(&requestData);
-	request.flags = userData.flags;
-	request.pOwner = userData.pOwner;
-	request.pUserData = userData.pUserData;
-	request.pUserDataOwner = userData.pUserDataOwner;
-	PushRequest(request);
-}
-
-//////////////////////////////////////////////////////////////////////////
-void CSystem::GotFocus(SRequestUserData const& userData /* = SAudioRequestUserData::GetEmptyObject() */)
-{
-	SAudioManagerRequestData<EAudioManagerRequestType::GetFocus> requestData;
-	CAudioRequest request(&requestData);
-	request.flags = userData.flags;
-	request.pOwner = userData.pOwner;
-	request.pUserData = userData.pUserData;
-	request.pUserDataOwner = userData.pUserDataOwner;
-	PushRequest(request);
-}
-
-//////////////////////////////////////////////////////////////////////////
-void CSystem::MuteAll(SRequestUserData const& userData /* = SAudioRequestUserData::GetEmptyObject() */)
-{
-	SAudioManagerRequestData<EAudioManagerRequestType::MuteAll> requestData;
-	CAudioRequest request(&requestData);
-	request.flags = userData.flags;
-	request.pOwner = userData.pOwner;
-	request.pUserData = userData.pUserData;
-	request.pUserDataOwner = userData.pUserDataOwner;
-	PushRequest(request);
-}
-
-//////////////////////////////////////////////////////////////////////////
-void CSystem::UnmuteAll(SRequestUserData const& userData /* = SAudioRequestUserData::GetEmptyObject() */)
-{
-	SAudioManagerRequestData<EAudioManagerRequestType::UnmuteAll> requestData;
-	CAudioRequest request(&requestData);
-	request.flags = userData.flags;
-	request.pOwner = userData.pOwner;
-	request.pUserData = userData.pUserData;
-	request.pUserDataOwner = userData.pUserDataOwner;
-	PushRequest(request);
-}
-
-//////////////////////////////////////////////////////////////////////////
 void CSystem::StopAllSounds(SRequestUserData const& userData /* = SAudioRequestUserData::GetEmptyObject() */)
 {
 	SAudioManagerRequestData<EAudioManagerRequestType::StopAllSounds> requestData;
@@ -617,7 +622,7 @@ void CSystem::ReloadControlsData(
 ///////////////////////////////////////////////////////////////////////////
 char const* CSystem::GetConfigPath() const
 {
-	return m_configPath.c_str();
+	return m_atl.GetConfigPath();
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -687,8 +692,9 @@ void CSystem::GetTriggerData(ControlId const triggerId, STriggerData& triggerDat
 void CSystem::OnLoadLevel(char const* const szLevelName)
 {
 	// Requests need to be blocking so data is available for next preloading request!
-	CryFixedStringT<MaxFilePathLength> audioLevelPath(m_configPath.c_str());
-	audioLevelPath += "levels" CRY_NATIVE_PATH_SEPSTR;
+	CryFixedStringT<MaxFilePathLength> audioLevelPath(m_atl.GetConfigPath());
+	audioLevelPath += s_szLevelsFolderName;
+	audioLevelPath += "/";
 	audioLevelPath += szLevelName;
 	SAudioManagerRequestData<EAudioManagerRequestType::ParseControlsData> requestData1(audioLevelPath, EDataScope::LevelSpecific);
 	CAudioRequest request1(&requestData1);
@@ -736,74 +742,119 @@ void CSystem::OnLanguageChanged()
 }
 
 //////////////////////////////////////////////////////////////////////////
-IProfileData* CSystem::GetProfileData() const
+void CSystem::Log(ELogType const type, char const* const szFormat, ...)
 {
-#if defined(INCLUDE_AUDIO_PRODUCTION_CODE)
-	return static_cast<IProfileData*>(m_atl.GetProfileData());
-#else
-	return nullptr;
-#endif // INCLUDE_AUDIO_PRODUCTION_CODE
+#if defined(ENABLE_AUDIO_LOGGING)
+	if (szFormat != nullptr && szFormat[0] != '\0' && gEnv->pLog->GetVerbosityLevel() != -1)
+	{
+		CRY_PROFILE_REGION(PROFILE_AUDIO, "CSystem::Log");
+
+		char buffer[256];
+		va_list ArgList;
+		va_start(ArgList, szFormat);
+		cry_vsprintf(buffer, szFormat, ArgList);
+		va_end(ArgList);
+
+		ELoggingOptions const loggingOptions = static_cast<ELoggingOptions>(m_loggingOptions);
+
+		switch (type)
+		{
+		case ELogType::Warning:
+			{
+				if ((loggingOptions& ELoggingOptions::Warnings) != 0)
+				{
+					gEnv->pSystem->Warning(VALIDATOR_MODULE_AUDIO, VALIDATOR_WARNING, VALIDATOR_FLAG_AUDIO, nullptr, "<Audio>: %s", buffer);
+				}
+
+				break;
+			}
+		case ELogType::Error:
+			{
+				if ((loggingOptions& ELoggingOptions::Errors) != 0)
+				{
+					gEnv->pSystem->Warning(VALIDATOR_MODULE_AUDIO, VALIDATOR_ERROR, VALIDATOR_FLAG_AUDIO, nullptr, "<Audio>: %s", buffer);
+				}
+
+				break;
+			}
+		case ELogType::Comment:
+			{
+				if ((gEnv->pLog != nullptr) && (gEnv->pLog->GetVerbosityLevel() >= 4) && ((loggingOptions& ELoggingOptions::Comments) != 0))
+				{
+					CryLogAlways("<Audio>: %s", buffer);
+				}
+
+				break;
+			}
+		case ELogType::Always:
+			{
+				CryLogAlways("<Audio>: %s", buffer);
+
+				break;
+			}
+		default:
+			{
+				CRY_ASSERT(false);
+
+				break;
+			}
+		}
+	}
+#endif // ENABLE_AUDIO_LOGGING
 }
 
 //////////////////////////////////////////////////////////////////////////
-bool CSystem::ProcessRequests(AudioRequests& requestQueue)
+void CSystem::ProcessRequests(AudioRequests& requestQueue)
 {
-	bool bSuccess = false;
-	CAudioRequest request;
-
-	while (requestQueue.dequeue(request))
+	while (requestQueue.dequeue(m_request))
 	{
-		if (request.status == ERequestStatus::None)
+		if (m_request.status == ERequestStatus::None)
 		{
-			request.status = ERequestStatus::Pending;
-			m_atl.ProcessRequest(request);
+			m_request.status = ERequestStatus::Pending;
+			m_atl.ProcessRequest(m_request);
 		}
 		else
 		{
 			// TODO: handle pending requests!
 		}
 
-		if (request.status != ERequestStatus::Pending)
+		if (m_request.status != ERequestStatus::Pending)
 		{
-			if ((request.flags & ERequestFlags::CallbackOnAudioThread) > 0)
+			if ((m_request.flags & ERequestFlags::CallbackOnAudioThread) != 0)
 			{
-				m_atl.NotifyListener(request);
+				m_atl.NotifyListener(m_request);
 
-				if ((request.flags & ERequestFlags::ExecuteBlocking) > 0)
+				if ((m_request.flags & ERequestFlags::ExecuteBlocking) != 0)
 				{
 					m_mainEvent.Set();
 				}
 			}
-			else if ((request.flags & ERequestFlags::CallbackOnExternalOrCallingThread) > 0)
+			else if ((m_request.flags & ERequestFlags::CallbackOnExternalOrCallingThread) != 0)
 			{
-				if ((request.flags & ERequestFlags::ExecuteBlocking) > 0)
+				if ((m_request.flags & ERequestFlags::ExecuteBlocking) != 0)
 				{
-					m_syncRequest = request;
+					m_syncRequest = m_request;
 					m_mainEvent.Set();
 				}
 				else
 				{
-					if (request.pObject == nullptr)
+					if (m_request.pObject == nullptr)
 					{
 						m_atl.IncrementGlobalObjectSyncCallbackCounter();
 					}
 					else
 					{
-						request.pObject->IncrementSyncCallbackCounter();
+						m_request.pObject->IncrementSyncCallbackCounter();
 					}
-					m_syncCallbacks.enqueue(request);
+					m_syncCallbacks.enqueue(m_request);
 				}
 			}
-			else if ((request.flags & ERequestFlags::ExecuteBlocking) > 0)
+			else if ((m_request.flags & ERequestFlags::ExecuteBlocking) != 0)
 			{
 				m_mainEvent.Set();
 			}
 		}
-
-		bSuccess = true;
 	}
-
-	return bSuccess;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -836,14 +887,60 @@ void CSystem::OnCallback(SRequestInfo const* const pRequestInfo)
 }
 
 //////////////////////////////////////////////////////////////////////////
+void CSystem::GetImplInfo(SImplInfo& implInfo)
+{
+	SAudioManagerRequestData<EAudioManagerRequestType::GetImplInfo> requestData(implInfo);
+	CAudioRequest request(&requestData);
+	request.flags = ERequestFlags::ExecuteBlocking;
+	PushRequest(request);
+}
+
 #if defined(INCLUDE_AUDIO_PRODUCTION_CODE)
+//////////////////////////////////////////////////////////////////////////
+void CSystem::ScheduleIRenderAuxGeomForRendering(IRenderAuxGeom* pRenderAuxGeom)
+{
+	auto oldRenderAuxGeom = m_currentRenderAuxGeom.exchange(pRenderAuxGeom);
+	CRY_ASSERT(oldRenderAuxGeom != pRenderAuxGeom);
+
+	// Kill FIFO entries beyond 1, only the head survives in m_currentRenderAuxGeom
+	// Throw away all older entries
+	if (oldRenderAuxGeom && oldRenderAuxGeom != pRenderAuxGeom)
+	{
+		gEnv->pRenderer->DeleteAuxGeom(oldRenderAuxGeom);
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////
+void CSystem::SubmitLastIRenderAuxGeomForRendering()
+{
+	// Consume the FIFO head
+	auto curRenderAuxGeom = m_currentRenderAuxGeom.exchange(nullptr);
+	if (curRenderAuxGeom)
+	{
+		// Replace the active Aux rendering by a new one only if there is a new one
+		// Otherwise keep rendering the currently active one
+		auto oldRenderAuxGeom = m_lastRenderAuxGeom.exchange(curRenderAuxGeom);
+		if (oldRenderAuxGeom)
+		{
+			gEnv->pRenderer->DeleteAuxGeom(oldRenderAuxGeom);
+		}
+	}
+
+	if (m_lastRenderAuxGeom != (volatile IRenderAuxGeom*)nullptr)
+	{
+		gEnv->pRenderer->SubmitAuxGeom(m_lastRenderAuxGeom);
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////
 void CSystem::DrawAudioDebugData()
 {
 	if (g_cvars.m_drawAudioDebug > 0)
 	{
+		SubmitLastIRenderAuxGeomForRendering();
+
 		SAudioManagerRequestData<EAudioManagerRequestType::DrawDebugInfo> requestData;
 		CAudioRequest request(&requestData);
-		request.flags = ERequestFlags::ExecuteBlocking;
 		PushRequest(request);
 	}
 }

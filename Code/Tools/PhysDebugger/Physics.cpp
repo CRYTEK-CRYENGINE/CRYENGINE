@@ -148,6 +148,11 @@ extern "C" CRYPHYSICS_API ProfilerData *GetProfileData(int iThread);
 struct CSystemImp : ISystem {
 	virtual IPhysRenderer *GetIPhysRenderer() const { return &g_PhysRenderer; }
 	virtual float GetCurrTime() const { return time; }
+	void UpdateTime() {
+		__int64 curTime;
+		QueryPerformanceCounter((LARGE_INTEGER*)&curTime);
+		time = (float)(((curTime-g_time0)*10000)/g_freq)*0.0001f;
+	}
 	float time = 0;
 } g_System;
 struct SEnvImp : SEnv {
@@ -369,19 +374,28 @@ void ReloadWorldAndGeometries(const char *fworld, const char *fgeoms)
 	int i,nEnts;
 
 	ResetProfiler(g_pPhysProfilerData);
-	if (!(nEnts = g_pWorld->GetEntitiesInBox(bbox[0],bbox[1],ppEnts,ent_rigid)))
-		nEnts = g_pWorld->GetEntitiesInBox(bbox[0],bbox[1],ppEnts,ent_independent);
-	for(i=0,pos.z=-1e10f; i<nEnts; i++) {
-		ppEnts[i]->GetStatus(&sp);
-		pos += (sp.pos-pos)*(float)isneg(pos.z-sp.pos.z);
-	}
 
-	if (g_pWorld->GetEntitiesInBox(bbox[0],bbox[1],ppEnts,ent_living)) {
-		ppEnts[0]->GetStatus(&sp);
-		g_campos = sp.pos;
-	}	else
-		g_campos = pos+Vec3(0,1,1);
-	g_camdir = (pos-g_campos).normalized();
+	sp.pos.zero();
+	sp.q.SetIdentity();
+	IPhysicalEntity *player;
+	if (!(player = g_pWorld->GetPhysicalEntityById(0x7777)) || !player->GetStatus(&sp) || sp.pos.len2()) { 
+		pe_player_dimensions pd;
+		for(i=g_pWorld->GetEntitiesInBox(bbox[0],bbox[1],ppEnts,ent_living)-1; i>=0 && !(ppEnts[i]->GetParams(&pd) && !pd.sizeCollider.x); i--);
+		if (i>=0)
+			ppEnts[i]->GetStatus(&sp);
+		else {
+			if (!(nEnts = g_pWorld->GetEntitiesInBox(bbox[0],bbox[1],ppEnts,ent_rigid)))
+				nEnts = g_pWorld->GetEntitiesInBox(bbox[0],bbox[1],ppEnts,ent_independent);
+			for(i=0,pos.z=-1e10f; i<nEnts; i++) {
+				ppEnts[i]->GetStatus(&sp);
+				pos += (sp.pos-pos)*(float)isneg(pos.z-sp.pos.z);
+			}
+			g_campos = pos-Vec3(0,1,0);
+		}
+	}
+	g_campos = sp.pos;
+	g_camdir = sp.q*Vec3(0,1,0);
+
 	ReleaseMutex(g_hThreadActive);
 	g_pWorld->GetPhysVars()->bSingleStepMode = 0;
 
@@ -489,7 +503,11 @@ void OnMouseEvent(uint evtWin, int x, int y, int flags)
 	g_Tool.MouseCallback((CViewport*)&g_Cam, evt, CPoint(x,y), flags);
 }
 
-void OnSetCursor() { g_Tool.OnSetCursor((CViewport*)&g_Cam); }
+void OnSetCursor() 
+{ 
+	g_System.UpdateTime();
+	g_Tool.Display(g_DC); 
+}
 
 #include <CryNetwork\ISerialize.h>
 struct SMemSaver : ISerialize {
@@ -626,9 +644,7 @@ void ProcessPhysProfileNode(phys_profile_info &info)
 
 void RenderWorld(HWND hWnd, HDC hDC)
 {
-	__int64 curTime;
-	QueryPerformanceCounter((LARGE_INTEGER*)&curTime);
-	g_System.time = (float)(((curTime-g_time0)*10000)/g_freq)*0.0001f;
+	g_System.UpdateTime();
 
 	RECT rect;
 	GetClientRect(hWnd, &rect);
@@ -750,8 +766,12 @@ void RenderWorld(HWND hWnd, HDC hDC)
 	sprintf_s(str, "PhysFPS %d %s", fps, fps==100 ? "(cap)":"");
 	glRasterPos2i(rect.right-20-sz.cx,20+sz.cy);
 	glCallLists(strlen(str), GL_UNSIGNED_BYTE, str);
-	if (!g_bAnimate)
+	if (!g_bAnimate) {
 		g_pWorld->GetPhysVars()->lastTimeStep = 0;
+		glRasterPos2i(20,rect.bottom-(sz.cy*3>>1));
+		strcpy(str, "Press F1 to start the simulation");
+		glCallLists(strlen(str), GL_UNSIGNED_BYTE, str);
+	}
 
 	g_PhysRenderer.DrawTextBuffers(hDC);
 
@@ -946,9 +966,11 @@ void CPhysRenderer::DrawGeometry(IGeometry *pGeom, geom_world_data *pgwd, const 
 					clrlit[0] = clrhf[(i^j)&1];
 					pt[2] = R*Vec3((i+1)*phf->step.x, j*phf->step.y, getheight(phf,i+1,j))*scale + pos;
 					pt[3] = R*Vec3((i+1)*phf->step.x, (j+1)*phf->step.y, getheight(phf,i+1,j+1))*scale + pos;
-					_clr(clrlit[0]);
-					_vtx(pt[0]); _vtx(pt[2]); _vtx(pt[1]);
-					_vtx(pt[1]); _vtx(pt[2]); _vtx(pt[3]);
+					if (!phf->fpGetSurfTypeCallback || phf->fpGetSurfTypeCallback(i,j)!=phf->typehole) {
+						_clr(clrlit[0]);
+						_vtx(pt[0]); _vtx(pt[2]); _vtx(pt[1]);
+						_vtx(pt[1]); _vtx(pt[2]); _vtx(pt[3]);
+					}
 					pt[0] = pt[2]; pt[1] = pt[3];
 				}
 			}	glEnd();

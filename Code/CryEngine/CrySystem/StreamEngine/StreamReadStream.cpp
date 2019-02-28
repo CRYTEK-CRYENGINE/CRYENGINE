@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   StreamReadStream.cpp
@@ -106,8 +106,8 @@ void CReadStream::AbortShutdown()
 		m_nIOError = ERROR_ABORTED_ON_SHUTDOWN;
 		m_bFileRequestComplete = true;
 
-		if (m_pFileRequest)
-			__debugbreak();
+		if (!m_pFileRequest)
+			CryFatalError("File request still exists");
 	}
 
 	// lock this object to avoid preliminary destruction
@@ -139,7 +139,7 @@ void CReadStream::Abort()
 		if (m_pFileRequest)
 		{
 			m_pFileRequest->Cancel();
-			m_pFileRequest = 0;
+			m_pFileRequest = nullptr;
 		}
 	}
 
@@ -173,7 +173,7 @@ bool CReadStream::TryAbort()
 	m_bError = true;
 	m_nIOError = ERROR_USER_ABORT;
 	m_bFileRequestComplete = true;
-	m_pFileRequest = 0;
+	m_pFileRequest = nullptr;
 
 	// lock this object to avoid preliminary destruction
 	CReadStream_AutoPtr pLock(this);
@@ -216,7 +216,6 @@ void CReadStream::Wait(int nMaxWaitMillis)
 
 	if (!m_bFinished && !m_bError && !m_pFileRequest)
 	{
-		assert(m_pFileRequest != NULL);   // If we want to Wait for stream its file request must not be NULL.
 		// This will almost certainly cause Dead-Lock
 		CryFatalError("Waiting for stream when StreamingEngine is paused");
 	}
@@ -260,14 +259,14 @@ uint64 CReadStream::GetPriority() const
 // this gets called upon the IO has been executed to call the callbacks
 void CReadStream::MainThread_Finalize()
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 
 	// call asynchronous callback function if needed synchronously
 	{
 		CryAutoCriticalSection lock(m_callbackLock);
 		ExecuteSyncCallback_CBLocked();
 	}
-	m_pFileRequest = 0;
+	m_pFileRequest = nullptr;
 }
 
 IStreamCallback* CReadStream::GetCallback() const
@@ -342,8 +341,9 @@ int CReadStream::Release()
 void CReadStream::Reset()
 {
 	m_strFileName.clear();
-	m_pFileRequest = NULL;
+	m_pFileRequest = nullptr;
 	m_Params = StreamReadParams();
+	// WTHF
 	memset((void*)&m_nRefCount, 0, (char*)(this + 1) - (char*)(&m_nRefCount));
 }
 
@@ -355,12 +355,12 @@ void CReadStream::SetUserData(DWORD_PTR dwUserData)
 //////////////////////////////////////////////////////////////////////////
 void CReadStream::ExecuteAsyncCallback_CBLocked()
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 
 	if (!m_bIsAsyncCallbackExecuted && m_pCallback)
 	{
 		m_bIsAsyncCallbackExecuted = true;
-		MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_Other, 0, "Steaming Callback %s", gEnv->pSystem->GetStreamEngine()->GetStreamTaskTypeName(m_Type));
+		MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_Other, 0, "Streaming Callback %s", gEnv->pSystem->GetStreamEngine()->GetStreamTaskTypeName(m_Type));
 
 		m_pCallback->StreamAsyncOnComplete(this, m_nIOError);
 	}
@@ -368,27 +368,20 @@ void CReadStream::ExecuteAsyncCallback_CBLocked()
 
 void CReadStream::ExecuteSyncCallback_CBLocked()
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_SYSTEM);
+	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 
+	CReadStream_AutoPtr protectMe;
 	if (!m_bIsSyncCallbackExecuted && m_pCallback && (0 == (m_Params.nFlags & IStreamEngine::FLAGS_NO_SYNC_CALLBACK)))
 	{
 		m_bIsSyncCallbackExecuted = true;
-
-		CReadStream_AutoPtr protectMe(this); // Stream can be freed inside the callback!
+		protectMe = this; // Stream can be freed inside the callback!
 
 		m_pCallback->StreamOnComplete(this, m_nIOError);
+	}
 
-		// We do not need FileRequest here anymore, and not its temporary memory.
-		m_pFileRequest = 0;
-		m_pBuffer = NULL;
-		m_bFinished = true;
-	}
-	else
-	{
-		m_pFileRequest = 0;
-		m_pBuffer = NULL;
-		m_bFinished = true;
-	}
+	m_pFileRequest = nullptr;
+	m_pBuffer = nullptr;
+	m_bFinished = true;
 
 #ifdef STREAMENGINE_ENABLE_LISTENER
 	IStreamEngineListener* pListener = m_pEngine->GetListener();
@@ -423,9 +416,7 @@ void CReadStream::FreeTemporaryMemory()
 //////////////////////////////////////////////////////////////////////////
 bool CReadStream::IsReqReading()
 {
-	if (m_strFileName.empty())
-		return false;
-	return true;
+	return !m_strFileName.empty();
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -469,9 +460,7 @@ void CReadStream::OnAsyncFileRequestComplete()
 			m_nIOError = m_pFileRequest->m_nError;
 			m_bError = m_nIOError != 0;
 			if (m_bError)
-			{
 				m_nBytesRead = 0;
-			}
 
 #ifdef STREAMENGINE_ENABLE_STATS
 			m_ReadTime = m_pFileRequest->m_readTime;
@@ -483,7 +472,7 @@ void CReadStream::OnAsyncFileRequestComplete()
 		if (m_Params.nFlags & IStreamEngine::FLAGS_NO_SYNC_CALLBACK)
 		{
 			// We do not need FileRequest here anymore, and not its temporary memory.
-			m_pFileRequest = 0;
+			m_pFileRequest = nullptr;
 			m_bFinished = true;
 		}
 

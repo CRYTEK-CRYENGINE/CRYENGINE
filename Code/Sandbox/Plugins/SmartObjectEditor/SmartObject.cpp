@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "SmartObject.h"
@@ -52,8 +52,10 @@ float CSmartObject::GetRadius()
 	return 0.5f;
 }
 
-void CSmartObject::Display(DisplayContext& dc)
+void CSmartObject::Display(CObjectRenderHelper& objRenderHelper)
 {
+	DisplayContext& dc = objRenderHelper.GetDisplayContextRef();
+	const SRenderingPassInfo& passInfo = objRenderHelper.GetPassInfo();
 	const Matrix34& wtm = GetWorldTM();
 
 	if (IsFrozen())
@@ -63,27 +65,28 @@ void CSmartObject::Display(DisplayContext& dc)
 
 	if (!GetIStatObj())
 	{
-		dc.RenderObject(eStatObject_Anchor, wtm);
+		objRenderHelper.Render(wtm);
 	}
 	else if (!(dc.flags & DISPLAY_2D))
 	{
-		float color[4];
-		color[0] = dc.GetColor().r * (1.0f / 255.0f);
-		color[1] = dc.GetColor().g * (1.0f / 255.0f);
-		color[2] = dc.GetColor().b * (1.0f / 255.0f);
-		color[3] = dc.GetColor().a * (1.0f / 255.0f);
-
-		SRenderingPassInfo passInfo = SRenderingPassInfo::CreateGeneralPassRenderingInfo(GetIEditor()->GetSystem()->GetViewCamera());
-
-		Matrix34 tempTm = wtm;
-		SRendParams rp;
-		rp.pMatrix = &tempTm;
-		rp.AmbientColor = ColorF(color[0], color[1], color[2], 1);
-		rp.fAlpha = color[3];
-		rp.dwFObjFlags |= FOB_TRANS_MASK;
-		//rp.nShaderTemplate = EFT_HELPER;
 		if (m_pStatObj)
+		{
+			float color[4];
+			color[0] = dc.GetColor().r * (1.0f / 255.0f);
+			color[1] = dc.GetColor().g * (1.0f / 255.0f);
+			color[2] = dc.GetColor().b * (1.0f / 255.0f);
+			color[3] = dc.GetColor().a * (1.0f / 255.0f);
+
+			Matrix34 tempTm = wtm;
+			SRendParams rp;
+			rp.pMatrix = &tempTm;
+			rp.AmbientColor = ColorF(color[0], color[1], color[2], 1);
+			rp.fAlpha = color[3];
+			rp.dwFObjFlags |= FOB_TRANS_MASK;
+			//rp.nShaderTemplate = EFT_HELPER;
+
 			m_pStatObj->Render(rp, passInfo);
+		}
 	}
 
 	dc.SetColor(GetColor());
@@ -277,29 +280,6 @@ void CSmartObject::GetScriptProperties(XmlNodeRef xmlEntityNode)
 	}
 }
 
-/*
-//////////////////////////////////////////////////////////////////////////
-void CSmartObject::BeginEditParams(int flags)
-{
-	if (m_pLuaProperties)
-	{
-		m_pLuaProperties->AddOnSetCallback(functor(*this, &CSmartObject::OnPropertyChange));
-	}
-	__super::BeginEditParams(flags);
-}
-
-//////////////////////////////////////////////////////////////////////////
-void CSmartObject::EndEditParams()
-{
-	if (m_pLuaProperties)
-	{
-		m_pLuaProperties->RemoveOnSetCallback(functor(*this, &CSmartObject::OnPropertyChange));
-	}
-	__super::EndEditParams();
-
-	Reload(true);
-}*/
-
 void CSmartObject::OnEvent(ObjectEvent eventID)
 {
 	CBaseObject::OnEvent(eventID);
@@ -312,3 +292,4 @@ void CSmartObject::OnEvent(ObjectEvent eventID)
 		break;
 	}
 }
+

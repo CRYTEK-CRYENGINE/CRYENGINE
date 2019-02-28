@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "AreaGrid.h"
@@ -7,17 +7,6 @@
 
 static constexpr int GridCellSize = 4;
 static constexpr float GridCellSizeR = 1.0f / GridCellSize;
-
-//////////////////////////////////////////////////////////////////////////
-CAreaGrid::CAreaGrid()
-	: m_pbitFieldX(nullptr)
-	, m_pbitFieldY(nullptr)
-	, m_pAreaBounds(nullptr)
-	, m_pAreas(nullptr)
-	, m_bitFieldSizeU32(0)
-	, m_maxNumAreas(0)
-	, m_numCellsPerAxis(0)
-{}
 
 //////////////////////////////////////////////////////////////////////////
 CAreaGrid::~CAreaGrid()
@@ -30,8 +19,8 @@ bool CAreaGrid::GetAreas(uint32 const x, uint32 const y, TAreaPointers& outAreas
 {
 	CRY_ASSERT(x < m_numCellsPerAxis && y < m_numCellsPerAxis);
 
-	uint32 const* const pBitsLHS = m_pbitFieldX + (m_bitFieldSizeU32 * x);
-	uint32 const* const pBitsRHS = m_pbitFieldY + (m_bitFieldSizeU32 * y);
+	uint32 const* const pBitsLHS = m_bitFieldX.data() + (m_bitFieldSizeU32 * x);
+	uint32 const* const pBitsRHS = m_bitFieldY.data() + (m_bitFieldSizeU32 * y);
 
 	for (uint32 i = 0, offset = 0; i < m_bitFieldSizeU32; ++i, offset += 32)
 	{
@@ -86,24 +75,24 @@ void CAreaGrid::AddAreaBit(const Vec2i& start, const Vec2i& end, uint32 areaInde
 	const uint32 bucketIndex = areaIndex >> 5;
 
 	// -- X ---
-	pBits = m_pbitFieldX + (m_bitFieldSizeU32 * start.x) + bucketIndex;
+	pBits = m_bitFieldX.data() + (m_bitFieldSizeU32 * start.x) + bucketIndex;
 	for (int i = start.x; i <= end.x; i++, pBits += m_bitFieldSizeU32)
 		*pBits |= bucketBit;
 
 	// -- Y ---
-	pBits = m_pbitFieldY + (m_bitFieldSizeU32 * start.y) + bucketIndex;
+	pBits = m_bitFieldY.data() + (m_bitFieldSizeU32 * start.y) + bucketIndex;
 	for (int i = start.y; i <= end.y; i++, pBits += m_bitFieldSizeU32)
 		*pBits |= bucketBit;
 
-	m_pAreaBounds[areaIndex][0] = start;
-	m_pAreaBounds[areaIndex][1] = end;
+	m_areaBounds[areaIndex][0] = start;
+	m_areaBounds[areaIndex][1] = end;
 }
 
 //////////////////////////////////////////////////////////////////////////
 void CAreaGrid::RemoveAreaBit(uint32 areaIndex)
 {
-	Vec2i& start = m_pAreaBounds[areaIndex][0];
-	Vec2i& end = m_pAreaBounds[areaIndex][1];
+	Vec2i& start = m_areaBounds[areaIndex][0];
+	Vec2i& end = m_areaBounds[areaIndex][1];
 
 	if (start == Vec2i(-1, -1) && end == Vec2i(-1, -1))
 	{
@@ -118,12 +107,12 @@ void CAreaGrid::RemoveAreaBit(uint32 areaIndex)
 	const uint32 bucketIndex = areaIndex >> 5;
 
 	// -- X ---
-	pBits = m_pbitFieldX + (m_bitFieldSizeU32 * start.x) + bucketIndex;
+	pBits = m_bitFieldX.data() + (m_bitFieldSizeU32 * start.x) + bucketIndex;
 	for (int i = start.x; i <= end.x; i++, pBits += m_bitFieldSizeU32)
 		*pBits &= bucketBit;
 
 	// -- Y ---
-	pBits = m_pbitFieldY + (m_bitFieldSizeU32 * start.y) + bucketIndex;
+	pBits = m_bitFieldY.data() + (m_bitFieldSizeU32 * start.y) + bucketIndex;
 	for (int i = start.y; i <= end.y; i++, pBits += m_bitFieldSizeU32)
 		*pBits &= bucketBit;
 
@@ -134,9 +123,11 @@ void CAreaGrid::RemoveAreaBit(uint32 areaIndex)
 //////////////////////////////////////////////////////////////////////////
 void CAreaGrid::ClearAllBits()
 {
-	memset(m_pbitFieldX, 0, m_bitFieldSizeU32 * m_numCellsPerAxis * sizeof(m_pbitFieldX[0]));
-	memset(m_pbitFieldY, 0, m_bitFieldSizeU32 * m_numCellsPerAxis * sizeof(m_pbitFieldY[0]));
-	memset(m_pAreaBounds, -1, sizeof(m_pAreaBounds[0]) * m_maxNumAreas);
+	std::fill(m_bitFieldX.begin(), m_bitFieldX.end(), 0);
+	std::fill(m_bitFieldY.begin(), m_bitFieldY.end(), 0);
+	std::fill(m_areaBounds.begin(), m_areaBounds.end(), std::array<Vec2i, 2> {
+		{ ZERO, ZERO }
+	});
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -146,7 +137,7 @@ bool CAreaGrid::ResetArea(CArea* pArea)
 
 	if (m_pAreas != nullptr)
 	{
-		FUNCTION_PROFILER(GetISystem(), PROFILE_ENTITY);
+		CRY_PROFILE_FUNCTION(PROFILE_ENTITY);
 
 		uint32 index = 0;
 		TAreaPointers::const_iterator iter(m_pAreas->begin());
@@ -248,7 +239,7 @@ void CAreaGrid::AddArea(CArea* pArea, uint32 areaIndex)
 //////////////////////////////////////////////////////////////////////////
 void CAreaGrid::Compile(TAreaPointers const& areas)
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_ENTITY);
+	CRY_PROFILE_FUNCTION(PROFILE_ENTITY);
 
 	int const terrainSize = gEnv->p3DEngine->GetTerrainSize();
 	uint32 const numCellsPerAxis = static_cast<uint32>(terrainSize / GridCellSize);
@@ -272,11 +263,11 @@ void CAreaGrid::Compile(TAreaPointers const& areas)
 		m_bitFieldSizeU32 = bitFieldSizeU32;
 		m_maxNumAreas = numAreas;
 
-		CRY_ASSERT(m_pbitFieldX == nullptr);
+		CRY_ASSERT(m_bitFieldX.empty());
 
-		m_pbitFieldX = new uint32[m_bitFieldSizeU32 * m_numCellsPerAxis];
-		m_pbitFieldY = new uint32[m_bitFieldSizeU32 * m_numCellsPerAxis];
-		m_pAreaBounds = new Vec2i[m_maxNumAreas][2];
+		m_bitFieldX.resize(m_bitFieldSizeU32 * m_numCellsPerAxis);
+		m_bitFieldY.resize(m_bitFieldSizeU32 * m_numCellsPerAxis);
+		m_areaBounds.resize(m_maxNumAreas);
 	}
 
 	m_pAreas = &areas;
@@ -292,9 +283,9 @@ void CAreaGrid::Compile(TAreaPointers const& areas)
 //////////////////////////////////////////////////////////////////////////
 void CAreaGrid::Reset()
 {
-	SAFE_DELETE_ARRAY(m_pbitFieldX);
-	SAFE_DELETE_ARRAY(m_pbitFieldY);
-	SAFE_DELETE_ARRAY(m_pAreaBounds);
+	m_bitFieldX.clear();
+	m_bitFieldY.clear();
+	m_areaBounds.clear();
 	m_bitFieldSizeU32 = 0;
 	m_maxNumAreas = 0;
 	m_numCellsPerAxis = 0;
@@ -304,7 +295,7 @@ void CAreaGrid::Reset()
 //////////////////////////////////////////////////////////////////////////
 bool CAreaGrid::GetAreas(Vec3 const& position, TAreaPointers& outAreas)
 {
-	if (m_pbitFieldX != nullptr)
+	if (!m_bitFieldX.empty())
 	{
 		uint32 const gridX = static_cast<uint32>(position.x * GridCellSizeR);
 		uint32 const gridY = static_cast<uint32>(position.y * GridCellSizeR);
@@ -344,7 +335,7 @@ void CAreaGrid::Draw()
 		p4(-GridCellSize * 0.5f, +GridCellSize * 0.5f, 0.0f);
 
 		I3DEngine* const p3DEngine = gEnv->p3DEngine;
-		IRenderAuxGeom* const pRC = gEnv->pRenderer->GetIRenderAuxGeom();
+		IRenderAuxGeom* const pRC = gEnv->pAuxGeomRenderer;
 		pRC->SetRenderFlags(e_Def3DPublicRenderflags);
 		Vec3 const& camPos(gEnv->pSystem->GetViewCamera().GetPosition());
 		uint32 cell = 0;
@@ -413,8 +404,11 @@ void CAreaGrid::Draw()
 					Vec3 screenPos(ZERO);
 					gEnv->pRenderer->ProjectToScreen(cellCenter.x, cellCenter.y, cellCenter.z, &screenPos.x, &screenPos.y, &screenPos.z);
 
-					screenPos.x = screenPos.x * 0.01f * gEnv->pRenderer->GetWidth();
-					screenPos.y = screenPos.y * 0.01f * gEnv->pRenderer->GetHeight();
+					const int w = IRenderAuxGeom::GetAux()->GetCamera().GetViewSurfaceX();
+					const int h = IRenderAuxGeom::GetAux()->GetCamera().GetViewSurfaceZ();
+
+					screenPos.x = screenPos.x * 0.01f * w;
+					screenPos.y = screenPos.y * 0.01f * h;
 
 					if (
 					  (screenPos.x >= 0.0f) && (screenPos.y >= 0.0f) &&

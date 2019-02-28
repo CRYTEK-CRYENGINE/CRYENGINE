@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -122,7 +122,7 @@ float CCylinderGeom::GetExtent(EGeomForm eForm) const
 	}
 }
 
-void CCylinderGeom::GetRandomPos(PosNorm& ran, CRndGen& seed, EGeomForm eForm) const
+void CCylinderGeom::GetRandomPoints(Array<PosNorm> points, CRndGen& seed, EGeomForm eForm) const
 {
 	switch (eForm)
 	{
@@ -130,7 +130,7 @@ void CCylinderGeom::GetRandomPos(PosNorm& ran, CRndGen& seed, EGeomForm eForm) c
 			assert(0);
 		case GeomForm_Vertices:
 		case GeomForm_Edges:
-			{
+			for (auto& ran : points) {
 				Vec2 ranPos = CircleRandomPoint(seed, GeomForm_Edges, m_cyl.r);
 				ran.vPos.x = ranPos.x;	ran.vPos.y = ranPos.y;
 				ran.vPos.z = seed.GetRandom(-m_cyl.hh, m_cyl.hh);
@@ -138,26 +138,28 @@ void CCylinderGeom::GetRandomPos(PosNorm& ran, CRndGen& seed, EGeomForm eForm) c
 				break;
 			}
 		case GeomForm_Surface:
-			if (seed.GetRandom(0.0f, m_cyl.r + 2.0f*m_cyl.hh) < m_cyl.r)
-			{
-				// point on cap.
-				ran.vNorm = Vec3(0, 0, seed.GetRandom(-1.0f, 1.0f));
-				Vec2 ranPos = CircleRandomPoint(seed, GeomForm_Surface, m_cyl.r);
-				ran.vPos.x = ranPos.x;	ran.vPos.y = ranPos.y;
-				ran.vPos.z = ran.vNorm.z * m_cyl.hh;
-			}
-			else
-			{
-				// point on side.
-				Vec2 ranPos = CircleRandomPoint(seed, GeomForm_Edges, 1.f);
-				ran.vNorm.x = ranPos.x;	ran.vNorm.y = ranPos.y;
-				ran.vNorm.z = 0;
-				ran.vPos = ran.vNorm * m_cyl.r;
-				ran.vPos.z = seed.GetRandom(-m_cyl.hh, m_cyl.hh);
+			for (auto& ran : points) {
+				if (seed.GetRandom(0.0f, m_cyl.r + 2.0f*m_cyl.hh) < m_cyl.r)
+				{
+					// point on cap.
+					ran.vNorm = Vec3(0, 0, seed.GetRandom(-1.0f, 1.0f));
+					Vec2 ranPos = CircleRandomPoint(seed, GeomForm_Surface, m_cyl.r);
+					ran.vPos.x = ranPos.x;	ran.vPos.y = ranPos.y;
+					ran.vPos.z = ran.vNorm.z * m_cyl.hh;
+				}
+				else
+				{
+					// point on side.
+					Vec2 ranPos = CircleRandomPoint(seed, GeomForm_Edges, 1.f);
+					ran.vNorm.x = ranPos.x;	ran.vNorm.y = ranPos.y;
+					ran.vNorm.z = 0;
+					ran.vPos = ran.vNorm * m_cyl.r;
+					ran.vPos.z = seed.GetRandom(-m_cyl.hh, m_cyl.hh);
+				}
 			}
 			break;
 		case GeomForm_Volume:
-			{
+			for (auto& ran : points) {
 				Vec2 ranPos = CircleRandomPoint(seed, GeomForm_Surface, m_cyl.r);
 				ran.vPos.x = ranPos.x;	ran.vPos.y = ranPos.y;
 				ran.vPos.z = seed.GetRandom(-m_cyl.hh, m_cyl.hh);
@@ -166,12 +168,13 @@ void CCylinderGeom::GetRandomPos(PosNorm& ran, CRndGen& seed, EGeomForm eForm) c
 			}
 	}
 
-	if (m_Tree.m_Box.bOriented)
-	{
-		ran.vPos = m_Tree.m_Box.Basis * ran.vPos;
-		ran.vNorm = m_Tree.m_Box.Basis * ran.vNorm;
+	for (auto& ran : points) {
+		if (m_Tree.m_Box.bOriented) {
+			ran.vPos = m_Tree.m_Box.Basis * ran.vPos;
+			ran.vNorm = m_Tree.m_Box.Basis * ran.vNorm;
+		}
+		ran.vPos += m_Tree.m_Box.center;
 	}
-	ran.vPos += m_Tree.m_Box.center;
 }
 
 int CCylinderGeom::GetUnprojectionCandidates(int iop,const contact *pcontact, primitive *&pprim,int *&piFeature, geometry_under_test *pGTest)

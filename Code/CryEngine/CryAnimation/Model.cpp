@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "Model.h"
@@ -228,6 +228,7 @@ bool                   CDefaultSkeleton::SetupPhysicalProxies(const DynArray<Phy
 	be.phys.flags = -1;
 	DynArray<BONE_ENTITY> arrBoneEntitiesSorted;
 	arrBoneEntitiesSorted.resize(numJoints);
+	float dfltApproxTol = 0.2f;
 	for (uint32 id = 0; id < numJoints; id++)
 	{
 		arrBoneEntitiesSorted[id] = be;
@@ -238,6 +239,8 @@ bool                   CDefaultSkeleton::SetupPhysicalProxies(const DynArray<Phy
 		arrBoneEntitiesSorted[id].ParentID = m_arrModelJoints[id].m_idxParent;
 		arrBoneEntitiesSorted[id].nChildren = m_arrModelJoints[id].m_numChildren;
 		arrBoneEntitiesSorted[id].ControllerID = m_arrModelJoints[id].m_nJointCRC32;
+		if (GetMeshApproxFlags(arrBoneEntitiesSorted[id].prop, strnlen(arrBoneEntitiesSorted[id].prop, sizeof(arrBoneEntitiesSorted[id].prop))))
+			dfltApproxTol = 0.05f;
 	}
 
 	//loop over all BoneEntities and set the flags "joint_no_gravity" and "joint_isolated_accelerations" in m_PhysInfo.flags
@@ -293,14 +296,8 @@ bool                   CDefaultSkeleton::SetupPhysicalProxies(const DynArray<Phy
 		// the chunks from which the physical geometry is read are the bone mesh chunks.
 		PhysicalProxy pbm = arrPhyBoneMeshes[p];
 		uint32 numFaces = pbm.m_arrMaterials.size();
-		uint32 flags = (numFaces <= 20 ? mesh_SingleBB : mesh_OBB | mesh_AABB | mesh_AABB_rotated) | mesh_multicontact0 | mesh_approx_box | ((mesh_approx_sphere | mesh_approx_cylinder | mesh_approx_capsule) & (useOnlyBoxes - 1));
-		IGeometry* pPhysicalGeometry = pPhysicalGeometryManager->CreateMesh(&pbm.m_arrPoints[0], &pbm.m_arrIndices[0], &pbm.m_arrMaterials[0], 0, numFaces, flags, (useOnlyBoxes ? 1.f : 0.05f));
-		if (pPhysicalGeometry == 0)
-		{
-			g_pISystem->Warning(VALIDATOR_MODULE_ANIMATION, VALIDATOR_WARNING, VALIDATOR_FLAG_FILE, filename, "Physics: Failed to create phys mesh");
-			assert(pPhysicalGeometry);
-			return false;
-		}
+		uint32 flags = (numFaces <= 20 ? mesh_SingleBB : mesh_OBB | mesh_AABB | mesh_AABB_rotated) | mesh_multicontact0;
+		const uint32 flagsAllPrim = mesh_approx_box | ((mesh_approx_sphere | mesh_approx_cylinder | mesh_approx_capsule) & (useOnlyBoxes - 1));
 
 		// Assign custom material to physics.
 		int defSurfaceIdx = pbm.m_arrMaterials.empty() ? 0 : pbm.m_arrMaterials[0];
@@ -308,7 +305,6 @@ bool                   CDefaultSkeleton::SetupPhysicalProxies(const DynArray<Phy
 		memset(surfaceTypesId, 0, sizeof(surfaceTypesId));
 		int numIds = pIMaterial->FillSurfaceTypeIds(surfaceTypesId);
 
-		phys_geometry* pg = pPhysicalGeometryManager->RegisterGeometry(pPhysicalGeometry, defSurfaceIdx, &surfaceTypesId[0], numIds);
 		//After loading, pPhysGeom is set to the value equal to the ChunkID in the file where the physical geometry (BoneMesh) chunk is kept.
 		//To initialize a bone with a proxy, we loop over all joints and replace the ChunkID in pPhysGeom with the actual physical geometry object pointers.
 		for (uint32 i = 0; i < numJoints; ++i)
@@ -316,6 +312,18 @@ bool                   CDefaultSkeleton::SetupPhysicalProxies(const DynArray<Phy
 			INT_PTR cid = INT_PTR(m_arrModelJoints[i].m_PhysInfo.pPhysGeom);
 			if (pbm.ChunkID != cid)
 				continue;
+
+			uint32 flagsPrim = GetMeshApproxFlags(arrBoneEntitiesSorted[i].prop, strnlen(arrBoneEntitiesSorted[i].prop, sizeof(arrBoneEntitiesSorted[i].prop)));
+			IGeometry* pPhysicalGeometry = pPhysicalGeometryManager->CreateMesh(&pbm.m_arrPoints[0], &pbm.m_arrIndices[0], &pbm.m_arrMaterials[0], 0, numFaces, 
+				flags | (flagsPrim ? flagsPrim : flagsAllPrim), ((useOnlyBoxes|flagsPrim) ? 1.5f : dfltApproxTol));
+			if (pPhysicalGeometry == 0)
+			{
+				g_pISystem->Warning(VALIDATOR_MODULE_ANIMATION, VALIDATOR_WARNING, VALIDATOR_FLAG_FILE, filename, "Physics: Failed to create phys mesh");
+				assert(pPhysicalGeometry);
+				return false;
+			}
+			phys_geometry* pg = pPhysicalGeometryManager->RegisterGeometry(pPhysicalGeometry, defSurfaceIdx, &surfaceTypesId[0], numIds);
+
 			int id = pg->pGeom->GetPrimitiveId(0, 0);
 			if (id < 0)
 				id = pg->surface_idx;
@@ -326,9 +334,8 @@ bool                   CDefaultSkeleton::SetupPhysicalProxies(const DynArray<Phy
 				m_arrModelJoints[i].m_PhysInfo.pPhysGeom = pg, nHasPhysicsGeom++;
 			else
 				g_pIPhysicalWorld->GetGeomManager()->UnregisterGeometry(pg), m_arrModelJoints[i].m_PhysInfo.flags = -1;
+			pPhysicalGeometry->Release();
 		}
-
-		pPhysicalGeometry->Release();
 	}
 
 	for (uint32 i = 0; i < numJoints; ++i)
@@ -400,6 +407,63 @@ bool                   CDefaultSkeleton::SetupPhysicalProxies(const DynArray<Phy
 		m_bHasPhysics2 = true;
 	}
 
+	IStatObj *pSkelCGF = gEnv->p3DEngine->LoadStatObj(string(filename) + ".cgf", nullptr, nullptr, false, IStatObj::ELoadingFlagsNoErrorIfFail);
+	if (pSkelCGF && !pSkelCGF->IsDefaultObject())
+	{
+		std::map<uint32,int> mapJoints;
+		for(uint32 i = 0; i < numJoints; i++)
+		{
+			mapJoints.insert(std::pair<uint32,int>(CCrc32::ComputeLowercase(m_arrModelJoints[i].m_strJointName), i));
+			CryBonePhysics& phys = m_arrModelJoints[i].m_PhysInfo;
+			if (phys.pPhysGeom)
+			{
+				gEnv->pPhysicalWorld->GetGeomManager()->UnregisterGeometry(phys.pPhysGeom);
+				phys.pPhysGeom = nullptr;
+			}
+		}
+		m_bHasPhysics2 = true;
+		for(int i = 0; i < pSkelCGF->GetSubObjectCount(); i++)
+		{
+			IStatObj::SSubObject& slot = *pSkelCGF->GetSubObject(i);
+			auto idx = mapJoints.find(CCrc32::ComputeLowercase(slot.name));
+			if (idx != mapJoints.end() && !slot.name.compareNoCase(m_arrModelJoints[idx->second].m_strJointName) && slot.pStatObj && slot.pStatObj->GetPhysGeom())
+			{
+				CryBonePhysics& phys = m_arrModelJoints[idx->second].m_PhysInfo;
+				(phys.pPhysGeom = slot.pStatObj->GetPhysGeom())->nRefCount++;
+				Vec3i lim[2];
+				Ang3 frame0;
+				sscanf_s(slot.properties.c_str(), "%d %d %d %d %d %d %f %f %f %f %f %f %f %f %f",
+					&lim[0].x, &lim[0].y, &lim[0].z, &lim[1].x, &lim[1].y, &lim[1].z, 
+					&phys.spring_tension[0], &phys.spring_tension[1], &phys.spring_tension[2], 
+					&phys.damping[0], &phys.damping[1], &phys.damping[2],
+					&frame0.x, &frame0.y, &frame0.z);
+				*(Vec3*)phys.min = DEG2RAD(Vec3(lim[0]));
+				*(Vec3*)phys.max = DEG2RAD(Vec3(lim[1]));
+				phys.flags = joint_no_gravity | joint_isolated_accelerations;
+				for(int j = 0; j < 3; j++)
+				{
+					phys.flags |= (angle0_locked << j) * isneg(phys.max[j] - phys.min[j] - 0.01f);
+					float unlim = 1.0f + isneg(gf_PI*1.999f - phys.max[j] + phys.min[j]);
+					phys.max[j] *= unlim; phys.min[j] *= unlim;
+				}
+				*(Matrix33*)phys.framemtx = Matrix33(DEG2RAD(frame0));
+				m_bHasPhysics2 = true;
+			}
+		}
+		pSkelCGF->Release();
+
+		// transform framemtx from child frame to phys parent frame
+		for(uint32 i = 0; i < numJoints; i++)
+			if (m_arrModelJoints[i].m_PhysInfo.pPhysGeom)
+			{
+				int idxParent = m_arrModelJoints[i].m_idxParent;
+				while (idxParent >= 0 && !m_arrModelJoints[idxParent].m_PhysInfo.pPhysGeom)
+					idxParent = m_arrModelJoints[idxParent].m_idxParent;
+				if (idxParent >= 0)
+					*(Matrix33*)m_arrModelJoints[i].m_PhysInfo.framemtx = Matrix33(!GetDefaultAbsJointByID(idxParent).q * GetDefaultAbsJointByID(i).q) * *(Matrix33*)m_arrModelJoints[i].m_PhysInfo.framemtx;
+			}
+	}
+
 	return true;
 }
 
@@ -442,6 +506,8 @@ bool CDefaultSkeleton::ParsePhysInfoProperties_ROPE(CryBonePhysics& pi, const Dy
 				pi.min[2] = DEG2RAD(-props[i].fval);
 			if (!strcmp(props[i].name, "StiffnessControlBone"))
 				pi.framemtx[0][1] = props[i].fval + (props[i].fval > 0.0f);
+			if (!strcmp(props[i].name, "SleepSpeed"))
+				pi.damping[0] = props[i].fval + 1.0f;
 			else if (!strcmp(props[i].name, "HingeY"))
 				(pi.flags &= ~8) |= (props[i].bval ? 8 : 0);
 			else if (!strcmp(props[i].name, "HingeZ"))
@@ -527,6 +593,7 @@ DynArray<SJointProperty> CDefaultSkeleton::GetPhysInfoProperties_ROPE(const CryB
 		res.push_back(SJointProperty("SimpleBlending", !(pi.flags & 4)));
 		res.push_back(SJointProperty("Mass", RAD2DEG(fabs_tpl(pi.min[1]))));
 		res.push_back(SJointProperty("Thickness", RAD2DEG(fabs_tpl(pi.min[2]))));
+		res.push_back(SJointProperty("SleepSpeed", pi.damping[0] - 1.0f));
 		res.push_back(SJointProperty("HingeY", (pi.flags & 8) != 0));
 		res.push_back(SJointProperty("HingeZ", (pi.flags & 16) != 0));
 		res.push_back(SJointProperty("StiffnessControlBone", (float)FtoI(pi.framemtx[0][1] - 1.0f) * (pi.framemtx[0][1] >= 2.0f && pi.framemtx[0][1] < 100.0f)));
@@ -820,6 +887,20 @@ void CDefaultSkeleton::CopyAndAdjustSkeletonParams(const CDefaultSkeleton* pCDef
 				break;
 			}
 		}
+	}
+}
+
+std::pair<const uint32*, const uint32*> CDefaultSkeleton::FindClosestAnimationLod(const int lodValue) const
+{
+	const auto maxLod = m_arrAnimationLOD.size();
+	if (lodValue > 0 && maxLod > 0)
+	{
+		const auto lodIndex = std::min<int>(lodValue, maxLod) - 1;
+		return{ &m_arrAnimationLOD[lodIndex][0], &m_arrAnimationLOD[lodIndex][0] + m_arrAnimationLOD[lodIndex].size() };
+	}
+	else
+	{
+		return{ nullptr, nullptr };
 	}
 }
 

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "DialogCAF.h"
@@ -691,7 +691,7 @@ void CDialogCAF::OnViewportRender(const SRenderContext& rc)
 	auto pInstanceBase = m_pScene->m_pCharInstance;
 	gEnv->p3DEngine->PrecacheCharacter(NULL, 1.f, pInstanceBase, pInstanceBase->GetIMaterial(), m_LocalEntityMat, 0, 1.f, 4, true, passInfo);
 	pInstanceBase->SetViewdir(rc.camera->GetViewdir());
-	pInstanceBase->Render(rp, QuatTS(IDENTITY), passInfo);
+	pInstanceBase->Render(rp, passInfo);
 
 	DrawSkeleton(pAuxGeom, &m_pScene->m_pCharInstance->GetIDefaultSkeleton(), m_pScene->m_pCharInstance->GetISkeletonPose(),
 	             QuatT(IDENTITY), "", rc.viewport->GetState().cameraTarget);
@@ -767,7 +767,7 @@ bool CDialogCAF::SaveAs(SSaveContext& ctx)
 		saveState.clipName = clip.outputName;
 	}
 
-	const string targetDirPath = ctx.targetFilePath;
+	const string targetDirPath = PathUtil::GetPathWithoutFilename(ctx.targetFilePath);
 
 	const QString absOriginalFilePath = GetSceneManager().GetImportFile()->GetOriginalFilePath();
 	ThreadingUtils::Async([clipSaveStates, absOriginalFilePath, targetDirPath]()
@@ -1035,3 +1035,4 @@ bool CDialogCAF::IsCurrentScene(int sceneId) const
 }
 
 } // namespace MeshImporter
+

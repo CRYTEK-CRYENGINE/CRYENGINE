@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "EntityNode.h"
@@ -20,6 +20,7 @@
 #include <CryAnimation/ICryAnimation.h>
 #include <CryAnimation/CryCharMorphParams.h>
 #include <CryMath/Cry_Camera.h>
+#include <CrySchematyc/MathTypes.h>
 
 #include <CryAISystem/IAgent.h>
 #include <CryAISystem/IAIObject.h>
@@ -32,13 +33,12 @@
 #include <../CryAction/ICryMannequin.h>
 #include <../CryAction/IAnimatedCharacter.h>
 
-#define s_nodeParamsInitialized s_nodeParamsInitializedEnt
-#define s_nodeParams            s_nodeParamsEnt
+#define g_nodeParamsInitialized g_nodeParamsInitializedEnt
+#define g_nodeParams            g_nodeParamsEnt
 #define AddSupportedParam       AddSupportedParamEnt
 
 static const float EPSILON = 0.01f;
 static float movie_physicalentity_animation_lerp;
-
 static float movie_timeJumpTransitionTime = 1.f;
 
 static const char* s_VariablePrefixes[] =
@@ -58,12 +58,11 @@ static const char* s_VariablePrefixes[] =
 	"gametoken",                                                "seq_",            "mission_",    "seqid_",       "lightanimation_"
 };
 
-namespace
-{
-const char* kScriptTablePrefix = "ScriptTable:";
+string g_entityScriptPropertyPrefix = "ScriptTable:";
+string g_entityComponentPropertyPrefix = "ComponentProperty:";
 
-bool s_nodeParamsInitialized = false;
-std::vector<CAnimNode::SParamInfo> s_nodeParams;
+bool g_nodeParamsInitialized = false;
+std::vector<CAnimNode::SParamInfo> g_nodeParams;
 
 void AddSupportedParam(std::vector<CAnimNode::SParamInfo>& nodeParams, const char* sName, int paramId, EAnimValue valueType, int flags = 0)
 {
@@ -103,8 +102,6 @@ void NotifyEntityScript(const IEntity* pEntity, const char* funcName, const char
 		Script::CallMethod(pEntityScript, funcName, strParam);
 	}
 }
-
-};
 
 CAnimEntityNode::CAnimEntityNode(const int id) : CAnimNode(id)
 {
@@ -160,29 +157,29 @@ CAnimEntityNode::CAnimEntityNode(const int id) : CAnimNode(id)
 
 void CAnimEntityNode::Initialize()
 {
-	if (!s_nodeParamsInitialized)
+	if (!g_nodeParamsInitialized)
 	{
-		s_nodeParamsInitialized = true;
-		s_nodeParams.reserve(19);
-		AddSupportedParam(s_nodeParams, "Position", eAnimParamType_Position, eAnimValue_Vector);
-		AddSupportedParam(s_nodeParams, "Rotation", eAnimParamType_Rotation, eAnimValue_Quat);
-		AddSupportedParam(s_nodeParams, "Scale", eAnimParamType_Scale, eAnimValue_Vector);
-		AddSupportedParam(s_nodeParams, "Visibility", eAnimParamType_Visibility, eAnimValue_Bool);
-		AddSupportedParam(s_nodeParams, "Event", eAnimParamType_Event, eAnimValue_Unknown);
-		AddSupportedParam(s_nodeParams, "Audio/Trigger", eAnimParamType_AudioTrigger, eAnimValue_Unknown, eSupportedParamFlags_MultipleTracks);
-		AddSupportedParam(s_nodeParams, "Audio/File", eAnimParamType_AudioFile, eAnimValue_Unknown, eSupportedParamFlags_MultipleTracks);
-		AddSupportedParam(s_nodeParams, "Audio/Parameter", eAnimParamType_AudioParameter, eAnimValue_Float, eSupportedParamFlags_MultipleTracks);
-		AddSupportedParam(s_nodeParams, "Audio/Switch", eAnimParamType_AudioSwitch, eAnimValue_Unknown, eSupportedParamFlags_MultipleTracks);
-		AddSupportedParam(s_nodeParams, "Dynamic Response Signal", eAnimParamType_DynamicResponseSignal, eAnimValue_Unknown, eSupportedParamFlags_MultipleTracks);
-		AddSupportedParam(s_nodeParams, "Animation", eAnimParamType_Animation, eAnimValue_Unknown, eSupportedParamFlags_MultipleTracks);
-		AddSupportedParam(s_nodeParams, "Mannequin", eAnimParamType_Mannequin, eAnimValue_Unknown, eSupportedParamFlags_MultipleTracks);
-		AddSupportedParam(s_nodeParams, "Expression", eAnimParamType_Expression, eAnimValue_Unknown, eSupportedParamFlags_MultipleTracks);
-		AddSupportedParam(s_nodeParams, "Facial Sequence", eAnimParamType_FaceSequence, eAnimValue_Unknown);
-		AddSupportedParam(s_nodeParams, "LookAt", eAnimParamType_LookAt, eAnimValue_Unknown);
-		AddSupportedParam(s_nodeParams, "Noise", eAnimParamType_TransformNoise, eAnimValue_Vector4);
-		AddSupportedParam(s_nodeParams, "Physicalize", eAnimParamType_Physicalize, eAnimValue_Bool);
-		AddSupportedParam(s_nodeParams, "PhysicsDriven", eAnimParamType_PhysicsDriven, eAnimValue_Bool);
-		AddSupportedParam(s_nodeParams, "Procedural Eyes", eAnimParamType_ProceduralEyes, eAnimValue_Bool);
+		g_nodeParamsInitialized = true;
+		g_nodeParams.reserve(19);
+		AddSupportedParam(g_nodeParams, "Position", eAnimParamType_Position, eAnimValue_Vector);
+		AddSupportedParam(g_nodeParams, "Rotation", eAnimParamType_Rotation, eAnimValue_Quat);
+		AddSupportedParam(g_nodeParams, "Scale", eAnimParamType_Scale, eAnimValue_Vector);
+		AddSupportedParam(g_nodeParams, "Visibility", eAnimParamType_Visibility, eAnimValue_Bool);
+		AddSupportedParam(g_nodeParams, "Event", eAnimParamType_Event, eAnimValue_Unknown);
+		AddSupportedParam(g_nodeParams, "Audio/Trigger", eAnimParamType_AudioTrigger, eAnimValue_Unknown, eSupportedParamFlags_MultipleTracks);
+		AddSupportedParam(g_nodeParams, "Audio/File", eAnimParamType_AudioFile, eAnimValue_Unknown, eSupportedParamFlags_MultipleTracks);
+		AddSupportedParam(g_nodeParams, "Audio/Parameter", eAnimParamType_AudioParameter, eAnimValue_Float, eSupportedParamFlags_MultipleTracks);
+		AddSupportedParam(g_nodeParams, "Audio/Switch", eAnimParamType_AudioSwitch, eAnimValue_Unknown, eSupportedParamFlags_MultipleTracks);
+		AddSupportedParam(g_nodeParams, "Dynamic Response Signal", eAnimParamType_DynamicResponseSignal, eAnimValue_Unknown, eSupportedParamFlags_MultipleTracks);
+		AddSupportedParam(g_nodeParams, "Animation", eAnimParamType_Animation, eAnimValue_Unknown, eSupportedParamFlags_MultipleTracks);
+		AddSupportedParam(g_nodeParams, "Mannequin", eAnimParamType_Mannequin, eAnimValue_Unknown, eSupportedParamFlags_MultipleTracks);
+		AddSupportedParam(g_nodeParams, "Expression", eAnimParamType_Expression, eAnimValue_Unknown, eSupportedParamFlags_MultipleTracks);
+		AddSupportedParam(g_nodeParams, "Facial Sequence", eAnimParamType_FaceSequence, eAnimValue_Unknown);
+		AddSupportedParam(g_nodeParams, "LookAt", eAnimParamType_LookAt, eAnimValue_Unknown);
+		AddSupportedParam(g_nodeParams, "Noise", eAnimParamType_TransformNoise, eAnimValue_Vector4);
+		AddSupportedParam(g_nodeParams, "Physicalize", eAnimParamType_Physicalize, eAnimValue_Bool);
+		AddSupportedParam(g_nodeParams, "PhysicsDriven", eAnimParamType_PhysicsDriven, eAnimValue_Bool);
+		AddSupportedParam(g_nodeParams, "Procedural Eyes", eAnimParamType_ProceduralEyes, eAnimValue_Bool);
 
 		REGISTER_CVAR(movie_physicalentity_animation_lerp, 0.85f, 0, "Lerp value for animation-driven physical entities");
 
@@ -210,8 +207,8 @@ void CAnimEntityNode::AddTrack(IAnimTrack* pTrack)
 
 void CAnimEntityNode::UpdateDynamicParams()
 {
-	m_entityScriptPropertiesParamInfos.clear();
-	m_nameToScriptPropertyParamInfo.clear();
+	m_entityProperties.clear();
+	m_entityPropertyNameLookupMap.clear();
 
 	// editor stores *all* properties of *every* entity used in an AnimEntityNode, including to-display names, full lua paths, string maps for fast access, etc.
 	// in pure game mode we just need to store the properties that we know are going to be used in a track, so we can save a lot of memory.
@@ -225,31 +222,270 @@ void CAnimEntityNode::UpdateDynamicParams()
 	}
 }
 
+class CComponentSerializer : public yasli::Archive
+{
+public:
+	CComponentSerializer(const char* szGroupName, const char* szGroupLabelName, CAnimEntityNode& node, const CryGUID& componentGUID)
+		: Serialization::IArchive(Serialization::IArchive::ArchiveCaps::INPUT)
+		, m_currentGroupName(szGroupName)
+		, m_currentGroupLabel(szGroupLabelName)
+		, m_node(node)
+		, m_componentGUID(componentGUID) {}
+
+	template <typename T, typename TActual = T>
+	void AddComponentProperty(EAnimValue valueType, TActual& value, const char* name, const char* label)
+	{
+		CAnimEntityNode::SComponentPropertyParamInfo paramInfo;
+		paramInfo.animNodeParamInfo.valueType = valueType;
+		paramInfo.uiName = m_currentGroupLabel + "/" + label;
+		paramInfo.componentInstanceGUID = m_componentGUID;
+
+		paramInfo.animNodeParamInfo.name = paramInfo.uiName.c_str();
+
+		const string paramIdStr = g_entityComponentPropertyPrefix + m_currentGroupName + "/" + name;
+		paramInfo.animNodeParamInfo.paramType = CAnimParamType(paramIdStr);
+		paramInfo.animNodeParamInfo.flags = IAnimNode::eSupportedParamFlags_MultipleTracks;
+
+		paramInfo.setDefaultValueCallback = [&value](IAnimTrack* pTrack)
+		{
+			pTrack->SetDefaultValue(TMovieSystemValue((T)value));
+		};
+
+		paramInfo.setValueCallback = [&value](const TMovieSystemValue& newValueT) -> bool
+		{
+			T newValue = stl::get<T>(newValueT);
+			if ((TActual)newValue != value)
+			{
+				value = (TActual)newValue;
+				return true;
+			}
+
+			return false;
+		};
+
+		m_node.m_entityProperties.emplace_back(stl::make_unique<CAnimEntityNode::SComponentPropertyParamInfo>(paramInfo));
+		m_node.m_entityPropertyNameLookupMap[paramIdStr] = m_node.m_entityProperties.size() - 1;
+	}
+
+	YASLI_INLINE bool operator()(bool& value, const char* name = "", const char* label = 0) override
+	{
+		AddComponentProperty<bool>(eAnimValue_Bool, value, name, label);
+
+		return true;
+	}
+
+	YASLI_INLINE bool operator()(char& value, const char* name = "", const char* label = 0)  override { return false; }
+	YASLI_INLINE bool operator()(float& value, const char* name = "", const char* label = 0)  override
+	{
+		AddComponentProperty<float>(eAnimValue_Float, value, name, label);
+
+		return true;
+	}
+	YASLI_INLINE bool operator()(double& value, const char* name = "", const char* label = 0)  override { return false; }
+	YASLI_INLINE bool operator()(yasli::i8& value, const char* name = "", const char* label = 0)  override { return false; }
+	YASLI_INLINE bool operator()(yasli::i16& value, const char* name = "", const char* label = 0)  override { return false; }
+	YASLI_INLINE bool operator()(yasli::i32& value, const char* name = "", const char* label = 0)  override
+	{
+		AddComponentProperty<float, int>(eAnimValue_Float, value, name, label);
+
+		return true;
+	}
+	YASLI_INLINE bool operator()(yasli::i64& value, const char* name = "", const char* label = 0)  override { return false; }
+	YASLI_INLINE bool operator()(yasli::u8& value, const char* name = "", const char* label = 0)  override { return false; }
+	YASLI_INLINE bool operator()(yasli::u16& value, const char* name = "", const char* label = 0)  override { return false; }
+	YASLI_INLINE bool operator()(yasli::u32& value, const char* name = "", const char* label = 0)  override { return false; }
+	YASLI_INLINE bool operator()(yasli::u64& value, const char* name = "", const char* label = 0)  override { return false; }
+
+	YASLI_INLINE bool operator()(yasli::StringInterface& value, const char* name = "", const char* label = 0)  override { return false; }
+	YASLI_INLINE bool operator()(yasli::WStringInterface& value, const char* name = "", const char* label = 0)  override { return false; }
+	YASLI_INLINE bool operator()(const yasli::Serializer& ser, const char* name = "", const char* label = 0)  override
+	{
+		if (ser.type() == yasli::TypeID::get<Serialization::SSerializeVec3<float>>())
+		{
+			Vec3& vector = reinterpret_cast<Serialization::SSerializeVec3<float>*>(ser.pointer())->value;
+
+			AddComponentProperty<Vec3>(eAnimValue_Vector, vector, name, label);
+		}
+		else if (ser.type() == yasli::TypeID::get<Serialization::SSerializeColor_tpl<float>>())
+		{
+			CAnimEntityNode::SComponentPropertyParamInfo paramInfo;
+			paramInfo.animNodeParamInfo.valueType = eAnimValue_RGB;
+			paramInfo.uiName = m_currentGroupLabel + "/" + label;
+			paramInfo.componentInstanceGUID = m_componentGUID;
+
+			paramInfo.animNodeParamInfo.name = paramInfo.uiName.c_str();
+
+			const string paramIdStr = g_entityComponentPropertyPrefix + m_currentGroupName + "/" + name;
+			paramInfo.animNodeParamInfo.paramType = CAnimParamType(paramIdStr);
+			paramInfo.animNodeParamInfo.flags = IAnimNode::eSupportedParamFlags_MultipleTracks;
+
+			ColorF& color = reinterpret_cast<Serialization::SSerializeColor_tpl<float>*>(ser.pointer())->value;
+
+			paramInfo.setDefaultValueCallback = [&color](IAnimTrack* pTrack)
+			{
+				pTrack->SetDefaultValue(TMovieSystemValue(color.toVec3() * 255.f));
+			};
+
+			paramInfo.setValueCallback = [&color](const TMovieSystemValue& newValueT) -> bool
+			{
+				Vec3 newValue = stl::get<Vec3>(newValueT);
+				if (newValue != color.toVec3() * 255.f)
+				{
+					color = ColorF(newValue / 255.f, 1.f);
+					return true;
+				}
+
+				return false;
+			};
+
+			m_node.m_entityProperties.emplace_back(stl::make_unique<CAnimEntityNode::SComponentPropertyParamInfo>(paramInfo));
+			m_node.m_entityPropertyNameLookupMap[paramIdStr] = m_node.m_entityProperties.size() - 1;
+		}
+		else if (ser.type() == yasli::TypeID::get<CryTransform::CRotation>())
+		{
+			CAnimEntityNode::SComponentPropertyParamInfo paramInfo;
+			paramInfo.animNodeParamInfo.valueType = eAnimValue_Quat;
+			paramInfo.uiName = m_currentGroupLabel + "/" + label;
+			paramInfo.componentInstanceGUID = m_componentGUID;
+
+			paramInfo.animNodeParamInfo.name = paramInfo.uiName.c_str();
+
+			const string paramIdStr = g_entityComponentPropertyPrefix + m_currentGroupName + "/" + name;
+			paramInfo.animNodeParamInfo.paramType = CAnimParamType(paramIdStr);
+			paramInfo.animNodeParamInfo.flags = IAnimNode::eSupportedParamFlags_MultipleTracks;
+
+			CryTransform::CRotation* pRotation = reinterpret_cast<CryTransform::CRotation*>(ser.pointer());
+
+			paramInfo.setDefaultValueCallback = [pRotation](IAnimTrack* pTrack)
+			{
+				pTrack->SetDefaultValue(TMovieSystemValue(pRotation->ToQuat()));
+			};
+
+			paramInfo.setValueCallback = [pRotation](const TMovieSystemValue& newValueT) -> bool
+			{
+				Quat newValue = stl::get<Quat>(newValueT);
+				if (newValue != pRotation->ToQuat())
+				{
+					*pRotation = CryTransform::CRotation(newValue);
+					return true;
+				}
+
+				return false;
+			};
+
+			m_node.m_entityProperties.emplace_back(stl::make_unique<CAnimEntityNode::SComponentPropertyParamInfo>(paramInfo));
+			m_node.m_entityPropertyNameLookupMap[paramIdStr] = m_node.m_entityProperties.size() - 1;
+		}
+		else if (ser.type() == yasli::TypeID::get<CryTransform::CAngle>() || ser.type() == yasli::TypeID::get<CryTransform::CClampedAngle<>>())
+		{
+			CAnimEntityNode::SComponentPropertyParamInfo paramInfo;
+			paramInfo.animNodeParamInfo.valueType = eAnimValue_Float;
+			paramInfo.uiName = m_currentGroupLabel + "/" + label;
+			paramInfo.componentInstanceGUID = m_componentGUID;
+
+			paramInfo.animNodeParamInfo.name = paramInfo.uiName.c_str();
+
+			const string paramIdStr = g_entityComponentPropertyPrefix + m_currentGroupName + "/" + name;
+			paramInfo.animNodeParamInfo.paramType = CAnimParamType(paramIdStr);
+			paramInfo.animNodeParamInfo.flags = IAnimNode::eSupportedParamFlags_MultipleTracks;
+
+			CryTransform::CAngle* pAngle = reinterpret_cast<CryTransform::CAngle*>(ser.pointer());
+
+			paramInfo.setDefaultValueCallback = [pAngle](IAnimTrack* pTrack)
+			{
+				pTrack->SetDefaultValue(TMovieSystemValue(pAngle->ToDegrees()));
+			};
+
+			paramInfo.setValueCallback = [pAngle](const TMovieSystemValue& newValueT) -> bool
+			{
+				float newValue = stl::get<float>(newValueT);
+				if (newValue != pAngle->ToDegrees())
+				{
+					*pAngle = CryTransform::CAngle::FromDegrees(newValue);
+					return true;
+				}
+
+				return false;
+			};
+
+			m_node.m_entityProperties.emplace_back(stl::make_unique<CAnimEntityNode::SComponentPropertyParamInfo>(paramInfo));
+			m_node.m_entityPropertyNameLookupMap[paramIdStr] = m_node.m_entityProperties.size() - 1;
+		}
+		else
+		{
+			size_t newGroupLabelIndex = m_currentGroupLabel.size();
+			m_currentGroupLabel += '/';
+			m_currentGroupLabel += label;
+
+			size_t newGroupNameIndex = m_currentGroupName.size();
+			m_currentGroupName += '/';
+			m_currentGroupName += name;
+
+			ser(*this);
+
+			m_currentGroupLabel.erase(newGroupLabelIndex, m_currentGroupLabel.size() - newGroupLabelIndex);
+			m_currentGroupName.erase(newGroupNameIndex, m_currentGroupName.size() - newGroupNameIndex);
+		}
+		return true;
+	}
+	YASLI_INLINE bool operator()(yasli::BlackBox& ser, const char* name = "", const char* label = 0)  override { return false; }
+	YASLI_INLINE bool operator()(yasli::ContainerInterface& ser, const char* name = "", const char* label = 0)  override { return false; }
+	YASLI_INLINE bool operator()(yasli::KeyValueInterface& ser, const char* name = "", const char* label = 0)  override { return false; }
+	YASLI_INLINE bool operator()(yasli::PointerInterface& ser, const char* name = "", const char* label = 0)  override { return false; }
+
+	using Archive::operator();
+
+protected:
+	CryGUID m_componentGUID;
+
+	string m_currentGroupName;
+	string m_currentGroupLabel;
+	CAnimEntityNode& m_node;
+};
+
 void CAnimEntityNode::UpdateDynamicParams_Editor()
 {
-	IEntity* pEntity = GetEntity();
-
-	if (pEntity)
+	if (IEntity* pEntity = GetEntity())
 	{
-		IScriptTable* pScriptTable = pEntity->GetScriptTable();
-
-		if (!pScriptTable)
+		if (IScriptTable* pScriptTable = pEntity->GetScriptTable())
 		{
-			return;
+			SmartScriptTable propertiesTable;
+
+			if (pScriptTable->GetValue("Properties", propertiesTable))
+			{
+				FindDynamicPropertiesRec(propertiesTable, "Properties/", 0);
+			}
+
+			SmartScriptTable propertiesInstanceTable;
+
+			if (pScriptTable->GetValue("PropertiesInstance", propertiesInstanceTable))
+			{
+				FindDynamicPropertiesRec(propertiesInstanceTable, "PropertiesInstance/", 0);
+			}
 		}
 
-		SmartScriptTable propertiesTable;
-
-		if (pScriptTable->GetValue("Properties", propertiesTable))
+		DynArray<IEntityComponent*> components;
+		pEntity->GetComponents(components);
+		for (IEntityComponent* pComponent : components)
 		{
-			FindDynamicPropertiesRec(propertiesTable, "Properties/", 0);
-		}
+			const char* szComponentName = pComponent->GetClassDesc().GetName().c_str();
+			const char* szComponentLabel = pComponent->GetName();
+			if (szComponentLabel == nullptr || szComponentLabel[0] == '\0')
+			{
+				szComponentLabel = pComponent->GetClassDesc().GetLabel();
+				if (szComponentLabel == nullptr || szComponentLabel[0] == '\0')
+				{
+					szComponentLabel = szComponentName;
+				}
+			}
 
-		SmartScriptTable propertiesInstanceTable;
+			CComponentSerializer archive(string("Components/") + szComponentName, string("Components/") + szComponentLabel, *this, pComponent->GetGUID());
 
-		if (pScriptTable->GetValue("PropertiesInstance", propertiesInstanceTable))
-		{
-			FindDynamicPropertiesRec(propertiesInstanceTable, "PropertiesInstance/", 0);
+			const Schematyc::CClassMemberDescArray& componentMembers = pComponent->GetClassDesc().GetMembers();
+			for (const Schematyc::CClassMemberDesc& componentMember : componentMembers)
+			{
+				componentMember.GetTypeDesc().GetOperators().serialize(archive, reinterpret_cast<uint8*>(pComponent) + componentMember.GetOffset(), componentMember.GetName(), componentMember.GetLabel());
+			}
 		}
 	}
 }
@@ -257,18 +493,12 @@ void CAnimEntityNode::UpdateDynamicParams_Editor()
 void CAnimEntityNode::UpdateDynamicParams_PureGame()
 {
 	IEntity* pEntity = GetEntity();
-
-	if (!pEntity)
+	if (pEntity == nullptr)
 	{
 		return;
 	}
 
 	IScriptTable* pEntityScriptTable = pEntity->GetScriptTable();
-
-	if (!pEntityScriptTable)
-	{
-		return;
-	}
 
 	for (uint32 i = 0; i < m_tracks.size(); ++i)
 	{
@@ -281,31 +511,57 @@ void CAnimEntityNode::UpdateDynamicParams_PureGame()
 		}
 
 		string paramName = paramType.GetName();
-		string scriptTablePrefix = kScriptTablePrefix;
-
-		if (scriptTablePrefix != paramName.Left(scriptTablePrefix.size()))
+		if (g_entityScriptPropertyPrefix == paramName.Left(g_entityScriptPropertyPrefix.size()))
 		{
-			continue;
-		}
-
-		string path = paramName.Right(paramName.size() - scriptTablePrefix.size());
-
-		string propertyName;
-		SmartScriptTable propertyScriptTable;
-		FindScriptTableForParameterRec(pEntityScriptTable, path, propertyName, propertyScriptTable);
-
-		if (propertyScriptTable && !propertyName.empty())
-		{
-			SScriptPropertyParamInfo paramInfo;
-			bool isUnknownTable = ObtainPropertyTypeInfo(propertyName.c_str(), propertyScriptTable, paramInfo);
-
-			if (paramInfo.animNodeParamInfo.valueType == eAnimValue_Unknown)
+			if (!pEntityScriptTable)
 			{
-				return;
+				continue;
 			}
 
-			string strippedPath = path.Left(path.size() - propertyName.size());
-			AddPropertyToParamInfoMap(propertyName.c_str(), strippedPath, paramInfo);
+			string path = paramName.Right(paramName.size() - g_entityScriptPropertyPrefix.size());
+
+			string propertyName;
+			SmartScriptTable propertyScriptTable;
+			FindScriptTableForParameterRec(pEntityScriptTable, path, propertyName, propertyScriptTable);
+
+			if (propertyScriptTable && !propertyName.empty())
+			{
+				SScriptPropertyParamInfo paramInfo;
+				bool isUnknownTable = ObtainPropertyTypeInfo(propertyName.c_str(), propertyScriptTable, paramInfo);
+
+				if (paramInfo.animNodeParamInfo.valueType == eAnimValue_Unknown)
+				{
+					return;
+				}
+
+				string strippedPath = path.Left(path.size() - propertyName.size());
+				AddPropertyToParamInfoMap(propertyName.c_str(), strippedPath, paramInfo);
+			}
+		}
+		InitializeTrackDefaultValue(pTrack, paramType);
+	}
+
+	DynArray<IEntityComponent*> components;
+	pEntity->GetComponents(components);
+	for (IEntityComponent* pComponent : components)
+	{
+		const char* szComponentName = pComponent->GetClassDesc().GetName().c_str();
+		const char* szComponentLabel = pComponent->GetName();
+		if (szComponentLabel == nullptr || szComponentLabel[0] == '\0')
+		{
+			szComponentLabel = pComponent->GetClassDesc().GetLabel();
+			if (szComponentLabel == nullptr || szComponentLabel[0] == '\0')
+			{
+				szComponentLabel = szComponentName;
+			}
+		}
+
+		CComponentSerializer archive(string("Components/") + szComponentName, string("Components/") + szComponentLabel, *this, pComponent->GetGUID());
+
+		const Schematyc::CClassMemberDescArray& componentMembers = pComponent->GetClassDesc().GetMembers();
+		for (const Schematyc::CClassMemberDesc& componentMember : componentMembers)
+		{
+			componentMember.GetTypeDesc().GetOperators().serialize(archive, reinterpret_cast<uint8*>(pComponent) + componentMember.GetOffset(), componentMember.GetName(), componentMember.GetLabel());
 		}
 	}
 }
@@ -327,11 +583,11 @@ void CAnimEntityNode::FindScriptTableForParameterRec(IScriptTable* pScriptTable,
 
 	ScriptAnyValue value;
 	pScriptTable->GetValueAny(tableName.c_str(), value);
-	assert(value.type == ANY_TTABLE);
+	assert(value.GetType() == EScriptAnyType::Table);
 
-	if (value.type == ANY_TTABLE)
+	if (value.GetType() == EScriptAnyType::Table)
 	{
-		FindScriptTableForParameterRec(value.table, pathLeft, propertyName, propertyScriptTable);
+		FindScriptTableForParameterRec(value.GetScriptTable(), pathLeft, propertyName, propertyScriptTable);
 	}
 }
 
@@ -378,9 +634,9 @@ bool CAnimEntityNode::ObtainPropertyTypeInfo(const char* pKey, IScriptTable* pSc
 	paramInfo.animNodeParamInfo.valueType = eAnimValue_Unknown;
 	bool isUnknownTable = false;
 
-	switch (value.type)
+	switch (value.GetType())
 	{
-	case ANY_TNUMBER:
+	case EScriptAnyType::Number:
 		{
 			const bool hasBoolPrefix = (strlen(pKey) > 1) && (pKey[0] == 'b')
 			                           && (pKey[1] != tolower(pKey[1]));
@@ -388,22 +644,22 @@ bool CAnimEntityNode::ObtainPropertyTypeInfo(const char* pKey, IScriptTable* pSc
 		}
 		break;
 
-	case ANY_TVECTOR:
+	case EScriptAnyType::Vector:
 		paramInfo.animNodeParamInfo.valueType = eAnimValue_Vector;
 		break;
 
-	case ANY_TBOOLEAN:
+	case EScriptAnyType::Boolean:
 		paramInfo.animNodeParamInfo.valueType = eAnimValue_Bool;
 		break;
 
-	case ANY_TTABLE:
+	case EScriptAnyType::Table:
 		// Threat table as vector if it contains x, y & z
-		paramInfo.scriptTable = value.table;
+		paramInfo.scriptTable = value.GetScriptTable();
 
-		if (value.table->HaveValue("x") && value.table->HaveValue("y") && value.table->HaveValue("z"))
+		if (value.GetScriptTable()->HaveValue("x") && value.GetScriptTable()->HaveValue("y") && value.GetScriptTable()->HaveValue("z"))
 		{
 			paramInfo.animNodeParamInfo.valueType = eAnimValue_Vector;
-			paramInfo.scriptTable = value.table;
+			paramInfo.scriptTable = value.GetScriptTable();
 			paramInfo.isVectorTable = true;
 		}
 		else
@@ -458,74 +714,90 @@ void CAnimEntityNode::AddPropertyToParamInfoMap(const char* pKey, const string& 
 	paramInfo.variableName = pKey;
 	paramInfo.displayName = currentPath + strippedName;
 	paramInfo.animNodeParamInfo.name = &paramInfo.displayName[0];
-	const string paramIdStr = kScriptTablePrefix + currentPath + pKey;
+	const string paramIdStr = g_entityScriptPropertyPrefix + currentPath + pKey;
 	paramInfo.animNodeParamInfo.paramType = CAnimParamType(paramIdStr);
 	paramInfo.animNodeParamInfo.flags = eSupportedParamFlags_MultipleTracks;
-	m_entityScriptPropertiesParamInfos.push_back(paramInfo);
+	m_entityProperties.emplace_back(stl::make_unique<SScriptPropertyParamInfo>(paramInfo));
 
-	m_nameToScriptPropertyParamInfo[paramIdStr] = m_entityScriptPropertiesParamInfos.size() - 1;
+	m_entityPropertyNameLookupMap[paramIdStr] = m_entityProperties.size() - 1;
 }
 
 void CAnimEntityNode::InitializeTrackDefaultValue(IAnimTrack* pTrack, const CAnimParamType& paramType)
 {
 	// Initialize new track to property value
-	if (paramType.GetType() == eAnimParamType_ByString && pTrack && (strncmp(paramType.GetName(), kScriptTablePrefix, strlen(kScriptTablePrefix)) == 0))
+	if (paramType.GetType() == eAnimParamType_ByString && pTrack)
 	{
 		IEntity* pEntity = GetEntity();
-
-		if (!pEntity)
+		if (pEntity == nullptr)
 		{
 			return;
 		}
 
-		TScriptPropertyParamInfoMap::iterator findIter = m_nameToScriptPropertyParamInfo.find(paramType.GetName());
-
-		if (findIter != m_nameToScriptPropertyParamInfo.end())
+		auto findIter = m_entityPropertyNameLookupMap.find(paramType.GetName());
+		if (findIter != m_entityPropertyNameLookupMap.end())
 		{
-			SScriptPropertyParamInfo& param = m_entityScriptPropertiesParamInfos[findIter->second];
+			const IPropertyParamInfo& param = *m_entityProperties[findIter->second].get();
 
-			float fValue = 0.0f;
-			Vec3 vecValue = Vec3(0.0f, 0.0f, 0.0f);
-			bool boolValue = false;
-
-			switch (pTrack->GetValueType())
+			if (param.GetType() == IPropertyParamInfo::EType::ComponentProperty)
 			{
-			case eAnimValue_Float:
-				param.scriptTable->GetValue(param.variableName, fValue);
-				pTrack->SetDefaultValue(TMovieSystemValue(fValue));
+				const SComponentPropertyParamInfo& componentParam = static_cast<const SComponentPropertyParamInfo&>(param);
+
+				componentParam.setDefaultValueCallback(pTrack);
+			}
+			else
+			{
+				switch (pTrack->GetValueType())
+				{
+				case eAnimValue_Float:
+				{
+					if (param.GetType() == IPropertyParamInfo::EType::LegacyScriptProperty)
+					{
+						float value = 0.f;
+
+						const SScriptPropertyParamInfo& scriptParam = static_cast<const SScriptPropertyParamInfo&>(param);
+						scriptParam.scriptTable->GetValue(scriptParam.variableName, value);
+
+						pTrack->SetDefaultValue(TMovieSystemValue(value));
+					}
+				}
 				break;
 
-			case eAnimValue_Vector:
-
-			// fall through
-			case eAnimValue_RGB:
-				if (param.isVectorTable)
+				case eAnimValue_Vector:
+				case eAnimValue_RGB:
 				{
-					param.scriptTable->GetValue("x", vecValue.x);
-					param.scriptTable->GetValue("y", vecValue.y);
-					param.scriptTable->GetValue("z", vecValue.z);
-				}
-				else
-				{
-					param.scriptTable->GetValue(param.variableName, vecValue);
-				}
+					Vec3 value(ZERO);
 
-				if (pTrack->GetValueType() == eAnimValue_RGB)
-				{
-					vecValue.x = clamp_tpl(vecValue.x, 0.0f, 1.0f);
-					vecValue.y = clamp_tpl(vecValue.y, 0.0f, 1.0f);
-					vecValue.z = clamp_tpl(vecValue.z, 0.0f, 1.0f);
-
-					vecValue *= 255.0f;
+					if (param.GetType() == IPropertyParamInfo::EType::LegacyScriptProperty)
+					{
+						const SScriptPropertyParamInfo& scriptParam = static_cast<const SScriptPropertyParamInfo&>(param);
+						if (scriptParam.isVectorTable)
+						{
+							scriptParam.scriptTable->GetValue("x", value.x);
+							scriptParam.scriptTable->GetValue("y", value.y);
+							scriptParam.scriptTable->GetValue("z", value.z);
+						}
+						else
+						{
+							scriptParam.scriptTable->GetValue(scriptParam.variableName, value);
+						}
+					}
+					break;
 				}
 
-				pTrack->SetDefaultValue(TMovieSystemValue(vecValue));
+				case eAnimValue_Bool:
+				{
+					bool value = false;
+
+					if (param.GetType() == IPropertyParamInfo::EType::LegacyScriptProperty)
+					{
+						const SScriptPropertyParamInfo& scriptParam = static_cast<const SScriptPropertyParamInfo&>(param);
+						scriptParam.scriptTable->GetValue(scriptParam.variableName, value);
+					}
+
+					pTrack->SetDefaultValue(TMovieSystemValue(value));
+				}
 				break;
-
-			case eAnimValue_Bool:
-				param.scriptTable->GetValue(param.variableName, boolValue);
-				pTrack->SetDefaultValue(TMovieSystemValue(boolValue));
-				break;
+				}
 			}
 		}
 	}
@@ -539,12 +811,12 @@ void CAnimEntityNode::CreateDefaultTracks()
 
 CAnimEntityNode::~CAnimEntityNode()
 {
-	ReleaseSounds();
+	StopAudio();
 }
 
 unsigned int CAnimEntityNode::GetParamCount() const
 {
-	return CAnimEntityNode::GetParamCountStatic() + m_entityScriptPropertiesParamInfos.size();
+	return CAnimEntityNode::GetParamCountStatic() + m_entityProperties.size();
 }
 
 CAnimParamType CAnimEntityNode::GetParamType(unsigned int nIndex) const
@@ -553,12 +825,12 @@ CAnimParamType CAnimEntityNode::GetParamType(unsigned int nIndex) const
 
 	if (!CAnimEntityNode::GetParamInfoStatic(nIndex, info))
 	{
-		const uint scriptParamsOffset = (uint)s_nodeParams.size();
-		const uint end = (uint)s_nodeParams.size() + (uint)m_entityScriptPropertiesParamInfos.size();
+		const uint scriptParamsOffset = (uint)g_nodeParams.size();
+		const uint end = (uint)g_nodeParams.size() + (uint)m_entityProperties.size();
 
 		if (nIndex >= scriptParamsOffset && nIndex < end)
 		{
-			return m_entityScriptPropertiesParamInfos[nIndex - scriptParamsOffset].animNodeParamInfo.paramType;
+			return m_entityProperties[nIndex - scriptParamsOffset]->animNodeParamInfo.paramType;
 		}
 
 		return eAnimParamType_Invalid;
@@ -569,14 +841,14 @@ CAnimParamType CAnimEntityNode::GetParamType(unsigned int nIndex) const
 
 int CAnimEntityNode::GetParamCountStatic()
 {
-	return s_nodeParams.size();
+	return g_nodeParams.size();
 }
 
 bool CAnimEntityNode::GetParamInfoStatic(int nIndex, SParamInfo& info)
 {
-	if (nIndex >= 0 && nIndex < (int)s_nodeParams.size())
+	if (nIndex >= 0 && nIndex < (int)g_nodeParams.size())
 	{
-		info = s_nodeParams[nIndex];
+		info = g_nodeParams[nIndex];
 		return true;
 	}
 
@@ -585,20 +857,20 @@ bool CAnimEntityNode::GetParamInfoStatic(int nIndex, SParamInfo& info)
 
 bool CAnimEntityNode::GetParamInfoFromType(const CAnimParamType& paramId, SParamInfo& info) const
 {
-	for (int i = 0; i < (int)s_nodeParams.size(); i++)
+	for (int i = 0; i < (int)g_nodeParams.size(); i++)
 	{
-		if (s_nodeParams[i].paramType == paramId)
+		if (g_nodeParams[i].paramType == paramId)
 		{
-			info = s_nodeParams[i];
+			info = g_nodeParams[i];
 			return true;
 		}
 	}
 
-	for (size_t i = 0; i < m_entityScriptPropertiesParamInfos.size(); ++i)
+	for (size_t i = 0; i < m_entityProperties.size(); ++i)
 	{
-		if (m_entityScriptPropertiesParamInfos[i].animNodeParamInfo.paramType == paramId)
+		if (m_entityProperties[i]->animNodeParamInfo.paramType == paramId)
 		{
-			info = m_entityScriptPropertiesParamInfos[i].animNodeParamInfo;
+			info = m_entityProperties[i]->animNodeParamInfo;
 			return true;
 		}
 	}
@@ -615,11 +887,18 @@ const char* CAnimEntityNode::GetParamName(const CAnimParamType& param) const
 		return info.name;
 	}
 
-	const char* pName = param.GetName();
+	const char* szName = param.GetName();
 
-	if (param.GetType() == eAnimParamType_ByString && pName && strncmp(pName, kScriptTablePrefix, strlen(kScriptTablePrefix)) == 0)
+	if (param.GetType() == eAnimParamType_ByString && szName != nullptr)
 	{
-		return pName + strlen(kScriptTablePrefix);
+		if (strncmp(szName, g_entityScriptPropertyPrefix.c_str(), g_entityScriptPropertyPrefix.size()) == 0)
+		{
+			return szName + g_entityScriptPropertyPrefix.size();
+		}
+		else if (strncmp(szName, g_entityComponentPropertyPrefix.c_str(), g_entityComponentPropertyPrefix.size()) == 0)
+		{
+			return szName + g_entityComponentPropertyPrefix.size();
+		}
 	}
 
 	return "Unknown Entity Parameter";
@@ -734,7 +1013,7 @@ void CAnimEntityNode::Animate(SAnimContext& animContext)
 	int entityUpdateFlags = 0;
 	bool bScaleModified = false;
 	bool bApplyNoise = false;
-	bool bScriptPropertyModified = false;
+	bool bEntityPropertyModified = false;
 
 	IAnimTrack* pPosTrack = NULL;
 	IAnimTrack* pRotTrack = NULL;
@@ -930,6 +1209,7 @@ void CAnimEntityNode::Animate(SAnimContext& animContext)
 
 				break;
 			}
+
 		case eAnimParamType_AudioTrigger:
 			{
 				++numAudioTriggerTracks;
@@ -950,6 +1230,7 @@ void CAnimEntityNode::Animate(SAnimContext& animContext)
 						if (audioTriggerInfo.audioKeyStart < audioTriggerKeyNum)
 						{
 							ApplyAudioTriggerKey(audioTriggerKey.m_startTriggerId);
+							m_activeAudioTriggers.emplace_back(audioTriggerKey);
 						}
 
 						if (audioTriggerInfo.audioKeyStart > audioTriggerKeyNum)
@@ -974,6 +1255,8 @@ void CAnimEntityNode::Animate(SAnimContext& animContext)
 								{
 									ApplyAudioTriggerKey(audioTriggerKey.m_startTriggerId, false);
 								}
+
+								m_activeAudioTriggers.erase(std::remove(m_activeAudioTriggers.begin(), m_activeAudioTriggers.end(), audioTriggerKey), m_activeAudioTriggers.end());
 							}
 						}
 						else
@@ -1300,7 +1583,7 @@ void CAnimEntityNode::Animate(SAnimContext& animContext)
 		case eAnimParamType_ByString:
 			if (!animContext.bResetting)
 			{
-				bScriptPropertyModified = AnimateScriptTableProperty(pTrack, animContext, paramType.GetName()) || bScriptPropertyModified;
+				bEntityPropertyModified = AnimateEntityProperty(pTrack, animContext, paramType.GetName()) || bEntityPropertyModified;
 			}
 
 			break;
@@ -1337,7 +1620,7 @@ void CAnimEntityNode::Animate(SAnimContext& animContext)
 		}
 	}
 
-	if (bScriptPropertyModified)
+	if (bEntityPropertyModified && pEntity != nullptr && pEntity->GetScriptTable() != nullptr)
 	{
 		if (pEntity->GetScriptTable()->HaveValue("OnPropertyChange"))
 			Script::CallMethod(pEntity->GetScriptTable(), "OnPropertyChange");
@@ -1361,7 +1644,7 @@ void CAnimEntityNode::Animate(SAnimContext& animContext)
 	// to happen very much compared with regular ragdoll
 	const bool bRagdoll = pEntity->GetPhysics() && (pEntity->GetPhysics()->GetType() == PE_ARTICULATED);
 
-	if (!bRagdoll && (entityUpdateFlags || bScaleModified || bScriptPropertyModified || (m_target != NULL)))
+	if (!bRagdoll && (entityUpdateFlags || bScaleModified || bEntityPropertyModified || (m_target != NULL)))
 	{
 		m_pos = pos;
 		m_rotate = rotate;
@@ -1397,30 +1680,21 @@ void CAnimEntityNode::Animate(SAnimContext& animContext)
 	}
 }
 
-void CAnimEntityNode::ReleaseSounds()
+void CAnimEntityNode::StopAudio()
 {
-	REINST(Stop all playing sounds)
-	//// stop all sounds
-	//if (!m_soundInfo.empty())
-	//{
-	//	std::vector<SSoundInfo>::iterator Iter(m_soundInfo.begin());
-	//	std::vector<SSoundInfo>::const_iterator const IterEnd(m_soundInfo.end());
+	for (auto const& audioTriggerKey : m_activeAudioTriggers)
+	{
+		if (audioTriggerKey.m_stopTriggerId != CryAudio::InvalidControlId)
+		{
+			ApplyAudioTriggerKey(audioTriggerKey.m_stopTriggerId);
+		}
+		else
+		{
+			ApplyAudioTriggerKey(audioTriggerKey.m_startTriggerId, false);
+		}
+	}
 
-	//	for (; Iter != IterEnd; ++Iter)
-	//	{
-	//		SSoundInfo& rSoundInfo = *Iter;
-
-	//		if (rSoundInfo.nSoundID != INVALID_SOUNDID)
-	//		{
-	//			if (_smart_ptr<ISound> const pSound = gEnv->pAudioSystem->GetSound(rSoundInfo.nSoundID))
-	//			{
-	//				pSound->Stop();
-	//			}
-	//		}
-
-	//		rSoundInfo.Reset();
-	//	}
-	//}
+	m_activeAudioTriggers.clear();
 }
 
 void CAnimEntityNode::OnReset()
@@ -1445,7 +1719,7 @@ void CAnimEntityNode::OnReset()
 	m_lookAtEntityId = 0;
 	m_allowAdditionalTransforms = true;
 	m_lookPose = "";
-	ReleaseSounds();
+	StopAudio();
 	ReleaseAllAnims();
 	UpdateDynamicParams();
 
@@ -1469,7 +1743,7 @@ void CAnimEntityNode::PrepareAnimations()
 
 	ICharacterInstance* pCharacter = pEntity->GetCharacter(0);
 
-	if (!pCharacter)
+	if (pCharacter == nullptr)
 	{
 		return;
 	}
@@ -1501,9 +1775,9 @@ void CAnimEntityNode::PrepareAnimations()
 						{
 							float duration = pAnimations->GetDuration_sec(animId);
 
-							if (duration != key.m_animDuration)
+							if (duration != key.m_defaultAnimDuration)
 							{
-								key.m_animDuration = duration;
+								key.m_defaultAnimDuration = duration;
 								pTrack->SetKey(i, &key);
 							}
 						}
@@ -1612,6 +1886,8 @@ void CAnimEntityNode::Activate(bool bActivate)
 	}
 	else
 	{
+		RestoreEntityDefaultValues();
+
 #ifdef CHECK_FOR_TOO_MANY_ONPROPERTY_SCRIPT_CALLS
 		IEntity* pEntity = GetEntity();
 
@@ -1638,6 +1914,8 @@ void CAnimEntityNode::Activate(bool bActivate)
 
 void CAnimEntityNode::OnStart()
 {
+	CRY_ASSERT_MESSAGE(m_activeAudioTriggers.empty(), "m_activeAudioTriggers is not empty during CAnimEntityNode::OnStart");
+
 	m_bIsAnimDriven = false;
 
 	IAnimTrack* pPhysicalizeTrack = GetTrackForParameter(eAnimParamType_Physicalize);
@@ -1657,13 +1935,13 @@ void CAnimEntityNode::OnStart()
 
 void CAnimEntityNode::OnPause()
 {
-	ReleaseSounds();
+	StopAudio();
 	StopEntity();
 }
 
 void CAnimEntityNode::OnStop()
 {
-	ReleaseSounds();
+	StopAudio();
 	StopEntity();
 }
 
@@ -2149,9 +2427,9 @@ void CAnimEntityNode::AnimateCharacterTrack(class CCharacterTrack* pTrack, SAnim
 				{
 					float duration = pAnimations->GetDuration_sec(animId);
 
-					if (key.m_animDuration != duration)
+					if (key.m_defaultAnimDuration != duration)
 					{
-						key.m_animDuration = duration;
+						key.m_defaultAnimDuration = duration;
 						pTrack->SetKey(k, &key);
 					}
 				}
@@ -2410,7 +2688,7 @@ void CAnimEntityNode::AnimateLookAt(CLookAtTrack* pTrack, SAnimContext& animCont
 		// Override _LocalPlayer position with camera position - looks a lot better
 		if (m_lookAtLocalPlayer)
 		{
-			pos = gEnv->pRenderer->GetCamera().GetPosition();
+			pos = GetISystem()->GetViewCamera().GetPosition();
 		}
 		else
 		{
@@ -2476,150 +2754,179 @@ void CAnimEntityNode::AnimateLookAt(CLookAtTrack* pTrack, SAnimContext& animCont
 	}
 }
 
-bool CAnimEntityNode::AnimateScriptTableProperty(IAnimTrack* pTrack, SAnimContext& animContext, const char* name)
+bool CAnimEntityNode::AnimateEntityProperty(IAnimTrack* pTrack, SAnimContext& animContext, const char* szName)
 {
-	bool propertyChanged = false;
-	IEntity* pEntity = GetEntity();
-
-	if (!pEntity)
+	if (IEntity* pEntity = GetEntity())
 	{
-		return propertyChanged;
+		auto propertyIt = m_entityPropertyNameLookupMap.find(szName);
+		if (propertyIt != m_entityPropertyNameLookupMap.end())
+		{
+			const IPropertyParamInfo& paramInfo = *m_entityProperties[propertyIt->second].get();
+			if (paramInfo.GetType() == IPropertyParamInfo::EType::LegacyScriptProperty)
+			{
+				const SScriptPropertyParamInfo& param = static_cast<const SScriptPropertyParamInfo&>(paramInfo);
+
+				return AnimateLegacyScriptProperty(param, pEntity, pTrack, animContext);
+			}
+			else if (paramInfo.GetType() == IPropertyParamInfo::EType::ComponentProperty)
+			{
+				const SComponentPropertyParamInfo& param = static_cast<const SComponentPropertyParamInfo&>(paramInfo);
+
+				return AnimateEntityComponentProperty(param, pEntity, pTrack, animContext);
+			}
+		}
 	}
 
-	TScriptPropertyParamInfoMap::iterator findIter = m_nameToScriptPropertyParamInfo.find(name);
+	return false;
+}
 
-	if (findIter != m_nameToScriptPropertyParamInfo.end())
+bool CAnimEntityNode::AnimateLegacyScriptProperty(const SScriptPropertyParamInfo& param, IEntity* pEntity, IAnimTrack* pTrack, SAnimContext& animContext)
+{
+	bool bChangedProperty = false;
+	const TMovieSystemValue value = pTrack->GetValue(animContext.time);
+
+	float fValue;
+	Vec3 vecValue;
+	bool boolValue;
+	float currfValue = 0.f;
+	Vec3 currVecValue(0, 0, 0);
+	bool currBoolValue = false;
+	int currBoolIntValue = 0;
+
+	switch (pTrack->GetValueType())
 	{
-		SScriptPropertyParamInfo& param = m_entityScriptPropertiesParamInfos[findIter->second];
+	case eAnimValue_Float:
+		fValue = stl::get<float>(value);
+		param.scriptTable->GetValue(param.variableName, currfValue);
 
-		const TMovieSystemValue value = pTrack->GetValue(animContext.time);
-
-		float fValue;
-		Vec3 vecValue;
-		bool boolValue;
-		float currfValue = 0.f;
-		Vec3 currVecValue(0, 0, 0);
-		bool currBoolValue = false;
-		int currBoolIntValue = 0;
-
-		switch (pTrack->GetValueType())
+		// this check actually fails much more often than it should. There is some kind of lack of precision in the trackview interpolation calculations, and often a value that should
+		// be constant does small oscillations around the correct value. (0.49999, 5.00001, 0.49999, etc).
+		// not a big issue as long as those changes dont trigger constant calls to OnPropertyChange, but maybe it could be worth it to see if is ok to use some range check like fcmp().
+		if (currfValue != fValue)
 		{
-		case eAnimValue_Float:
-			fValue = stl::get<float>(value);
-			param.scriptTable->GetValue(param.variableName, currfValue);
+			param.scriptTable->SetValue(param.variableName, fValue);
+			bChangedProperty = true;
+		}
 
-			// this check actually fails much more often than it should. There is some kind of lack of precision in the trackview interpolation calculations, and often a value that should
-			// be constant does small oscillations around the correct value. (0.49999, 5.00001, 0.49999, etc).
-			// not a big issue as long as those changes dont trigger constant calls to OnPropertyChange, but maybe it could be worth it to see if is ok to use some range check like fcmp().
-			if (currfValue != fValue)
-			{
-				param.scriptTable->SetValue(param.variableName, fValue);
-				propertyChanged = true;
-			}
+		break;
 
-			break;
-
-		case eAnimValue_Vector:
+	case eAnimValue_Vector:
 		// fall through
-		case eAnimValue_RGB:
-			vecValue = stl::get<Vec3>(value);
+	case eAnimValue_RGB:
+		vecValue = stl::get<Vec3>(value);
 
-			if (pTrack->GetValueType() == eAnimValue_RGB)
-			{
-				vecValue /= 255.0f;
+		if (pTrack->GetValueType() == eAnimValue_RGB)
+		{
+			vecValue /= 255.0f;
 
-				vecValue.x = clamp_tpl(vecValue.x, 0.0f, 1.0f);
-				vecValue.y = clamp_tpl(vecValue.y, 0.0f, 1.0f);
-				vecValue.z = clamp_tpl(vecValue.z, 0.0f, 1.0f);
-			}
-
-			if (param.isVectorTable)
-			{
-				param.scriptTable->GetValue("x", currVecValue.x) && param.scriptTable->GetValue("y", currVecValue.y) && param.scriptTable->GetValue("z", currVecValue.z);
-
-				if (currVecValue != vecValue)
-				{
-					param.scriptTable->SetValue("x", vecValue.x);
-					param.scriptTable->SetValue("y", vecValue.y);
-					param.scriptTable->SetValue("z", vecValue.z);
-					propertyChanged = true;
-				}
-			}
-			else
-			{
-				param.scriptTable->GetValue(param.variableName, currVecValue);
-
-				if (currVecValue != vecValue)
-				{
-					param.scriptTable->SetValue(param.variableName, vecValue);
-					propertyChanged = true;
-				}
-			}
-
-			break;
-
-		case eAnimValue_Bool:
-			boolValue = stl::get<bool>(value);
-
-			if (param.scriptTable->GetValueType(param.variableName) == svtNumber)
-			{
-				int boolIntValue = boolValue ? 1 : 0;
-				param.scriptTable->GetValue(param.variableName, currBoolIntValue);
-
-				if (currBoolIntValue != boolIntValue)
-				{
-					param.scriptTable->SetValue(param.variableName, boolIntValue);
-					propertyChanged = true;
-				}
-			}
-			else
-			{
-				param.scriptTable->GetValue(param.variableName, currBoolValue);
-
-				if (currBoolValue != boolValue)
-				{
-					param.scriptTable->SetValue(param.variableName, boolValue);
-					propertyChanged = true;
-				}
-			}
-
-			break;
+			vecValue.x = clamp_tpl(vecValue.x, 0.0f, 1.0f);
+			vecValue.y = clamp_tpl(vecValue.y, 0.0f, 1.0f);
+			vecValue.z = clamp_tpl(vecValue.z, 0.0f, 1.0f);
 		}
 
-		// we give the lua code the chance to internally manage the change without needing a call to OnPropertyChange which is totally general and usually includes a recreation of all internal objects
-		if (propertyChanged)
+		if (param.isVectorTable)
 		{
-			HSCRIPTFUNCTION func = 0;
-			pEntity->GetScriptTable()->GetValue("OnPropertyAnimated", func);
+			param.scriptTable->GetValue("x", currVecValue.x) && param.scriptTable->GetValue("y", currVecValue.y) && param.scriptTable->GetValue("z", currVecValue.z);
 
-			if (func)
+			if (currVecValue != vecValue)
 			{
-				bool changeTakenCareOf = false;
-				Script::CallReturn(gEnv->pScriptSystem, func, pEntity->GetScriptTable(), param.variableName.c_str(), changeTakenCareOf);
-				propertyChanged = !changeTakenCareOf;
-				gEnv->pScriptSystem->ReleaseFunc(func);
+				param.scriptTable->SetValue("x", vecValue.x);
+				param.scriptTable->SetValue("y", vecValue.y);
+				param.scriptTable->SetValue("z", vecValue.z);
+				bChangedProperty = true;
 			}
+		}
+		else
+		{
+			param.scriptTable->GetValue(param.variableName, currVecValue);
+
+			if (currVecValue != vecValue)
+			{
+				param.scriptTable->SetValue(param.variableName, vecValue);
+				bChangedProperty = true;
+			}
+		}
+
+		break;
+
+	case eAnimValue_Bool:
+		boolValue = stl::get<bool>(value);
+
+		if (param.scriptTable->GetValueType(param.variableName) == svtNumber)
+		{
+			int boolIntValue = boolValue ? 1 : 0;
+			param.scriptTable->GetValue(param.variableName, currBoolIntValue);
+
+			if (currBoolIntValue != boolIntValue)
+			{
+				param.scriptTable->SetValue(param.variableName, boolIntValue);
+				bChangedProperty = true;
+			}
+		}
+		else
+		{
+			param.scriptTable->GetValue(param.variableName, currBoolValue);
+
+			if (currBoolValue != boolValue)
+			{
+				param.scriptTable->SetValue(param.variableName, boolValue);
+				bChangedProperty = true;
+			}
+		}
+
+		break;
+	}
+
+	// we give the lua code the chance to internally manage the change without needing a call to OnPropertyChange which is totally general and usually includes a recreation of all internal objects
+	if (bChangedProperty)
+	{
+		HSCRIPTFUNCTION func = 0;
+		pEntity->GetScriptTable()->GetValue("OnPropertyAnimated", func);
+
+		if (func)
+		{
+			bool changeTakenCareOf = false;
+			Script::CallReturn(gEnv->pScriptSystem, func, pEntity->GetScriptTable(), param.variableName.c_str(), changeTakenCareOf);
+			bChangedProperty = !changeTakenCareOf;
+			gEnv->pScriptSystem->ReleaseFunc(func);
 		}
 	}
 
-	return propertyChanged;
+	return bChangedProperty;
+}
+
+bool CAnimEntityNode::AnimateEntityComponentProperty(const SComponentPropertyParamInfo& param, IEntity* pEntity, IAnimTrack* pTrack, SAnimContext& animContext)
+{
+	IEntityComponent* pComponent = pEntity->GetComponentByGUID(param.componentInstanceGUID);
+	if (pComponent == nullptr)
+		return false;
+
+	bool bChangedProperty = param.setValueCallback(pTrack->GetValue(animContext.time));
+
+	if (bChangedProperty)
+	{
+		SEntityEvent event(ENTITY_EVENT_COMPONENT_PROPERTY_CHANGED);
+		pComponent->SendEvent(event);
+	}
+
+	return bChangedProperty;
 }
 
 void CAnimEntityNode::Serialize(XmlNodeRef& xmlNode, bool bLoading, bool bLoadEmptyTracks)
 {
-	CAnimNode::Serialize(xmlNode, bLoading, bLoadEmptyTracks);
-	IEntity* pEntity = gEnv->pEntitySystem->FindEntityByName(m_name);
-
-	if (pEntity)
-	{
-		m_entityGuid = pEntity->GetGuid();
-	}
-
 	if (bLoading)
 	{
-		if (!pEntity)
+		const char* name = xmlNode->getAttr("Name");
+		IEntity* pEntity = gEnv->pEntitySystem->FindEntityByName(name);
+		if (pEntity)
 		{
-			xmlNode->getAttr("EntityGUID", m_entityGuid);
+			SetEntityGuid(pEntity->GetGuid());
+		}
+		else
+		{
+			EntityGUID entityGuid;
+			xmlNode->getAttr("EntityGUID", entityGuid);
+			SetEntityGuid(entityGuid);
 		}
 
 		xmlNode->getAttr("EntityGUIDTarget", m_entityGuidTarget);
@@ -2640,6 +2947,10 @@ void CAnimEntityNode::Serialize(XmlNodeRef& xmlNode, bool bLoading, bool bLoadEm
 			xmlNode->setAttr("EntityGUIDSource", m_entityGuidSource);
 		}
 	}
+
+	// For the correct work of the InitializeTrackDefaultValue 
+	// this call requires that SetEntityGuid be called in advance.
+	CAnimNode::Serialize(xmlNode, bLoading, bLoadEmptyTracks);
 }
 
 void CAnimEntityNode::ApplyAnimKey(int32 keyIndex, class CCharacterTrack* track, SAnimTime ectime,
@@ -2650,24 +2961,26 @@ void CAnimEntityNode::ApplyAnimKey(int32 keyIndex, class CCharacterTrack* track,
 
 	float t = (ectime - key.m_time).ToFloat();
 	t = key.m_startTime + t * key.m_speed;
+	float maxEndTime = key.GetMaxEndTime();
+	float duration = key.GetAnimDuration();
 
-	if ((key.GetMaxEndTime() - key.m_startTime) > 0.0f && key.m_animDuration > 0.0f)
+	if ((maxEndTime - key.m_startTime) > 0.0f && key.GetCroppedAnimDuration() > 0.0f)
 	{
 		if (t < key.m_startTime)
 		{
 			t = key.m_startTime;
 		}
-		else if (key.m_bLoop && key.m_animDuration > 0.0f)
+		else if (key.m_bLoop && key.GetCroppedAnimDuration() > 0.0f)
 		{
-			t = fmod(t, key.m_animDuration);
+			t = fmod(t, duration);
 		}
-		else if (t > key.GetMaxEndTime())
+		else if (t > maxEndTime)
 		{
-			t = key.GetMaxEndTime();
+			t = maxEndTime;
 		}
 
 		pCharacter->SetPlaybackScale(0.0000f);
-		float fNormalizedTime = t / key.m_animDuration;
+		float fNormalizedTime = t / duration;
 		assert(fNormalizedTime >= 0.0f && fNormalizedTime <= 1.0f);
 		pCharacter->GetISkeletonAnim()->ManualSeekAnimationInFIFO(layer, animIndex, fNormalizedTime, bAnimEvents);
 		pCharacter->GetISkeletonAnim()->SetLayerNormalizedTime(layer, fNormalizedTime);
@@ -2761,18 +3074,24 @@ void CAnimEntityNode::UpdateAnimBlendGap(int32 activeKeys[], class CCharacterTra
 	pCharacter->SetPlaybackScale(0.0000f);
 	f32 endTimeNorm = 1.0f;
 
-	if (key1.m_animDuration > 0.0f)
+	if (key1.GetAnimDuration() > 0.0f)
 	{
-		endTimeNorm = key1.GetMaxEndTime() / key1.m_animDuration;
+		endTimeNorm = key1.GetMaxEndTime() / key1.GetAnimDuration();
 	}
+
+	// The animation system will remove this animation from it's transition queue if it's on it's last
+	// frame. We need to force this animation to not be unloaded so we can blend the last frame of this
+	// animation with the first frame of the next
+	if (endTimeNorm >= 1.0f)
+		endTimeNorm -= EPSILON;
 
 	assert(endTimeNorm >= 0.0f && endTimeNorm <= 1.0f);
 	pCharacter->GetISkeletonAnim()->ManualSeekAnimationInFIFO(layer, 0, endTimeNorm, false);
 	f32 startTimeNorm = 0.0f;
 
-	if (key2.m_animDuration > 0.0f)
+	if (key2.GetAnimDuration() > 0.0f)
 	{
-		startTimeNorm = key2.m_startTime / key2.m_animDuration;
+		startTimeNorm = key2.m_startTime / key2.GetAnimDuration();
 	}
 
 	assert(startTimeNorm >= 0.0f && startTimeNorm <= 1.0f);
@@ -3091,13 +3410,57 @@ void CAnimEntityNode::UpdateTargetCamera(IEntity* pEntity, const Quat& rotation)
 	}
 }
 
+void CAnimEntityNode::RestoreEntityDefaultValues()
+{
+	if (!gEnv->IsEditor() || gEnv->IsEditorGameMode())
+	{
+		return;
+	}
+
+	IEntity* pEntity = GetEntity();
+	if (pEntity)
+	{
+		for (const auto& track : m_tracks)
+		{
+			const CAnimParamType& paramType = track->GetParameterType();
+
+			if (paramType.GetType() != eAnimParamType_ByString)
+			{
+				continue;
+			}
+
+			auto propertyIt = m_entityPropertyNameLookupMap.find(paramType.GetName());
+			if (propertyIt == m_entityPropertyNameLookupMap.end())
+			{
+				continue;
+			}
+
+			const IPropertyParamInfo& paramInfo = *m_entityProperties[propertyIt->second].get();
+			if (paramInfo.GetType() != IPropertyParamInfo::EType::ComponentProperty)
+			{
+				continue;
+			}
+
+			// Restore the param value stored in the track.
+
+			const SComponentPropertyParamInfo& param = static_cast<const SComponentPropertyParamInfo&>(paramInfo);
+			IEntityComponent* pComponent = pEntity->GetComponentByGUID(param.componentInstanceGUID);
+			if (pComponent && param.setValueCallback(track->GetDefaultValue()))
+			{
+				SEntityEvent event(ENTITY_EVENT_COMPONENT_PROPERTY_CHANGED);
+				pComponent->SendEvent(event);
+			}
+		}
+	}
+}
+
 ILINE bool CAnimEntityNode::AnimationPlaying(const SAnimState& animState) const
 {
 	return animState.m_layerPlaysAnimation[0] || animState.m_layerPlaysAnimation[1] || animState.m_layerPlaysAnimation[2];
 }
 
-#undef s_nodeParamsInitialized
-#undef s_nodeParams
+#undef g_nodeParamsInitialized
+#undef g_nodeParams
 #undef AddSupportedParam
 
 void CAnimationCacher::AddToCache(uint32 animPathCRC)

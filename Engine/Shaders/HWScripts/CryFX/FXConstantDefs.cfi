@@ -1,5 +1,4 @@
-// CRYENGINE Source Code File
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
  #define MAX_BONES 768
  #define MAX_NUM_BONES_PER_GROUP 250
@@ -40,9 +39,9 @@
 #define REG_PM_PARAM_6  c48
 #define REG_PM_PARAM_7  c49
 
-half4    MatDifColor                 : PM_MatDiffuseColor             < register = REG_PM_DIFFUSE_COL; >;
-half4    MatSpecColor                : PM_MatSpecularColor            < register = REG_PM_SPECULAR_COL; >;
-half4    MatEmissiveColor            : PM_MatEmissiveColor            < register = REG_PM_EMISSIVE_COL; >;
+float4   MatDifColor                 : PM_MatDiffuseColor             < register = REG_PM_DIFFUSE_COL; >;
+float4   MatSpecColor                : PM_MatSpecularColor            < register = REG_PM_SPECULAR_COL; >;
+float4   MatEmissiveColor            : PM_MatEmissiveColor            < register = REG_PM_EMISSIVE_COL; >;
 float4x4 CM_MatrixTCM                : PM_MatMatrixTCM                < register = REG_PM_TCM_MATRIX; >;
 float4   CM_DeformWave               : PM_MatDeformWave               < register = REG_PM_DEFORM_WAVE; >;
 float4   CM_DetailTilingAndAlphaRef  : PM_MatDetailTilingAndAlphaRef  < register = REG_PM_DETAIL_TILING; >;
@@ -101,26 +100,12 @@ cbuffer PerMaterialConstants : register()
 #define PS_REG_PB_8 c8
 #define PS_REG_PB_9 c9
 
-   
-// Vertex shader parameters
-float4x4 vpMatrix       : PI_ViewProjection   < vsregister = c0; >;
-float3x4 ObjWorldMatrix : SI_ObjMatrix        < vsregister = c0; >;
-float4 BendInfo         : SI_BendInfo         < vsregister = c7; >;
-
-#if %TEMP_VEGETATION
-	half4 AmbientObjectCol : SI_ObjectAmbColComp < vsregister = c4; >;  //x=Ambient.w, y=ObjColor.w, z = 0, w = render quality
-#endif
-
-half4 AmbientOp         : SI_AmbientOpacity   < vsregister = c5; >;
-
-half4 Ambient      : PI_Ambient       < psregister = PS_REG_PB_9; vsregister = c3 >;
-
 //=============================================================================
 //=== Global constants ========================================================
 
 #define PS_HDR_RANGE_ADAPT_MAX 1.0
 
-cbuffer CBPerViewGlobal : register(b13)
+cbuffer CBPerViewGlobal : register(b6)
 {
 	float4x4  CV_ViewProjZeroMatr;
 	float4    CV_AnimGenParams;
@@ -177,7 +162,7 @@ cbuffer CBPerPassCustom : register(b5)
 	
 	
 #define g_VS_WindGridOffs          CV_WindGridOffset
-#define g_VS_WorldViewPos          CV_ScreenToWorldBasis._m03_m13_m23
+#define g_VS_WorldViewPos          float3(CV_ScreenToWorldBasis[0][3], CV_ScreenToWorldBasis[1][3], CV_ScreenToWorldBasis[2][3])
 #define g_VS_ViewProjZeroMatr      CV_ViewProjZeroMatr
 #define g_VS_ViewProjMatr          CV_ViewProjMatr
 #define g_VS_ScreenSize            CV_ScreenSize
@@ -197,11 +182,12 @@ cbuffer CBPerPassCustom : register(b5)
 #define g_PS_FogColor              CV_FogColor
 #define g_PS_TerrainInfo           CV_TerrainInfo
 
-cbuffer CB_SkinQuat_Cur : register(b9)
+cbuffer CB_SkinQuat_Cur : register(b2)
 {
 	float2x4 _g_SkinQuat_Cur[MAX_BONES];
 };
-cbuffer CB_SkinQuat_Prev : register(b10)
+
+cbuffer CB_SkinQuat_Prev : register(b3)
 {
 	float2x4 _g_SkinQuat_Prev[MAX_BONES];
 };
@@ -210,20 +196,9 @@ cbuffer CB_SkinQuat_Prev : register(b10)
 // Frequently used parameters
 
 float4 FogInfo              : PB_Fog;
-half4 AvgFogVolumeContrib	: PI_AvgFogVolumeContrib;
 float4 PS_NearFarClipDist   : PB_NearFarDist;
 float4 PS_WorldViewPos      : PB_CameraPos;
 float4 PS_ScreenSize        : PB_ScreenSize;
-half4 AlphaTest            : PI_AlphaTest;		// .w=AlphaTest value, .x=GBuffer value(0..1)
-half4 PBAlphaTest          : PB_AlphaTest;		// .w=AlphaTest value, .x=GBuffer value(0..1)
-float4 ResInfoDiffuse       : PB_ResInfoDiffuse;
-float4 ResInfoBump          : PB_ResInfoBump;
-float4 PS_HPosScale         : PB_HPosScale;
+
 float4 PS_ZRange;
-
-float3 vSkinPrecisionOffset = { PB_ObjVal[0], PB_ObjVal[1], PB_ObjVal[2] };
-float4 fSkinningExtraWeights : PB_SkinningExtraWeights;
-
-// Deprecated parameters
-float4 ViewPos              : PI_OSCameraPos;
 

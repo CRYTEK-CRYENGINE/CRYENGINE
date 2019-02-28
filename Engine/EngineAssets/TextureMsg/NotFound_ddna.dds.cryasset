@@ -1,0 +1,17 @@
+<AssetMetadata version="0" type="Texture" guid="39c1e42a-b293-9c9c-0fd3-e0689e4315d4" source="NotFound_ddna.tif">
+ <Files>
+  <File path="NotFound_ddna.dds"/>
+  <File path="NotFound_ddna.dds.a"/>
+  <File path="NotFound_ddna.dds.1"/>
+  <File path="NotFound_ddna.dds.1a"/>
+  <File path="NotFound_ddna.dds.2"/>
+  <File path="NotFound_ddna.dds.2a"/>
+  <File path="NotFound_ddna.dds.3"/>
+  <File path="NotFound_ddna.dds.3a"/>
+ </Files>
+ <Details>
+  <Detail name="width">128</Detail>
+  <Detail name="height">128</Detail>
+  <Detail name="mipCount">6</Detail>
+ </Details>
+</AssetMetadata>

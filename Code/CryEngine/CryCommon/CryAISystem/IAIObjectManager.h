@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef IAIOBJECTMANAGER
 #define IAIOBJECTMANAGER
@@ -23,7 +23,8 @@ struct IAIObjectManager
 	// <interfuscator:shuffle>
 	virtual ~IAIObjectManager(){}
 	virtual IAIObject* CreateAIObject(const AIObjectParams& params) = 0;
-	virtual void       RemoveObject(tAIObjectID objectID) = 0;//same as destroy??
+	virtual void       RemoveObject(const tAIObjectID objectID) = 0;//same as destroy??
+	virtual void       RemoveObjectByEntityId(const EntityId entityId) = 0;
 
 	virtual IAIObject* GetAIObject(tAIObjectID aiObjectID) = 0;
 	virtual IAIObject* GetAIObjectByName(unsigned short type, const char* pName) const = 0;

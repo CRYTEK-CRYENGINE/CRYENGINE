@@ -1,51 +1,42 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
-
-// -------------------------------------------------------------------------
-//  Created:     06/04/2014 by Filipe amim
-//  Description:
-// -------------------------------------------------------------------------
-//
-////////////////////////////////////////////////////////////////////////////
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
+#include "ParticleSystem.h"
+#include "ParticleEffect.h"
+#include "ParticleEmitter.h"
 #include <CrySerialization/IArchiveHost.h>
 #include <CrySystem/ZLib/IZLibCompressor.h>
 #include "CryExtension/CryCreateClassInstance.h"
 #include <CryString/StringUtils.h>
-#include "ParticleSystem.h"
-#include "ParticleEffect.h"
-#include "ParticleEmitter.h"
-
-CRY_PFX2_DBG
+#include <CrySerialization/SmartPtr.h>
 
 namespace pfx2
 {
 
 CRYREGISTER_SINGLETON_CLASS(CParticleSystem)
 
-std::vector<SParticleFeatureParams> &GetFeatureParams()
+CParticleSystem::CParticleSystem()
+	: m_threadData(gEnv->pJobManager->GetNumWorkerThreads() + 2) // 1 for main thread, 1 for each job thread, 1 for sum stats
 {
-	static std::vector<SParticleFeatureParams> featureParams;
-	return featureParams;
+	if (gEnv && gEnv->pRenderer)
+		gEnv->pRenderer->RegisterSyncWithMainListener(this);
 }
 
-CParticleSystem::CParticleSystem()
-	: m_memHeap(gEnv->pJobManager->GetNumWorkerThreads() + 1)
-	, m_nextEmitterId(0)
-	, m_lastCameraPose(IDENTITY)
-	, m_lastSysSpec(END_CONFIG_SPEC_ENUM)
+CParticleSystem::~CParticleSystem()
 {
+	if (gEnv && gEnv->pRenderer)
+		gEnv->pRenderer->RemoveSyncWithMainListener(this);
 }
 
 PParticleEffect CParticleSystem::CreateEffect()
 {
-	return new pfx2::CParticleEffect();
+	return new CParticleEffect();
 }
 
 void CParticleSystem::RenameEffect(PParticleEffect pEffect, cstr name)
 {
 	CRY_PFX2_ASSERT(pEffect.get());
-	CParticleEffect* pCEffect = CastEffect(pEffect);
+	CParticleEffect* pCEffect = static_cast<CParticleEffect*>(+pEffect);
 
 	if (pCEffect->GetName())
 		m_effects[pCEffect->GetName()] = nullptr;
@@ -53,12 +44,14 @@ void CParticleSystem::RenameEffect(PParticleEffect pEffect, cstr name)
 	m_effects[pCEffect->GetName()] = pCEffect;
 }
 
-PParticleEffect CParticleSystem::FindEffect(cstr name)
+PParticleEffect CParticleSystem::FindEffect(cstr name, bool bAllowLoad)
 {
 	auto it = m_effects.find(name);
 	if (it != m_effects.end())
 		return it->second;
-	return LoadEffect(name);
+	if (bAllowLoad)
+		return LoadEffect(name);
+	return nullptr;
 }
 
 PParticleEmitter CParticleSystem::CreateEmitter(PParticleEffect pEffect)
@@ -67,23 +60,11 @@ PParticleEmitter CParticleSystem::CreateEmitter(PParticleEffect pEffect)
 	PARTICLE_LIGHT_PROFILER();
 
 	CRY_PFX2_ASSERT(pEffect.get());
-	CParticleEffect* pCEffect = CastEffect(pEffect);
-	pCEffect->Compile();
+	CParticleEffect* pCEffect = static_cast<CParticleEffect*>(+pEffect);
+	pCEffect->Update();
 
-	_smart_ptr<CParticleEmitter> pEmitter = new CParticleEmitter(m_nextEmitterId++);
-	pEmitter->SetCEffect(pCEffect);
-	m_newEmitters.push_back(pEmitter);
-	return pEmitter;
-}
-
-uint CParticleSystem::GetNumFeatureParams() const
-{
-	return uint(GetFeatureParams().size());
-}
-
-SParticleFeatureParams& CParticleSystem::GetFeatureParam(uint featureIdx) const
-{
-	return GetFeatureParams()[featureIdx];
+	m_newEmitters.emplace_back(new CParticleEmitter(pCEffect, m_nextEmitterId++));
+	return m_newEmitters.back();
 }
 
 TParticleAttributesPtr CParticleSystem::CreateParticleAttributes() const
@@ -95,50 +76,30 @@ void CParticleSystem::OnFrameStart()
 {
 }
 
-void CParticleSystem::TrimEmitters()
+void CParticleSystem::TrimEmitters(bool finished_only)
 {
-	for (auto& pEmitter : m_emitters)
+	stl::find_and_erase_all_if(m_emitters, [=](const _smart_ptr<CParticleEmitter>& emitter) -> bool
 	{
-		bool independent = pEmitter->IsIndependent();
-		bool hasParticles = pEmitter->HasParticles();
-		bool isAlive = pEmitter->IsAlive();
-		bool expired = isAlive && independent && !hasParticles;
-		if (!expired)
-			continue;
-		pEmitter = 0;
-	}
-
-	m_emitters.erase(
-	  std::remove(m_emitters.begin(), m_emitters.end(), _smart_ptr<CParticleEmitter>(0)),
-	  m_emitters.end());
-}
-
-void CParticleSystem::InvalidateCachedRenderObjects()
-{
-	// Render objects and PSOs need to be updated when sys_spec changes.
-	static ICVar* pSysSpecCVar = gEnv->pConsole->GetCVar("sys_spec");
-	if (pSysSpecCVar)
-	{
-		const int32 sysSpec = pSysSpecCVar->GetIVal();
-
-		CRY_ASSERT(sysSpec != END_CONFIG_SPEC_ENUM);
-		const bool bInvalidate = ((m_lastSysSpec != END_CONFIG_SPEC_ENUM) && (m_lastSysSpec != sysSpec));
-		m_lastSysSpec = sysSpec;
-
-		if (bInvalidate)
+		if (!emitter->IsIndependent())
+			return false;
+		if (finished_only)
 		{
-			for (auto& pEmitter : m_emitters)
-			{
-				pEmitter->Restart();
-			}
+			if (emitter->IsAlive())
+				return false;
 		}
-	}
+		return true;
+	});
 }
 
 void CParticleSystem::Update()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_PARTICLE);
+	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 	PARTICLE_LIGHT_PROFILER();
+
+	if (!GetCVars()->e_Particles)
+		return;
+
+	m_numFrames++;
 
 	const CCamera& camera = gEnv->p3DEngine->GetRenderingCamera();
 	const QuatT currentCameraPose = QuatT(camera.GetMatrix());
@@ -152,119 +113,231 @@ void CParticleSystem::Update()
 		m_cameraMotion.q = currentCameraPose.q * m_lastCameraPose.q.GetInverted();
 	}
 
-	if (GetCVars()->e_Particles)
+	auto gpuMan = gEnv->pRenderer->GetGpuParticleManager();
+	gpuMan->BeginFrame();
+
+	// Accumulate thread stats from last frame
+	auto& sumData = GetSumData();
+	sumData.statsCPU = {};
+	sumData.statsGPU = {};
+	sumData.statsSync = {};
+	for (auto& data : m_threadData)
 	{
-		auto gpuMan = gEnv->pRenderer->GetGpuParticleManager();
-		gpuMan->BeginFrame();
-
-		for (auto& it : m_memHeap)
-			CRY_PFX2_ASSERT(it.GetTotalMemory().nUsed == 0);  // some emitter leaked memory on mem stack
-		m_profiler.Display();
-
-		TrimEmitters();
-		m_emitters.insert(m_emitters.end(), m_newEmitters.begin(), m_newEmitters.end());
-		m_newEmitters.clear();
-
-		InvalidateCachedRenderObjects();
-
-		m_stats = SParticleStats();
-		m_stats.m_emittersAlive = m_emitters.size();
-		for (auto& pEmitter : m_emitters)
-			pEmitter->AccumStats(m_stats);
-
-		for (auto& pEmitter : m_emitters)
+		CRY_PFX2_ASSERT(data.memHeap.GetTotalMemory().nUsed == 0);  // some emitter leaked memory on mem stack
+		if (&data != &sumData)
 		{
-			pEmitter->Update();
-			m_jobManager.AddEmitter(pEmitter);
+			sumData.statsCPU += data.statsCPU;
+			data.statsCPU = {};
+			sumData.statsGPU += data.statsGPU;
+			data.statsGPU = {};
+			sumData.statsSync += data.statsSync;
+			data.statsSync = {};
 		}
-
-		for (auto& pEmitter : m_emitters)
-			UpdateGpuRuntimesForEmitter(pEmitter);
-
-		m_jobManager.KernelUpdateAll();
 	}
+
+	m_profiler.Display();
+
+	TrimEmitters(!m_bResetEmitters);
+	m_bResetEmitters = false;
+	m_emitters.append(m_newEmitters);
+	m_newEmitters.clear();
+
+	// Detect changed sys spec
+	const ESystemConfigSpec sysSpec = gEnv->pSystem->GetConfigSpec();
+	const bool sys_spec_changed = m_lastSysSpec != END_CONFIG_SPEC_ENUM && m_lastSysSpec != sysSpec;
+	m_lastSysSpec = sysSpec;
+
+	// Init stats for current frame
+	auto& mainData = GetMainData();
+	mainData.statsCPU.emitters.alloc = m_emitters.size();
+
+	for (auto& pEmitter : m_emitters)
+	{
+		if (sys_spec_changed)
+			pEmitter->ResetRenderObjects();
+		pEmitter->CheckUpdated();
+
+		mainData.statsCPU.components.alloc += pEmitter->GetRuntimes().size();
+		if (pEmitter->IsAlive())
+		{
+			mainData.statsCPU.emitters.alive++;
+			pEmitter->Update();
+			m_jobManager.AddUpdateEmitter(pEmitter);
+		}
+		else
+		{
+			pEmitter->Unregister();
+		}
+	}
+
+	m_jobManager.ScheduleUpdates();
 }
 
-void CParticleSystem::SyncronizeUpdateKernels()
+void CParticleSystem::SyncMainWithRender()
 {
-	FUNCTION_PROFILER_3DENGINE;
-
-	m_jobManager.SynchronizeUpdate();
-	for (auto& pEmitter : m_emitters)
-		pEmitter->PostUpdate();
+	if (ThreadMode() >= 1)
+		m_jobManager.SynchronizeUpdates();
+		
 	const CCamera& camera = gEnv->p3DEngine->GetRenderingCamera();
 	m_lastCameraPose = QuatT(camera.GetMatrix());
 }
 
-void CParticleSystem::DeferredRender()
+void CParticleSystem::FinishRenderTasks(const SRenderingPassInfo& passInfo)
 {
 	m_jobManager.DeferredRender();
 	DebugParticleSystem(m_emitters);
 
-	CVars* pCVars = static_cast<C3DEngine*>(gEnv->p3DEngine)->GetCVars();
-	const bool debugBBox = (pCVars->e_ParticlesDebug & AlphaBit('b')) != 0;
+	const bool debugBBox = (GetCVars()->e_ParticlesDebug & AlphaBit('b')) != 0;
 	if (debugBBox)
 	{
 		for (auto& pEmitter : m_emitters)
-			pEmitter->DebugRender();
+			pEmitter->DebugRender(passInfo);
 	}
 }
 
-float CParticleSystem::DisplayDebugStats(Vec2 displayLocation, float lineHeight)
+void DisplayStatsHeader(Vec2& displayLocation, float lineHeight, cstr name)
 {
-	const char* titleBar =       "Wavicle Stats - Renderered/  Alive/ Updated";
-	const char* particlesLabel =     "Particles -     %6d/ %6d/  %6d";
-	const char* emittersLabel  =      "Emitters -     %6d/ %6d/  %6d";
-	const char* runtimesLabel  =    "Components -     %6d/ %6d/  %6d";
-
-	Get3DEngine()->DrawTextRightAligned(
+	const char* titleLabel = "%-12s: Rendered /  Updated /    Alive /    Alloc";
+	gEnv->p3DEngine->DrawTextRightAligned(
 		displayLocation.x, displayLocation.y,
-		titleBar);
+		titleLabel,
+		name);
 	displayLocation.y += lineHeight;
+}
 
-	Get3DEngine()->DrawTextRightAligned(
-		displayLocation.x, displayLocation.y,
-		particlesLabel,
-		m_stats.m_particlesRendered, m_stats.m_particlesAlive, m_stats.m_particlesUpdated);
-	displayLocation.y += lineHeight;
+void DisplayElementStats(Vec2& displayLocation, float lineHeight, cstr name, const TElementCounts<float>& stats, int prec = 0)
+{
+	if (!stats.IsZero())
+	{
+		const char* emittersLabel = " %-11s: %8.*f / %8.*f / %8.*f / %8.*f";
+		gEnv->p3DEngine->DrawTextRightAligned(
+			displayLocation.x, displayLocation.y,
+			emittersLabel,
+			name, prec, stats.rendered, prec, stats.updated, prec, stats.alive, prec, stats.alloc, prec);
+		displayLocation.y += lineHeight;
+	}
+}
 
-	Get3DEngine()->DrawTextRightAligned(
-		displayLocation.x, displayLocation.y,
-		emittersLabel,
-		m_stats.m_emittersRendererd, m_stats.m_emittersAlive, m_stats.m_emittersUpdated);
-	displayLocation.y += lineHeight;
+template<typename TStats>
+void DisplayParticleStats(Vec2& displayLocation, float lineHeight, cstr name, TStats& stats)
+{
+	DisplayStatsHeader(displayLocation, lineHeight, name);
+	DisplayElementStats(displayLocation, lineHeight, "Emitters", stats.emitters);
+	DisplayElementStats(displayLocation, lineHeight, "Components", stats.components);
+	DisplayElementStats(displayLocation, lineHeight, "Particles", reinterpret_cast<const TElementCounts<float>&>(stats.particles));
 
-	Get3DEngine()->DrawTextRightAligned(
-		displayLocation.x, displayLocation.y,
-		runtimesLabel,
-		m_stats.m_runtimesRendered, m_stats.m_runtimesAlive, m_stats.m_runtimesUpdated);
-	displayLocation.y += lineHeight;
+	if (!stats.pixels.IsZero())
+	{
+		auto screens = stats.pixels;
+		const float pixelsToScreens = 1.0f / (gEnv->pRenderer->GetWidth() * gEnv->pRenderer->GetHeight());
+		screens.alloc = C3DEngine::GetCVars()->e_ParticlesMaxScreenFill;
+		screens.alive = 1;
+		screens.rendered *= pixelsToScreens;
+		screens.updated *= pixelsToScreens;
+		DisplayElementStats(displayLocation, lineHeight, "Screens", screens, 3);
+	}
+}
 
-	return displayLocation.y;
+void CParticleSystem::DisplayStats(Vec2& location, float lineHeight)
+{
+	float blendTime = GetTimer()->GetCurrTime();
+	int blendMode = 0;
+	float blendCur = GetTimer()->GetProfileFrameBlending(&blendTime, &blendMode);
+
+	static TParticleStats<float> statsCPUAvg, statsGPUAvg;
+	TParticleStats<float> statsCPUCur, statsGPUCur; 
+	statsCPUCur.Set(GetSumData().statsCPU);
+	statsCPUAvg = Lerp(statsCPUAvg, statsCPUCur, blendCur);
+	statsGPUCur.Set(GetSumData().statsGPU);
+	statsGPUAvg = Lerp(statsGPUAvg, statsGPUCur, blendCur);
+
+	if (!statsCPUAvg.emitters.IsZero())
+		DisplayParticleStats(location, lineHeight, "Wavicle CPU", statsCPUAvg);
+
+	static TElementCounts<float> statsSyncAvg;
+	TElementCounts<float> statsSyncCur;
+	statsSyncCur.Set(GetSumData().statsSync);
+	statsSyncAvg = Lerp(statsSyncAvg, statsSyncCur, blendCur);
+	DisplayElementStats(location, lineHeight, "Comp Sync", statsSyncAvg);
+
+	if (!statsGPUAvg.components.IsZero())
+		DisplayParticleStats(location, lineHeight, "Wavicle GPU", statsGPUAvg);
+
+	if (m_pPartManager)
+	{
+		static SParticleCounts countsAvg;
+		SParticleCounts counts;
+		m_pPartManager->GetCounts(counts);
+		countsAvg = Lerp(countsAvg, counts, blendCur);
+
+		if (!countsAvg.emitters.IsZero())
+			DisplayParticleStats(location, lineHeight, "Particles V1", countsAvg);
+			
+		if (GetCVars()->e_ParticlesDebug & AlphaBit('r'))
+		{
+			gEnv->p3DEngine->DrawTextRightAligned(location.x, location.y += lineHeight,
+			                     "Reiter %4.0f, Reject %4.0f, Clip %4.1f, Coll %4.1f / %4.1f",
+			                     countsAvg.particles.reiterate, countsAvg.particles.reject, countsAvg.particles.clip,
+			                     countsAvg.particles.collideHit, countsAvg.particles.collideTest);
+		}
+		if (GetCVars()->e_ParticlesDebug & AlphaBits('bx'))
+		{
+			if (countsAvg.volume.stat + countsAvg.volume.dyn > 0.0f)
+			{
+				float fDiv = 1.f / (countsAvg.volume.dyn + FLT_MIN);
+				gEnv->p3DEngine->DrawTextRightAligned(location.x, location.y += lineHeight,
+					"Particle BB vol: Stat %.3g, Stat/Dyn %.2f, Err/Dyn %.3g",
+					countsAvg.volume.stat, countsAvg.volume.stat * fDiv, countsAvg.volume.error * fDiv);
+			}
+		}
+	}
 }
 
 void CParticleSystem::ClearRenderResources()
 {
 #if !defined(_RELEASE)
+	// All external references need to be released before this point to prevent leaks
 	for (const auto& pEmitter : m_emitters)
 	{
-		CRY_PFX2_ASSERT(pEmitter->Unique()); // All external references need to be released before this point to prevent leaks
+		CRY_ASSERT_MESSAGE(pEmitter->Unique(), "Emitter %s not unique", pEmitter->GetCEffect()->GetShortName().c_str());
+	}
+	for (const auto& pEmitter : m_newEmitters)
+	{
+		CRY_ASSERT_MESSAGE(pEmitter->Unique(), "Emitter %s not unique", pEmitter->GetCEffect()->GetShortName().c_str());
 	}
 #endif
 
 	m_emitters.clear();
+	m_newEmitters.clear();
+	m_effects.clear();
+	m_numFrames = 0;
+	m_numClears++;
+}
 
-	for (auto it = m_effects.begin(); it != m_effects.end(); )
+void CParticleSystem::CheckFileAccess(cstr filename) const
+{
+	if (IsRuntime() && filename)
+		Warning("Particle asset runtime access: %s", filename);
+}
+
+float CParticleSystem::GetMaxAngularDensity(const CCamera& camera)
+{
+	return camera.GetAngularResolution() / max(GetCVars()->e_ParticlesMinDrawPixels, 0.125f) * 2.0f;
+}
+
+IMaterial* CParticleSystem::GetFlareMaterial()
+{
+	if (!m_pFlareMaterial)
 	{
-		if (!it->second || it->second->Unique())
-			it = m_effects.erase(it);
-		else
-			++it;
+		const char* flareMaterialName = "%ENGINE%/EngineAssets/Materials/lens_optics";
+		m_pFlareMaterial = gEnv->p3DEngine->GetMaterialManager()->FindMaterial(flareMaterialName);
 	}
+	return m_pFlareMaterial;
 }
 
 void CParticleSystem::Reset()
 {
+	m_bResetEmitters = true;
 }
 
 void CParticleSystem::Serialize(TSerialize ser)
@@ -278,66 +351,49 @@ PParticleEffect CParticleSystem::LoadEffect(cstr effectName)
 
 	if (gEnv->pCryPak->IsFileExist(effectName))
 	{
+		CheckFileAccess(effectName);
 		PParticleEffect pEffect = CreateEffect();
-		if (Serialization::LoadJsonFile(*CastEffect(pEffect), effectName))
-		{
-			RenameEffect(pEffect, effectName);
+		RenameEffect(pEffect, effectName);
+		if (Serialization::LoadJsonFile(*static_cast<CParticleEffect*>(+pEffect), effectName))
 			return pEffect;
-		}
 	}
 
 	m_effects[effectName] = _smart_ptr<CParticleEffect>();
 	return PParticleEffect();
 }
 
-void CParticleSystem::UpdateGpuRuntimesForEmitter(CParticleEmitter* pEmitter)
+const SParticleFeatureParams* CParticleSystem::FindFeatureParam(cstr groupName, cstr featureName)
 {
-	FUNCTION_PROFILER_3DENGINE
+	for (const auto& feature : GetFeatureParams())
+		if (!strcmp(feature.m_groupName, groupName) && !strcmp(feature.m_featureName, featureName))
+			return &feature;
+	return nullptr;
+}
 
-	const auto& runtimeRefs = pEmitter->GetRuntimes();
+const SParticleFeatureParams* CParticleSystem::GetDefaultFeatureParam(EFeatureType type)
+{
+	for (const auto& feature : GetFeatureParams())
+		if (feature.m_defaultForType == type)
+			return &feature;
+	return nullptr;
+}
 
-	for (uint i = 0; i < runtimeRefs.size(); ++i)
-	{
-		auto pGpuRuntime = runtimeRefs[i].pRuntime->GetGpuRuntime();
-		if (!pGpuRuntime)
-			continue;
-		const bool isActive = pGpuRuntime->IsActive();
-		if (isActive)
-		{
-			gpu_pfx2::SEnvironmentParameters params;
-			params.physAccel = pEmitter->GetPhysicsEnv().m_UniformForces.vAccel;
-			params.physWind = pEmitter->GetPhysicsEnv().m_UniformForces.vWind;
-			pGpuRuntime->SetEnvironmentParameters(params);
-			pGpuRuntime->UpdateEmitterData();
-		}
-	}
+bool CParticleSystem::SerializeFeatures(IArchive& ar, TParticleFeatures& features, cstr name, cstr label) const
+{
+	auto size = features.size();
+	bool ok = ar(features, name, label);
+	if (ar.isInput() && size + features.size() > 0)
+		features.m_editVersion++;
+	return ok;
 }
 
 void CParticleSystem::GetStats(SParticleStats& stats)
 {
-	stats = m_stats;
+	stats = GetSumData().statsCPU + GetSumData().statsGPU;
 }
 
 void CParticleSystem::GetMemoryUsage(ICrySizer* pSizer) const
 {
-}
-
-ILINE CParticleEffect* CParticleSystem::CastEffect(const PParticleEffect& pEffect) const
-{
-	return static_cast<CParticleEffect*>(pEffect.get());
-}
-
-ILINE CParticleEmitter* CParticleSystem::CastEmitter(const PParticleEmitter& pEmitter) const
-{
-	return static_cast<CParticleEmitter*>(pEmitter.get());
-}
-
-uint GetVersion(Serialization::IArchive& ar)
-{
-	SSerializationContext* pContext = ar.context<SSerializationContext>();
-	if (!pContext)
-		return gCurrentVersion;
-	return pContext->m_documentVersion;
 }
 
 }

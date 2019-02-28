@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -12,7 +12,7 @@ extern int g_nPrintDX12;
 	#define DX12_ERROR(...) \
 		do { CryLog("DX12 Error: " __VA_ARGS__); } while (0)
 	#define DX12_ASSERT(cond, ...) \
-		do { if (!(cond)) { DX12_ERROR(__VA_ARGS__); CRY_ASSERT(0); __debugbreak(); } } while (0)
+		do { if (!(cond)) { DX12_ERROR(__VA_ARGS__); CRY_ASSERT_MESSAGE(0, __VA_ARGS__); } } while (0)
 	#define DX12_WARNING(cond, ...) \
 		do { if (!(cond)) { DX12_LOG(__VA_ARGS__); } } while (0)
 #else

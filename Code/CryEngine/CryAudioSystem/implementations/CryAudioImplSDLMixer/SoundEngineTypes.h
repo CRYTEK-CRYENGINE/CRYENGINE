@@ -1,6 +1,8 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
+
+#include "GlobalData.h"
 
 #include <IAudioImpl.h>
 #include <PoolObject.h>
@@ -15,11 +17,41 @@ using SampleId = uint;
 using ListenerId = uint;
 using ChannelList = std::vector<int>;
 
+enum class EEventType : EnumFlagsType
+{
+	None,
+	Start,
+	Stop,
+	Pause,
+	Resume,
+};
+
 class CTrigger final : public ITrigger
 {
 public:
 
-	CTrigger() = default;
+	explicit CTrigger(
+	  EEventType const type,
+	  SampleId const sampleId,
+	  float const attenuationMinDistance = s_defaultMinAttenuationDist,
+	  float const attenuationMaxDistance = s_defaultMaxAttenuationDist,
+	  int const volume = 128,
+	  int const numLoops = 1,
+	  int const fadeInTime = 0,
+	  int const fadeOutTime = 0,
+	  bool const isPanningEnabled = true)
+		: m_type(type)
+		, m_sampleId(sampleId)
+		, m_attenuationMinDistance(attenuationMinDistance)
+		, m_attenuationMaxDistance(attenuationMaxDistance)
+		, m_volume(volume)
+		, m_numLoops(numLoops)
+		, m_fadeInTime(fadeInTime)
+		, m_fadeOutTime(fadeOutTime)
+		, m_isPanningEnabled(isPanningEnabled)
+	{}
+
+	CTrigger() = delete;
 	CTrigger(CTrigger const&) = delete;
 	CTrigger(CTrigger&&) = delete;
 	CTrigger& operator=(CTrigger const&) = delete;
@@ -32,37 +64,96 @@ public:
 	virtual ERequestStatus UnloadAsync(IEvent* const pIEvent) const override { return ERequestStatus::Success; }
 	// ~CryAudio::Impl::ITrigger
 
-	SampleId m_sampleId = 0;
-	float    m_attenuationMinDistance = 0.0f;
-	float    m_attenuationMaxDistance = 100.0f;
-	int      m_volume = 128;
-	int      m_numLoops = 1;
-	bool     m_bPanningEnabled = true;
-	bool     m_bStartEvent = true;
+	EEventType GetType() const                   { return m_type; }
+	SampleId   GetSampleId() const               { return m_sampleId; }
+
+	float      GetAttenuationMinDistance() const { return m_attenuationMinDistance; }
+	float      GetAttenuationMaxDistance() const { return m_attenuationMaxDistance; }
+	int        GetVolume() const                 { return m_volume; }
+	int        GetNumLoops() const               { return m_numLoops; }
+	int        GetFadeInTime() const             { return m_fadeInTime; }
+	int        GetFadeOutTime() const            { return m_fadeOutTime; }
+	bool       IsPanningEnabled() const          { return m_isPanningEnabled; }
+
+private:
+
+	EEventType const m_type;
+	SampleId const   m_sampleId;
+	float const      m_attenuationMinDistance;
+	float const      m_attenuationMaxDistance;
+	int const        m_volume;
+	int const        m_numLoops;
+	int const        m_fadeInTime;
+	int const        m_fadeOutTime;
+	bool const       m_isPanningEnabled;
 };
 
-struct SParameter final : public IParameter
+class CParameter final : public IParameter
 {
-	// Empty implementation so that the engine has something
-	// to refer to since parameters are not currently supported by
-	// the SDL Mixer implementation
-	SParameter() = default;
-	SParameter(SParameter const&) = delete;
-	SParameter(SParameter&&) = delete;
-	SParameter& operator=(SParameter const&) = delete;
-	SParameter& operator=(SParameter&&) = delete;
+public:
+
+	explicit CParameter(
+	  SampleId const sampleId,
+	  float const multiplier,
+	  float const shift,
+	  char const* const szName)
+		: m_sampleId(sampleId)
+		, m_multiplier(multiplier)
+		, m_shift(shift)
+		, m_name(szName)
+	{}
+
+	virtual ~CParameter() override = default;
+
+	CParameter() = delete;
+	CParameter(CParameter const&) = delete;
+	CParameter(CParameter&&) = delete;
+	CParameter&                                            operator=(CParameter const&) = delete;
+	CParameter&                                            operator=(CParameter&&) = delete;
+
+	SampleId                                               GetSampleId() const   { return m_sampleId; }
+	float                                                  GetMultiplier() const { return m_multiplier; }
+	float                                                  GetShift() const      { return m_shift; }
+	CryFixedStringT<CryAudio::MaxControlNameLength> const& GetName() const       { return m_name; }
+
+private:
+
+	SampleId const m_sampleId;
+	float const    m_multiplier;
+	float const    m_shift;
+	CryFixedStringT<CryAudio::MaxControlNameLength> const m_name;
 };
 
-struct SSwitchState final : public ISwitchState
+class CSwitchState final : public ISwitchState
 {
-	// Empty implementation so that the engine has something
-	// to refer to since switches are not currently supported by
-	// the SDL Mixer implementation
-	SSwitchState() = default;
-	SSwitchState(SSwitchState const&) = delete;
-	SSwitchState(SSwitchState&&) = delete;
-	SSwitchState& operator=(SSwitchState const&) = delete;
-	SSwitchState& operator=(SSwitchState&&) = delete;
+public:
+
+	explicit CSwitchState(
+	  SampleId const sampleId,
+	  float const value,
+	  char const* const szName)
+		: m_sampleId(sampleId)
+		, m_value(value)
+		, m_name(szName)
+	{}
+
+	virtual ~CSwitchState() override = default;
+
+	CSwitchState() = delete;
+	CSwitchState(CSwitchState const&) = delete;
+	CSwitchState(CSwitchState&&) = delete;
+	CSwitchState&                                          operator=(CSwitchState const&) = delete;
+	CSwitchState&                                          operator=(CSwitchState&&) = delete;
+
+	SampleId                                               GetSampleId() const { return m_sampleId; }
+	float                                                  GetValue() const    { return m_value; }
+	CryFixedStringT<CryAudio::MaxControlNameLength> const& GetName() const     { return m_name; }
+
+private:
+
+	SampleId const m_sampleId;
+	float const    m_value;
+	CryFixedStringT<CryAudio::MaxControlNameLength> const m_name;
 };
 
 struct SEnvironment final : public IEnvironment
@@ -85,6 +176,7 @@ public:
 		: m_event(event)
 	{}
 
+	CEvent() = delete;
 	CEvent(CEvent const&) = delete;
 	CEvent(CEvent&&) = delete;
 	CEvent& operator=(CEvent const&) = delete;
@@ -121,6 +213,7 @@ public:
 
 using EventInstanceList = std::vector<CEvent*>;
 using StandAloneFileInstanceList = std::vector<CStandaloneFile*>;
+using VolumeMultipliers = std::map<SampleId, float>;
 
 class CObject final : public IObject, public CPoolObject<CObject, stl::PSyncNone>
 {
@@ -154,6 +247,7 @@ public:
 	CObjectTransformation      m_transformation;
 	EventInstanceList          m_events;
 	StandAloneFileInstanceList m_standaloneFiles;
+	VolumeMultipliers          m_volumeMultipliers;
 	bool                       m_bPositionChanged;
 };
 

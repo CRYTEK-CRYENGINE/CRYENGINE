@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "MainWindow.h"
@@ -76,7 +76,6 @@ void CMainWindow::RegisterDockingWidgets()
 	auto createGraphView = [this]()
 	{
 		CGraphView* const pGraphView = new CGraphView(m_pGraphViewModel.get());
-		pGraphView->setWindowTitle(tr("Graph"));
 
 		// One-time scene fitting in the view.
 		std::shared_ptr<QMetaObject::Connection> pConnection{ new QMetaObject::Connection };
@@ -93,7 +92,7 @@ void CMainWindow::RegisterDockingWidgets()
 
 		return pGraphView;
 	};
-	RegisterWidget("Graph", createGraphView, false, false);
+	RegisterDockableWidget("Graph", createGraphView, false, false);
 }
 
 void CMainWindow::CreateDefaultLayout(CDockableContainer* pSender)
@@ -143,3 +142,4 @@ bool CMainWindow::Open(CAsset* pAsset)
 	}
 	return true;
 }
+

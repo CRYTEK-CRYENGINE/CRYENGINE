@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /********************************************************************
    -------------------------------------------------------------------------
@@ -93,7 +93,7 @@ void CMissLocationSensor::Update(float timeLimit)
 
 void CMissLocationSensor::Collect(int types)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	const float boxHalfSize = gAIEnv.CVars.CoolMissesBoxSize * 0.5f;
 	const float boxHeight = gAIEnv.CVars.CoolMissesBoxHeight;
@@ -330,7 +330,7 @@ bool CMissLocationSensor::Filter(float timeLimit)
 
 bool CMissLocationSensor::GetLocation(CAIObject* target, const Vec3& shootPos, const Vec3& shootDir, float maxAngle, Vec3& pos)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	if (m_locations.empty())
 		return false;

@@ -1,0 +1,15 @@
+<AssetMetadata version="0" type="Texture" guid="c7dc6fa4-6c5f-8d78-eea4-c745f8db13c3" source="moisturedroplets.tif">
+ <Files>
+  <File path="moisturedroplets.dds"/>
+  <File path="moisturedroplets.dds.1"/>
+  <File path="moisturedroplets.dds.2"/>
+  <File path="moisturedroplets.dds.3"/>
+  <File path="moisturedroplets.dds.4"/>
+  <File path="moisturedroplets.dds.5"/>
+ </Files>
+ <Details>
+  <Detail name="width">512</Detail>
+  <Detail name="height">512</Detail>
+  <Detail name="mipCount">8</Detail>
+ </Details>
+</AssetMetadata>

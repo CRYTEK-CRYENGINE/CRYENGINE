@@ -45,6 +45,13 @@ void CCharacterControllerComponent::Register(Schematyc::CEnvRegistrationScope& c
 		componentScope.Register(pFunction);
 	}
 	{
+		auto pFunction = SCHEMATYC_MAKE_ENV_FUNCTION(&CCharacterControllerComponent::ChangeVelocity, "{B2D208A7-6F80-4580-8AD5-BDD6859872E7}"_cry_guid, "ChangeVelocity");
+		pFunction->SetDescription("Changes the character velocity using specified mode");
+		pFunction->BindInput(1, 'vel', "Velocity");
+		pFunction->BindInput(2, 'mode', "Mode");
+		componentScope.Register(pFunction);
+	}
+	{
 		auto pFunction = SCHEMATYC_MAKE_ENV_FUNCTION(&CCharacterControllerComponent::GetMoveDirection, "{7D21BDFC-FE14-4020-A685-6F7917AC759C}"_cry_guid, "GetMovementDirection");
 		pFunction->SetDescription("Gets the direction the character is moving in");
 		pFunction->BindOutput(0, 'dir', "Direction");
@@ -54,17 +61,6 @@ void CCharacterControllerComponent::Register(Schematyc::CEnvRegistrationScope& c
 		auto pFunction = SCHEMATYC_MAKE_ENV_FUNCTION(&CCharacterControllerComponent::GetVelocity, "{BF80D631-05D3-4571-A51D-E0AF6A252F91}"_cry_guid, "GetVelocity");
 		pFunction->SetDescription("Gets the character's velocity");
 		pFunction->BindOutput(0, 'vel', "Velocity");
-		componentScope.Register(pFunction);
-	}
-	{
-		auto pFunction = SCHEMATYC_MAKE_ENV_FUNCTION(&CCharacterControllerComponent::Ragdollize, "{1927B2CC-9CC0-4872-93C1-33A4BFC86145}"_cry_guid, "ActivateRagdoll");
-		pFunction->SetDescription("Turns the character into a ragdoll, and disables controlled movement");
-		pFunction->SetFlags(Schematyc::EEnvFunctionFlags::Construction);
-		componentScope.Register(pFunction);
-	}
-	{
-		auto pFunction = SCHEMATYC_MAKE_ENV_FUNCTION(&CCharacterControllerComponent::Physicalize, "{FA4C7D76-61BF-41DF-B14D-F72D161496EB}"_cry_guid, "DeactivateRagdoll");
-		pFunction->SetDescription("Disables ragdoll and allows the player to control movement again");
 		componentScope.Register(pFunction);
 	}
 	// Signals
@@ -100,7 +96,7 @@ void CCharacterControllerComponent::Initialize()
 	}
 }
 
-void CCharacterControllerComponent::ProcessEvent(SEntityEvent& event)
+void CCharacterControllerComponent::ProcessEvent(const SEntityEvent& event)
 {
 	if (event.event == ENTITY_EVENT_UPDATE)
 	{
@@ -171,17 +167,17 @@ void CCharacterControllerComponent::ProcessEvent(SEntityEvent& event)
 
 uint64 CCharacterControllerComponent::GetEventMask() const
 {
-	uint64 eventMask = BIT64(ENTITY_EVENT_COMPONENT_PROPERTY_CHANGED);
+	uint64 eventMask = ENTITY_EVENT_BIT(ENTITY_EVENT_COMPONENT_PROPERTY_CHANGED);
 
 	// Only update when we have a physical entity
 	if (m_pEntity->GetPhysicalEntity() != nullptr)
 	{
-		eventMask |= BIT64(ENTITY_EVENT_UPDATE);
+		eventMask |= ENTITY_EVENT_BIT(ENTITY_EVENT_UPDATE);
 	}
 
 	if (m_physics.m_bSendCollisionSignal)
 	{
-		eventMask |= BIT64(ENTITY_EVENT_COLLISION);
+		eventMask |= ENTITY_EVENT_BIT(ENTITY_EVENT_COLLISION);
 	}
 
 	return eventMask;

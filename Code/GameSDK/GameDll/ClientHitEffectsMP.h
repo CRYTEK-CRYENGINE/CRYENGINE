@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __CLIENT_HIT_EFFECTS_MP_H__
 #define __CLIENT_HIT_EFFECTS_MP_H__

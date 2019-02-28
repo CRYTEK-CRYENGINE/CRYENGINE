@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "ITextureStreamer.h"
@@ -37,13 +37,15 @@ void ITextureStreamer::ApplySchedule(EApplyScheduleFlags asf)
 
 void ITextureStreamer::Relink(CTexture* pTexture)
 {
+	CryAutoCriticalSection scopelock(m_accessLock);
+
 	m_pendingRelinks.push_back(pTexture);
 	pTexture->m_bInDistanceSortedList = true;
 }
 
 void ITextureStreamer::Unlink(CTexture* pTexture)
 {
-	using std::swap;
+	CryAutoCriticalSection scopelock(m_accessLock);
 
 	TStreamerTextureVec::iterator it = std::find(m_pendingRelinks.begin(), m_pendingRelinks.end(), pTexture);
 	if (it == m_pendingRelinks.end())
@@ -52,7 +54,7 @@ void ITextureStreamer::Unlink(CTexture* pTexture)
 	}
 	else
 	{
-		swap(*it, m_pendingRelinks.back());
+		std::swap(*it, m_pendingRelinks.back());
 		m_pendingRelinks.pop_back();
 	}
 
@@ -84,6 +86,8 @@ size_t ITextureStreamer::StatsComputeRequiredMipMemUsage()
 
 	SyncTextureList();
 
+	CryAutoCriticalSection scopelock(m_accessLock);
+
 	TStreamerTextureVec& textures = GetTextures();
 
 	size_t nSizeToLoad = 0;
@@ -96,8 +100,8 @@ size_t ITextureStreamer::StatsComputeRequiredMipMemUsage()
 		bool bStale = StatsWouldUnload(tp);
 		{
 			int nPersMip = tp->m_nMips - tp->m_CacheFileHeader.m_nMipsPersistent;
-			int nReqMip = tp->m_bForceStreamHighRes ? 0 : (bStale ? nPersMip : tp->GetRequiredMipNonVirtual());
-			int nMips = tp->GetNumMipsNonVirtual();
+			int nReqMip = tp->m_bForceStreamHighRes ? 0 : (bStale ? nPersMip : tp->GetRequiredMip());
+			int nMips = tp->GetNumMips();
 			nReqMip = min(nReqMip, nPersMip);
 
 			int nWantedSize = tp->StreamComputeSysDataSize(nReqMip);
@@ -124,15 +128,16 @@ void ITextureStreamer::StatsFetchTextures(std::vector<CTexture*>& out)
 {
 	SyncTextureList();
 
+	CryAutoCriticalSection scopelock(m_accessLock);
+
 	out.reserve(out.size() + m_textures.size());
 	std::copy(m_textures.begin(), m_textures.end(), std::back_inserter(out));
 }
 
 bool ITextureStreamer::StatsWouldUnload(const CTexture* pTexture)
 {
-	SThreadInfo& ti = gRenDev->m_RP.m_TI[gRenDev->m_pRT->GetThreadList()];
-	const int nCurrentFarZoneRoundId = ti.m_arrZonesRoundId[MAX_PREDICTION_ZONES - 1];
-	const int nCurrentNearZoneRoundId = ti.m_arrZonesRoundId[0];
+	const int nCurrentFarZoneRoundId = gRenDev->GetStreamZoneRoundId(MAX_PREDICTION_ZONES - 1);
+	const int nCurrentNearZoneRoundId = gRenDev->GetStreamZoneRoundId(0);
 
 	return
 	  (nCurrentFarZoneRoundId - pTexture->GetStreamRoundInfo(MAX_PREDICTION_ZONES - 1).nRoundUpdateId > 3) &&
@@ -141,6 +146,8 @@ bool ITextureStreamer::StatsWouldUnload(const CTexture* pTexture)
 
 void ITextureStreamer::SyncTextureList()
 {
+	CryAutoCriticalSection scopelock(m_accessLock);
+
 	if (!m_pendingUnlinks.empty())
 	{
 		std::sort(m_pendingUnlinks.begin(), m_pendingUnlinks.end());

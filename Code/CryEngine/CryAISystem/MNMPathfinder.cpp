@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -21,26 +21,29 @@ inline Vec3 TriangleCenter(const Vec3& a, const Vec3& b, const Vec3& c)
 
 void MNM::PathfinderUtils::QueuedRequest::SetupDangerousLocationsData()
 {
-	FUNCTION_PROFILER(GetISystem(), PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	dangerousAreas.clear();
 	if (requestParams.dangersToAvoidFlags == eMNMDangers_None)
 		return;
 
-	// The different danger types need a different setup
-	if (requestParams.dangersToAvoidFlags & eMNMDangers_AttentionTarget)
+	if (requesterEntityId)
 	{
-		SetupAttentionTargetDanger();
-	}
+		// The different danger types need a different setup
+		if (requestParams.dangersToAvoidFlags & eMNMDangers_AttentionTarget)
+		{
+			SetupAttentionTargetDanger();
+		}
 
-	if (requestParams.dangersToAvoidFlags & eMNMDangers_Explosive)
-	{
-		SetupExplosiveDangers();
-	}
+		if (requestParams.dangersToAvoidFlags & eMNMDangers_Explosive)
+		{
+			SetupExplosiveDangers();
+		}
 
-	if (requestParams.dangersToAvoidFlags & eMNMDangers_GroupMates)
-	{
-		SetupGroupMatesAvoidance();
+		if (requestParams.dangersToAvoidFlags & eMNMDangers_GroupMates)
+		{
+			SetupGroupMatesAvoidance();
+		}
 	}
 }
 
@@ -49,21 +52,20 @@ void MNM::PathfinderUtils::QueuedRequest::SetupAttentionTargetDanger()
 	if (dangerousAreas.size() >= MNM::max_danger_amount)
 		return;
 
-	if (pRequester)
+	CRY_ASSERT(requesterEntityId != INVALID_ENTITYID);
+
+	IEntity* pEntity = gEnv->pEntitySystem->GetEntity(requesterEntityId);
+	CAIActor* pActor = pEntity ? CastToCAIActorSafe(pEntity->GetAI()) : nullptr;
+	if (pActor)
 	{
-		CAIActor* pActor = CastToCAIActorSafe(pRequester->GetPathAgentEntity()->GetAI());
-		if (pActor)
+		IAIObject* pAttTarget = pActor->GetAttentionTarget();
+		if (pAttTarget)
 		{
-			IAIObject* pAttTarget = pActor->GetAttentionTarget();
-			if (pAttTarget)
-			{
-				const IEntity* pEntity = pAttTarget->GetEntity();
-				const float effectRange = 0.0f; // Effect over all the world
-				const Vec3& dangerPosition = pEntity ? pEntity->GetPos() : pAttTarget->GetPos();
-				MNM::DangerAreaConstPtr info;
-				info.reset(new MNM::DangerAreaT<MNM::eWCT_Direction>(dangerPosition, effectRange, gAIEnv.CVars.PathfinderDangerCostForAttentionTarget));
-				dangerousAreas.push_back(info);
-			}
+			const float effectRange = 0.0f; // Effect over all the world
+			const Vec3& dangerPosition = pEntity ? pEntity->GetPos() : pAttTarget->GetPos();
+			MNM::DangerAreaConstPtr info;
+			info.reset(new MNM::DangerAreaT<MNM::eWCT_Direction>(dangerPosition, effectRange, gAIEnv.CVars.PathfinderDangerCostForAttentionTarget));
+			dangerousAreas.push_back(info);
 		}
 	}
 }
@@ -87,6 +89,10 @@ private:
 #undef GetObject
 void MNM::PathfinderUtils::QueuedRequest::SetupExplosiveDangers()
 {
+	CRY_ASSERT(requesterEntityId != INVALID_ENTITYID);
+
+	const IEntity* pEntity = gEnv->pEntitySystem->GetEntity(requesterEntityId);
+	
 	const float maxDistanceSq = sqr(gAIEnv.CVars.PathfinderExplosiveDangerMaxThreatDistance);
 	const float maxDistanceSqToMergeExplosivesThreat = 3.0f;
 
@@ -96,7 +102,7 @@ void MNM::PathfinderUtils::QueuedRequest::SetupExplosiveDangers()
 	while (dangerousAreas.size() < MNM::max_danger_amount && grenadesIterator->GetObject())
 	{
 		const Vec3& pos = grenadesIterator->GetObject()->GetPos();
-		if (Distance::Point_Point2DSq(pos, pRequester->GetPathAgentEntity()->GetPos()) < maxDistanceSq)
+		if (Distance::Point_Point2DSq(pos, pEntity->GetPos()) < maxDistanceSq)
 		{
 			MNM::DangerousAreasList::const_iterator it = std::find_if(dangerousAreas.begin(), dangerousAreas.end(),
 			                                                          DangerAlreadyStoredInRangeFromPositionPred(pos, maxDistanceSqToMergeExplosivesThreat));
@@ -115,12 +121,11 @@ void MNM::PathfinderUtils::QueuedRequest::SetupExplosiveDangers()
 
 void MNM::PathfinderUtils::QueuedRequest::SetupGroupMatesAvoidance()
 {
-	IF_UNLIKELY (!pRequester)
-	{
-		return;
-	}
+	CRY_ASSERT(requesterEntityId != INVALID_ENTITYID);
 
-	IAIObject* requesterAIObject = pRequester->GetPathAgentEntity()->GetAI();
+	IEntity* pEntity = gEnv->pEntitySystem->GetEntity(requesterEntityId);
+	IAIObject* requesterAIObject = pEntity ? pEntity->GetAI() : nullptr;
+	
 	IF_UNLIKELY (!requesterAIObject)
 	{
 		return;
@@ -131,7 +136,7 @@ void MNM::PathfinderUtils::QueuedRequest::SetupGroupMatesAvoidance()
 	while (dangerousAreas.size() < MNM::max_danger_amount && groupMemberIterator->GetObject())
 	{
 		IAIObject* groupMemberAIObject = groupMemberIterator->GetObject();
-		if (requesterAIObject->GetEntityID() != groupMemberAIObject->GetEntityID())
+		if (requesterEntityId != groupMemberAIObject->GetEntityID())
 		{
 			MNM::DangerAreaConstPtr dangerArea;
 			dangerArea.reset(new MNM::DangerAreaT<MNM::eWCT_Range>(
@@ -188,26 +193,24 @@ void CMNMPathfinder::Reset()
 	m_pathfindingCompletedEventsToDispatch.clear();
 }
 
-MNM::QueuedPathID CMNMPathfinder::RequestPathTo(const IAIPathAgent* pRequester, const MNMPathRequest& request)
+MNM::QueuedPathID CMNMPathfinder::RequestPathTo(const EntityId requesterEntityId, const MNMPathRequest& request)
 {
+	const IEntity* pEntity = gEnv->pEntitySystem->GetEntity(requesterEntityId);
+	
 	//////////////////////////////////////////////////////////////////////////
-	// Validate requester
-	if (!pRequester || (pRequester->GetPathAgentType() != AIOBJECT_ACTOR && pRequester->GetPathAgentType() != AIOBJECT_VEHICLE))
+	// Validate requester entity
+	if (!pEntity)
 	{
-		AIWarning("[CMNMPathfinder::QueuePathRequest] No agent specified. A NavigationTypeID is needed to find the appropriate mesh.");
+		AIWarning("[CMNMPathfinder::RequestPathTo] Request entity id %d is invalid.", requesterEntityId);
 		return MNM::Constants::eQueuedPathID_InvalidID;
 	}
 
 	//////////////////////////////////////////////////////////////////////////
 	// Validate Agent Type
-	const char* actorName = pRequester->GetPathAgentName();
-
-	const IEntity* pEntity = pRequester->GetPathAgentEntity();
-	EntityId entityId = pEntity ? pEntity->GetId() : 0;
-
+	const char* actorName = pEntity->GetName();
 	if (!request.agentTypeID)
 	{
-		AIWarning("[CMNMPathfinder::QueuePathRequest] Request from agent %s has no NavigationType defined.", actorName);
+		AIWarning("[CMNMPathfinder::RequestPathTo] Request from agent %s has no NavigationType defined.", actorName);
 		return MNM::Constants::eQueuedPathID_InvalidID;
 	}
 
@@ -215,7 +218,7 @@ MNM::QueuedPathID CMNMPathfinder::RequestPathTo(const IAIPathAgent* pRequester, 
 	// Validate callback
 	if (!request.resultCallback)
 	{
-		AIWarning("[CMNMPathfinder::QueuePathRequest] Agent %s does not provide a result Callback", actorName);
+		AIWarning("[CMNMPathfinder::RequestPathTo] Agent %s does not provide a result Callback", actorName);
 		return 0;
 	}
 
@@ -225,13 +228,12 @@ MNM::QueuedPathID CMNMPathfinder::RequestPathTo(const IAIPathAgent* pRequester, 
 
 	if (!meshID)
 	{
-		AIQueueBubbleMessage("CMNMPathfinder::RequestPathTo-NoMesh", entityId,
-		                     "I m not inside a Navigation area for my navigation type.",
+		AIQueueBubbleMessage("CMNMPathfinder::RequestPathTo-NoMesh", requesterEntityId,
+		                     "I'm not inside a Navigation area for my navigation type.",
 		                     eBNS_LogWarning);
 		return 0;
 	}
-
-	return m_requestedPathsQueue.push_back(MNM::PathfinderUtils::QueuedRequest(pRequester, request.agentTypeID, request));
+	return m_requestedPathsQueue.push_back(MNM::PathfinderUtils::QueuedRequest(requesterEntityId, request.agentTypeID, request));
 }
 
 void CMNMPathfinder::CancelPathRequest(MNM::QueuedPathID requestId)
@@ -255,6 +257,11 @@ void CMNMPathfinder::CancelResultDispatchingForRequest(MNM::QueuedPathID request
 
 bool CMNMPathfinder::CheckIfPointsAreOnStraightWalkableLine(const NavigationMeshID& meshID, const Vec3& source, const Vec3& destination, float heightOffset) const
 {
+	return CheckIfPointsAreOnStraightWalkableLine(meshID, source, destination, nullptr, heightOffset);
+}
+
+bool CMNMPathfinder::CheckIfPointsAreOnStraightWalkableLine(const NavigationMeshID& meshID, const Vec3& source, const Vec3& destination, const INavMeshQueryFilter* pFilter, float heightOffset) const
+{
 	if (meshID == 0)
 		return false;
 
@@ -268,15 +275,14 @@ bool CMNMPathfinder::CheckIfPointsAreOnStraightWalkableLine(const NavigationMesh
 	MNM::vector3_t endLoc = MNM::vector3_t(MNM::real_t(destination.x), MNM::real_t(destination.y), MNM::real_t(destination.z));
 
 	const MNM::real_t verticalRange(2.0f);
-	MNM::TriangleID triStart = navMesh.GetTriangleAt(startLoc, verticalRange, verticalRange);
-	MNM::TriangleID triEnd = navMesh.GetTriangleAt(endLoc, verticalRange, verticalRange);
+	MNM::TriangleID triStart = navMesh.GetTriangleAt(startLoc, verticalRange, verticalRange, pFilter);
+	MNM::TriangleID triEnd = navMesh.GetTriangleAt(endLoc, verticalRange, verticalRange, pFilter);
 
 	if (!triStart || !triEnd)
 		return false;
 
 	MNM::CNavMesh::RayCastRequest<512> raycastRequest;
-
-	if (navMesh.RayCast(startLoc, triStart, endLoc, triEnd, raycastRequest) != MNM::CNavMesh::eRayCastResult_NoHit)
+	if (navMesh.RayCast(startLoc, triStart, endLoc, triEnd, raycastRequest, pFilter) != MNM::CNavMesh::eRayCastResult_NoHit)
 		return false;
 
 	return true;
@@ -284,17 +290,16 @@ bool CMNMPathfinder::CheckIfPointsAreOnStraightWalkableLine(const NavigationMesh
 
 void CMNMPathfinder::SetupNewValidPathRequests()
 {
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
+	
 	const size_t freeAvailableSlotsToProcessNewRequests = m_processingContextsPool.GetFreeSlotsCount();
 
 	for (size_t i = 0; (i < freeAvailableSlotsToProcessNewRequests) && !m_requestedPathsQueue.empty(); ++i)
 	{
 		MNM::QueuedPathID idQueuedRequest = m_requestedPathsQueue.front_id();
-		MNM::PathfinderUtils::QueuedRequest requestToServe = m_requestedPathsQueue.front();
-		m_requestedPathsQueue.pop_front();
+		MNM::PathfinderUtils::QueuedRequest& requestToServe = m_requestedPathsQueue.front();
 
-		MNM::PathfinderUtils::ProcessingContextsPool::PoolIterator pProcessingContext;
-		MNM::PathfinderUtils::ProcessingContextId id;
-		id = m_processingContextsPool.GetFirstAvailableContextId();
+		MNM::PathfinderUtils::ProcessingContextId id = m_processingContextsPool.GetFirstAvailableContextId();
 		if (id != MNM::PathfinderUtils::kInvalidProcessingContextId)
 		{
 			MNM::PathfinderUtils::ProcessingContext& processingContext = m_processingContextsPool.GetContextAtPosition(id);
@@ -318,11 +323,15 @@ void CMNMPathfinder::SetupNewValidPathRequests()
 		{
 			CRY_ASSERT_MESSAGE(0, "Trying to setup new requests while not having available slots in the pool.");
 		}
+
+		m_requestedPathsQueue.pop_front();
 	}
 }
 
 void CMNMPathfinder::SpawnJobs()
 {
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
+
 	const bool isPathfinderMultithreaded = gAIEnv.CVars.MNMPathfinderMT != 0;
 	if (isPathfinderMultithreaded)
 	{
@@ -382,7 +391,7 @@ void CMNMPathfinder::SpawnPathfinderProcessingJob(MNM::PathfinderUtils::Processi
 
 void CMNMPathfinder::WaitForJobsToFinish()
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 	m_processingContextsPool.ExecuteFunctionOnElements(functor(*this, &CMNMPathfinder::WaitForJobToFinish));
 }
 
@@ -393,6 +402,8 @@ void CMNMPathfinder::WaitForJobToFinish(MNM::PathfinderUtils::ProcessingContext&
 
 void CMNMPathfinder::DispatchResults()
 {
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
+	if(m_pathfindingFailedEventsToDispatch.size())
 	{
 		MNM::PathfinderUtils::PathfindingFailedEvent failedEvent;
 		while (m_pathfindingFailedEventsToDispatch.try_pop_back(failedEvent))
@@ -401,6 +412,7 @@ void CMNMPathfinder::DispatchResults()
 		}
 	}
 
+	if(m_pathfindingCompletedEventsToDispatch.size())
 	{
 		MNM::PathfinderUtils::PathfindingCompletedEvent succeeded;
 		while (m_pathfindingCompletedEventsToDispatch.try_pop_back(succeeded))
@@ -412,7 +424,7 @@ void CMNMPathfinder::DispatchResults()
 
 void CMNMPathfinder::Update()
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_AI);
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
 	if (gAIEnv.CVars.MNMPathFinderDebug)
 	{
@@ -430,6 +442,8 @@ void CMNMPathfinder::Update()
 
 void CMNMPathfinder::OnNavigationMeshChanged(const NavigationMeshID meshId, const MNM::TileID tileId)
 {
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
+	
 	const size_t maximumAmountOfSlotsToUpdate = m_processingContextsPool.GetOccupiedSlotsCount();
 	for (size_t i = 0; i < maximumAmountOfSlotsToUpdate; ++i)
 	{
@@ -437,10 +451,10 @@ void CMNMPathfinder::OnNavigationMeshChanged(const NavigationMeshID meshId, cons
 		MNM::PathfinderUtils::ProcessingRequest& processingRequest = processingContext.processingRequest;
 
 		if (!processingRequest.IsValid())
-			return;
+			continue;
 
 		if (processingRequest.meshID != meshId)
-			return;
+			continue;
 
 		if (!processingContext.workingSet.aStarOpenList.TileWasVisited(tileId))
 		{
@@ -461,7 +475,7 @@ void CMNMPathfinder::OnNavigationMeshChanged(const NavigationMeshID meshId, cons
 			}
 
 			if (!neighbourTileWasVisited)
-				return;
+				continue;
 		}
 
 		//////////////////////////////////////////////////////////////////////////
@@ -478,8 +492,10 @@ void CMNMPathfinder::OnNavigationMeshChanged(const NavigationMeshID meshId, cons
 	}
 }
 
-bool CMNMPathfinder::SetupForNextPathRequest(MNM::QueuedPathID requestID, MNM::PathfinderUtils::QueuedRequest& request, MNM::PathfinderUtils::ProcessingContext& processingContext)
+bool CMNMPathfinder::SetupForNextPathRequest(MNM::QueuedPathID requestID, const MNM::PathfinderUtils::QueuedRequest& request, MNM::PathfinderUtils::ProcessingContext& processingContext)
 {
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
+	
 	MNM::PathfinderUtils::ProcessingRequest& processingRequest = processingContext.processingRequest;
 	processingRequest.Reset();
 
@@ -489,7 +505,8 @@ bool CMNMPathfinder::SetupForNextPathRequest(MNM::QueuedPathID requestID, MNM::P
 
 	if (!meshID)
 	{
-		AIWarning("[CMNMPathfinder::SetupForNextPathRequest] Agent %s is not inside a navigation volume.", request.pRequester->GetPathAgentName());
+		const IEntity* pEntity = gEnv->pEntitySystem->GetEntity(request.requesterEntityId);
+		AIWarning("[CMNMPathfinder::SetupForNextPathRequest] Agent %s is not inside a navigation volume.", pEntity ? pEntity->GetName() : "'missing entity'");
 		return false;
 	}
 
@@ -499,63 +516,48 @@ bool CMNMPathfinder::SetupForNextPathRequest(MNM::QueuedPathID requestID, MNM::P
 	const MNM::CNavMesh::SGridParams& gridParams = navMesh.GetGridParams();
 	const MNM::vector3_t origin = MNM::vector3_t(MNM::real_t(gridParams.origin.x), MNM::real_t(gridParams.origin.y), MNM::real_t(gridParams.origin.z));
 
-	const uint16 agentRadiusUnits = gAIEnv.pNavigationSystem->GetAgentRadiusInVoxelUnits(request.agentTypeID);
-	const uint16 agentHeightUnits = gAIEnv.pNavigationSystem->GetAgentHeightInVoxelUnits(request.agentTypeID);
+	AgentType agentTypeProperties;
+	const bool arePropertiesValid = gAIEnv.pNavigationSystem->GetAgentTypeProperties(request.agentTypeID, agentTypeProperties);
+	CRY_ASSERT(arePropertiesValid);
 
 	const MNM::vector3_t startLocation(MNM::real_t(request.requestParams.startLocation.x), MNM::real_t(request.requestParams.startLocation.y),
 	                                   MNM::real_t(request.requestParams.startLocation.z));
 	const MNM::vector3_t endLocation(MNM::real_t(request.requestParams.endLocation.x), MNM::real_t(request.requestParams.endLocation.y),
 	                                 MNM::real_t(request.requestParams.endLocation.z));
-	const Vec3 voxelSize = navMesh.GetGridParams().voxelSize;
-	const MNM::real_t horizontalRange = MNMUtils::CalculateMinHorizontalRange(agentRadiusUnits, voxelSize.x);
-	const MNM::real_t verticalRange = MNMUtils::CalculateMinVerticalRange(agentHeightUnits, voxelSize.z);
 
-	AgentType agentTypeProperties;
-	const bool arePropertiesValid = gAIEnv.pNavigationSystem->GetAgentTypeProperties(request.agentTypeID, agentTypeProperties);
-	assert(arePropertiesValid);
-	const uint16 zOffsetMultiplier = min(uint16(2), agentTypeProperties.settings.heightVoxelCount);
-	const MNM::real_t verticalUpwardRange = arePropertiesValid ? MNM::real_t(zOffsetMultiplier * agentTypeProperties.settings.voxelSize.z) : MNM::real_t(.0f);
+	const MNM::real_t horizontalRange = MNMUtils::CalculateMinHorizontalRange(agentTypeProperties.settings.agent.radius, gridParams.voxelSize.x);
+	const MNM::real_t verticalDownRange = MNMUtils::CalculateMinVerticalRange(agentTypeProperties.settings.agent.height, gridParams.voxelSize.z);
+	const uint16 zOffsetMultiplier = min(uint16(2), (uint16)agentTypeProperties.settings.agent.height);
+	const MNM::real_t verticalUpRange = MNM::real_t(zOffsetMultiplier * gridParams.voxelSize.z);
 
-	Vec3 safeStartLocation(request.requestParams.startLocation);
+	const INavMeshQueryFilter* pFilter = request.pFilter.get();
+	const MNM::aabb_t aroundPositionAABB(MNM::vector3_t(-horizontalRange, -horizontalRange, -verticalDownRange), MNM::vector3_t(horizontalRange, horizontalRange, verticalUpRange));
+
 	MNM::TriangleID triangleStartID;
-	if (!(triangleStartID = navMesh.GetTriangleAt(startLocation - origin, verticalRange, verticalUpwardRange)))
+	MNM::vector3_t snappedPosition;
+	if (!navMesh.SnapPosition(startLocation - origin, aroundPositionAABB, request.requestParams.snappingRules, pFilter, snappedPosition, &triangleStartID))
 	{
-		MNM::vector3_t closest;
-		if (!(triangleStartID = navMesh.GetClosestTriangle(startLocation - origin, verticalRange, horizontalRange, NULL, &closest)))
-		{
-			AIWarning("Navigation system couldn't find NavMesh triangle at path start point (%.2f, %2f, %2f) for agent '%s'.",
-			          request.requestParams.startLocation.x, request.requestParams.startLocation.y, request.requestParams.startLocation.z,
-			          request.pRequester->GetPathAgentName());
-			return false;
-		}
-		else
-		{
-			safeStartLocation = closest.GetVec3();
-		}
+		const IEntity* pEntity = gEnv->pEntitySystem->GetEntity(request.requesterEntityId);
+		AIWarning("Navigation system couldn't find NavMesh triangle at path start point (%.2f, %2f, %2f) for agent '%s'.",
+			request.requestParams.startLocation.x, request.requestParams.startLocation.y, request.requestParams.startLocation.z,
+			pEntity ? pEntity->GetName() : "'missing entity'");
+		return false;
+	}
+	const Vec3 safeStartLocation = snappedPosition.GetVec3();
+	
+	MNM::TriangleID triangleEndID;
+	if (!navMesh.SnapPosition(endLocation - origin, aroundPositionAABB, request.requestParams.snappingRules, pFilter, snappedPosition, &triangleEndID))
+	{
+		const IEntity* pEntity = gEnv->pEntitySystem->GetEntity(request.requesterEntityId);
+		AIWarning("Navigation system couldn't find NavMesh triangle at path destination point (%.2f, %.2f, %.2f) for agent '%s'.",
+			request.requestParams.endLocation.x, request.requestParams.endLocation.y, request.requestParams.endLocation.z,
+			pEntity ? pEntity->GetName() : "'missing entity'");
+		return false;
 	}
 
-	Vec3 safeEndLocation(request.requestParams.endLocation);
-	MNM::TriangleID triangleEndID = navMesh.GetTriangleAt(endLocation - origin, verticalRange, verticalRange);
-	if (!triangleEndID)
-	{
-		MNM::vector3_t closest;
-		triangleEndID = navMesh.GetClosestTriangle(endLocation - origin, verticalRange, horizontalRange, NULL, &closest);
-		if (triangleEndID)
-		{
-			safeEndLocation = closest.GetVec3();
-		}
-		else
-		{
-			AIWarning("Navigation system couldn't find NavMesh triangle at path destination point (%.2f, %.2f, %.2f) for agent '%s'.",
-			          request.requestParams.endLocation.x, request.requestParams.endLocation.y, request.requestParams.endLocation.z,
-			          request.pRequester->GetPathAgentName());
-			return false;
-		}
-	}
+	const Vec3 safeEndLocation = snappedPosition.GetVec3();
 
 	// The data for MNM are good until this point so we can set up the path finding
-
-	processingRequest.pRequester = request.pRequester;
 	processingRequest.meshID = meshID;
 	processingRequest.fromTriangleID = triangleStartID;
 	processingRequest.toTriangleID = triangleEndID;
@@ -573,6 +575,8 @@ bool CMNMPathfinder::SetupForNextPathRequest(MNM::QueuedPathID requestID, MNM::P
 
 void CMNMPathfinder::ProcessPathRequest(MNM::PathfinderUtils::ProcessingContext& processingContext)
 {
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
+	
 	if (processingContext.status != MNM::PathfinderUtils::ProcessingContext::InProgress)
 		return;
 
@@ -588,10 +592,13 @@ void CMNMPathfinder::ProcessPathRequest(MNM::PathfinderUtils::ProcessingContext&
 	assert(offMeshNavigationManager);
 	const MNM::OffMeshNavigation& meshOffMeshNav = offMeshNavigationManager->GetOffMeshNavigationForMesh(processingRequest.meshID);
 
-	MNM::CNavMesh::WayQueryRequest inputParams(processingRequest.pRequester, processingRequest.fromTriangleID,
-	                                           processingRequest.data.requestParams.startLocation - gridParams.origin, processingRequest.toTriangleID,
-	                                           processingRequest.data.requestParams.endLocation - gridParams.origin, meshOffMeshNav, *offMeshNavigationManager,
-	                                           processingRequest.data.GetDangersInfos());
+	MNM::CNavMesh::WayQueryRequest inputParams(
+		processingRequest.data.requesterEntityId, processingRequest.fromTriangleID,
+		processingRequest.data.requestParams.startLocation - gridParams.origin, processingRequest.toTriangleID,
+		processingRequest.data.requestParams.endLocation - gridParams.origin, meshOffMeshNav, *offMeshNavigationManager,
+		processingRequest.data.GetDangersInfos(),
+		processingRequest.data.pFilter.get(),
+		processingRequest.data.requestParams.pCustomPathCostComputer);
 
 	if (navMesh.FindWay(inputParams, processingContext.workingSet, processingContext.queryResult) == MNM::CNavMesh::eWQR_Continuing)
 		return;
@@ -608,6 +615,8 @@ bool CMNMPathfinder::ConstructPathFromFoundWay(
   const Vec3& endLocation,
   CPathHolder<PathPointDescriptor>& outputPath)
 {
+	CRY_PROFILE_FUNCTION(PROFILE_AI);
+	
 	const MNM::WayTriangleData* pWayData = way.GetWayData();
 	const size_t waySize = way.GetWaySize();
 
@@ -682,6 +691,8 @@ void CMNMPathfinder::ConstructPathIfWayWasFound(MNM::PathfinderUtils::Processing
 	if (processingContext.status != MNM::PathfinderUtils::ProcessingContext::FindWayCompleted)
 		return;
 
+	CRY_PROFILE_FUNCTION_ARG(PROFILE_AI, CryStringUtils::toString(static_cast<unsigned>(processingContext.queryResult.GetWaySize())));
+
 	MNM::PathfinderUtils::ProcessingRequest& processingRequest = processingContext.processingRequest;
 
 	const NavigationMesh& mesh = gAIEnv.pNavigationSystem->GetMesh(processingRequest.meshID);
@@ -706,7 +717,7 @@ void CMNMPathfinder::ConstructPathIfWayWasFound(MNM::PathfinderUtils::Processing
 		{
 			if (processingRequest.data.requestParams.beautify && gAIEnv.CVars.BeautifyPath)
 			{
-				outputPath.PullPathOnNavigationMesh(navMesh, gAIEnv.CVars.PathStringPullingIterations);
+				outputPath.PullPathOnNavigationMesh(navMesh, gAIEnv.CVars.PathStringPullingIterations, processingRequest.data.requestParams.pCustomPathCostComputer.get());
 			}
 		}
 	}

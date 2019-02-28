@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __CFillSliderCtrl_h__
 #define __CFillSliderCtrl_h__
@@ -71,3 +71,4 @@ protected:
 };
 
 #endif //__CFillSliderCtrl_h__
+

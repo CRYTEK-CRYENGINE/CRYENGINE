@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -715,11 +715,10 @@ void CRemoteCommandServer::ThreadEntry()
 				}
 			}
 		}
-
 		// Limit the CPU usage
 		// TODO: consider using some event based mechanism since the only source of
 		// work for this thread is the network we can esily be triggered by that.
-		Sleep(5);
+		CrySleep(5);
 	}
 }
 

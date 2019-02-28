@@ -1,0 +1,14 @@
+<RCC>
+    <qresource prefix="/icons">
+        <file alias="audio/impl/fmod/bank.ico">Icons/bank.ico</file>
+        <file alias="audio/impl/fmod/event.ico">Icons/event.ico</file>
+        <file alias="audio/impl/fmod/folder_closed.ico">Icons/folder_closed.ico</file>
+        <file alias="audio/impl/fmod/folder_open.ico">Icons/folder_open.ico</file>
+        <file alias="audio/impl/fmod/group.ico">Icons/group.ico</file>
+        <file alias="audio/impl/fmod/return.ico">Icons/return.ico</file>
+        <file alias="audio/impl/fmod/snapshot.ico">Icons/snapshot.ico</file>
+        <file alias="audio/impl/fmod/tag.ico">Icons/tag.ico</file>
+        <file alias="audio/impl/fmod/vca.ico">Icons/vca.ico</file>
+    </qresource>
+</RCC>
+

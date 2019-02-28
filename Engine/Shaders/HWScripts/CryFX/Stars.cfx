@@ -1,5 +1,4 @@
-// CRYENGINE Source Code File
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "Common.cfi"
 #include "ModificatorVT.cfi"
@@ -19,8 +18,6 @@ float4 SkyDome_NightMoonDirSize;
 float3 SkyDome_NightMoonTexGenRight;
 float3 SkyDome_NightMoonTexGenUp;
 
-sampler2D sceneMap0 : register(s0);
-
 struct a2v
 {
   float4 Position  : POSITION;
@@ -31,7 +28,7 @@ struct a2v
 
 struct v2f
 {
-  float4 Position  : POSITION;
+  float4 Position  : SV_POSITION;
   float2 QuadPos   : TEXCOORD;
   float4 Color     : COLOR;
 };
@@ -154,6 +151,16 @@ technique Stars
 #include "PostEffectsLib.cfi"
 #include "ForwardShading.cfi"
 
+
+Texture2D<float4> SkyDome_Tex             : register(t0);
+Texture2D<float4> SkyDome_Moon            : register(t3);
+SamplerState SkyDome_TexSS                : register(s0);   // LinearClamp
+
+Texture2D<float4> SkyDome_Mie             : register(t1);
+Texture2D<float4> SkyDome_Rayleigh        : register(t2);
+SamplerState SkyDome_ScatSS               : register(s1);   // samplerStateLinearWrapU
+
+
 float3 SkyDome_PartialMieInScatteringConst;
 float3 SkyDome_PartialRayleighInScatteringConst;
 float3 SkyDome_SunDirection;
@@ -192,14 +199,14 @@ pixout SkyPassPS(vtxOut IN)
 
 #if %_RT_SAMPLE0
 	// Static skydome
-	OUT.Color.rgb = tex2D(_tex0, langlatTC);
+	OUT.Color.rgb = GetTexture2D(SkyDome_Tex, SkyDome_TexSS, langlatTC);
 	return OUT;
 #endif
 
 	// Day sky gradient
 	{
-		half4 ColorMie = tex2D(_tex1, langlatTC.xy);
-		half4 ColorRayleigh = tex2D(_tex2, langlatTC.xy);
+		half4 ColorMie = GetTexture2D(SkyDome_Mie, SkyDome_ScatSS, langlatTC.xy);
+		half4 ColorRayleigh = GetTexture2D(SkyDome_Rayleigh, SkyDome_ScatSS, langlatTC.xy);
 		
 		float miePart_g_2 = SkyDome_PhaseFunctionConstants.x;  // = pow(miePart, -2/3) * ( -2*g )
 		float miePart_g2_1 = SkyDome_PhaseFunctionConstants.y; // = pow(miePart, -2/3) * ( 1 + g*g )
@@ -224,7 +231,7 @@ pixout SkyPassPS(vtxOut IN)
 	// Moon
 	{
 		float2 moonTC = float2(dot(SkyDome_NightMoonTexGenRight, skyDir), dot(SkyDome_NightMoonTexGenUp, skyDir)) * SkyDome_NightMoonDirSize.w + 0.5;
-		float4 moonAlbedo = tex2D(_tex3, moonTC.xy);
+		float4 moonAlbedo = GetTexture2D(SkyDome_Moon, SkyDome_TexSS, moonTC.xy);
 		OUT.Color.xyz += SkyDome_NightMoonColor.xyz * moonAlbedo.xyz * moonAlbedo.a;
 
 		// Add inner and outer moon corona

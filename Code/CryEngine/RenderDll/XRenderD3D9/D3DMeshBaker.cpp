@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "DriverD3D.h"
@@ -39,27 +39,32 @@ public:
 	inline void                mfUpdateFlags(uint32 fl)                                                                { m_pSrc->mfUpdateFlags(fl); }
 	inline void                mfClearFlags(uint32 fl)                                                                 { m_pSrc->mfClearFlags(fl); }
 	inline bool                mfCheckUpdate(InputLayoutHandle eVertFormat, int Flags, uint16 nFrame)                  { return m_pSrc->mfCheckUpdate(eVertFormat, Flags, nFrame); }
-	virtual void               mfPrepare(bool bCheckOverflow)                                                          { m_pSrc->mfPrepare(bCheckOverflow); gcpRendD3D->m_RP.m_CurVFormat = EDefaultInputLayouts::P3F_T2F_T3F; }
+
 	virtual CRenderChunk*      mfGetMatInfo()                                                                          { return m_pSrc->mfGetMatInfo(); }
 	virtual TRenderChunkArray* mfGetMatInfoList()                                                                      { return m_pSrc->mfGetMatInfoList(); }
 	virtual int                mfGetMatId()                                                                            { return m_pSrc->mfGetMatId(); }
 	virtual void               mfReset()                                                                               { m_pSrc->mfReset(); }
 	virtual bool               mfIsHWSkinned()                                                                         { return m_pSrc->mfIsHWSkinned(); }
-	virtual CRenderElement*      mfCopyConstruct(void)                                                                   { return m_pSrc->mfCopyConstruct(); }
-	virtual void               mfCenter(Vec3& centr, CRenderObject* pObj)                                              { m_pSrc->mfCenter(centr, pObj); }
-	virtual void               mfGetBBox(Vec3& vMins, Vec3& vMaxs)                                                     { m_pSrc->mfGetBBox(vMins, vMaxs); }
+	virtual CRenderElement*    mfCopyConstruct(void)                                                                   { return m_pSrc->mfCopyConstruct(); }
+	virtual void               mfCenter(Vec3& centr, CRenderObject* pObj, const SRenderingPassInfo& passInfo)          { m_pSrc->mfCenter(centr, pObj, passInfo); }
+	virtual void               mfGetBBox(Vec3& vMins, Vec3& vMaxs) const                                               { m_pSrc->mfGetBBox(vMins, vMaxs); }
 	virtual void               mfGetPlane(Plane& pl)                                                                   { m_pSrc->mfGetPlane(pl); }
-	virtual bool               mfCompile(CParserBin& Parser, SParserFrame& Frame)                                      { return m_pSrc->mfCompile(Parser, Frame); }
-	virtual bool               mfDraw(CShader* ef, SShaderPass* sfm);
+
 	virtual void*              mfGetPointer(ESrcPointer ePT, int* Stride, EParamType Type, ESrcPointer Dst, int Flags) { return m_pSrc->mfGetPointer(ePT, Stride, Type, Dst, Flags); }
-	virtual bool               mfPreDraw(SShaderPass* sl)                                                              { return m_pSrc->mfPreDraw(sl); }
-	virtual bool               mfUpdate(InputLayoutHandle eVertFormat, int Flags, bool bTessellation = false)          { bool bRet = m_pSrc->mfUpdate(eVertFormat, Flags, bTessellation); gcpRendD3D->m_RP.m_CurVFormat = EDefaultInputLayouts::P3F_T2F_T3F; return bRet; }
-	virtual void               mfPrecache(const SShaderItem& SH)                                                       { m_pSrc->mfPrecache(SH); }
+
+	virtual bool               mfUpdate(InputLayoutHandle eVertFormat, int Flags, bool bTessellation = false)          
+	{
+		bool bRet = m_pSrc->mfUpdate(eVertFormat, Flags, bTessellation); 
+		return bRet;
+	}
+
 	virtual void               mfExport(struct SShaderSerializeContext& SC)                                            { m_pSrc->mfExport(SC); }
 	virtual int                Size()                                                                                  { return m_pSrc->Size(); }
 	virtual void               GetMemoryUsage(ICrySizer* pSizer) const                                                 { m_pSrc->GetMemoryUsage(pSizer); }
 };
 
+// OLD PIPELINE
+/*
 bool CREBaker::mfDraw(CShader* ef, SShaderPass* sfm)
 {
 	static CCryNameR triPosName("TRI_POS");
@@ -71,7 +76,7 @@ bool CREBaker::mfDraw(CShader* ef, SShaderPass* sfm)
 	Vec4 zRange(10.0f, 0.5f, 0.0f, 0.0f);
 	CD3D9Renderer* const __restrict rd = gcpRendD3D;
 
-	const bool bReverseDepth = (rd->m_RP.m_TI[rd->m_RP.m_nProcessThreadID].m_PersFlags & RBPF_REVERSE_DEPTH) != 0;
+	const bool bReverseDepth = true;
 	zRange.z = (float)m_nPhase - 0.5f;
 	zRange.w = bReverseDepth ? 1.0f : 0.0f;
 
@@ -171,7 +176,7 @@ bool CREBaker::mfDraw(CShader* ef, SShaderPass* sfm)
 		  STENCOP_ZFAIL(FSS_STENCOP_KEEP) |
 		  STENCOP_PASS(FSS_STENCOP_REPLACE);
 
-		uint32 State = rd->m_RP.m_CurState | GS_STENCIL;
+		uint32 State = gRenDev->m_RP.m_CurState | GS_STENCIL;
 
 		if (ef->m_Flags & EF_DECAL)
 		{
@@ -192,9 +197,9 @@ bool CREBaker::mfDraw(CShader* ef, SShaderPass* sfm)
 			SMeshTangents* pInTangents = pInputMesh->GetStreamPtr<SMeshTangents>(CMesh::TANGENTS);
 			SMeshColor* pInColors = pInputMesh->GetStreamPtr<SMeshColor>(CMesh::COLORS_0);
 			Matrix44* pTexMtx = NULL;
-			if (rd->m_RP.m_pShaderResources)
+			if (gRenDev->m_RP.m_pShaderResources)
 			{
-				SEfResTexture* pTex = rd->m_RP.m_pShaderResources->GetTexture(0);
+				SEfResTexture* pTex = gRenDev->m_RP.m_pShaderResources->GetTexture(0);
 				if (pTex && pTex->IsHasModificators())
 				{
 					SEfTexModificator* mod = pTex->m_Ext.m_pTexModifier;
@@ -203,7 +208,7 @@ bool CREBaker::mfDraw(CShader* ef, SShaderPass* sfm)
 			}
 
 			float textureBakeLoopTimer = gEnv->pTimer->GetAsyncCurTime();
-			for (int i = 0; i < rd->m_RP.m_RendNumIndices / 3; i++)
+			for (int i = 0; i < gRenDev->m_RP.m_RendNumIndices / 3; i++)
 			{
 				Vec4 triPos[3];
 				Vec4 triUV[3];
@@ -212,7 +217,7 @@ bool CREBaker::mfDraw(CShader* ef, SShaderPass* sfm)
 
 				for (int t = 0; t < 3; t++)
 				{
-					vtx_idx idx = pInIndices[rd->m_RP.m_FirstIndex + i * 3 + t];
+					vtx_idx idx = pInIndices[gRenDev->m_RP.m_FirstIndex + i * 3 + t];
 					triPos[t].x = pInPos[idx].x;
 					triPos[t].y = pInPos[idx].y;
 					triPos[t].z = pInPos[idx].z;
@@ -257,13 +262,13 @@ bool CREBaker::mfDraw(CShader* ef, SShaderPass* sfm)
 							pCurVS->mfSetParametersPB();
 							pCurPS->mfSetParametersPB();
 						}
-						rd->m_RP.m_pShader->FXSetVSFloat(triPosName, triPos, 3);
-						rd->m_RP.m_pShader->FXSetPSFloat(triPosName, triPos, 3);
-						rd->m_RP.m_pShader->FXSetPSFloat(triUVName, triUV, 3);
-						rd->m_RP.m_pShader->FXSetPSFloat(triZRange, &zRange, 1);
-						rd->m_RP.m_pShader->FXSetPSFloat(triTangName, triTangents[0], 3);
-						rd->m_RP.m_pShader->FXSetPSFloat(triBiNormName, triTangents[1], 3);
-						rd->m_RP.m_pShader->FXSetPSFloat(triColorName, triColor, 3);
+						gRenDev->m_RP.m_pShader->FXSetVSFloat(triPosName, triPos, 3);
+						gRenDev->m_RP.m_pShader->FXSetPSFloat(triPosName, triPos, 3);
+						gRenDev->m_RP.m_pShader->FXSetPSFloat(triUVName, triUV, 3);
+						gRenDev->m_RP.m_pShader->FXSetPSFloat(triZRange, &zRange, 1);
+						gRenDev->m_RP.m_pShader->FXSetPSFloat(triTangName, triTangents[0], 3);
+						gRenDev->m_RP.m_pShader->FXSetPSFloat(triBiNormName, triTangents[1], 3);
+						gRenDev->m_RP.m_pShader->FXSetPSFloat(triColorName, triColor, 3);
 						rd->FX_Commit();
 						rd->FX_DrawPrimitive(eptTriangleList, pSubSet.nFirstIndexId, pSubSet.nNumIndices);
 					}
@@ -296,7 +301,9 @@ bool CREBaker::mfDraw(CShader* ef, SShaderPass* sfm)
 
 	return true;
 }
+*/
 
+/*
 struct CompareRendItemMeshBaker
 {
 	bool operator()(const SRendItem& a, const SRendItem& b) const
@@ -336,6 +343,7 @@ struct CompareRendItemMeshBaker
 		return (a.ObjSort & 0xFFFF) < (b.ObjSort & 0xFFFF);   // Sort by distance
 	}
 };
+*/
 
 static void PatchShaderItemRecurse(IMaterial* pDst, IMaterial* pMat)
 {
@@ -386,6 +394,9 @@ static void EtchAlphas(std::vector<IIndexedMesh*> outputList, IMaterial* pMateri
 		vtx_idx* pOutIndices = pOutputMesh->GetStreamPtr<vtx_idx>(CMesh::INDICES);
 		SMeshTexCoord* pOutTexCoords = pOutputMesh->GetStreamPtr<SMeshTexCoord>(CMesh::TEXCOORDS);
 
+		// OLD PIPELINE
+		ASSERT_LEGACY_PIPELINE
+		/*
 		{
 			TempDynVB<SVF_P3F_T2F_T3F> vb;
 			vb.Allocate(numOutputTriangles * 3);
@@ -432,11 +443,16 @@ static void EtchAlphas(std::vector<IIndexedMesh*> outputList, IMaterial* pMateri
 				Sleep(1);
 			}
 		}
+		*/
 	}
 }
 
-static bool Dilate(CTexture* pTex, CTexture* pOutput, int nPhase, std::vector<IIndexedMesh*> pInputIndexedMesh, IMaterial* pMaterial, const SMeshBakingMaterialParams* params, int numParams, SDepthTexture* pDepthStencil, const SMeshBakingInputParams* pInputParams)
+static bool Dilate(CTexture* pTex, CTexture* pOutput, int nPhase, std::vector<IIndexedMesh*> pInputIndexedMesh, IMaterial* pMaterial, const SMeshBakingMaterialParams* params, int numParams, CTexture* pDepthStencil, const SMeshBakingInputParams* pInputParams)
 {
+	// OLD PIPELINE
+	ASSERT_LEGACY_PIPELINE
+
+/*
 	CD3D9Renderer* const __restrict rd = gcpRendD3D;
 	PROFILE_LABEL_SCOPE("BakeMeshDilate");
 	static CCryNameR missColourName("MISSCOLOUR");
@@ -490,7 +506,7 @@ static bool Dilate(CTexture* pTex, CTexture* pOutput, int nPhase, std::vector<II
 		rd->FX_SetStencilState(nStencilState, 0, 0xFFFFFFFF, 0xFFFFFFFF);
 		rd->FX_SetState(GS_NODEPTHTEST | GS_STENCIL);
 		pSH->FXBeginPass(nPassPassthrough);
-		CTexture::s_ptexWhite->Apply(0);
+		CRendererResources::s_ptexWhite->Apply(0);
 		pSH->FXSetPSFloat(tintColourName, &missColour, 1);
 		rd->FX_Commit();
 		rd->DrawQuad(0.0f, 0.0f, 1.0f, 1.0f, ColorF(1, 1, 1, 1));
@@ -547,9 +563,9 @@ static bool Dilate(CTexture* pTex, CTexture* pOutput, int nPhase, std::vector<II
 		rd->FX_PushRenderTarget(0, pTex, pDepthStencil);
 		int nStencilState = STENC_FUNC(FSS_STENCFUNC_EQUAL) | STENCOP_FAIL(FSS_STENCOP_KEEP) | STENCOP_ZFAIL(FSS_STENCOP_KEEP) | STENCOP_PASS(FSS_STENCOP_KEEP);
 		rd->FX_SetStencilState(nStencilState, 0, 0xFFFFFFFF, 0xFFFFFFFF);
-		rd->FX_SetState(GS_NODEPTHTEST | GS_STENCIL | GS_COLMASK_A);
+		rd->FX_SetState(GS_NODEPTHTEST | GS_STENCIL | GS_NOCOLMASK_RGB);
 		pSH->FXBeginPass(nPassPassthrough);
-		CTexture::s_ptexWhite->Apply(0);
+		CRendererResources::s_ptexWhite->Apply(0);
 		pSH->FXSetPSFloat(tintColourName, &zeroAlpha, 1);
 		rd->FX_Commit();
 		EtchAlphas(pInputIndexedMesh, pMaterial, params, numParams);
@@ -574,6 +590,8 @@ static bool Dilate(CTexture* pTex, CTexture* pOutput, int nPhase, std::vector<II
 	rd->FX_ResetPipe();
 	pTemp->Release();
 	pSH->Release();
+
+	*/
 	return true;
 }
 
@@ -717,14 +735,13 @@ bool CD3D9Renderer::BakeMesh(const SMeshBakingInputParams* pInputParams, SMeshBa
 			pBakeMaterial.push_back(PatchMaterial(*it)); // Replace current shader with MeshBake
 		}
 
-		SDepthTexture* pTmpDepthSurface = FX_GetDepthSurface(outputWidth, outputHeight, false);
+		CTexture* pTmpDepthSurface = CreateDepthTarget(outputWidth, outputHeight, Clr_Empty, eTF_Unknown);
 		if (!pTmpDepthSurface)
 		{
 			CryLog("BakeMesh: Failed as temporary depth surface could not be created of size %dx%d\n", outputWidth, outputHeight);
 			CRenderer::CV_r_shadersasynccompiling = cachedShaderCompileCvar;
 			return false;
 		}
-		CTexture* pHighPrecisionBuffer[3], * pOutputBuffer[3];
 
 		PROFILE_LABEL_SCOPE("BakeMesh");
 
@@ -737,9 +754,13 @@ bool CD3D9Renderer::BakeMesh(const SMeshBakingInputParams* pInputParams, SMeshBa
 				bAlphaCutout = true;
 		}
 
+		// OLD PIPELINE
+		ASSERT_LEGACY_PIPELINE
+		/*
+		CTexture* pHighPrecisionBuffer[3], * pOutputBuffer[3];
 		for (int nPhase = 0; nPhase < 3; nPhase++)
 		{
-			const bool bReverseDepth = !!(m_RP.m_TI[m_RP.m_nProcessThreadID].m_PersFlags & RBPF_REVERSE_DEPTH);
+			const bool bReverseDepth = true;
 			ColorF Clr_Phase;
 
 			if (nPhase == 0)
@@ -752,9 +773,9 @@ bool CD3D9Renderer::BakeMesh(const SMeshBakingInputParams* pInputParams, SMeshBa
 			char uniqueName[128];
 			const char* suffix[3] = { "Albedo", "Normal", "Refl" };
 			cry_sprintf(uniqueName, "MeshBaker_16Bit%s_%d%s", suffix[nPhase], pInputParams->nLodId, bAlphaCutout ? "_alpha" : "");
-			pHighPrecisionBuffer[nPhase] = CTexture::GetOrCreateRenderTarget(uniqueName, outputWidth, outputHeight, Clr_Phase, eTT_2D, FT_STATE_CLAMP, eTF_R16G16B16A16F /*, -1, 95*/);
+			pHighPrecisionBuffer[nPhase] = CTexture::GetOrCreateRenderTarget(uniqueName, outputWidth, outputHeight, Clr_Phase, eTT_2D, FT_STATE_CLAMP, eTF_R16G16B16A16F ); // , -1, 95
 			cry_sprintf(uniqueName, "MeshBaker_8Bit%s_%d%s", suffix[nPhase], pInputParams->nLodId, bAlphaCutout ? "_alpha" : "");
-			pOutputBuffer[nPhase] = CTexture::GetOrCreateRenderTarget(uniqueName, outputWidth, outputHeight, Clr_Phase, eTT_2D, FT_STATE_CLAMP | FT_STAGE_READBACK, eTF_R8G8B8A8 /*, -1, 95*/);
+			pOutputBuffer[nPhase] = CTexture::GetOrCreateRenderTarget(uniqueName, outputWidth, outputHeight, Clr_Phase, eTT_2D, FT_STATE_CLAMP | FT_STAGE_READBACK, eTF_R8G8B8A8 ); // , -1, 95
 
 			PROFILE_LABEL_SCOPE(suffix[nPhase]);
 
@@ -770,7 +791,7 @@ bool CD3D9Renderer::BakeMesh(const SMeshBakingInputParams* pInputParams, SMeshBa
 			FX_PreRender(3);
 
 			SRenderPipeline& RESTRICT_REFERENCE rRP = m_RP;
-			rRP.m_pRenderFunc = FX_FlushShader_General;
+			rRP.m_pRenderFunc = nullptr;//FX_FlushShader_General;
 			rRP.m_nPassGroupID = EFSLIST_GENERAL;
 			rRP.m_nPassGroupDIP = rRP.m_nPassGroupID;
 			FX_StartBatching();
@@ -855,7 +876,9 @@ bool CD3D9Renderer::BakeMesh(const SMeshBakingInputParams* pInputParams, SMeshBa
 					FX_Start(pShader, nTech, pRes, &wrappedRE);
 					wrappedRE.mfPrepare(true);
 					rRP.m_RIs[0].AddElem(&ri[i]);
-					FX_FlushShader_General();
+					// OLD PIPELINE
+					// TODO fix it
+					//FX_FlushShader_General();
 				}
 			}
 
@@ -889,7 +912,9 @@ bool CD3D9Renderer::BakeMesh(const SMeshBakingInputParams* pInputParams, SMeshBa
 			pReturnValues->ppOuputTexture[i] = pOutputBuffer[i];
 			pReturnValues->ppIntermediateTexture[i] = pHighPrecisionBuffer[i];
 		}
+		*/
 
+		SAFE_RELEASE(pTmpDepthSurface);
 		CRenderer::CV_r_shadersasynccompiling = cachedShaderCompileCvar;
 
 #if defined(CREATE_RENDERDOC_CAPTURE)

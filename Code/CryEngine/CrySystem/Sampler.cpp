@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   Sampler.h
@@ -148,7 +148,7 @@ void CSamplingThread::Run()
 		if (!m_pSampler->AddSample(ip))
 			break;
 
-		Sleep(m_samplePeriodMs);
+		CrySleep(m_samplePeriodMs);
 	}
 }
 

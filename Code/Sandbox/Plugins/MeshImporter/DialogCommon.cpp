@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "DialogCommon.h"
@@ -201,6 +201,8 @@ bool CBaseDialog::SaveAs(const QString& targetFilePath)
 		return false;
 	}
 
+	GetIEditor()->GetSystem()->GetIPak()->MakeDir(PathUtil::GetDirectory(ctx.targetFilePath.c_str()));
+
 	const string absMetaSrcPath = 
 		m_sceneData->pAsset
 		? PathUtil::Make(PathUtil::GetGameProjectAssetsPath(), m_sceneData->pAsset->GetMetadataFile())
@@ -238,9 +240,22 @@ void CBaseDialog::dragEnterEvent(QDragEnterEvent* pEvent)
 {
 	auto pDragDropData = CDragDropData::FromMimeData(pEvent->mimeData());
 	const QStringList filePaths = pDragDropData->GetFilePaths();
-	if (!filePaths.empty())
+	if (filePaths.size() != 1)
 	{
-		pEvent->acceptProposedAction();
+		return;
+	}
+
+	const string fileExtension(PathUtil::GetExt(QtUtil::ToString(filePaths.first())));
+
+	FbxTool::TIndex numExtensions;
+	const char* const* const ppExtensions = FbxTool::GetSupportedFileExtensions(numExtensions);
+	for (FbxTool::TIndex i = 0; i < numExtensions; ++i)
+	{
+		if (fileExtension.CompareNoCase(ppExtensions[i]) == 0)
+		{
+			pEvent->acceptProposedAction();
+			break;
+		}
 	}
 }
 
@@ -369,6 +384,8 @@ bool CBaseDialog::OnImportFile()
 	{
 		return false;
 	}
+
+	OnCloseAsset();
 
 	ImportFile(filePath);
 
@@ -630,3 +647,4 @@ QString ReplaceExtension(const QString& str, const char* ext)
 }
 
 } // namespace MeshImporter
+

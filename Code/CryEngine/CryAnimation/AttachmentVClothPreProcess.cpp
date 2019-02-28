@@ -1,71 +1,23 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include <CryMath/Cry_Math.h>
 #include <CryPhysics/primitives.h>
 #include "../CryPhysics/quotient.h"
 #include "AttachmentVClothPreProcess.h"
+#include "AttachmentVClothPreProcessDijkstra.h"
 
-// boost is needed here for path finding algorithm over mesh (i.e., dijkstra)
-#include <iostream>
-#include <fstream>
-#include "CryCore/BoostHelpers.h"
-
-// suppress warning from boost on MSVC: warning C4172: returning address of local variable or temporary
-// warning suppression has to go outside of the function to take effect.
-#ifdef CRY_PLATFORM_WINDOWS
-	#pragma warning(push)
-	#pragma warning(disable: 4172)
-#endif
-#ifdef CRY_PLATFORM_DURANGO
-	#pragma warning(push)
-	#pragma warning(disable: 4172)
-#endif
-
-#include <boost/config.hpp>
-#include <boost/graph/graph_traits.hpp>
-// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-// !! the following fixes compiling problems with boost on orbis (i.e. include path problems with <boost/predef/other/endian.h>) :
-// !! orbis defines __FreeBSD__, but boost needs __Open_BSD__ defined to include <boost/predef/other/endian.h> within "adjacency_list.hpp" properly
-// !! might/SHOULD be removed if boost is updated and has fixed that problem
-// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-#if CRY_PLATFORM_ORBIS
-	#ifdef __FreeBSD__
-		#undef __FreeBSD__
-		#define __OpenBSD__
-		#define RESET__FreeBSD__
-	#endif
-	#include <boost/predef/other/endian.h>
-	#ifdef RESET__FreeBSD__
-		#define __FreeBSD__
-		#undef __OpenBSD__
-		#undef RESET__FreeBSD__
-		#undef BOOST_OS_BSD_OPEN
-		#undef BOOST_OS_BSD
-		#undef __OPEN_BSD__
-	#endif
-#endif
-#include <boost/graph/adjacency_list.hpp>
-#include <boost/graph/dijkstra_shortest_paths.hpp>
-
-#ifdef CRY_PLATFORM_WINDOWS
-	#pragma warning(pop)
-#endif
-#ifdef CRY_PLATFORM_DURANGO
-	#pragma warning(pop)
-#endif
-///////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
 
 bool AttachmentVClothPreProcess::PreProcess(std::vector<Vec3> const& vtx, std::vector<int> const& idx, std::vector<bool> const& attached)
 {
 	bool valid = true;
 
 	// init data structures
-	m_lra.resize(vtx.size());
+	m_nndc.resize(vtx.size());
 
 	// preprocess
-	LraDijkstra(vtx, idx, attached);
+	NndcDijkstra(vtx, idx, attached);
 	BendByTriangleAngle(vtx, idx, attached);
 	CreateLinks(vtx, idx);
 
@@ -79,177 +31,121 @@ bool AttachmentVClothPreProcess::PreProcess(std::vector<Vec3> const& vtx, std::v
 	return valid;
 }
 
-bool AttachmentVClothPreProcess::LraDijkstra(std::vector<Vec3> const& vtx, std::vector<int> const& idx, std::vector<bool> const& attached)
+//////////////////////////////////////////////////////////////////////////
+
+namespace {
+	inline void AddEdge(GraphDijkstra<float>& g, const int* tri, std::vector<Vec3> const& vtx, int idx0, int idx1)
+	{
+		const int i0 = tri[idx0];
+		const int i1 = tri[idx1];
+		const float distance = (vtx[i0] - vtx[i1]).GetLengthFast();
+		g.AddEdge(i0, i1, distance);
+	}
+}
+
+bool AttachmentVClothPreProcess::NndcDijkstra(std::vector<Vec3> const& vtx, std::vector<int> const& idx, std::vector<bool> const& attached)
 {
-	using namespace boost;
-
-	typedef adjacency_list<listS, vecS, undirectedS,
-	                       boost::property<boost::vertex_index_t, int>, property<edge_weight_t, float>> graph_t;
-	typedef graph_traits<graph_t>::vertex_descriptor vertex_descriptor;
-	typedef std::pair<int, int>                      Edge;
-
 	int nVtx = (int)vtx.size();
 	int nTriangles = (int)idx.size() / 3;
-	int nEdges = (int)idx.size();
 
-	// generate data structure for Dijkstra
+	// generate data structure for dijkstra
+	const int nNodes = nVtx;
+	const int source = nNodes;
+
+	GraphDijkstra<float> g(nNodes, 0, nNodes);
 
 	// add edges of all triangles
-	std::vector<Edge> edgeArray;
-	edgeArray.reserve(nEdges);
 	const int* tri = &idx[0];
-	for (int i = 0; i < nTriangles; i++)
+	for (int i = 0; i < nTriangles; ++i)
 	{
 		int idx = i * 3;
-		edgeArray.push_back(Edge(tri[idx], tri[idx + 1]));
-		edgeArray.push_back(Edge(tri[idx + 1], tri[idx + 2]));
-		edgeArray.push_back(Edge(tri[idx], tri[idx + 2]));
+		AddEdge(g, tri, vtx, idx, idx + 1);
+		AddEdge(g, tri, vtx, idx + 1, idx + 2);
+		AddEdge(g, tri, vtx, idx, idx + 2);
 	}
 
-	// fill weights with length of edges
-	std::vector<float> weights;
-	weights.reserve(edgeArray.size());
-	for (auto it = edgeArray.begin(); it != edgeArray.end(); ++it)
+	// create list of attached vertices
+	std::vector<uint32> listAttachedVertices;
+	for (int idx = 0; idx < nVtx; ++idx) 
 	{
-		const float distance = (vtx[(*it).first] - vtx[(*it).second]).GetLengthFast();
-		weights.push_back(distance);
+		if (attached[idx]) listAttachedVertices.push_back(idx);
 	}
 
-	// add one special node with weight 0, which is connected to all attached vtx
-	// this is later on used as source, thus, multiple sources can be actually handled, which is not possible directly with boost::dijkstra
-	for (int i = 0; i < nVtx; i++)
+	// run dijkstra
+	g.FindShortestPaths(listAttachedVertices);
+	auto const& results = g.Results();
+
+	// init per-vertex-data with results from dijkstra or (in case of islands) with default values
+	for (int idx = 0; idx < nVtx; ++idx)
 	{
-		if (attached[i])
+		assert(idx < results.size() && idx < m_nndc.size());
+
+		const int& nextParent = results[idx].nextNodeIdOnShortestPath;
+		const float& distanceToAttachedVtx = results[idx].weightTotal;
+
+		m_nndc[idx].nndcNextParent = -1;
+		if (idx == source) continue;     // this is the source node, not existing in m_particlesHot, since added for graph traversing reasons, thus, do nothing
+		if (idx == nextParent) continue; // this is the source node or something went wrong, do nothing
+		m_nndc[idx].nndcDist = 0;          // default: no nndc, i.e. no path existing / disconnected parts
+		m_nndc[idx].nndcIdx = -1;          // default: no nndc, i.e. no path existing / disconnected parts
+		m_nndc[idx].nndcNextParent = nextParent;
+		if (distanceToAttachedVtx < 0.001f) continue;         // this is an attached vtx, thus, no nndc
+		if (distanceToAttachedVtx > std::numeric_limits<float>::max() * 0.5f) continue; // no path existing, disconnected mesh, thus, no nndc
+
+		// if we are here a path has been found
+		m_nndc[idx].nndcDist = distanceToAttachedVtx;
+		m_nndc[idx].nndcNextParent = nextParent;
+		m_nndc[idx].nndcIdx = 0; // this enables later the search for the closest attached constraint
+	}
+
+	// all paths are set, thus, search for each particle the closest attached vtx by walking the whole path until next parent equals 'source'
+	nVtx = vtx.size();
+	for (int idx = 0; idx < nVtx; idx++)
+	{
+		if (attached[idx]) continue;
+		if (m_nndc[idx].nndcIdx == -1) continue; // no path available, (-1 is default value, see above)
+		int actualNode = idx;
+		while (m_nndc[actualNode].nndcNextParent != source)
 		{
-			edgeArray.push_back(Edge(nVtx, i));
-			weights.push_back(0.0f);
+			int nextParentNode = m_nndc[actualNode].nndcNextParent;
+			assert(nextParentNode >= 0);
+			assert(nextParentNode < nVtx); // +1 // +1 due to source
+			actualNode = nextParentNode;
 		}
-	}
-	// update sizes
-	nVtx += 1;
-	nEdges = (int)edgeArray.size();
-
-	// init graph
-	{
-		graph_t g(&edgeArray[0], &edgeArray[0] + edgeArray.size(), &weights[0], nVtx);
-
-		// acquire containers for dijkstra-results, i.e. direct-neighbor-parent and distance
-		property_map<graph_t, edge_weight_t>::type weightmap = get(edge_weight, g);
-		std::vector<vertex_descriptor> p(num_vertices(g)); // will take each vtx next parent
-		std::vector<float> d(num_vertices(g));             // will take distance to source
-		int source = nVtx - 1;
-		vertex_descriptor s = vertex(source, g);
-
-		// search shortest paths
-		dijkstra_shortest_paths(g, s,
-		                        predecessor_map(boost::make_iterator_property_map(p.begin(), get(boost::vertex_index, g))).
-		                        distance_map(boost::make_iterator_property_map(d.begin(), get(boost::vertex_index, g))));
-
-		// store best source & distance to that one
-		{
-			graph_traits<graph_t>::vertex_iterator vi, vend;
-			for (std::tie(vi, vend) = vertices(g); vi != vend; ++vi)
-			{
-				const int idx = *vi;
-
-				bool _continue = false;
-				if (idx < 0) _continue = true;
-				if (idx >= d.size()) _continue = true;
-				if (idx >= p.size()) _continue = true;
-				if (idx >= *vend) _continue = true;
-				if (idx >= m_lra.size()) _continue = true; // this occurs, since size of m_lra is one less than the others
-
-				if (_continue)
-				{
-					// CryWarning(VALIDATOR_MODULE_ANIMATION, VALIDATOR_WARNING, "[Cloth] LraDijkstra::CONTINUE due to idx out of range:: %i   # %i,%i,%i,%i[d.size,p.size,*vend,m_lra.size()]", idx, d.size(), p.size(), *vend, m_lra.size());
-					continue;
-				}
-
-				assert(idx < *vend);
-				assert(idx < d.size());
-				const float distance = d[idx];
-				const int nextParent = p[idx];
-
-				m_lra[idx].lraNextParent = -1;
-				if (idx == source) continue;     // this is the source node, not existing in m_particlesHot, since added for graph traversing reasons, thus, do nothing
-				if (idx == nextParent) continue; // this is the source node or something went wrong, do nothing
-				m_lra[idx].lraDist = 0;          // default: no lra, i.e. no path existing / disconnected parts
-				m_lra[idx].lraIdx = -1;          // default: no lra, i.e. no path existing / disconnected parts
-				m_lra[idx].lraNextParent = nextParent;
-				if (distance < 0.001f) continue;         // this is an attached vtx, thus, no lra
-				if (distance > FLT_MAX * 0.5f) continue; // no path existing, disconnected mesh, thus, no lra
-
-				// if we are here a path has been found
-				m_lra[idx].lraDist = distance;
-				m_lra[idx].lraNextParent = nextParent;
-				m_lra[idx].lraIdx = 0; // this enables later the search for the closest attached constraint
-			}
-		}
-
-		// all paths are set, thus, search for each particle the closest attached vtx by walking the whole path until next parent equals 'source'
-		nVtx = vtx.size();
-		for (int idx = 0; idx < nVtx; idx++)
-		{
-			if (attached[idx]) continue;
-			if (m_lra[idx].lraIdx == -1) continue; // no path available, (-1 is default value, see above)
-			int actualNode = idx;
-			while (m_lra[actualNode].lraNextParent != source)
-			{
-				int nextParentNode = m_lra[actualNode].lraNextParent;
-				assert(nextParentNode >= 0);
-				assert(nextParentNode < nVtx); // +1 // +1 due to source
-				actualNode = nextParentNode;
-			}
-			m_lra[idx].lraIdx = actualNode;
-		}
-
-		// free by hand to let boost be faster
-		g.m_edges.clear();
-		g.m_vertices.clear();
-		g.m_edges.resize(0);
-		g.m_vertices.resize(0);
-		g.clear();
-		stl::free_container(p);
-		stl::free_container(d);
+		m_nndc[idx].nndcIdx = actualNode;
 	}
 
-	// extension: sort by distance
+	// sort by distance
 	{
-		// 1. sort not attached particles by distance to attachment
+		// sort not attached particles by distance to attachment
 		struct MyClassSort
 		{
 			int   idx;
 			float dist;
 			MyClassSort(int _idx, float _dist) : idx(_idx), dist(_dist)
-			{
-			}
+			{}
 		};
 		std::vector<MyClassSort> myClassSortList;
 		myClassSortList.reserve(nVtx);
 		for (int i = 0; i < nVtx; i++)
 		{
 			if (attached[i]) continue;
-			myClassSortList.push_back(MyClassSort(i, m_lra[i].lraDist));
+			myClassSortList.push_back(MyClassSort(i, m_nndc[i].nndcDist));
 		}
 		std::sort(myClassSortList.begin(), myClassSortList.end(), [](const MyClassSort& a, const MyClassSort& b) { return a.dist < b.dist; });
-		// copy list of indices to m_lraNotAttachedOrderedIdx
-		m_lraNotAttachedOrderedIdx.clear();
-		m_lraNotAttachedOrderedIdx.reserve(myClassSortList.size());
-		for (auto it = myClassSortList.begin(); it != myClassSortList.end(); ++it)
+		// copy list of indices to m_nndcNotAttachedOrderedIdx
+		m_nndcNotAttachedOrderedIdx.clear();
+		m_nndcNotAttachedOrderedIdx.reserve(myClassSortList.size());
+		for (const auto& it : myClassSortList)
 		{
-			m_lraNotAttachedOrderedIdx.push_back((*it).idx);
+			m_nndcNotAttachedOrderedIdx.push_back(it.idx);
 		}
 
-		stl::free_container(myClassSortList); // assist VC memory management
 	}
-
-	stl::free_container(edgeArray); // assist VC memory management
-	stl::free_container(weights);   // assist VC memory management
 
 	return true;
 }
 
-//////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 
 namespace VClothPreProcessUtils
@@ -362,10 +258,23 @@ static inline float BendDetermineAngle(const Vec3& n0, const Vec3& n1, const Vec
 }
 }
 
+namespace
+{
+	class hashPairIntInt
+	{
+	public:
+		size_t operator()(const std::pair< int, int> &x) const
+		{
+			size_t h = std::hash<int>()(x.first) ^ std::hash<int>()(x.second);
+			return  h;
+		}
+	};
+}
+
 bool AttachmentVClothPreProcess::BendByTriangleAngle(std::vector<Vec3> const& vtx, std::vector<int> const& idx, std::vector<bool> const& attached)
 {
 	typedef std::pair<int, int> BendEdge;
-	std::unordered_set<BendEdge, boost::hash<std::pair<int, int>>> edgeDone;
+	std::unordered_set<BendEdge, hashPairIntInt> edgeDone;
 	std::unordered_map<int, int> mapTriangleIdxToListBendTrianglesIdx;
 	m_listBendTrianglePairs.clear();
 	m_listBendTriangles.clear();

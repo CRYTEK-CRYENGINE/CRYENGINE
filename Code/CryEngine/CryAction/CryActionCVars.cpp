@@ -1,11 +1,10 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "CryActionCVars.h"
 #include <CryAISystem/IAIRecorder.h>
 #include "Serialization/XmlSerializeHelper.h"
 #include "Network/GameContext.h"
-#include "SegmentedWorld/SegmentedWorld.h"
 
 CCryActionCVars* CCryActionCVars::s_pThis = 0;
 
@@ -79,16 +78,7 @@ CCryActionCVars::CCryActionCVars()
 	REGISTER_COMMAND("g_saveLoadDumpEntity", DumpEntitySerializationData, 0, "Print to console the xml data saved for a specified entity");
 	REGISTER_COMMAND("g_dumpClassRegistry", DumpClassRegistry, 0, "Print to console the list of classes and their associated ids");
 
-	REGISTER_CVAR(sw_gridSize, 6, 0, "Number of active grids in both column and line for segmented world");
-	REGISTER_CVAR(sw_debugInfo, 1, 0, "Segmented World Debug Info (0=disable, 1=grid, 2=position, 3=memory, 4=color-coded object, 5=seg index, 6=seg index with layer info)");
-	REGISTER_INT("sw_draw_bbox", 1, 0, "Draw bounding box for segments.\nDefault is 1.\n");
-
 	REGISTER_CVAR2("g_enableMergedMeshRuntimeAreas", &g_enableMergedMeshRuntimeAreas, 0, VF_CHEAT | VF_REQUIRE_APP_RESTART, "Enables the Merged Mesh cluster generation and density precalculations at game/level load");
-
-	if (!gEnv->IsEditor())
-	{
-		REGISTER_COMMAND("sw", SWCommandHandler, VF_CHEAT, "Control segmented world, use 'sw help' for more info");
-	}
 }
 
 CCryActionCVars::~CCryActionCVars()
@@ -191,93 +181,4 @@ void CCryActionCVars::DumpClassRegistry(IConsoleCmdArgs* pArgs)
 	{
 		CryLogAlways("Unable to dump class registry, game context is NULL");
 	}
-}
-
-void CCryActionCVars::SWCommandHandler(IConsoleCmdArgs* pArgs)
-{
-	IConsole* pCon = GetISystem()->GetIConsole();
-	int nArg = pArgs->GetArgCount();
-	if (nArg <= 1)
-	{
-		return;
-	}
-	const char* pcmd = pArgs->GetArg(1);
-
-	const char* pcCmds[1024];
-	const char* pcHelps[1024];
-	int nCmds = 0;
-
-#define CMD(cmd, help)   \
-  pcCmds[nCmds] = cmd;   \
-  pcHelps[nCmds] = help; \
-  ++nCmds;               \
-  if (!strcmpi(pcmd, cmd))
-
-	CMD("goto", "[x, y]- move the player to segment(x, y), goto [Spawnpoint] - move the player to the specified spawn point")
-	{
-		if (nArg < 3)
-		{
-			gEnv->pLog->LogToConsole("Invalid arguments");
-			return;
-		}
-
-		int iArgCount = pArgs->GetArgCount();
-		int x, y;
-		char name[1024];
-		if ((iArgCount == 4)
-		    && sscanf(pArgs->GetArg(2), "%d", &x) == 1
-		    && sscanf(pArgs->GetArg(3), "%d", &y) == 1
-		    )
-		{
-			CCryAction::GetCryAction()->GoToSegment(x, y);
-		}
-		else if ((iArgCount == 3)
-		         && sscanf(pArgs->GetArg(2), "%1023s", name) == 1 // 1024-1 as the maximum field width does not include the terminating null byte.
-		         )
-		{
-			IEntity* pSpawnPointEnt = gEnv->pEntitySystem->FindEntityByName(name);
-			if (pSpawnPointEnt)
-			{
-				ray_hit hit;
-				IEntity* pClientEntity = gEnv->pGameFramework->GetClientEntity();
-				if (!gEnv->pGameFramework->GetClientEntity() || (gEnv->pGameFramework->GetClientEntity()->IsActivatedForUpdates() == false))
-					return;
-
-				AABB wBox;
-				pClientEntity->GetWorldBounds(wBox);
-				Vec3 origin = pSpawnPointEnt->GetPos() + Vec3(0, 0, wBox.max.z - wBox.min.z);
-				Vec3 dest = pSpawnPointEnt->GetPos();
-				IPhysicalEntity* pSkip = pClientEntity->GetPhysics();
-				Vec3 direction(0, 0, -1);
-				IPhysicalWorld* pWorld = gEnv->pPhysicalWorld;
-				int numHits = pWorld->RayWorldIntersection(
-				  origin,
-				  direction,
-				  ent_all,
-				  rwi_stop_at_pierceable | rwi_colltype_any,
-				  &hit, 1,
-				  &pSkip, 1);
-
-				if (hit.pt.z > dest.z)
-				{
-					dest.z = hit.pt.z + 0.001f;
-				}
-
-				Matrix34 tm = pClientEntity->GetWorldTM();
-				tm.SetTranslation(dest);
-				pClientEntity->SetWorldTM(tm);
-			}
-			return;
-		}
-
-		if (!strcmpi(pcmd, "help"))
-		{
-			gEnv->pLog->LogToConsole("Available SW Doc commands:");
-			for (int i = 0; i < nCmds; ++i)
-				gEnv->pLog->LogToConsole("  %s %s", pcCmds[i], pcHelps[i]);
-			return;
-		}
-	}
-
-	gEnv->pLog->LogToConsole("Unknown command: %s", pcmd);
 }

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "3dEngine.h"
@@ -13,9 +13,11 @@
 #include "ClipVolumeManager.h"
 #include "ShadowCache.h"
 
+#pragma warning(push)
 #pragma warning(disable: 4244)
 
 PodArray<SPlaneObject> CLightEntity::s_lstTmpCastersHull;
+std::vector<std::pair<ShadowMapFrustum*, const CLightEntity*>>* CLightEntity::s_pShadowFrustumsCollector;
 
 #define MIN_SHADOW_RES_OMNI_LIGHT 64
 #define MIN_SHADOW_RES_PROJ_LIGHT 128
@@ -25,11 +27,16 @@ void CLightEntity::StaticReset()
 	stl::free_container(s_lstTmpCastersHull);
 }
 
-void CLightEntity::InitEntityShadowMapInfoStructure()
+void CLightEntity::InitEntityShadowMapInfoStructure(int dynamicLods, int cachedLods)
 {
 	// Init ShadowMapInfo structure
 	if (!m_pShadowMapInfo)
-		m_pShadowMapInfo = new ShadowMapInfo(); // leak
+	{
+		m_pShadowMapInfo = std::make_shared<ShadowMapInfo>();
+	}
+
+	m_pShadowMapInfo->dynamicLodCount = dynamicLods;
+	m_pShadowMapInfo->cachedLodCount = cachedLods;
 }
 
 CLightEntity::CLightEntity()
@@ -37,8 +44,7 @@ CLightEntity::CLightEntity()
 	m_layerId = ~0;
 
 	m_bShadowCaster = false;
-	m_pShadowMapInfo = NULL;
-	m_pNotCaster = NULL;
+	m_pNotCaster = nullptr;
 
 	memset(&m_Matrix, 0, sizeof(m_Matrix));
 
@@ -55,17 +61,6 @@ CLightEntity::~CLightEntity()
 	((C3DEngine*)Get3DEngine())->FreeLightSourceComponents(&m_light, false);
 
 	((C3DEngine*)Get3DEngine())->RemoveEntityLightSources(this);
-
-	// delete shadow frustums
-	if (m_pShadowMapInfo)
-	{
-		for (int nLod = 0; nLod < MAX_GSM_LODS_NUM; nLod++)
-		{
-			//TODO: after porting the sorting to jobs, add a sync point here to prevent deleting a ShadowFrustum which could still be used by a job
-			m_pShadowMapInfo->pGSM[nLod].reset();
-		}
-	}
-	SAFE_DELETE(m_pShadowMapInfo);
 
 	GetInstCount(GetRenderNodeType())--;
 }
@@ -118,34 +113,37 @@ bool CLightEntity::IsLightAreasVisible()
 //////////////////////////////////////////////////////////////////////////
 void CLightEntity::SetMatrix(const Matrix34& mat)
 {
-	m_Matrix = mat;
-	Vec3 wp = mat.GetTranslation();
-	if (!(m_light.m_Flags & DLF_DEFERRED_CUBEMAPS))
+	if (m_Matrix != mat)
 	{
-		float fRadius = m_light.m_fRadius;
-		if (m_light.m_Flags & DLF_AREA_LIGHT) // Use max for area lights.
-			fRadius += max(m_light.m_fAreaWidth, m_light.m_fAreaHeight);
-		SetBBox(AABB(wp - Vec3(fRadius), wp + Vec3(fRadius)));
-	}
-	else
-	{
-		OBB obb(OBB::CreateOBBfromAABB(Matrix33(m_Matrix), AABB(-m_light.m_ProbeExtents, m_light.m_ProbeExtents)));
-		SetBBox(AABB::CreateAABBfromOBB(wp, obb));
-	}
-	m_light.SetPosition(wp);
-	m_light.SetMatrix(mat);
-	SetLightProperties(m_light);
-	Get3DEngine()->RegisterEntity(this);
+		m_Matrix = mat;
 
-	if (!memcmp(&m_Matrix, &mat, sizeof(Matrix34)))
-		return;
+		Vec3 worldPosition = mat.GetTranslation();
 
-	//update shadow frustums
-	if (m_pShadowMapInfo != NULL)
-	{
-		for (int i = 0; i < MAX_GSM_LODS_NUM && m_pShadowMapInfo->pGSM[i] != NULL; i++)
+		if (!(m_light.m_Flags & DLF_DEFERRED_CUBEMAPS))
 		{
-			m_pShadowMapInfo->pGSM[i]->RequestUpdate();
+			float fRadius = m_light.m_fRadius;
+			if (m_light.m_Flags & DLF_AREA_LIGHT) // Use max for area lights.
+				fRadius += max(m_light.m_fAreaWidth, m_light.m_fAreaHeight);
+			SetBBox(AABB(worldPosition - Vec3(fRadius), worldPosition + Vec3(fRadius)));
+		}
+		else
+		{
+			OBB obb(OBB::CreateOBBfromAABB(Matrix33(m_Matrix), AABB(-m_light.m_ProbeExtents, m_light.m_ProbeExtents)));
+			SetBBox(AABB::CreateAABBfromOBB(worldPosition, obb));
+		}
+
+		m_light.SetPosition(mat.GetTranslation());
+		m_light.SetMatrix(mat);
+		SetLightProperties(m_light);
+		Get3DEngine()->RegisterEntity(this);
+
+		//update shadow frustums
+		if (m_pShadowMapInfo != nullptr)
+		{
+			// TODO: Invalidate() might be overkill when new light orientation is "close" to old orientation, in which case an
+			// RequestUpdate() might suffice.
+			for (int i = 0; i < MAX_GSM_LODS_NUM && m_pShadowMapInfo->pGSM[i]; i++)
+				m_pShadowMapInfo->pGSM[i]->Invalidate();
 		}
 	}
 }
@@ -155,7 +153,7 @@ void C3DEngine::UpdateSunLightSource(const SRenderingPassInfo& passInfo)
 	if (!m_pSun)
 		m_pSun = (CLightEntity*)CreateLightSource();
 
-	CDLight DynLight;
+	SRenderLight DynLight;
 
 	//	float fGSMBoxSize = (float)Get3DEngine()->m_fGsmRange;
 	//	Vec3 vCameraDir = GetCamera().GetMatrix().GetColumn(1).GetNormalized();
@@ -163,12 +161,12 @@ void C3DEngine::UpdateSunLightSource(const SRenderingPassInfo& passInfo)
 	//Vec3 vCameraDirWithoutDepth = vCameraDir - vCameraDir.Dot(vSunDir)*vSunDir;
 	//	Vec3 vFocusPos = GetCamera().GetPosition() + vCameraDirWithoutDepth*fGSMBoxSize;
 
-	DynLight.SetPosition(passInfo.GetCamera().GetPosition() + GetSunDir());  //+ vSunShadowDir;
-	DynLight.m_fRadius = 100000000;
-	DynLight.SetLightColor(GetSunColor());
-	DynLight.SetSpecularMult(GetGlobalParameter(E3DPARAM_SUN_SPECULAR_MULTIPLIER));
 	DynLight.m_Flags |= DLF_DIRECTIONAL | DLF_SUN | DLF_THIS_AREA_ONLY | DLF_LM | DLF_SPECULAROCCLUSION |
 	                    ((m_bSunShadows && passInfo.RenderShadows()) ? DLF_CASTSHADOW_MAPS : 0);
+	DynLight.SetPosition(passInfo.GetCamera().GetPosition() + GetSunDir());  //+ vSunShadowDir;
+	DynLight.SetRadius(100000000);
+	DynLight.SetLightColor(GetSunColor());
+	DynLight.SetSpecularMult(GetGlobalParameter(E3DPARAM_SUN_SPECULAR_MULTIPLIER));
 	DynLight.m_sName = "Sun";
 
 	m_pSun->SetLightProperties(DynLight);
@@ -235,6 +233,10 @@ void CLightEntity::UpdateGSMLightSourceShadowFrustum(const SRenderingPassInfo& p
 	FUNCTION_PROFILER_3DENGINE;
 
 	const int nMaxLodCount = min(GetCVars()->e_GsmLodsNum, MAX_GSM_LODS_NUM - 1);
+
+	static ICVar* pHeightMapAOVar = GetConsole()->GetCVar("r_HeightMapAO");
+	const bool isHeightMapAOEnabled = Get3DEngine()->m_bHeightMapAoEnabled && pHeightMapAOVar && pHeightMapAOVar->GetIVal() > 0;
+
 	int nDynamicLodCount = nMaxLodCount;
 	int nCachedLodCount = 0;
 
@@ -245,9 +247,16 @@ void CLightEntity::UpdateGSMLightSourceShadowFrustum(const SRenderingPassInfo& p
 		if (nFirstCachedLod >= 0)
 		{
 			nDynamicLodCount = clamp_tpl(nFirstCachedLod, 0, nMaxLodCount);
-			nCachedLodCount = nMaxLodCount - nDynamicLodCount;
+			const auto& cacheResolutions = GetRenderer()->GetCachedShadowsResolution();
+
+			while (nCachedLodCount + nDynamicLodCount < nMaxLodCount && cacheResolutions[nCachedLodCount] > 0)
+				++nCachedLodCount;
 		}
+
+		nCachedLodCount = min(nCachedLodCount, isHeightMapAOEnabled ? MAX_GSM_CACHED_LODS_NUM - 1 : MAX_GSM_CACHED_LODS_NUM);
 	}
+
+	InitEntityShadowMapInfoStructure(nDynamicLodCount, nCachedLodCount);
 
 	// update dynamic and static frustums
 	float fDistFromView = 0;
@@ -255,7 +264,7 @@ void CLightEntity::UpdateGSMLightSourceShadowFrustum(const SRenderingPassInfo& p
 
 	int nNextLod = 0;
 	nNextLod = UpdateGSMLightSourceDynamicShadowFrustum(nDynamicLodCount, nCachedLodCount, fDistFromView, fRadiusLastLod, nCachedLodCount == 0, passInfo);
-	nNextLod += UpdateGSMLightSourceCachedShadowFrustum(nDynamicLodCount, nCachedLodCount, fDistFromView, fRadiusLastLod, passInfo);
+	nNextLod += UpdateGSMLightSourceCachedShadowFrustum(nDynamicLodCount, nCachedLodCount, isHeightMapAOEnabled, fDistFromView, fRadiusLastLod, passInfo);
 	nNextLod += UpdateGSMLightSourceNearestShadowFrustum(nNextLod, passInfo);
 
 	// free not used frustums
@@ -273,17 +282,24 @@ void CLightEntity::UpdateGSMLightSourceShadowFrustum(const SRenderingPassInfo& p
 int CLightEntity::UpdateGSMLightSourceDynamicShadowFrustum(int nDynamicLodCount, int nDistanceLodCount, float& fDistanceFromViewNextDynamicLod, float& fGSMBoxSizeNextDynamicLod, bool bFadeLastCascade, const SRenderingPassInfo& passInfo)
 {
 	assert(m_pTerrain);
-	InitEntityShadowMapInfoStructure();
+
+	int nLod = 0;
+
+	if (GetCVars()->e_Shadows == 2 && (m_light.m_Flags & DLF_SUN) == 0) return nLod;
+	if (GetCVars()->e_Shadows == 3 && (m_light.m_Flags & DLF_SUN) != 0) return nLod;
 
 	float fGSMBoxSize = fGSMBoxSizeNextDynamicLod = (float)Get3DEngine()->m_fGsmRange;
 	Vec3 vCameraDir = passInfo.GetCamera().GetMatrix().GetColumn(1).GetNormalized();
 	float fDistToLight = passInfo.GetCamera().GetPosition().GetDistance(GetPos(true));
 
 	PodArray<SPlaneObject>& lstCastersHull = s_lstTmpCastersHull;
-	lstCastersHull.Clear();
+
+	if (m_light.m_Flags & DLF_SUN)
+	{
+		lstCastersHull.Clear();
+	}
 
 	// prepare shadow frustums
-	int nLod;
 
 	//compute distance for first LOD
 	Vec3 vEdgeScreen = passInfo.GetCamera().GetEdgeN();
@@ -291,7 +307,7 @@ int CLightEntity::UpdateGSMLightSourceDynamicShadowFrustum(int nDynamicLodCount,
 	vEdgeScreen.y = min(vEdgeScreen.y, DRAW_NEAREST_MIN);
 	float fDistanceFromView = fDistanceFromViewNextDynamicLod = GSM_GetLODProjectionCenter(vEdgeScreen, Get3DEngine()->m_fGsmRange);
 
-	for (nLod = 0; nLod < nDynamicLodCount + nDistanceLodCount; nLod++)
+	for (; nLod < nDynamicLodCount + nDistanceLodCount; nLod++)
 	{
 		const float fFOV = (m_light).m_fLightFrustumAngle * 2;
 		const bool bDoGSM = !!(m_light.m_Flags & DLF_SUN);
@@ -315,8 +331,9 @@ int CLightEntity::UpdateGSMLightSourceDynamicShadowFrustum(int nDynamicLodCount,
 		if (!m_pShadowMapInfo->pGSM[nLod])
 			m_pShadowMapInfo->pGSM[nLod] = new ShadowMapFrustum;
 
+		assert(!m_pShadowMapInfo->pGSM[nLod]->pOnePassShadowView);
+
 		m_pShadowMapInfo->pGSM[nLod]->m_eFrustumType = nLod < nDynamicLodCount ? ShadowMapFrustum::e_GsmDynamic : ShadowMapFrustum::e_GsmDynamicDistance;
-		m_pShadowMapInfo->pGSM[nLod]->bUseAdditiveBlending = false;
 		m_pShadowMapInfo->pGSM[nLod]->fShadowFadingDist = (bFadeLastCascade && nLod == nDynamicLodCount - 1) ? 1.0f : 0.0f;
 
 		if (!ProcessFrustum(nLod, bDoGSM ? fGSMBoxSize : 0, fDistanceFromView, lstCastersHull, passInfo))
@@ -342,15 +359,13 @@ int CLightEntity::UpdateGSMLightSourceDynamicShadowFrustum(int nDynamicLodCount,
 	return nLod;
 }
 
-int CLightEntity::UpdateGSMLightSourceCachedShadowFrustum(int nFirstLod, int nLodCount, float& fDistFromViewDynamicLod, float fRadiusDynamicLod, const SRenderingPassInfo& passInfo)
+int CLightEntity::UpdateGSMLightSourceCachedShadowFrustum(int nFirstLod, int nLodCount, bool isHeightMapAOEnabled, float& fDistFromViewDynamicLod, float fRadiusDynamicLod, const SRenderingPassInfo& passInfo)
 {
 	ShadowFrustumMGPUCache* pFrustumCache = GetRenderer()->GetShadowFrustumMGPUCache();
 	assert(pFrustumCache);
 
-	static ICVar* pHeightMapAOVar = GetConsole()->GetCVar("r_HeightMapAO");
 	const int firstCachedFrustumIndex = nFirstLod + nLodCount;
 	const bool bRestoreFromCache = GetRenderer()->GetActiveGPUCount() > 1 && pFrustumCache->nUpdateMaskMT != 0 && m_pShadowMapInfo->pGSM[firstCachedFrustumIndex];
-	const bool bHeightMapAO = Get3DEngine()->m_bHeightMapAoEnabled && pHeightMapAOVar && pHeightMapAOVar->GetIVal() > 0 && (m_light.m_Flags & DLF_SUN);
 
 	int nLod = 0;
 
@@ -363,15 +378,19 @@ int CLightEntity::UpdateGSMLightSourceCachedShadowFrustum(int nFirstLod, int nLo
 			ShadowMapFrustum* pFr = m_pShadowMapInfo->pGSM[firstCachedFrustumIndex + nLod];
 			*pFr = *pFrustumCache->m_staticShadowMapFrustums[nLod];
 			pFr->bIsMGPUCopy = true;
+
+			CollectShadowCascadeForOnePassTraversal(pFr);
 		}
 
-		if (bHeightMapAO)
+		if (isHeightMapAOEnabled)
 		{
 			assert(pFrustumCache->m_pHeightMapAOFrustum && m_pShadowMapInfo->pGSM[firstCachedFrustumIndex + nLod]);
 
 			ShadowMapFrustum* pFr = m_pShadowMapInfo->pGSM[firstCachedFrustumIndex + nLod];
 			*pFr = *pFrustumCache->m_pHeightMapAOFrustum;
 			pFr->bIsMGPUCopy = true;
+
+			CollectShadowCascadeForOnePassTraversal(pFr);
 
 			++nLod;
 		}
@@ -385,9 +404,12 @@ int CLightEntity::UpdateGSMLightSourceCachedShadowFrustum(int nFirstLod, int nLo
 			nUpdateStrategy = ShadowMapFrustum::ShadowCacheData::eFullUpdate;
 
 		if (s_lstTmpCastersHull.empty())
+		{
+			assert(m_light.m_Flags & DLF_SUN);
 			MakeShadowCastersHull(s_lstTmpCastersHull, passInfo);
+		}
 
-		ShadowCache shadowCache(this, nUpdateStrategy);
+		ShadowCacheGenerator shadowCache(this, nUpdateStrategy);
 
 		for (nLod = 0; nLod < nLodCount; ++nLod)
 		{
@@ -404,16 +426,20 @@ int CLightEntity::UpdateGSMLightSourceCachedShadowFrustum(int nFirstLod, int nLo
 			Vec3 vEdgeScreen = GSM_GetNextScreenEdge(fRadiusDynamicLod, fDistFromViewDynamicLod, passInfo);
 			fRadiusDynamicLod *= Get3DEngine()->m_fGsmRangeStep;
 			fDistFromViewDynamicLod = GSM_GetLODProjectionCenter(vEdgeScreen, fRadiusDynamicLod);
+
+			CollectShadowCascadeForOnePassTraversal(pFr);
 		}
 
-		if (bHeightMapAO)
+		if (isHeightMapAOEnabled)
 		{
 			ShadowMapFrustumPtr& pFr = m_pShadowMapInfo->pGSM[firstCachedFrustumIndex + nLod];
 
-			shadowCache.InitHeightMapAOFrustum(pFr, nFirstLod + nLod, passInfo);
+			shadowCache.InitHeightMapAOFrustum(pFr, nFirstLod + nLod, nFirstLod, passInfo);
 			pFr->bIsMGPUCopy = false;
 			if (GetRenderer()->GetActiveGPUCount() > 1 && pFrustumCache->m_pHeightMapAOFrustum)
 				*pFrustumCache->m_pHeightMapAOFrustum = *pFr;
+
+			CollectShadowCascadeForOnePassTraversal(pFr);
 
 			++nLod;
 		}
@@ -442,18 +468,12 @@ int CLightEntity::UpdateGSMLightSourceNearestShadowFrustum(int nFrustumIndex, co
 			ShadowMapFrustumPtr& pFr = m_pShadowMapInfo->pGSM[nFrustumIndex];
 			if (!pFr) pFr = new ShadowMapFrustum;
 
-			auto nearestShadowViews = pFr->m_pShadowsView;
 			*pFr = *m_pShadowMapInfo->pGSM[0];        // copy first cascade
-			pFr->m_pShadowsView = nearestShadowViews; // restore original shadow views
-
 			pFr->m_eFrustumType = ShadowMapFrustum::e_Nearest;
 			pFr->bUseShadowsPool = false;
-			pFr->bUseAdditiveBlending = true;
 			pFr->fShadowFadingDist = 1.0f;
 			pFr->fDepthConstBias = 0.0001f;
-			pFr->castersList.clear();
-			pFr->jobExecutedCastersList.clear();
-
+			assert(!pFr->pOnePassShadowView);
 			return 1;
 		}
 	}
@@ -461,12 +481,23 @@ int CLightEntity::UpdateGSMLightSourceNearestShadowFrustum(int nFrustumIndex, co
 	return 0;
 }
 
+bool CLightEntity::IsOnePassTraversalFrustum(const ShadowMapFrustum* pFr)
+{
+	return (
+	  pFr->m_eFrustumType == ShadowMapFrustum::e_PerObject ||
+	  pFr->m_eFrustumType == ShadowMapFrustum::e_GsmCached ||
+	  pFr->m_eFrustumType == ShadowMapFrustum::e_HeightMapAO ||
+	  pFr->m_eFrustumType == ShadowMapFrustum::e_GsmDynamic ||
+	  pFr->m_eFrustumType == ShadowMapFrustum::e_GsmDynamicDistance);
+}
+
 bool CLightEntity::ProcessFrustum(int nLod, float fGSMBoxSize, float fDistanceFromView, PodArray<SPlaneObject>& lstCastersHull, const SRenderingPassInfo& passInfo)
 {
 	ShadowMapFrustum* pFr = m_pShadowMapInfo->pGSM[nLod];
 
-	// make shadow map frustum for receiving (include all objects into frustum)
 	assert(pFr);
+
+	CollectShadowCascadeForOnePassTraversal(pFr);
 
 	bool bDoGSM = fGSMBoxSize != 0;
 	bool bDoNextLod = false;
@@ -476,92 +507,39 @@ bool CLightEntity::ProcessFrustum(int nLod, float fGSMBoxSize, float fDistanceFr
 		InitShadowFrustum_SUN_Conserv(pFr, SMC_EXTEND_FRUSTUM | SMC_SHADOW_FRUSTUM_TEST, fGSMBoxSize, fDistanceFromView, nLod, passInfo);
 
 		const uint32 renderNodeFlags = pFr->m_eFrustumType == ShadowMapFrustum::e_GsmDynamicDistance ? ERF_DYNAMIC_DISTANCESHADOWS : 0xFFFFFFFF;
-		FillFrustumCastersList_SUN(pFr, SMC_EXTEND_FRUSTUM | SMC_SHADOW_FRUSTUM_TEST, renderNodeFlags, lstCastersHull, nLod, passInfo);
+		SetupShadowFrustumCamera_SUN(pFr, SMC_EXTEND_FRUSTUM | SMC_SHADOW_FRUSTUM_TEST, renderNodeFlags, lstCastersHull, nLod, passInfo);
 	}
 	else if (m_light.m_Flags & (DLF_PROJECT | DLF_AREA_LIGHT))
 	{
 		InitShadowFrustum_PROJECTOR(pFr, SMC_EXTEND_FRUSTUM | SMC_SHADOW_FRUSTUM_TEST, passInfo);
-		FillFrustumCastersList_PROJECTOR(pFr, SMC_EXTEND_FRUSTUM | SMC_SHADOW_FRUSTUM_TEST, passInfo);
+		SetupShadowFrustumCamera_PROJECTOR(pFr, SMC_EXTEND_FRUSTUM | SMC_SHADOW_FRUSTUM_TEST, passInfo);
 	}
 	else
 	{
 		pFr->bOmniDirectionalShadow = true;
 		InitShadowFrustum_OMNI(pFr, SMC_EXTEND_FRUSTUM | SMC_SHADOW_FRUSTUM_TEST, passInfo);
-		FillFrustumCastersList_OMNI(pFr, SMC_EXTEND_FRUSTUM | SMC_SHADOW_FRUSTUM_TEST, passInfo);
+		SetupShadowFrustumCamera_OMNI(pFr, SMC_EXTEND_FRUSTUM | SMC_SHADOW_FRUSTUM_TEST, passInfo);
 	}
 
 	CalculateShadowBias(pFr, nLod, fGSMBoxSize);
 
-	if (GetCVars()->e_ShadowsFrustums && pFr && pFr->castersList.Count())
+	if (GetCVars()->e_ShadowsFrustums && pFr && pFr->GetCasterNum())
 		pFr->DrawFrustum(GetRenderer(), (GetCVars()->e_ShadowsFrustums == 1) ? 1000 : 1);
 
 	return bDoGSM;
 }
 
-// note: drop it
-/*void GetPointBBoxDistances(const Vec3 & vPoint, const Vec3 & mins, const Vec3 & maxs,
-   float & fMinDist, float & fMaxDist)
-   {
-   Vec3 arrVerts3d[8] =
-   {
-   Vec3(mins.x,mins.y,mins.z),
-   Vec3(mins.x,maxs.y,mins.z),
-   Vec3(maxs.x,mins.y,mins.z),
-   Vec3(maxs.x,maxs.y,mins.z),
-   Vec3(mins.x,mins.y,maxs.z),
-   Vec3(mins.x,maxs.y,maxs.z),
-   Vec3(maxs.x,mins.y,maxs.z),
-   Vec3(maxs.x,maxs.y,maxs.z)
-   };
+void CLightEntity::CollectShadowCascadeForOnePassTraversal(ShadowMapFrustum* pFr)
+{
+	// collect shadow cascades for one-pass octree traversal
+	if (IsOnePassTraversalFrustum(pFr) && CLightEntity::s_pShadowFrustumsCollector)
+	{
+		assert(m_light.m_Flags & DLF_CASTSHADOW_MAPS && !pFr->pOnePassShadowView);
+		assert(stl::find_index(*CLightEntity::s_pShadowFrustumsCollector, std::pair<ShadowMapFrustum*, const CLightEntity*>(pFr, this)) < 0);
 
-   typedef Triangle_tpl<float> MyTriangle;
-
-   //     1______3
-   //	  /      /|
-   //   /      / |
-   //	0------2  |
-   //	|   5  |  /7
-   //	|      | /
-   //	|      |/
-   //	4------6
-
-   float fDistancesSq[12] =
-   {
-   (Distance::Point_TriangleSq( vPoint, MyTriangle(arrVerts3d[0],arrVerts3d[1],arrVerts3d[2]))),
-   (Distance::Point_TriangleSq( vPoint, MyTriangle(arrVerts3d[1],arrVerts3d[3],arrVerts3d[2]))),
-   (Distance::Point_TriangleSq( vPoint, MyTriangle(arrVerts3d[5],arrVerts3d[6],arrVerts3d[7]))),
-   (Distance::Point_TriangleSq( vPoint, MyTriangle(arrVerts3d[5],arrVerts3d[4],arrVerts3d[6]))),
-
-   (Distance::Point_TriangleSq( vPoint, MyTriangle(arrVerts3d[0],arrVerts3d[2],arrVerts3d[6]))),
-   (Distance::Point_TriangleSq( vPoint, MyTriangle(arrVerts3d[0],arrVerts3d[6],arrVerts3d[4]))),
-   (Distance::Point_TriangleSq( vPoint, MyTriangle(arrVerts3d[2],arrVerts3d[3],arrVerts3d[7]))),
-   (Distance::Point_TriangleSq( vPoint, MyTriangle(arrVerts3d[2],arrVerts3d[7],arrVerts3d[6]))),
-
-   (Distance::Point_TriangleSq( vPoint, MyTriangle(arrVerts3d[5],arrVerts3d[1],arrVerts3d[0]))),
-   (Distance::Point_TriangleSq( vPoint, MyTriangle(arrVerts3d[5],arrVerts3d[0],arrVerts3d[4]))),
-   (Distance::Point_TriangleSq( vPoint, MyTriangle(arrVerts3d[3],arrVerts3d[1],arrVerts3d[5]))),
-   (Distance::Point_TriangleSq( vPoint, MyTriangle(arrVerts3d[3],arrVerts3d[5],arrVerts3d[7]))),
-   };
-
-   // take sqrt_tpl at end
-   fMinDist = fDistancesSq[0];
-   fMaxDist = fDistancesSq[0];
-   for(int i=0; i<12; i++)
-   {
-   if(fDistancesSq[i]<fMinDist)
-   fMinDist = fDistancesSq[i];
-   }
-
-   for(int i=0; i<8; i++)
-   {
-   float fVertDistSq = arrVerts3d[i].GetSquaredDistance(vPoint);
-   if(fVertDistSq>fMaxDist)
-   fMaxDist = fVertDistSq;
-   }
-
-   fMinDist = sqrt_tpl(fMinDist);
-   fMaxDist = sqrt_tpl(fMaxDist);
-   }*/
+		CLightEntity::s_pShadowFrustumsCollector->emplace_back(pFr, this);
+	}
+}
 
 float frac_my(float fVal, float fSnap)
 {
@@ -574,6 +552,8 @@ void CLightEntity::InitShadowFrustum_SUN_Conserv(ShadowMapFrustum* pFr, int dwAl
 	FUNCTION_PROFILER_3DENGINE;
 
 	assert(nLod >= 0 && nLod < MAX_GSM_LODS_NUM);
+
+	const auto frameID = passInfo.GetFrameID();
 
 	//Toggle between centered or frustrum optimized position for cascade
 	fDistance = GetCVars()->e_ShadowsCascadesCentered ? 0 : fDistance;
@@ -591,8 +571,9 @@ void CLightEntity::InitShadowFrustum_SUN_Conserv(ShadowMapFrustum* pFr, int dwAl
 	Vec3 vViewDir = passInfo.GetCamera().GetViewdir();
 	//float fDistance = sqrt_tpl( fGSMBoxSize*fGSMBoxSize - vEdgeScreen.z*vEdgeScreen.z - vEdgeScreen.x*vEdgeScreen.x ) + vEdgeScreen.y;
 
-	pFr->RequestUpdate();
+	pFr->Invalidate();
 
+	pFr->nOmniFrustumMask.set(0);
 	pFr->nShadowMapLod = nLod;
 	pFr->vLightSrcRelPos = m_light.m_Origin - passInfo.GetCamera().GetPosition();
 	pFr->fRadius = m_light.m_fRadius;
@@ -600,6 +581,7 @@ void CLightEntity::InitShadowFrustum_SUN_Conserv(ShadowMapFrustum* pFr, int dwAl
 	pFr->pLightOwner = m_light.m_pOwner;
 	pFr->m_Flags = m_light.m_Flags;
 	pFr->bIncrementalUpdate = false;
+	pFr->bUseShadowsPool = false;
 
 	const AABB& box = GetBBox();
 	const float fBoxRadius = max(0.00001f, box.GetRadius());
@@ -672,7 +654,7 @@ void CLightEntity::InitShadowFrustum_SUN_Conserv(ShadowMapFrustum* pFr, int dwAl
 
 	// local jitter amount depends on frustum size
 	pFr->fFrustrumSize = 1.0f / (fGSMBoxSize * (float)Get3DEngine()->m_fGsmRange);
-	pFr->nUpdateFrameId = passInfo.GetFrameID();
+	pFr->nUpdateFrameId = frameID;
 	pFr->bIncrementalUpdate = false;
 
 	//Get gsm bounds
@@ -701,6 +683,8 @@ void CLightEntity::CalculateShadowBias(ShadowMapFrustum* pFr, int nLod, float fG
 
 	assert(nLod >= 0 && nLod < 8);
 
+	pFr->fDepthBiasClamp = 0.001f;
+
 	if (m_light.m_Flags & DLF_SUN)
 	{
 		float fVladRatio = min(fGSMBoxSize / 2.f, 1.f);
@@ -711,9 +695,20 @@ void CLightEntity::CalculateShadowBias(ShadowMapFrustum* pFr, int nLod, float fG
 		pFr->fDepthTestBias = fVladRatio * (pFr->fFarDist - pFr->fNearDist) * (fGSMBoxSize * 0.5f * 0.5f + 0.5f) * 0.0000005f;
 		pFr->fDepthSlopeBias = fSlopeBiasRatio * (fGSMBoxSize / max(0.00001f, Get3DEngine()->m_fGsmRange)) * 0.1f;
 
+		pFr->fDepthSlopeBias *= (pFr->m_eFrustumType == ShadowMapFrustum::e_Nearest) ? 7.0f : 1.0f;
+
 		if (pFr->IsCached())
 		{
 			pFr->fDepthConstBias = min(pFr->fDepthConstBias, 0.005f); // clamp bias as for cached frustums distance between near and far can be massive
+		}
+
+		if (GetCVars()->e_ShadowsAutoBias > 0)
+		{
+			const float biasAmount = 0.6f;
+			float texelSizeScale = tan_tpl(DEG2RAD(pFr->fFOV) * 0.5f) / (float)(std::max(pFr->nTextureWidth, pFr->nTextureHeight) / 2);  // Multiplied with distance in shader
+			pFr->fDepthConstBias = biasAmount * texelSizeScale / (pFr->fFarDist - pFr->fNearDist);
+			pFr->fDepthSlopeBias = 2.5f * GetCVars()->e_ShadowsAutoBias;
+			pFr->fDepthBiasClamp = 1000.0f;
 		}
 	}
 	else
@@ -731,7 +726,7 @@ void CLightEntity::CalculateShadowBias(ShadowMapFrustum* pFr, int nLod, float fG
 			pFr->fDepthTestBias = 0.0005f;
 }
 
-bool SegmentFrustumIntersection(const Vec3& P0, const Vec3& P1, const CCamera& frustum, Vec3* pvIntesectP0 = NULL, Vec3* pvIntesectP1 = NULL)
+bool SegmentFrustumIntersection(const Vec3& P0, const Vec3& P1, const CCamera& frustum, Vec3* pvIntesectP0 = nullptr, Vec3* pvIntesectP1 = nullptr)
 {
 	if (P0.IsEquivalent(P1))
 	{
@@ -1270,18 +1265,18 @@ void GetCubemapFrustum(ShadowMapFrustum* pFr, int nS, CCamera& shadowFrust)
 
 void CLightEntity::CheckValidFrustums_OMNI(ShadowMapFrustum* pFr, const SRenderingPassInfo& passInfo)
 {
-	pFr->nOmniFrustumMask = 0;
+	pFr->nOmniFrustumMask.reset();
 
 	const CCamera& cameraFrust = passInfo.GetCamera();
 
-	for (int nS = 0; nS < 6; nS++)
+	for (int nS = 0; nS < OMNI_SIDES_NUM; nS++)
 	{
 
 		CCamera shadowFrust;
 		GetCubemapFrustum(pFr, nS, shadowFrust);
 
 		if (FrustumIntersection(cameraFrust, shadowFrust))
-			pFr->nOmniFrustumMask |= (1 << nS);
+			pFr->nOmniFrustumMask.set(nS);
 
 	}
 }
@@ -1366,7 +1361,8 @@ void CLightEntity::InitShadowFrustum_PROJECTOR(ShadowMapFrustum* pFr, int dwAllo
 	pFr->vLightSrcRelPos = -vProjDir * m_light.m_fRadius;
 	pFr->vProjTranslation = m_light.m_Origin - pFr->vLightSrcRelPos;
 	if (pFr->fRadius != m_light.m_fRadius)
-		pFr->RequestUpdate();
+		pFr->Invalidate();
+
 	pFr->bIncrementalUpdate = false;
 	pFr->fRadius = m_light.m_fRadius;
 	assert(m_light.m_pOwner && m_light.m_pOwner == this);
@@ -1379,6 +1375,8 @@ void CLightEntity::InitShadowFrustum_PROJECTOR(ShadowMapFrustum* pFr, int dwAllo
 
 	pFr->fNearDist = 0.01f;
 	pFr->fFarDist = m_light.m_fRadius;
+	pFr->nOmniFrustumMask.set(0);
+	pFr->bUseShadowsPool = (m_light.m_Flags & DLF_DEFERRED_LIGHT) != 0;
 
 	// set texture size
 	uint32 nTexSize = GetCVars()->e_ShadowsMaxTexRes;
@@ -1474,7 +1472,7 @@ void CLightEntity::InitShadowFrustum_PROJECTOR(ShadowMapFrustum* pFr, int dwAllo
 	if (pFr->nTexSize != nTexSize)
 	{
 		pFr->nTexSize = nTexSize;
-		pFr->RequestUpdate();
+		pFr->Invalidate();
 	}
 
 	//	m_pShadowMapInfo->bUpdateRequested = false;
@@ -1490,12 +1488,39 @@ void CLightEntity::InitShadowFrustum_PROJECTOR(ShadowMapFrustum* pFr, int dwAllo
 	//pFr->fDepthTestBias *= (pFr->fFarDist - pFr->fNearDist) / 256.f;
 
 	pFr->nUpdateFrameId = nFrameId;
+
+	if ((m_light.m_Flags & DLF_PROJECT) && GetCVars()->e_ShadowsDebug == 4)
+	{
+		auto pAux = IRenderAuxGeom::GetAux();
+		auto oldRenderFlags = pAux->GetRenderFlags();
+		SAuxGeomRenderFlags renderFlags;
+		renderFlags.SetFillMode(e_FillModeWireframe);
+		pAux->SetRenderFlags(renderFlags);
+		auto coneDirection = pFr->vLightSrcRelPos.normalized();
+		auto coneApex = m_light.GetPosition();
+		auto coneHeight = pFr->fFarDist;
+		auto coneBaseRadius = coneHeight * tan(CryTransform::CAngle::FromDegrees(pFr->fFOV / 2.0f).ToRadians());
+		auto coneBaseCenter = coneApex - coneHeight * coneDirection;
+		pAux->DrawCone(coneBaseCenter, coneDirection, coneBaseRadius, coneHeight, ColorB(255, 0, 0));
+		pAux->SetRenderFlags(oldRenderFlags);
+	}
 }
 
 void CLightEntity::InitShadowFrustum_OMNI(ShadowMapFrustum* pFr, int dwAllowedTypes, const SRenderingPassInfo& passInfo)
 {
 	InitShadowFrustum_PROJECTOR(pFr, dwAllowedTypes, passInfo);
 	CheckValidFrustums_OMNI(pFr, passInfo);
+
+	if ((m_light.m_Flags & DLF_POINT) && GetCVars()->e_ShadowsDebug == 4)
+	{
+		auto pAux = IRenderAuxGeom::GetAux();
+		auto oldRenderFlags = pAux->GetRenderFlags();
+		SAuxGeomRenderFlags renderFlags;
+		renderFlags.SetFillMode(e_FillModeWireframe);
+		pAux->SetRenderFlags(renderFlags);
+		pAux->DrawSphere(m_light.GetPosition(), m_light.m_fRadius, ColorB(255, 0, 0));
+		pAux->SetRenderFlags(oldRenderFlags);
+	}
 }
 
 bool IsABBBVisibleInFrontOfPlane_FAST(const AABB& objBox, const SPlaneObject& clipPlane);
@@ -1631,7 +1656,7 @@ int CLightEntity::MakeShadowCastersHull(PodArray<SPlaneObject>& lstCastersHull, 
 	return lstCastersHull.Count();
 }
 
-void CLightEntity::FillFrustumCastersList_SUN(ShadowMapFrustum* pFr, int dwAllowedTypes, int nRenderNodeFlags, PodArray<SPlaneObject>& lstCastersHull, int nLod, const SRenderingPassInfo& passInfo)
+void CLightEntity::SetupShadowFrustumCamera_SUN(ShadowMapFrustum* pFr, int dwAllowedTypes, int nRenderNodeFlags, PodArray<SPlaneObject>& lstCastersHull, int nLod, const SRenderingPassInfo& passInfo)
 {
 	FUNCTION_PROFILER_3DENGINE;
 
@@ -1669,22 +1694,19 @@ void CLightEntity::FillFrustumCastersList_SUN(ShadowMapFrustum* pFr, int dwAllow
 	FrustCam.SetFrustum(256, 256, pFr->fFOV * (gf_PI / 180.0f), pFr->fNearDist, pFr->fFarDist);
 
 	if (!lstCastersHull.Count()) // make hull first time it is needed
+	{
+		assert(m_light.m_Flags & DLF_SUN);
 		MakeShadowCastersHull(lstCastersHull, passInfo);
+	}
 
 	//  fill casters list
-	if (pFr->isUpdateRequested(0))
+	if (pFr->isUpdateRequested())
 	{
 		pFr->ResetCasterLists();
-		if (pFr->m_eFrustumType != ShadowMapFrustum::e_GsmDynamicDistance || GetCVars()->e_DynamicDistanceShadows > 0)
-		{
-			PodArray<SPlaneObject>* pShadowHull = (pFr->nShadowMapLod && !passInfo.IsRenderingCubemap()) ? &lstCastersHull : NULL;
-			m_pObjManager->MakeShadowCastersList((CVisArea*)GetEntityVisArea(), GetBBox(),
-			                                     dwAllowedTypes, nRenderNodeFlags, pFr->vLightSrcRelPos + pFr->vLightSrcRelPos, &m_light, pFr, pShadowHull, passInfo);
-		}
 	}
 }
 
-void CLightEntity::FillFrustumCastersList_PROJECTOR(ShadowMapFrustum* pFr, int dwAllowedTypes, const SRenderingPassInfo& passInfo)
+void CLightEntity::SetupShadowFrustumCamera_PROJECTOR(ShadowMapFrustum* pFr, int dwAllowedTypes, const SRenderingPassInfo& passInfo)
 {
 	FUNCTION_PROFILER_3DENGINE;
 
@@ -1703,16 +1725,14 @@ void CLightEntity::FillFrustumCastersList_PROJECTOR(ShadowMapFrustum* pFr, int d
 		FrustCam.SetMatrix(mat);
 		FrustCam.SetFrustum(pFr->nTexSize, pFr->nTexSize, pFr->fFOV * (gf_PI / 180.0f), pFr->fNearDist, pFr->fFarDist);
 
-		m_pObjManager->MakeShadowCastersList((CVisArea*)GetEntityVisArea(), GetBBox(),
-			                                    dwAllowedTypes, 0xFFFFFFFF, pFr->vLightSrcRelPos + GetBBox().GetCenter(), &m_light, pFr, NULL, passInfo);
-
-		DetectCastersListChanges(pFr, passInfo);
+		pFr->ResetCasterLists();
+		pFr->RequestUpdate();
 
 		pFr->aabbCasters.Reset(); // fix: should i .Reset() pFr->aabbCasters ?
 	}
 }
 
-void CLightEntity::FillFrustumCastersList_OMNI(ShadowMapFrustum* pFr, int dwAllowedTypes, const SRenderingPassInfo& passInfo)
+void CLightEntity::SetupShadowFrustumCamera_OMNI(ShadowMapFrustum* pFr, int dwAllowedTypes, const SRenderingPassInfo& passInfo)
 {
 	FUNCTION_PROFILER_3DENGINE;
 
@@ -1730,61 +1750,13 @@ void CLightEntity::FillFrustumCastersList_OMNI(ShadowMapFrustum* pFr, int dwAllo
 		FrustCam.SetMatrix(mat);
 		FrustCam.SetFrustum(256, 256, pFr->fFOV * (gf_PI / 180.0f) * 0.9f, pFr->fNearDist, pFr->fFarDist);
 
-		m_pObjManager->MakeShadowCastersList((CVisArea*)GetEntityVisArea(), GetBBox(),
-		                                     dwAllowedTypes, 0xFFFFFFFF, pFr->vLightSrcRelPos + GetBBox().GetCenter(), &m_light, pFr, NULL, passInfo);
-
-		DetectCastersListChanges(pFr, passInfo);
+		pFr->ResetCasterLists();
+		pFr->RequestUpdate();
 
 		pFr->aabbCasters.Reset(); // fix: should i .Reset() pFr->aabbCasters ?
 
 		// Update all omni frustums
 		pFr->UpdateOmniFrustums();
-	}
-}
-
-void CLightEntity::DetectCastersListChanges(ShadowMapFrustum* pFr, const SRenderingPassInfo& passInfo)
-{
-	uint32 uCastersListCheckSum = 0;
-	for (int i = 0; i < pFr->castersList.Count(); i++)
-	{
-		IShadowCaster* pNode = pFr->castersList.GetAt(i);
-		const AABB entBox = pNode->GetBBoxVirtual();
-		uCastersListCheckSum += uint32((entBox.min.x + entBox.min.y + entBox.min.z) * 10000.f);
-		uCastersListCheckSum += uint32((entBox.max.x + entBox.max.y + entBox.max.z) * 10000.f);
-
-		ICharacterInstance* pChar = pNode->GetEntityCharacter();
-
-		if (pChar)
-		{
-			ISkeletonAnim* pISkeletonAnim = pChar->GetISkeletonAnim();
-			if (pISkeletonAnim)
-			{
-				uint32 numAnimsLayer0 = pISkeletonAnim->GetNumAnimsInFIFO(0);
-				if (numAnimsLayer0 != 0)
-				{
-					pFr->RequestUpdate();
-				}
-			}
-		}
-	}
-
-	if (pFr->fRadius < DISTANCE_TO_THE_SUN)
-	{
-		uCastersListCheckSum += uint32((m_WSBBox.min.x + m_WSBBox.min.y + m_WSBBox.min.z) * 10000.f);
-		uCastersListCheckSum += uint32((m_WSBBox.max.x + m_WSBBox.max.y + m_WSBBox.max.z) * 10000.f);
-	}
-
-	if (pFr->uCastersListCheckSum != uCastersListCheckSum)
-	{
-		pFr->RequestUpdate();
-		pFr->uCastersListCheckSum = uCastersListCheckSum;
-
-		if (GetCVars()->e_ShadowsDebug == 3)
-		{
-			const char* szName = ((CLightEntity*)(pFr->pLightOwner))->m_light.m_sName;
-			PrintMessage("Requesting %s shadow update for %s, frame id = %d",
-			             pFr->bOmniDirectionalShadow ? "Cube" : "2D", szName, passInfo.GetFrameID());
-		}
 	}
 }
 
@@ -1805,12 +1777,6 @@ void CLightEntity::OnCasterDeleted(IShadowCaster* pCaster)
 	{
 		if (ShadowMapFrustum* pFr = m_pShadowMapInfo->pGSM[nGsmId])
 		{
-			pFr->castersList.Delete(pCaster);
-
-			if (pFr->pShadowCacheData)
-			{
-				pFr->pShadowCacheData->mProcessedCasters.erase(pCaster);
-			}
 		}
 	}
 }
@@ -1818,8 +1784,21 @@ void CLightEntity::OnCasterDeleted(IShadowCaster* pCaster)
 void CLightEntity::GetMemoryUsage(ICrySizer* pSizer) const
 {
 	SIZER_COMPONENT_NAME(pSizer, "LightEntity");
+
 	pSizer->AddObject(this, sizeof(*this));
-	pSizer->AddObject(m_pShadowMapInfo);
+
+	if (m_pShadowMapInfo)
+	{
+		pSizer->AddObject(m_pShadowMapInfo.get(), sizeof(*m_pShadowMapInfo));
+
+		for (int n = 0; n < MAX_GSM_LODS_NUM; n++)
+		{
+			if (m_pShadowMapInfo->pGSM[n])
+			{
+				pSizer->AddObject(m_pShadowMapInfo->pGSM[n], sizeof(*m_pShadowMapInfo->pGSM[n]));
+			}
+		}
+	}
 }
 
 void CLightEntity::UpdateCastShadowFlag(float fDistance, const SRenderingPassInfo& passInfo)
@@ -1833,7 +1812,8 @@ void CLightEntity::UpdateCastShadowFlag(float fDistance, const SRenderingPassInf
 	}
 
 #if defined(FEATURE_SVO_GI)
-	if (GetGIMode() == eGM_DynamicVoxelization)
+	IRenderNode::EGIMode eVoxMode = GetGIMode();
+	if (eVoxMode == IRenderNode::eGM_DynamicVoxelization || (eVoxMode == IRenderNode::eGM_StaticVoxelization && !GetCVars()->e_svoTI_IntegrationMode && !(m_light.m_Flags & DLF_SUN)))
 		m_light.m_Flags |= DLF_USE_FOR_SVOGI;
 	else
 		m_light.m_Flags &= ~DLF_USE_FOR_SVOGI;
@@ -1856,7 +1836,19 @@ void CLightEntity::Render(const SRendParams& rParams, const SRenderingPassInfo& 
 		return;
 
 	if (m_light.m_fRadius < 0.01f)
+	{
+		if (m_light.m_nLightStyle)
+		{
+			GetRenderer()->EF_UpdateDLight(&m_light);
+		}
 		return;
+	}
+
+	if (m_light.m_ObjMatrix.GetColumn0().IsZeroFast())
+	{
+		// skip uninitialized light
+		return;
+	}
 
 	UpdateCastShadowFlag(rParams.fDistance, passInfo);
 
@@ -1866,7 +1858,7 @@ void CLightEntity::Render(const SRendParams& rParams, const SRenderingPassInfo& 
 	if (!CheckMinSpec(nRenderNodeMinSpec))
 		return;
 
-	Sphere sp(m_light.m_BaseOrigin, m_light.m_fBaseRadius);
+	Sphere sp(m_light.m_BaseOrigin, m_light.m_fRadius);
 
 	bool bIsVisible = false;
 	if (m_light.m_Flags & DLF_DEFERRED_CUBEMAPS)
@@ -1877,8 +1869,8 @@ void CLightEntity::Render(const SRendParams& rParams, const SRenderingPassInfo& 
 	else if (m_light.m_Flags & DLF_AREA_LIGHT)
 	{
 		// OBB test for area lights.
-		Vec3 vBoxMax(m_light.m_fBaseRadius, m_light.m_fBaseRadius + m_light.m_fAreaWidth, m_light.m_fBaseRadius + m_light.m_fAreaHeight);
-		Vec3 vBoxMin(-0.1f, -(m_light.m_fBaseRadius + m_light.m_fAreaWidth), -(m_light.m_fBaseRadius + m_light.m_fAreaHeight));
+		Vec3 vBoxMax(m_light.m_fRadius, m_light.m_fRadius + m_light.m_fAreaWidth, m_light.m_fRadius + m_light.m_fAreaHeight);
+		Vec3 vBoxMin(-0.1f, -(m_light.m_fRadius + m_light.m_fAreaWidth), -(m_light.m_fRadius + m_light.m_fAreaHeight));
 
 		OBB obb(OBB::CreateOBBfromAABB(Matrix33(m_light.m_ObjMatrix), AABB(vBoxMin, vBoxMax)));
 		bIsVisible = passInfo.GetCamera().IsOBBVisible_F(m_light.m_BaseOrigin, obb);
@@ -1979,7 +1971,11 @@ void CLightEntity::Render(const SRendParams& rParams, const SRenderingPassInfo& 
 		if ((m_light.m_Flags & DLF_HAS_CLIP_VOLUME) != 0 && m_light.m_pClipVolumes[1] != NULL)
 			m_light.m_nStencilRef[1] = m_light.m_pClipVolumes[1]->GetStencilRef();
 
-		m_light.m_nStencilRef[0] = (m_pTempData && m_pTempData->userData.m_pClipVolume) ? m_pTempData->userData.m_pClipVolume->GetStencilRef() : 0;
+		m_light.m_nStencilRef[0] = 0;
+		if (const auto pTempData = m_pTempData.load())
+		{
+			m_light.m_nStencilRef[0] = pTempData->userData.m_pClipVolume ? pTempData->userData.m_pClipVolume->GetStencilRef() : 0;
+		}
 	}
 
 	// associated clip volume invisible
@@ -2011,8 +2007,6 @@ void CLightEntity::Render(const SRendParams& rParams, const SRenderingPassInfo& 
 			if (m_pShadowMapInfo)
 			{
 				m_light.m_pShadowMapFrustums = reinterpret_cast<ShadowMapFrustum**>(m_pShadowMapInfo->pGSM);
-				for (int nLod = 0; nLod < MAX_GSM_LODS_NUM && m_light.m_pShadowMapFrustums[nLod]; nLod++)
-					m_light.m_pShadowMapFrustums[nLod]->nDLightId = m_light.m_Id;
 			}
 		}
 
@@ -2020,7 +2014,7 @@ void CLightEntity::Render(const SRendParams& rParams, const SRenderingPassInfo& 
 		{
 			if (GetCVars()->e_DynamicLights == 2)
 			{
-				CDLight* pL = &m_light;
+				SRenderLight* pL = &m_light;
 				float fSize = 0.05f * (sinf(GetCurTimeSec() * 10.f) + 2.0f);
 				DrawSphere(pL->m_Origin, fSize, pL->m_Color);
 				IRenderAuxText::DrawLabelF(pL->m_Origin, 1.3f, "id=%d, rad=%.1f, vdr=%d", pL->m_Id, pL->m_fRadius, (int)m_ucViewDistRatio);
@@ -2063,22 +2057,22 @@ IRenderNode::EGIMode CLightEntity::GetGIMode() const
 {
 	if (IRenderNode::GetGIMode() == eGM_StaticVoxelization || IRenderNode::GetGIMode() == eGM_DynamicVoxelization || m_light.m_Flags & DLF_SUN)
 	{
-	if (!(m_light.m_Flags & (DLF_DISABLED | DLF_FAKE | DLF_VOLUMETRIC_FOG_ONLY | DLF_AMBIENT | DLF_DEFERRED_CUBEMAPS)) && !(m_dwRndFlags & ERF_HIDDEN))
-	{
-		if (m_light.m_BaseColor.Luminance() > .01f && m_light.m_fBaseRadius > 0.5f)
+		if (!(m_light.m_Flags & (DLF_DISABLED | DLF_FAKE | DLF_VOLUMETRIC_FOG_ONLY | DLF_AMBIENT | DLF_DEFERRED_CUBEMAPS)) && !(m_dwRndFlags & ERF_HIDDEN))
 		{
-			if (m_light.m_Flags & DLF_SUN)
+			if (m_light.m_BaseColor.Luminance() > .01f && m_light.m_fRadius > 0.5f)
 			{
-				if (GetCVars()->e_Sun)
+				if (m_light.m_Flags & DLF_SUN)
+				{
+					if (GetCVars()->e_Sun)
 						return eGM_StaticVoxelization;
-				else
+					else
 						return eGM_None;
-			}
+				}
 
-			return IRenderNode::GetGIMode();
+				return IRenderNode::GetGIMode();
+			}
 		}
 	}
-}
 
 	return eGM_None;
 }
@@ -2097,7 +2091,7 @@ void CLightEntity::SetOwnerEntity(IEntity* pEnt)
 
 void CLightEntity::OffsetPosition(const Vec3& delta)
 {
-	if (m_pTempData) m_pTempData->OffsetPosition(delta);
+	if (const auto pTempData = m_pTempData.load()) pTempData->OffsetPosition(delta);
 	m_light.m_Origin += delta;
 	m_light.m_BaseOrigin += delta;
 	m_Matrix.SetTranslation(m_Matrix.GetTranslation() + delta);
@@ -2107,12 +2101,14 @@ void CLightEntity::OffsetPosition(const Vec3& delta)
 void CLightEntity::ProcessPerObjectFrustum(ShadowMapFrustum* pFr, struct SPerObjectShadow* pPerObjectShadow, ILightSource* pLightSource, const SRenderingPassInfo& passInfo)
 {
 	assert(pFr);
-	CDLight& light = pLightSource->GetLightProperties();
+	SRenderLight& light = pLightSource->GetLightProperties();
 
 	pFr->m_eFrustumType = ShadowMapFrustum::e_PerObject;
 	pFr->RequestUpdate();
 	pFr->ResetCasterLists();
-	pFr->castersList.Add(pPerObjectShadow->pCaster);
+
+	// mark the object to be rendered into shadow map
+	COctreeNode::SetTraversalFrameId((IRenderNode*)pPerObjectShadow->pCaster, passInfo.GetMainFrameID(), ~0);
 
 	// get caster's bounding box and scale
 	AABB objectBBox;
@@ -2121,12 +2117,12 @@ void CLightEntity::ProcessPerObjectFrustum(ShadowMapFrustum* pFr, struct SPerObj
 	pFr->aabbCasters = AABB(objectBBox.GetCenter() - vExtents, objectBBox.GetCenter() + vExtents);
 
 	pFr->m_Flags = light.m_Flags;
-	pFr->bUseAdditiveBlending = true;
 	uint nTexSize = pPerObjectShadow->nTexSize * GetCVars()->e_ShadowsPerObjectResolutionScale;
 	nTexSize = clamp_tpl<uint>(nTexSize, 64, GetRenderer()->GetMaxTextureSize());
 	pFr->nTexSize = 1 << IntegerLog2(nTexSize);
 	pFr->nTextureWidth = pFr->nTexSize;
 	pFr->nTextureHeight = pFr->nTexSize;
+	pFr->clearValue = pFr->clearValue;
 	pFr->bBlendFrustum = false;
 
 	// now update frustum params based on object box
@@ -2147,6 +2143,8 @@ void CLightEntity::ProcessPerObjectFrustum(ShadowMapFrustum* pFr, struct SPerObj
 	pFr->fWidthT = pPerObjectShadow->fJitter;
 	pFr->fBlurS = 0.0f;
 	pFr->fBlurT = 0.0f;
+
+	((CLightEntity*)pLightSource)->CollectShadowCascadeForOnePassTraversal(pFr);
 
 	if (GetCVars()->e_ShadowsFrustums)
 	{
@@ -2181,3 +2179,5 @@ Vec3 CLightEntity::GetPos(bool bWorldOnly) const
 	assert(bWorldOnly);
 	return m_light.m_Origin;
 }
+
+#pragma warning(pop)

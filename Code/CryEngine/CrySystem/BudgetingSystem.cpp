@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "BudgetingSystem.h"
@@ -229,12 +229,12 @@ CBudgetingSystem::MonitorBudget()
 	}
 
 	// set to 2D mode for font rendering
-	m_pRenderer->Set2DMode(true, m_width, m_height);
+	m_pRenderer->GetIRenderAuxGeom()->SetOrthographicProjection(true, 0.0f, static_cast<float>(m_width), static_cast<float>(m_height), 0.0f);
 
 	Render(60.f, 40.f);
 
 	// set back to 3D mode
-	m_pRenderer->Set2DMode(false, 0, 0);
+	m_pRenderer->GetIRenderAuxGeom()->SetOrthographicProjection(false);
 }
 
 void CBudgetingSystem::Render(float x, float y)
@@ -256,8 +256,8 @@ void CBudgetingSystem::Render(float x, float y)
 		m_pStreamEngine = gEnv->pSystem->GetStreamEngine();
 
 	// get height and width of view port
-	m_width = m_pRenderer->GetWidth();
-	m_height = m_pRenderer->GetHeight();
+	m_width  = m_pRenderer->GetOverlayWidth();
+	m_height = m_pRenderer->GetOverlayHeight();
 
 	//Aux Render setup
 	SAuxGeomRenderFlags oldFlags = m_pAuxRenderer->GetRenderFlags();

@@ -1,9 +1,6 @@
-// CRYENGINE Source Code File
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // Uniform data
-float4x4 vpMatrix      : PI_ViewProjection < register = c0; >;
-float4 BaseTCMatrix    : PB_TerrainBaseMatrix;
 
 sampler2D TextureCompiling = sampler_state
 {
@@ -49,7 +46,7 @@ VS2PS Sync_VS( App2VS IN )
 {
   VS2PS OUT = (VS2PS) 0;
 
-  OUT.pos = mul( vpMatrix, IN.pos );
+  OUT.pos = mul( CV_ViewProjMatr, IN.pos );
   OUT.tex = IN.tex;
   OUT.col = IN.col;
 
@@ -61,9 +58,7 @@ VS2PS Sync_Ter_VS( App2VS_Ter IN )
 {
   VS2PS OUT = (VS2PS) 0;
 
-  OUT.pos = mul( vpMatrix, IN.pos );
-  OUT.tex.x = dot(float4(0, BaseTCMatrix[0], 0, BaseTCMatrix[1]), OUT.pos);          
-  OUT.tex.y = dot(float4(BaseTCMatrix[0], 0, 0, BaseTCMatrix[2]), OUT.pos);          
+  OUT.pos = mul( CV_ViewProjMatr, IN.pos );
 
   return OUT;
 }

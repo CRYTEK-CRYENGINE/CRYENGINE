@@ -1,0 +1,8 @@
+<AssetMetadata version="0" type="Xml" guid="5d10465e-3f87-9fc6-082f-7a13c73fb852">
+ <Files>
+  <File path="raintextures.xml"/>
+ </Files>
+ <Details>
+  <Detail name="rootTag">textures</Detail>
+ </Details>
+</AssetMetadata>

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "TriggerComponent.h"
@@ -20,13 +20,6 @@ static void ReflectType(Schematyc::CTypeDesc<CTriggerComponent::SFinishedSignal>
 //////////////////////////////////////////////////////////////////////////
 void CTriggerComponent::Register(Schematyc::CEnvRegistrationScope& componentScope)
 {
-	{
-		auto pFunction = SCHEMATYC_MAKE_ENV_FUNCTION(&CTriggerComponent::SetAutoPlay, "C8D640E5-2B3B-4169-8B76-6C9E6CD02965"_cry_guid, "SetAutoPlay");
-		pFunction->SetDescription("Enables/Disables the component. Executes PlayTrigger when enabled and executes StopTrigger when disabled. If there's no StopTrigger present when being disabled stops the PlayTrigger.");
-		pFunction->SetFlags(Schematyc::EEnvFunctionFlags::Construction);
-		pFunction->BindInput(1, 'val', "Value");
-		componentScope.Register(pFunction);
-	}
 	{
 		auto pFunction = SCHEMATYC_MAKE_ENV_FUNCTION(&CTriggerComponent::Play, "B7FDCC03-6312-4795-8D00-D63F3381BFBC"_cry_guid, "Play");
 		pFunction->SetDescription("Executes the PlayTrigger");
@@ -57,8 +50,10 @@ void CTriggerComponent::ReflectType(Schematyc::CTypeDesc<CTriggerComponent>& des
 	desc.SetEditorCategory("Audio");
 	desc.SetLabel("Trigger");
 	desc.SetDescription("Allows for execution of an audio trigger at provided transformation.");
-	desc.SetIcon("icons:Audio/trigger.ico");
+	desc.SetIcon("icons:Audio/component_trigger.ico");
 	desc.SetComponentFlags({ IEntityComponent::EFlags::Transform, IEntityComponent::EFlags::Attach, IEntityComponent::EFlags::ClientOnly });
+
+	desc.AddMember(&CTriggerComponent::m_autoPlay, 'auto', "autoPlay", "AutoPlay", "Automatically executes PlayTrigger when enabled.", true);
 
 	desc.AddMember(&CTriggerComponent::m_playTrigger, 'tri1', "playTrigger", "PlayTrigger", "This trigger gets executed when Play is called.", STriggerSerializeHelper());
 	desc.AddMember(&CTriggerComponent::m_stopTrigger, 'tri2', "stopTrigger", "StopTrigger", "This trigger gets executed when Stop is called.", STriggerSerializeHelper());
@@ -91,7 +86,8 @@ void CTriggerComponent::Initialize()
 		m_auxObjectId = CryAudio::DefaultAuxObjectId;
 	}
 
-	if (m_bAutoPlay)
+	// Only play in editor. Launcher is handled via ENTITY_EVENT_START_GAME.
+	if (m_autoPlay && gEnv->IsEditor())
 	{
 		Play();
 	}
@@ -108,35 +104,19 @@ void CTriggerComponent::Initialize()
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CTriggerComponent::OnShutDown()
-{
-	if (m_bAutoPlay)
-	{
-		Stop();
-	}
-
-	if (m_pIEntityAudioComponent != nullptr && m_auxObjectId != CryAudio::InvalidAuxObjectId && m_auxObjectId != CryAudio::DefaultAuxObjectId)
-	{
-		m_pIEntityAudioComponent->RemoveAudioAuxObject(m_auxObjectId);
-	}
-
-	m_auxObjectId = CryAudio::InvalidAuxObjectId;
-}
-
-//////////////////////////////////////////////////////////////////////////
 uint64 CTriggerComponent::GetEventMask() const
 {
-	uint64 mask = ENTITY_EVENT_BIT(ENTITY_EVENT_AUDIO_TRIGGER_STARTED) | ENTITY_EVENT_BIT(ENTITY_EVENT_AUDIO_TRIGGER_ENDED) | ENTITY_EVENT_BIT(ENTITY_EVENT_START_GAME);
+	uint64 mask = ENTITY_EVENT_BIT(ENTITY_EVENT_AUDIO_TRIGGER_STARTED) | ENTITY_EVENT_BIT(ENTITY_EVENT_AUDIO_TRIGGER_ENDED) | ENTITY_EVENT_BIT(ENTITY_EVENT_START_GAME) | ENTITY_EVENT_BIT(ENTITY_EVENT_DONE);
 
 #if defined(INCLUDE_DEFAULT_PLUGINS_PRODUCTION_CODE)
-	mask |= ENTITY_EVENT_BIT(ENTITY_EVENT_COMPONENT_PROPERTY_CHANGED);
+	mask |= ENTITY_EVENT_BIT(ENTITY_EVENT_COMPONENT_PROPERTY_CHANGED) | ENTITY_EVENT_BIT(ENTITY_EVENT_RESET);
 #endif  // INCLUDE_DEFAULT_PLUGINS_PRODUCTION_CODE
 
 	return mask;
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CTriggerComponent::ProcessEvent(SEntityEvent& event)
+void CTriggerComponent::ProcessEvent(const SEntityEvent& event)
 {
 	if (m_pIEntityAudioComponent != nullptr)
 	{
@@ -149,7 +129,7 @@ void CTriggerComponent::ProcessEvent(SEntityEvent& event)
 			CRY_ASSERT(m_numActiveTriggerInstances > 0);
 			--m_numActiveTriggerInstances;
 
-			if (m_bAutoPlay && m_numActiveTriggerInstances == 0)
+			if (m_autoPlay && m_numActiveTriggerInstances == 0)
 			{
 				CryAudio::SRequestInfo const* const pRequestInfo = reinterpret_cast<CryAudio::SRequestInfo const* const>(event.nParam[0]);
 
@@ -165,13 +145,24 @@ void CTriggerComponent::ProcessEvent(SEntityEvent& event)
 			}
 			break;
 		case ENTITY_EVENT_START_GAME:
-			if (m_bAutoPlay)
+			// Only play in launcher. Editor is handled in Initialize()
+			if (m_autoPlay && !gEnv->IsEditor())
 			{
-				if (m_numActiveTriggerInstances == 0)
-				{
-					Play();
-				}
+				Play();
 			}
+			break;
+		case ENTITY_EVENT_DONE:
+			if (m_autoPlay)
+			{
+				Stop();
+			}
+
+			if (m_pIEntityAudioComponent != nullptr && m_auxObjectId != CryAudio::InvalidAuxObjectId && m_auxObjectId != CryAudio::DefaultAuxObjectId)
+			{
+				m_pIEntityAudioComponent->RemoveAudioAuxObject(m_auxObjectId);
+			}
+
+			m_auxObjectId = CryAudio::InvalidAuxObjectId;
 			break;
 #if defined(INCLUDE_DEFAULT_PLUGINS_PRODUCTION_CODE)
 		case ENTITY_EVENT_COMPONENT_PROPERTY_CHANGED:
@@ -183,7 +174,7 @@ void CTriggerComponent::ProcessEvent(SEntityEvent& event)
 						m_pIEntityAudioComponent->StopTrigger(m_previousPlayTriggerId, m_auxObjectId);
 					}
 
-					if (m_bAutoPlay)
+					if (m_autoPlay)
 					{
 						Play();
 					}
@@ -197,7 +188,7 @@ void CTriggerComponent::ProcessEvent(SEntityEvent& event)
 						m_pIEntityAudioComponent->StopTrigger(m_previousStopTriggerId, m_auxObjectId);
 					}
 
-					if (m_bAutoPlay)
+					if (m_autoPlay)
 					{
 						Stop();
 					}
@@ -209,29 +200,21 @@ void CTriggerComponent::ProcessEvent(SEntityEvent& event)
 				m_previousStopTriggerId = m_stopTrigger.m_id;
 			}
 			break;
+		case ENTITY_EVENT_RESET:
+			{
+				if (m_autoPlay && (m_numActiveTriggerInstances == 0))
+				{
+					Play();
+				}
+				else if (!m_autoPlay && (m_numActiveTriggerInstances > 0))
+				{
+					Stop();
+				}
+			}
+			break;
 #endif      // INCLUDE_DEFAULT_PLUGINS_PRODUCTION_CODE
 		}
 	}
-}
-
-//////////////////////////////////////////////////////////////////////////
-void CTriggerComponent::SetAutoPlay(bool const bEnable)
-{
-	// Initialize is called before this, disable potentially playing audio upon deactivation.
-	if (!bEnable)
-	{
-		if (m_playTrigger.m_id != CryAudio::InvalidControlId)
-		{
-			m_pIEntityAudioComponent->StopTrigger(m_playTrigger.m_id, m_auxObjectId);
-		}
-
-		if (m_stopTrigger.m_id != CryAudio::InvalidControlId)
-		{
-			m_pIEntityAudioComponent->StopTrigger(m_stopTrigger.m_id, m_auxObjectId);
-		}
-	}
-
-	m_bAutoPlay = bEnable;
 }
 
 //////////////////////////////////////////////////////////////////////////

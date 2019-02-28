@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 //
 //  Crytek Engine Source File.
 //  Copyright (C), Crytek Studios, 2002.
@@ -22,6 +22,7 @@
 #include "../CryEngine/Cry3DEngine/CGF/CGFLoader.h"
 #include <Cry3DEngine/CGF/CryHeaders.h>  // MAX_STATOBJ_LODS_NUM
 #include <CrySystem/CryVersion.h>
+#include <CryString/CryPath.h>
 #include "StaticObjectCompiler.h"
 #include "StatCGFPhysicalize.h"
 #include "FileUtil.h"
@@ -47,12 +48,12 @@ string CStatCGFCompiler::GetOutputFileNameOnly() const
 {
 	string sourceFileFinal = m_CC.config->GetAsString("overwritefilename", m_CC.sourceFileNameOnly.c_str(), m_CC.sourceFileNameOnly.c_str());
 
-	if (StringHelpers::EqualsIgnoreCase(PathHelpers::FindExtension(sourceFileFinal), "i_cgf"))
+	if (StringHelpers::EqualsIgnoreCase(PathUtil::GetExt(sourceFileFinal), "i_cgf"))
 	{
-		sourceFileFinal = PathHelpers::ReplaceExtension(sourceFileFinal, "cgf");
+		sourceFileFinal = PathUtil::ReplaceExtension(sourceFileFinal, "cgf");
 	}
 
-	const string ext = PathHelpers::FindExtension(sourceFileFinal);
+	const string ext = PathUtil::GetExt(sourceFileFinal);
 	if (StringHelpers::EqualsIgnoreCase(ext, "cgf") || StringHelpers::EqualsIgnoreCase(ext, "cga"))
 	{
 		if (m_CC.config->GetAsBool("StripNonMesh", false, true))
@@ -67,7 +68,7 @@ string CStatCGFCompiler::GetOutputFileNameOnly() const
 //////////////////////////////////////////////////////////////////////////
 string CStatCGFCompiler::GetOutputPath() const
 {
-	return PathHelpers::Join(m_CC.GetOutputFolder(), GetOutputFileNameOnly());
+	return PathUtil::Make(m_CC.GetOutputFolder(), GetOutputFileNameOnly());
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -822,7 +823,7 @@ bool CStatCGFCompiler::Process()
 		bool bStorePositionsAsF16;
 		{
 			const char* const optionName = "vertexPositionFormat";	
-			const string s = m_CC.config->GetAsString(optionName, "f32", "f32");
+			const string s = m_CC.config->GetAsString(optionName, "exporter", "f32");
 
 			if (StringHelpers::EqualsIgnoreCase(s, "f32"))
 			{
@@ -979,11 +980,11 @@ bool CStatCGFCompiler::Process()
 			// Save split LODs
 			for (int lodIndex = 1; lodIndex < MAX_STATOBJ_LODS_NUM; ++lodIndex)
 			{
-				string lodFilename = PathHelpers::RemoveExtension(outputFile);
+				string lodFilename = PathUtil::RemoveExtension(outputFile);
 				lodFilename += "_lod";
 				lodFilename += '0' + lodIndex;
 				lodFilename += '.';
-				lodFilename += PathHelpers::FindExtension(outputFile);
+				lodFilename += PathUtil::GetExt(outputFile);
 
 				CContentCGF* const pLodCgf = staticCgfCompiler.m_pLODs[lodIndex];
 				if (!pLodCgf)

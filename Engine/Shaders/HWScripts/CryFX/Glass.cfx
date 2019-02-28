@@ -1,5 +1,4 @@
-// CRYENGINE Source Code File
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "Common.cfi"
 #include "ShadowCommon.cfi"
@@ -35,7 +34,6 @@ struct CustomForwardShadingAttribs
 };
 
 #include "ShadeLib.cfi"
-#include "ForwardShading.cfi"
 #include "VertexLib.cfi"
 
 //////////////////////////////// Samplers ////////////////
@@ -260,7 +258,7 @@ void Callback_ShadingDirect(in ForwardShadingAttribs attribs, in ForwardLightPar
 #endif
 }
 
-#include "TiledShading.cfi"
+#include "ForwardShading.cfi"
 
 void ApplyDecals(float2 baseTC, inout half3 newNormal, inout half holeMask, inout half4 tintMap)
 {
@@ -413,12 +411,8 @@ half4 GetBlurredRefraction(float2 tcProj, half cloudiness)
 
 	half4 cAcc = 0;
 	for (int t = 0; t < tapCount; t++)
-	{ 
-	#if %_RT_PER_INSTANCE_CB_TEMP
-		half4 tap = Fwd_SceneTarget.Sample(ssFwdBilinearWrap, tcProj + poisson[t] * mask);
-	#else	
-		half4 tap = GetTexture2D(envMapSamplerRefr, tcProj + poisson[t] * mask);
-	#endif
+	{
+        half4 tap = Fwd_SceneTarget.Sample(ssMaterialBilinearClamp, tcProj + poisson[t] * mask);
 		cAcc += tap;
 	}
 
@@ -452,6 +446,13 @@ pixout GlassPS(vert2FragGeneral IN, bool bIsFrontFace : SV_IsFrontFace)
 	attribs.smoothness = MatSpecColor.w;
 	
 	half4 tintMap = half4(1, 0, 1, 0);  // Initialize to full tint / no cloudiness / full spec / no decals
+    
+#if %_RT_DISSOLVE
+    float fDissolve = Get_SPI_Dissolve();
+	const int2 vPixQuadIdx = (int2)IN.WPos.xy % 2; // 4 transparency levels for a 2x2 quad. We're using dot/abs instead, since rsx doens't support array indexing.
+
+    clip((fDissolve > 0 ? 1 : -1) * (abs(dot(half4(0.0h, 0.76h, 0.5h, -1.0h), vPixQuadIdx.xxyy)) - abs(fDissolve))); // todo: try using coverage mask when in MSAA mode.
+#endif
 	
 #if !%DIRT_MAP
 	attribs.albedo = half3(0, 0, 0);
@@ -485,25 +486,15 @@ pixout GlassPS(vert2FragGeneral IN, bool bIsFrontFace : SV_IsFrontFace)
 	attribs.normal = normalize(mul(normalMap.xyz, matTangentToWS));
 	attribs.normalSpecProbe = attribs.normal;
 	
-	half3 newNormal = half3(normalMap.xy * BumpScale, 1);
-	half holeMask = 1;  // Initialize to no holes
-	
-#if %_RT_SAMPLE0 && !%_RT_PER_INSTANCE_CB_TEMP
-	ApplyDecals(IN.baseTC.xy, newNormal, holeMask, tintMap);
-#endif
-
-	newNormal = normalize(newNormal);
+	// TODO: No Decals for the glass
+	// ApplyDecals(IN.baseTC.xy, newNormal, holeMask, tintMap);
 
 	half3 diffuseAcc = 0;
 	half3 specularAcc = 0;
 	
 	// Handle direct lighting from sun
 	{
-	#if %_RT_PER_INSTANCE_CB_TEMP	
 		float sunShadow = 1 - Fwd_SampleSunShadowMaps(attribs.worldPos + GetWorldViewPos());
-	#else
-		float sunShadow = ShadowDepthTest(attribs.worldPos + GetWorldViewPos());
-	#endif
 
 		ForwardLightParams lightParams;
 		lightParams.type = LT_DIRECTIONAL;
@@ -514,15 +505,11 @@ pixout GlassPS(vert2FragGeneral IN, bool bIsFrontFace : SV_IsFrontFace)
 	}
 
 #if %_RT_TILED_SHADING
-	#if %_RT_PER_INSTANCE_CB_TEMP
-		TiledForwardShading(attribs, diffuseAcc, specularAcc, ssFwdBilinearWrap, ssFwdComparison, true, true, true);
-	#else
-		TiledForwardShading(attribs, diffuseAcc, specularAcc, TrilinearClampSamplerState, SampStateComp, true, true, true);
-	#endif
+	TiledForwardShading(attribs, diffuseAcc, specularAcc, ssFwdBilinearWrap, ssFwdComparison, true, true, true);
 #endif
 
 	const half2 refractionNormScale = 0.1h * CV_HPosScale.xy;
-	half2 tcRefractionOffset = newNormal * refractionNormScale;		
+	half2 tcRefractionOffset = normalMap * refractionNormScale;		
 
 	half3 cBackbuffer = 0;
 
@@ -534,52 +521,28 @@ pixout GlassPS(vert2FragGeneral IN, bool bIsFrontFace : SV_IsFrontFace)
 #if %_RT_NEAREST
 	fFarPlaneScale /= CV_NearFarClipDist.z;
 #endif
-
-	half fDepth = -mul((float3x3)CV_ViewMatr, IN.vView.xyz).z;
-	
-	int3 vPixCoord = int3(max(min(tcProj + tcRefractionOffset * CV_ScreenSize.xy, CV_ScreenSize.xy - float2(1.0f, 1.0f)), float2(0.0f, 0.0f)), 0);
-#if %_RT_PER_INSTANCE_CB_TEMP	
-	float fZBufferRefrac = Fwd_SceneDepth.Load(vPixCoord).x * fFarPlaneScale;
-#else
-	float fZBufferRefrac = sceneLinearDepthTex.Load(vPixCoord).x * fFarPlaneScale;
-#endif
-	tcProj += tcRefractionOffset * saturate(fZBufferRefrac - fDepth);
+    
+    float2 screenCoords = floor(IN.WPos.xy);
+    float fZBufferRefrac = Fwd_SceneDepth[screenCoords].x * fFarPlaneScale;
+    tcProj += tcRefractionOffset * saturate(fZBufferRefrac - IN.screenProj.w);
 
 #if %BLUR_REFRACTION
 	cBackbuffer = GetBlurredRefraction(tcProj, tintMap.y).rgb;
 #else
-	#if %_RT_PER_INSTANCE_CB_TEMP
-		cBackbuffer = Fwd_SceneTarget.Sample(ssFwdBilinearWrap, tcProj).rgb;
-	#else
-		cBackbuffer = GetTexture2D(envMapSamplerRefr, tcProj).rgb;
-	#endif
+    cBackbuffer = Fwd_SceneTarget.Sample(ssMaterialBilinearClamp, tcProj).rgb;
 #endif
 
 #if %DEPTH_FOG
 	// Get depth buffer
-	float fFogLevel = ComputeDepthFog(fDepth, fZBufferRefrac, FogDensity);	// Compute fog
+	float fFogLevel = ComputeDepthFog(IN.screenProj.w, fZBufferRefrac, FogDensity);	// Compute fog
 	cBackbuffer = lerp(FogColor.rgb, cBackbuffer, fFogLevel);	// Colorize fog and mix it with backbuffer
 #endif
 
 #if !%_RT_SECONDARY_VIEW && %_RT_FOG && !%_RT_DECAL_TEXGEN_2D && %_RT_VOLUMETRIC_FOG
-#if !%_RT_PER_INSTANCE_CB_TEMP
-	{
-		// Subtract volumetric fog color from refraction because fog between camera and glass is applied in frag_fog_setup function.
-		VolumetricFogTexcoord vtc = GetVolumetricFogTexcoordParamByScreenProj(IN.screenProj);
-		float4 vf = GetVolumetricFogValue(vtc);
-		half4 globalFogColor = IN.AvgFogVolumeContrib.xyzw;
-		half3 fogColor = 0.0f;
-		ApplyVolumetricFog(vf, globalFogColor, vtc, fogColor.xyz);
-		cBackbuffer -= fogColor.xyz;
-	}
-#else
-	{
-		// Subtract volumetric fog color from refraction because fog between camera and glass is applied .
-		half3 fogColor = 0.0f;
-		Fwd_ApplyFog(attribs.worldPos + GetWorldViewPos(), attribs.worldPos, IN.WPos, fogColor.xyz);
-		cBackbuffer -= fogColor.xyz;
-	}
-#endif
+	// Subtract volumetric fog color from refraction because fog between camera and glass is applied .
+	half3 fogColor = 0.0f;
+	Fwd_ApplyFog(attribs.worldPos + GetWorldViewPos(), attribs.worldPos, IN.WPos, fogColor.xyz);
+	cBackbuffer -= fogColor.xyz;
 #endif
 
 	const half decalWhiteTint = 0.45h;
@@ -590,53 +553,35 @@ pixout GlassPS(vert2FragGeneral IN, bool bIsFrontFace : SV_IsFrontFace)
 #else
 	half4 vertColor = half4(1,1,1,1);
 #endif
-    
+    float4 localTintColor = TintColor;
+	float localTintCloudiness = TintCloudiness;
 #if %TINT_COLOR_MAP 
-	TintColor.xyz *= GetTexture2D(tintColorTex, ssMaterialTrilinear, IN.baseTC.xy).xyz;
+	localTintColor.xyz *= GetTexture2D(tintColorTex, ssMaterialTrilinear, IN.baseTC.xy).xyz;
 #endif
-	TintColor.xyz = saturate(TintColor.xyz * vertColor.rgb + tintMap.w * decalWhiteTint); // Tend tint color toward white based on decals
+	localTintColor.xyz = saturate(localTintColor.xyz * vertColor.rgb + tintMap.w * decalWhiteTint); // Tend tint color toward white based on decals
       
 #if %TINT_MAP		
-	TintCloudiness = saturate(TintCloudiness * tintMap.x * tintMap.y + tintMap.w * decalCloudiness);
-	TintColor.xyz = saturate(TintColor.xyz + (1 - tintMap.x));
+	localTintCloudiness = saturate(localTintCloudiness * tintMap.x * tintMap.y + tintMap.w * decalCloudiness);
+	localTintColor.xyz = saturate(localTintColor.xyz + (1 - tintMap.x));
 #else
-	TintCloudiness = saturate(TintCloudiness + tintMap.w * decalCloudiness);
+	localTintCloudiness = saturate(localTintCloudiness + tintMap.w * decalCloudiness);
 #endif
 
-	half3 tintBackground = cBackbuffer * TintColor.xyz;
-	half3 tintDiffuse = TintColor.xyz * diffuseAcc;
+	half3 tintBackground = cBackbuffer * localTintColor.xyz;
+	half3 tintDiffuse = localTintColor.xyz * diffuseAcc;
 	half3 litDiffuse = attribs.albedo * diffuseAcc;
 
 	float3 viewVec = -normalize(attribs.worldPos);
 	half3 fresnel = GetEnvmapFresnel(attribs.reflectance, attribs.smoothness, saturate(dot(attribs.normal, viewVec)));
 
-	half3 tintBlend = lerp(tintBackground, tintDiffuse, TintCloudiness);
+	half3 tintBlend = lerp(tintBackground, tintDiffuse, localTintCloudiness);
 	half3 cDiffuse = lerp(tintBlend, litDiffuse, attribs.custom.backlightMask);   
 	half3 cSpecular = specularAcc.xyz;
 
-	half alpha = holeMask * vertColor.a;
-#if !%_RT_PER_INSTANCE_CB_TEMP
-	alpha *= IN.Ambient.w;
-#endif
+	half alpha = vertColor.a;
 	half4 cFinal = half4(lerp(cDiffuse, cSpecular, fresnel), alpha);	
 	
-#if !%_RT_PER_INSTANCE_CB_TEMP
-	// Fog
-	#if %_RT_FOG && !%_RT_DECAL_TEXGEN_2D && !%_RT_SECONDARY_VIEW
-		#if %_RT_VOLUMETRIC_FOG
-			VolumetricFogTexcoord vtc = GetVolumetricFogTexcoordParamByScreenProj(IN.screenProj);
-			float4 vf = GetVolumetricFogValue(vtc);
-			half4 globalFogColor = IN.AvgFogVolumeContrib.xyzw;
-			ApplyVolumetricFog(vf, globalFogColor, vtc, cFinal.rgb);
-		#else
-			ComputeGlobalFogPS(cFinal.rgb, IN.vView.w);
-			cFinal.rgb = IN.AvgFogVolumeContrib.xyz + cFinal.rgb * IN.AvgFogVolumeContrib.w;
-			cFinal.w *= IN.vView.w;
-		#endif
-	#endif
-#else
 	Fwd_ApplyFog(attribs.worldPos + GetWorldViewPos(), attribs.worldPos, IN.WPos, cFinal.xyz);
-#endif
 
 	OUT.Color = cFinal;
 

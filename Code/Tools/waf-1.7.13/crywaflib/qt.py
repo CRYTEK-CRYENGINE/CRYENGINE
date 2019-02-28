@@ -35,6 +35,7 @@ qt_modules = [
 	'Svg',
 	'Widgets',
 	'Qml',
+	'WebEngineWidgets'
 ]
 
 qt_core_binaries = [
@@ -202,7 +203,8 @@ class qt_moc(Task.Task):
 			self.err_msg += "<++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++>\n"
 			link_output = False
 		# Check if file needed to be mocced. Otherwise return and strip file from linker			
-		elif out_str.rstrip().endswith('No output generated.'):			
+		#elif out_str.rstrip().endswith('No output generated.'):  # commented out as IB 9.0 has a bug where it adds "Start{{xgTaskID=00000000}}" to the end of the line
+		elif 'No output generated.' in out_str:
 			link_output = False			
 			
 		if not link_output:

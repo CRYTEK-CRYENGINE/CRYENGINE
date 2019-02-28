@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "AudioAreaRandom.h"
@@ -27,7 +27,7 @@ CAudioAreaRandomRegistrator g_audioAreaRandomRegistrator;
 
 CRYREGISTER_CLASS(CAudioAreaRandom);
 
-void CAudioAreaRandom::ProcessEvent(SEntityEvent& event)
+void CAudioAreaRandom::ProcessEvent(const SEntityEvent& event)
 {
 	if (gEnv->IsDedicated())
 		return;

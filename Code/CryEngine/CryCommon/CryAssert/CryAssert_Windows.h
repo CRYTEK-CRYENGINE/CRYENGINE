@@ -1,9 +1,10 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 #if defined(USE_CRY_ASSERT) && CRY_PLATFORM_WINDOWS
 	#include <CryString/CryPath.h>
 	#include <CryInput/IInput.h>
+	#include <CryCore/Project/CryModuleDefs.h>
 
 	#define XTOKENIZE_(x, y) x ## y
 	#define XTOKENIZE(x, y)  XTOKENIZE_(x, y)
@@ -43,14 +44,6 @@
 	#define DLG_ITEM_TEXT_13                L"Report as Bug"
 	#define DLG_ITEM_TEXT_14                L"Break"
 	#define DLG_ITEM_TEXT_15                L"Ignore All"
-	#if defined(eCryModule)
-		#define DLG_ITEM_TEXT_16              XTOKENIZE(L, "Ignore ") XTOKENIZE(L, XSTRINGIZE(eCryModule))
-		#define DLG_HAS_MODULE                1
-		#define DLG_NB_ITEM                   17
-	#else
-		#define DLG_HAS_MODULE                0
-		#define DLG_NB_ITEM                   16
-	#endif
 
 template<int iTitleSize>
 struct SDlgItem
@@ -95,36 +88,9 @@ struct SDlgData
 	SDLGITEM(DLG_ITEM_TEXT_10, i10);
 	SDLGITEM(DLG_ITEM_TEXT_11, i11);
 	SDLGITEM(DLG_ITEM_TEXT_13, i13);
-	#if DLG_HAS_MODULE
-	SDLGITEM(DLG_ITEM_TEXT_16, i16);
-	#endif
-};
-
-//-----------------------------------------------------------------------------------------------------
-
-static SDlgData g_dialogRC =
-{
-	{ DS_SETFOREGROUND | DS_MODALFRAME | DS_3DLOOK | DS_SETFONT | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_VISIBLE, 0, DLG_NB_ITEM, 0,   0,   380, 134 },
-	0, 0, DLG_TITLE, 8, DLG_FONT,
-	{ BS_PUSHBUTTON | WS_CHILD | WS_VISIBLE | WS_TABSTOP,                                                                      0, 7,           113, 50,  14,  IDC_CRYASSERT_BUTTON_CONTINUE, 0xFFFF, 0x0080, DLG_ITEM_TEXT_0, 0},
-	{ BS_DEFPUSHBUTTON | WS_CHILD | WS_VISIBLE | WS_TABSTOP,                                                                   0, 60,          113, 50,  14,  IDC_CRYASSERT_BUTTON_IGNORE, 0xFFFF, 0x0080, DLG_ITEM_TEXT_12, 0},
-	{ BS_PUSHBUTTON | WS_CHILD | WS_VISIBLE | WS_TABSTOP,                                                                      0, 113,         113, 50,  14,  IDC_CRYASSERT_BUTTON_IGNORE_ALL, 0xFFFF, 0x0080, DLG_ITEM_TEXT_15, 0},
-	{ BS_PUSHBUTTON | WS_CHILD | WS_VISIBLE | WS_TABSTOP,                                                                      0, 271,         113, 50,  14,  IDC_CRYASSERT_BUTTON_BREAK, 0xFFFF, 0x0080, DLG_ITEM_TEXT_14, 0},
-	{ BS_PUSHBUTTON | WS_CHILD | WS_VISIBLE | WS_TABSTOP,                                                                      0, 324,         113, 50,  14,  IDC_CRYASSERT_BUTTON_STOP, 0xFFFF, 0x0080, DLG_ITEM_TEXT_1, 0},
-	{ BS_GROUPBOX | WS_CHILD | WS_VISIBLE,                                                                                     0, 7,           7,   366, 100, IDC_CRYASSERT_STATIC_TEXT, 0xFFFF, 0x0080, DLG_ITEM_TEXT_2, 0},
-	{ ES_LEFT | ES_AUTOHSCROLL | ES_READONLY | WS_BORDER | WS_CHILD | WS_VISIBLE,                                              0, 50,          48,  25,  13,  IDC_CRYASSERT_EDIT_LINE, 0xFFFF, 0x0081, DLG_ITEM_TEXT_3, 0},
-	{ WS_CHILD | WS_VISIBLE,                                                                                                   0, 14,          50,  14,  8,   IDC_CRYASSERT_STATIC_TEXT, 0xFFFF, 0x0082, DLG_ITEM_TEXT_4, 0},
-	{ ES_LEFT | ES_AUTOHSCROLL | ES_READONLY | WS_BORDER | WS_CHILD | WS_VISIBLE,                                              0, 50,          32,  290, 13,  IDC_CRYASSERT_EDIT_FILE, 0xFFFF, 0x0081, DLG_ITEM_TEXT_5, 0},
-	{ WS_CHILD | WS_VISIBLE,                                                                                                   0, 14,          34,  12,  8,   IDC_CRYASSERT_STATIC_TEXT, 0xFFFF, 0x0082, DLG_ITEM_TEXT_6, 0},
-	{ WS_CHILD | WS_VISIBLE,                                                                                                   0, 13,          18,  30,  8,   IDC_CRYASSERT_STATIC_TEXT, 0xFFFF, 0x0082, DLG_ITEM_TEXT_7, 0},
-	{ ES_LEFT | ES_AUTOHSCROLL | ES_READONLY | WS_BORDER | WS_CHILD | WS_VISIBLE,                                              0, 50,          16,  290, 13,  IDC_CRYASSERT_EDIT_CONDITION, 0xFFFF, 0x0081, DLG_ITEM_TEXT_8, 0},
-	{ WS_CHILD | WS_VISIBLE,                                                                                                   0, 348,         19,  18,  8,   IDC_CRYASSERT_STATIC_TEXT, 0xFFFF, 0x0082, DLG_ITEM_TEXT_9, 0},
-	{ ES_LEFT | ES_AUTOHSCROLL | ES_READONLY | WS_BORDER | WS_CHILD | WS_VISIBLE,                                              0, 50,          67,  290, 13,  IDC_CRYASSERT_EDIT_REASON, 0xFFFF, 0x0081, DLG_ITEM_TEXT_10, 0},
-	{ WS_CHILD | WS_VISIBLE,                                                                                                   0, 15,          69,  26,  8,   IDC_CRYASSERT_STATIC_TEXT, 0xFFFF, 0x0082, DLG_ITEM_TEXT_11, 0},
-	{ BS_PUSHBUTTON | WS_CHILD | WS_VISIBLE,                                                                                   0, 127,         88,  72,  12,  IDC_CRYASSERT_BUTTON_REPORT, 0xFFFF, 0x0080, DLG_ITEM_TEXT_13, 0},
-	#if DLG_HAS_MODULE
-	{ BS_PUSHBUTTON | WS_CHILD | WS_VISIBLE | WS_TABSTOP,                                                                      0, 165,         113, 100, 14,  IDC_CRYASSERT_BUTTON_MODULE, 0xFFFF, 0x0080, DLG_ITEM_TEXT_16, 0},
-	#endif
+#if defined(eCryModule)
+	SDlgItem<256> i16;
+#endif
 };
 
 //-----------------------------------------------------------------------------------------------------
@@ -152,35 +118,36 @@ struct SCryAssertInfo
 
 //-----------------------------------------------------------------------------------------------------
 
+static THREADLOCAL SCryAssertInfo* gs_pAssertInfo;
+
 static INT_PTR CALLBACK DlgProc(HWND _hDlg, UINT _uiMsg, WPARAM _wParam, LPARAM _lParam)
 {
-	static THREADLOCAL SCryAssertInfo* pAssertInfo;
 	switch (_uiMsg)
 	{
 	case WM_INITDIALOG:
 		{
-			pAssertInfo = (SCryAssertInfo*)_lParam;
+			gs_pAssertInfo = (SCryAssertInfo*)_lParam;
 
 			char buf[MAX_PATH];
-			const bool bFolded = PathUtil::SimplifyFilePath(pAssertInfo->pszFile, buf, MAX_PATH, PathUtil::ePathStyle_Windows);
+			const bool bFolded = PathUtil::SimplifyFilePath(gs_pAssertInfo->pszFile, buf, MAX_PATH, PathUtil::ePathStyle_Windows);
 
-			SetWindowTextA(GetDlgItem(_hDlg, IDC_CRYASSERT_EDIT_CONDITION), pAssertInfo->pszCondition);
-			SetWindowTextA(GetDlgItem(_hDlg, IDC_CRYASSERT_EDIT_FILE), bFolded ? buf : pAssertInfo->pszFile);
+			SetWindowTextA(GetDlgItem(_hDlg, IDC_CRYASSERT_EDIT_CONDITION), gs_pAssertInfo->pszCondition);
+			SetWindowTextA(GetDlgItem(_hDlg, IDC_CRYASSERT_EDIT_FILE), bFolded ? buf : gs_pAssertInfo->pszFile);
 
 			char szLine[MAX_PATH];
-			cry_sprintf(szLine, "%d", pAssertInfo->uiLine);
+			cry_sprintf(szLine, "%d", gs_pAssertInfo->uiLine);
 			SetWindowTextA(GetDlgItem(_hDlg, IDC_CRYASSERT_EDIT_LINE), szLine);
 
-			if (pAssertInfo->pszMessage && pAssertInfo->pszMessage[0] != '\0')
+			if (gs_pAssertInfo->pszMessage && gs_pAssertInfo->pszMessage[0] != '\0')
 			{
-				SetWindowTextA(GetDlgItem(_hDlg, IDC_CRYASSERT_EDIT_REASON), pAssertInfo->pszMessage);
+				SetWindowTextA(GetDlgItem(_hDlg, IDC_CRYASSERT_EDIT_REASON), gs_pAssertInfo->pszMessage);
 			}
 			else
 			{
 				SetWindowTextA(GetDlgItem(_hDlg, IDC_CRYASSERT_EDIT_REASON), "No Reason");
 			}
 
-			SetWindowPos(_hDlg, HWND_TOPMOST, pAssertInfo->uiX, pAssertInfo->uiY, 0, 0, SWP_SHOWWINDOW | SWP_NOSIZE);
+			SetWindowPos(_hDlg, HWND_TOPMOST, gs_pAssertInfo->uiX, gs_pAssertInfo->uiY, 0, 0, SWP_SHOWWINDOW | SWP_NOSIZE);
 		}
 		break;
 
@@ -190,38 +157,44 @@ static INT_PTR CALLBACK DlgProc(HWND _hDlg, UINT _uiMsg, WPARAM _wParam, LPARAM 
 			{
 			case IDCANCEL:
 			case IDC_CRYASSERT_BUTTON_CONTINUE:
-				pAssertInfo->btnChosen = SCryAssertInfo::BUTTON_CONTINUE;
+				gs_pAssertInfo->btnChosen = SCryAssertInfo::BUTTON_CONTINUE;
 				EndDialog(_hDlg, 0);
 				break;
 
 			case IDC_CRYASSERT_BUTTON_IGNORE:
-				pAssertInfo->btnChosen = SCryAssertInfo::BUTTON_IGNORE;
+				gs_pAssertInfo->btnChosen = SCryAssertInfo::BUTTON_IGNORE;
 				EndDialog(_hDlg, 0);
 				break;
 
 			case IDC_CRYASSERT_BUTTON_IGNORE_ALL:
-				pAssertInfo->btnChosen = SCryAssertInfo::BUTTON_IGNORE_ALL;
+				gs_pAssertInfo->btnChosen = SCryAssertInfo::BUTTON_IGNORE_ALL;
 				EndDialog(_hDlg, 0);
 				break;
 
 			case IDC_CRYASSERT_BUTTON_BREAK:
-				pAssertInfo->btnChosen = SCryAssertInfo::BUTTON_BREAK;
+				gs_pAssertInfo->btnChosen = SCryAssertInfo::BUTTON_BREAK;
 				EndDialog(_hDlg, 0);
 				break;
 
 			case IDC_CRYASSERT_BUTTON_STOP:
-				pAssertInfo->btnChosen = SCryAssertInfo::BUTTON_STOP;
+				gs_pAssertInfo->btnChosen = SCryAssertInfo::BUTTON_STOP;
 				EndDialog(_hDlg, 1);
 				break;
 
 			case IDC_CRYASSERT_BUTTON_REPORT:
-				pAssertInfo->btnChosen = SCryAssertInfo::BUTTON_REPORT_AS_BUG;
+				gs_pAssertInfo->btnChosen = SCryAssertInfo::BUTTON_REPORT_AS_BUG;
 				EndDialog(_hDlg, 0);
 				break;
 
 			case IDC_CRYASSERT_BUTTON_MODULE:
-				g_bAssertsAreDisabledForThisModule = true;
-				pAssertInfo->btnChosen = SCryAssertInfo::BUTTON_CONTINUE;
+#ifdef eCryModule
+				if (gEnv && gEnv->pSystem)
+				{
+					gEnv->pSystem->DisableAssertionsForModule(eCryModule);
+				}
+#endif
+
+				gs_pAssertInfo->btnChosen = SCryAssertInfo::BUTTON_CONTINUE;
 				EndDialog(_hDlg, 0);
 				break;
 			}
@@ -234,12 +207,12 @@ static INT_PTR CALLBACK DlgProc(HWND _hDlg, UINT _uiMsg, WPARAM _wParam, LPARAM 
 
 	case WM_DESTROY:
 		{
-			if (pAssertInfo)
+			if (gs_pAssertInfo)
 			{
 				RECT rcWindowBounds;
 				GetWindowRect(_hDlg, &rcWindowBounds);
-				pAssertInfo->uiX = rcWindowBounds.left;
-				pAssertInfo->uiY = rcWindowBounds.top;
+				gs_pAssertInfo->uiX = rcWindowBounds.left;
+				gs_pAssertInfo->uiY = rcWindowBounds.top;
 			}
 		}
 		break;
@@ -377,9 +350,9 @@ bool CryAssert(const char* _pszCondition, const char* _pszFile, unsigned int _ui
 	{
 		return false;
 	}
-	if (!gEnv->bNoAssertDialog && !gEnv->bIgnoreAllAsserts && !gEnv->bStoppedOnAssert)
+	if (!gEnv->bUnattendedMode && !gEnv->ignoreAllAsserts && !gEnv->stoppedOnAssert)
 	{
-		gEnv->bStoppedOnAssert = true;
+		gEnv->stoppedOnAssert = true;
 
 		SCryAssertInfo assertInfo;
 
@@ -396,7 +369,44 @@ bool CryAssert(const char* _pszCondition, const char* _pszFile, unsigned int _ui
 		CCursorShowerWithStack cursorShowerWithStack;
 		cursorShowerWithStack.StoreCurrentAndShow();
 
-		DialogBoxIndirectParam(CryGetCurrentModule(), (DLGTEMPLATE*)&g_dialogRC, GetDesktopWindow(), DlgProc, (LPARAM)&assertInfo);
+#if defined(eCryModule)
+		SDlgItem<256> currentModuleItem = { BS_PUSHBUTTON | WS_CHILD | WS_VISIBLE | WS_TABSTOP, 0, 165, 113, 100, 14, IDC_CRYASSERT_BUTTON_MODULE, 0xFFFF, 0x0080 };
+		
+		wstring message = L"Ignore All From ";
+		message += g_moduleNames[eCryModule];
+		cry_strcpy_wchar(currentModuleItem.t, message.c_str());
+
+		const int numEntries = 17;
+#else
+		const int numEntries = 16;
+#endif
+		
+		SDlgData dialog =
+		{
+			{ DS_SETFOREGROUND | DS_MODALFRAME | DS_3DLOOK | DS_SETFONT | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_VISIBLE, 0, numEntries, 0,   0,   380, 134 },
+			0, 0, DLG_TITLE, 8, DLG_FONT,
+			{ BS_PUSHBUTTON | WS_CHILD | WS_VISIBLE | WS_TABSTOP,                                                                      0, 7,           113, 50,  14,  IDC_CRYASSERT_BUTTON_CONTINUE, 0xFFFF, 0x0080, DLG_ITEM_TEXT_0, 0 },
+			{ BS_DEFPUSHBUTTON | WS_CHILD | WS_VISIBLE | WS_TABSTOP,                                                                   0, 60,          113, 50,  14,  IDC_CRYASSERT_BUTTON_IGNORE, 0xFFFF, 0x0080, DLG_ITEM_TEXT_12, 0 },
+			{ BS_PUSHBUTTON | WS_CHILD | WS_VISIBLE | WS_TABSTOP,                                                                      0, 113,         113, 50,  14,  IDC_CRYASSERT_BUTTON_IGNORE_ALL, 0xFFFF, 0x0080, DLG_ITEM_TEXT_15, 0 },
+			{ BS_PUSHBUTTON | WS_CHILD | WS_VISIBLE | WS_TABSTOP,                                                                      0, 271,         113, 50,  14,  IDC_CRYASSERT_BUTTON_BREAK, 0xFFFF, 0x0080, DLG_ITEM_TEXT_14, 0 },
+			{ BS_PUSHBUTTON | WS_CHILD | WS_VISIBLE | WS_TABSTOP,                                                                      0, 324,         113, 50,  14,  IDC_CRYASSERT_BUTTON_STOP, 0xFFFF, 0x0080, DLG_ITEM_TEXT_1, 0 },
+			{ BS_GROUPBOX | WS_CHILD | WS_VISIBLE,                                                                                     0, 7,           7,   366, 100, IDC_CRYASSERT_STATIC_TEXT, 0xFFFF, 0x0080, DLG_ITEM_TEXT_2, 0 },
+			{ ES_LEFT | ES_AUTOHSCROLL | ES_READONLY | WS_BORDER | WS_CHILD | WS_VISIBLE,                                              0, 50,          48,  25,  13,  IDC_CRYASSERT_EDIT_LINE, 0xFFFF, 0x0081, DLG_ITEM_TEXT_3, 0 },
+			{ WS_CHILD | WS_VISIBLE,                                                                                                   0, 14,          50,  14,  8,   IDC_CRYASSERT_STATIC_TEXT, 0xFFFF, 0x0082, DLG_ITEM_TEXT_4, 0 },
+			{ ES_LEFT | ES_AUTOHSCROLL | ES_READONLY | WS_BORDER | WS_CHILD | WS_VISIBLE,                                              0, 50,          32,  290, 13,  IDC_CRYASSERT_EDIT_FILE, 0xFFFF, 0x0081, DLG_ITEM_TEXT_5, 0 },
+			{ WS_CHILD | WS_VISIBLE,                                                                                                   0, 14,          34,  12,  8,   IDC_CRYASSERT_STATIC_TEXT, 0xFFFF, 0x0082, DLG_ITEM_TEXT_6, 0 },
+			{ WS_CHILD | WS_VISIBLE,                                                                                                   0, 13,          18,  30,  8,   IDC_CRYASSERT_STATIC_TEXT, 0xFFFF, 0x0082, DLG_ITEM_TEXT_7, 0 },
+			{ ES_LEFT | ES_AUTOHSCROLL | ES_READONLY | WS_BORDER | WS_CHILD | WS_VISIBLE,                                              0, 50,          16,  290, 13,  IDC_CRYASSERT_EDIT_CONDITION, 0xFFFF, 0x0081, DLG_ITEM_TEXT_8, 0 },
+			{ WS_CHILD | WS_VISIBLE,                                                                                                   0, 348,         19,  18,  8,   IDC_CRYASSERT_STATIC_TEXT, 0xFFFF, 0x0082, DLG_ITEM_TEXT_9, 0 },
+			{ ES_LEFT | ES_AUTOHSCROLL | ES_READONLY | WS_BORDER | WS_CHILD | WS_VISIBLE,                                              0, 50,          67,  290, 13,  IDC_CRYASSERT_EDIT_REASON, 0xFFFF, 0x0081, DLG_ITEM_TEXT_10, 0 },
+			{ WS_CHILD | WS_VISIBLE,                                                                                                   0, 15,          69,  26,  8,   IDC_CRYASSERT_STATIC_TEXT, 0xFFFF, 0x0082, DLG_ITEM_TEXT_11, 0 },
+			{ BS_PUSHBUTTON | WS_CHILD | WS_VISIBLE,                                                                                   0, 127,         88,  72,  12,  IDC_CRYASSERT_BUTTON_REPORT, 0xFFFF, 0x0080, DLG_ITEM_TEXT_13, 0 },
+#if defined(eCryModule)
+			currentModuleItem
+#endif
+		};
+
+		DialogBoxIndirectParam(CryGetCurrentModule(), (DLGTEMPLATE*)&dialog, GetDesktopWindow(), DlgProc, (LPARAM)&assertInfo);
 
 		cursorShowerWithStack.RevertToPrevious();
 
@@ -410,13 +420,13 @@ bool CryAssert(const char* _pszCondition, const char* _pszFile, unsigned int _ui
 			*_pbIgnore = true;
 			break;
 		case SCryAssertInfo::BUTTON_IGNORE_ALL:
-			gEnv->bIgnoreAllAsserts = true;
+			gEnv->ignoreAllAsserts = true;
 			break;
 		case SCryAssertInfo::BUTTON_BREAK:
-			gEnv->bStoppedOnAssert = false;
+			gEnv->stoppedOnAssert = false;
 			return true;
 		case SCryAssertInfo::BUTTON_STOP:
-			gEnv->bStoppedOnAssert = false;
+			gEnv->stoppedOnAssert = false;
 			abort();
 			return true;
 		case SCryAssertInfo::BUTTON_REPORT_AS_BUG:
@@ -427,13 +437,13 @@ bool CryAssert(const char* _pszCondition, const char* _pszFile, unsigned int _ui
 			}
 			break;
 		}
-		gEnv->bStoppedOnAssert = false;
+		gEnv->stoppedOnAssert = false;
 	}
-	if (gEnv && !gEnv->bStoppedOnAssert)
+	if (gEnv && !gEnv->stoppedOnAssert)
 	{
-		gEnv->bStoppedOnAssert = true;
+		gEnv->stoppedOnAssert = true;
 		gEnv->pSystem->OnAssert(_pszCondition, gs_szMessage, _pszFile, _uiLine);
-		gEnv->bStoppedOnAssert = false;
+		gEnv->stoppedOnAssert = false;
 	}
 	return false;
 }

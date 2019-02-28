@@ -1,13 +1,9 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "DepthOfField.h"
 #include "DriverD3D.h"
 #include "D3DPostProcess.h"
-
-void CDepthOfFieldStage::Init()
-{
-}
 
 float NGon_Rad(float theta, float n)
 {
@@ -45,9 +41,12 @@ Vec4 CDepthOfFieldStage::ToUnitDisk(Vec4& origin, float blades, float fstop)
 
 void CDepthOfFieldStage::Execute()
 {
+	if (CRenderer::CV_r_dof == 0)
+		return;
+
 	CD3D9Renderer* rd = gcpRendD3D;
 
-	CDepthOfField* pDofRenderTech = (CDepthOfField*)PostEffectMgr()->GetEffect(ePFX_eDepthOfField);
+	CDepthOfField* pDofRenderTech = (CDepthOfField*)PostEffectMgr()->GetEffect(EPostEffectID::DepthOfField);
 	SDepthOfFieldParams dofParams = pDofRenderTech->GetParams();
 
 	if (dofParams.vFocus.w < 0.0001f)
@@ -55,7 +54,7 @@ void CDepthOfFieldStage::Execute()
 
 	PROFILE_LABEL_SCOPE("DOF");
 
-	CShader* pShader = CShaderMan::s_shPostMotionBlur;
+	CShader* pShader = CShaderMan::s_shPostDepthOfField; // s_shPostMotionBlur;
 
 	Vec4 vFocus = dofParams.vFocus;
 	vFocus.w *= 2;  // For backwards compatibility
@@ -86,13 +85,13 @@ void CDepthOfFieldStage::Execute()
 	Vec4 vDofParams1 = Vec4(CRenderer::CV_r_dofMinZ + dofParams.vMinZParams.x, CRenderer::CV_r_dofMinZScale + dofParams.vMinZParams.y, fNearestDofScaleBoost, vFocus.w);
 
 	// For better blending later
-	m_passCopySceneTarget.Execute(CTexture::s_ptexHDRTarget, CTexture::s_ptexSceneTarget);
+	m_passCopySceneTarget.Execute(CRendererResources::s_ptexHDRTarget, CRendererResources::s_ptexSceneTarget);
 
-	CTexture* pTexDofLayersTmp[2] = { CTexture::s_ptexHDRTargetScaledTmp[0], CTexture::s_ptexHDRTargetScaledTempRT[0] };
+	CTexture* pTexDofLayersTmp[2] = { CRendererResources::s_ptexHDRTargetScaledTmp[0], CRendererResources::s_ptexHDRTargetScaledTempRT[0] };
 
-	assert(pTexDofLayersTmp[0]->GetWidth() == CTexture::s_ptexHDRDofLayers[0]->GetWidth() && pTexDofLayersTmp[0]->GetHeight() == CTexture::s_ptexHDRDofLayers[0]->GetHeight());
-	assert(pTexDofLayersTmp[1]->GetWidth() == CTexture::s_ptexHDRDofLayers[1]->GetWidth() && pTexDofLayersTmp[1]->GetHeight() == CTexture::s_ptexHDRDofLayers[1]->GetHeight());
-	assert(pTexDofLayersTmp[0]->GetPixelFormat() == CTexture::s_ptexHDRDofLayers[0]->GetPixelFormat() && pTexDofLayersTmp[1]->GetPixelFormat() == CTexture::s_ptexHDRDofLayers[1]->GetPixelFormat());
+	assert(pTexDofLayersTmp[0]->GetWidth() == CRendererResources::s_ptexHDRDofLayers[0]->GetWidth() && pTexDofLayersTmp[0]->GetHeight() == CRendererResources::s_ptexHDRDofLayers[0]->GetHeight());
+	assert(pTexDofLayersTmp[1]->GetWidth() == CRendererResources::s_ptexHDRDofLayers[1]->GetWidth() && pTexDofLayersTmp[1]->GetHeight() == CRendererResources::s_ptexHDRDofLayers[1]->GetHeight());
+	assert(pTexDofLayersTmp[0]->GetDstFormat() == CRendererResources::s_ptexHDRDofLayers[0]->GetDstFormat() && pTexDofLayersTmp[1]->GetDstFormat() == CRendererResources::s_ptexHDRDofLayers[1]->GetDstFormat());
 
 	static CCryNameR dofFocusParam0Name("vDofParamsFocus0");
 	static CCryNameR dofFocusParam1Name("vDofParamsFocus1");
@@ -103,23 +102,23 @@ void CDepthOfFieldStage::Execute()
 		{
 			PROFILE_LABEL_SCOPE("DOWNSCALE LAYERS");
 
-			if (m_passLayerDownscale.InputChanged())
+			if (m_passLayerDownscale.IsDirty())
 			{
 				static CCryNameTSCRC techNameDownscale("DownscaleDof");
 				m_passLayerDownscale.SetPrimitiveFlags(CRenderPrimitive::eFlags_ReflectShaderConstants_PS);
 				m_passLayerDownscale.SetTechnique(pShader, techNameDownscale, 0);
-				m_passLayerDownscale.SetRenderTarget(0, CTexture::s_ptexHDRDofLayers[0]);  // Near
-				m_passLayerDownscale.SetRenderTarget(1, CTexture::s_ptexHDRDofLayers[1]);  // Far
-				m_passLayerDownscale.SetRenderTarget(2, CTexture::s_ptexSceneCoC[0]);      // CoC Near/Far
+				m_passLayerDownscale.SetRenderTarget(0, CRendererResources::s_ptexHDRDofLayers[0]);  // Near
+				m_passLayerDownscale.SetRenderTarget(1, CRendererResources::s_ptexHDRDofLayers[1]);  // Far
+				m_passLayerDownscale.SetRenderTarget(2, CRendererResources::s_ptexSceneCoC[0]);      // CoC Near/Far
 				m_passLayerDownscale.SetState(GS_NODEPTHTEST);
-				m_passLayerDownscale.SetTextureSamplerPair(0, CTexture::s_ptexZTarget, EDefaultSamplerStates::PointClamp);
-				m_passLayerDownscale.SetTextureSamplerPair(1, CTexture::s_ptexHDRTarget, EDefaultSamplerStates::LinearClamp);
+				m_passLayerDownscale.SetTextureSamplerPair(0, CRendererResources::s_ptexLinearDepth, EDefaultSamplerStates::PointClamp);
+				m_passLayerDownscale.SetTextureSamplerPair(1, CRendererResources::s_ptexHDRTarget, EDefaultSamplerStates::LinearClamp);
 				m_passLayerDownscale.SetRequirePerViewConstantBuffer(true);
 			}
 
 			m_passLayerDownscale.BeginConstantUpdate();
-			Vec4 vParams = Vec4((float)CTexture::s_ptexHDRDofLayers[0]->GetWidth(), (float)CTexture::s_ptexHDRDofLayers[0]->GetHeight(),
-			                    1.0f / (float)CTexture::s_ptexHDRDofLayers[0]->GetWidth(), 1.0f / (float)CTexture::s_ptexHDRDofLayers[0]->GetHeight());
+			Vec4 vParams = Vec4((float)CRendererResources::s_ptexHDRDofLayers[0]->GetWidth(), (float)CRendererResources::s_ptexHDRDofLayers[0]->GetHeight(),
+			                    1.0f / (float)CRendererResources::s_ptexHDRDofLayers[0]->GetWidth(), 1.0f / (float)CRendererResources::s_ptexHDRDofLayers[0]->GetHeight());
 			m_passLayerDownscale.SetConstant(dofFocusParam0Name, vDofParams0, eHWSC_Pixel);
 			m_passLayerDownscale.SetConstant(dofFocusParam1Name, vDofParams1, eHWSC_Pixel);
 			m_passLayerDownscale.Execute();
@@ -130,19 +129,19 @@ void CDepthOfFieldStage::Execute()
 			PROFILE_LABEL_SCOPE("MIN COC DOWNSCALE");
 			for (uint32 i = 1; i < MIN_DOF_COC_K; i++)
 			{
-				if (m_passTileMinCoC[i].InputChanged())
+				if (m_passTileMinCoC[i].IsDirty())
 				{
 					static CCryNameTSCRC techNameTileMinCoC("TileMinCoC");
 					m_passTileMinCoC[i].SetPrimitiveFlags(CRenderPrimitive::eFlags_ReflectShaderConstants_VS);
 					m_passTileMinCoC[i].SetTechnique(pShader, techNameTileMinCoC, 0);
-					m_passTileMinCoC[i].SetRenderTarget(0, CTexture::s_ptexSceneCoC[i]);  // Near
+					m_passTileMinCoC[i].SetRenderTarget(0, CRendererResources::s_ptexSceneCoC[i]);  // Near
 					m_passTileMinCoC[i].SetState(GS_NODEPTHTEST);
-					m_passTileMinCoC[i].SetTextureSamplerPair(0, CTexture::s_ptexSceneCoC[i - 1], EDefaultSamplerStates::LinearClamp);
+					m_passTileMinCoC[i].SetTextureSamplerPair(0, CRendererResources::s_ptexSceneCoC[i - 1], EDefaultSamplerStates::LinearClamp);
 				}
 
 				m_passTileMinCoC[i].BeginConstantUpdate();
-				const Vec4 vParams = Vec4((float)CTexture::s_ptexSceneCoC[i - 1]->GetWidth(), (float)CTexture::s_ptexSceneCoC[i - 1]->GetHeight(),
-				                          1.0f / (float)CTexture::s_ptexSceneCoC[i - 1]->GetWidth(), 1.0f / (float)CTexture::s_ptexSceneCoC[i - 1]->GetHeight());
+				const Vec4 vParams = Vec4((float)CRendererResources::s_ptexSceneCoC[i - 1]->GetWidth(), (float)CRendererResources::s_ptexSceneCoC[i - 1]->GetHeight(),
+				                          1.0f / (float)CRendererResources::s_ptexSceneCoC[i - 1]->GetWidth(), 1.0f / (float)CRendererResources::s_ptexSceneCoC[i - 1]->GetHeight());
 				m_passTileMinCoC[i].SetConstant(dofFocusParam1Name, vParams, eHWSC_Vertex);
 				m_passTileMinCoC[i].Execute();
 			}
@@ -167,21 +166,24 @@ void CDepthOfFieldStage::Execute()
 
 			PROFILE_LABEL_SCOPE("FAR/NEAR LAYER");
 
-			if (m_passGather0.InputChanged())
+			if (m_passGather0.IsDirty())
 			{
 				static CCryNameTSCRC techDOF("Dof");
 				m_passGather0.SetPrimitiveFlags(CRenderPrimitive::eFlags_ReflectShaderConstants_PS);
+				m_passGather0.SetPrimitiveType(CRenderPrimitive::ePrim_ProceduralTriangle);
 				m_passGather0.SetTechnique(pShader, techDOF, 0);
 				m_passGather0.SetRenderTarget(0, pTexDofLayersTmp[0]);
 				m_passGather0.SetRenderTarget(1, pTexDofLayersTmp[1]);
-				m_passGather0.SetRenderTarget(2, CTexture::s_ptexSceneCoCTemp);
+				m_passGather0.SetRenderTarget(2, CRendererResources::s_ptexSceneCoCTemp);
 				m_passGather0.SetState(GS_NODEPTHTEST);
 
-				m_passGather0.SetTextureSamplerPair(0, CTexture::s_ptexZTargetScaled, EDefaultSamplerStates::PointClamp);
-				m_passGather0.SetTextureSamplerPair(1, CTexture::s_ptexHDRDofLayers[0], EDefaultSamplerStates::LinearClamp);
-				m_passGather0.SetTextureSamplerPair(2, CTexture::s_ptexHDRDofLayers[1], EDefaultSamplerStates::LinearClamp);
-				m_passGather0.SetTextureSamplerPair(3, CTexture::s_ptexSceneCoC[0], EDefaultSamplerStates::LinearClamp);
-				m_passGather0.SetTextureSamplerPair(4, CTexture::s_ptexSceneCoC[MIN_DOF_COC_K - 1], EDefaultSamplerStates::PointClamp);
+				m_passGather0.SetTexture(0, CRendererResources::s_ptexLinearDepthScaled[0]);
+				m_passGather0.SetTexture(4, CRendererResources::s_ptexSceneCoC[MIN_DOF_COC_K - 1]);
+				m_passGather0.SetSampler(0, EDefaultSamplerStates::PointClamp);
+
+				m_passGather0.SetTexture(1, CRendererResources::s_ptexHDRDofLayers[0]);
+				m_passGather0.SetTexture(2, CRendererResources::s_ptexHDRDofLayers[1]);
+				m_passGather0.SetSampler(1, EDefaultSamplerStates::LinearClamp);
 			}
 
 			m_passGather0.BeginConstantUpdate();
@@ -209,21 +211,24 @@ void CDepthOfFieldStage::Execute()
 
 			PROFILE_LABEL_SCOPE("FAR/NEAR LAYER ITERATION");
 
-			if (m_passGather1.InputChanged())
+			if (m_passGather1.IsDirty())
 			{
 				static CCryNameTSCRC techDOF("Dof");
 				m_passGather1.SetPrimitiveFlags(CRenderPrimitive::eFlags_ReflectShaderConstants_PS);
+				m_passGather1.SetPrimitiveType(CRenderPrimitive::ePrim_ProceduralTriangle);
 				m_passGather1.SetTechnique(pShader, techDOF, g_HWSR_MaskBit[HWSR_SAMPLE0]);
-				m_passGather1.SetRenderTarget(0, CTexture::s_ptexHDRDofLayers[0]);
-				m_passGather1.SetRenderTarget(1, CTexture::s_ptexHDRDofLayers[1]);
-				m_passGather1.SetRenderTarget(2, CTexture::s_ptexSceneCoC[0]);
+				m_passGather1.SetRenderTarget(0, CRendererResources::s_ptexHDRDofLayers[0]);
+				m_passGather1.SetRenderTarget(1, CRendererResources::s_ptexHDRDofLayers[1]);
+				m_passGather1.SetRenderTarget(2, CRendererResources::s_ptexSceneCoC[0]);
 				m_passGather1.SetState(GS_NODEPTHTEST);
 
-				m_passGather1.SetTextureSamplerPair(0, CTexture::s_ptexZTargetScaled, EDefaultSamplerStates::PointClamp);
-				m_passGather1.SetTextureSamplerPair(1, pTexDofLayersTmp[0], EDefaultSamplerStates::LinearClamp);
-				m_passGather1.SetTextureSamplerPair(2, pTexDofLayersTmp[1], EDefaultSamplerStates::LinearClamp);
-				m_passGather1.SetTextureSamplerPair(3, CTexture::s_ptexSceneCoCTemp, EDefaultSamplerStates::PointClamp);  // TODO: Point filtering good here?
-				m_passGather1.SetTextureSamplerPair(4, CTexture::s_ptexSceneCoC[MIN_DOF_COC_K - 1], EDefaultSamplerStates::PointClamp);
+				m_passGather1.SetTexture(0, CRendererResources::s_ptexLinearDepthScaled[0]);
+				m_passGather1.SetTexture(4, CRendererResources::s_ptexSceneCoC[MIN_DOF_COC_K - 1]);
+				m_passGather1.SetSampler(0, EDefaultSamplerStates::PointClamp);
+
+				m_passGather1.SetTexture(1, pTexDofLayersTmp[0]);
+				m_passGather1.SetTexture(2, pTexDofLayersTmp[1]);
+				m_passGather1.SetSampler(1, EDefaultSamplerStates::LinearClamp);
 			}
 
 			m_passGather1.BeginConstantUpdate();
@@ -238,19 +243,22 @@ void CDepthOfFieldStage::Execute()
 		{
 			PROFILE_LABEL_SCOPE("COMPOSITE");
 
-			if (m_passComposition.InputChanged())
+			if (m_passComposition.IsDirty())
 			{
 				static CCryNameTSCRC techCompositeDof("CompositeDof");
 				m_passComposition.SetPrimitiveFlags(CRenderPrimitive::eFlags_ReflectShaderConstants_PS);
+				m_passComposition.SetPrimitiveType(CRenderPrimitive::ePrim_ProceduralTriangle);
 				m_passComposition.SetTechnique(pShader, techCompositeDof, 0);
-				m_passComposition.SetRenderTarget(0, CTexture::s_ptexHDRTarget);
+				m_passComposition.SetRenderTarget(0, CRendererResources::s_ptexHDRTarget);
 				m_passComposition.SetState(GS_NODEPTHTEST);
 
-				m_passComposition.SetTextureSamplerPair(0, CTexture::s_ptexZTarget, EDefaultSamplerStates::PointClamp);
-				m_passComposition.SetTextureSamplerPair(1, CTexture::s_ptexHDRDofLayers[0], EDefaultSamplerStates::LinearClamp);
-				m_passComposition.SetTextureSamplerPair(2, CTexture::s_ptexHDRDofLayers[1], EDefaultSamplerStates::LinearClamp);
-				m_passComposition.SetTextureSamplerPair(3, CTexture::s_ptexSceneCoCTemp, EDefaultSamplerStates::LinearClamp);
-				m_passComposition.SetTextureSamplerPair(4, CTexture::s_ptexSceneTarget, EDefaultSamplerStates::PointClamp);
+				m_passComposition.SetTexture(1, CRendererResources::s_ptexHDRDofLayers[0]);
+				m_passComposition.SetTexture(2, CRendererResources::s_ptexHDRDofLayers[1]);
+				m_passComposition.SetSampler(1, EDefaultSamplerStates::LinearClamp);
+
+				m_passComposition.SetTexture(0, CRendererResources::s_ptexLinearDepth);
+				m_passComposition.SetTexture(4, CRendererResources::s_ptexSceneTarget);
+				m_passComposition.SetSampler(0, EDefaultSamplerStates::PointClamp);
 			}
 
 			m_passComposition.BeginConstantUpdate();

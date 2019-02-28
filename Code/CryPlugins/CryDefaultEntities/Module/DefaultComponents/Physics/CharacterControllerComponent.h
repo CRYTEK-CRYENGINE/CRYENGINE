@@ -1,5 +1,9 @@
 #pragma once
 
+#include "DefaultComponents/Geometry/AdvancedAnimationComponent.h"
+#include "DefaultComponents/Physics/RigidBodyComponent.h"
+#include "DefaultComponents/Physics/AreaComponent.h"
+
 class CPlugin_CryDefaultEntities;
 
 namespace Cry
@@ -19,7 +23,7 @@ namespace Cry
 			// IEntityComponent
 			virtual void Initialize() final;
 
-			virtual void ProcessEvent(SEntityEvent& event) final;
+			virtual void ProcessEvent(const SEntityEvent& event) final;
 			virtual uint64 GetEventMask() const final;
 
 #ifndef RELEASE
@@ -36,6 +40,13 @@ namespace Cry
 #endif
 
 		public:
+			enum class EChangeVelocityMode : int
+			{
+				SetAsTarget = 0, // velocity change with snapping to the ground, can be used for walking
+				Jump        = 1, // instant velocity change, can be used for jumping or flying
+				Add         = 2, // adding velocity to the current value of velocity
+			};
+
 			static void ReflectType(Schematyc::CTypeDesc<CCharacterControllerComponent>& desc)
 			{
 				desc.SetGUID("{98183F31-A685-43CD-92A9-815274F0A81C}"_cry_guid);
@@ -43,7 +54,7 @@ namespace Cry
 				desc.SetLabel("Character Controller");
 				desc.SetDescription("Functionality for a standard FPS / TPS style walking character");
 				//desc.SetIcon("icons:ObjectTypes/object.ico");
-				desc.SetComponentFlags({ IEntityComponent::EFlags::Socket, IEntityComponent::EFlags::Attach, IEntityComponent::EFlags::Singleton });
+				desc.SetComponentFlags({ IEntityComponent::EFlags::Socket, IEntityComponent::EFlags::Singleton, IEntityComponent::EFlags::Transform });
 
 				// Mark the Rigid Body component as incompatible
 				desc.AddComponentInteraction(SEntityComponentRequirements::EType::Incompatibility, "{912C6CE8-56F7-4FFA-9134-F98D4E307BD6}"_cry_guid);
@@ -85,7 +96,22 @@ namespace Cry
 					pe_action_move moveAction;
 
 					// Override velocity
-					moveAction.iJump = 1;
+					moveAction.iJump = 0;
+					moveAction.dir = velocity;
+
+					// Dispatch the movement request
+					pPhysicalEntity->Action(&moveAction);
+				}
+			}
+
+			virtual void ChangeVelocity(const Vec3& velocity, const EChangeVelocityMode mode)
+			{
+				if (IPhysicalEntity* pPhysicalEntity = m_pEntity->GetPhysicalEntity())
+				{
+					pe_action_move moveAction;
+
+					// Override velocity
+					moveAction.iJump = static_cast<int>(mode);
 					moveAction.dir = velocity;
 
 					// Dispatch the movement request
@@ -121,12 +147,11 @@ namespace Cry
 				{
 					playerDimensions.sizeCollider.z *= 0.5f;
 				}
-
+				playerDimensions.groundContactEps = m_physics.m_groundContactEps;
 				// Keep pivot at the player's feet (defined in player geometry) 
 				playerDimensions.heightPivot = 0.f;
-				// Offset collider upwards if the user requested it
+				// Offset collider upwards
 				playerDimensions.heightCollider = m_pTransform != nullptr ? m_pTransform->GetTranslation().z : 0.f;
-				playerDimensions.groundContactEps = 0.004f;
 
 				physParams.pPlayerDimensions = &playerDimensions;
 
@@ -151,19 +176,6 @@ namespace Cry
 				m_pEntity->UpdateComponentEventMask(this);
 			}
 
-			virtual void Ragdollize()
-			{
-				SEntityPhysicalizeParams physParams;
-				physParams.type = PE_ARTICULATED;
-
-				physParams.mass = m_physics.m_mass;
-				physParams.nSlot = GetEntitySlotId();
-
-				physParams.bCopyJointVelocities = true;
-
-				m_pEntity->Physicalize(physParams);
-			}
-
 			struct SPhysics
 			{
 				inline bool operator==(const SPhysics &rhs) const { return 0 == memcmp(this, &rhs, sizeof(rhs)); }
@@ -175,7 +187,7 @@ namespace Cry
 					desc.AddMember(&CCharacterControllerComponent::SPhysics::m_radius, 'radi', "Radius", "Collider Radius", "Radius of the capsule or cylinder", 0.45f);
 					desc.AddMember(&CCharacterControllerComponent::SPhysics::m_height, 'heig', "Height", "Collider Height", "Height of the capsule or cylinder", 0.935f);
 					desc.AddMember(&CCharacterControllerComponent::SPhysics::m_bCapsule, 'caps', "Capsule", "Use Capsule", "Whether or not to use a capsule as the main collider, otherwise cylinder", true);
-
+					desc.AddMember(&CCharacterControllerComponent::SPhysics::m_groundContactEps, 'gce', "GroundContactEps", "Ground Contact Epsilon", "The amount that the player needs to move upwards before ground contact is lost", 0.004f);
 					desc.AddMember(&CCharacterControllerComponent::SPhysics::m_bSendCollisionSignal, 'send', "SendCollisionSignal", "Send Collision Signal", "Whether or not this component should listen for collisions and report them", false);
 				}
 
@@ -183,6 +195,7 @@ namespace Cry
 				float m_radius = 0.45f;
 				float m_height = 0.935f;
 				bool m_bCapsule = true;
+				Schematyc::Range<-100, 100> m_groundContactEps = 0.004f;
 
 				bool m_bSendCollisionSignal = false;
 			};
@@ -235,5 +248,15 @@ namespace Cry
 
 			Vec3 m_velocity = ZERO;
 		};
+
+		static void ReflectType(Schematyc::CTypeDesc<CCharacterControllerComponent::EChangeVelocityMode>& desc)
+		{
+			desc.SetGUID("{D6B8165A-5BF5-431F-9268-4811DBED4760}"_cry_guid);
+			desc.SetLabel("Velocity change mode");
+
+			desc.AddConstant(CCharacterControllerComponent::EChangeVelocityMode::SetAsTarget, "SetAsTarget", "Velocity change with snapping to the ground, can be used for walking");
+			desc.AddConstant(CCharacterControllerComponent::EChangeVelocityMode::Jump, "Jump", "Instant velocity change, can be used for jumping or flying");
+			desc.AddConstant(CCharacterControllerComponent::EChangeVelocityMode::Add, "Add", "Adding velocity to the current value of velocity");
+		}
 	}
 }

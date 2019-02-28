@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "DialogLineDatabase.h"
@@ -13,8 +13,41 @@
 	#include "ResponseSystem.h"
 #endif
 
-using namespace DRS;
-using namespace CryDRS;
+namespace CryDRS
+{
+typedef std::pair<CHashedString, CDialogLineSet> DialogLinePair;
+typedef std::pair<string, CDialogLineSet>        SortedDialogLinePair;
+
+struct DialogLinePairSerializer
+{
+	DialogLinePairSerializer(CryDRS::DialogLinePair& pair) : pair_(pair) {}
+	void Serialize(Serialization::IArchive& ar)
+	{
+		ar(pair_.first, "lineID", "^LineID");
+		ar(pair_.second, "value", "^+[+]");
+	}
+	CryDRS::DialogLinePair& pair_;
+};
+struct SortedDialogLinePairSerializer
+{
+	SortedDialogLinePairSerializer(CryDRS::SortedDialogLinePair& pair) : pair_(pair) {}
+	void Serialize(Serialization::IArchive& ar)
+	{
+		ar(pair_.first, "lineID", "^LineID");
+		ar(pair_.second, "value", "^+[+]");
+	}
+	CryDRS::SortedDialogLinePair& pair_;
+};
+bool Serialize(Serialization::IArchive& ar, CryDRS::DialogLinePair& pair, const char* name, const char* label)
+{
+	DialogLinePairSerializer keyValue(pair);
+	return ar(keyValue, name, label);
+}
+bool Serialize(Serialization::IArchive& ar, CryDRS::SortedDialogLinePair& pair, const char* name, const char* label)
+{
+	SortedDialogLinePairSerializer keyValue(pair);
+	return ar(keyValue, name, label);
+}
 
 const char* CDialogLineDatabase::s_szFilename = "dialoglines.dialog";
 
@@ -103,7 +136,7 @@ uint CDialogLineDatabase::GetLineSetCount() const
 }
 
 //--------------------------------------------------------------------------------------------------
-IDialogLineSet* CDialogLineDatabase::GetLineSetByIndex(uint32 index)
+DRS::IDialogLineSet* CDialogLineDatabase::GetLineSetByIndex(uint32 index)
 {
 	if (index < m_lineSets.size())
 	{
@@ -126,7 +159,7 @@ CDialogLineSet* CDialogLineDatabase::GetLineSetById(const CHashedString& lineID)
 }
 
 //--------------------------------------------------------------------------------------------------
-IDialogLineSet* CDialogLineDatabase::InsertLineSet(uint32 index)
+DRS::IDialogLineSet* CDialogLineDatabase::InsertLineSet(uint32 index)
 {
 	CDialogLineSet newSet;
 	newSet.SetLineId(GenerateUniqueId("NEW_LINE"));
@@ -188,7 +221,7 @@ bool CDialogLineDatabase::ExecuteScript(uint32 index)
 		{
 			for (int i = 0; i < pLineSet->GetLineCount(); i++)
 			{
-				const IDialogLine* pCurrentLine = pLineSet->GetLineByIndex(i);
+				const DRS::IDialogLine* pCurrentLine = pLineSet->GetLineByIndex(i);
 				const char* szStartTriggerWithoutPrefix = pCurrentLine->GetStartAudioTrigger().c_str();
 
 				const size_t prefixPos = pCurrentLine->GetStartAudioTrigger().find('_');
@@ -251,7 +284,7 @@ void CryDRS::CDialogLineDatabase::SetAllLineData(DRS::ValuesListIterator start, 
 		{
 			pLine->SetLastPickedLine((int)atoi(it->second));
 		}
-		
+
 	}
 }
 
@@ -320,7 +353,7 @@ const CDialogLine* CDialogLineSet::PickLine()
 	{
 		if (m_lastPickedLine >= numLines)
 		{
-			return &m_lines[numLines-1];
+			return &m_lines[numLines - 1];
 		}
 		return &m_lines[m_lastPickedLine++];
 	}
@@ -363,44 +396,7 @@ void CDialogLineSet::Reset()
 }
 
 //--------------------------------------------------------------------------------------------------
-typedef std::pair<CHashedString, CDialogLineSet> DialogLinePair;
-typedef std::pair<string, CDialogLineSet>        SortedDialogLinePair;
-namespace std
-{
-struct DialogLinePairSerializer
-{
-	DialogLinePairSerializer(DialogLinePair& pair) : pair_(pair) {}
-	void Serialize(Serialization::IArchive& ar)
-	{
-		ar(pair_.first, "lineID", "^LineID");
-		ar(pair_.second, "value", "^+[+]");
-	}
-	DialogLinePair& pair_;
-};
-struct SortedDialogLinePairSerializer
-{
-	SortedDialogLinePairSerializer(SortedDialogLinePair& pair) : pair_(pair) {}
-	void Serialize(Serialization::IArchive& ar)
-	{
-		ar(pair_.first, "lineID", "^LineID");
-		ar(pair_.second, "value", "^+[+]");
-	}
-	SortedDialogLinePair& pair_;
-};
-bool Serialize(Serialization::IArchive& ar, DialogLinePair& pair, const char* name, const char* label)
-{
-	DialogLinePairSerializer keyValue(pair);
-	return ar(keyValue, name, label);
-}
-bool Serialize(Serialization::IArchive& ar, SortedDialogLinePair& pair, const char* name, const char* label)
-{
-	SortedDialogLinePairSerializer keyValue(pair);
-	return ar(keyValue, name, label);
-}
-}
-
-//--------------------------------------------------------------------------------------------------
-IDialogLine* CDialogLineSet::GetLineByIndex(uint32 index)
+DRS::IDialogLine* CDialogLineSet::GetLineByIndex(uint32 index)
 {
 	if (index < m_lines.size())
 	{
@@ -410,7 +406,7 @@ IDialogLine* CDialogLineSet::GetLineByIndex(uint32 index)
 }
 
 //--------------------------------------------------------------------------------------------------
-IDialogLine* CDialogLineSet::InsertLine(uint32 index)
+DRS::IDialogLine* CDialogLineSet::InsertLine(uint32 index)
 {
 	if (index == (uint32)-1)
 	{
@@ -476,7 +472,7 @@ void CryDRS::CDialogLineSet::OnLineCanceled(const CDialogLine* pCanceledLine)
 //--------------------------------------------------------------------------------------------------
 //--------------------------------------------------------------------------------------------------
 //--------------------------------------------------------------------------------------------------
-CDialogLine::CDialogLine() 
+CDialogLine::CDialogLine()
 	: m_pauseLength(-1.0f)   //negative values mean "default value", specified by drs_dialogsDefaultPauseAfterLines
 {}
 
@@ -498,4 +494,5 @@ void CDialogLine::Serialize(Serialization::IArchive& ar)
 			ar.warning(m_text, "DialogLine without any data found");
 		}
 	}
+}
 }

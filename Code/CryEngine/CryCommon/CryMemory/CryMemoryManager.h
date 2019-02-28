@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 // -------------------------------------------------------------------------
 //  File name:   CryMemoryManager.h
@@ -661,10 +661,16 @@ CRY_MEM_USAGE_API void CryModuleGetMemoryInfo(CryModuleMemoryInfo* pMemInfo);
 
 #if !defined(NOT_USE_CRY_MEMORY_MANAGER)
 // Note: No need to override placement new, new[], delete, delete[]
+PREFAST_SUPPRESS_WARNING(28251)
 void* __cdecl operator new(std::size_t size);
+
+PREFAST_SUPPRESS_WARNING(28251)
 void* __cdecl operator new(std::size_t size, const std::nothrow_t& nothrow_value) noexcept;
 
+PREFAST_SUPPRESS_WARNING(28251)
 void* __cdecl operator new[](std::size_t size);
+
+PREFAST_SUPPRESS_WARNING(28251)
 void* __cdecl operator new[](std::size_t size, const std::nothrow_t& nothrow_value) noexcept;
 
 

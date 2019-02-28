@@ -1,9 +1,10 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "stdafx.h"
 #include "AudioObject.h"
 #include "AudioEvent.h"
 #include "AudioTrigger.h"
+#include <Logger.h>
 
 namespace CryAudio
 {
@@ -110,7 +111,7 @@ ERequestStatus CObject::ExecuteTrigger(ITrigger const* const pITrigger, IEvent* 
 	}
 	else
 	{
-		g_implLogger.Log(ELogType::Error, "Invalid AudioObjectData, ATLTriggerData or EventData passed to the PortAudio implementation of ExecuteTrigger.");
+		Cry::Audio::Log(ELogType::Error, "Invalid AudioObjectData, ATLTriggerData or EventData passed to the PortAudio implementation of ExecuteTrigger.");
 	}
 
 	return requestResult;

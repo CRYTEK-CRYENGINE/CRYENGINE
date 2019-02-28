@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -42,7 +42,7 @@ struct SEnvPackageElement
 	{}
 
 	CryGUID          elementGUID;
-	IEnvElementPtr pElement;
+	IEnvElementPtr   pElement;
 	CryGUID          scopeGUID;
 };
 
@@ -96,6 +96,9 @@ public:
 	virtual const IEnvPackage*           GetPackage(const CryGUID& guid) const override;
 	virtual void                         VisitPackages(const EnvPackageConstVisitor& visitor) const override;
 
+	virtual void                         RegisterListener(IEnvRegistryListener* pListener) override;
+	virtual void                         UnregisterListener(IEnvRegistryListener* pListener) override;
+
 	virtual const IEnvElement&           GetRoot() const override;
 	virtual const IEnvElement*           GetElement(const CryGUID& guid) const override;
 
@@ -143,6 +146,8 @@ private:
 	IEnvElement* GetElement(const CryGUID& guid);
 
 private:
+
+	TEnvRegistryListeners m_listeners;
 
 	Packages           m_packages;
 

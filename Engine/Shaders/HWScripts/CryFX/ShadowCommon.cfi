@@ -1,5 +1,4 @@
-// CRYENGINE Source Code File
-// Copyright 2001-2015 Crytek GmbH. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 //--------------------------------------------------------------------------------------------------  		   
 // Common Shadow map functions
@@ -14,65 +13,29 @@
 #define FORWARD_SHADOWS_CASCADE0_SINGLE_TAP 0x10
 #define FORWARD_SHADOWS_CLOUD_SHADOWS       0x20
 
-//ShadowGen parameters
-//PSMWARP_MATRIX //instance parameter
-float4x4 warpPsmMatrix    : PB_TempMatr1[0];
-float4 LPos               : PI_OSCameraPos < vsregister = c6; >;
-float4 vAdaption	: PB_TempData[13];
-
 //--------------------------------------------------------------------------------------------------
 //Shadow pass
-
-float4 vInvShadowMapSize : PB_TempData[9];
-
-float4x4 TexGen0          : PB_TempMatr0[0] < vsregister = VS_REG_PB_9; >;
-float4x4 TexGen1          : PB_TempMatr1[0] < vsregister = VS_REG_PB_0; >;
-float4x4 TexGen2          : PB_TempMatr2[0];
-float4x4 TexGen3          : PB_TempMatr3[0];
-
-float4 vCamPos						: PB_TempData[0];
-
-float4 LSPos              : PB_TempData[5];
-
-float4 fShadowFadingDist : PB_TempData[8]; //= 120;
-
-// defines how hard depth test is (default is 100 - hard test)
-float4 fDepthTestBias			: PB_TempData[1];
-float4 fOneDivFarDist  		: PB_TempData[2];
-float4 fDepthShift				: PB_TempData[3];
-float4 fKernelRadius      : PB_TempData[4];
-
-float4 vGSMOffsets01        : PB_TempData[6];		// (lod[0].offsetx,lod[0].offsety,lod[1].offsetx,lod[1].offsety)
-float4 vGSMOffsets23        : PB_TempData[7];		// (lod[2].offsetx,lod[2].offsety,lod[3].offsetx,lod[3].offsety)
 
 #define MAX_SHADOW_SAMPLES_NUM 16
 #define HALF_MAX_SHADOW_SAMPLES_NUM 8
 
-float4 irreg_kernel_cube[MAX_SHADOW_SAMPLES_NUM]	: PB_IrregKernel;
-float4 regular_kernel[5]		: PB_RegularKernel;
-
-float4 irreg_kernel_2d[HALF_MAX_SHADOW_SAMPLES_NUM]	: PB_IrregKernel;
-
-float4 CloudShadowAnimParams	: PB_CloudShadowAnimParams;
-float4 CloudShadowParams			: PB_CloudShadowParams;
-
 // forward shadow map sampling parameters.
 struct SShadowSamplingParams
 {
-	float4x4 TexGen0; //PB_TempMatr0[0]
-	float4x4 TexGen1; //PB_TempMatr1[0]
-	float4x4 TexGen2; //PB_TempMatr2[0]
-	float4x4 TexGen3; //PB_TempMatr3[0]
+	float4x4 TexGen0;
+	float4x4 TexGen1;
+	float4x4 TexGen2;
+	float4x4 TexGen3;
 
-	float4 vInvShadowMapSize; //PB_TempData[9]
-	float4 fDepthTestBias; //PB_TempData[1], defines how hard depth test is (default is 100 - hard test)
-	float4 fOneDivFarDist; //PB_TempData[2]
-	float4 fKernelRadius; //PB_TempData[4]
+	float4 vInvShadowMapSize;
+	float4 fDepthTestBias; // defines how hard depth test is (default is 100 - hard test)
+	float4 fOneDivFarDist;
+	float4 fKernelRadius;
 
-	float4 CloudShadowParams; //PB_CloudShadowParams
-	float4 CloudShadowAnimParams; //PB_CloudShadowAnimParams
+	float4 CloudShadowParams;
+	float4 CloudShadowAnimParams;
 
-	float4 irreg_kernel_2d[HALF_MAX_SHADOW_SAMPLES_NUM]; //PB_IrregKernel
+	float4 irreg_kernel_2d[HALF_MAX_SHADOW_SAMPLES_NUM];
 };
 
 //--------------------------------------------------------------------------------------------------
@@ -384,13 +347,6 @@ float GetVolumetricCloudShadow(Texture3D volCloudShadowTex, SamplerState volClou
 	return max(decayAboveCloud, exp(-opticalThickness));
 }
 
-float GetCloudShadowCommon(float3 worldPos, sampler2D sShadowMap, float4 vAnimParams, float4 vParams)
-{
-	float2 uv = ComputeCloudShadowMapUV(worldPos);
-	float fCloudsShadow = saturate( GetTexture2DLod(sShadowMap, float4((uv * vAnimParams.xy - vAnimParams.zw) , 0, 0)).r * vParams.w );
-	return vParams.z>0 ? 1 - fCloudsShadow : fCloudsShadow;
-}
-
 float GetCloudShadowCommon(float3 worldPos, Texture2D cloudShadowTex, SamplerState bilinearSamplerWrap, float4 vAnimParams, float4 vParams)
 {
 	float2 uv = ComputeCloudShadowMapUV(worldPos);
@@ -410,19 +366,9 @@ float GetCloudShadow(float3 worldPos, SShadowSamplingParams params, ShadowCascad
 	return GetCloudShadowCommon(worldPos, shadowCascades.cloudShadowTex, samplingContext.bilinearSamplerWrap, params.CloudShadowAnimParams, params.CloudShadowParams);
 }
 
-float GetCloudShadow(float3 worldPos, ShadowCascades shadowCascades, ShadowSamplingContext samplingContext)
-{
-	return GetCloudShadowCommon(worldPos, shadowCascades.cloudShadowTex, samplingContext.bilinearSamplerWrap, CloudShadowAnimParams, CloudShadowParams);
-}
-
 uint GetForwardShadowsCascadeMask(SShadowSamplingParams params)
 {
 	return asuint(params.fKernelRadius.z);
-}
-
-uint GetForwardShadowsCascadeMask()
-{
-	return asuint(fKernelRadius.z);
 }
 
 bool ShadowCascadeSample(Texture2D depthMap, ShadowSamplingContext samplingContext, SShadowSamplingParams params, float4 p, float2 randDirTC, float depthTestBias, out float fShadow, bool bSingleTap = false)
@@ -469,7 +415,7 @@ float ShadowDepthTest(
 	float fShadow = 1;
 	
 	if(nCascadeMask != 0) 
-	{	
+	{
 		float4 p;
 		ShadowTexSpace(float4(worldPos, 1), params.TexGen0, params.fOneDivFarDist.x, p);
 		const float2 randDirTC = p.xy / p.w * 1000.0;
@@ -500,88 +446,67 @@ float ShadowDepthTest(
 
 	if(bSampleCloudShadows && (nCascadeMask & FORWARD_SHADOWS_CLOUD_SHADOWS))
 	{
-		float fCloudShadow = GetCloudShadow(worldPos, params, shadowCascades, samplingContext);
+        float fCloudShadow = GetCloudShadow(worldPos, params, shadowCascades, samplingContext);
 		fShadow *= fCloudShadow;
 	}
 	
 	return fShadow;
 }
 
-float ShadowDepthTest(ShadowCascades shadowCascades, ShadowSamplingContext samplingContext, float3 worldPos, bool bSampleCloudShadows = true, bool bForceSingleTap = false)
-{
-	SShadowSamplingParams params;
-
-	params.TexGen0 = TexGen0;
-	params.TexGen1 = TexGen1;
-	params.TexGen2 = TexGen2;
-	params.TexGen3 = TexGen3;
-	params.vInvShadowMapSize = vInvShadowMapSize;
-	params.fDepthTestBias = fDepthTestBias;
-	params.fOneDivFarDist = fOneDivFarDist;
-	params.fKernelRadius = fKernelRadius;
-	params.CloudShadowAnimParams = CloudShadowAnimParams;
-	params.CloudShadowParams = CloudShadowParams;
-	params.irreg_kernel_2d = irreg_kernel_2d;
-
-	return ShadowDepthTest(params, shadowCascades, samplingContext, worldPos, bSampleCloudShadows, bForceSingleTap);
-}
-
-// TODO: remove this once everything has been ported to new render backend
-float ShadowDepthTest(float3 worldPos, bool bSampleCloudShadows = true, bool bForceSingleTap = false)
-{
-	ShadowSamplingContext samplingContext;
-	samplingContext.comparisonSampler   = SAMPLER_STATE_depthMapSampler;
-	samplingContext.pointSamplerClamp   = SAMPLER_STATE_depthMapSamplerLinear;
-	samplingContext.pointSamplerWrap    = ssPointWrap;
-	samplingContext.bilinearSamplerWrap = gCloudShadowSS;
-	samplingContext.noiseTex            = sRotTex;
-
-	ShadowCascades shadowCascades;
-	shadowCascades.shadowMap0 = depthMapSampler0;
-	shadowCascades.shadowMap1 = depthMapSampler1;
-	shadowCascades.shadowMap2 = depthMapSampler2;
-	shadowCascades.shadowMap3 = depthMapSampler3;
-	shadowCascades.cloudShadowTex = gCloudShadowTex;
-	
-	return ShadowDepthTest(shadowCascades, samplingContext, worldPos, bSampleCloudShadows, bForceSingleTap);
-}
-
-void CalculateDetailSSShadow(Texture2D sceneDepthTex, const float fDepth0, const float3 vPosWS, const float3 vPosLight, const float4x4 matComosite, inout float fInShadow, const bool bUseTexture2D = false)
+void CalculateDetailSSShadow(
+#if %_RT_SAMPLE5 // use transmittance if sun shadows
+	Texture2D sceneGBufferA,
+#endif
+	Texture2D sceneDepthTex,
+	const float fDepth0,
+	const float3 vPosWS,
+	const float3 vPosLight,
+	const float4x4 matComosite,
+	inout float fInShadow,
+	const float4 shadowsParams = float4(0.03f, 0, 0, 0))
 {
 	float4 vTC0 = mul(matComosite, float4(vPosWS, 1));
 
-	float4 vTC1 = mul(matComosite, float4(vPosWS + normalize(vPosLight - vPosWS), 1));
+	float maxShadowLength = fDepth0 * CV_NearFarClipDist.y * shadowsParams.x;
 
-	float4 vTCD = (vTC1 - vTC0) * 0.0013;
+	float4 vTC1 = mul(matComosite, float4(vPosWS + normalize(vPosLight - vPosWS) * maxShadowLength, 1));
 
-	vTC0 += vTCD;
+	const int maxSteps = 12;
 
-	float fInSSS = 1;
+	float4 vTCStep = (vTC1 - vTC0) / maxSteps;
 
-	for (int s = 0; s < 16; s++)
+	vTC0 += vTCStep;
+
+	float lightAmountMax = 0;
+
+	for (int s = 0; s < maxSteps; s++)
 	{
 		float4 vTC = vTC0 / vTC0.w;
-		vTC.xy = vTC.xy*0.5f + 0.5f;
-		vTC.y = 1 - vTC.y;
+		vTC.y = -vTC.y;
+		vTC.xy = vTC.xy * 0.5f + 0.5f;
 
-		if (vTC.x < 0 || vTC.x>1 || vTC.y < 0 || vTC.y>1)
-			break;
+		int3 tcInt = int3(vTC.xy * CV_ScreenSize.xy, 0);
 
-		int3 vPixCoord = int3(vTC.xy * CV_ScreenSize.xy, 0);
-		float fScrDepth = sceneDepthTex.Load(vPixCoord).x * CV_NearFarClipDist.y;
+		float sceneDepth = sceneDepthTex.Load(tcInt).x * CV_NearFarClipDist.y;
+		float rayDepth = GetLinearDepth(CV_ProjRatio.y / (vTC.z - CV_ProjRatio.x)) * CV_NearFarClipDist.y;
+		rayDepth -= rayDepth * .002; // bias
 
-		float fRayDepth = GetLinearDepth(CV_ProjRatio.y / (vTC.z - CV_ProjRatio.x)) * CV_NearFarClipDist.y - .0045f;
-			
-		float fSurDens = 1 - 200 * max((fScrDepth - fRayDepth), max(fRayDepth - fScrDepth - .03, 0) / 3);
+#if %_RT_SAMPLE5 // take into account transmittance near the camera, TODO: support transmittance also for local lights
+		const float sceneTransmittance = DecodeGBufferTransmittanceLum(sceneGBufferA.Load(tcInt)) * saturate(1.25f - rayDepth * .01f);
+#else
+		const float sceneTransmittance = 0;
+#endif
 
-		fInSSS = min(fInSSS, 1 - fSurDens);
+		float surfaceOpacity = 1.f - sceneTransmittance * .9f;  // transparent shadows from grass & leaves
+		float surfaceThickness = 0.035f + rayDepth * shadowsParams.x;
+		float depthTestHardness = 0.005f;                       // helps with z - fighting on the slopes
 
-		vTC0 += vTCD;
+		float lightAmount = saturate((rayDepth - sceneDepth) / depthTestHardness) * saturate((sceneDepth + surfaceThickness - rayDepth) / depthTestHardness) * surfaceOpacity;
 
-		vTCD *= 1.05;
+		lightAmountMax = max(lightAmountMax, lightAmount);
+
+		vTC0 += vTCStep;
 	}
 
-	fInSSS = lerp(fInSSS, 1, saturate(fDepth0 * CV_NearFarClipDist.y - 1.f));
-
-	fInShadow = min(fInSSS, fInShadow);
+	fInShadow *= 1.f - lightAmountMax;
 }

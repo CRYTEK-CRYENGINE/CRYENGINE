@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 #define _CRYQUAT_H
@@ -7,7 +7,8 @@
 
 const float RAD_EPSILON = 0.01f;
 
-//! Quaternion.
+//! General-purpose quaternion implementation
+//! \see Quat
 template<typename F> struct Quat_tpl
 	: INumberVector<F, 4, Quat_tpl<F>>
 {

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "MFXContainer.h"
@@ -77,7 +77,7 @@ void CMFXContainer::Execute(const SMFXRunTimeEffectParams& params)
 
 void CMFXContainer::SetCustomParameter(const char* customParameter, const SMFXCustomParamValue& customParameterValue)
 {
-	FUNCTION_PROFILER(gEnv->pSystem, PROFILE_ACTION);
+	CRY_PROFILE_FUNCTION(PROFILE_ACTION);
 
 	TMFXEffects::iterator it = m_effects.begin();
 	TMFXEffects::iterator itEnd = m_effects.end();

@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 /*************************************************************************
    -------------------------------------------------------------------------
@@ -18,10 +18,6 @@
 #include "Network/GameServerNub.h"
 
 #include <list>
-
-#if CRY_PLATFORM_WINDOWS && CRY_PLATFORM_64BIT
-	#pragma warning ( disable : 4244 )
-#endif
 
 #define GAMERULES_GLOBAL_VARIABLE   ("g_gameRules")
 #define GAMERULESID_GLOBAL_VARIABLE ("g_gameRulesId")

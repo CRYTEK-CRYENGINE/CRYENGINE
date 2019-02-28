@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -65,4 +65,5 @@ struct SEditorMetaData : FbxMetaData::IEditorMetaData
 	virtual void Serialize(yasli::Archive& ar) override;
 	virtual std::unique_ptr<FbxMetaData::IEditorMetaData> Clone() const override;
 };
+
 

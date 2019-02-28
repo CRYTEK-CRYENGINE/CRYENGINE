@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -115,7 +115,7 @@ Device::Device()
 
 	gEnv->pSystem->GetHmdManager()->AddEventListener(this);
 
-	m_pHmdSocialScreenKeepAspectCVar = gEnv->pConsole->GetCVar("hmd_social_screen_keep_aspect");
+	m_pHmdSocialScreenKeepAspectCVar = gEnv->pConsole->GetCVar("hmd_social_screen_aspect_mode");
 	m_pHmdSocialScreenCVar = gEnv->pConsole->GetCVar("hmd_social_screen");
 }
 
@@ -284,14 +284,12 @@ void Device::GetCameraSetupInfo(float& fov, float& aspectRatioFactor) const
 	aspectRatioFactor = m_maxAspect;     //(not used);
 }
 
-void Device::GetAsymmetricCameraSetupInfo(int nEye, float& fov, float& aspectRatio, float& asymH, float& asymV, float& eyeDist) const
+HMDCameraSetup Device::GetHMDCameraSetup(int nEye, float ratio, float fnear) const
 {
 	const EyeSetup& setup = m_eyes[nEye];
-	fov = setup.fov;
-	aspectRatio = setup.aspectRatio;
-	asymH = setup.asymH;
-	asymV = setup.asymV;
-	eyeDist = setup.eyeDist;
+	// TODO: Generate projection matrix
+	assert(false);
+	return HMDCameraSetup{};
 }
 
 void Device::DisableHMDTracking(bool disable)
@@ -304,7 +302,7 @@ void Device::RecenterPose()
 	m_recenterQuat = m_nativeTrackingState.pose.orientation.GetInverted();
 }
 
-void Device::UpdateTrackingState(EVRComponent e)
+void Device::UpdateTrackingState(EVRComponent e, uint64_t frameId)
 {
 	if ((e & eVRComponent_Hmd) != 0)
 	{
@@ -384,24 +382,6 @@ const HmdTrackingState& Device::GetLocalTrackingState() const
 const IHmdController* Device::GetController() const
 {
 	return nullptr;
-}
-
-const EHmdSocialScreen Device::GetSocialScreenType(bool* pKeepAspect) const
-{
-	const int kFirstInvalidIndex = static_cast<int>(EHmdSocialScreen::FirstInvalidIndex);
-
-	if (pKeepAspect)
-	{
-		*pKeepAspect = m_pHmdSocialScreenKeepAspectCVar->GetIVal() != 0;
-	}
-
-	if (m_pHmdSocialScreenCVar->GetIVal() >= -1 && m_pHmdSocialScreenCVar->GetIVal() < kFirstInvalidIndex)
-	{
-		const EHmdSocialScreen socialScreenType = static_cast<EHmdSocialScreen>(m_pHmdSocialScreenCVar->GetIVal());
-		return socialScreenType;
-	}
-
-	return EHmdSocialScreen::DistortedDualImage;
 }
 
 Device* Device::CreateAndInitializeDevice()
@@ -485,8 +465,8 @@ void Device::CalculateSymmetricalFovsFromDisplayConfig(float& fovH, float& fovV)
 	//calculate symmetrical fov
 	float leftMatrix[OSVR_MATRIX_SIZE];
 	float rightMatrix[OSVR_MATRIX_SIZE];
-	float nearPlane = gEnv->pRenderer->GetCamera().GetNearPlane();
-	float farPlane = gEnv->pRenderer->GetCamera().GetFarPlane();
+	float nearPlane = GetISystem()->GetViewCamera().GetNearPlane();
+	float farPlane = GetISystem()->GetViewCamera().GetFarPlane();
 	osvrClientGetViewerEyeSurfaceProjectionMatrixf(m_displayConfig, 0, Left, 0, nearPlane, farPlane, OSVR_MATRIX_COLMAJOR | OSVR_MATRIX_COLVECTORS, leftMatrix);
 	osvrClientGetViewerEyeSurfaceProjectionMatrixf(m_displayConfig, 0, Right, 0, nearPlane, farPlane, OSVR_MATRIX_COLMAJOR | OSVR_MATRIX_COLVECTORS, rightMatrix);
 
@@ -533,8 +513,8 @@ void Device::UpdateRenderInfo()
 {
 	if (m_renderManager && m_renderManagerD3D11)
 	{
-		float nearPlane = gEnv->pRenderer->GetCamera().GetNearPlane();
-		float farPlane = gEnv->pRenderer->GetCamera().GetFarPlane();
+		float nearPlane = GetISystem()->GetViewCamera().GetNearPlane();
+		float farPlane = GetISystem()->GetViewCamera().GetFarPlane();
 		m_renderParams.nearClipDistanceMeters = nearPlane;
 		m_renderParams.farClipDistanceMeters = farPlane;
 
@@ -577,8 +557,8 @@ bool Device::InitializeRenderer(void* d3dDevice, void* d3dContext)
 	{
 		osvrRenderManagerGetDefaultRenderParams(&m_renderParams);
 
-		float nearPlane = gEnv->pRenderer->GetCamera().GetNearPlane();
-		float farPlane = gEnv->pRenderer->GetCamera().GetFarPlane();
+		float nearPlane = GetISystem()->GetViewCamera().GetNearPlane();
+		float farPlane = GetISystem()->GetViewCamera().GetFarPlane();
 		m_renderParams.nearClipDistanceMeters = nearPlane;
 		m_renderParams.farClipDistanceMeters = farPlane;
 		UpdateRenderInfo();
@@ -594,6 +574,8 @@ bool Device::InitializeRenderer(void* d3dDevice, void* d3dContext)
 
 bool Device::PresentTextureSet(int textureSetIndex)
 {
+	this->OnEndFrame();
+
 	if (m_renderBufferSets.size() <= textureSetIndex) return false;
 
 	TArray<OSVR_RenderBufferD3D11>& renderBuffers = m_renderBufferSets[textureSetIndex];

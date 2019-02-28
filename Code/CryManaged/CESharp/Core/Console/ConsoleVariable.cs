@@ -1,4 +1,6 @@
-﻿using System;
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -6,7 +8,7 @@ using CryEngine.Common;
 
 namespace CryEngine
 {
-	public class ConsoleVariable
+	internal class ConsoleVariable
 	{
 		private class ConsoleVariableItem : IEquatable<ConsoleVariableItem>
 		{

@@ -1,4 +1,4 @@
-// Copyright 2001-2016 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -126,6 +126,7 @@ namespace UQS
 			void                                                OnQueryFinished(const CQueryBase::SStatistics& finalStatistics);
 			void                                                OnQueryDestroyed();
 			void                                                OnExceptionOccurred(const char* szExceptionMessage, const CQueryBase::SStatistics& finalStatistics);
+			void                                                OnWarningOccurred(const char* szWarningMessage);
 			void                                                OnGenerationPhaseFinished(size_t numGeneratedItems, const CQueryBlueprint& queryBlueprint);
 			void                                                OnInstantEvaluatorScoredItem(size_t instantEvaluatorIndex, size_t itemIndex, float nonWeightedSingleScore, float weightedSingleScore, float accumulatedAndWeightedScoreSoFar);
 			void                                                OnInstantEvaluatorDiscardedItem(size_t instantEvaluatorIndex, size_t itemIndex);
@@ -188,6 +189,7 @@ namespace UQS
 			bool                                                m_bGotCanceledPrematurely;
 			bool                                                m_bExceptionOccurred;
 			string                                              m_exceptionMessage;
+			std::vector<string>                                 m_warningMessages;
 			CDebugRenderWorldPersistent                         m_debugRenderWorldPersistent;
 			std::vector<SHistoricItem>                          m_items;                            // counter-part of all the generated items
 			std::vector<string>                                 m_instantEvaluatorNames;            // cached names of all instant-evaluator factories; this is necessary in case query blueprints get reloaded at runtime to prevent dangling pointers

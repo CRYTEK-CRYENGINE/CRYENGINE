@@ -1,4 +1,4 @@
-// Copyright 2001-2017 Crytek GmbH / Crytek Group. All rights reserved. 
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #ifndef __WORLDQUERY_H__
 #define __WORLDQUERY_H__
@@ -68,7 +68,8 @@ public:
 	virtual ISerializableInfoPtr GetSpawnInfo()                                                                { return 0; }
 	virtual void                 Update(SEntityUpdateContext& ctx, int slot);
 	virtual void                 HandleEvent(const SGameObjectEvent&);
-	virtual void                 ProcessEvent(SEntityEvent&) {}
+	virtual void                 ProcessEvent(const SEntityEvent&) {}
+	virtual uint64               GetEventMask() const { return 0; }
 	virtual void                 SetChannelId(uint16 id)     {};
 	virtual void                 PostUpdate(float frameTime) { CRY_ASSERT(false); }
 	virtual void                 PostRemoteSpawn()           {};

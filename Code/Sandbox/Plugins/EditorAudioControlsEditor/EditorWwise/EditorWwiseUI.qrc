@@ -1,0 +1,16 @@
+<RCC>
+    <qresource prefix="/icons">
+        <file alias="audio/impl/wwise/auxbus.ico">Icons/auxbus.ico</file>
+        <file alias="audio/impl/wwise/event.ico">Icons/event.ico</file>
+        <file alias="audio/impl/wwise/gameparameter.ico">Icons/gameparameter.ico</file>
+        <file alias="audio/impl/wwise/physicalfolder.ico">Icons/physicalfolder.ico</file>
+        <file alias="audio/impl/wwise/soundbank.ico">Icons/soundbank.ico</file>
+        <file alias="audio/impl/wwise/state.ico">Icons/state.ico</file>
+        <file alias="audio/impl/wwise/stategroup.ico">Icons/stategroup.ico</file>
+        <file alias="audio/impl/wwise/switch.ico">Icons/switch.ico</file>
+        <file alias="audio/impl/wwise/switchgroup.ico">Icons/switchgroup.ico</file>
+        <file alias="audio/impl/wwise/virtualfolder.ico">Icons/virtualfolder.ico</file>
+        <file alias="audio/impl/wwise/workunit.ico">Icons/workunit.ico</file>
+    </qresource>
+</RCC>
+
