@@ -369,7 +369,7 @@ const CDeviceObjectFactory::SInputLayoutPair* CDeviceObjectFactory::GetOrCreateI
 	// Create the composition descriptor
 	SInputLayoutCompositionDescriptor compositionDescriptor(VertexFormat, StreamMask, pShaderReflection);
 
-	auto it = s_InputLayoutCompositions.lower_bound(compositionDescriptor);
+	auto it = s_InputLayoutCompositions.find(compositionDescriptor);
 	if (it == s_InputLayoutCompositions.end() || it->first != compositionDescriptor)
 	{
 		// Create the input layout for the current permutation
