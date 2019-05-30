@@ -5,8 +5,7 @@ Instructions on getting started with git can be found [here](http://docs.cryengi
 
 
 ## Building
-In order to compile, you will need to download some third party SDKs. They can be downloaded by running the *download_sdks.py* script.
-Or on Windows, the *download_sdks.exe* can be used alternatively.
+In order to compile, you will need to download some third party SDKs (~750Mb). They will be solved automatically by cmake.
 
 CMake must be used to compile the engine, see [here](http://docs.cryengine.com/display/CEPROG/CMake) for more information.
 
