@@ -1,4 +1,4 @@
-if (NOT EXISTS "${CMAKE_SOURCE_DIR}/Tools/branch_bootstrap/bootstrap.exe" AND NOT EXISTS "${CMAKE_SOURCE_DIR}/Code/SDKs")
+if (NOT EXISTS "${CMAKE_SOURCE_DIR}/Tools/branch_bootstrap/bootstrap.exe")
 	set(SDK_ARCHIVE   "CRYENGINE_v5.5.0_SDKs.zip")
 	set(GIT_TAG       "5.5.0_preview4")
 	include(FetchContent)
@@ -12,4 +12,4 @@ if (NOT EXISTS "${CMAKE_SOURCE_DIR}/Tools/branch_bootstrap/bootstrap.exe" AND NO
 		message(STATUS "Downloading SDKs...")
 		FetchContent_Populate(CRYENGINE)
 	endif(NOT CRYENGINE_POPULATED)
-endif(NOT EXISTS "${CMAKE_SOURCE_DIR}/Tools/branch_bootstrap/bootstrap.exe" AND NOT EXISTS "${CMAKE_SOURCE_DIR}/Code/SDKs")
+endif(NOT EXISTS "${CMAKE_SOURCE_DIR}/Tools/branch_bootstrap/bootstrap.exe")
